@@ -7,6 +7,7 @@ import {
   capLimited,
   defaultFunctions,
   normalise,
+  silentWav,
   unregistered,
   type FunctionCall,
   type FunctionHandler,
@@ -440,8 +441,33 @@ export class SupabaseBackend {
 
   private storageObjects = new Map<string, string>();
 
+  /**
+   * Pretend `bucket/path` was uploaded before the test started.
+   *
+   * This is how a spec stages the audio the pipeline would have left behind —
+   * e.g. `video-audio/<id>.wav`, which is what decides whether the Discover
+   * player runs TikTok's real hidden-audio sync or the legacy manual timer.
+   */
+  stageObject(key: string): void {
+    this.storageObjects.set(key, "uploaded");
+  }
+
   private async handleStorage(request: Request, url: URL): Promise<Response> {
     const path = url.pathname.replace(/^.*\/storage\/v1\//, "");
+
+    // Signing must come before the generic write branch: supabase-js POSTs to
+    // object/sign/, and routing that into the upload answer both recorded a
+    // phantom upload and "succeeded" without a signedURL — so createSignedUrl
+    // always resolved to nothing and every staged-audio path in the app fell
+    // back to its no-audio branch. Like real storage, only an object that
+    // exists gets signed.
+    if (path.startsWith("object/sign/")) {
+      const key = path.replace("object/sign/", "");
+      if (!this.storageObjects.has(key)) {
+        return this.json(400, { error: "Object not found", message: "Object not found" });
+      }
+      return this.json(200, { signedURL: `/storage/v1/object/public/${key}?token=fixture` });
+    }
 
     if (request.method === "POST" || request.method === "PUT") {
       const key = path.replace(/^object\//, "");
@@ -449,15 +475,23 @@ export class SupabaseBackend {
       return this.json(200, { Key: key, Id: key });
     }
 
-    if (path.startsWith("object/sign/")) {
-      const key = path.replace("object/sign/", "");
-      return this.json(200, { signedURL: `/storage/v1/object/public/${key}?token=fixture` });
-    }
-
     if (request.method === "DELETE") {
       const key = path.replace(/^object\//, "");
       this.storageObjects.delete(key);
       return this.json(200, {});
+    }
+
+    // Downloading an object that exists answers with a real decodable clip,
+    // not JSON: media elements pointed at a public/signed URL have to reach
+    // `loadedmetadata` (and survive a seek) for player state to advance the
+    // way it does in production. Two seconds of silence gives a phrase-length
+    // window to seek into.
+    const downloadKey = path.replace(/^object\/(?:public\/)?/, "");
+    if (this.storageObjects.has(downloadKey)) {
+      return new Response(silentWav(2000), {
+        status: 200,
+        headers: { ...CORS_HEADERS, "content-type": "audio/wav" },
+      });
     }
 
     return this.json(200, {});

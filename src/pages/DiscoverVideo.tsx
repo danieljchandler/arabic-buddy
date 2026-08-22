@@ -13,7 +13,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Loader2, ArrowLeft, BookOpen, Check, Eye, EyeOff, ChevronDown, ChevronLeft, ChevronRight, List, Pause, Play, SkipBack, SkipForward, Gauge, Heart } from "lucide-react";
+import { Loader2, ArrowLeft, BookOpen, Check, Eye, EyeOff, ChevronDown, ChevronLeft, ChevronRight, Info, List, Pause, Play, SkipBack, SkipForward, Gauge, Heart, Turtle } from "lucide-react";
 import { useVideoLikeCount, useIsVideoLiked, useLikeVideo, useUnlikeVideo } from "@/hooks/useVideoLikes";
 import { useRecordVideoView } from "@/hooks/useDiscoverFeed";
 import {
@@ -630,9 +630,20 @@ const DiscoverVideo = ({
   const showFusha = displayPrefs.showFormal;
   const setShowFusha = (on: boolean) => updateDisplayPrefs({ showFormal: on });
   const [playbackMode, setPlaybackMode] = useState<"continuous" | "line">("continuous");
+  // YouTube-only: the IFrame API slows picture and sound together, so the
+  // transcript stays in sync at any rate. TikTok deliberately has no synced
+  // speed — its player/v1 iframe accepts no rate command, so slowing only the
+  // hidden audio dragged the picture further out of sync the longer it played.
+  // TikTok's slow-down is the separate listen-only phrase control below.
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const playbackSpeedRef = useRef(playbackSpeed);
   playbackSpeedRef.current = playbackSpeed;
+  // Slow listen (TikTok): replays ONE phrase's audio at a reduced rate on its
+  // own <audio> element while the synced player sits paused.
+  const [slowListenRate, setSlowListenRate] = useState<0.75 | 0.5>(0.75);
+  const [isSlowListening, setIsSlowListening] = useState(false);
+  const slowListenAudioRef = useRef<HTMLAudioElement | null>(null);
+  const slowListenTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [showFullTranscript, setShowFullTranscript] = useState(false);
   const [manualLineIndex, setManualLineIndex] = useState(0);
   // Timer-based sync for non-YouTube
@@ -802,19 +813,31 @@ const DiscoverVideo = ({
     return () => { cancelled = true; };
   }, [video]);
 
-  // Apply playback speed to hidden TikTok audio
-  useEffect(() => {
-    if (tiktokAudioRef.current) {
-      tiktokAudioRef.current.playbackRate = playbackSpeed;
+  const stopSlowListen = useCallback(() => {
+    if (slowListenTimerRef.current) {
+      clearInterval(slowListenTimerRef.current);
+      slowListenTimerRef.current = null;
     }
-  }, [playbackSpeed, tiktokAudioReady]);
+    const a = slowListenAudioRef.current;
+    if (a && !a.paused) a.pause();
+    setIsSlowListening(false);
+  }, []);
 
+  // Drop the slow-listen element with its source, so a stale element can
+  // never keep playing the previous video's audio.
+  useEffect(() => {
+    return () => {
+      stopSlowListen();
+      slowListenAudioRef.current = null;
+    };
+  }, [tiktokAudioUrl, stopSlowListen]);
 
-  // Timer-based playback for non-YouTube videos (respects playback speed)
+  // Timer-based playback for legacy TikTok without uploaded audio. Always
+  // real time — the synced players only ever run at 1x now.
   useEffect(() => {
     if (timerPlaying) {
       timerRef.current = setInterval(() => {
-        setTimerMs((prev) => prev + Math.round(100 * playbackSpeed));
+        setTimerMs((prev) => prev + 100);
       }, 100);
     } else {
       if (timerRef.current) {
@@ -825,7 +848,7 @@ const DiscoverVideo = ({
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [timerPlaying, playbackSpeed]);
+  }, [timerPlaying]);
 
   const handleSaveToMyWords = useCallback(
     async (word: VocabItem) => {
@@ -1420,6 +1443,7 @@ const DiscoverVideo = ({
   const startTikTokPlayback = useCallback((startMs?: number) => {
     const audio = tiktokAudioRef.current;
     if (!audio || !tiktokAudioReady) return;
+    stopSlowListen();
     cancelPendingAudioStart();
     if (typeof startMs === "number") {
       audio.currentTime = Math.max(0, startMs / 1000);
@@ -1440,7 +1464,51 @@ const DiscoverVideo = ({
       pendingAudioStartRef.current = null;
       if (audio.paused) audio.play().catch(() => {});
     }, 1500);
-  }, [tiktokAudioReady, resolvedTikTokVideoId, ensureTikTokVideoPlaying, cancelPendingAudioStart]);
+  }, [tiktokAudioReady, resolvedTikTokVideoId, ensureTikTokVideoPlaying, cancelPendingAudioStart, stopSlowListen]);
+
+  /**
+   * Replay the current phrase's audio at a reduced rate — listening only.
+   *
+   * Deliberately NOT the synced player: it runs on its own <audio> element
+   * with the real playback (hidden audio + muted frame) paused, because the
+   * TikTok iframe accepts no rate command and slowing only the master audio
+   * clock dragged the picture out of sync a little more every second.
+   */
+  const playSlowListen = useCallback((rate: number) => {
+    const line = displayLine;
+    if (!tiktokAudioUrl || !line || line.startMs === undefined) return;
+    stopSlowListen();
+    // Park the synced pair first; the audio's pause handler stops the frame.
+    cancelPendingAudioStart();
+    const mainAudio = tiktokAudioRef.current;
+    if (mainAudio && !mainAudio.paused) mainAudio.pause();
+
+    let a = slowListenAudioRef.current;
+    if (!a) {
+      a = new Audio(tiktokAudioUrl);
+      a.preload = "auto";
+      slowListenAudioRef.current = a;
+    }
+    const clip = a;
+    clip.playbackRate = rate;
+    clip.currentTime = line.startMs / 1000;
+    const endMs = line.endMs;
+    clip
+      .play()
+      .then(() => {
+        setIsSlowListening(true);
+        slowListenTimerRef.current = setInterval(() => {
+          const curMs = (clip.currentTime || 0) * 1000;
+          if (clip.paused || clip.ended || (endMs !== undefined && curMs >= endMs)) {
+            stopSlowListen();
+          }
+        }, 50);
+      })
+      .catch(() => {
+        setIsSlowListening(false);
+        toast.error("Audio playback failed");
+      });
+  }, [tiktokAudioUrl, displayLine, stopSlowListen, cancelPendingAudioStart]);
 
   const handleSeek = useCallback((ms: number) => {
     if (playerRef.current?.seekTo) {
@@ -1608,8 +1676,9 @@ const DiscoverVideo = ({
         case "onCurrentTime":
         case "currentTime":
           // Intentionally no continuous re-seeking. The frame and the hidden
-          // audio are the same media at 1x, so aligning once when playback
-          // starts (and on explicit scrubs via the audio's onSeeked handler)
+          // audio are the same media, both always at 1x (the synced speed
+          // control is YouTube-only), so aligning once when playback starts
+          // (and on explicit scrubs via the audio's onSeeked handler)
           // keeps them together. Seeking the iframe on every tick to shave
           // sub-second drift made the video visibly choppy — and tended to feed
           // itself, since a fresh seek briefly reports a transitional position
@@ -1799,14 +1868,14 @@ const DiscoverVideo = ({
             className="hidden"
             onLoadedMetadata={() => {
               setTiktokAudioReady(true);
-              if (tiktokAudioRef.current) {
-                tiktokAudioRef.current.playbackRate = playbackSpeed;
-              }
               sendTikTokCommand("mute");
             }}
             onTimeUpdate={(e) => setCurrentTimeMs((e.currentTarget.currentTime || 0) * 1000)}
             onPlay={() => {
               tiktokAudioEverPlayedRef.current = true;
+              // Synced playback resumed (a tap inside the iframe counts too) —
+              // a still-running slow-listen clip would talk over it.
+              stopSlowListen();
               cancelPendingAudioStart();
               setIsTiktokAudioPlaying(true);
               ensureTikTokVideoPlaying(true);
@@ -1816,7 +1885,7 @@ const DiscoverVideo = ({
             onEnded={() => { setIsTiktokAudioPlaying(false); sendTikTokCommand("pause"); }}
           />
           {lines.length > 0 && (
-            <div className="px-4 py-2 border-b border-border/50 bg-card/50 flex items-center justify-center gap-2">
+            <div className="px-4 py-2 border-b border-border/50 bg-card/50 flex flex-wrap items-center justify-center gap-2">
               <Button
                 variant={isTiktokAudioPlaying ? "secondary" : "default"}
                 size="sm"
@@ -1847,6 +1916,58 @@ const DiscoverVideo = ({
               <span className="text-xs text-muted-foreground tabular-nums">
                 {Math.floor(currentTimeMs / 1000)}s
               </span>
+              {/* Separate from playback on purpose: slows one phrase, listen-only. */}
+              <div className="mx-1 h-4 w-px bg-border" aria-hidden="true" />
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => (isSlowListening ? stopSlowListen() : playSlowListen(slowListenRate))}
+                disabled={!tiktokAudioReady || !displayLine || displayLine.startMs === undefined}
+              >
+                <Turtle className="h-4 w-4" />
+                {isSlowListening ? "Stop" : `Slow ${slowListenRate}x`}
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 w-7 px-0 text-muted-foreground"
+                    aria-label="Slow listen speed"
+                  >
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="min-w-[100px]">
+                  {([0.75, 0.5] as const).map((rate) => (
+                    <DropdownMenuItem
+                      key={rate}
+                      onClick={() => setSlowListenRate(rate)}
+                      className={cn("text-sm", slowListenRate === rate && "font-bold text-primary")}
+                    >
+                      {rate}x
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 text-muted-foreground"
+                    aria-label="About slow listening"
+                  >
+                    <Info className="h-4 w-4" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-64 text-xs leading-relaxed text-muted-foreground">
+                  Slow listening is separate from the video. It replays the
+                  current phrase's audio at a slower speed — the video won't
+                  follow along, so you can only listen.
+                </PopoverContent>
+              </Popover>
             </div>
           )}
         </>
@@ -2044,26 +2165,31 @@ const DiscoverVideo = ({
           {showFullTranscript ? "Hide" : "Show"} Transcript ({lines.length})
         </Button>
         <div className="flex items-center gap-1.5">
-          {/* Speed control */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs text-muted-foreground">
-                <Gauge className="h-3.5 w-3.5" />
-                {playbackSpeed}x
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="min-w-[100px]">
-              {[0.5, 0.75, 1, 1.25, 1.5].map((speed) => (
-                <DropdownMenuItem
-                  key={speed}
-                  onClick={() => setPlaybackSpeed(speed)}
-                  className={cn("text-sm", playbackSpeed === speed && "font-bold text-primary")}
-                >
-                  {speed}x {speed === 1 && "(Normal)"}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* Speed control — YouTube only, where the IFrame API slows picture
+              and sound together and the transcript stays in sync at any rate.
+              TikTok's slow-down is the listen-only phrase control by its play
+              button, because its iframe cannot be rate-controlled. */}
+          {isYouTube && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-xs text-muted-foreground">
+                  <Gauge className="h-3.5 w-3.5" />
+                  {playbackSpeed}x
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="min-w-[100px]">
+                {[0.5, 0.75, 1, 1.25, 1.5].map((speed) => (
+                  <DropdownMenuItem
+                    key={speed}
+                    onClick={() => setPlaybackSpeed(speed)}
+                    className={cn("text-sm", playbackSpeed === speed && "font-bold text-primary")}
+                  >
+                    {speed}x {speed === 1 && "(Normal)"}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
           {/* Playback mode toggle */}
           <Button
             variant={playbackMode === "line" ? "secondary" : "ghost"}

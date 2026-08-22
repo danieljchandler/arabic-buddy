@@ -444,3 +444,95 @@ test.describe("requesting content", () => {
     await expect(requestBox(page)).toHaveValue("More Kuwaiti cooking shows please");
   });
 });
+
+test.describe("slowing a video down", () => {
+  const transcript = [
+    { id: "l1", arabic: "مرحبا", translation: "Hello", startMs: 0, endMs: 1500 },
+    { id: "l2", arabic: "شلونك", translation: "How are you", startMs: 1500, endMs: 3000 },
+  ];
+
+  /** A TikTok row whose extracted audio is already staged in `video-audio`. */
+  function seedTikTok(db: MemoryDb, backend: SupabaseBackend) {
+    backend.stageObject(`video-audio/${videoId(0)}.wav`);
+    db.seed("discover_videos", [
+      aDiscoverVideo({
+        id: videoId(0),
+        platform: "tiktok",
+        source_url: "https://www.tiktok.com/@someone/video/7300000000000000000",
+        embed_url: "https://www.tiktok.com/embed/v2/7300000000000000000",
+        transcript_lines: transcript,
+      }),
+    ]);
+  }
+
+  test.beforeEach(async ({ signInAs, db }) => {
+    await signInAs("free");
+    db.seed("profiles", [aProfile()]);
+  });
+
+  test("YouTube keeps the synced speed control", async ({ page, db }) => {
+    db.seed("discover_videos", [
+      aDiscoverVideo({ id: videoId(0), transcript_lines: transcript }),
+    ]);
+
+    await page.goto(`/discover/${videoId(0)}`);
+
+    // The IFrame API slows picture and sound together, so this one is safe.
+    await expect(page.getByRole("button", { name: "1x" })).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Slow/ })).toHaveCount(0);
+  });
+
+  test("TikTok trades it for a separate, listen-only phrase control", async ({
+    page,
+    db,
+    backend,
+    allowExternalHosts,
+    expectConsoleErrors,
+  }) => {
+    // The embed iframe still points at TikTok; blocked, but expected — and
+    // the aborted frame logs a cross-origin localStorage complaint.
+    allowExternalHosts(["tiktok.com"]);
+    expectConsoleErrors([/Failed to read the 'localStorage' property/]);
+    seedTikTok(db, backend);
+
+    await page.goto(`/discover/${videoId(0)}`);
+
+    // No synced speed menu: the TikTok frame accepts no rate command, so
+    // slowing only the hidden audio dragged the picture out of sync. What
+    // replaces it slows one phrase at a time, decoupled from the video.
+    await expect(page.getByRole("button", { name: "Slow 0.75x" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "1x" })).toHaveCount(0);
+
+    // The marker that it is separate — without it the control reads as the
+    // old speed menu and the learner expects the video to slow with it.
+    await page.getByRole("button", { name: "About slow listening" }).click();
+    await expect(page.getByText(/the video won't follow along/)).toBeVisible();
+  });
+
+  test("slow listen replays one phrase and leaves the video parked", async ({
+    page,
+    db,
+    backend,
+    allowExternalHosts,
+    expectConsoleErrors,
+  }) => {
+    allowExternalHosts(["tiktok.com"]);
+    expectConsoleErrors([/Failed to read the 'localStorage' property/]);
+    seedTikTok(db, backend);
+
+    await page.goto(`/discover/${videoId(0)}`);
+
+    // Enabled only once the staged audio's metadata has loaded — the same
+    // gate as the synced play button.
+    const slow = page.getByRole("button", { name: "Slow 0.75x" });
+    await expect(slow).toBeEnabled();
+    await slow.click();
+
+    // Playing, on its own element: the synced player still offers Play.
+    await expect(page.getByRole("button", { name: "Stop" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Play", exact: true })).toBeVisible();
+
+    // It stops itself at the end of the phrase instead of running on.
+    await expect(page.getByRole("button", { name: "Slow 0.75x" })).toBeVisible({ timeout: 10_000 });
+  });
+});

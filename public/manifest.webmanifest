@@ -1,7 +1,7 @@
 {
-  "name": "Hakiya — Learn Spoken Arabic",
+  "name": "Hakiya \u2014 Learn Spoken Arabic",
   "short_name": "Hakiya",
-  "description": "Learn real spoken Arabic — Gulf, Egyptian, and Yemeni dialects — with native audio, smart flashcards, and lessons built from real media.",
+  "description": "Learn real spoken Arabic \u2014 Gulf, Egyptian, and Yemeni dialects \u2014 with native audio, smart flashcards, and lessons built from real media.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -10,17 +10,25 @@
   "theme_color": "#F9F7F2",
   "lang": "en",
   "dir": "ltr",
-  "categories": ["education"],
+  "categories": [
+    "education"
+  ],
   "icons": [
     {
-      "src": "/favicon.png",
-      "sizes": "256x256",
+      "src": "/icon-192.png",
+      "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/favicon.png",
-      "sizes": "256x256",
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-maskable-512.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     }
@@ -36,7 +44,11 @@
       "files": [
         {
           "name": "media",
-          "accept": ["image/*", "audio/*", "video/*"]
+          "accept": [
+            "image/*",
+            "audio/*",
+            "video/*"
+          ]
         }
       ]
     }

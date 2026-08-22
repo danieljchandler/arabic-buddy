@@ -19,44 +19,49 @@ on half the feed.
 Interactive comparison, with each option shown at 64&nbsp;px and 44&nbsp;px:
 <https://claude.ai/code/artifact/257995a6-4fb3-47f2-9152-f0e47984983e>
 
-## Decided: 01, cut from the cloth
+## Decided: 06, pressed weave
 
 Shipped as `src/assets/sadu-play.svg`, rendered by
 `src/components/brand/SaduPlayButton.tsx`.
 
-**The art is traced from the render above, not redrawn from it.** That is worth
-stating plainly, because the obvious approach was tried first and thrown away.
+01 was tried first and shipped briefly. It was the better *object* — a full
+disc of sadu with the glyph cut through it — and it was not a play button: at
+64px the weave was loud enough that the triangle had to compete with it, and a
+control you have to find is a broken control. That is a different failure from
+the one this doc predicted (it predicted a legibility problem at small sizes,
+and the artwork solved that); it turned out to be a hierarchy problem, which no
+amount of size or contrast tuning fixes because the pattern and the glyph were
+asking for the same attention.
 
-The first attempt rebuilt the motif by hand as an SVG `<pattern>` — a lattice of
-solid lozenges on a 20-unit repeat, sized and simplified so it would still read
-at 64px, with a crimson moat around the glyph to keep it legible on a bright
-frame. It was a tenth of the size, it held down to 40px, and it did not look
-like the thing that was picked. Two reasons, both structural rather than a
-matter of tuning:
+06 inverts that. The pattern goes quiet — two charcoals about four percent of
+luminance apart, texture you sense rather than read — one crimson hairline at
+the rim carries the brand, and a solid cream triangle is the only bright thing
+in the button. It reads as a play control instantly at every size, and it is
+still unmistakably this app's cloth rather than stock chrome.
 
-- **Sadu is rows, not a lattice.** The render is bands of *outlined* diamonds —
-  cream stroke, crimson field, small cream eye — sitting tangent in a row, with
-  flat lozenges in the triangular voids between them, and the rows separated by
-  fine horizontal rules. Solid diamonds on a diagonal grid read as argyle.
-- **The glyph was too small.** Measured off the render, the triangle runs from
-  x≈20.8 to an apex at x≈49.3 and stands ≈33 units tall. The redraw had it at
-  19×21, roughly 60% of the linear size, which turns a bold cut into a keyhole
-  and is why it then needed a moat to be visible at all.
+**The art is traced from the render, not redrawn from it**, for the reason 01
+established: a hand-built tile is a tenth of the size and does not look like the
+thing that was agreed to. `potrace` over the render's lighter-charcoal mask,
+mapped into the 64-unit viewBox — 21 KB of path data, 8.9 KB gzipped, one cached
+asset shared by every card.
 
-So the shipped art is `potrace` output over the render's own cream mask, mapped
-into the 64-unit viewBox: about 16 KB of path data, 6.9 KB gzipped, carrying the
-artwork's geometry including the parts that are irregular because a loom is.
-The glyph is traced too, so the cut is the render's cut rather than an
-idealised triangle.
+Two numbers are measured off the render and look wrong in source:
 
-It ships as an **asset rather than inline SVG** because the feed renders one per
-card. Inline, 16 KB of path data would sit in the DOM once per card; as an asset
-it is fetched once, cached, and shared, and its ids are scoped to its own
-document.
+- **The rim is 0.31 units** — a third of a pixel at feed size. It survives,
+  because antialiasing renders it as a fine red edge; thickening it to 0.8 was
+  tried and is visibly heavier than the artwork.
+- **The two charcoals are `#100C07` and `#26221F`.** That gap is the design. It
+  looks like insufficient contrast on a bright monitor and is not; widening it
+  turns pressed into printed, which is the loud version already rejected. The
+  asset says so and `SaduPlayButton.test.tsx` fails when it drifts.
 
-The rules survive at 64px — they are the finest thing in the file at about
-0.4 units — and the glyph is legible on night, sand and daylight frames without
-a moat, because it is large enough not to need one.
+### The cloth is kept, not deleted
+
+01's artwork — a full disc of woven sadu with the glyph cut clean through it —
+is at `docs/branding/sadu-cloth-disc.svg`, already traced and ready to use. It
+was too loud to be a *control*; it is still the strongest piece of sadu the app
+has produced, and it wants an element that can afford to be loud. Somewhere it
+is the subject rather than the chrome.
 
 ## The constraint that decides this
 

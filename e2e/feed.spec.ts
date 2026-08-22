@@ -74,8 +74,9 @@ test.describe("the feed", () => {
     await expect(page.getByRole("button", { name: "Transcript" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Replay" })).toHaveCount(0);
 
-    // Asking kept exactly one home: the floating sadu disc.
-    await expect(page.getByRole("button", { name: "Ask AI" })).toBeVisible();
+    // Nothing floats over the clip or the dock in its place either — the
+    // sadu disc that briefly held the corner sat on top of the bottom bar.
+    await expect(page.getByRole("button", { name: "Ask AI" })).toHaveCount(0);
   });
 
   test("puts your picture in the dock and the mark in the corner", async ({

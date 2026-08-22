@@ -14,7 +14,8 @@ import type { PageAiContext } from "@/lib/pageAiContext";
  * Global state for the Ask AI assistant: one conversation at a time, held in
  * memory only (ephemeral — survives closing the panel and navigating, resets
  * on reload). Pages publish what they're showing via usePageAiContext, and
- * anything (the FAB, the Ask AI chips) can open the panel via useAiAssistant.
+ * anything (the Ask AI chips, Cmd/Ctrl+K) can open the panel via
+ * useAiAssistant.
  */
 
 export interface AssistantSeed {

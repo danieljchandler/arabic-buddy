@@ -13,10 +13,12 @@ import { cn } from "@/lib/utils";
  * and the dock carries the things you reach for mid-session.
  *
  * The fifth slot is you. It used to be Ask, which pointed at /how-do-i-say
- * from forty pixels below the Ask AI button — the same verb twice, in the two
- * spots a thumb rests. Ask now has one home (the floating sadu disc), and the
- * dock ends the way every feed app this audience uses ends: your picture,
- * bottom right, opening your page.
+ * from forty pixels below a floating Ask AI disc — the same verb twice, in the
+ * two spots a thumb rests. That disc is gone too: it covered this bar from
+ * tablet widths up, and asking already has a home on the thing being asked
+ * about (the Ask AI chip on a sentence, a tapped word). The dock ends the way
+ * every feed app this audience uses ends: your picture, bottom right, opening
+ * your page.
  *
  * Review holds one of those slots because spaced repetition is the other half
  * of this app: the video is what brings someone back, and the review queue is

@@ -63,10 +63,18 @@ export function LeechHelperPanel({
   const queryClient = useQueryClient();
   const [mnemonic, setMnemonic] = useState<string | null>(initialMnemonic);
   const [mnLoading, setMnLoading] = useState(false);
+  const [cleared, setCleared] = useState(false);
 
   useEffect(() => {
     setMnemonic(initialMnemonic);
   }, [rowId, initialMnemonic]);
+
+  // A new card is a fresh question, so a dismissal never carries over: the
+  // parents render one panel and swap the row underneath it rather than
+  // remounting, so without this the next leech would come up already hidden.
+  useEffect(() => {
+    setCleared(false);
+  }, [rowId]);
 
   const invalidate = () => {
     invalidateKeys.forEach((key) =>
@@ -112,19 +120,31 @@ export function LeechHelperPanel({
 
   const dismissLeech = async () => {
     try {
-      await (supabase.from(TABLE_BY_KIND[kind]) as any)
+      // PostgREST reports a rejected write on the `error` channel rather than
+      // by throwing, so without this check a failed clear would still toast
+      // success and hide the panel over a row that is still flagged.
+      const { error } = await (supabase.from(TABLE_BY_KIND[kind]) as any)
         .update({
           is_leech: false,
           lapses: 0,
           ...(HAS_PRODUCTION_LAPSES[kind] ? { production_lapses: 0 } : {}),
         })
         .eq("id", rowId);
+      if (error) throw error;
+      setCleared(true);
       invalidate();
       toast.success("Cleared — we'll stop flagging this card.");
     } catch {
       toast.error("Couldn't clear leech status");
     }
   };
+
+  // The parents decide whether to render this panel from a cached row, and
+  // that cache only catches up when the refetch `invalidate` kicks off comes
+  // back — mid-review it may not come back at all. Hiding on the spot is what
+  // makes the dismissal read as one; otherwise the learner clears the flag and
+  // the "Stuck on this one?" prompt they just dismissed is still sitting there.
+  if (cleared) return null;
 
   return (
     <div className="mt-6 rounded-xl border border-[hsl(var(--primary))]/40 bg-[hsl(var(--primary))]/5 p-4 text-left">

@@ -61,7 +61,10 @@ function minerUpstreams(extra: Record<string, UpstreamHandler> = {}): Record<str
     "/rest/v1/vocab_concepts": () => json([{ id: CONCEPT, key: "dog", english_gloss: "dog" }]),
     "/rest/v1/concept_realizations": () =>
       json([{ concept_id: CONCEPT, surface: "كلب", variants: ["الكلب"] }]),
-    "/rest/v1/caption_lines": () => json([captionHit]),
+    "/rest/v1/caption_lines": (request) =>
+      request.method === "HEAD"
+        ? new Response(null, { status: 200, headers: { "content-range": "*/1" } })
+        : json([captionHit]),
     "/rest/v1/clip_candidates": (request) =>
       request.method === "GET" ? json([]) : json(null, 201),
     ...extra,
@@ -141,6 +144,48 @@ Deno.test("mine-clip-candidates never resurfaces a line that already has a candi
   assertEquals(inserts.length, 0);
 });
 
+Deno.test("mine-clip-candidates explains an empty caption index instead of a bare zero", async () => {
+  // The most common first-run failure: harvested videos, never fetched
+  // captions. The 0 must carry its diagnosis.
+  const { body } = await callMiner(
+    { conceptKey: "dog", dialect: "Gulf" },
+    minerUpstreams({
+      "/rest/v1/caption_lines": (request) =>
+        request.method === "HEAD"
+          ? new Response(null, { status: 200, headers: { "content-range": "*/0" } })
+          : json([]),
+    }),
+  );
+  assertEquals(body.mined, 0);
+  assertEquals(body.captionLinesIndexed, 0);
+  assert(String(body.note).includes("fetch-captions"));
+});
+
+Deno.test("mine-clip-candidates suggests variants when the index has lines but none match", async () => {
+  const { body } = await callMiner(
+    { dialect: "Gulf", terms: ["زرافه"] },
+    minerUpstreams({
+      "/rest/v1/caption_lines": (request) =>
+        request.method === "HEAD"
+          ? new Response(null, { status: 200, headers: { "content-range": "*/1" } })
+          : json([]),
+    }),
+  );
+  assertEquals(body.mined, 0);
+  assert(String(body.note).includes("الكلب"));
+});
+
+Deno.test("mine-clip-candidates leaves ad-hoc mining unattributed to any concept", async () => {
+  // Without a conceptKey, an ad-hoc term must not attach to whichever
+  // concept happens to sort first.
+  const { inserts } = await callMiner(
+    { dialect: "Gulf", terms: ["وايد"] },
+    minerUpstreams(),
+  );
+  assertEquals(inserts[0][0].concept_id, null);
+  assertEquals(inserts[0][0].verification.mined.term, "وايد");
+});
+
 Deno.test("mine-clip-candidates requires a dialect", async () => {
   const { status } = await callMiner({ conceptKey: "dog" }, minerUpstreams());
   assertEquals(status, 400);
@@ -152,6 +197,215 @@ Deno.test("mine-clip-candidates is content-manager only", async () => {
     minerUpstreams({ "/rest/v1/user_roles": () => json([]) }),
   );
   assertEquals(status, 403);
+});
+
+// ---------- harvest-channel-videos ----------
+
+const CHANNEL_ROW = {
+  id: GULF_CHANNEL.id,
+  name: "Moshaya Family",
+  handle: null,
+  yt_channel_id: "UCmoshaya00000000000000",
+  last_harvested_at: null,
+};
+
+function harvesterUpstreams(extra: Record<string, UpstreamHandler> = {}): Record<string, UpstreamHandler> {
+  return {
+    "/auth/v1/user": () => json({ id: USER, aud: "authenticated", role: "authenticated" }),
+    "/rest/v1/user_roles": () => json([{ role: "content_reviewer" }]),
+    "/rest/v1/content_channels": (request) =>
+      request.method === "GET" ? json([CHANNEL_ROW]) : new Response(null, { status: 204 }),
+    "/rest/v1/channel_videos": () => new Response(null, { status: 201 }),
+    "www.googleapis.com/youtube/v3/playlistItems": () =>
+      json({
+        items: [
+          {
+            snippet: { title: "يوم في البيت" },
+            contentDetails: { videoId: "vid00000001", videoPublishedAt: "2026-08-01T00:00:00Z" },
+          },
+          {
+            snippet: { title: "فيلم طويل" },
+            contentDetails: { videoId: "vid00000002", videoPublishedAt: "2026-08-02T00:00:00Z" },
+          },
+        ],
+      }),
+    "www.googleapis.com/youtube/v3/videos": () =>
+      json({
+        items: [
+          // In the 45s-15min window: kept.
+          { id: "vid00000001", contentDetails: { duration: "PT3M20S", caption: "false" }, status: { embeddable: true } },
+          // Feature-length: filtered out.
+          { id: "vid00000002", contentDetails: { duration: "PT2H1M", caption: "false" }, status: { embeddable: true } },
+        ],
+      }),
+    ...extra,
+  };
+}
+
+async function callHarvester(body: unknown, upstreams: Record<string, UpstreamHandler>) {
+  const fn = await loadFunction("harvest-channel-videos", {
+    env: { YOUTUBE_API_KEY: "yt-key" },
+    upstreams,
+  });
+  try {
+    const response = await fn.handler(jsonRequest("harvest-channel-videos", body));
+    return {
+      status: response.status,
+      body: JSON.parse(await response.text()) as Record<string, unknown>,
+      calls: fn.calls.map((c) => `${c.method} ${c.url}`),
+      upserts: fn
+        .callsTo("/rest/v1/channel_videos")
+        .filter((c) => c.method === "POST")
+        .map((c) => JSON.parse(c.body ?? "[]")),
+    };
+  } finally {
+    fn.restore();
+  }
+}
+
+Deno.test("harvest-channel-videos enumerates uploads and keeps only clip-length videos", async () => {
+  const { status, body, calls, upserts } = await callHarvester({}, harvesterUpstreams());
+
+  assertEquals(status, 200, JSON.stringify(body));
+  const harvested = body.harvested as Array<{ channel: string; videos: number }>;
+  assertEquals(harvested[0].videos, 1, JSON.stringify({ body, calls }));
+
+  const [rows] = upserts;
+  assertEquals(rows.length, 1);
+  assertEquals(rows[0].yt_video_id, "vid00000001");
+  assertEquals(rows[0].duration_seconds, 200);
+  assertEquals(rows[0].embeddable, true);
+});
+
+Deno.test("harvest-channel-videos reports a channel it cannot resolve instead of spending search quota", async () => {
+  const { body, upserts } = await callHarvester(
+    {},
+    harvesterUpstreams({
+      "/rest/v1/content_channels": (request) =>
+        request.method === "GET"
+          ? json([{ ...CHANNEL_ROW, yt_channel_id: null, handle: null }])
+          : new Response(null, { status: 204 }),
+    }),
+  );
+  const harvested = body.harvested as Array<{ unresolved?: boolean }>;
+  assertEquals(harvested[0].unresolved, true);
+  assert(String(body.note).includes("handle"));
+  assertEquals(upserts.length, 0);
+});
+
+Deno.test("harvest-channel-videos is content-manager only", async () => {
+  const { status } = await callHarvester(
+    {},
+    harvesterUpstreams({ "/rest/v1/user_roles": () => json([]) }),
+  );
+  assertEquals(status, 403);
+});
+
+// ---------- index-channel-captions ----------
+
+function indexerUpstreams(extra: Record<string, UpstreamHandler> = {}): Record<string, UpstreamHandler> {
+  return {
+    "/auth/v1/user": () => json({ id: USER, aud: "authenticated", role: "authenticated" }),
+    "/rest/v1/user_roles": () => json([{ role: "content_reviewer" }]),
+    "/rest/v1/channel_videos": (request) => {
+      if (request.method === "HEAD") {
+        return new Response(null, { status: 200, headers: { "content-range": "*/0" } });
+      }
+      if (request.method === "GET") {
+        return json([
+          {
+            id: VIDEO,
+            yt_video_id: "abc123xyz00",
+            channel_id: GULF_CHANNEL.id,
+            content_channels: { id: GULF_CHANNEL.id, name: GULF_CHANNEL.name, dialect: "Gulf" },
+          },
+        ]);
+      }
+      return new Response(null, { status: 204 });
+    },
+    "/rest/v1/caption_lines": (request) => {
+      if (request.method === "GET") return json([]);
+      if (request.method === "POST") return new Response(null, { status: 201 });
+      return new Response(null, { status: 204 });
+    },
+    "/rest/v1/content_channels": () => new Response(null, { status: 204 }),
+    "api.supadata.ai": () =>
+      json({
+        lang: "ar",
+        content: [
+          { text: "هذا كلب وايد كبير", offset: 10000, duration: 4000 },
+          { text: "[موسيقى]", offset: 15000, duration: 1000 },
+        ],
+      }),
+    ...extra,
+  };
+}
+
+async function callIndexer(body: unknown, upstreams: Record<string, UpstreamHandler>, env?: Record<string, string>) {
+  const fn = await loadFunction("index-channel-captions", {
+    env: { SUPADATA_API_KEY: "supa-key", ...env },
+    upstreams,
+  });
+  try {
+    const response = await fn.handler(jsonRequest("index-channel-captions", body));
+    return {
+      status: response.status,
+      body: JSON.parse(await response.text()) as Record<string, unknown>,
+      inserts: fn
+        .callsTo("/rest/v1/caption_lines")
+        .filter((c) => c.method === "POST")
+        .map((c) => JSON.parse(c.body ?? "[]")),
+      videoPatches: fn
+        .callsTo("/rest/v1/channel_videos")
+        .filter((c) => c.method === "PATCH")
+        .map((c) => JSON.parse(c.body ?? "{}")),
+    };
+  } finally {
+    fn.restore();
+  }
+}
+
+Deno.test("index-channel-captions indexes a transcript, scored and music-lines dropped", async () => {
+  const { status, body, inserts, videoPatches } = await callIndexer({}, indexerUpstreams());
+
+  assertEquals(status, 200, JSON.stringify(body));
+  assertEquals(body.indexed, 1);
+
+  const [rows] = inserts;
+  // The [موسيقى] marker line is dropped; the speech line lands scored.
+  assertEquals(rows.length, 1);
+  assertEquals(rows[0].start_ms, 10000);
+  assertEquals(rows[0].end_ms, 14000);
+  assertEquals(rows[0].text, "هذا كلب وايد كبير");
+  assert(rows[0].dialect_score > 0); // وايد is Gulf evidence
+  assertEquals(rows[0].msa_score, 0);
+  assertEquals(videoPatches[0].caption_status, "auto");
+});
+
+Deno.test("index-channel-captions marks caption-less videos for the ASR pool", async () => {
+  const { body, inserts, videoPatches } = await callIndexer(
+    {},
+    indexerUpstreams({ "api.supadata.ai": () => new Response("not found", { status: 404 }) }),
+  );
+  assertEquals(body.indexed, 0);
+  assertEquals(body.noCaptions, 1);
+  assertEquals(inserts.length, 0);
+  assertEquals(videoPatches[0].caption_status, "none");
+});
+
+Deno.test("index-channel-captions fails loudly on a bad key instead of marking the corpus caption-less", async () => {
+  const { status, body } = await callIndexer(
+    {},
+    indexerUpstreams({ "api.supadata.ai": () => new Response("invalid key", { status: 401 }) }),
+  );
+  assertEquals(status, 500);
+  assert(String(body.error).includes("401"));
+});
+
+Deno.test("index-channel-captions explains a missing API key", async () => {
+  const { status, body } = await callIndexer({}, indexerUpstreams(), { SUPADATA_API_KEY: "" });
+  assertEquals(status, 500);
+  assert(String(body.error).includes("supadata.ai"));
 });
 
 // ---------- draft-concept-realizations ----------

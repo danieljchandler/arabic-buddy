@@ -259,3 +259,16 @@ verify_jwt = true
 # call. Same gating story as the rest of the pipeline.
 [functions.publish-verified-clips]
 verify_jwt = true
+
+# Clip-pipeline no-terminal harvest: uploads-playlist enumeration via the
+# official Data API, a couple of channels per invoke, driven by a button on
+# /admin/channels. Content-manager-role checked inside; automation calls with
+# the service-role key + CLIP_PIPELINE_SECRET header.
+[functions.harvest-channel-videos]
+verify_jwt = true
+
+# Clip-pipeline no-terminal caption indexing via the Supadata transcript API
+# (SUPADATA_API_KEY secret) — the cloud-friendly alternative to running
+# scripts/fetch-captions.ts locally. Same gating story.
+[functions.index-channel-captions]
+verify_jwt = true

@@ -29,6 +29,24 @@ content_channels ──> channel_videos ──> caption_lines ──> clip_candi
 each row's notes). Approving a channel puts it in the harvesting and mining
 pool; nothing is mined from candidates or rejected channels.
 
+## Stages 2–3 without a terminal (recommended)
+
+Both harvesting and caption indexing also run as edge functions behind
+buttons on `/admin/channels`, so no local tooling is needed:
+
+- **Harvest videos** → `harvest-channel-videos` (reuses the existing
+  `YOUTUBE_API_KEY` secret). A couple of channels per click, oldest first;
+  the toast says how many remain — click until zero.
+- **Index captions** → `index-channel-captions`, which fetches Arabic
+  caption tracks through the Supadata transcript API instead of local
+  yt-dlp. One-time setup: create a free key at supadata.ai (free tier ≈ 100
+  videos/month; a few dollars per thousand after) and add it as the
+  `SUPADATA_API_KEY` edge-function secret in Supabase. ~8 videos per click;
+  the toast reports indexed / no-captions / remaining.
+
+Both fill the same index with the same normalization and scoring as the
+local scripts below, which remain the bulk/power path.
+
 ## Stage 2 — harvest (`scripts/harvest-channels.ts`)
 
 ```sh

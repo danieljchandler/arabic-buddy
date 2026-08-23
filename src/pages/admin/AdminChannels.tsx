@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Loader2, ThumbsUp, ThumbsDown, RotateCcw, Plus } from 'lucide-react';
+import { ArrowLeft, Loader2, ThumbsUp, ThumbsDown, RotateCcw, Plus, Download, Captions } from 'lucide-react';
 
 // The clip pipeline's channel registry: the curated per-dialect channel corpus
 // that harvesting, caption indexing and mining all key off. Rows arrive as
@@ -83,6 +83,50 @@ const AdminChannels = () => {
     onError: (e: Error) => toast({ title: 'Update failed', description: e.message, variant: 'destructive' }),
   });
 
+  // The no-terminal pipeline: both stages run as edge functions in bounded
+  // batches, and each toast says whether to click again. Order matters —
+  // harvest lists videos, indexing fills their captions.
+  const harvest = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('harvest-channel-videos', { body: {} });
+      if (error) throw error;
+      return data as {
+        harvested: Array<{ channel: string; videos?: number; unresolved?: boolean }>;
+        remaining: number;
+        note?: string;
+      };
+    },
+    onSuccess: (data) => {
+      const lines = data.harvested.map((h) =>
+        h.unresolved ? `${h.channel}: no id/handle` : `${h.channel}: ${h.videos} videos`,
+      );
+      toast({
+        title: lines.length ? lines.join(' · ') : 'Nothing to harvest',
+        description: data.note,
+        duration: 10000,
+      });
+      qc.invalidateQueries({ queryKey: ['content-channels'] });
+    },
+    onError: (e: Error) => toast({ title: 'Harvest failed', description: e.message, variant: 'destructive' }),
+  });
+
+  const indexCaptions = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('index-channel-captions', { body: {} });
+      if (error) throw error;
+      return data as { indexed: number; noCaptions: number; remaining: number; note?: string };
+    },
+    onSuccess: (data) => {
+      toast({
+        title: `Indexed ${data.indexed} video(s), ${data.noCaptions} without captions`,
+        description: data.note,
+        duration: 10000,
+      });
+      qc.invalidateQueries({ queryKey: ['content-channels'] });
+    },
+    onError: (e: Error) => toast({ title: 'Indexing failed', description: e.message, variant: 'destructive', duration: 12000 }),
+  });
+
   const addChannel = useMutation({
     mutationFn: async () => {
       if (!newName.trim()) throw new Error('Channel name is required');
@@ -116,8 +160,19 @@ const AdminChannels = () => {
         <div>
           <h1 className="text-2xl font-bold">Clip Channels</h1>
           <p className="text-muted-foreground">
-            The dialect channel corpus. Approving a channel puts it in the harvesting and mining pool.
+            The dialect channel corpus. Approve → harvest videos → index captions; score badges
+            appear once a channel's captions are indexed.
           </p>
+        </div>
+        <div className="ml-auto flex gap-2 shrink-0">
+          <Button variant="secondary" onClick={() => harvest.mutate()} disabled={harvest.isPending}>
+            {harvest.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            Harvest videos
+          </Button>
+          <Button variant="secondary" onClick={() => indexCaptions.mutate()} disabled={indexCaptions.isPending}>
+            {indexCaptions.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Captions className="h-4 w-4" />}
+            Index captions
+          </Button>
         </div>
       </div>
 

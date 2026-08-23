@@ -83,20 +83,68 @@ interface Channel {
   yt_channel_id: string | null;
 }
 
+/** Loose title match: same letters, any case/spacing/punctuation. */
+function titlesMatch(a: string, b: string): boolean {
+  const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+  const x = norm(a);
+  const y = norm(b);
+  return x.length > 0 && y.length > 0 && (x.includes(y) || y.includes(x));
+}
+
+/**
+ * Last-resort channel resolution for rows with neither an id nor a handle:
+ * one search.list call (100 quota units) for the channel name, accepted only
+ * when a result's title actually matches the name — a guess that lands on the
+ * wrong channel is worse than no harvest. Non-matching candidates are
+ * reported so an admin can fill the handle by hand.
+ */
+async function resolveChannelBySearch(
+  apiKey: string,
+  name: string,
+): Promise<{ channelId: string; handle: string | null } | { candidates: string[] }> {
+  const data = await yt(apiKey, "search", {
+    part: "snippet",
+    type: "channel",
+    q: name,
+    maxResults: "5",
+  });
+  const items = (data.items ?? []) as Array<{
+    snippet?: { channelId?: string; channelTitle?: string; customUrl?: string };
+  }>;
+  const candidates = items
+    .map((i) => i.snippet?.channelTitle ?? "")
+    .filter(Boolean);
+  for (const item of items) {
+    const snippet = item.snippet ?? {};
+    if (snippet.channelId && snippet.channelTitle && titlesMatch(snippet.channelTitle, name)) {
+      const handle = snippet.customUrl?.startsWith("@") ? snippet.customUrl : null;
+      return { channelId: snippet.channelId, handle };
+    }
+  }
+  return { candidates };
+}
+
 async function harvestOne(
   apiKey: string,
   channel: Channel,
   maxVideos: number,
   minSeconds: number,
   maxSeconds: number,
-): Promise<{ videos: number; enumerated: number } | { unresolved: true }> {
+): Promise<{ videos: number; enumerated: number } | { unresolved: true; candidates?: string[] }> {
   let channelId = channel.yt_channel_id;
+  let resolvedHandle: string | null = null;
   if (!channelId && channel.handle) {
     const data = await yt(apiKey, "channels", {
       part: "id",
       forHandle: channel.handle.replace(/^@/, ""),
     });
     channelId = (data.items?.[0]?.id as string | undefined) ?? null;
+  }
+  if (!channelId) {
+    const found = await resolveChannelBySearch(apiKey, channel.name);
+    if ("candidates" in found) return { unresolved: true, candidates: found.candidates };
+    channelId = found.channelId;
+    resolvedHandle = found.handle;
   }
   if (!channelId) return { unresolved: true };
   if (!channel.yt_channel_id) {

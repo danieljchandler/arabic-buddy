@@ -154,6 +154,89 @@ Deno.test("mine-clip-candidates is content-manager only", async () => {
   assertEquals(status, 403);
 });
 
+// ---------- draft-concept-realizations ----------
+
+function drafterUpstreams(extra: Record<string, UpstreamHandler> = {}): Record<string, UpstreamHandler> {
+  return {
+    "/auth/v1/user": () => json({ id: USER, aud: "authenticated", role: "authenticated" }),
+    "/rest/v1/user_roles": () => json([{ role: "content_reviewer" }]),
+    "/rest/v1/dialect_rules": () => json([]),
+    "/rest/v1/vocab_concepts": () =>
+      json([{ id: CONCEPT, key: "dog", english_gloss: "dog", category: "animals" }]),
+    "/rest/v1/concept_realizations": (request) =>
+      request.method === "GET" ? json([]) : json(null, 201),
+    "ai.gateway.lovable.dev": () =>
+      chatCompletion("", {
+        realizations: [
+          {
+            concept_key: "dog",
+            surface: "كلب",
+            // كلب itself normalizes equal to the surface and must be dropped;
+            // the definite form is the variant that matters for caption search.
+            variants: ["الكلب", "كلب"],
+            phonetic: "kalb",
+          },
+          { concept_key: "unknown_concept", surface: "قط", variants: [] },
+        ],
+      }),
+    ...extra,
+  };
+}
+
+async function callDrafter(body: unknown, upstreams: Record<string, UpstreamHandler>) {
+  const fn = await loadFunction("draft-concept-realizations", { upstreams });
+  try {
+    const response = await fn.handler(jsonRequest("draft-concept-realizations", body));
+    return {
+      status: response.status,
+      body: JSON.parse(await response.text()) as Record<string, unknown>,
+      inserts: fn
+        .callsTo("/rest/v1/concept_realizations")
+        .filter((c) => c.method === "POST")
+        .map((c) => JSON.parse(c.body ?? "[]")),
+    };
+  } finally {
+    fn.restore();
+  }
+}
+
+Deno.test("draft-concept-realizations drafts variants and drops model noise", async () => {
+  const { status, body, inserts } = await callDrafter({ dialect: "Gulf" }, drafterUpstreams());
+
+  assertEquals(status, 200, JSON.stringify(body));
+  assertEquals(body.drafted, 1);
+
+  const [rows] = inserts;
+  assertEquals(rows.length, 1);
+  assertEquals(rows[0].concept_id, CONCEPT);
+  assertEquals(rows[0].dialect, "Gulf");
+  assertEquals(rows[0].surface, "كلب");
+  // The surface-equal variant is deduped; the definite form survives. The
+  // hallucinated concept_key never reaches the table.
+  assertEquals(rows[0].variants, ["الكلب"]);
+  assertEquals(rows[0].status, "draft");
+});
+
+Deno.test("draft-concept-realizations skips concepts that already have realizations", async () => {
+  const { body, inserts } = await callDrafter(
+    { dialect: "Gulf" },
+    drafterUpstreams({
+      "/rest/v1/concept_realizations": (request) =>
+        request.method === "GET" ? json([{ concept_id: CONCEPT }]) : json(null, 201),
+    }),
+  );
+  assertEquals(body.drafted, 0);
+  assertEquals(inserts.length, 0);
+});
+
+Deno.test("draft-concept-realizations is content-manager only", async () => {
+  const { status } = await callDrafter(
+    { dialect: "Gulf" },
+    drafterUpstreams({ "/rest/v1/user_roles": () => json([]) }),
+  );
+  assertEquals(status, 403);
+});
+
 // ---------- verify-clip-candidate ----------
 
 const pendingCandidate = {

@@ -246,3 +246,10 @@ verify_jwt = true
 # as mine-clip-candidates.
 [functions.verify-clip-candidate]
 verify_jwt = true
+
+# Clip-pipeline realization drafting: one askBrain call drafts per-dialect
+# surface forms + spelling variants into concept_realizations as drafts for
+# the native-review lane. Content-manager-role checked inside; automation
+# calls with the service-role key + CLIP_PIPELINE_SECRET header.
+[functions.draft-concept-realizations]
+verify_jwt = true

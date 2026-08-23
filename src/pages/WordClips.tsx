@@ -49,13 +49,16 @@ const WordClips = () => {
   const { data: clips, isLoading } = useQuery({
     queryKey: ['published-clips', activeDialect],
     queryFn: async () => {
+      // `published_clips` is not in the generated Supabase types yet (types
+      // regeneration needs platform access), so the table name needs a cast
+      // like the other drifted tables in the repo.
       const { data, error } = await supabase
-        .from('published_clips')
+        .from('published_clips' as any)
         .select('id, concept_id, dialect, yt_video_id, start_ms, end_ms, term, term_gloss, arabic, translation, transliteration, channel_name')
         .eq('dialect', activeDialect)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return (data ?? []) as PublishedClip[];
+      return ((data ?? []) as unknown) as PublishedClip[];
     },
   });
 

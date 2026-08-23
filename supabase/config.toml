@@ -253,3 +253,9 @@ verify_jwt = true
 # calls with the service-role key + CLIP_PIPELINE_SECRET header.
 [functions.draft-concept-realizations]
 verify_jwt = true
+
+# Clip-pipeline publication: verified clip candidates onto the learner-facing
+# published_clips surface, with a publish-time translation/transliteration
+# call. Same gating story as the rest of the pipeline.
+[functions.publish-verified-clips]
+verify_jwt = true

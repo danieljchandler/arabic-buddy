@@ -374,6 +374,111 @@ Deno.test("verify-clip-candidate rejects when the target word is not in the line
   assertEquals(patches[0].status, "rejected");
 });
 
+// ---------- publish-verified-clips ----------
+
+const verifiedCandidate = {
+  id: CANDIDATE,
+  concept_id: CONCEPT,
+  caption_line_id: LINE,
+  start_ms: 10000,
+  end_ms: 14000,
+  verification: {
+    mined: { term: "كلب", line_text: "هذا كلب وايد كبير" },
+    term: { matched: "كلب" },
+  },
+  channel_videos: {
+    yt_video_id: "abc123xyz00",
+    content_channels: { name: GULF_CHANNEL.name, dialect: "Gulf" },
+  },
+};
+
+function publisherUpstreams(extra: Record<string, UpstreamHandler> = {}): Record<string, UpstreamHandler> {
+  return {
+    "/auth/v1/user": () => json({ id: USER, aud: "authenticated", role: "authenticated" }),
+    "/rest/v1/user_roles": () => json([{ role: "content_reviewer" }]),
+    "/rest/v1/dialect_rules": () => json([]),
+    "/rest/v1/vocab_concepts": () => json({ english_gloss: "dog" }),
+    "/rest/v1/clip_candidates": (request) => {
+      if (request.method === "HEAD") {
+        return new Response(null, { status: 200, headers: { "content-range": "*/0" } });
+      }
+      if (request.method === "GET") return json([verifiedCandidate]);
+      return new Response(null, { status: 204 });
+    },
+    "/rest/v1/published_clips": () => json(null, 201),
+    "ai.gateway.lovable.dev": () =>
+      chatCompletion("", { translation: "This dog is really big", transliteration: "hatha kalb wayid kabeer" }),
+    ...extra,
+  };
+}
+
+async function callPublisher(body: unknown, upstreams: Record<string, UpstreamHandler>) {
+  const fn = await loadFunction("publish-verified-clips", { upstreams });
+  try {
+    const response = await fn.handler(jsonRequest("publish-verified-clips", body));
+    return {
+      status: response.status,
+      body: JSON.parse(await response.text()) as Record<string, unknown>,
+      inserts: fn
+        .callsTo("/rest/v1/published_clips")
+        .filter((c) => c.method === "POST")
+        .map((c) => JSON.parse(c.body ?? "{}")),
+      patches: fn
+        .callsTo("/rest/v1/clip_candidates")
+        .filter((c) => c.method === "PATCH")
+        .map((c) => JSON.parse(c.body ?? "{}")),
+    };
+  } finally {
+    fn.restore();
+  }
+}
+
+Deno.test("publish-verified-clips translates and publishes a verified candidate", async () => {
+  const { status, body, inserts, patches } = await callPublisher({}, publisherUpstreams());
+
+  assertEquals(status, 200, JSON.stringify(body));
+  assertEquals(body.published, 1);
+
+  // The learner row carries everything playback and save-word need.
+  assertEquals(inserts.length, 1);
+  const row = inserts[0];
+  assertEquals(row.yt_video_id, "abc123xyz00");
+  assertEquals(row.start_ms, 10000);
+  assertEquals(row.end_ms, 14000);
+  assertEquals(row.term, "كلب");
+  assertEquals(row.term_gloss, "dog");
+  assertEquals(row.arabic, "هذا كلب وايد كبير");
+  assertEquals(row.translation, "This dog is really big");
+  assertEquals(row.dialect, "Gulf");
+
+  assertEquals(patches.length, 1);
+  assertEquals(patches[0].status, "published");
+});
+
+Deno.test("publish-verified-clips never ships a clip without a translation", async () => {
+  const { body, inserts, patches } = await callPublisher(
+    {},
+    publisherUpstreams({
+      "ai.gateway.lovable.dev": () => new Response("down", { status: 500 }),
+    }),
+  );
+
+  // Left 'verified' for the next run — not published untranslated, not lost.
+  assertEquals(body.published, 0);
+  assertEquals(inserts.length, 0);
+  assertEquals(patches.length, 0);
+  const skipped = body.skipped as Array<{ reason: string }>;
+  assertEquals(skipped[0].reason, "translation unavailable");
+});
+
+Deno.test("publish-verified-clips is content-manager only", async () => {
+  const { status } = await callPublisher(
+    {},
+    publisherUpstreams({ "/rest/v1/user_roles": () => json([]) }),
+  );
+  assertEquals(status, 403);
+});
+
 Deno.test("verify-clip-candidate is gated, with a pipeline-secret path for automation", async () => {
   // No JWT, no secret: refused.
   const closed = await loadFunction("verify-clip-candidate", { upstreams: verifierUpstreams() });

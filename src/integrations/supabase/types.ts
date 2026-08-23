@@ -3018,6 +3018,72 @@ export type Database = {
           },
         ]
       }
+      published_clips: {
+        Row: {
+          arabic: string
+          channel_name: string | null
+          clip_candidate_id: string | null
+          concept_id: string | null
+          created_at: string
+          dialect: string
+          end_ms: number
+          id: string
+          start_ms: number
+          term: string
+          term_gloss: string | null
+          translation: string
+          transliteration: string | null
+          yt_video_id: string
+        }
+        Insert: {
+          arabic: string
+          channel_name?: string | null
+          clip_candidate_id?: string | null
+          concept_id?: string | null
+          created_at?: string
+          dialect: string
+          end_ms: number
+          id?: string
+          start_ms: number
+          term: string
+          term_gloss?: string | null
+          translation: string
+          transliteration?: string | null
+          yt_video_id: string
+        }
+        Update: {
+          arabic?: string
+          channel_name?: string | null
+          clip_candidate_id?: string | null
+          concept_id?: string | null
+          created_at?: string
+          dialect?: string
+          end_ms?: number
+          id?: string
+          start_ms?: number
+          term?: string
+          term_gloss?: string | null
+          translation?: string
+          transliteration?: string | null
+          yt_video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "published_clips_clip_candidate_id_fkey"
+            columns: ["clip_candidate_id"]
+            isOneToOne: false
+            referencedRelation: "clip_candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "published_clips_concept_id_fkey"
+            columns: ["concept_id"]
+            isOneToOne: false
+            referencedRelation: "vocab_concepts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       push_subscriptions: {
         Row: {
           auth: string

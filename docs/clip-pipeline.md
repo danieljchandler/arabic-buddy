@@ -9,9 +9,9 @@ file is what you need to *operate* it.
 ## The shape
 
 ```
-content_channels ──> channel_videos ──> caption_lines ──> clip_candidates ──> (discover_videos / lesson_clips)
-   registry            enumeration        the index          verification            publication
-   (admin UI)        (harvest script)  (captions script)   (edge functions)          (next phase)
+content_channels ──> channel_videos ──> caption_lines ──> clip_candidates ──> published_clips ──> /clips
+   registry            enumeration        the index          verification        publication       player
+   (admin UI)        (harvest script)  (captions script)   (edge functions)    (edge function)   (learner)
 ```
 
 - **Concept-keyed vocabulary**: `vocab_concepts` (100 A1 concepts seeded,
@@ -86,21 +86,38 @@ plus an `x-pipeline-secret` header matching the `CLIP_PIPELINE_SECRET`
 function secret. Nothing auto-publishes unjudged; the `needs_review` queue is
 the only place a human is meant to work routinely.
 
+## Stage 5 — publish (`publish-verified-clips`) and the learner player (`/clips`)
+
+`publish-verified-clips` (edge function) moves `verified` candidates onto
+`published_clips`, the learner-facing table: one row per clip with the
+YouTube id + window, the target term and gloss, the caption line, and a
+translation + transliteration generated at publish time (one
+TRANSLATION-lineup call per clip; a clip whose translation fails stays
+`verified` and is retried, never shipped untranslated). Same gating as the
+other functions. The ingested source video deliberately stays out of the
+Discover feed — 4 good seconds do not vouch for the other 10 minutes.
+
+Learners get `/clips` (Word Clips, linked from the Skills chooser): themes in
+syllabus order, only concepts that have clips, played through the official
+YouTube iframe at the clip's window — watch → replay → reveal English → save
+the word into the SRS (`user_vocabulary`, `source: 'clip'`). Grouping logic
+is pure and tested in `src/lib/clipLessons.ts`.
+
+`lesson_clips` (lesson ↔ clip join) exists in the schema for authored-lesson
+integration but nothing writes it yet — the concept-keyed player above is the
+pilot surface.
+
 ## What is deliberately not built yet
 
-1. **Realization drafting** — an `askBrain` task that drafts
-   `concept_realizations` per dialect (with spelling variants) into the
-   native-review lane. Until then, realizations are entered by hand or mining
-   runs on ad-hoc terms.
-2. **Publication** — verified candidates → `ingest-shared-video` →
-   `discover_videos` (clip lane, like `is_meme`) → `lesson_clips` and a
-   learner clip-lesson player built from the shadow components. Each publish
-   triggers the full ASR/analysis pipeline, so this step spends real money —
-   wire it once the pilot proves the format.
-3. **Scheduled loop** — a cron/Routine chaining sweep-mine → verify → digest.
-   The secret-header path exists for exactly this.
-4. **Link-rot sweep** — `videos.list` in 50-id batches (1 unit/call) +
-   oEmbed HEADs, refreshing `channel_videos.availability`/`embeddable`.
+1. **Lesson integration** — attaching published clips to authored lessons via
+   `lesson_clips` (a "Clips" sheet in the lesson xlsx and/or CurriculumBuilder
+   suggestions), and shadowing/pronunciation scoring inside the clip player.
+2. **Scheduled loop** — a cron/Routine chaining draft-realizations →
+   sweep-mine → verify → publish → digest. The secret-header path exists for
+   exactly this; each stage is bounded per call, so the loop is four invokes.
+3. **Link-rot sweep** — `videos.list` in 50-id batches (1 unit/call) +
+   oEmbed HEADs, refreshing `channel_videos.availability`/`embeddable` and
+   retiring published clips whose video died.
 
 ## Open decisions (need a human call)
 

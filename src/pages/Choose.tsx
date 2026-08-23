@@ -2,7 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import {
   Headphones, BookOpen, Mic, PenLine,
   Upload, MessageCircleQuestion, Gamepad2,
-  BookA, Route as RouteIcon, ChevronRight, Layers,
+  BookA, Route as RouteIcon, ChevronRight, Layers, Clapperboard,
 } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
 import { BrandMark } from "@/components/shell/BrandMark";
@@ -186,6 +186,19 @@ const Choose = () => {
             <span className="block text-sm font-medium">Curriculum</span>
             <span className="block text-[11px] text-muted-foreground">
               Lessons in order, stage by stage, progress saved
+            </span>
+          </span>
+          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+        </Link>
+        <Link
+          to="/clips"
+          className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3.5 transition-colors active:bg-muted"
+        >
+          <Clapperboard className="h-5 w-5 shrink-0 text-primary" />
+          <span className="flex-1">
+            <span className="block text-sm font-medium">Word Clips</span>
+            <span className="block text-[11px] text-muted-foreground">
+              First words from real 5-second moments
             </span>
           </span>
           <ChevronRight className="h-4 w-4 text-muted-foreground" />

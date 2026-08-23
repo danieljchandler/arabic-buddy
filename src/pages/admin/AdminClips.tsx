@@ -180,12 +180,15 @@ const AdminClips = () => {
     },
     onSuccess: (data) => {
       const held = (data.skipped ?? []).length;
-      toast({
+      const result = {
         title: `Published ${data.published} clip(s)`,
         description:
           `${data.remaining ?? 0} verified remaining` + (held ? `; ${held} held (see queue)` : ''),
-      });
+      };
+      setLastRun(result);
+      toast(result);
       qc.invalidateQueries({ queryKey: ['clip-candidates'] });
+      qc.invalidateQueries({ queryKey: ['clip-candidate-counts'] });
     },
     onError: (e: Error) => toast({ title: 'Publish failed', description: e.message, variant: 'destructive' }),
   });
@@ -246,10 +249,27 @@ const AdminClips = () => {
         </CardContent>
       </Card>
 
+      {lastRun && (
+        <Card className="mb-4 border-primary/40">
+          <CardContent className="pt-4 pb-4 flex items-start justify-between gap-3">
+            <div>
+              <p className="font-medium">{lastRun.title}</p>
+              {lastRun.description && (
+                <p className="text-sm text-muted-foreground mt-1">{lastRun.description}</p>
+              )}
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setLastRun(null)} aria-label="Dismiss">
+              ✕
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex flex-wrap gap-2 mb-4">
         {(['needs_review', 'pending', 'verified', 'rejected', 'published'] as StatusTab[]).map((tab) => (
           <Button key={tab} size="sm" variant={statusTab === tab ? 'default' : 'outline'} onClick={() => setStatusTab(tab)}>
             {tab.replace('_', ' ')}
+            {statusCounts && <span className="ml-1.5 opacity-70">{statusCounts[tab]}</span>}
           </Button>
         ))}
       </div>

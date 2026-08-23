@@ -233,6 +233,8 @@ export const ROUTES: RouteSpec[] = [
   { path: "/admin/reading-library", gate: "admin" },
   { path: "/admin/reading-library/new", gate: "admin" },
   { path: "/admin/reading-library/:id/edit", params: { id: STORY_ID }, gate: "admin" },
+  { path: "/admin/channels", gate: "admin-or-reviewer" },
+  { path: "/admin/clips", gate: "admin-or-reviewer" },
 
   // ── Catch-all ──────────────────────────────────────────────────────────────
   { path: "*", gate: "public" },

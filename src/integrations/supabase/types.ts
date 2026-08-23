@@ -403,6 +403,56 @@ export type Database = {
         }
         Relationships: []
       }
+      caption_lines: {
+        Row: {
+          asr_engine: string | null
+          created_at: string
+          dialect_score: number | null
+          end_ms: number
+          id: string
+          msa_score: number | null
+          source: string
+          start_ms: number
+          text: string
+          text_normalized: string
+          video_id: string
+        }
+        Insert: {
+          asr_engine?: string | null
+          created_at?: string
+          dialect_score?: number | null
+          end_ms: number
+          id?: string
+          msa_score?: number | null
+          source: string
+          start_ms: number
+          text: string
+          text_normalized: string
+          video_id: string
+        }
+        Update: {
+          asr_engine?: string | null
+          created_at?: string
+          dialect_score?: number | null
+          end_ms?: number
+          id?: string
+          msa_score?: number | null
+          source?: string
+          start_ms?: number
+          text?: string
+          text_normalized?: string
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "caption_lines_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "channel_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       challenges: {
         Row: {
           challenge_type: string
@@ -451,6 +501,56 @@ export type Database = {
         }
         Relationships: []
       }
+      channel_videos: {
+        Row: {
+          availability: string
+          caption_status: string
+          channel_id: string
+          created_at: string
+          duration_seconds: number | null
+          embeddable: boolean | null
+          id: string
+          last_checked_at: string | null
+          published_at: string | null
+          title: string
+          yt_video_id: string
+        }
+        Insert: {
+          availability?: string
+          caption_status?: string
+          channel_id: string
+          created_at?: string
+          duration_seconds?: number | null
+          embeddable?: boolean | null
+          id?: string
+          last_checked_at?: string | null
+          published_at?: string | null
+          title?: string
+          yt_video_id: string
+        }
+        Update: {
+          availability?: string
+          caption_status?: string
+          channel_id?: string
+          created_at?: string
+          duration_seconds?: number | null
+          embeddable?: boolean | null
+          id?: string
+          last_checked_at?: string | null
+          published_at?: string | null
+          title?: string
+          yt_video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "channel_videos_channel_id_fkey"
+            columns: ["channel_id"]
+            isOneToOne: false
+            referencedRelation: "content_channels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       client_errors: {
         Row: {
           created_at: string
@@ -487,6 +587,181 @@ export type Database = {
           stack?: string | null
           user_agent?: string | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      clip_candidates: {
+        Row: {
+          caption_line_id: string | null
+          concept_id: string | null
+          created_at: string
+          discover_video_id: string | null
+          end_ms: number
+          id: string
+          rank_score: number | null
+          reviewed_by: string | null
+          start_ms: number
+          status: string
+          updated_at: string
+          verification: Json
+          video_id: string
+        }
+        Insert: {
+          caption_line_id?: string | null
+          concept_id?: string | null
+          created_at?: string
+          discover_video_id?: string | null
+          end_ms: number
+          id?: string
+          rank_score?: number | null
+          reviewed_by?: string | null
+          start_ms: number
+          status?: string
+          updated_at?: string
+          verification?: Json
+          video_id: string
+        }
+        Update: {
+          caption_line_id?: string | null
+          concept_id?: string | null
+          created_at?: string
+          discover_video_id?: string | null
+          end_ms?: number
+          id?: string
+          rank_score?: number | null
+          reviewed_by?: string | null
+          start_ms?: number
+          status?: string
+          updated_at?: string
+          verification?: Json
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clip_candidates_caption_line_id_fkey"
+            columns: ["caption_line_id"]
+            isOneToOne: false
+            referencedRelation: "caption_lines"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clip_candidates_concept_id_fkey"
+            columns: ["concept_id"]
+            isOneToOne: false
+            referencedRelation: "vocab_concepts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clip_candidates_discover_video_id_fkey"
+            columns: ["discover_video_id"]
+            isOneToOne: false
+            referencedRelation: "discover_videos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clip_candidates_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "channel_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      concept_realizations: {
+        Row: {
+          concept_id: string
+          created_at: string
+          dialect: string
+          id: string
+          phonetic: string | null
+          source: string | null
+          status: string
+          surface: string
+          updated_at: string
+          variants: string[]
+        }
+        Insert: {
+          concept_id: string
+          created_at?: string
+          dialect: string
+          id?: string
+          phonetic?: string | null
+          source?: string | null
+          status?: string
+          surface: string
+          updated_at?: string
+          variants?: string[]
+        }
+        Update: {
+          concept_id?: string
+          created_at?: string
+          dialect?: string
+          id?: string
+          phonetic?: string | null
+          source?: string | null
+          status?: string
+          surface?: string
+          updated_at?: string
+          variants?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "concept_realizations_concept_id_fkey"
+            columns: ["concept_id"]
+            isOneToOne: false
+            referencedRelation: "vocab_concepts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      content_channels: {
+        Row: {
+          country: string | null
+          created_at: string
+          dialect: string
+          dialect_score: number | null
+          genre: string | null
+          handle: string | null
+          id: string
+          last_harvested_at: string | null
+          msa_score: number | null
+          name: string
+          notes: string | null
+          status: string
+          updated_at: string
+          yt_channel_id: string | null
+        }
+        Insert: {
+          country?: string | null
+          created_at?: string
+          dialect: string
+          dialect_score?: number | null
+          genre?: string | null
+          handle?: string | null
+          id?: string
+          last_harvested_at?: string | null
+          msa_score?: number | null
+          name: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          yt_channel_id?: string | null
+        }
+        Update: {
+          country?: string | null
+          created_at?: string
+          dialect?: string
+          dialect_score?: number | null
+          genre?: string | null
+          handle?: string | null
+          id?: string
+          last_harvested_at?: string | null
+          msa_score?: number | null
+          name?: string
+          notes?: string | null
+          status?: string
+          updated_at?: string
+          yt_channel_id?: string | null
         }
         Relationships: []
       }
@@ -1847,6 +2122,61 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      lesson_clips: {
+        Row: {
+          concept_id: string | null
+          created_at: string
+          discover_video_id: string
+          end_ms: number
+          id: string
+          lesson_id: string
+          position: number
+          start_ms: number
+        }
+        Insert: {
+          concept_id?: string | null
+          created_at?: string
+          discover_video_id: string
+          end_ms: number
+          id?: string
+          lesson_id: string
+          position?: number
+          start_ms: number
+        }
+        Update: {
+          concept_id?: string | null
+          created_at?: string
+          discover_video_id?: string
+          end_ms?: number
+          id?: string
+          lesson_id?: string
+          position?: number
+          start_ms?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lesson_clips_concept_id_fkey"
+            columns: ["concept_id"]
+            isOneToOne: false
+            referencedRelation: "vocab_concepts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lesson_clips_discover_video_id_fkey"
+            columns: ["discover_video_id"]
+            isOneToOne: false
+            referencedRelation: "discover_videos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lesson_clips_lesson_id_fkey"
+            columns: ["lesson_id"]
+            isOneToOne: false
+            referencedRelation: "lessons"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       lesson_progress: {
         Row: {
@@ -4317,6 +4647,36 @@ export type Database = {
         }
         Relationships: []
       }
+      vocab_concepts: {
+        Row: {
+          category: string
+          cefr_level: string
+          created_at: string
+          english_gloss: string
+          id: string
+          key: string
+          sort_order: number
+        }
+        Insert: {
+          category: string
+          cefr_level?: string
+          created_at?: string
+          english_gloss: string
+          id?: string
+          key: string
+          sort_order?: number
+        }
+        Update: {
+          category?: string
+          cefr_level?: string
+          created_at?: string
+          english_gloss?: string
+          id?: string
+          key?: string
+          sort_order?: number
+        }
+        Relationships: []
+      }
       vocab_game_sets: {
         Row: {
           created_at: string
@@ -4749,6 +5109,29 @@ export type Database = {
         Returns: undefined
       }
       redeem_invite_code: { Args: { _code: string }; Returns: Json }
+      search_caption_lines: {
+        Args: {
+          q_terms: string[]
+          q_dialect?: string
+          min_duration_ms?: number
+          max_duration_ms?: number
+          match_count?: number
+        }
+        Returns: {
+          line_id: string
+          video_id: string
+          yt_video_id: string
+          video_title: string
+          channel_name: string
+          channel_dialect: string
+          start_ms: number
+          end_ms: number
+          line_text: string
+          line_source: string
+          line_dialect_score: number
+          line_msa_score: number
+        }[]
+      }
       user_has_bible_access: { Args: { _user_id: string }; Returns: boolean }
       verify_invite_code: { Args: { _code: string }; Returns: boolean }
     }

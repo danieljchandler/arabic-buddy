@@ -273,7 +273,13 @@ Deno.serve(async (req) => {
       const result = await harvestOne(apiKey, channel, maxVideos, minSeconds, maxSeconds);
       harvested.push(
         "unresolved" in result
-          ? { channel: channel.name, unresolved: true }
+          ? {
+              channel: channel.name,
+              unresolved: true,
+              // What YouTube search suggested, so the admin can confirm the
+              // right one instead of guessing at a handle.
+              ...(result.candidates?.length ? { searchCandidates: result.candidates } : {}),
+            }
           : { channel: channel.name, videos: result.videos, enumerated: result.enumerated },
       );
     }

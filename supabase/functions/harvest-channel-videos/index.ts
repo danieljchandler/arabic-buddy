@@ -150,7 +150,11 @@ async function harvestOne(
   if (!channel.yt_channel_id) {
     await admin()
       .from("content_channels")
-      .update({ yt_channel_id: channelId } as unknown as never)
+      .update({
+        yt_channel_id: channelId,
+        // A handle recovered from search makes future re-resolution free.
+        ...(resolvedHandle && !channel.handle ? { handle: resolvedHandle } : {}),
+      } as unknown as never)
       .eq("id", channel.id);
   }
 

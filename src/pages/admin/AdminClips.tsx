@@ -133,13 +133,15 @@ const AdminClips = () => {
       return data as { mined: number; note?: string };
     },
     onSuccess: (data) => {
+      const result = { title: `Mined ${data.mined} candidate(s)`, description: data.note };
+      setLastRun(result);
       toast({
-        title: `Mined ${data.mined} candidate(s)`,
-        description: data.note,
+        ...result,
         // A zero with its reason needs to be read, not glimpsed.
         duration: data.mined === 0 ? 12000 : undefined,
       });
       qc.invalidateQueries({ queryKey: ['clip-candidates'] });
+      qc.invalidateQueries({ queryKey: ['clip-candidate-counts'] });
     },
     onError: (e: Error) => toast({ title: 'Mining failed', description: e.message, variant: 'destructive' }),
   });
@@ -156,11 +158,14 @@ const AdminClips = () => {
       const outcomes = Object.entries(data.outcomes ?? {})
         .map(([k, v]) => `${v} ${k}`)
         .join(', ');
-      toast({
+      const result = {
         title: `Verified ${data.processed} candidate(s)`,
         description: outcomes ? `${outcomes}; ${data.pending ?? 0} still pending` : undefined,
-      });
+      };
+      setLastRun(result);
+      toast(result);
       qc.invalidateQueries({ queryKey: ['clip-candidates'] });
+      qc.invalidateQueries({ queryKey: ['clip-candidate-counts'] });
     },
     onError: (e: Error) => toast({ title: 'Verification failed', description: e.message, variant: 'destructive' }),
   });

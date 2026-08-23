@@ -96,6 +96,29 @@ const AdminClips = () => {
     },
   });
 
+  // A count on every tab, so "the page is empty" is distinguishable from
+  // "this queue is empty" without clicking through all five.
+  const { data: statusCounts } = useQuery({
+    queryKey: ['clip-candidate-counts'],
+    queryFn: async () => {
+      const statuses: StatusTab[] = ['pending', 'needs_review', 'verified', 'rejected', 'published'];
+      const entries = await Promise.all(
+        statuses.map(async (s) => {
+          const { count } = await supabase
+            .from('clip_candidates')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', s);
+          return [s, count ?? 0] as const;
+        }),
+      );
+      return Object.fromEntries(entries) as Record<StatusTab, number>;
+    },
+  });
+
+  // The last pipeline run's own explanation, kept on screen — a zero-mined
+  // toast disappears before its reason can be read.
+  const [lastRun, setLastRun] = useState<{ title: string; description?: string } | null>(null);
+
   const mine = useMutation({
     mutationFn: async () => {
       const terms = mineTerms

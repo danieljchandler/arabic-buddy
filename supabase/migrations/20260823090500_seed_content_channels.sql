@@ -1,0 +1,74 @@
+-- Starter channel candidates for the clip pipeline, from the 2026-08 channel
+-- research pass (curated learner lists, country influencer rankings, press
+-- coverage — every row traces to a published source; none invented).
+--
+-- Everything lands as status='candidate': the harvest+scorer pass vets each
+-- channel's actual caption text before anything is mined, and a human skim
+-- confirms. Rows whose research left an open question carry it in notes
+-- (narration language, possible MSA drift, existence unverified) — those notes
+-- are the reviewer's checklist, not decoration. handle/yt_channel_id are
+-- filled where the research verified them; the harvest script resolves the
+-- rest by search before first enumeration.
+
+INSERT INTO public.content_channels (name, handle, yt_channel_id, dialect, country, genre, notes) VALUES
+  -- ---------- Egyptian ----------
+  ('Easy Arabic', '@EasyArabicVideos', NULL, 'Egyptian', 'Egypt', 'street_interviews', 'Cairo street interviews, dual subtitles. Prime A1 source for greetings/daily-life phrases.'),
+  ('Fatma Abu Haty', NULL, NULL, 'Egyptian', 'Egypt', 'cooking', 'فاطمة أبو حاتي. Home cooking, food named while shown, slow homey narration. ~2.75M subs.'),
+  ('Heba Abo Elkheir', NULL, NULL, 'Egyptian', 'Egypt', 'cooking', 'هبة أبو الخير. Simple varied home recipes.'),
+  ('Egyptoon', '@egyptoon', NULL, 'Egyptian', 'Egypt', 'animated_comedy', 'Short animated comedy; objects drawn, not real — phrase clips more than object clips.'),
+  ('Kareem Elsayed', '@kareemelsayedvlogs', NULL, 'Egyptian', 'Egypt', 'vlog', 'Daily-life vlogs with English subs; food/errands/travel scenes.'),
+  ('Sarah Hany', '@sarahhany', NULL, 'Egyptian', 'Egypt', 'vlog', 'Clear unedited conversational speech in household settings.'),
+  ('Ola Roshdy', 'olissima', NULL, 'Egyptian', 'Egypt', 'comedy', 'Parenting/daily-struggle comedy; home objects, food, family vocab.'),
+  ('Shawar', NULL, NULL, 'Egyptian', 'Egypt', 'family_vlog', 'Family challenges; food and household scenes. 3M+ subs.'),
+  ('AJ+ Kibreet', '@AJpluskibreet', NULL, 'Egyptian', 'Egypt', 'variety', 'كبريت. 3000+ mini-docs, many Egyptian speakers. CAUTION: pan-Arab mix — line-level dialect score decides per clip.'),
+  ('Ali Gamal', '@AliGamal', NULL, 'Egyptian', 'Egypt', 'instruction', 'Subtitled Egyptian conversation videos; clean beginner clips.'),
+  ('Hesham Afifi', 'EhHowaDa', NULL, 'Egyptian', 'Egypt', 'comedy', 'Ad-analysis comedy; product/object vocabulary in short clips.'),
+  ('Fatma Abd Alsalam', NULL, 'UCEfOYMzwKqhJF1pWEX_jvdQ', 'Egyptian', 'Egypt', 'comedy', 'Relatable everyday-life humor.'),
+  ('Um Anwar', NULL, NULL, 'Egyptian', 'Egypt', 'cooking', 'سفيرة الطبخ أم أنوار. VERIFY: confirm Egyptian, not Gulf — name style is ambiguous.'),
+  ('Al Da7ee7', NULL, NULL, 'Egyptian', 'Egypt', 'edutainment', 'الدحيح. Authentic Masri but fast and abstract — NOT for A1; harvest for later levels only.'),
+
+  -- ---------- Gulf: Saudi ----------
+  ('Moshaya Family', NULL, NULL, 'Gulf', 'Saudi Arabia', 'family_vlog', 'عائلة مشيع. Kids, toys, food, house scenes named on camera. ~22M subs. Prime A1 source.'),
+  ('Saud Brothers', NULL, NULL, 'Gulf', 'Saudi Arabia', 'family_vlog', 'Food-heavy challenges, visual, simple speech. 12M+ subs.'),
+  ('Fahad Sal', NULL, NULL, 'Gulf', 'Saudi Arabia', 'vlog', 'Hijazi vlogs/comedy; also a dialect-tour series.'),
+  ('Khambalah', NULL, NULL, 'Gulf', 'Saudi Arabia', 'comedy', 'خمبلة. Short sketches with English subs. 2M+ subs.'),
+  ('Masameer', NULL, NULL, 'Gulf', 'Saudi Arabia', 'animated_comedy', 'مسامير. Najdi animation; objects drawn, not real.'),
+  ('Yarob', NULL, NULL, 'Gulf', 'Saudi Arabia', 'animated_comedy', 'يعرب. High-production animated comedy with English subs.'),
+  ('Hitham Channel', NULL, NULL, 'Gulf', 'Saudi Arabia', 'vlog', 'Vocational/travel vlogs building vocabulary by sector, with captions.'),
+  ('BanderitaX', NULL, NULL, 'Gulf', 'Saudi Arabia', 'comedy', 'Comedy, pranks, challenges; youth register.'),
+  ('Gudosbros', NULL, NULL, 'Gulf', 'Saudi Arabia', 'comedy', 'Firas & Suhaib; cultural everyday sketches.'),
+  ('Jana Vlogs', NULL, NULL, 'Gulf', 'Saudi Arabia', 'vlog', 'Hijazi lifestyle, slow speech pace + English subs — ideal A1 fit. VERIFY: existence unconfirmed.'),
+  ('Saudi Food Eman', '@SaudiFoodWithEman', NULL, 'Gulf', 'Saudi Arabia', 'cooking', 'Jeddah traditional cooking. VERIFY: narration may be partly/mostly English.'),
+  ('Thamaniyeh', NULL, NULL, 'Gulf', 'Saudi Arabia', 'documentary', 'ثمانية. Authentic Saudi voices but intermediate-advanced register — not for A1.'),
+
+  -- ---------- Gulf: Kuwait ----------
+  ('Sayood', NULL, NULL, 'Gulf', 'Kuwait', 'comedy', 'سيود. Sketches + podcast; short everyday scenes in Kuwaiti.'),
+  ('Bjlife', NULL, NULL, 'Gulf', 'Kuwait', 'family_vlog', 'Bashayer Jumaa; family vlogs, challenges, pranks.'),
+  ('Learn Arabic - Kuwaiti', NULL, NULL, 'Gulf', 'Kuwait', 'instruction', 'Beginner Kuwaiti lessons; clean single-word/phrase clips.'),
+  ('Sowt Afkari', NULL, NULL, 'Gulf', 'Kuwait', 'talk', 'Natural conversational Kuwaiti; intermediate register.'),
+  ('Belmokhba', NULL, NULL, 'Gulf', 'Kuwait', 'talk', 'Mixes Kuwaiti/Saudi/Emirati speakers — pan-Khaliji exposure.'),
+  ('Vivian Mnafikh Kitchen', NULL, NULL, 'Gulf', 'Kuwait', 'cooking', 'مطبخ فيفيان منافيخي. Top Kuwait food channel, 917k subs. VERIFY: host may be a Levantine expat — confirm dialect before mining.'),
+
+  -- ---------- Gulf: UAE / Qatar / Bahrain ----------
+  ('AlRamsa Institute', NULL, 'UCZppcNmTZmr_fLeXdQ5d1Gw', 'Gulf', 'UAE', 'instruction', 'Emirati Arabic one-minute phrase lessons — essentially pre-cut A1 clips.'),
+  ('Qalby Etmaan', NULL, NULL, 'Gulf', 'UAE', 'documentary', 'قلبي اطمأن. Emirati host, dual subs. CAUTION: narration segments skew formal — line scores decide.'),
+  ('Bin Baz', '@therealbinbaz', NULL, 'Gulf', 'UAE', 'comedy', 'Dubai-life comedy. VERIFY: heavy English/Arabic code-switching — screen per clip.'),
+  ('BluSkits', NULL, NULL, 'Gulf', 'Qatar', 'comedy', 'Zamel Al Kuwari; real-life-struggle sketches in Qatari.'),
+  ('QTips', NULL, NULL, 'Gulf', 'Qatar', 'culture', 'Khalifa Al Haroon. VERIFY: host presents largely in English — mine only the Arabic phrase segments.'),
+  ('Ahmed Sharif', NULL, NULL, 'Gulf', 'Bahrain', 'comedy', 'Bahraini comedy series on everyday Gulf topics.'),
+
+  -- ---------- Yemeni ----------
+  ('Mustafa Al-Mawmari', NULL, 'UC3TZenznQs5XS9uMFGzVe2Q', 'Yemeni', 'Yemen', 'comedy', 'مصطفى المومري. Simple everyday Sanaani sketches, household/street settings. 2M+ subs. Multiple channels exist — verify which is active. Filter political content.'),
+  ('Mister Momen', NULL, NULL, 'Yemeni', 'Yemen', 'food', 'مستر مؤمن. Mukbang/food — food named and eaten on camera. Direct A1 food-vocab fit.'),
+  ('HMADA', '@HMADA', NULL, 'Yemeni', 'Yemen', 'comedy', 'Top-ranked Yemeni comedy channel. ~493k subs.'),
+  ('Roti', NULL, NULL, 'Yemeni', 'Yemen', 'comedy', 'روتي. Sketch comedy in Yemeni dialect.'),
+  ('Bisho', NULL, NULL, 'Yemeni', 'Yemen', 'comedy', 'بيشو. Trend-format short comedy.'),
+  ('Hussam Al-Salwi', NULL, NULL, 'Yemeni', 'Yemen', 'comedy', 'حسام الصلوي. Sketches.'),
+  ('Mulatef Humaidi', NULL, NULL, 'Yemeni', 'Yemen', 'comedy', 'ملاطف حميدي. Sketches.'),
+  ('Khobz Yabis', '@anas4156', NULL, 'Yemeni', 'Yemen', 'comedy', 'خبز يابس. Everyday-life social humor.'),
+  ('Abdulaleem Al-Wesabi', NULL, NULL, 'Yemeni', 'Yemen', 'pranks', 'عبدالعليم الوصابي. Street pranks — real settings, natural reactions.'),
+  ('Ahmed Hajar', NULL, NULL, 'Yemeni', 'Yemen', 'comedy', 'أحمد حجر. Prominent Sanaa creator. Filter political content; check upload recency (2023 crackdown).'),
+  ('Yemen Cooks', NULL, NULL, 'Yemeni', 'Yemen', 'cooking', 'Traditional recipes filmed in Sanaa. VERIFY: narration may be text-overlay-only.'),
+  ('Our Yemeni Kitchen', NULL, 'UC1JoCw5K0iVcmA1Sf5SQv9g', 'Yemeni', 'Yemen', 'cooking', 'مطبخنا اليمني. CAUTION: instructional register can drift toward MSA — line scores decide.'),
+  ('Sheba Yemeni Food', NULL, NULL, 'Yemeni', 'Yemen', 'cooking', 'VERIFY: likely diaspora-run, possibly English-narrated.')
+ON CONFLICT (name, dialect) DO NOTHING;

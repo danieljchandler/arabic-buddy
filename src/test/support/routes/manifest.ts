@@ -138,6 +138,7 @@ export const ROUTES: RouteSpec[] = [
 
   // ── Practice tools ─────────────────────────────────────────────────────────
   { path: "/pronunciation", gate: "public", boundary: "PronunciationRoute" },
+  { path: "/clips", gate: "auth", boundary: "WordClipsRoute" },
   // Loads its credit balance on mount; the default native-feedback stub in
   // src/test/support/server/functions.ts answers it.
   { path: "/native-feedback", gate: "auth", boundary: "NativeFeedbackRoute" },
@@ -233,6 +234,8 @@ export const ROUTES: RouteSpec[] = [
   { path: "/admin/reading-library", gate: "admin" },
   { path: "/admin/reading-library/new", gate: "admin" },
   { path: "/admin/reading-library/:id/edit", params: { id: STORY_ID }, gate: "admin" },
+  { path: "/admin/channels", gate: "admin-or-reviewer" },
+  { path: "/admin/clips", gate: "admin-or-reviewer" },
 
   // ── Catch-all ──────────────────────────────────────────────────────────────
   { path: "*", gate: "public" },

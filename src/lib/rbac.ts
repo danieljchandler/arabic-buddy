@@ -27,6 +27,10 @@ const CONTENT_REVIEWER_ALLOWED_ADMIN_PREFIXES = [
   "/admin/videos",
   "/admin/set-phrases",
   "/admin/dialect-rules",
+  // The clip pipeline's two review surfaces: channel vetting and the clip
+  // candidate queue. Same audience as video review.
+  "/admin/channels",
+  "/admin/clips",
 ];
 
 export function canAccessContentReviewerAdminPath(pathname: string): boolean {

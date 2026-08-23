@@ -51,6 +51,7 @@ const HowDoISay = lazyPage(() => import("./pages/HowDoISay"));
 const CultureGuide = lazyPage(() => import("./pages/CultureGuide"));
 const Pricing = lazyPage(() => import("./pages/Pricing"));
 const PronunciationPractice = lazyPage(() => import("./pages/PronunciationPractice"));
+const WordClips = lazyPage(() => import("./pages/WordClips"));
 const NativeFeedback = lazyPage(() => import("./pages/NativeFeedback"));
 const WritingPractice = lazyPage(() => import("./pages/WritingPractice"));
 const ConversationSimulator = lazyPage(() => import("./pages/ConversationSimulator"));
@@ -117,6 +118,8 @@ const AdminInviteCodes = lazyPage(() => import("./pages/admin/AdminInviteCodes")
 const AdminFeedback = lazyPage(() => import("./pages/admin/AdminFeedback"));
 const AdminReadingLibrary = lazyPage(() => import("./pages/admin/AdminReadingLibrary"));
 const AdminReadingLibraryForm = lazyPage(() => import("./pages/admin/AdminReadingLibraryForm"));
+const AdminChannels = lazyPage(() => import("./pages/admin/AdminChannels"));
+const AdminClips = lazyPage(() => import("./pages/admin/AdminClips"));
 const SetPhrases = lazyPage(() => import("./pages/SetPhrases"));
 const SetPhrasesPractice = lazyPage(() => import("./pages/SetPhrasesPractice"));
 const SetPhrasesReview = lazyPage(() => import("./pages/SetPhrasesReview"));
@@ -311,6 +314,11 @@ const App = () => {
                 <ProtectedRoute><NativeFeedback /></ProtectedRoute>
               </ErrorBoundary>
             } />
+            <Route path="/clips" element={
+              <ErrorBoundary name="WordClipsRoute">
+                <ProtectedRoute><WordClips /></ProtectedRoute>
+              </ErrorBoundary>
+            } />
             <Route path="/write" element={
               <ErrorBoundary name="WritingPracticeRoute">
                 <ProtectedRoute><WritingPractice /></ProtectedRoute>
@@ -496,6 +504,8 @@ const App = () => {
               <Route path="reading-library" element={<AdminReadingLibrary />} />
               <Route path="reading-library/new" element={<AdminReadingLibraryForm />} />
               <Route path="reading-library/:id/edit" element={<AdminReadingLibraryForm />} />
+              <Route path="channels" element={<AdminChannels />} />
+              <Route path="clips" element={<AdminClips />} />
             </Route>
 
             <Route path="/set-phrases" element={<ErrorBoundary name="SetPhrasesRoute"><SetPhrases /></ErrorBoundary>} />

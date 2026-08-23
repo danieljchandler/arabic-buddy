@@ -3,7 +3,7 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useLessons } from '@/hooks/useLessons';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, LogOut, BookOpen, Plus, Settings, Mic, PlayCircle, Upload, GraduationCap, Sparkles, BookMarked, TrendingUp, Image as ImageIcon, Laugh, MessageCircle, Languages, Activity, AlertTriangle, Ticket } from 'lucide-react';
+import { Loader2, LogOut, BookOpen, Plus, Settings, Mic, PlayCircle, Upload, GraduationCap, Sparkles, BookMarked, TrendingUp, Image as ImageIcon, Laugh, MessageCircle, Languages, Activity, AlertTriangle, Ticket, Clapperboard, Antenna } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { SaduMark } from '@/components/brand/SaduMark';
@@ -310,6 +310,34 @@ const Dashboard = () => {
                     <div>
                       <h3 className="font-semibold text-lg">Trending Videos</h3>
                       <p className="text-muted-foreground">Discover & curate trending Arabic YouTube videos</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="cursor-pointer hover:shadow-elegant transition-shadow border-cyan-500/30" onClick={() => navigate('/admin/channels')}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-cyan-500/10 rounded-full p-4">
+                      <Antenna className="h-8 w-8 text-cyan-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Clip Channels</h3>
+                      <p className="text-muted-foreground">Vet the dialect channel corpus the clip pipeline mines</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="cursor-pointer hover:shadow-elegant transition-shadow border-cyan-500/30" onClick={() => navigate('/admin/clips')}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-cyan-500/10 rounded-full p-4">
+                      <Clapperboard className="h-8 w-8 text-cyan-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Clip Candidates</h3>
+                      <p className="text-muted-foreground">Mine beginner clips and work the verification queue</p>
                     </div>
                   </div>
                 </CardContent>

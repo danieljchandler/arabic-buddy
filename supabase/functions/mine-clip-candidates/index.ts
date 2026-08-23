@@ -152,6 +152,20 @@ Deno.serve(async (req) => {
       return json({ mined: 0, note: "no concepts matched" }, 200, corsHeaders);
     }
 
+    // How much index there is to mine for this dialect. Zero is the most
+    // common first-run failure ("I harvested but never fetched captions"),
+    // and a silent 0-mined answer hides it — so it is measured up front and
+    // reported whenever mining comes back empty.
+    const { count: indexSize } = await admin()
+      .from("caption_lines")
+      .select("id, channel_videos!inner(content_channels!inner(dialect, status))", {
+        count: "exact",
+        head: true,
+      })
+      .eq("channel_videos.content_channels.dialect", dialect)
+      .eq("channel_videos.content_channels.status", "approved");
+    const captionLinesIndexed = indexSize ?? 0;
+
     // Coverage gate for sweeps: skip concepts that already have live
     // candidates in this dialect. (An explicit conceptKey call skips the
     // gate: the reviewer asked for more of this word.)
@@ -172,8 +186,10 @@ Deno.serve(async (req) => {
     // ---- terms per concept ----
     const targets: Array<{ conceptId: string | null; key: string; terms: string[] }> = [];
     if (adHocTerms.length > 0) {
+      // Ad-hoc terms attach to a concept only when the caller named one —
+      // never to whichever concept happened to sort first.
       targets.push({
-        conceptId: concepts[0]?.id ?? null,
+        conceptId: conceptKey ? concepts[0]?.id ?? null : null,
         key: conceptKey ?? "(ad hoc)",
         terms: adHocTerms.map(normalizeArabic).filter(Boolean),
       });
@@ -261,7 +277,31 @@ Deno.serve(async (req) => {
       summary.push({ concept: target.key, found: hits.length, inserted: fresh.length });
     }
 
-    return json({ mined: totalInserted, dialect, concepts: summary }, 200, corsHeaders);
+    // An empty result always says why, in order of likelihood.
+    let note: string | undefined;
+    if (totalInserted === 0) {
+      if (captionLinesIndexed === 0) {
+        note =
+          "The caption index has no lines for this dialect's approved channels. " +
+          "Harvesting only lists videos — run scripts/fetch-captions.ts to index their captions, then mine again.";
+      } else if (targets.length === 0) {
+        note =
+          "No search terms: this dialect has no approved concept realizations yet. " +
+          "Type Arabic word(s) to mine ad hoc, or approve realization drafts first.";
+      } else if (summary.every((s) => s.found === 0)) {
+        note =
+          `No caption line contains these exact words (${captionLinesIndexed} lines indexed). ` +
+          "Captions write words with clitics — try the definite form (الكلب for كلب) and other spelling variants, or another word.";
+      } else {
+        note = "Matches were found but every line already has a candidate or fell outside the 1.2-10s clip window.";
+      }
+    }
+
+    return json(
+      { mined: totalInserted, dialect, concepts: summary, captionLinesIndexed, note },
+      200,
+      corsHeaders,
+    );
   } catch (e) {
     console.error("[mine-clip-candidates] error", e);
     return json({ error: e instanceof Error ? e.message : "Unknown error" }, 500, corsHeaders);

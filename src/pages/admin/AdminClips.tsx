@@ -107,10 +107,15 @@ const AdminClips = () => {
         : { dialect: mineDialect };
       const { data, error } = await supabase.functions.invoke('mine-clip-candidates', { body });
       if (error) throw error;
-      return data as { mined: number };
+      return data as { mined: number; note?: string };
     },
     onSuccess: (data) => {
-      toast({ title: `Mined ${data.mined} candidate(s)` });
+      toast({
+        title: `Mined ${data.mined} candidate(s)`,
+        description: data.note,
+        // A zero with its reason needs to be read, not glimpsed.
+        duration: data.mined === 0 ? 12000 : undefined,
+      });
       qc.invalidateQueries({ queryKey: ['clip-candidates'] });
     },
     onError: (e: Error) => toast({ title: 'Mining failed', description: e.message, variant: 'destructive' }),

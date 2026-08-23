@@ -61,7 +61,10 @@ function minerUpstreams(extra: Record<string, UpstreamHandler> = {}): Record<str
     "/rest/v1/vocab_concepts": () => json([{ id: CONCEPT, key: "dog", english_gloss: "dog" }]),
     "/rest/v1/concept_realizations": () =>
       json([{ concept_id: CONCEPT, surface: "كلب", variants: ["الكلب"] }]),
-    "/rest/v1/caption_lines": () => json([captionHit]),
+    "/rest/v1/caption_lines": (request) =>
+      request.method === "HEAD"
+        ? new Response(null, { status: 200, headers: { "content-range": "*/1" } })
+        : json([captionHit]),
     "/rest/v1/clip_candidates": (request) =>
       request.method === "GET" ? json([]) : json(null, 201),
     ...extra,
@@ -139,6 +142,48 @@ Deno.test("mine-clip-candidates never resurfaces a line that already has a candi
 
   assertEquals(body.mined, 0);
   assertEquals(inserts.length, 0);
+});
+
+Deno.test("mine-clip-candidates explains an empty caption index instead of a bare zero", async () => {
+  // The most common first-run failure: harvested videos, never fetched
+  // captions. The 0 must carry its diagnosis.
+  const { body } = await callMiner(
+    { conceptKey: "dog", dialect: "Gulf" },
+    minerUpstreams({
+      "/rest/v1/caption_lines": (request) =>
+        request.method === "HEAD"
+          ? new Response(null, { status: 200, headers: { "content-range": "*/0" } })
+          : json([]),
+    }),
+  );
+  assertEquals(body.mined, 0);
+  assertEquals(body.captionLinesIndexed, 0);
+  assert(String(body.note).includes("fetch-captions"));
+});
+
+Deno.test("mine-clip-candidates suggests variants when the index has lines but none match", async () => {
+  const { body } = await callMiner(
+    { dialect: "Gulf", terms: ["زرافه"] },
+    minerUpstreams({
+      "/rest/v1/caption_lines": (request) =>
+        request.method === "HEAD"
+          ? new Response(null, { status: 200, headers: { "content-range": "*/1" } })
+          : json([]),
+    }),
+  );
+  assertEquals(body.mined, 0);
+  assert(String(body.note).includes("الكلب"));
+});
+
+Deno.test("mine-clip-candidates leaves ad-hoc mining unattributed to any concept", async () => {
+  // Without a conceptKey, an ad-hoc term must not attach to whichever
+  // concept happens to sort first.
+  const { inserts } = await callMiner(
+    { dialect: "Gulf", terms: ["وايد"] },
+    minerUpstreams(),
+  );
+  assertEquals(inserts[0][0].concept_id, null);
+  assertEquals(inserts[0][0].verification.mined.term, "وايد");
 });
 
 Deno.test("mine-clip-candidates requires a dialect", async () => {

@@ -255,17 +255,21 @@ Deno.serve(async (req) => {
     const minSeconds = Math.max(10, Number(body.minSeconds) || 45);
     const maxSeconds = Math.min(3600, Number(body.maxSeconds) || 900);
 
-    // Never-harvested first, then stalest; two channels per invoke keeps a
-    // call comfortably inside the runtime budget.
-    let query = admin()
+    // Channel choice happens in code, not SQL ordering, because an
+    // unresolvable channel must not sit at the front forever: a failed
+    // resolution attempt is timestamped and the channel rotates to the back
+    // for a day, so one bad row can't starve the other forty-nine.
+    const { data, error } = await admin()
       .from("content_channels")
-      .select("id, name, handle, yt_channel_id, last_harvested_at")
+      .select("id, name, handle, yt_channel_id, last_harvested_at, resolution_attempted_at")
       .eq("status", "approved")
       .order("last_harvested_at", { ascending: true, nullsFirst: true });
-    if (channelId) query = query.eq("id", channelId);
-    const { data, error } = await query;
     if (error) throw new Error(`content_channels fetch failed: ${error.message}`);
-    const channels = (data ?? []) as Array<Channel & { last_harvested_at: string | null }>;
+    let channels = (data ?? []) as Array<Channel & {
+      last_harvested_at: string | null;
+      resolution_attempted_at: string | null;
+    }>;
+    if (channelId) channels = channels.filter((c) => c.id === channelId);
     if (channels.length === 0) {
       return json(
         { harvested: [], remaining: 0, note: "no approved channels — approve some first" },
@@ -274,12 +278,28 @@ Deno.serve(async (req) => {
       );
     }
 
-    const batch = channelId ? channels : channels.filter((c) => !c.last_harvested_at).slice(0, 2);
-    const toProcess = batch.length > 0 ? batch : channels.slice(0, 2);
+    const resolvable = (c: Channel) => Boolean(c.yt_channel_id || c.handle);
+    const attemptedRecently = (c: { resolution_attempted_at: string | null }) =>
+      c.resolution_attempted_at !== null &&
+      Date.now() - new Date(c.resolution_attempted_at).getTime() < 24 * 3600 * 1000;
+
+    const fresh = channels.filter((c) => !c.last_harvested_at);
+    const queue = [
+      ...fresh.filter((c) => resolvable(c)),
+      ...fresh.filter((c) => !resolvable(c) && !attemptedRecently(c)),
+    ];
+    const toProcess = (channelId ? channels : queue.length > 0 ? queue : channels).slice(0, 2);
 
     const harvested: Array<Record<string, unknown>> = [];
-    for (const channel of toProcess.slice(0, 2)) {
+    for (const channel of toProcess) {
       const result = await harvestOne(apiKey, channel, maxVideos, minSeconds, maxSeconds);
+      if ("unresolved" in result) {
+        // Stamp the attempt so the next invoke tries someone else.
+        await admin()
+          .from("content_channels")
+          .update({ resolution_attempted_at: new Date().toISOString() } as unknown as never)
+          .eq("id", channel.id);
+      }
       harvested.push(
         "unresolved" in result
           ? {

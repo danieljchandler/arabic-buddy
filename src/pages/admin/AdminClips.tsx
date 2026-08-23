@@ -16,6 +16,7 @@ import {
   ThumbsDown,
   ExternalLink,
   Play,
+  Send,
 } from 'lucide-react';
 
 // The clip pipeline's workbench. Mining (mine-clip-candidates) turns caption
@@ -136,6 +137,26 @@ const AdminClips = () => {
     onError: (e: Error) => toast({ title: 'Verification failed', description: e.message, variant: 'destructive' }),
   });
 
+  const publish = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('publish-verified-clips', {
+        body: { limit: 10 },
+      });
+      if (error) throw error;
+      return data as { published: number; skipped?: Array<{ reason: string }>; remaining?: number };
+    },
+    onSuccess: (data) => {
+      const held = (data.skipped ?? []).length;
+      toast({
+        title: `Published ${data.published} clip(s)`,
+        description:
+          `${data.remaining ?? 0} verified remaining` + (held ? `; ${held} held (see queue)` : ''),
+      });
+      qc.invalidateQueries({ queryKey: ['clip-candidates'] });
+    },
+    onError: (e: Error) => toast({ title: 'Publish failed', description: e.message, variant: 'destructive' }),
+  });
+
   const setStatus = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const { error } = await supabase
@@ -184,6 +205,10 @@ const AdminClips = () => {
           <Button variant="secondary" onClick={() => verifySweep.mutate(undefined)} disabled={verifySweep.isPending}>
             {verifySweep.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <ShieldCheck className="h-4 w-4" />}
             Run verification
+          </Button>
+          <Button variant="secondary" onClick={() => publish.mutate()} disabled={publish.isPending}>
+            {publish.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+            Publish verified
           </Button>
         </CardContent>
       </Card>

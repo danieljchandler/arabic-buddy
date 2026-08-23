@@ -83,12 +83,21 @@ interface Channel {
   yt_channel_id: string | null;
 }
 
-/** Loose title match: same letters, any case/spacing/punctuation. */
+/**
+ * Loose title match. Whole-string containment first; then a shared token of
+ * 4+ letters counts, because channels style themselves "Da7ee7 - الدحيح"
+ * while the list says "Al Da7ee7" — the distinctive token is the identity,
+ * the rest is decoration. Tokens under 4 letters ("Al", "TV") match nothing.
+ */
 function titlesMatch(a: string, b: string): boolean {
   const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
   const x = norm(a);
   const y = norm(b);
-  return x.length > 0 && y.length > 0 && (x.includes(y) || y.includes(x));
+  if (x.length > 0 && y.length > 0 && (x.includes(y) || y.includes(x))) return true;
+  const tokens = (s: string) =>
+    s.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((t) => t.length >= 4);
+  const aTokens = new Set(tokens(a));
+  return tokens(b).some((t) => aTokens.has(t));
 }
 
 /**

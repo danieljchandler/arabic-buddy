@@ -727,6 +727,7 @@ export type Database = {
           msa_score: number | null
           name: string
           notes: string | null
+          resolution_attempted_at: string | null
           status: string
           updated_at: string
           yt_channel_id: string | null
@@ -743,6 +744,7 @@ export type Database = {
           msa_score?: number | null
           name: string
           notes?: string | null
+          resolution_attempted_at?: string | null
           status?: string
           updated_at?: string
           yt_channel_id?: string | null
@@ -759,6 +761,7 @@ export type Database = {
           msa_score?: number | null
           name?: string
           notes?: string | null
+          resolution_attempted_at?: string | null
           status?: string
           updated_at?: string
           yt_channel_id?: string | null

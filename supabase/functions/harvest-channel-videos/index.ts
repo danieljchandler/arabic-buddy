@@ -83,14 +83,65 @@ interface Channel {
   yt_channel_id: string | null;
 }
 
+/**
+ * Loose title match. Whole-string containment first; then a shared token of
+ * 4+ letters counts, because channels style themselves "Da7ee7 - الدحيح"
+ * while the list says "Al Da7ee7" — the distinctive token is the identity,
+ * the rest is decoration. Tokens under 4 letters ("Al", "TV") match nothing.
+ */
+function titlesMatch(a: string, b: string): boolean {
+  const norm = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+  const x = norm(a);
+  const y = norm(b);
+  if (x.length > 0 && y.length > 0 && (x.includes(y) || y.includes(x))) return true;
+  const tokens = (s: string) =>
+    s.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter((t) => t.length >= 4);
+  const aTokens = new Set(tokens(a));
+  return tokens(b).some((t) => aTokens.has(t));
+}
+
+/**
+ * Last-resort channel resolution for rows with neither an id nor a handle:
+ * one search.list call (100 quota units) for the channel name, accepted only
+ * when a result's title actually matches the name — a guess that lands on the
+ * wrong channel is worse than no harvest. Non-matching candidates are
+ * reported so an admin can fill the handle by hand.
+ */
+async function resolveChannelBySearch(
+  apiKey: string,
+  name: string,
+): Promise<{ channelId: string; handle: string | null } | { candidates: string[] }> {
+  const data = await yt(apiKey, "search", {
+    part: "snippet",
+    type: "channel",
+    q: name,
+    maxResults: "5",
+  });
+  const items = (data.items ?? []) as Array<{
+    snippet?: { channelId?: string; channelTitle?: string; customUrl?: string };
+  }>;
+  const candidates = items
+    .map((i) => i.snippet?.channelTitle ?? "")
+    .filter(Boolean);
+  for (const item of items) {
+    const snippet = item.snippet ?? {};
+    if (snippet.channelId && snippet.channelTitle && titlesMatch(snippet.channelTitle, name)) {
+      const handle = snippet.customUrl?.startsWith("@") ? snippet.customUrl : null;
+      return { channelId: snippet.channelId, handle };
+    }
+  }
+  return { candidates };
+}
+
 async function harvestOne(
   apiKey: string,
   channel: Channel,
   maxVideos: number,
   minSeconds: number,
   maxSeconds: number,
-): Promise<{ videos: number; enumerated: number } | { unresolved: true }> {
+): Promise<{ videos: number; enumerated: number } | { unresolved: true; candidates?: string[] }> {
   let channelId = channel.yt_channel_id;
+  let resolvedHandle: string | null = null;
   if (!channelId && channel.handle) {
     const data = await yt(apiKey, "channels", {
       part: "id",
@@ -98,11 +149,21 @@ async function harvestOne(
     });
     channelId = (data.items?.[0]?.id as string | undefined) ?? null;
   }
+  if (!channelId) {
+    const found = await resolveChannelBySearch(apiKey, channel.name);
+    if ("candidates" in found) return { unresolved: true, candidates: found.candidates };
+    channelId = found.channelId;
+    resolvedHandle = found.handle;
+  }
   if (!channelId) return { unresolved: true };
   if (!channel.yt_channel_id) {
     await admin()
       .from("content_channels")
-      .update({ yt_channel_id: channelId } as unknown as never)
+      .update({
+        yt_channel_id: channelId,
+        // A handle recovered from search makes future re-resolution free.
+        ...(resolvedHandle && !channel.handle ? { handle: resolvedHandle } : {}),
+      } as unknown as never)
       .eq("id", channel.id);
   }
 
@@ -194,17 +255,21 @@ Deno.serve(async (req) => {
     const minSeconds = Math.max(10, Number(body.minSeconds) || 45);
     const maxSeconds = Math.min(3600, Number(body.maxSeconds) || 900);
 
-    // Never-harvested first, then stalest; two channels per invoke keeps a
-    // call comfortably inside the runtime budget.
-    let query = admin()
+    // Channel choice happens in code, not SQL ordering, because an
+    // unresolvable channel must not sit at the front forever: a failed
+    // resolution attempt is timestamped and the channel rotates to the back
+    // for a day, so one bad row can't starve the other forty-nine.
+    const { data, error } = await admin()
       .from("content_channels")
-      .select("id, name, handle, yt_channel_id, last_harvested_at")
+      .select("id, name, handle, yt_channel_id, last_harvested_at, resolution_attempted_at")
       .eq("status", "approved")
       .order("last_harvested_at", { ascending: true, nullsFirst: true });
-    if (channelId) query = query.eq("id", channelId);
-    const { data, error } = await query;
     if (error) throw new Error(`content_channels fetch failed: ${error.message}`);
-    const channels = (data ?? []) as Array<Channel & { last_harvested_at: string | null }>;
+    let channels = (data ?? []) as Array<Channel & {
+      last_harvested_at: string | null;
+      resolution_attempted_at: string | null;
+    }>;
+    if (channelId) channels = channels.filter((c) => c.id === channelId);
     if (channels.length === 0) {
       return json(
         { harvested: [], remaining: 0, note: "no approved channels — approve some first" },
@@ -213,15 +278,37 @@ Deno.serve(async (req) => {
       );
     }
 
-    const batch = channelId ? channels : channels.filter((c) => !c.last_harvested_at).slice(0, 2);
-    const toProcess = batch.length > 0 ? batch : channels.slice(0, 2);
+    const resolvable = (c: Channel) => Boolean(c.yt_channel_id || c.handle);
+    const attemptedRecently = (c: { resolution_attempted_at: string | null }) =>
+      c.resolution_attempted_at !== null &&
+      Date.now() - new Date(c.resolution_attempted_at).getTime() < 24 * 3600 * 1000;
+
+    const fresh = channels.filter((c) => !c.last_harvested_at);
+    const queue = [
+      ...fresh.filter((c) => resolvable(c)),
+      ...fresh.filter((c) => !resolvable(c) && !attemptedRecently(c)),
+    ];
+    const toProcess = (channelId ? channels : queue.length > 0 ? queue : channels).slice(0, 2);
 
     const harvested: Array<Record<string, unknown>> = [];
-    for (const channel of toProcess.slice(0, 2)) {
+    for (const channel of toProcess) {
       const result = await harvestOne(apiKey, channel, maxVideos, minSeconds, maxSeconds);
+      if ("unresolved" in result) {
+        // Stamp the attempt so the next invoke tries someone else.
+        await admin()
+          .from("content_channels")
+          .update({ resolution_attempted_at: new Date().toISOString() } as unknown as never)
+          .eq("id", channel.id);
+      }
       harvested.push(
         "unresolved" in result
-          ? { channel: channel.name, unresolved: true }
+          ? {
+              channel: channel.name,
+              unresolved: true,
+              // What YouTube search suggested, so the admin can confirm the
+              // right one instead of guessing at a handle.
+              ...(result.candidates?.length ? { searchCandidates: result.candidates } : {}),
+            }
           : { channel: channel.name, videos: result.videos, enumerated: result.enumerated },
       );
     }

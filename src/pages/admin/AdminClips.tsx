@@ -96,6 +96,29 @@ const AdminClips = () => {
     },
   });
 
+  // A count on every tab, so "the page is empty" is distinguishable from
+  // "this queue is empty" without clicking through all five.
+  const { data: statusCounts } = useQuery({
+    queryKey: ['clip-candidate-counts'],
+    queryFn: async () => {
+      const statuses: StatusTab[] = ['pending', 'needs_review', 'verified', 'rejected', 'published'];
+      const entries = await Promise.all(
+        statuses.map(async (s) => {
+          const { count } = await supabase
+            .from('clip_candidates')
+            .select('id', { count: 'exact', head: true })
+            .eq('status', s);
+          return [s, count ?? 0] as const;
+        }),
+      );
+      return Object.fromEntries(entries) as Record<StatusTab, number>;
+    },
+  });
+
+  // The last pipeline run's own explanation, kept on screen — a zero-mined
+  // toast disappears before its reason can be read.
+  const [lastRun, setLastRun] = useState<{ title: string; description?: string } | null>(null);
+
   const mine = useMutation({
     mutationFn: async () => {
       const terms = mineTerms
@@ -110,13 +133,15 @@ const AdminClips = () => {
       return data as { mined: number; note?: string };
     },
     onSuccess: (data) => {
+      const result = { title: `Mined ${data.mined} candidate(s)`, description: data.note };
+      setLastRun(result);
       toast({
-        title: `Mined ${data.mined} candidate(s)`,
-        description: data.note,
+        ...result,
         // A zero with its reason needs to be read, not glimpsed.
         duration: data.mined === 0 ? 12000 : undefined,
       });
       qc.invalidateQueries({ queryKey: ['clip-candidates'] });
+      qc.invalidateQueries({ queryKey: ['clip-candidate-counts'] });
     },
     onError: (e: Error) => toast({ title: 'Mining failed', description: e.message, variant: 'destructive' }),
   });
@@ -133,11 +158,14 @@ const AdminClips = () => {
       const outcomes = Object.entries(data.outcomes ?? {})
         .map(([k, v]) => `${v} ${k}`)
         .join(', ');
-      toast({
+      const result = {
         title: `Verified ${data.processed} candidate(s)`,
         description: outcomes ? `${outcomes}; ${data.pending ?? 0} still pending` : undefined,
-      });
+      };
+      setLastRun(result);
+      toast(result);
       qc.invalidateQueries({ queryKey: ['clip-candidates'] });
+      qc.invalidateQueries({ queryKey: ['clip-candidate-counts'] });
     },
     onError: (e: Error) => toast({ title: 'Verification failed', description: e.message, variant: 'destructive' }),
   });
@@ -152,12 +180,15 @@ const AdminClips = () => {
     },
     onSuccess: (data) => {
       const held = (data.skipped ?? []).length;
-      toast({
+      const result = {
         title: `Published ${data.published} clip(s)`,
         description:
           `${data.remaining ?? 0} verified remaining` + (held ? `; ${held} held (see queue)` : ''),
-      });
+      };
+      setLastRun(result);
+      toast(result);
       qc.invalidateQueries({ queryKey: ['clip-candidates'] });
+      qc.invalidateQueries({ queryKey: ['clip-candidate-counts'] });
     },
     onError: (e: Error) => toast({ title: 'Publish failed', description: e.message, variant: 'destructive' }),
   });
@@ -218,10 +249,27 @@ const AdminClips = () => {
         </CardContent>
       </Card>
 
+      {lastRun && (
+        <Card className="mb-4 border-primary/40">
+          <CardContent className="pt-4 pb-4 flex items-start justify-between gap-3">
+            <div>
+              <p className="font-medium">{lastRun.title}</p>
+              {lastRun.description && (
+                <p className="text-sm text-muted-foreground mt-1">{lastRun.description}</p>
+              )}
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setLastRun(null)} aria-label="Dismiss">
+              ✕
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       <div className="flex flex-wrap gap-2 mb-4">
         {(['needs_review', 'pending', 'verified', 'rejected', 'published'] as StatusTab[]).map((tab) => (
           <Button key={tab} size="sm" variant={statusTab === tab ? 'default' : 'outline'} onClick={() => setStatusTab(tab)}>
             {tab.replace('_', ' ')}
+            {statusCounts && <span className="ml-1.5 opacity-70">{statusCounts[tab]}</span>}
           </Button>
         ))}
       </div>

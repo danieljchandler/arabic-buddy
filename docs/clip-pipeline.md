@@ -1,0 +1,121 @@
+# Clip pipeline — mining beginner clips from the dialect channel corpus
+
+The lower-level (A1) curriculum is built from 5–10 second authentic clips
+mined out of curated YouTube channels, instead of flashcards. This doc is the
+runbook for the pipeline that finds those clips. The full design (research,
+costs, integration map) lives in the planning artifact from 2026-08-22; this
+file is what you need to *operate* it.
+
+## The shape
+
+```
+content_channels ──> channel_videos ──> caption_lines ──> clip_candidates ──> (discover_videos / lesson_clips)
+   registry            enumeration        the index          verification            publication
+   (admin UI)        (harvest script)  (captions script)   (edge functions)          (next phase)
+```
+
+- **Concept-keyed vocabulary**: `vocab_concepts` (100 A1 concepts seeded,
+  key = snake_case English) with per-dialect surface forms in
+  `concept_realizations` (status `draft` → `approved`, native-review gated).
+  Lessons and clips reference the concept key, never an Arabic string, so one
+  syllabus drives three dialect tracks.
+- **Dialect scoring** is `_shared/dialectMarkers.ts` everywhere — the inverse
+  of the MSA-leak detector, sharing its `normalizeArabic`. Line-level scores
+  live on `caption_lines`; channel-level rollups on `content_channels`.
+
+## Stage 1 — vet channels (`/admin/channels`)
+
+~48 research candidates are seeded (2026-08 research pass; open questions in
+each row's notes). Approving a channel puts it in the harvesting and mining
+pool; nothing is mined from candidates or rejected channels.
+
+## Stage 2 — harvest (`scripts/harvest-channels.ts`)
+
+```sh
+YOUTUBE_API_KEY=... SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
+  deno run --allow-env --allow-net scripts/harvest-channels.ts \
+  [--dialect Gulf] [--channel moshaya] [--include-candidates] [--dry-run]
+```
+
+Enumerates each channel's uploads playlist (1 quota unit per 50 videos) into
+`channel_videos` with duration, embeddability and a caption hint. It never
+calls `search.list` unless you pass `--resolve-names` — since mid-2026 that
+endpoint is capped ~100 calls/day in its own bucket. Channels seeded with
+neither an id nor a handle either get `--resolve-names` spent on them or a
+hand-filled `yt_channel_id`.
+
+## Stage 3 — index captions (`scripts/fetch-captions.ts`)
+
+```sh
+SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... \
+  deno run --allow-env --allow-net --allow-run --allow-read --allow-write \
+  scripts/fetch-captions.ts [--dialect Gulf] [--limit 50] [--sleep 2]
+```
+
+Runs `yt-dlp` (must be on PATH) per video — manual Arabic track preferred,
+auto-generated as fallback — normalizes and dialect-scores every line into
+`caption_lines`, and rolls channel scores up. Run it **from a residential
+connection, not cloud egress** (YouTube blocks datacenter IPs), keep `--sleep`
+≥ 2, and know the posture: bulk caption download sits outside YouTube ToS.
+The alternative that shifts that risk is a commercial transcript API
+(~$5/1k transcripts) — swap the `fetchTrack` implementation if volume grows.
+If subtitle requests come back empty, YouTube wants a PO token — install the
+`bgutil-ytdlp-pot-provider` plugin. Videos with no Arabic captions are marked
+`caption_status = 'none'`; those are the ASR-fallback pool (Yemeni will be
+mostly this).
+
+## Stage 4 — mine and verify (`/admin/clips` or headless)
+
+- `mine-clip-candidates` (edge function): expands a concept's **approved**
+  realizations (surface + spelling variants — الكلب must be listed as a
+  variant of كلب or definite occurrences are invisible) into caption-index
+  searches, ranks by dialect-minus-MSA score, and writes `pending`
+  candidates. The admin UI can also mine ad-hoc Arabic terms before
+  realizations exist. Sweep mode (no conceptKey) targets concepts that still
+  lack clips in a dialect.
+- `verify-clip-candidate` (edge function): the verification stack — term
+  containment (hard fail), dialect markers over the line ±20s of context,
+  playability (embeddable/available/1.2–10s), and one short `askBrain` judge
+  call (UTILITY lineup) for dialect/target/safety/beginner-fit. Tiers:
+  hard fail → `rejected`; all green → `verified`; anything else — including
+  a judge outage — → `needs_review`. Evidence lands in
+  `clip_candidates.verification` and renders as chips in `/admin/clips`.
+
+Headless automation calls both with the service-role key as the bearer token
+plus an `x-pipeline-secret` header matching the `CLIP_PIPELINE_SECRET`
+function secret. Nothing auto-publishes unjudged; the `needs_review` queue is
+the only place a human is meant to work routinely.
+
+## What is deliberately not built yet
+
+1. **Realization drafting** — an `askBrain` task that drafts
+   `concept_realizations` per dialect (with spelling variants) into the
+   native-review lane. Until then, realizations are entered by hand or mining
+   runs on ad-hoc terms.
+2. **Publication** — verified candidates → `ingest-shared-video` →
+   `discover_videos` (clip lane, like `is_meme`) → `lesson_clips` and a
+   learner clip-lesson player built from the shadow components. Each publish
+   triggers the full ASR/analysis pipeline, so this step spends real money —
+   wire it once the pilot proves the format.
+3. **Scheduled loop** — a cron/Routine chaining sweep-mine → verify → digest.
+   The secret-header path exists for exactly this.
+4. **Link-rot sweep** — `videos.list` in 50-id batches (1 unit/call) +
+   oEmbed HEADs, refreshing `channel_videos.availability`/`embeddable`.
+
+## Open decisions (need a human call)
+
+- **Embed-paywall clause**: YouTube's Required Minimum Functionality rules
+  prohibit charging users to watch embedded content. Decide how clip lessons
+  sit relative to the subscription gate before learners see them.
+- **Caption acquisition route**: local yt-dlp (ToS-gray, free) vs commercial
+  transcript API (vendor carries the risk, ~$5/1k).
+- **AVP licensing**: the seeded concept list is original; if the Arabic
+  Vocabulary Profile A1 list should drive the full syllabus, email its
+  authors first (no license is published).
+
+## Costs at a glance
+
+Enumeration is effectively free; captions are free (yt-dlp) or ~$5/1k
+(API); ASR for caption-less videos ≈ $0.10–0.26/audio-hour (Soniox/Deepgram)
+or ~$1–3 (Munsit, dialect specialist); the judge call is one UTILITY-lineup
+completion per candidate.

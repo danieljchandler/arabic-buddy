@@ -5177,25 +5177,25 @@ export type Database = {
       redeem_invite_code: { Args: { _code: string }; Returns: Json }
       search_caption_lines: {
         Args: {
-          q_terms: string[]
-          q_dialect?: string
-          min_duration_ms?: number
-          max_duration_ms?: number
           match_count?: number
+          max_duration_ms?: number
+          min_duration_ms?: number
+          q_dialect?: string
+          q_terms: string[]
         }
         Returns: {
-          line_id: string
-          video_id: string
-          yt_video_id: string
-          video_title: string
-          channel_name: string
           channel_dialect: string
-          start_ms: number
+          channel_name: string
           end_ms: number
-          line_text: string
-          line_source: string
           line_dialect_score: number
+          line_id: string
           line_msa_score: number
+          line_source: string
+          line_text: string
+          start_ms: number
+          video_id: string
+          video_title: string
+          yt_video_id: string
         }[]
       }
       user_has_bible_access: { Args: { _user_id: string }; Returns: boolean }

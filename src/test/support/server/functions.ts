@@ -79,7 +79,7 @@ export const streaming = (...pieces: string[]): FunctionResponse => ({
  * storage downloads ask for actual duration so a page seeking into the file
  * (TikTok's per-phrase playback) has somewhere to seek to.
  */
-export function silentWav(durationMs = 0): Uint8Array {
+export function silentWav(durationMs = 0): Uint8Array<ArrayBuffer> {
   const sampleRate = 8000;
   const samples = Math.round((sampleRate * durationMs) / 1000);
   const dataBytes = samples * 2; // 16-bit mono

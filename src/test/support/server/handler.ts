@@ -488,7 +488,8 @@ export class SupabaseBackend {
     // window to seek into.
     const downloadKey = path.replace(/^object\/(?:public\/)?/, "");
     if (this.storageObjects.has(downloadKey)) {
-      return new Response(silentWav(2000), {
+      // Blob wrapper: this TS lib's BodyInit doesn't accept a bare Uint8Array.
+      return new Response(new Blob([silentWav(2000)]), {
         status: 200,
         headers: { ...CORS_HEADERS, "content-type": "audio/wav" },
       });

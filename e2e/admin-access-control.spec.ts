@@ -143,22 +143,42 @@ test.describe("role management", () => {
     await page.getByPlaceholder(/user email or uuid/i).fill("learner@example.com");
     await page.getByRole("button", { name: /add|grant/i }).first().click();
 
+    // Asserted on the stored row rather than on a client POST: the grant is
+    // written inside `admin_grant_role_by_email`, which is the only thing that
+    // can see `auth.users` and so the only thing that can resolve the address.
     await expect
-      .poll(() => db.writesTo("user_roles").filter((w) => w.method === "POST").length)
-      .toBeGreaterThanOrEqual(1);
-
-    const write = db.writesTo("user_roles").find((w) => w.method === "POST");
-    expect(write?.payload[0]).toMatchObject({ user_id: OTHER_USER });
+      .poll(() => db.rows("user_roles").find((row) => row.user_id === OTHER_USER))
+      .toMatchObject({ user_id: OTHER_USER });
   });
 
-  test("refuses an email that matches no account", async ({ page, db }) => {
+  test("parks an email that matches no account instead of granting it", async ({ page, db }) => {
     await page.goto("/admin/bible-access");
 
     await page.getByPlaceholder(/user email or uuid/i).fill("nobody@example.com");
     await page.getByRole("button", { name: /add|grant/i }).first().click();
 
+    // An address with no account behind it is a future hire, not a typo: the
+    // grant is stored as an invitation and applied when they sign up. What must
+    // not happen is a role row against a user that does not exist.
+    await expect(page.getByText(/invitation saved/i)).toBeVisible();
+    await expect
+      .poll(() => db.rows("pending_role_grants").map((row) => row.email))
+      .toEqual(["nobody@example.com"]);
+    expect(db.rows("user_roles").filter((row) => row.role === "bible_reader")).toHaveLength(0);
+  });
+
+  test("refuses a UUID that matches no account", async ({ page, db }) => {
+    await page.goto("/admin/bible-access");
+
+    await page
+      .getByPlaceholder(/user email or uuid/i)
+      .fill("00000000-0000-4000-8000-00000000dead");
+    await page.getByRole("button", { name: /add|grant/i }).first().click();
+
+    // Still an error, and the only remaining one: nothing a person could ever
+    // sign up as matches a UUID, so there is no invitation to park.
     await expect(page.getByText(/user not found/i)).toBeVisible();
-    expect(db.writesTo("user_roles")).toHaveLength(0);
+    expect(db.rows("pending_role_grants")).toHaveLength(0);
   });
 
   test("does not grant the same role twice", async ({ page, db }) => {

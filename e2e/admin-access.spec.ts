@@ -306,7 +306,9 @@ test.describe("granting roles", () => {
   test("refuses an identifier that matches no account", async ({ page, db }) => {
     await page.goto("/admin/bible-access");
 
-    await page.getByPlaceholder(/email or uuid/i).fill("nobody@example.com");
+    // A UUID, because an email that matches no account is now an invitation
+    // rather than an error — see the invitation tests in admin-roles.spec.ts.
+    await page.getByPlaceholder(/email or uuid/i).fill("00000000-0000-4000-8000-00000000dead");
     await page.getByRole("button", { name: /^add$/i }).click();
 
     await expect(page.getByText(/user not found/i)).toBeVisible();

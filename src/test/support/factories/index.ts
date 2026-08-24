@@ -87,12 +87,32 @@ export const aProfile = (over: Row = {}): Row => ({
   ...over,
 });
 
-export const aRole = (role = "user", over: Row = {}): Row => ({
-  user_id: TEST_USER_ID,
-  role,
-  created_at: daysAgo(30),
-  ...over,
-});
+/**
+ * A role row's primary key, derived from the pair it is unique on.
+ *
+ * `user_roles.id` defaults to `gen_random_uuid()`, which the emulator cannot
+ * reproduce, so a seeded row used to have no id at all. That was invisible
+ * while the role console filtered `admin` out of its listing; the moment it
+ * stopped, every seeded role rendered as a React child with `key={undefined}`
+ * and a revoke button that deleted `id=is.null`. Deriving it from
+ * (role, user_id) keeps it stable across runs and unique per real row.
+ */
+const roleRowId = (role: string, userId: string): string => {
+  const seed = [...`${role}:${userId}`].reduce((acc, ch) => (acc * 31 + ch.charCodeAt(0)) % 1e12, 7);
+  return `e8e8e8e8-0000-4000-8000-${String(seed).padStart(12, "0")}`;
+};
+
+export const aRole = (role = "user", over: Row = {}): Row => {
+  const userId = (over.user_id as string) ?? TEST_USER_ID;
+
+  return {
+    id: roleRowId(role, userId),
+    user_id: userId,
+    role,
+    created_at: daysAgo(30),
+    ...over,
+  };
+};
 
 export const aSubscriber = (over: Row = {}): Row => ({
   user_id: TEST_USER_ID,

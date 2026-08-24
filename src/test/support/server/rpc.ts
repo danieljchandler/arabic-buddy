@@ -1,9 +1,11 @@
 import {
   hasBibleAccessFromRoles,
+  isManagedRole,
   MANAGED_ROLES,
   type AppRole,
   type ManagedRole,
 } from "../../../lib/rbac";
+import { isEmailIdentifier, normalizeIdentifier } from "../../../lib/roleGrants";
 import type { MemoryDb } from "../postgrest/store";
 import type { Row } from "../postgrest/types";
 
@@ -46,6 +48,19 @@ const rolesFor = (db: MemoryDb, userId: string | null): AppRole[] =>
 /** Read an arg under either its bare or underscore-prefixed name. */
 const arg = (args: Record<string, unknown>, name: string): unknown =>
   args[`_${name}`] ?? args[name];
+
+/**
+ * A stable, valid-looking UUID for a row an RPC inserts.
+ *
+ * The emulator does not mint ids the way `gen_random_uuid()` does, and a row
+ * with no id is a row the page cannot key a table on or revoke by — which is
+ * exactly the bug the `admin_list_managed_roles` comment above records.
+ */
+const nextId = (prefix: string, index: number): string => {
+  const seed = [...`${prefix}${index}`].reduce((acc, ch) => acc + ch.charCodeAt(0), index);
+  const tail = String(seed).padStart(12, "0").slice(-12);
+  return `33333333-0000-4000-8000-${tail}`;
+};
 
 export const defaultRpcs: Record<string, RpcHandler> = {
   has_role: ({ db, userId, args }) => {
@@ -124,6 +139,91 @@ export const defaultRpcs: Record<string, RpcHandler> = {
 
     const profile = db.rows("profiles").find((row) => row.user_id === found.id);
     return [{ user_id: found.id, email: found.email, display_name: profile?.display_name ?? null }];
+  },
+
+  /**
+   * The grant path, including the case the console exists for: an address that
+   * has no account yet.
+   *
+   * Modelled rather than stubbed, because the four outcomes are what the page
+   * branches on. `granted` and `already` need the role table; `pending` and
+   * `invited` need `pending_role_grants`, which nothing else writes — the real
+   * function is the only writer there too.
+   */
+  admin_grant_role_by_email: ({ db, args, userId, users }) => {
+    const identifier = normalizeIdentifier(String(arg(args, "identifier") ?? ""));
+    const role = arg(args, "role") as ManagedRole;
+
+    // The real function raises on a role outside `is_grantable_role`. A double
+    // that quietly granted `recorder` would make the page look capable of
+    // something the database refuses.
+    if (!isManagedRole(role)) {
+      throw new Error(`Role ${role} cannot be granted from the console`);
+    }
+
+    const found = users.find(identifier);
+
+    if (found) {
+      const existing = db
+        .rows("user_roles")
+        .find((row) => row.user_id === found.id && row.role === role);
+      if (existing) return [{ status: "already", user_id: found.id, email: found.email }];
+
+      db.raw("user_roles").push({
+        id: nextId("role", db.rows("user_roles").length),
+        user_id: found.id,
+        role,
+        created_at: new Date().toISOString(),
+      });
+      return [{ status: "granted", user_id: found.id, email: found.email }];
+    }
+
+    // A UUID that matches nobody is a typo: no future signup can ever carry it.
+    if (!isEmailIdentifier(identifier)) {
+      return [{ status: "not_found", user_id: null, email: null }];
+    }
+
+    const invited = db
+      .rows("pending_role_grants")
+      .find(
+        (row) =>
+          String(row.email).toLowerCase() === identifier &&
+          row.role === role &&
+          row.claimed_at == null,
+      );
+    if (invited) return [{ status: "invited", user_id: null, email: identifier }];
+
+    db.raw("pending_role_grants").push({
+      id: nextId("pending", db.rows("pending_role_grants").length),
+      email: identifier,
+      role,
+      created_at: new Date().toISOString(),
+      created_by: userId,
+      claimed_at: null,
+      claimed_by: null,
+    });
+    return [{ status: "pending", user_id: null, email: identifier }];
+  },
+
+  admin_list_pending_role_grants: ({ db }) =>
+    db
+      .rows("pending_role_grants")
+      .filter((row) => row.claimed_at == null)
+      .map((row) => ({
+        id: row.id,
+        email: row.email,
+        role: row.role,
+        created_at: row.created_at,
+      })),
+
+  admin_revoke_pending_role: ({ db, args }) => {
+    const id = arg(args, "id") as string;
+    const rows = db.raw("pending_role_grants");
+    const index = rows.findIndex((row) => row.id === id && row.claimed_at == null);
+    if (index === -1) return false;
+
+    rows.splice(index, 1);
+    return true;
   },
 
   award_xp: ({ db, userId, args }) => {

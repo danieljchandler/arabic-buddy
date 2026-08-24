@@ -65,6 +65,20 @@ export const defaultRpcs: Record<string, RpcHandler> = {
 
   is_recorder: ({ db, userId }) => rolesFor(db, userId).includes("recorder"),
 
+  is_transcriber: ({ db, userId }) => rolesFor(db, userId).includes("transcriber"),
+
+  // The review workspace's audience. Note it does *not* include `recorder`:
+  // recording audio and judging a transcript are different jobs, and the SQL
+  // helper does not include it either.
+  can_review_transcripts: ({ db, userId }) => {
+    const roles = rolesFor(db, userId);
+    return (
+      roles.includes("admin") ||
+      roles.includes("content_reviewer") ||
+      roles.includes("transcriber")
+    );
+  },
+
   can_manage_content: ({ db, userId }) => {
     const roles = rolesFor(db, userId);
     return roles.includes("admin") || roles.includes("recorder") || roles.includes("content_reviewer");

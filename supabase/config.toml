@@ -272,3 +272,10 @@ verify_jwt = true
 # scripts/fetch-captions.ts locally. Same gating story.
 [functions.index-channel-captions]
 verify_jwt = true
+
+# Native-speaker transcript review: the only write path a `transcriber` has.
+# Declared rather than left to inherit the default, because the whole design
+# rests on the caller's identity — `changed_by` on every revision row and
+# `reviewed_by` on every checkmark come from this JWT, not from the body.
+[functions.transcript-review]
+verify_jwt = true

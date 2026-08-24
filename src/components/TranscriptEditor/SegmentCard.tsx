@@ -1,9 +1,43 @@
 import { useCallback, useState } from 'react';
 import type { Segment } from '@/types/transcript';
+import type { ReviewState } from '@/lib/reviewStatus';
 import { cn } from '@/lib/utils';
 import WordConfidence from './WordConfidence';
 import TimestampScrubber from './TimestampScrubber';
 import { AskAISentence } from '@/components/shared/AskAISentence';
+
+/**
+ * The native-speaker review controls for one line.
+ *
+ * Bundled into a single optional prop rather than a dozen loose ones because
+ * they arrive together or not at all: the video form's editor has no reviewer
+ * attached and should render exactly as it always did, while the review
+ * workspace supplies the whole set.
+ */
+export interface SegmentReviewProps {
+  state: ReviewState;
+  /** ISO timestamp of the sign-off, for the tooltip. */
+  reviewedAt?: string;
+  /**
+   * The pipeline's own doubt about this line — its translation models
+   * disagreed, or nothing settled it. Different from anything a person thinks,
+   * and the best place for a native speaker to start.
+   */
+  flagged?: boolean;
+  /** Why the pipeline flagged it, when it said. */
+  flagReason?: string;
+  /** Comments on this line nobody has closed off. */
+  openComments: number;
+  /** Logged changes to this line. */
+  revisions: number;
+  /** True while this line's audio is playing. */
+  isPlaying: boolean;
+  onToggleReviewed: () => void;
+  onOpenComments: () => void;
+  onOpenHistory: () => void;
+  onPlay: () => void;
+  onPlaySlow: () => void;
+}
 
 interface SegmentCardProps {
   segment: Segment;
@@ -22,6 +56,11 @@ interface SegmentCardProps {
   onFixArabic?: (segmentId: string) => void;
   onRetranslate?: (segmentId: string) => void;
   onSeek?: (segmentId: string) => void;
+  /** Present only in the review workspace. */
+  review?: SegmentReviewProps;
+  /** True when the keyboard cursor is on this line. */
+  isSelected?: boolean;
+  onSelect?: (segmentId: string) => void;
 }
 
 function confidenceBadgeColor(confidence: number): string {
@@ -57,6 +96,9 @@ export default function SegmentCard({
   onFixArabic,
   onRetranslate,
   onSeek,
+  review,
+  isSelected = false,
+  onSelect,
 }: SegmentCardProps) {
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(segment.text);
@@ -125,16 +167,61 @@ export default function SegmentCard({
   return (
     <div
       data-segment-id={segment.id}
+      onMouseDown={onSelect ? () => onSelect(segment.id) : undefined}
       className={cn(
         'rounded-lg border p-3 transition-all',
+        isSelected && 'ring-2 ring-blue-400 ring-offset-1 dark:ring-offset-gray-950',
         isActive
           ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 shadow-soft'
           : 'border-gray-200 dark:border-gray-700 hover:border-gray-300',
+        // Last, so it survives the merge: `cn` runs tailwind-merge, and the
+        // all-sides `border-gray-200` above would otherwise win over a
+        // left-side colour declared before it.
+        //
+        // The review state owns the left edge so a reviewer scrolling a long
+        // transcript can see what is still outstanding without reading a word
+        // of it. The active-line highlight keeps the other three sides.
+        review?.state === 'reviewed' && 'border-l-4 border-l-green-500',
+        review?.state === 'stale' && 'border-l-4 border-l-amber-500',
+        review?.state === 'unreviewed' && 'border-l-4 border-l-transparent',
       )}
     >
       {/* Header row */}
       <div className="flex items-center justify-between mb-1.5">
         <div className="flex items-center gap-2">
+          {review && (
+            <button
+              type="button"
+              role="checkbox"
+              aria-checked={review.state === 'reviewed'}
+              aria-label={
+                review.state === 'reviewed'
+                  ? `Line ${index + 1} reviewed — click to un-review`
+                  : review.state === 'stale'
+                    ? `Line ${index + 1} changed since it was reviewed — click to re-confirm`
+                    : `Mark line ${index + 1} as reviewed by a human`
+              }
+              title={
+                review.state === 'stale'
+                  ? 'This line changed after it was signed off. Check it again.'
+                  : review.state === 'reviewed'
+                    ? `Reviewed${review.reviewedAt ? ` ${new Date(review.reviewedAt).toLocaleDateString()}` : ''}`
+                    : 'Mark as reviewed by a human'
+              }
+              onClick={review.onToggleReviewed}
+              className={cn(
+                'flex h-5 w-5 flex-shrink-0 items-center justify-center rounded border text-[11px] font-bold transition-colors',
+                review.state === 'reviewed' &&
+                  'border-green-600 bg-green-600 text-white hover:bg-green-700',
+                review.state === 'stale' &&
+                  'border-amber-500 bg-amber-100 text-amber-800 hover:bg-amber-200 dark:bg-amber-900/40 dark:text-amber-200',
+                review.state === 'unreviewed' &&
+                  'border-gray-300 text-transparent hover:border-green-500 hover:text-green-500 dark:border-gray-600',
+              )}
+            >
+              {review.state === 'stale' ? '!' : '✓'}
+            </button>
+          )}
           <span className="text-xs text-muted-foreground font-mono">#{index + 1}</span>
           <span
             className={cn('text-[10px] px-1.5 py-0.5 rounded font-medium', confidenceBadgeColor(segment.confidence))}
@@ -144,8 +231,49 @@ export default function SegmentCard({
           {segment.speaker && (
             <span className="text-[10px] text-muted-foreground">{segment.speaker}</span>
           )}
+          {review?.flagged && (
+            <span
+              className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
+              title={
+                review.flagReason
+                  ? `The pipeline was unsure about this line: ${review.flagReason.replace(/_/g, " ")}`
+                  : "The pipeline was unsure about this line"
+              }
+            >
+              AI unsure
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-1">
+          {review && (
+            <>
+              <button
+                type="button"
+                className={cn(
+                  'text-[10px] px-2 py-0.5 rounded transition-colors',
+                  review.openComments > 0
+                    ? 'bg-sky-100 hover:bg-sky-200 text-sky-800 dark:bg-sky-900/40 dark:text-sky-200'
+                    : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700',
+                )}
+                onClick={review.onOpenComments}
+                title="Comments and suggestions on this line"
+                aria-label={`Comments on line ${index + 1}${review.openComments > 0 ? ` (${review.openComments} open)` : ''}`}
+              >
+                💬{review.openComments > 0 ? ` ${review.openComments}` : ''}
+              </button>
+              {review.revisions > 0 && (
+                <button
+                  type="button"
+                  className="text-[10px] px-2 py-0.5 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors"
+                  onClick={review.onOpenHistory}
+                  title="What changed on this line, and who changed it"
+                  aria-label={`History for line ${index + 1} (${review.revisions} changes)`}
+                >
+                  🕘 {review.revisions}
+                </button>
+              )}
+            </>
+          )}
           {segment.text && (
             <AskAISentence
               arabic={segment.text}
@@ -163,21 +291,54 @@ export default function SegmentCard({
               Fix Arabic
             </button>
           )}
-          {onRetranslate && isStaleTranslation && (
+          {/* In review mode this is always offered: the reviewer has just
+              corrected the Arabic and needs the English to catch up, and
+              waiting for the staleness heuristic to agree would hide the
+              button exactly when they reach for it. */}
+          {onRetranslate && (isStaleTranslation || review) && (
             <button
-              className="text-[10px] px-2 py-0.5 rounded bg-purple-100 hover:bg-purple-200 text-purple-800 transition-colors"
+              className="text-[10px] px-2 py-0.5 rounded bg-purple-100 hover:bg-purple-200 text-purple-800 transition-colors dark:bg-purple-900/40 dark:text-purple-200"
               onClick={() => onRetranslate(segment.id)}
               title="Re-translate"
+              aria-label={`Re-translate line ${index + 1} from its current Arabic`}
             >
               Re-translate
             </button>
+          )}
+          {review && (
+            <>
+              <button
+                type="button"
+                className={cn(
+                  'text-[10px] px-2 py-0.5 rounded transition-colors',
+                  review.isPlaying
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700',
+                )}
+                onClick={review.onPlay}
+                title="Play just this line (Space)"
+                aria-label={`Play line ${index + 1}`}
+              >
+                ▶
+              </button>
+              <button
+                type="button"
+                className="text-[10px] px-2 py-0.5 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors"
+                onClick={review.onPlaySlow}
+                title="Play this line slowly (Shift+Space)"
+                aria-label={`Play line ${index + 1} slowly`}
+              >
+                🐢
+              </button>
+            </>
           )}
           <button
             className="text-[10px] px-2 py-0.5 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors"
             onClick={() => onSeek?.(segment.id)}
             title="Seek video to this segment"
+            aria-label={`Seek video to line ${index + 1}`}
           >
-            ▶
+            ⇥
           </button>
         </div>
       </div>
@@ -201,6 +362,26 @@ export default function SegmentCard({
         </div>
       ) : (
         <div className="min-h-[2em]">
+          {/*
+            The keyboard's way into the editor.
+
+            Enter on the selected line has to open the same box a word click
+            opens, and the shortcut layer holds no handle on this component's
+            state — so it clicks this. Visually hidden but a real control, which
+            also gives the card its first keyboard-reachable edit affordance:
+            before this, clicking a word was the only way in.
+          */}
+          <button
+            type="button"
+            data-edit-arabic
+            className="sr-only"
+            onClick={() => {
+              setEditValue(segment.text);
+              setEditing(true);
+            }}
+          >
+            Edit the Arabic of line {index + 1}
+          </button>
           <WordConfidence
             words={segment.words}
             activeWordIndex={activeWordIndex}

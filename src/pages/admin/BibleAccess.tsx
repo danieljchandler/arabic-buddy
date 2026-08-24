@@ -147,7 +147,9 @@ const BibleAccess = () => {
         <div>
           <h1 className="text-xl font-bold">Role Access Management</h1>
           <p className="text-sm text-muted-foreground">
-            Grant and revoke Bible reader, content reviewer, beta tester, and complimentary (free All-In) roles.
+            Grant and revoke Bible reader, content reviewer, transcriber, beta tester, and
+            complimentary (free All-In) roles. The person needs an account here first — look
+            them up by the email they signed up with.
           </p>
         </div>
       </div>

@@ -342,3 +342,184 @@ describe("marking the active line", () => {
     );
   });
 });
+
+/**
+ * The native-speaker review chrome.
+ *
+ * All of it hangs off one optional prop, and the point of that is the negative
+ * case: the admin video form uses this same card and must not sprout
+ * checkmarks, comment buttons or per-line audio controls it has nowhere to send.
+ */
+const aReview = (over: Partial<NonNullable<Handlers["review"]>> = {}) => ({
+  state: "unreviewed" as const,
+  openComments: 0,
+  revisions: 0,
+  isPlaying: false,
+  onToggleReviewed: vi.fn(),
+  onOpenComments: vi.fn(),
+  onOpenHistory: vi.fn(),
+  onPlay: vi.fn(),
+  onPlaySlow: vi.fn(),
+  ...over,
+});
+
+describe("without a reviewer attached", () => {
+  it("shows no checkmark", () => {
+    render();
+
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+  });
+
+  it("shows no per-line audio controls", () => {
+    render();
+
+    expect(screen.queryByLabelText(/Play line 1$/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Play line 1 slowly/)).not.toBeInTheDocument();
+  });
+
+  it("keeps re-translate hidden on a line whose Arabic has not moved", () => {
+    // A re-translation of unchanged Arabic is a paid call returning what is
+    // already on screen. In review mode the button is always offered, so this
+    // is specifically the non-review behaviour.
+    render({ onRetranslate: vi.fn(), isStaleTranslation: false });
+
+    expect(screen.queryByTitle("Re-translate")).not.toBeInTheDocument();
+  });
+});
+
+describe("the human-review checkmark", () => {
+  it("is empty until somebody signs the line off", () => {
+    render({ review: aReview() });
+
+    expect(screen.getByRole("checkbox")).toHaveAttribute("aria-checked", "false");
+  });
+
+  it("is ticked once they have", () => {
+    render({ review: aReview({ state: "reviewed" }) });
+
+    expect(screen.getByRole("checkbox")).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("asks for another look when the line changed after sign-off", () => {
+    const review = aReview({ state: "stale" });
+    render({ review });
+
+    // Not ticked: the claim "a native speaker read this exact line" stopped
+    // being true when the text moved on.
+    const box = screen.getByRole("checkbox");
+    expect(box).toHaveAttribute("aria-checked", "false");
+    expect(box.getAttribute("aria-label")).toMatch(/changed since it was reviewed/i);
+  });
+
+  it("reports the click", () => {
+    const review = aReview();
+    render({ review });
+
+    fireEvent.click(screen.getByRole("checkbox"));
+
+    expect(review.onToggleReviewed).toHaveBeenCalled();
+  });
+
+  it("colours the line's edge by its state", () => {
+    const { container } = render({ review: aReview({ state: "reviewed" }) });
+
+    // Scanning four hundred lines for what is left is done with the eyes, not
+    // by reading each one.
+    expect(container.querySelector("[data-segment-id='seg-1']")?.className).toContain(
+      "border-l-green-500",
+    );
+  });
+});
+
+describe("the review buttons", () => {
+  it("plays just this line", () => {
+    const review = aReview();
+    render({ review });
+
+    fireEvent.click(screen.getByLabelText("Play line 1"));
+
+    expect(review.onPlay).toHaveBeenCalled();
+  });
+
+  it("plays it slowly", () => {
+    const review = aReview();
+    render({ review });
+
+    fireEvent.click(screen.getByLabelText("Play line 1 slowly"));
+
+    expect(review.onPlaySlow).toHaveBeenCalled();
+  });
+
+  it("counts the comments waiting on this line", () => {
+    render({ review: aReview({ openComments: 3 }) });
+
+    expect(screen.getByLabelText(/Comments on line 1 \(3 open\)/)).toBeInTheDocument();
+  });
+
+  it("offers history only once there is some", () => {
+    render({ review: aReview({ revisions: 0 }) });
+    expect(screen.queryByLabelText(/History for line 1/)).not.toBeInTheDocument();
+
+    cleanup?.();
+    render({ review: aReview({ revisions: 2 }) });
+    expect(screen.getByLabelText(/History for line 1 \(2 changes\)/)).toBeInTheDocument();
+  });
+
+  it("always offers re-translate in review mode", () => {
+    // The reviewer has just corrected the Arabic and needs the English to catch
+    // up. Waiting for the staleness heuristic to agree would hide the button at
+    // exactly the moment they reach for it.
+    render({ review: aReview(), onRetranslate: vi.fn(), isStaleTranslation: false });
+
+    expect(screen.getByTitle("Re-translate")).toBeInTheDocument();
+  });
+});
+
+describe("the keyboard cursor", () => {
+  it("marks the line it is on", () => {
+    const { container } = render({ isSelected: true });
+
+    expect(container.querySelector("[data-segment-id='seg-1']")?.className).toContain("ring-2");
+  });
+
+  it("moves to a line the reviewer clicks", () => {
+    const onSelect = vi.fn();
+    const { container } = render({ onSelect });
+
+    fireEvent.mouseDown(container.querySelector("[data-segment-id='seg-1']")!);
+
+    expect(onSelect).toHaveBeenCalledWith("seg-1");
+  });
+
+  it("offers a keyboard way into the editor", () => {
+    // Before this the only way to start editing was clicking a word, which is
+    // unreachable without a mouse.
+    render();
+
+    fireEvent.click(screen.getByRole("button", { name: /Edit the Arabic of line 1/ }));
+
+    expect(arabicBox()).toHaveValue("شلونك اليوم");
+  });
+});
+
+describe("the pipeline's own doubt", () => {
+  it("marks a line the translation ensemble could not settle", () => {
+    // A different question from whether a person has checked it, and the best
+    // place for a native speaker to start on a fresh video.
+    render({ review: aReview({ flagged: true, flagReason: "ensemble_disagreement" }) });
+
+    expect(screen.getByText("AI unsure")).toBeInTheDocument();
+  });
+
+  it("says why, when the pipeline said", () => {
+    render({ review: aReview({ flagged: true, flagReason: "ensemble_disagreement" }) });
+
+    expect(screen.getByTitle(/ensemble disagreement/)).toBeInTheDocument();
+  });
+
+  it("stays quiet on a line the pipeline was happy with", () => {
+    render({ review: aReview({ flagged: false }) });
+
+    expect(screen.queryByText("AI unsure")).not.toBeInTheDocument();
+  });
+});

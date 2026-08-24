@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { parseAppRoutes } from "./support/routes/parseAppRoutes";
 import { byPath, concreteUrl, ROUTES } from "./support/routes/manifest";
+import {
+  canAccessContentReviewerAdminPath,
+  canAccessTranscriberAdminPath,
+} from "@/lib/rbac";
 
 /**
  * Keeps the route manifest honest against `src/App.tsx`.
@@ -103,16 +107,53 @@ describe("route manifest", () => {
   });
 
   it("puts the content-reviewer allow-list in the manifest, not just in rbac.ts", () => {
-    // src/lib/rbac.ts allows /admin plus these three prefixes. The manifest has
-    // to agree or the sweep will assert the wrong redirect for a reviewer.
-    const reviewerRoutes = ROUTES.filter((route) => route.gate === "admin-or-reviewer");
-    const prefixes = ["/admin", "/admin/videos", "/admin/set-phrases", "/admin/dialect-rules"];
+    // Asked of rbac.ts itself rather than of a copy of its list. The copy this
+    // replaced led with the prefix "/admin", and every admin path starts with
+    // "/admin/" — so the check passed for any route at all and would have gone
+    // on passing if a route were mislabelled.
+    const reviewerRoutes = ROUTES.filter(
+      (route) =>
+        route.gate === "admin-or-reviewer" || route.gate === "admin-reviewer-or-transcriber",
+    );
 
     for (const route of reviewerRoutes) {
       expect(
-        prefixes.some((prefix) => route.path === prefix || route.path.startsWith(`${prefix}/`)),
-        `${route.path} is marked admin-or-reviewer but is not on rbac.ts's allow-list`,
+        canAccessContentReviewerAdminPath(concreteUrl(route)),
+        `${route.path} is marked reachable by a content reviewer but rbac.ts does not allow it`,
       ).toBe(true);
+    }
+  });
+
+  it("puts the transcriber allow-list in the manifest too", () => {
+    const transcriberRoutes = ROUTES.filter(
+      (route) => route.gate === "admin-reviewer-or-transcriber",
+    );
+
+    // Not vacuous: the role exists to reach these, so an empty list means the
+    // workspace routes lost their gate.
+    expect(transcriberRoutes.length).toBeGreaterThan(0);
+
+    for (const route of transcriberRoutes) {
+      expect(
+        canAccessTranscriberAdminPath(concreteUrl(route)),
+        `${route.path} is marked reachable by a transcriber but rbac.ts does not allow it`,
+      ).toBe(true);
+    }
+  });
+
+  it("keeps the transcriber out of everything else in the admin console", () => {
+    const offLimits = ROUTES.filter(
+      (route) =>
+        route.path.startsWith("/admin/") &&
+        route.path !== "/admin/login" &&
+        route.gate !== "admin-reviewer-or-transcriber",
+    );
+
+    for (const route of offLimits) {
+      expect(
+        canAccessTranscriberAdminPath(concreteUrl(route)),
+        `${route.path} is not marked for transcribers but rbac.ts lets one in`,
+      ).toBe(false);
     }
   });
 });

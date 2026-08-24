@@ -1,13 +1,21 @@
 import { useEffect, useRef } from 'react';
 import type { Segment } from '@/types/transcript';
 import { cn } from '@/lib/utils';
-import SegmentCard from './SegmentCard';
+import SegmentCard, { type SegmentReviewProps } from './SegmentCard';
 
 interface SegmentListProps {
   segments: Segment[];
   activeSegmentId?: string | null;
   activeWordIndex?: number;
   staleTranslations: Set<string>;
+  /**
+   * Review controls for a line, in the workspace. Returning undefined — which
+   * is what the video form's editor does — renders the card exactly as before.
+   */
+  reviewFor?: (segmentId: string) => SegmentReviewProps | undefined;
+  /** The line the keyboard is pointed at. Distinct from the one being spoken. */
+  selectedSegmentId?: string | null;
+  onSelect?: (segmentId: string) => void;
   onSplit: (segmentId: string, splitAfterWordIndex: number) => void;
   onSplitAtCursor: (segmentId: string, cursorPos: number, currentText: string) => void;
   onMerge: (index: number) => void;
@@ -29,6 +37,9 @@ export default function SegmentList({
   activeSegmentId,
   activeWordIndex,
   staleTranslations,
+  reviewFor,
+  selectedSegmentId,
+  onSelect,
   onSplit,
   onSplitAtCursor,
   onMerge,
@@ -48,6 +59,14 @@ export default function SegmentList({
     const el = listRef.current.querySelector(`[data-segment-id="${activeSegmentId}"]`);
     el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [activeSegmentId]);
+
+  // Keep the keyboard cursor on screen. Without this, holding J walks the
+  // selection off the bottom of the viewport and the reviewer is driving blind.
+  useEffect(() => {
+    if (!selectedSegmentId || !listRef.current) return;
+    const el = listRef.current.querySelector(`[data-segment-id="${selectedSegmentId}"]`);
+    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }, [selectedSegmentId]);
 
   return (
     <div ref={listRef} className="space-y-0.5 overflow-y-auto">
@@ -70,6 +89,9 @@ export default function SegmentList({
             onFixArabic={onFixArabic}
             onRetranslate={onRetranslate}
             onSeek={onSeek}
+            review={reviewFor?.(seg.id)}
+            isSelected={seg.id === selectedSegmentId}
+            onSelect={onSelect}
           />
 
           {/* Between-segment divider: gap indicator + merge button */}

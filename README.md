@@ -367,6 +367,41 @@ directly, so a route cannot be marked reachable by a role that rbac.ts does not
 actually admit — nor can a new admin route quietly become reachable by a
 transcriber.
 
+### Granting roles
+
+`/admin/bible-access` is the role console, and every role in `MANAGED_ROLES`
+(`src/lib/rbac.ts`) is grantable from it — `admin` included, so bringing on
+another staff member no longer needs a psql session. `recorder` is the one
+deliberate omission: it pairs with a recording setup arranged outside the app,
+so a grant here would be a role with nothing behind it. The list is mirrored in
+SQL by `public.is_grantable_role`, which both the grant function and the
+listing function filter on; a role present in only one of the two is either
+ungrantable or invisible once granted.
+
+Grants are made **by email, and the address does not have to belong to anyone
+yet.** `admin_grant_role_by_email` resolves the identifier against `auth.users`
+and reports one of four ordinary outcomes — `granted`, `already`, `pending`,
+`invited` — plus `not_found`, which now only a UUID can produce, since an email
+with no account behind it becomes an invitation rather than an error. An
+invitation is a row in `public.pending_role_grants`; the
+`on_auth_user_created_apply_roles` trigger claims every matching unclaimed row
+the moment that address signs up. Addresses are stored lowercased and matched
+lowercased, because a mixed-case row would sit unclaimed forever while the
+person signs in perfectly happily. The page lists invitations separately from
+real grants and lets an admin cancel one — a mistyped address is a live grant to
+whoever registers it next. `src/lib/roleGrants.ts` holds the pure half (which
+outcome means what, and how it is worded) and is unit-tested; the page carries
+no branching of its own.
+
+Making `admin` grantable puts the removal side under the same scrutiny, so
+`guard_admin_role_removal` — a `BEFORE DELETE` trigger on `user_roles`, not a
+check in the page — refuses to let an interactive caller revoke **their own**
+admin row or the **last remaining** one. It is in the database because RLS lets
+any admin delete any role row and the console is not the only way in. Two
+escapes are deliberate: a service-role caller (no `auth.uid()`) is not held to
+it, and neither is the cascade from deleting the account itself, which would
+otherwise turn "delete this user" into a hard error.
+
 ## Transcript review
 
 Native speakers check the pipeline's output at `/admin/transcribe`: a queue

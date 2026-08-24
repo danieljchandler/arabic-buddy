@@ -2,18 +2,30 @@ import type { Database } from "@/integrations/supabase/types";
 
 export type AppRole = Database["public"]["Enums"]["app_role"];
 export type ManagedRole =
+  | "admin"
   | "bible_reader"
   | "content_reviewer"
   | "beta_tester"
   | "complimentary"
   | "transcriber";
 
+/**
+ * The roles the console hands out, in the order the picker shows them.
+ *
+ * `recorder` is deliberately absent: it pairs with a recording setup that
+ * happens outside the app, and granting it here would not make that pairing
+ * happen. Keep this list in step with `public.is_grantable_role` in the
+ * database — the listing RPC filters on the SQL side and the picker is built
+ * from this side, so a role in only one of them is either ungrantable or
+ * invisible once granted.
+ */
 export const MANAGED_ROLES: ManagedRole[] = [
   "bible_reader",
   "content_reviewer",
   "beta_tester",
   "complimentary",
   "transcriber",
+  "admin",
 ];
 
 export const ROLE_LABELS: Record<ManagedRole, string> = {
@@ -25,7 +37,28 @@ export const ROLE_LABELS: Record<ManagedRole, string> = {
   // A native speaker who checks the AI's Arabic and English. Not staff: they
   // reach the review workspace and nothing else in /admin.
   transcriber: "Transcriber (native reviewer)",
+  // Everything, including this page. Granting it is how another person gets to
+  // hand out roles, so the UI confirms before writing it.
+  admin: "Admin (full access)",
 };
+
+/**
+ * Roles that carry the console with them, and so need a confirmation step.
+ *
+ * The distinction is not "important" — a complimentary grant is worth real
+ * money — but "can the holder grant more of it". An admin can mint admins and
+ * revoke anyone else's access; a content reviewer cannot reach this page at
+ * all. Only the first kind is worth interrupting someone over.
+ */
+export const ELEVATED_ROLES: ManagedRole[] = ["admin"];
+
+export function isElevatedRole(role: ManagedRole): boolean {
+  return ELEVATED_ROLES.includes(role);
+}
+
+export function isManagedRole(role: string): role is ManagedRole {
+  return (MANAGED_ROLES as string[]).includes(role);
+}
 
 
 const CONTENT_REVIEWER_ALLOWED_ADMIN_PREFIXES = [

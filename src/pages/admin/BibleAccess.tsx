@@ -5,6 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -20,8 +30,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, Shield, Search } from "lucide-react";
-import { MANAGED_ROLES, ROLE_LABELS, type ManagedRole } from "@/lib/rbac";
+import { Loader2, Plus, Trash2, Shield, Search, MailQuestion } from "lucide-react";
+import { MANAGED_ROLES, ROLE_LABELS, isElevatedRole, type ManagedRole } from "@/lib/rbac";
+import { describeGrantResult, type GrantResult } from "@/lib/roleGrants";
 
 interface ManagedRoleRow {
   id: string;
@@ -31,15 +42,25 @@ interface ManagedRoleRow {
   email: string | null;
 }
 
+interface PendingGrantRow {
+  id: string;
+  email: string;
+  role: ManagedRole;
+  created_at: string;
+}
+
 const BibleAccess = () => {
-  const { isAdmin } = useAdminAuth();
+  const { isAdmin, user } = useAdminAuth();
   const [rows, setRows] = useState<ManagedRoleRow[]>([]);
+  const [pending, setPending] = useState<PendingGrantRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [identifier, setIdentifier] = useState("");
   const [selectedRole, setSelectedRole] = useState<ManagedRole>("bible_reader");
   const [filterRole, setFilterRole] = useState<ManagedRole | "all">("all");
   const [adding, setAdding] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
+  // Set while an elevated grant waits on the confirmation dialog.
+  const [confirming, setConfirming] = useState(false);
 
   const fetchRoles = useCallback(async () => {
     setLoading(true);
@@ -55,53 +76,61 @@ const BibleAccess = () => {
     }
   }, []);
 
+  const fetchPending = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.rpc("admin_list_pending_role_grants");
+      if (error) throw error;
+      setPending((data ?? []) as PendingGrantRow[]);
+    } catch (err) {
+      // Its own catch, and no spinner of its own: the invitations are a second
+      // list on the same page, and losing them must not blank out the record of
+      // who actually holds what.
+      console.error("Error fetching pending role grants:", err);
+      toast.error("Failed to load pending invitations");
+    }
+  }, []);
+
   useEffect(() => {
     fetchRoles();
-  }, [fetchRoles]);
+    fetchPending();
+  }, [fetchRoles, fetchPending]);
 
-  const addRole = async () => {
+  /**
+   * Hand the identifier to the database and report whichever of the four
+   * outcomes came back. The client never resolves the address itself — only a
+   * security-definer function can see `auth.users`, and it is also the only
+   * place that knows whether an unknown address should become an invitation.
+   */
+  const grant = async () => {
     const rawIdentifier = identifier.trim();
     if (!rawIdentifier) return;
     setAdding(true);
 
     try {
-      const { data: resolved, error: resolveError } = await supabase.rpc(
-        "admin_find_user",
-        { _identifier: rawIdentifier }
-      );
-      if (resolveError) throw resolveError;
+      const { data, error } = await supabase.rpc("admin_grant_role_by_email", {
+        _identifier: rawIdentifier,
+        _role: selectedRole,
+      });
+      if (error) throw error;
 
-      const resolvedUser = (resolved ?? [])[0] as { user_id: string; email: string | null } | undefined;
-      if (!resolvedUser?.user_id) {
-        toast.error("User not found", {
-          description: "Enter a valid account email or user UUID.",
-        });
+      const result = (data ?? [])[0] as GrantResult | undefined;
+      if (!result) throw new Error("The role grant returned no result.");
+
+      const message = describeGrantResult(result, selectedRole, rawIdentifier);
+
+      if (message.tone === "error") {
+        toast.error(message.title, { description: message.description });
         return;
       }
 
-      const { data: existing, error: existingError } = await supabase
-        .from("user_roles")
-        .select("id")
-        .eq("user_id", resolvedUser.user_id)
-        .eq("role", selectedRole)
-        .maybeSingle();
-
-      if (existingError) throw existingError;
-
-      if (existing) {
-        toast.info("This role is already assigned to that user.");
-        return;
+      if (message.tone === "info") {
+        toast.info(message.title, { description: message.description });
+      } else {
+        toast.success(message.title, { description: message.description });
       }
 
-      const { error: insertError } = await supabase
-        .from("user_roles")
-        .insert({ user_id: resolvedUser.user_id, role: selectedRole });
-
-      if (insertError) throw insertError;
-
-      toast.success(`${ROLE_LABELS[selectedRole]} granted`);
       setIdentifier("");
-      await fetchRoles();
+      await Promise.all([fetchRoles(), fetchPending()]);
     } catch (err) {
       console.error("Error adding role:", err);
       toast.error("Failed to grant role", {
@@ -110,6 +139,17 @@ const BibleAccess = () => {
     } finally {
       setAdding(false);
     }
+  };
+
+  const addRole = () => {
+    if (!identifier.trim()) return;
+    // Admin is the one grant that hands over this page itself, so it stops for
+    // a second pair of eyes — the same person's, a moment later.
+    if (isElevatedRole(selectedRole)) {
+      setConfirming(true);
+      return;
+    }
+    void grant();
   };
 
   const removeRole = async (roleRowId: string) => {
@@ -122,7 +162,28 @@ const BibleAccess = () => {
       toast.success("Role revoked");
     } catch (err) {
       console.error("Error revoking role:", err);
-      toast.error("Failed to revoke role");
+      // The message matters here: the database refuses to let anyone remove
+      // their own admin row or the last one, and "Failed to revoke role" alone
+      // would read as a bug rather than as the guard doing its job.
+      toast.error("Failed to revoke role", {
+        description: err instanceof Error ? err.message : undefined,
+      });
+    } finally {
+      setRemovingId(null);
+    }
+  };
+
+  const removePending = async (pendingId: string) => {
+    setRemovingId(pendingId);
+    try {
+      const { error } = await supabase.rpc("admin_revoke_pending_role", { _id: pendingId });
+      if (error) throw error;
+
+      setPending((prev) => prev.filter((r) => r.id !== pendingId));
+      toast.success("Invitation cancelled");
+    } catch (err) {
+      console.error("Error cancelling pending role grant:", err);
+      toast.error("Failed to cancel invitation");
     } finally {
       setRemovingId(null);
     }
@@ -137,6 +198,8 @@ const BibleAccess = () => {
   }
 
   const visibleRows = filterRole === "all" ? rows : rows.filter((row) => row.role === filterRole);
+  const visiblePending =
+    filterRole === "all" ? pending : pending.filter((row) => row.role === filterRole);
 
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-6">
@@ -147,9 +210,10 @@ const BibleAccess = () => {
         <div>
           <h1 className="text-xl font-bold">Role Access Management</h1>
           <p className="text-sm text-muted-foreground">
-            Grant and revoke Bible reader, content reviewer, transcriber, beta tester, and
-            complimentary (free All-In) roles. The person needs an account here first — look
-            them up by the email they signed up with.
+            Grant and revoke admin, transcriber, beta tester, Bible reader, content reviewer
+            and complimentary (free All-In) roles. Enter an email address: if it has no
+            account yet, the role is saved and applied automatically when that address
+            signs up.
           </p>
         </div>
       </div>
@@ -178,6 +242,30 @@ const BibleAccess = () => {
           <span className="ml-1">Add</span>
         </Button>
       </div>
+
+      <AlertDialog open={confirming} onOpenChange={setConfirming}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Grant full admin access?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {identifier.trim()} will get the whole console, including this page — they
+              will be able to grant and revoke roles, including yours. Only the last
+              remaining admin cannot be removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setConfirming(false);
+                void grant();
+              }}
+            >
+              Grant admin
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <div className="w-[220px]">
         <Select value={filterRole} onValueChange={(value) => setFilterRole(value as ManagedRole | "all")}>
@@ -220,7 +308,9 @@ const BibleAccess = () => {
             {visibleRows.map((row) => (
               <TableRow key={row.id}>
                 <TableCell>
-                  <Badge variant="outline">{ROLE_LABELS[row.role]}</Badge>
+                  <Badge variant={isElevatedRole(row.role) ? "default" : "outline"}>
+                    {ROLE_LABELS[row.role]}
+                  </Badge>
                 </TableCell>
                 <TableCell className="text-sm">{row.email ?? "—"}</TableCell>
                 <TableCell className="font-mono text-xs">{row.user_id}</TableCell>
@@ -232,7 +322,8 @@ const BibleAccess = () => {
                     variant="ghost"
                     size="icon"
                     className="text-destructive hover:text-destructive"
-                    disabled={removingId === row.id}
+                    aria-label={`Revoke ${ROLE_LABELS[row.role]} from ${row.email ?? row.user_id}`}
+                    disabled={removingId === row.id || (row.role === "admin" && row.user_id === user?.id)}
                     onClick={() => removeRole(row.id)}
                   >
                     {removingId === row.id ? (
@@ -248,8 +339,62 @@ const BibleAccess = () => {
         </Table>
       )}
 
+      {visiblePending.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <MailQuestion className="h-4 w-4 text-muted-foreground" />
+            <h2 className="text-sm font-semibold">Waiting on signup</h2>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            These addresses have no account yet. The role is applied the first time someone
+            signs up with the address, so cancel any that were typed wrong — a mistyped
+            address sits here until someone happens to register it.
+          </p>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Role</TableHead>
+                <TableHead>Email</TableHead>
+                <TableHead>Invited</TableHead>
+                <TableHead className="w-[80px]" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {visiblePending.map((row) => (
+                <TableRow key={row.id}>
+                  <TableCell>
+                    <Badge variant="secondary">{ROLE_LABELS[row.role]}</Badge>
+                  </TableCell>
+                  <TableCell className="text-sm">{row.email}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">
+                    {new Date(row.created_at).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive hover:text-destructive"
+                      aria-label={`Cancel ${ROLE_LABELS[row.role]} invitation for ${row.email}`}
+                      disabled={removingId === row.id}
+                      onClick={() => removePending(row.id)}
+                    >
+                      {removingId === row.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+
       <p className="text-xs text-muted-foreground">
-        Admin users always keep full access and do not need extra role assignments.
+        You cannot revoke your own admin role, and the last remaining admin cannot be
+        removed — both are enforced by the database, not just hidden here.
       </p>
     </div>
   );

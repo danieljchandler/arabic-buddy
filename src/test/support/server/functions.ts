@@ -4,6 +4,11 @@ import {
   diffVideoField,
   type TranscriptRevision,
 } from "../../../../supabase/functions/_shared/transcriptRevisionCore";
+import {
+  isReviewableDialect,
+  resolveSubvariety,
+  sanitizeDialectFeatures,
+} from "../../../../supabase/functions/_shared/dialectSubvarieties";
 
 /**
  * Edge-function responses.
@@ -296,6 +301,57 @@ function transcriptReview({ db, userId, body }: FunctionContext): FunctionRespon
       if (!video) return { status: 404, body: { error: "video_not_found" } };
       const live = db.raw("discover_videos").find((row) => row.id === videoId)!;
       const revisions: TranscriptRevision[] = [];
+
+      // The dialect classification, resolved first: the sub-variety and the
+      // features are only meaningful relative to whatever the dialect ends up
+      // being, exactly as in the real function.
+      let effectiveDialect = video.dialect;
+      // Whether *this save* moved the country, which is not the same question
+      // as whether the payload mentioned it. Only a save that actually moved it
+      // may clear a sub-variety the client said nothing about.
+      let dialectMoved = false;
+
+      if ("dialect" in payload) {
+        if (!isReviewableDialect(payload.dialect)) {
+          return { status: 400, body: { error: "unknown_dialect" } };
+        }
+        const next = String(payload.dialect);
+        const revision = diffVideoField("dialect", video.dialect, next);
+        if (revision) {
+          live.dialect = next;
+          revisions.push(revision);
+          dialectMoved = true;
+        }
+        effectiveDialect = next;
+      }
+
+      if ("dialectSubvariety" in payload) {
+        const next = resolveSubvariety(effectiveDialect, payload.dialectSubvariety);
+        const revision = diffVideoField(
+          "dialect_subvariety",
+          video.dialect_subvariety,
+          next,
+        );
+        if (revision) {
+          live.dialect_subvariety = next;
+          revisions.push(revision);
+        }
+      } else if (dialectMoved && !resolveSubvariety(effectiveDialect, video.dialect_subvariety)) {
+        const revision = diffVideoField("dialect_subvariety", video.dialect_subvariety, null);
+        if (revision) {
+          live.dialect_subvariety = null;
+          revisions.push(revision);
+        }
+      }
+
+      if ("dialectFeatures" in payload) {
+        const next = sanitizeDialectFeatures(payload.dialectFeatures, effectiveDialect);
+        const revision = diffVideoField("dialect_features", video.dialect_features, next);
+        if (revision) {
+          live.dialect_features = next;
+          revisions.push(revision);
+        }
+      }
 
       if ("culturalContext" in payload) {
         const revision = diffVideoField(

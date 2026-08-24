@@ -17,6 +17,9 @@ const FIELD_LABELS: Record<string, string> = {
   cultural_context: "Cultural notes",
   grammar_points: "Grammar points",
   vocabulary: "Vocabulary",
+  dialect: "Dialect",
+  dialect_subvariety: "Sub-dialect",
+  dialect_features: "Dialect features",
 };
 
 const SOURCE_LABELS: Record<TranscriptRevisionRow["source"], string> = {

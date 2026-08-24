@@ -242,6 +242,71 @@ test.describe("the workspace", () => {
     await expect(page.getByText("Revised note.")).toBeVisible();
   });
 
+  test("narrows a video from a region to a sub-dialect", async ({ page, db }) => {
+    // The whole point of the two-level picker, driven end to end: the fixture
+    // arrives labelled "Gulf", which is the resolution of a passport rather
+    // than of a dialect, and comes out as Jeddah.
+    await page.goto(`/admin/transcribe/${VIDEO}`);
+
+    await page.getByRole("tab", { name: /Notes/ }).click();
+    await page.getByLabel("Dialect", { exact: true }).click();
+    await page.getByRole("option", { name: "Saudi" }).click();
+    await page.getByLabel("Sub-dialect").click();
+    await page.getByRole("option", { name: /Ḥijāzi/ }).click();
+    await page.getByRole("button", { name: "Save notes" }).click();
+
+    await expect
+      .poll(() => db.rows("discover_videos").find((r) => r.id === VIDEO)?.dialect_subvariety)
+      .toBe("hijazi");
+    expect(db.rows("discover_videos").find((r) => r.id === VIDEO)?.dialect).toBe("Saudi");
+  });
+
+  test("records a dialect-specific feature apart from the grammar points", async ({ page, db }) => {
+    // The separation is the feature: the grammar card above is what a learner
+    // should take away about Arabic, this one is what places the speaker.
+    await page.goto(`/admin/transcribe/${VIDEO}`);
+
+    await page.getByRole("tab", { name: /Notes/ }).click();
+    await page.getByRole("button", { name: "Add a dialect feature" }).click();
+    await page
+      .getByLabel("Dialect feature 1 contrast")
+      .fill("Riyadh would say وش here.");
+    await page.getByRole("button", { name: "Save notes" }).click();
+
+    await expect
+      .poll(
+        () =>
+          (db.rows("discover_videos").find((r) => r.id === VIDEO)
+            ?.dialect_features as unknown[])?.length,
+      )
+      .toBe(1);
+
+    const video = db.rows("discover_videos").find((r) => r.id === VIDEO)!;
+    const feature = (video.dialect_features as Record<string, unknown>[])[0];
+    expect(feature.contrast).toBe("Riyadh would say وش here.");
+    // It did not leak into the grammar points, which are a different question.
+    expect(video.grammar_points).toEqual([]);
+  });
+
+  test("clears a sub-dialect stranded by a change of dialect", async ({ page, db }) => {
+    // A reviewer correcting a mis-tagged video must not leave it claiming
+    // "Ḥijāzi" under "Egyptian" — nobody ever asserted that pair.
+    db.raw("discover_videos").find((r) => r.id === VIDEO)!.dialect_subvariety = "khaliji-hadar";
+
+    await page.goto(`/admin/transcribe/${VIDEO}`);
+    await page.getByRole("tab", { name: /Notes/ }).click();
+    await page.getByLabel("Dialect", { exact: true }).click();
+    await page.getByRole("option", { name: "Egyptian" }).click();
+    await page.getByRole("button", { name: "Save notes" }).click();
+
+    await expect
+      .poll(() => db.rows("discover_videos").find((r) => r.id === VIDEO)?.dialect)
+      .toBe("Egyptian");
+    expect(
+      db.rows("discover_videos").find((r) => r.id === VIDEO)?.dialect_subvariety,
+    ).toBeNull();
+  });
+
   test("has no way to publish the video", async ({ page }) => {
     // The reason this workspace exists rather than reusing the admin video
     // form: a reviewer must not be one misclick from shipping a clip.

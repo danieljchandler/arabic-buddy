@@ -20,7 +20,14 @@ export type RevisionField =
   | "structure"
   | "cultural_context"
   | "grammar_points"
-  | "vocabulary";
+  | "vocabulary"
+  // The dialect classification a native reviewer sets: the country label, the
+  // sub-variety under it, and the features they listed as marking it. Logged
+  // like any other note, because re-labelling a video from Najdi to Hijazi
+  // changes what every generator downstream thinks the clip is.
+  | "dialect"
+  | "dialect_subvariety"
+  | "dialect_features";
 
 export type RevisionSource = "human" | "ai_retranslate" | "ai_resegment";
 
@@ -187,13 +194,21 @@ export function diffTranscriptRevisions(
 /**
  * Describe a change to one of the video's own fields.
  *
- * Grammar points and vocabulary are arrays of objects; they are logged as
- * pretty-printed JSON because there is no useful shorter rendering of "the
- * third example on the second grammar point changed", and the diff view shows
- * these side by side rather than inline.
+ * Grammar points, vocabulary and dialect features are arrays of objects; they
+ * are logged as pretty-printed JSON because there is no useful shorter
+ * rendering of "the third example on the second grammar point changed", and the
+ * diff view shows these side by side rather than inline.
  */
 export function diffVideoField(
-  field: Extract<RevisionField, "cultural_context" | "grammar_points" | "vocabulary">,
+  field: Extract<
+    RevisionField,
+    | "cultural_context"
+    | "grammar_points"
+    | "vocabulary"
+    | "dialect"
+    | "dialect_subvariety"
+    | "dialect_features"
+  >,
   previous: unknown,
   next: unknown,
 ): TranscriptRevision | null {

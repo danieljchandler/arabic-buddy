@@ -30,6 +30,12 @@ import { normalizeDialect } from "../_shared/transcriptDiffCore.ts";
 // client and reads Deno.env at module scope, and this only wants the type.
 import type { Dialect } from "../_shared/dialectTypes.ts";
 import {
+  isReviewableDialect,
+  resolveSubvariety,
+  sanitizeDialectFeatures,
+  subvarietyPromptHint,
+} from "../_shared/dialectSubvarieties.ts";
+import {
   diffTranscriptRevisions,
   diffVideoField,
   type RevisionSource,
@@ -105,6 +111,8 @@ interface TranscriptLine {
 interface VideoRow {
   id: string;
   dialect: string | null;
+  dialect_subvariety: string | null;
+  dialect_features: unknown;
   transcript_lines: unknown;
   cultural_context: string | null;
   grammar_points: unknown;
@@ -114,7 +122,9 @@ interface VideoRow {
 async function loadVideo(videoId: string): Promise<VideoRow | null> {
   const { data, error } = await admin()
     .from("discover_videos")
-    .select("id, dialect, transcript_lines, cultural_context, grammar_points, vocabulary")
+    .select(
+      "id, dialect, dialect_subvariety, dialect_features, transcript_lines, cultural_context, grammar_points, vocabulary",
+    )
     .eq("id", videoId)
     .maybeSingle();
   if (error || !data) return null;
@@ -315,6 +325,11 @@ async function retranslateLine(
   // middle line only.
   const before = lines[index - 1]?.arabic ?? "";
   const after = lines[index + 1]?.arabic ?? "";
+  // The sub-variety, when a reviewer has set one. `dialect` alone puts the
+  // model in "Gulf Arabic" and leaves it to guess between Jeddah and Riyadh;
+  // naming the variety is the difference between a gloss that reads as this
+  // speaker and one that reads as the region's biggest city.
+  const variety = subvarietyPromptHint(video.dialect, video.dialect_subvariety);
 
   let result: { translation?: string; literal?: string } | null = null;
   try {
@@ -331,6 +346,7 @@ async function retranslateLine(
         `A native speaker has just corrected the Arabic of one line of a spoken ` +
         `${dialect} Arabic transcript. Translate the corrected line into natural, ` +
         `plain English for a learner, and give a word-for-word literal gloss.\n\n` +
+        (variety ? `The reviewer has identified this clip as: ${variety}\n\n` : "") +
         (before ? `Previous line (context only): «${before}»\n` : "") +
         (after ? `Next line (context only): «${after}»\n` : "") +
         `\nTranslate this line only:\n«${arabic}»`,
@@ -428,11 +444,19 @@ async function resolveComment(
 }
 
 /**
- * The video's own notes: cultural context, grammar points, vocabulary.
+ * The video's own notes: what it is in, and what a learner should take from it.
  *
- * These three columns and no others. A transcriber has no route to `published`,
- * `source_url` or anything else on the row, and the allow-list is stated as
- * code here rather than as a convention in the client.
+ * Five columns and no others — cultural context, grammar points, vocabulary,
+ * and now the dialect classification. A transcriber has no route to
+ * `published`, `source_url` or anything else on the row, and the allow-list is
+ * stated as code here rather than as a convention in the client.
+ *
+ * Why `dialect` itself is on the list, when it was not before: the reviewer is
+ * the only person in the pipeline who can actually hear what the clip is. The
+ * label was being set by a model off a thirty-second sample, which is one of
+ * the things it is worst at, and there was nowhere to correct it short of
+ * admin. It is a classification, not a publishing decision — the distinction
+ * the allow-list has always drawn.
  */
 async function saveNotes(
   reviewer: Reviewer,
@@ -447,6 +471,63 @@ async function saveNotes(
 
   const updates: Record<string, unknown> = {};
   const revisions: TranscriptRevision[] = [];
+
+  // ── The dialect classification ────────────────────────────────────────────
+  //
+  // Resolved before anything else, because the sub-variety and the features are
+  // only meaningful relative to whatever the dialect ends up being. A reviewer
+  // moving a video from Saudi to Egyptian in the same save must not leave
+  // "hijazi" sitting underneath it, so the effective dialect is computed once
+  // here and everything downstream validates against that rather than against
+  // what is still in the database.
+  let effectiveDialect = video.dialect;
+
+  if ("dialect" in body) {
+    // An unrecognised label is refused rather than ignored: unlike the
+    // sub-variety, there is no sensible thing to fall back to, and silently
+    // keeping the old country while reporting success is the failure mode most
+    // likely to go unnoticed.
+    if (!isReviewableDialect(body.dialect)) {
+      return json({ error: "unknown_dialect", dialect: body.dialect }, 400, cors);
+    }
+    const next = String(body.dialect);
+    const revision = diffVideoField("dialect", video.dialect, next);
+    if (revision) {
+      updates.dialect = next;
+      revisions.push(revision);
+    }
+    effectiveDialect = next;
+  }
+
+  if ("dialectSubvariety" in body) {
+    const next = resolveSubvariety(effectiveDialect, body.dialectSubvariety);
+    const revision = diffVideoField("dialect_subvariety", video.dialect_subvariety, next);
+    if (revision) {
+      updates.dialect_subvariety = next;
+      revisions.push(revision);
+    }
+  } else if (
+    updates.dialect !== undefined &&
+    !resolveSubvariety(effectiveDialect, video.dialect_subvariety)
+  ) {
+    // The country moved and the client said nothing about the sub-variety. The
+    // stored one no longer belongs under the new label, so leaving it would
+    // make the row claim something nobody ever asserted.
+    const revision = diffVideoField("dialect_subvariety", video.dialect_subvariety, null);
+    if (revision) {
+      updates.dialect_subvariety = null;
+      revisions.push(revision);
+    }
+  }
+
+  if ("dialectFeatures" in body) {
+    const next = sanitizeDialectFeatures(body.dialectFeatures, effectiveDialect);
+    const revision = diffVideoField("dialect_features", video.dialect_features, next);
+    if (revision) {
+      updates.dialect_features = next;
+      revisions.push(revision);
+    }
+  }
 
   if ("culturalContext" in body) {
     const next = body.culturalContext === null ? null : String(body.culturalContext ?? "");

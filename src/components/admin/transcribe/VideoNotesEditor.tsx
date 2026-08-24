@@ -3,6 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import DialectClassifier from "./DialectClassifier";
+import DialectFeatureEditor, { type FeatureLineOption } from "./DialectFeatureEditor";
+import type { DialectFeature } from "../../../../supabase/functions/_shared/dialectSubvarieties";
 
 export interface GrammarPoint {
   title?: string;
@@ -17,15 +20,27 @@ export interface VocabEntry {
   root?: string;
 }
 
+export type { DialectFeature };
+
 interface VideoNotesEditorProps {
   culturalContext: string;
   grammarPoints: GrammarPoint[];
   vocabulary: VocabEntry[];
+  /** The country-level label on the row, e.g. "Saudi". */
+  dialect: string;
+  /** The sub-variety under it, e.g. "hijazi". Null until somebody judges it. */
+  dialectSubvariety: string | null;
+  dialectFeatures: DialectFeature[];
+  /** The transcript, so a dialect feature can be pinned to the line it is on. */
+  lines?: FeatureLineOption[];
   busy?: boolean;
   onSave: (input: {
     culturalContext: string;
     grammarPoints: GrammarPoint[];
     vocabulary: VocabEntry[];
+    dialect: string;
+    dialectSubvariety: string | null;
+    dialectFeatures: DialectFeature[];
   }) => Promise<unknown> | void;
 }
 
@@ -39,30 +54,49 @@ interface VideoNotesEditorProps {
  * are editable in the same place as the transcript rather than behind the
  * admin-only video form.
  *
- * Kept as one form with one save, because these three fields are argued over
- * together and the revision log reads better as "they revised the notes" than
- * as three separate entries a second apart.
+ * The same reasoning extends to the dialect classification at the top and the
+ * dialect features below the grammar points: the reviewer is also the only
+ * person in the pipeline who can hear that this is Ḥijāzi rather than Najdi,
+ * and the label the pipeline guessed was reaching every generator downstream
+ * with nobody able to correct it.
+ *
+ * Kept as one form with one save, because these fields are argued over together
+ * and the revision log reads better as "they revised the notes" than as six
+ * separate entries a second apart.
  */
 export function VideoNotesEditor({
   culturalContext,
   grammarPoints,
   vocabulary,
+  dialect,
+  dialectSubvariety,
+  dialectFeatures,
+  lines = [],
   busy = false,
   onSave,
 }: VideoNotesEditorProps) {
   const [context, setContext] = useState(culturalContext);
   const [points, setPoints] = useState<GrammarPoint[]>(grammarPoints);
   const [words, setWords] = useState<VocabEntry[]>(vocabulary);
+  const [label, setLabel] = useState(dialect);
+  const [variety, setVariety] = useState<string | null>(dialectSubvariety);
+  const [features, setFeatures] = useState<DialectFeature[]>(dialectFeatures);
 
   // Re-seed when the video finishes loading, or when someone else's save lands.
   useEffect(() => setContext(culturalContext), [culturalContext]);
   useEffect(() => setPoints(grammarPoints), [grammarPoints]);
   useEffect(() => setWords(vocabulary), [vocabulary]);
+  useEffect(() => setLabel(dialect), [dialect]);
+  useEffect(() => setVariety(dialectSubvariety), [dialectSubvariety]);
+  useEffect(() => setFeatures(dialectFeatures), [dialectFeatures]);
 
   const dirty =
     context !== culturalContext ||
     JSON.stringify(points) !== JSON.stringify(grammarPoints) ||
-    JSON.stringify(words) !== JSON.stringify(vocabulary);
+    JSON.stringify(words) !== JSON.stringify(vocabulary) ||
+    label !== dialect ||
+    variety !== dialectSubvariety ||
+    JSON.stringify(features) !== JSON.stringify(dialectFeatures);
 
   const updatePoint = (index: number, patch: Partial<GrammarPoint>) =>
     setPoints((prev) => prev.map((p, i) => (i === index ? { ...p, ...patch } : p)));
@@ -72,6 +106,27 @@ export function VideoNotesEditor({
 
   return (
     <div className="space-y-4">
+      {/*
+        First on the tab, because it frames everything under it: which grammar
+        counts as dialect-specific depends entirely on which dialect this is.
+      */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">Which variety is this?</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DialectClassifier
+            dialect={label}
+            subvariety={variety}
+            onChange={(next) => {
+              setLabel(next.dialect);
+              setVariety(next.subvariety);
+            }}
+            disabled={busy}
+          />
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Cultural notes</CardTitle>
@@ -152,6 +207,32 @@ export function VideoNotesEditor({
         </CardContent>
       </Card>
 
+      {/*
+        Directly under the grammar points, because the pairing is the lesson:
+        the card above is what a learner should take away about Arabic, this one
+        is what places this speaker. Same screen, different question.
+      */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base">
+            Dialect-specific features ({features.length})
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Not what a learner should take away about Arabic — what makes this sound like this
+            variety and not the one next door.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <DialectFeatureEditor
+            features={features}
+            onChange={setFeatures}
+            dialect={label}
+            subvariety={variety}
+            lines={lines}
+          />
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
           <CardTitle className="text-base">Vocabulary ({words.length})</CardTitle>
@@ -208,7 +289,14 @@ export function VideoNotesEditor({
         <Button
           disabled={busy || !dirty}
           onClick={() =>
-            onSave({ culturalContext: context, grammarPoints: points, vocabulary: words })
+            onSave({
+              culturalContext: context,
+              grammarPoints: points,
+              vocabulary: words,
+              dialect: label,
+              dialectSubvariety: variety,
+              dialectFeatures: features,
+            })
           }
         >
           {busy ? "Saving…" : "Save notes"}

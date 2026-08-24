@@ -12,6 +12,7 @@ import { AdminTranscriptEditor } from "@/components/admin/AdminTranscriptEditor"
 import LineRevisionHistory from "@/components/admin/transcribe/LineRevisionHistory";
 import LineComments from "@/components/admin/transcribe/LineComments";
 import VideoNotesEditor, {
+  type DialectFeature,
   type GrammarPoint,
   type VocabEntry,
 } from "@/components/admin/transcribe/VideoNotesEditor";
@@ -19,6 +20,7 @@ import type { LineReviewSlot } from "@/components/TranscriptEditor";
 import { useTranscriptReview } from "@/hooks/useTranscriptReview";
 import { reviewProgress, reviewStateFor } from "@/lib/reviewStatus";
 import { resolveStagedVideoAudioUrl } from "@/lib/videoAudioStaging";
+import { subvarietyLabel } from "../../../supabase/functions/_shared/dialectSubvarieties";
 import type { TranscriptLine } from "@/types/transcript";
 import { cn } from "@/lib/utils";
 
@@ -50,7 +52,7 @@ export default function AdminTranscribeWorkspace() {
       // plain `string`, which lands the whole query on GenericStringError.
       const { data, error } = await supabase
         .from("discover_videos")
-        .select("id, title, title_arabic, dialect, difficulty, published, source_url, embed_url, transcript_lines, cultural_context, grammar_points, vocabulary, transcription_status")
+        .select("id, title, title_arabic, dialect, dialect_subvariety, dialect_features, difficulty, published, source_url, embed_url, transcript_lines, cultural_context, grammar_points, vocabulary, transcription_status")
         .eq("id", videoId!)
         .maybeSingle();
       if (error) throw error;
@@ -238,7 +240,15 @@ export default function AdminTranscribeWorkspace() {
         <div className="min-w-0 flex-1">
           <h1 className="truncate text-lg font-semibold">{video.title}</h1>
           <p className="text-xs text-muted-foreground">
-            {video.dialect} · {video.difficulty}
+            {video.dialect}
+            {/*
+              The sub-variety reads as part of the dialect rather than as
+              another facet — "Saudi · Ḥijāzi" — because that is what it is, and
+              because its absence is the prompt to go and set it.
+            */}
+            {video.dialect_subvariety
+              ? ` · ${subvarietyLabel(video.dialect_subvariety)}`
+              : ""} · {video.difficulty}
             {video.published ? " · published" : " · not published"}
           </p>
         </div>
@@ -314,6 +324,13 @@ export default function AdminTranscribeWorkspace() {
             culturalContext={video.cultural_context ?? ""}
             grammarPoints={(video.grammar_points as unknown as GrammarPoint[]) ?? []}
             vocabulary={(video.vocabulary as unknown as VocabEntry[]) ?? []}
+            dialect={video.dialect}
+            dialectSubvariety={video.dialect_subvariety}
+            dialectFeatures={(video.dialect_features as unknown as DialectFeature[]) ?? []}
+            // The live editor state rather than `video.transcript_lines`: a
+            // reviewer who has just split a line should be able to pin a
+            // feature to the half it actually happens on.
+            lines={lines}
             busy={review.saveNotes.isPending}
             onSave={(input) =>
               review.saveNotes.mutateAsync(input).then(

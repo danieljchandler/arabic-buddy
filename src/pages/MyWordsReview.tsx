@@ -589,9 +589,13 @@ const MyWordsReview = () => {
 
       // A failed card re-enters the session a few cards later, carrying the
       // schedule this rating just wrote, so its re-rating computes from the
-      // relearned state rather than the stale pre-failure one.
+      // relearned state rather than the stale pre-failure one. Anki semantics:
+      // Again always repeats; Hard repeats only while the card is still in
+      // learning (repetitions 0) — on a graduated card Hard is a pass, already
+      // scheduled days out, and re-rating it minutes later just churns the
+      // schedule.
       let nextQueue = relearnPick ? relearn.slice(1) : relearn;
-      if (rating === "again" || rating === "hard") {
+      if (rating === "again" || (rating === "hard" && card.repetitions === 0)) {
         nextQueue = pushRelearn(
           nextQueue,
           {

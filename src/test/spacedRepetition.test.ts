@@ -9,7 +9,7 @@ import {
 } from "@/lib/spacedRepetition";
 import type { Rating } from "@/lib/spacedRepetition";
 
-describe("FSRS-4.5 spacedRepetition", () => {
+describe("FSRS-5 spacedRepetition", () => {
   describe("calculateNextReview - new cards", () => {
     it("returns short interval for 'again' on new card", () => {
       const result = calculateNextReview("again", 0, 5, 0, 0);
@@ -50,6 +50,90 @@ describe("FSRS-4.5 spacedRepetition", () => {
       const hard = calculateNextReview("hard", 10, 5, 10, 5);
       const good = calculateNextReview("good", 10, 5, 10, 5);
       expect(hard.stability).toBeLessThan(good.stability);
+    });
+  });
+
+  describe("same-day re-reviews (FSRS-5 short-term memory)", () => {
+    // The regression this guards: a card re-rated minutes after its last
+    // review (relearn queue, lesson quiz, impatient learner) had
+    // retrievability ≈ 1, so the FSRS-4.5 growth term collapsed to zero and
+    // Hard, Good and Easy all produced the *identical* interval — the
+    // "every button says 13d" bug. FSRS-5's short-term formula keeps the
+    // ratings meaningful.
+    const MINUTES_AGO = 5 / 1440;
+
+    it("differentiates hard/good/easy re-rated minutes after a review", () => {
+      const hard = calculateNextReview("hard", 15, 5, 15, 1, MINUTES_AGO);
+      const good = calculateNextReview("good", 15, 5, 15, 1, MINUTES_AGO);
+      const easy = calculateNextReview("easy", 15, 5, 15, 1, MINUTES_AGO);
+      expect(hard.intervalDays).toBeLessThan(good.intervalDays);
+      expect(good.intervalDays).toBeLessThan(easy.intervalDays);
+    });
+
+    it("hard shrinks stability and easy grows it on a same-day review", () => {
+      const hard = calculateNextReview("hard", 15, 5, 15, 1, MINUTES_AGO);
+      const easy = calculateNextReview("easy", 15, 5, 15, 1, MINUTES_AGO);
+      expect(hard.stability).toBeLessThan(15);
+      expect(easy.stability).toBeGreaterThan(15);
+    });
+
+    it("grows stability far less same-day than across a full interval", () => {
+      // A second Good minutes later is weak evidence; a Good after the full
+      // interval elapsed is strong evidence. The schedule must reflect that.
+      const sameDay = calculateNextReview("good", 10, 5, 10, 3, MINUTES_AGO);
+      const onSchedule = calculateNextReview("good", 10, 5, 10, 3, 10);
+      expect(sameDay.stability).toBeLessThan(onSchedule.stability);
+    });
+
+    it("uses the relearning step for a same-day 'again' on a graduated card", () => {
+      const result = calculateNextReview("again", 10, 5, 10, 3, MINUTES_AGO);
+      expect(result.intervalDays).toBeLessThan(1);
+      expect(result.stability).toBeLessThan(10);
+      expect(result.repetitions).toBe(3);
+    });
+  });
+
+  describe("learning-phase memory state", () => {
+    it("keeps the state from a failed first rating instead of re-initialising", () => {
+      // New card rated Again (1-minute step), then Good when it comes back.
+      // The old code saw repetitions === 0 and re-initialised stability as if
+      // the card had never been seen — a first-sight Good and a
+      // failed-then-recovered card got the same 3-day interval.
+      const failed = calculateNextReview("again", 0, 5, 0, 0);
+      const recovered = calculateNextReview(
+        "good", failed.stability, failed.difficulty, failed.intervalDays, failed.repetitions, 2 / 1440,
+      );
+      const freshGood = calculateNextReview("good", 0, 5, 0, 0);
+      expect(recovered.stability).toBeLessThan(freshGood.stability);
+      expect(recovered.repetitions).toBe(1); // graduates, but from its own state
+    });
+
+    it("repeats the learning step on 'hard' without graduating", () => {
+      const first = calculateNextReview("hard", 0, 5, 0, 0);
+      const second = calculateNextReview(
+        "hard", first.stability, first.difficulty, first.intervalDays, first.repetitions, 5 / 1440,
+      );
+      expect(second.intervalDays).toBeLessThan(1);
+      expect(second.repetitions).toBe(0);
+    });
+
+    it("treats a legacy default row (ease 2.5, never reviewed) as a new card", () => {
+      // Pre-FSRS rows carry the SM-2 column default with no last_reviewed_at;
+      // elapsedDays is therefore undefined and the row must schedule exactly
+      // like a first exposure, not as an established 2.5-day card.
+      const legacy = calculateNextReview("good", 2.5, 5, 0, 0);
+      const fresh = calculateNextReview("good", 0, 5, 0, 0);
+      expect(legacy.stability).toBeCloseTo(fresh.stability, 4);
+      expect(legacy.intervalDays).toBe(fresh.intervalDays);
+    });
+  });
+
+  describe("lapses", () => {
+    it("never raises stability on 'again', however overdue the review", () => {
+      // The raw forget formula can exceed the current stability for a card
+      // with low S reviewed very late; FSRS-5 caps it at the pre-lapse value.
+      const result = calculateNextReview("again", 0.5, 5, 1, 3, 30);
+      expect(result.stability).toBeLessThanOrEqual(0.5);
     });
   });
 

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-export type UserRole = 'admin' | 'content_reviewer' | 'recorder' | null;
+export type UserRole = 'admin' | 'content_reviewer' | 'recorder' | 'transcriber' | null;
 
 export const useAdminAuth = () => {
   const [user, setUser] = useState<User | null>(null);
@@ -10,6 +10,7 @@ export const useAdminAuth = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isContentReviewer, setIsContentReviewer] = useState(false);
   const [isRecorder, setIsRecorder] = useState(false);
+  const [isTranscriber, setIsTranscriber] = useState(false);
   const [role, setRole] = useState<UserRole>(null);
   const [loading, setLoading] = useState(true);
   // Track the currently-authenticated user ID so token refreshes for the
@@ -55,6 +56,7 @@ export const useAdminAuth = () => {
             setIsAdmin(false);
             setIsContentReviewer(false);
             setIsRecorder(false);
+            setIsTranscriber(false);
             setRole(null);
             setLoading(false);
           }
@@ -73,26 +75,34 @@ export const useAdminAuth = () => {
   const checkRoles = async (userId: string) => {
     try {
       // Check all relevant roles in parallel
-      const [adminResult, contentReviewerResult, recorderResult] = await Promise.all([
+      const [adminResult, contentReviewerResult, recorderResult, transcriberResult] = await Promise.all([
         supabase.rpc('has_role', { _user_id: userId, _role: 'admin' }),
         supabase.rpc('has_role', { _user_id: userId, _role: 'content_reviewer' }),
         supabase.rpc('has_role', { _user_id: userId, _role: 'recorder' }),
+        supabase.rpc('has_role', { _user_id: userId, _role: 'transcriber' }),
       ]);
 
       const adminRole = adminResult.data === true;
       const contentReviewerRole = contentReviewerResult.data === true;
       const recorderRole = recorderResult.data === true;
+      const transcriberRole = transcriberResult.data === true;
 
       setIsAdmin(adminRole);
       setIsContentReviewer(contentReviewerRole);
       setIsRecorder(recorderRole);
-      
+      setIsTranscriber(transcriberRole);
+
+      // Precedence, not a set: `role` names the widest access the user has, and
+      // transcriber is the narrowest of the four, so it only wins when nothing
+      // else does.
       if (adminRole) {
         setRole('admin');
       } else if (contentReviewerRole) {
         setRole('content_reviewer');
       } else if (recorderRole) {
         setRole('recorder');
+      } else if (transcriberRole) {
+        setRole('transcriber');
       } else {
         setRole(null);
       }
@@ -101,6 +111,7 @@ export const useAdminAuth = () => {
       setIsAdmin(false);
       setIsContentReviewer(false);
       setIsRecorder(false);
+      setIsTranscriber(false);
       setRole(null);
     } finally {
       setLoading(false);
@@ -136,6 +147,7 @@ export const useAdminAuth = () => {
       setIsAdmin(false);
       setIsContentReviewer(false);
       setIsRecorder(false);
+      setIsTranscriber(false);
       setRole(null);
     }
     return { error };
@@ -147,6 +159,7 @@ export const useAdminAuth = () => {
     isAdmin,
     isContentReviewer,
     isRecorder,
+    isTranscriber,
     role,
     loading,
     signIn,

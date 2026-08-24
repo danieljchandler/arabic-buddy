@@ -3804,6 +3804,135 @@ export type Database = {
         }
         Relationships: []
       }
+      transcript_line_comments: {
+        Row: {
+          author_id: string | null
+          body: string
+          created_at: string
+          id: string
+          kind: string
+          line_id: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          suggested_translation: string | null
+          video_id: string
+        }
+        Insert: {
+          author_id?: string | null
+          body: string
+          created_at?: string
+          id?: string
+          kind?: string
+          line_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          suggested_translation?: string | null
+          video_id: string
+        }
+        Update: {
+          author_id?: string | null
+          body?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          line_id?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          suggested_translation?: string | null
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transcript_line_comments_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "discover_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transcript_line_reviews: {
+        Row: {
+          id: string
+          line_id: string
+          reviewed_arabic: string | null
+          reviewed_at: string
+          reviewed_by: string
+          reviewed_translation: string | null
+          video_id: string
+        }
+        Insert: {
+          id?: string
+          line_id: string
+          reviewed_arabic?: string | null
+          reviewed_at?: string
+          reviewed_by: string
+          reviewed_translation?: string | null
+          video_id: string
+        }
+        Update: {
+          id?: string
+          line_id?: string
+          reviewed_arabic?: string | null
+          reviewed_at?: string
+          reviewed_by?: string
+          reviewed_translation?: string | null
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transcript_line_reviews_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "discover_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transcript_line_revisions: {
+        Row: {
+          changed_at: string
+          changed_by: string | null
+          field: string
+          id: string
+          line_id: string | null
+          new_value: string | null
+          previous_value: string | null
+          source: string
+          video_id: string
+        }
+        Insert: {
+          changed_at?: string
+          changed_by?: string | null
+          field: string
+          id?: string
+          line_id?: string | null
+          new_value?: string | null
+          previous_value?: string | null
+          source?: string
+          video_id: string
+        }
+        Update: {
+          changed_at?: string
+          changed_by?: string | null
+          field?: string
+          id?: string
+          line_id?: string | null
+          new_value?: string | null
+          previous_value?: string | null
+          source?: string
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transcript_line_revisions_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "discover_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       trending_video_candidates: {
         Row: {
           created_at: string | null
@@ -5132,6 +5261,7 @@ export type Database = {
       }
       award_xp: { Args: { _amount: number; _reason?: string }; Returns: Json }
       can_manage_content: { Args: never; Returns: boolean }
+      can_review_transcripts: { Args: never; Returns: boolean }
       grant_achievement: { Args: { _achievement_id: string }; Returns: Json }
       has_bible_access: { Args: never; Returns: boolean }
       has_complimentary_access: { Args: { _user_id: string }; Returns: boolean }
@@ -5157,6 +5287,7 @@ export type Database = {
       is_beta_tester: { Args: never; Returns: boolean }
       is_content_reviewer: { Args: never; Returns: boolean }
       is_recorder: { Args: never; Returns: boolean }
+      is_transcriber: { Args: never; Returns: boolean }
       match_content: {
         Args: {
           match_count?: number
@@ -5213,6 +5344,7 @@ export type Database = {
         | "beta_tester"
         | "content_reviewer"
         | "complimentary"
+        | "transcriber"
       concept_kind: "vocab" | "grammar" | "theme" | "scenario" | "phrase"
       concept_role: "introduce" | "reinforce" | "assess"
       mastery_strength: "new" | "learning" | "familiar" | "strong" | "mastered"
@@ -5351,6 +5483,7 @@ export const Constants = {
         "beta_tester",
         "content_reviewer",
         "complimentary",
+        "transcriber",
       ],
       concept_kind: ["vocab", "grammar", "theme", "scenario", "phrase"],
       concept_role: ["introduce", "reinforce", "assess"],

@@ -1,13 +1,18 @@
 import { useEffect, useRef } from 'react';
 import type { Segment } from '@/types/transcript';
 import { cn } from '@/lib/utils';
-import SegmentCard from './SegmentCard';
+import SegmentCard, { type SegmentReviewProps } from './SegmentCard';
 
 interface SegmentListProps {
   segments: Segment[];
   activeSegmentId?: string | null;
   activeWordIndex?: number;
   staleTranslations: Set<string>;
+  /**
+   * Review controls for a line, in the workspace. Returning undefined — which
+   * is what the video form's editor does — renders the card exactly as before.
+   */
+  reviewFor?: (segmentId: string) => SegmentReviewProps | undefined;
   onSplit: (segmentId: string, splitAfterWordIndex: number) => void;
   onSplitAtCursor: (segmentId: string, cursorPos: number, currentText: string) => void;
   onMerge: (index: number) => void;
@@ -29,6 +34,7 @@ export default function SegmentList({
   activeSegmentId,
   activeWordIndex,
   staleTranslations,
+  reviewFor,
   onSplit,
   onSplitAtCursor,
   onMerge,
@@ -70,6 +76,7 @@ export default function SegmentList({
             onFixArabic={onFixArabic}
             onRetranslate={onRetranslate}
             onSeek={onSeek}
+            review={reviewFor?.(seg.id)}
           />
 
           {/* Between-segment divider: gap indicator + merge button */}

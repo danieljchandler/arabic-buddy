@@ -1,4 +1,8 @@
 import type { MemoryDb } from "../postgrest/store";
+import {
+  diffTranscriptRevisions,
+  diffVideoField,
+} from "../../../../supabase/functions/_shared/transcriptRevisionCore";
 
 /**
  * Edge-function responses.
@@ -137,6 +141,189 @@ const audio = (contentType: string): FunctionResponse => ({
  * Derived from each function's own response literal. They are intentionally
  * boring — a test that cares about the content overrides them.
  */
+/** Roles `transcript-review` admits. Mirrors `can_review_transcripts()`. */
+const REVIEWER_ROLES = ["admin", "content_reviewer", "transcriber"];
+
+type Row = Record<string, unknown>;
+
+/**
+ * A working `transcript-review`, against the in-memory database.
+ *
+ * Close enough to the Deno original that the interesting assertions are the
+ * same ones: it re-reads the stored transcript rather than trusting the request
+ * body, computes the diff with the very module the real function uses, and
+ * stamps `changed_by` from the session rather than from the payload.
+ */
+function transcriptReview({ db, userId, body }: FunctionContext): FunctionResponse {
+  const payload = (body ?? {}) as Row;
+  const action = String(payload.action ?? "");
+  const videoId = String(payload.videoId ?? "");
+
+  const roles = db
+    .rows("user_roles")
+    .filter((row) => row.user_id === userId)
+    .map((row) => String(row.role));
+  if (!userId || !roles.some((role) => REVIEWER_ROLES.includes(role))) {
+    return { status: 403, body: { error: "forbidden" } };
+  }
+
+  const video = db.rows("discover_videos").find((row) => row.id === videoId);
+  const storedLines = Array.isArray(video?.transcript_lines)
+    ? (video.transcript_lines as Row[])
+    : [];
+
+  const writeLines = (lines: unknown[]) => {
+    const live = db.raw("discover_videos").find((row) => row.id === videoId);
+    if (live) live.transcript_lines = lines;
+  };
+
+  const logRevisions = (
+    revisions: Array<{
+      lineId: string | null;
+      field: string;
+      previousValue: string | null;
+      newValue: string | null;
+    }>,
+    source: string,
+  ) => {
+    for (const [index, revision] of revisions.entries()) {
+      db.add("transcript_line_revisions", {
+        id: `rev-${db.rows("transcript_line_revisions").length + index}`,
+        video_id: videoId,
+        line_id: revision.lineId,
+        field: revision.field,
+        previous_value: revision.previousValue,
+        new_value: revision.newValue,
+        changed_by: userId,
+        changed_at: new Date().toISOString(),
+        source,
+      });
+    }
+  };
+
+  switch (action) {
+    case "save_lines": {
+      if (!video) return { status: 404, body: { error: "video_not_found" } };
+      const lines = Array.isArray(payload.lines) ? (payload.lines as Row[]) : [];
+      const revisions = diffTranscriptRevisions(storedLines, lines);
+      writeLines(lines);
+      logRevisions(revisions, payload.source === "ai_resegment" ? "ai_resegment" : "human");
+      return ok({ saved: true, revisions: revisions.length, logged: true });
+    }
+
+    case "set_reviewed": {
+      if (!video) return { status: 404, body: { error: "video_not_found" } };
+      const lineId = String(payload.lineId ?? "");
+      const reviews = db.raw("transcript_line_reviews");
+      const existing = reviews.findIndex(
+        (row) => row.video_id === videoId && row.line_id === lineId,
+      );
+
+      if (payload.reviewed === false) {
+        if (existing !== -1) reviews.splice(existing, 1);
+        return ok({ reviewed: false });
+      }
+
+      const line = storedLines.find((row) => row.id === lineId);
+      if (!line) return { status: 404, body: { error: "line_not_found" } };
+
+      const row: Row = {
+        id: existing === -1 ? `review-${reviews.length}` : reviews[existing].id,
+        video_id: videoId,
+        line_id: lineId,
+        reviewed_by: userId,
+        reviewed_at: new Date().toISOString(),
+        reviewed_arabic: line.arabic ?? null,
+        reviewed_translation: line.translation ?? null,
+      };
+      if (existing === -1) reviews.push(row);
+      else reviews[existing] = row;
+      return ok({ reviewed: true });
+    }
+
+    case "retranslate_line": {
+      if (!video) return { status: 404, body: { error: "video_not_found" } };
+      const lineId = String(payload.lineId ?? "");
+      const index = storedLines.findIndex((row) => row.id === lineId);
+      if (index === -1) return { status: 404, body: { error: "line_not_found" } };
+
+      const translation = "retranslated";
+      const next = storedLines.map((row, i) =>
+        i === index ? { ...row, translation } : row,
+      );
+      writeLines(next);
+      logRevisions(diffTranscriptRevisions(storedLines, next), "ai_retranslate");
+      return ok({ translation, literal: null });
+    }
+
+    case "add_comment": {
+      const text = String(payload.body ?? "").trim();
+      if (!text) return { status: 400, body: { error: "body_required" } };
+      const comment: Row = {
+        id: `comment-${db.rows("transcript_line_comments").length}`,
+        video_id: videoId,
+        line_id: payload.lineId ? String(payload.lineId) : null,
+        kind: String(payload.kind ?? "comment"),
+        body: text,
+        suggested_translation: String(payload.suggestedTranslation ?? "") || null,
+        author_id: userId,
+        created_at: new Date().toISOString(),
+        resolved_at: null,
+        resolved_by: null,
+      };
+      db.add("transcript_line_comments", comment);
+      return ok({ comment });
+    }
+
+    case "resolve_comment": {
+      const commentId = String(payload.commentId ?? "");
+      const comment = db.raw("transcript_line_comments").find((row) => row.id === commentId);
+      if (comment) {
+        const resolved = payload.resolved !== false;
+        comment.resolved_at = resolved ? new Date().toISOString() : null;
+        comment.resolved_by = resolved ? userId : null;
+      }
+      return ok({ resolved: payload.resolved !== false });
+    }
+
+    case "save_notes": {
+      if (!video) return { status: 404, body: { error: "video_not_found" } };
+      const live = db.raw("discover_videos").find((row) => row.id === videoId)!;
+      const revisions = [];
+
+      if ("culturalContext" in payload) {
+        const revision = diffVideoField(
+          "cultural_context",
+          video.cultural_context,
+          payload.culturalContext,
+        );
+        if (revision) {
+          live.cultural_context = String(payload.culturalContext ?? "") || null;
+          revisions.push(revision);
+        }
+      }
+      for (const [key, column] of [
+        ["grammarPoints", "grammar_points"],
+        ["vocabulary", "vocabulary"],
+      ] as const) {
+        if (!(key in payload)) continue;
+        const next = Array.isArray(payload[key]) ? payload[key] : [];
+        const revision = diffVideoField(column, video[column], next);
+        if (revision) {
+          live[column] = next;
+          revisions.push(revision);
+        }
+      }
+
+      logRevisions(revisions, "human");
+      return ok({ saved: true, revisions: revisions.length, logged: true });
+    }
+
+    default:
+      return { status: 400, body: { error: "unknown_action", action } };
+  }
+}
+
 export const defaultFunctions: Record<string, FunctionHandler> = {
   // `tier`, not `subscription_tier`: the function names it `tier` and
   // `useSubscription` reads `data.tier`. A fixture using the other spelling
@@ -289,6 +476,16 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
     ok({ audioBase64: "bWVkaWE=", contentType: "audio/mpeg", filename: "media.mp3", size: 5 }),
   "extract-visual-context": () =>
     ok({ success: true, result: { onScreenTextSegments: [], sceneContext: "", culturalContext: "" } }),
+
+  // The native-speaker review workspace's only write path.
+  //
+  // Stateful rather than a canned 200, and sharing the real diff module, because
+  // every property worth testing here is about what ends up in the database: a
+  // tick that snapshots the text it approved, a revision row whose
+  // `previous_value` is what was stored rather than what the client said, and a
+  // role gate that holds. A stub returning `{ saved: true }` would pass all of
+  // those tests while doing none of it.
+  "transcript-review": (ctx) => transcriptReview(ctx),
 
   // Called on page mount, so the route sweep needs them to resolve.
   "generate-daily-story": () => ok({ story: null, scenes: [] }),

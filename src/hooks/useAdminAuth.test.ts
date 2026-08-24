@@ -166,7 +166,7 @@ describe("signing out", () => {
 });
 
 describe("role lookups", () => {
-  it("asks about exactly the three admin roles, for the signed-in user", async () => {
+  it("asks about exactly the four staff roles, for the signed-in user", async () => {
     const rendered = renderHookWithProviders(() => useAdminAuth(), { persona: "admin" });
     cleanup = rendered.cleanup;
 
@@ -177,6 +177,7 @@ describe("role lookups", () => {
       "admin",
       "content_reviewer",
       "recorder",
+      "transcriber",
     ]);
 
     // Each names the user explicitly rather than relying on the session, since
@@ -187,21 +188,22 @@ describe("role lookups", () => {
   });
 
   it("checks each role twice on first load, not once", async () => {
-    // Recording current behaviour, which costs six round-trips where three
+    // Recording current behaviour, which costs eight round-trips where four
     // would do. `init()` calls checkRoles for the existing session, and the
     // onAuthStateChange listener it then subscribes fires INITIAL_SESSION
     // immediately and calls it again — the id is unchanged, so the second pass
-    // does not re-enter loading, but it does repeat all three lookups.
+    // does not re-enter loading, but it does repeat all four lookups.
     //
-    // Harmless but not free: this runs before the first paint of every admin
-    // page. Guarding checkRoles on the id it last resolved would halve it. If
-    // that is done, this test should change to expect three.
+    // Harmless but not free, and it got worse when `transcriber` was added:
+    // this runs before the first paint of every admin page. Guarding checkRoles
+    // on the id it last resolved would halve it. If that is done, this test
+    // should change to expect four.
     const rendered = renderHookWithProviders(() => useAdminAuth(), { persona: "admin" });
     cleanup = rendered.cleanup;
 
     await settled(rendered.result);
 
-    expect(rendered.backend.rpcCallsTo("has_role")).toHaveLength(6);
+    expect(rendered.backend.rpcCallsTo("has_role")).toHaveLength(8);
   });
 
   it("does not ask again for the same user on a re-render", async () => {

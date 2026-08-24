@@ -30,7 +30,8 @@ export type Persona =
   | "recorder"
   | "content_reviewer"
   | "bible_reader"
-  | "beta_tester";
+  | "beta_tester"
+  | "transcriber";
 
 export interface PersonaOptions {
   userId?: string;
@@ -56,6 +57,9 @@ const SPECS: Record<Persona, PersonaSpec> = {
   content_reviewer: { roles: ["content_reviewer"], tier: "free", signedIn: true },
   bible_reader: { roles: ["bible_reader"], tier: "free", signedIn: true },
   beta_tester: { roles: ["beta_tester"], tier: "free", signedIn: true },
+  // A native speaker checking the AI's Arabic. Free tier on purpose: reviewing
+  // is not a paid feature, and the role must not smuggle in subscriber access.
+  transcriber: { roles: ["transcriber"], tier: "free", signedIn: true },
 };
 
 export function isSignedIn(persona: Persona): boolean {

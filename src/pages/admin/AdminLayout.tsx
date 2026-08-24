@@ -7,7 +7,7 @@ import { TranscriptionStatusBanner } from '@/components/admin/TranscriptionStatu
 import { TranscriptionJobProvider } from '@/contexts/TranscriptionJobContext';
 import { useDialect } from '@/contexts/DialectContext';
 import AlertsBell from '@/components/admin/AlertsBell';
-import { canAccessContentReviewerAdminPath } from '@/lib/rbac';
+import { canAccessContentReviewerAdminPath, canAccessTranscriberAdminPath } from '@/lib/rbac';
 
 const DIALECT_META: Record<string, { flag: string; label: string; color: string }> = {
   Gulf: { flag: '🌊', label: 'Gulf Arabic Module', color: 'bg-sky-600' },
@@ -18,13 +18,14 @@ const DIALECT_META: Record<string, { flag: string; label: string; color: string 
 const AdminLayout = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, isAdmin, isContentReviewer, isRecorder, loading } = useAdminAuth();
+  const { user, isAdmin, isContentReviewer, isRecorder, isTranscriber, loading } = useAdminAuth();
   const { toast } = useToast();
   const { activeDialect, setDialect } = useDialect();
-  const hasAnyPrivilegedRole = isAdmin || isRecorder || isContentReviewer;
+  const hasAnyPrivilegedRole = isAdmin || isRecorder || isContentReviewer || isTranscriber;
   const hasGeneralAdminAccess = isAdmin || isRecorder;
   const hasContentReviewerAccess = isContentReviewer && canAccessContentReviewerAdminPath(location.pathname);
-  const hasAccess = hasGeneralAdminAccess || hasContentReviewerAccess;
+  const hasTranscriberAccess = isTranscriber && canAccessTranscriberAdminPath(location.pathname);
+  const hasAccess = hasGeneralAdminAccess || hasContentReviewerAccess || hasTranscriberAccess;
 
   useEffect(() => {
     if (!loading) {

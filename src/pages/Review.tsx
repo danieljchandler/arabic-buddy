@@ -177,11 +177,14 @@ const Review = () => {
     // A failed card re-enters the session a few cards later, carrying the
     // schedule this rating just computed — the queue flushes writes in order,
     // so the re-presentation's rating supersedes it from the right state.
-    // Cards with no review row yet are exempt: their first rating is an
-    // INSERT whose id the client never sees, so a second in-session rating
-    // could not target the row.
+    // Anki semantics: Again always repeats; Hard repeats only while the card
+    // is still in learning (repetitions 0) — on a graduated card Hard is a
+    // pass, already scheduled days out, and re-rating it minutes later just
+    // churns the schedule. Cards with no review row yet are exempt: their
+    // first rating is an INSERT whose id the client never sees, so a second
+    // in-session rating could not target the row.
     let nextQueue = relearnPick ? relearn.slice(1) : relearn;
-    if ((rating === "again" || rating === "hard") && word.review) {
+    if ((rating === "again" || (rating === "hard" && word.repetitions === 0)) && word.review) {
       const { update } = buildReviewUpdate(rating, direction, word.review, new Date(), {
         fuzzSeed: word.id,
         desiredRetention,

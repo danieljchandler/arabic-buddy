@@ -2738,6 +2738,36 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_role_grants: {
+        Row: {
+          claimed_at: string | null
+          claimed_by: string | null
+          created_at: string
+          created_by: string | null
+          email: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          email: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: []
+      }
       picture_scene_hotspots: {
         Row: {
           created_at: string
@@ -5249,6 +5279,17 @@ export type Database = {
           user_id: string
         }[]
       }
+      admin_grant_role_by_email: {
+        Args: {
+          _identifier: string
+          _role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: {
+          email: string
+          status: string
+          user_id: string
+        }[]
+      }
       admin_list_managed_roles: {
         Args: never
         Returns: {
@@ -5259,6 +5300,16 @@ export type Database = {
           user_id: string
         }[]
       }
+      admin_list_pending_role_grants: {
+        Args: never
+        Returns: {
+          created_at: string
+          email: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+        }[]
+      }
+      admin_revoke_pending_role: { Args: { _id: string }; Returns: boolean }
       award_xp: { Args: { _amount: number; _reason?: string }; Returns: Json }
       can_manage_content: { Args: never; Returns: boolean }
       can_review_transcripts: { Args: never; Returns: boolean }
@@ -5286,6 +5337,10 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       is_beta_tester: { Args: never; Returns: boolean }
       is_content_reviewer: { Args: never; Returns: boolean }
+      is_grantable_role: {
+        Args: { _role: Database["public"]["Enums"]["app_role"] }
+        Returns: boolean
+      }
       is_recorder: { Args: never; Returns: boolean }
       is_transcriber: { Args: never; Returns: boolean }
       match_content: {

@@ -5213,6 +5213,7 @@ export type Database = {
         | "beta_tester"
         | "content_reviewer"
         | "complimentary"
+        | "transcriber"
       concept_kind: "vocab" | "grammar" | "theme" | "scenario" | "phrase"
       concept_role: "introduce" | "reinforce" | "assess"
       mastery_strength: "new" | "learning" | "familiar" | "strong" | "mastered"
@@ -5351,6 +5352,7 @@ export const Constants = {
         "beta_tester",
         "content_reviewer",
         "complimentary",
+        "transcriber",
       ],
       concept_kind: ["vocab", "grammar", "theme", "scenario", "phrase"],
       concept_role: ["introduce", "reinforce", "assess"],

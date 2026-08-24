@@ -1,6 +1,6 @@
 import { useMemo, useCallback, useRef } from "react";
 import type { TranscriptLine, WordToken, Segment, Word } from "@/types/transcript";
-import TranscriptEditor from "@/components/TranscriptEditor";
+import TranscriptEditor, { type LineReviewSlot } from "@/components/TranscriptEditor";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
@@ -34,6 +34,14 @@ interface AdminTranscriptEditorProps {
   lines: TranscriptLine[];
   onChange: (lines: TranscriptLine[]) => void;
   audioUrl?: string;
+  /**
+   * Per-line review state. Supplied by the native-speaker workspace and absent
+   * in the video form, which is what decides whether the reviewer's chrome —
+   * checkmarks, comments, per-line audio — appears at all.
+   */
+  lineReview?: (lineId: string) => LineReviewSlot | undefined;
+  /** Re-translate one line from the Arabic it now holds. */
+  onRetranslate?: (lineId: string) => void;
 }
 
 /**
@@ -42,7 +50,13 @@ interface AdminTranscriptEditorProps {
  *
  * Token glosses are preserved via a ref map so round-tripping doesn't lose data.
  */
-export function AdminTranscriptEditor({ lines, onChange, audioUrl }: AdminTranscriptEditorProps) {
+export function AdminTranscriptEditor({
+  lines,
+  onChange,
+  audioUrl,
+  lineReview,
+  onRetranslate,
+}: AdminTranscriptEditorProps) {
   /**
    * The glosses that came in, kept per line and in order, so they survive the
    * round-trip through the editor.
@@ -200,6 +214,8 @@ export function AdminTranscriptEditor({ lines, onChange, audioUrl }: AdminTransc
       videoUrl={audioUrl}
       onSave={handleSave}
       onAIResegment={handleAIResegment}
+      lineReview={lineReview}
+      onRetranslate={onRetranslate}
     />
   );
 }

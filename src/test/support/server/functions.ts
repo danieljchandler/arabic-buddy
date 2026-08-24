@@ -2,6 +2,7 @@ import type { MemoryDb } from "../postgrest/store";
 import {
   diffTranscriptRevisions,
   diffVideoField,
+  type TranscriptRevision,
 } from "../../../../supabase/functions/_shared/transcriptRevisionCore";
 
 /**
@@ -289,7 +290,7 @@ function transcriptReview({ db, userId, body }: FunctionContext): FunctionRespon
     case "save_notes": {
       if (!video) return { status: 404, body: { error: "video_not_found" } };
       const live = db.raw("discover_videos").find((row) => row.id === videoId)!;
-      const revisions = [];
+      const revisions: TranscriptRevision[] = [];
 
       if ("culturalContext" in payload) {
         const revision = diffVideoField(

@@ -1,11 +1,39 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { Segment } from '@/types/transcript';
+import type { ReviewState } from '@/lib/reviewStatus';
 import { useTranscriptEditor } from '@/hooks/useTranscriptEditor';
 import { useVideoSync } from '@/hooks/useVideoSync';
 import { useAIAssist } from '@/hooks/useAIAssist';
+import { useLinePlayback } from '@/hooks/useLinePlayback';
+import {
+  isTextEntry,
+  NUDGE_SECONDS,
+  resolveShortcut,
+  type ShortcutAction,
+} from '@/lib/transcriptShortcuts';
 import SegmentList from './SegmentList';
 import Toolbar from './Toolbar';
 import DiffPreview from './DiffPreview';
+import PlaybackControls from './PlaybackControls';
+import ShortcutHelp from './ShortcutHelp';
+import type { SegmentReviewProps } from './SegmentCard';
+
+/**
+ * What the review workspace knows about a line and the editor does not.
+ *
+ * Playback is deliberately absent: this component owns the media element, so it
+ * fills in `onPlay`/`isPlaying` itself rather than making every caller thread a
+ * ref through.
+ */
+export interface LineReviewSlot {
+  state: ReviewState;
+  reviewedAt?: string;
+  openComments: number;
+  revisions: number;
+  onToggleReviewed: () => void;
+  onOpenComments: () => void;
+  onOpenHistory: () => void;
+}
 
 interface TranscriptEditorProps {
   /** Initial segments to edit. */
@@ -23,6 +51,18 @@ interface TranscriptEditorProps {
    * or null if cancelled / failed.
    */
   onAIResegment?: (segments: Segment[]) => Promise<Segment[] | null>;
+  /**
+   * Re-translate one line from the Arabic it now holds. Offered on every line
+   * in review mode, and on stale ones otherwise.
+   */
+  onRetranslate?: (segmentId: string) => void;
+  /**
+   * Per-line review state. Supplying it turns on the reviewer's chrome — the
+   * checkmarks, the comment and history buttons, the per-line audio controls
+   * and the keyboard shortcuts that drive them. Omitting it leaves the editor
+   * exactly as the video form has always used it.
+   */
+  lineReview?: (segmentId: string) => LineReviewSlot | undefined;
 }
 
 /**
@@ -37,8 +77,11 @@ export default function TranscriptEditor({
   onSave,
   aiApiCall,
   onAIResegment,
+  onRetranslate,
+  lineReview,
 }: TranscriptEditorProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const reviewMode = Boolean(lineReview);
 
   const {
     segments,
@@ -60,48 +103,190 @@ export default function TranscriptEditor({
 
   const { activeSegmentId, activeWordIndex, seekToSegment } = useVideoSync(segments, videoRef);
   const { status: aiStatus, suggestedSegments, suggestBreaks, fixArabic, cancel: cancelAI } = useAIAssist();
+  const playback = useLinePlayback(videoRef);
   const [resegmentLoading, setResegmentLoading] = useState(false);
   const [resegmentSuggestion, setResegmentSuggestion] = useState<Segment[] | null>(null);
-
   const [showDiff, setShowDiff] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
 
-  // Keyboard shortcuts: Cmd+Z / Cmd+Shift+Z, bracket keys for timestamp nudge
+  /**
+   * The line the keyboard is pointed at.
+   *
+   * Separate from `activeSegmentId`, which follows the playhead. Tying the two
+   * together would mean that playing a line moved the cursor off whatever the
+   * reviewer was working on — and playing the line you are working on is the
+   * single most common thing they do.
+   */
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const selectedIndex = useMemo(
+    () => segments.findIndex((s) => s.id === selectedId),
+    [segments, selectedId],
+  );
+
+  // Land on the first line so the shortcuts have somewhere to start, and
+  // recover if the selected line is split, merged or deleted away.
+  useEffect(() => {
+    if (segments.length === 0) return;
+    if (selectedId && segments.some((s) => s.id === selectedId)) return;
+    setSelectedId(segments[0].id);
+  }, [segments, selectedId]);
+
+  const playSegment = useCallback(
+    (segment: Segment, slow: boolean) => {
+      const span = { id: segment.id, start: segment.start, end: segment.end };
+      if (slow) playback.playLineSlow(span);
+      else playback.playLine(span);
+    },
+    [playback],
+  );
+
+  const handleRetranslate = useCallback(
+    (segmentId: string) => onRetranslate?.(segmentId),
+    [onRetranslate],
+  );
+
+  // Keyboard shortcuts. The map itself lives in lib/transcriptShortcuts so the
+  // help panel is generated from the same table the resolver reads.
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      const meta = e.metaKey || e.ctrlKey;
+      const editing = isTextEntry(e.target);
+      const action = resolveShortcut(e, { editing });
+      if (!action) return;
 
-      if (meta && e.key === 'z' && !e.shiftKey) {
-        e.preventDefault();
-        handleUndo();
+      // Everything the editor handles below is claimed; anything it doesn't
+      // recognise has already returned.
+      const claim = () => e.preventDefault();
+
+      const universal: ShortcutAction[] = ['undo', 'redo'];
+      if (!reviewMode && !universal.includes(action)) {
+        // Outside the workspace only the pre-existing shortcuts apply, so the
+        // video form's editor behaves as it always did.
+        if (action !== 'nudge-start-earlier' && action !== 'nudge-start-later' &&
+            action !== 'nudge-end-earlier' && action !== 'nudge-end-later') {
+          return;
+        }
       }
-      if (meta && e.key === 'z' && e.shiftKey) {
-        e.preventDefault();
-        handleRedo();
+
+      const segment = selectedIndex >= 0 ? segments[selectedIndex] : undefined;
+      // The timing nudges predate selection and follow the playhead, which is
+      // what the video form's users are used to.
+      const timingTarget = reviewMode
+        ? segment
+        : segments.find((s) => s.id === activeSegmentId);
+
+      switch (action) {
+        case 'undo':
+          claim();
+          handleUndo();
+          return;
+        case 'redo':
+          claim();
+          handleRedo();
+          return;
+        case 'nudge-start-earlier':
+          if (!timingTarget) return;
+          shiftTimestampRipple(timingTarget.id, 'start', Math.max(0, timingTarget.start - NUDGE_SECONDS));
+          return;
+        case 'nudge-start-later':
+          if (!timingTarget) return;
+          shiftTimestampRipple(timingTarget.id, 'start', timingTarget.start + NUDGE_SECONDS);
+          return;
+        case 'nudge-end-earlier':
+          if (!timingTarget) return;
+          shiftTimestampRipple(
+            timingTarget.id,
+            'end',
+            Math.max(timingTarget.start + NUDGE_SECONDS, timingTarget.end - NUDGE_SECONDS),
+          );
+          return;
+        case 'nudge-end-later':
+          if (!timingTarget) return;
+          shiftTimestampRipple(timingTarget.id, 'end', timingTarget.end + NUDGE_SECONDS);
+          return;
       }
 
-      // [ ] nudge start ±100ms, { } nudge end ±100ms for active segment
-      if (activeSegmentId) {
-        const seg = segments.find(s => s.id === activeSegmentId);
-        if (!seg) return;
+      if (!reviewMode) return;
 
-        if (e.key === '[') {
-          shiftTimestampRipple(seg.id, 'start', Math.max(0, seg.start - 0.1));
-        }
-        if (e.key === ']') {
-          shiftTimestampRipple(seg.id, 'start', seg.start + 0.1);
-        }
-        if (e.key === '{') {
-          shiftTimestampRipple(seg.id, 'end', Math.max(seg.start + 0.1, seg.end - 0.1));
-        }
-        if (e.key === '}') {
-          shiftTimestampRipple(seg.id, 'end', seg.end + 0.1);
-        }
+      switch (action) {
+        case 'next-line':
+          claim();
+          if (selectedIndex < segments.length - 1) setSelectedId(segments[selectedIndex + 1].id);
+          break;
+        case 'prev-line':
+          claim();
+          if (selectedIndex > 0) setSelectedId(segments[selectedIndex - 1].id);
+          break;
+        case 'play-line':
+          claim();
+          if (segment) {
+            // A second press stops, so Space is a toggle rather than a restart.
+            if (playback.playingLineId === segment.id) playback.stop();
+            else playSegment(segment, false);
+          }
+          break;
+        case 'play-line-slow':
+          claim();
+          if (segment) playSegment(segment, true);
+          break;
+        case 'toggle-loop':
+          claim();
+          playback.setLoop(!playback.loop);
+          break;
+        case 'edit-line':
+          claim();
+          if (segment) {
+            const card = document.querySelector<HTMLElement>(
+              `[data-segment-id="${segment.id}"] [data-edit-arabic]`,
+            );
+            card?.click();
+          }
+          break;
+        case 'merge-next':
+          claim();
+          if (selectedIndex >= 0 && selectedIndex < segments.length - 1) merge(selectedIndex);
+          break;
+        case 'merge-prev':
+          claim();
+          if (selectedIndex > 0) {
+            merge(selectedIndex - 1);
+            setSelectedId(segments[selectedIndex - 1].id);
+          }
+          break;
+        case 'toggle-reviewed':
+          claim();
+          if (segment) lineReview?.(segment.id)?.onToggleReviewed();
+          break;
+        case 'retranslate':
+          claim();
+          if (segment) handleRetranslate(segment.id);
+          break;
+        case 'comment':
+          claim();
+          if (segment) lineReview?.(segment.id)?.onOpenComments();
+          break;
+        case 'help':
+          claim();
+          setShowHelp((open) => !open);
+          break;
       }
     };
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [handleUndo, handleRedo, activeSegmentId, segments, shiftTimestamp]);
+  }, [
+    activeSegmentId,
+    handleRedo,
+    handleRetranslate,
+    handleUndo,
+    lineReview,
+    merge,
+    playSegment,
+    playback,
+    reviewMode,
+    segments,
+    selectedIndex,
+    shiftTimestampRipple,
+  ]);
 
   const handleSuggestBreaks = useCallback(async () => {
     if (!aiApiCall) return;
@@ -140,6 +325,22 @@ export default function TranscriptEditor({
     [aiApiCall, segments, fixArabic, aiReplace],
   );
 
+  /** Merge the workspace's per-line state with the playback this component owns. */
+  const reviewFor = useCallback(
+    (segmentId: string): SegmentReviewProps | undefined => {
+      const slot = lineReview?.(segmentId);
+      if (!slot) return undefined;
+      const segment = segments.find((s) => s.id === segmentId);
+      return {
+        ...slot,
+        isPlaying: playback.playingLineId === segmentId,
+        onPlay: () => segment && playSegment(segment, false),
+        onPlaySlow: () => segment && playSegment(segment, true),
+      };
+    },
+    [lineReview, playSegment, playback.playingLineId, segments],
+  );
+
   return (
     <div className="flex flex-col gap-4 h-full">
       {/* Toolbar */}
@@ -155,6 +356,20 @@ export default function TranscriptEditor({
         onAIResegment={onAIResegment ? handleAIResegment : undefined}
         onCancelAI={cancelAI}
       />
+
+      {reviewMode && (
+        <PlaybackControls
+          rate={playback.rate}
+          loop={playback.loop}
+          isPlaying={playback.playingLineId !== null}
+          onRateChange={playback.setRate}
+          onLoopChange={playback.setLoop}
+          onStop={playback.stop}
+          onShowHelp={() => setShowHelp(true)}
+        />
+      )}
+
+      {showHelp && <ShortcutHelp onClose={() => setShowHelp(false)} />}
 
       {/* AI Diff Preview — prefer the resegment suggestion when present */}
       {showDiff && (resegmentSuggestion ?? suggestedSegments) && (
@@ -225,6 +440,9 @@ export default function TranscriptEditor({
             activeSegmentId={activeSegmentId}
             activeWordIndex={activeWordIndex}
             staleTranslations={staleTranslations}
+            selectedSegmentId={reviewMode ? selectedId : null}
+            onSelect={reviewMode ? setSelectedId : undefined}
+            reviewFor={reviewMode ? reviewFor : undefined}
             onSplit={split}
             onSplitAtCursor={splitAtCursor}
             onMerge={merge}
@@ -233,6 +451,7 @@ export default function TranscriptEditor({
             onStartChange={(id, v) => shiftTimestampRipple(id, 'start', v)}
             onEndChange={(id, v) => shiftTimestampRipple(id, 'end', v)}
             onFixArabic={handleFixArabic}
+            onRetranslate={onRetranslate ? handleRetranslate : undefined}
             onSeek={seekToSegment}
           />
         </div>

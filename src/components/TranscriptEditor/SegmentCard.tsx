@@ -50,6 +50,9 @@ interface SegmentCardProps {
   onSeek?: (segmentId: string) => void;
   /** Present only in the review workspace. */
   review?: SegmentReviewProps;
+  /** True when the keyboard cursor is on this line. */
+  isSelected?: boolean;
+  onSelect?: (segmentId: string) => void;
 }
 
 function confidenceBadgeColor(confidence: number): string {
@@ -86,6 +89,8 @@ export default function SegmentCard({
   onRetranslate,
   onSeek,
   review,
+  isSelected = false,
+  onSelect,
 }: SegmentCardProps) {
   const [editing, setEditing] = useState(false);
   const [editValue, setEditValue] = useState(segment.text);
@@ -154,8 +159,10 @@ export default function SegmentCard({
   return (
     <div
       data-segment-id={segment.id}
+      onMouseDown={onSelect ? () => onSelect(segment.id) : undefined}
       className={cn(
         'rounded-lg border p-3 transition-all',
+        isSelected && 'ring-2 ring-blue-400 ring-offset-1 dark:ring-offset-gray-950',
         // The review state owns the left edge, so a reviewer scrolling a long
         // transcript can see what is still outstanding without reading a word
         // of it. The active-line highlight keeps the rest of the border.
@@ -331,6 +338,26 @@ export default function SegmentCard({
         </div>
       ) : (
         <div className="min-h-[2em]">
+          {/*
+            The keyboard's way into the editor.
+
+            Enter on the selected line has to open the same box a word click
+            opens, and the shortcut layer holds no handle on this component's
+            state — so it clicks this. Visually hidden but a real control, which
+            also gives the card its first keyboard-reachable edit affordance:
+            before this, clicking a word was the only way in.
+          */}
+          <button
+            type="button"
+            data-edit-arabic
+            className="sr-only"
+            onClick={() => {
+              setEditValue(segment.text);
+              setEditing(true);
+            }}
+          >
+            Edit the Arabic of line {index + 1}
+          </button>
           <WordConfidence
             words={segment.words}
             activeWordIndex={activeWordIndex}

@@ -81,6 +81,7 @@ function authorisedPersona(route: RouteSpec): Persona {
   switch (route.gate) {
     case "admin":
     case "admin-or-reviewer":
+    case "admin-reviewer-or-transcriber":
       return "admin";
     case "in-page":
       return "bible_reader";
@@ -147,7 +148,8 @@ test.describe("signed-out visitors are turned away from private routes", () => {
 
 test.describe("signed-out visitors are turned away from the admin console", () => {
   const adminRoutes = ROUTES.filter(
-    (route) => route.gate === "admin" || route.gate === "admin-or-reviewer",
+    (route) => route.gate !== "public" && route.gate !== "auth" && route.gate !== "in-page" &&
+      route.path.startsWith("/admin") && route.path !== "/admin/login",
   );
 
   for (const route of adminRoutes) {
@@ -162,7 +164,8 @@ test.describe("signed-out visitors are turned away from the admin console", () =
 
 test.describe("a plain learner cannot reach the admin console", () => {
   const adminRoutes = ROUTES.filter(
-    (route) => route.gate === "admin" || route.gate === "admin-or-reviewer",
+    (route) => route.gate !== "public" && route.gate !== "auth" && route.gate !== "in-page" &&
+      route.path.startsWith("/admin") && route.path !== "/admin/login",
   );
 
   for (const route of adminRoutes) {
@@ -176,7 +179,10 @@ test.describe("a plain learner cannot reach the admin console", () => {
 });
 
 test.describe("content reviewers are held to the rbac allow-list", () => {
-  const allowed = ROUTES.filter((route) => route.gate === "admin-or-reviewer");
+  const allowed = ROUTES.filter(
+    (route) =>
+      route.gate === "admin-or-reviewer" || route.gate === "admin-reviewer-or-transcriber",
+  );
   const denied = ROUTES.filter((route) => route.gate === "admin");
 
   for (const route of allowed) {
@@ -202,6 +208,43 @@ test.describe("content reviewers are held to the rbac allow-list", () => {
 
       // Sent back to /admin rather than the login page, since they do hold a
       // privileged role.
+      await expect(page).toHaveURL(/\/admin$/);
+    });
+  }
+});
+
+test.describe("transcribers reach the review workspace and nothing else", () => {
+  const allowed = ROUTES.filter((route) => route.gate === "admin-reviewer-or-transcriber");
+  const denied = ROUTES.filter(
+    (route) =>
+      (route.gate === "admin" || route.gate === "admin-or-reviewer") &&
+      route.path.startsWith("/admin"),
+  );
+
+  for (const route of allowed) {
+    test(`reaches ${route.path}`, async ({
+      page,
+      signInAs,
+      allowExternalHosts,
+      expectConsoleErrors,
+    }) => {
+      declareRouteBehaviour(route, allowExternalHosts, expectConsoleErrors);
+      await signInAs("transcriber");
+      await page.goto(concreteUrl(route));
+
+      await expectRendered(page, route);
+      await expect(page.getByText(/Access Denied/i)).toHaveCount(0);
+    });
+  }
+
+  for (const route of denied) {
+    test(`is turned away from ${route.path}`, async ({ page, signInAs }) => {
+      // The narrowest role in the app. A transcriber is an outside contributor,
+      // so every other admin surface — publishing, billing, handing out roles —
+      // has to bounce them back to the dashboard.
+      await signInAs("transcriber");
+      await page.goto(concreteUrl(route));
+
       await expect(page).toHaveURL(/\/admin$/);
     });
   }

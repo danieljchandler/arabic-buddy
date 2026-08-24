@@ -120,6 +120,8 @@ const AdminReadingLibrary = lazyPage(() => import("./pages/admin/AdminReadingLib
 const AdminReadingLibraryForm = lazyPage(() => import("./pages/admin/AdminReadingLibraryForm"));
 const AdminChannels = lazyPage(() => import("./pages/admin/AdminChannels"));
 const AdminClips = lazyPage(() => import("./pages/admin/AdminClips"));
+const AdminTranscribeQueue = lazyPage(() => import("./pages/admin/AdminTranscribeQueue"));
+const AdminTranscribeWorkspace = lazyPage(() => import("./pages/admin/AdminTranscribeWorkspace"));
 const SetPhrases = lazyPage(() => import("./pages/SetPhrases"));
 const SetPhrasesPractice = lazyPage(() => import("./pages/SetPhrasesPractice"));
 const SetPhrasesReview = lazyPage(() => import("./pages/SetPhrasesReview"));
@@ -506,6 +508,8 @@ const App = () => {
               <Route path="reading-library/:id/edit" element={<AdminReadingLibraryForm />} />
               <Route path="channels" element={<AdminChannels />} />
               <Route path="clips" element={<AdminClips />} />
+              <Route path="transcribe" element={<AdminTranscribeQueue />} />
+              <Route path="transcribe/:videoId" element={<AdminTranscribeWorkspace />} />
             </Route>
 
             <Route path="/set-phrases" element={<ErrorBoundary name="SetPhrasesRoute"><SetPhrases /></ErrorBoundary>} />

@@ -21,6 +21,12 @@ export type Gate =
   | "admin"
   /** AdminLayout — also reachable by a content_reviewer (the rbac.ts allow-list). */
   | "admin-or-reviewer"
+  /**
+   * AdminLayout — also reachable by a `transcriber`, the narrowest role there
+   * is. Everything a transcriber can open is on both allow-lists in rbac.ts,
+   * since a content reviewer is trusted with strictly more.
+   */
+  | "admin-reviewer-or-transcriber"
   /** No route guard; the page itself checks the role and renders a notice. */
   | "in-page";
 
@@ -236,6 +242,12 @@ export const ROUTES: RouteSpec[] = [
   { path: "/admin/reading-library/:id/edit", params: { id: STORY_ID }, gate: "admin" },
   { path: "/admin/channels", gate: "admin-or-reviewer" },
   { path: "/admin/clips", gate: "admin-or-reviewer" },
+  { path: "/admin/transcribe", gate: "admin-reviewer-or-transcriber" },
+  {
+    path: "/admin/transcribe/:videoId",
+    params: { videoId: VIDEO_ID },
+    gate: "admin-reviewer-or-transcriber",
+  },
 
   // ── Catch-all ──────────────────────────────────────────────────────────────
   { path: "*", gate: "public" },

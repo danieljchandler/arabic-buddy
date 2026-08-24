@@ -3,7 +3,7 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useLessons } from '@/hooks/useLessons';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, LogOut, BookOpen, Plus, Settings, Mic, PlayCircle, Upload, GraduationCap, Sparkles, BookMarked, TrendingUp, Image as ImageIcon, Laugh, MessageCircle, Languages, Activity, AlertTriangle, Ticket, Clapperboard, Antenna } from 'lucide-react';
+import { Loader2, LogOut, BookOpen, Plus, Settings, Mic, PlayCircle, Upload, GraduationCap, Sparkles, BookMarked, TrendingUp, Image as ImageIcon, Laugh, MessageCircle, Languages, Activity, AlertTriangle, Ticket, Clapperboard, Antenna, CheckCheck } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { SaduMark } from '@/components/brand/SaduMark';
@@ -12,7 +12,7 @@ import { useDialect } from '@/contexts/DialectContext';
 const Dashboard = () => {
   const navigate = useNavigate();
   const { activeDialect } = useDialect();
-  const { user, isAdmin, isContentReviewer, isRecorder, role, signOut, loading: authLoading } = useAdminAuth();
+  const { user, isAdmin, isContentReviewer, isRecorder, isTranscriber, role, signOut, loading: authLoading } = useAdminAuth();
   const { data: lessons, isLoading: lessonsLoading } = useLessons();
 
   // Get total word count for the active dialect
@@ -79,7 +79,9 @@ const Dashboard = () => {
       ? 'Content Reviewer'
       : isRecorder
         ? 'Recorder'
-        : '';
+        : isTranscriber
+          ? 'Transcriber'
+          : '';
 
   return (
     <div className="min-h-screen bg-background">
@@ -226,6 +228,20 @@ const Dashboard = () => {
                     <div>
                       <h3 className="font-semibold text-lg">Manage Videos</h3>
                       <p className="text-muted-foreground">Add and manage Discover videos</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="cursor-pointer hover:shadow-elegant transition-shadow border-green-500/30" onClick={() => navigate('/admin/transcribe')}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-green-500/10 rounded-full p-4">
+                      <CheckCheck className="h-8 w-8 text-green-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Transcription Review</h3>
+                      <p className="text-muted-foreground">What native speakers have checked, changed and questioned</p>
                     </div>
                   </div>
                 </CardContent>
@@ -444,6 +460,53 @@ const Dashboard = () => {
             </>
           )}
 
+          {/*
+            The transcriber's whole console. They hold the narrowest role in the
+            app — a native speaker checking the AI's Arabic, not a member of
+            staff — so this is one card and a way into the one page they can
+            open. The guard in rbac.ts is what enforces that; this is what makes
+            it findable.
+          */}
+          {isTranscriber && !isAdmin && !isRecorder && !isContentReviewer && (
+            <>
+              <Card className="bg-accent/5 border-accent/20">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-accent/10 rounded-full p-4">
+                      <CheckCheck className="h-8 w-8 text-accent" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Transcriber Access</h3>
+                      <p className="text-muted-foreground">
+                        Check the AI's Arabic and English against what is actually said, and
+                        correct the cultural and grammar notes.
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card
+                className="cursor-pointer hover:shadow-elegant transition-shadow"
+                onClick={() => navigate('/admin/transcribe')}
+              >
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-primary/10 rounded-full p-4">
+                      <Languages className="h-8 w-8 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Transcription Review</h3>
+                      <p className="text-muted-foreground">
+                        Line-by-line audio, corrections, and comments
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
+
           {isRecorder && !isAdmin && (
             <Card className="bg-accent/5 border-accent/20">
               <CardContent className="pt-6">
@@ -489,6 +552,20 @@ const Dashboard = () => {
                     <div>
                       <h3 className="font-semibold text-lg">Manage Video Content</h3>
                       <p className="text-muted-foreground">Edit transcripts, translations, and cultural context</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="cursor-pointer hover:shadow-elegant transition-shadow border-green-500/30" onClick={() => navigate('/admin/transcribe')}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-green-500/10 rounded-full p-4">
+                      <CheckCheck className="h-8 w-8 text-green-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">Transcription Review</h3>
+                      <p className="text-muted-foreground">What native speakers have checked, changed and questioned</p>
                     </div>
                   </div>
                 </CardContent>

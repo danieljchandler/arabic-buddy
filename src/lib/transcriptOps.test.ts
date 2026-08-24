@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { avg, splitSegment, mergeSegments, splitSegmentAtCursor } from './transcriptOps';
+import { avg, splitSegment, mergeSegments, splitSegmentAtCursor, retokenizeSegment } from './transcriptOps';
 import type { Segment } from '@/types/transcript';
 
 function makeSegment(overrides: Partial<Segment> = {}): Segment {
@@ -175,5 +175,111 @@ describe('splitSegmentAtCursor', () => {
     const [a, b] = splitSegmentAtCursor(seg, 5, seg.text);
     expect(a.id).toBe(seg.id);
     expect(b.id).not.toBe(seg.id);
+  });
+});
+
+/**
+ * Rebuilding the word list from typed text.
+ *
+ * The card draws its Arabic from `words`, and the video form persists each
+ * line's tokens from `words` too — so before this existed, correcting a word
+ * changed `text` and nothing else: the line went back to its old spelling the
+ * moment the box closed, and the save wrote the old words back over the fix.
+ */
+describe('retokenizeSegment', () => {
+  it('rebuilds the words a correction changed', () => {
+    const seg = retokenizeSegment(makeSegment(), 'مرحبا كيف حالكم');
+
+    expect(seg.text).toBe('مرحبا كيف حالكم');
+    expect(seg.words.map(w => w.word)).toEqual(['مرحبا', 'كيف', 'حالكم']);
+  });
+
+  it('leaves untouched words on the timings the recogniser gave them', () => {
+    const seg = retokenizeSegment(makeSegment(), 'مرحبا كيف حالكم');
+
+    // The word-level split tool and the playhead highlight both run on these,
+    // so re-deriving every word from the text would cost real information.
+    expect(seg.words[0]).toEqual({ word: 'مرحبا', start: 0, end: 1, confidence: 0.95 });
+    expect(seg.words[1]).toEqual({ word: 'كيف', start: 1, end: 2, confidence: 0.9 });
+  });
+
+  it('gives a replaced word the slot the old one left', () => {
+    const seg = retokenizeSegment(makeSegment(), 'مرحبا كيف حالكم');
+
+    expect(seg.words[2].start).toBe(2);
+    expect(seg.words[2].end).toBe(3);
+  });
+
+  it('trusts a word a person typed', () => {
+    const seg = retokenizeSegment(makeSegment(), 'مرحبا كيف حالكم');
+
+    // A human just chose it — better evidence than any recogniser's score, and
+    // the reason the word stops being coloured as doubtful.
+    expect(seg.words[2].confidence).toBe(1);
+  });
+
+  it('divides one gap between a run of new words', () => {
+    const seg = retokenizeSegment(makeSegment(), 'مرحبا يا صديقي حالك');
+
+    // Two typed words share the second's second: half each, rather than each
+    // claiming the whole gap and overlapping.
+    expect(seg.words.map(w => [w.word, w.start, w.end])).toEqual([
+      ['مرحبا', 0, 1],
+      ['يا', 1, 1.5],
+      ['صديقي', 1.5, 2],
+      ['حالك', 2, 3],
+    ]);
+  });
+
+  it('keeps the survivors aligned when a word is deleted from the front', () => {
+    const seg = retokenizeSegment(makeSegment(), 'كيف حالك');
+
+    // Matching by position would hand each survivor its neighbour's timestamps,
+    // shifting the whole line half a second early.
+    expect(seg.words.map(w => [w.word, w.start, w.end])).toEqual([
+      ['كيف', 1, 2],
+      ['حالك', 2, 3],
+    ]);
+  });
+
+  it('places words appended past the last one inside the segment', () => {
+    const seg = retokenizeSegment(makeSegment(), 'مرحبا كيف حالك اليوم');
+
+    // There is no time left after the final word, and the segment's own end is
+    // not this function's to move — so the new word sits on the boundary rather
+    // than running past it.
+    expect(seg.words[3].start).toBe(3);
+    expect(seg.words[3].end).toBe(3);
+  });
+
+  it('re-averages the line confidence over its new words', () => {
+    const seg = retokenizeSegment(makeSegment(), 'مرحبا كيف حالكم');
+
+    expect(seg.confidence).toBeCloseTo((0.95 + 0.9 + 1) / 3, 5);
+  });
+
+  it('keeps the old confidence when the line is emptied', () => {
+    const seg = retokenizeSegment(makeSegment(), '   ');
+
+    // Nothing to average, and a line reading 0% because it is briefly blank
+    // would be a lie about the recogniser.
+    expect(seg.words).toEqual([]);
+    expect(seg.confidence).toBe(0.9);
+  });
+
+  it('ignores the whitespace somebody typed around the words', () => {
+    const seg = retokenizeSegment(makeSegment(), '  مرحبا   كيف  حالك ');
+
+    expect(seg.words.map(w => w.word)).toEqual(['مرحبا', 'كيف', 'حالك']);
+  });
+
+  it('leaves everything else on the segment alone', () => {
+    const original = makeSegment();
+    const seg = retokenizeSegment(original, 'مرحبا كيف حالكم');
+
+    expect(seg.id).toBe(original.id);
+    expect(seg.start).toBe(original.start);
+    expect(seg.end).toBe(original.end);
+    expect(seg.translation).toBe(original.translation);
   });
 });

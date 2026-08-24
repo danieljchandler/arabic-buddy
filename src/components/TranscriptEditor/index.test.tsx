@@ -177,9 +177,9 @@ const editFirstLine = (container: HTMLElement, value: string) => {
 };
 
 /**
- * The first line's text as the editor currently holds it. The card renders from
- * `words`, which an edit never re-derives, so the inline editor is the only
- * place the live value is visible. Escape closes it without committing.
+ * The first line's text as the editor currently holds it, read out of the
+ * inline box so it is the editor's own value rather than the rendered words.
+ * Escape closes the box without committing.
  */
 const firstLineText = (container: HTMLElement) => {
   const box = openFirstLine(container);
@@ -254,7 +254,7 @@ describe("keyboard shortcuts", () => {
     expect(firstLineText(container)).toBe("شلونك");
   });
 
-  it("does not tell the page that an edit was undone", async () => {
+  it("tells the page that an edit was undone", async () => {
     const { container, onSave } = render();
     editFirstLine(container, "شلونكم");
     await waitFor(() => expect(savedText(onSave)).toBe("شلونكم"));
@@ -264,25 +264,50 @@ describe("keyboard shortcuts", () => {
       await new Promise((resolve) => setTimeout(resolve, 1000));
     });
 
-    // Pinned: undo and redo restore the editor's own state but never run the
-    // debounced save, so the page keeps the version it was last told about. An
-    // admin who fixes a typo, undoes it, and closes the editor has persisted the
-    // typo — the screen and the saved transcript disagree.
+    // Undo used to restore the editor's own state and stop there, so the page
+    // kept the version it was last told about: an admin who fixed a typo, undid
+    // it and closed the editor had persisted the typo, and the screen and the
+    // saved transcript disagreed with nothing on either to say so.
     expect(firstLineText(container)).toBe("شلونك");
-    expect(savedText(onSave)).toBe("شلونكم");
+    expect(savedText(onSave)).toBe("شلونك");
   });
 
-  it("leaves the line on screen showing the words it had before the edit", async () => {
+  it("shows the corrected word on the line as soon as the box closes", async () => {
     const { container, onSave } = render();
 
     editFirstLine(container, "شلونكم");
 
-    // Pinned: the card renders from `words`, and editing the line's `text` does
-    // not re-derive them. The saved transcript has the correction; the closed
-    // card still shows the old spelling, so an admin who fixes a word sees
-    // nothing change and is likely to fix it again.
+    // The card renders from `words`, so an edit that set only `text` was
+    // invisible the moment the box closed — the old spelling came back, and an
+    // admin who had just fixed a word saw nothing change and fixed it again.
     await waitFor(() => expect(savedText(onSave)).toBe("شلونكم"));
-    expect(lines(container)[0]).toBe("شلونك");
+    expect(lines(container)[0]).toBe("شلونكم");
+  });
+
+  it("keeps the words a correction did not touch, and their timings", async () => {
+    const { container, onSave } = render({
+      segments: [
+        aSegment({ id: "seg-1", start: 0, end: 3, text: "شلونك اليوم حبيبي" }),
+        SEGMENTS[1],
+      ],
+    });
+
+    // One word in the middle replaced — the two around it are untouched.
+    editFirstLine(container, "شلونك الحين حبيبي");
+
+    await waitFor(() => expect(savedText(onSave)).toBe("شلونك الحين حبيبي"));
+    expect(lines(container)[0]).toBe("شلونك الحين حبيبي");
+
+    // The words that survived still carry the timings the recogniser gave them,
+    // and the replacement takes exactly the slot the old word left. Re-deriving
+    // every word from the text would throw away the word-level timing that the
+    // split tool and the playhead highlight both run on.
+    const saved = onSave.mock.calls.at(-1)![0] as Segment[];
+    expect(saved[0].words.map((w) => [w.word, w.start, w.end])).toEqual([
+      ["شلونك", 0, 1],
+      ["الحين", 1, 2],
+      ["حبيبي", 2, 3],
+    ]);
   });
 
   it("nudges the active segment's start earlier and later", () => {

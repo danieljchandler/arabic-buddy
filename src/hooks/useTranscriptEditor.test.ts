@@ -92,6 +92,52 @@ describe("holding the transcript", () => {
   });
 });
 
+describe("editing the Arabic", () => {
+  it("rebuilds the line's words from what was typed", () => {
+    const { result } = renderHook(() => useTranscriptEditor(THREE));
+
+    act(() => {
+      result.current.editText("a", "شخبارك اليوم");
+    });
+
+    // The card renders `words`, and the video form persists each line's tokens
+    // from `words`. Setting `text` alone left the correction invisible the
+    // moment the box closed, and saved the old words back over it — while the
+    // English right underneath, a plain string with no word layer, updated at
+    // once. Same edit, two different outcomes.
+    expect(result.current.segments[0].words.map((w) => w.word)).toEqual([
+      "شخبارك",
+      "اليوم",
+    ]);
+  });
+
+  it("keeps the timings of the words the edit did not touch", () => {
+    const { result } = renderHook(() => useTranscriptEditor(THREE));
+
+    act(() => {
+      result.current.editText("a", "شخبارك اليوم");
+    });
+
+    const untouched = result.current.segments[0].words[1];
+    expect([untouched.start, untouched.end]).toEqual([1, 2]);
+  });
+
+  it("does nothing when the text comes back unchanged", () => {
+    const onSave = vi.fn();
+    const { result } = renderHook(() => useTranscriptEditor(THREE, onSave));
+
+    act(() => {
+      result.current.editText("a", "شلونك اليوم");
+    });
+    settle();
+
+    // Closing the box without typing is the commonest thing that happens to it.
+    // Recording an undo step for that would make undo a lottery.
+    expect(onSave).not.toHaveBeenCalled();
+    expect(result.current.canUndo).toBe(false);
+  });
+});
+
 describe("saving", () => {
   it("waits for the editor to stop typing", () => {
     const onSave = vi.fn();
@@ -398,6 +444,42 @@ describe("undo and redo", () => {
     });
 
     expect(result.current.segments.map((segment) => segment.id)).toEqual(["a", "b", "c"]);
+  });
+
+  it("puts the words back too, not just the text", () => {
+    const { result } = renderHook(() => useTranscriptEditor(THREE));
+    act(() => {
+      result.current.editText("a", "شخبارك اليوم");
+    });
+
+    act(() => {
+      result.current.handleUndo();
+    });
+
+    // The card draws `words`. Restoring `text` alone would undo what the
+    // reviewer reads in the box and nothing of what they see on the line.
+    expect(result.current.segments[0].words.map((w) => w.word)).toEqual([
+      "شلونك",
+      "اليوم",
+    ]);
+  });
+
+  it("tells the page what it undid", () => {
+    const onSave = vi.fn();
+    const { result } = renderHook(() => useTranscriptEditor(THREE, onSave));
+    act(() => {
+      result.current.editText("a", "شخبارك");
+    });
+    settle();
+
+    act(() => {
+      result.current.handleUndo();
+    });
+    settle();
+
+    // Undo used to change the editor's own state and stop there, so an editor
+    // who fixed a typo, undid it and closed the page had persisted the typo.
+    expect(onSave.mock.calls.at(-1)![0][0].text).toBe("شلونك اليوم");
   });
 
   it("restores the text an edit replaced", () => {

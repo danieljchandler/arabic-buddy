@@ -421,6 +421,74 @@ test.describe("the transcript, vocabulary and grammar", () => {
   });
 });
 
+test.describe("unpublished transcript changes", () => {
+  /** Correct the first line's Arabic the way a reviewer does — click a word, type, click away. */
+  async function correctFirstLine(page: Page, text: string) {
+    await page.locator('[data-segment-id] span[dir="rtl"] span[role="button"]').first().click();
+    const box = page.locator('textarea[dir="rtl"]').first();
+    await box.fill(text);
+    await box.blur();
+  }
+
+  test("shows the correction on the line as soon as the box closes", async ({ page, db }) => {
+    seedVideo(db, { transcript_lines: [aLine(0)] });
+
+    await page.goto(`/admin/videos/${VIDEO}/edit`);
+    await correctFirstLine(page, "سطر مصحح");
+
+    // The card draws its Arabic from the word list, which an edit used not to
+    // rebuild — so the old wording came straight back and an admin who had just
+    // fixed a word saw nothing change.
+    await expect(page.locator("[data-segment-id]").first()).toContainText("مصحح");
+  });
+
+  test("says the changes are auto-saved but not published", async ({ page, db }) => {
+    seedVideo(db, { transcript_lines: [aLine(0)] });
+
+    await page.goto(`/admin/videos/${VIDEO}/edit`);
+    await correctFirstLine(page, "سطر مصحح");
+
+    await expect(page.getByText("Unpublished changes", { exact: true })).toBeVisible();
+    await expect(page.getByText(/auto-saved to this device at/i)).toBeVisible();
+    // Nothing has been written: the transcript learners see is still the old one.
+    expect(db.writesTo("discover_videos")).toHaveLength(0);
+  });
+
+  test("keeps the correction across a reload and offers it back", async ({ page, db }) => {
+    seedVideo(db, { transcript_lines: [aLine(0)] });
+
+    await page.goto(`/admin/videos/${VIDEO}/edit`);
+    await correctFirstLine(page, "سطر مصحح");
+    await expect(page.getByText(/auto-saved to this device at/i)).toBeVisible();
+
+    // The whole point: a closed tab used to take the session's work with it.
+    await page.reload();
+
+    await expect(page.getByText(/unpublished transcript edits from/i)).toBeVisible();
+    await page.getByRole("button", { name: /restore edits/i }).click();
+    await expect(page.locator("[data-segment-id]").first()).toContainText("مصحح");
+  });
+
+  test("publishes the correction, and the word layer under it, on Update Video", async ({ page, db }) => {
+    seedVideo(db, { transcript_lines: [aLine(0)] });
+
+    await page.goto(`/admin/videos/${VIDEO}/edit`);
+    await correctFirstLine(page, "سطر مصحح");
+    await expect(page.getByText("Unpublished changes", { exact: true })).toBeVisible();
+
+    await saveButton(page).click();
+
+    const written = (await writtenTo(db, "discover_videos"))[0];
+    const writtenLines = written.transcript_lines as Array<Record<string, unknown>>;
+    expect(writtenLines[0].arabic).toBe("سطر مصحح");
+    // And the word layer under it, which is what the next reviewer will read.
+    expect((writtenLines[0].tokens as Array<Record<string, string>>).map((t) => t.surface)).toEqual([
+      "سطر",
+      "مصحح",
+    ]);
+  });
+});
+
 test.describe("auto-rating the difficulty", () => {
   test("offers no rating with nothing to rate", async ({ page, db }) => {
     seedVideo(db, { transcript_lines: [] });

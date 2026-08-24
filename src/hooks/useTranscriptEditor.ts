@@ -1,9 +1,94 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Segment } from '@/types/transcript';
-import { splitSegment, mergeSegments, splitSegmentAtCursor } from '@/lib/transcriptOps';
+import type { Segment, UndoOperation } from '@/types/transcript';
+import { splitSegment, mergeSegments, splitSegmentAtCursor, retokenizeSegment } from '@/lib/transcriptOps';
 import { useUndoStack } from './useUndoStack';
 
 const DEFAULT_DEBOUNCE_MS = 800;
+
+/**
+ * The transcript with `op` reversed.
+ *
+ * Pure and module-level so the hook's undo can hand the result straight to the
+ * same debounced save every other edit goes through.
+ */
+function applyUndo(prev: Segment[], op: UndoOperation): Segment[] {
+  switch (op.type) {
+    case 'SplitOp': {
+      const idx = prev.findIndex(s => s.id === op.resultSegments[0].id);
+      if (idx === -1) return prev;
+      return [...prev.slice(0, idx), op.originalSegment, ...prev.slice(idx + 2)];
+    }
+    case 'MergeOp': {
+      const idx = prev.findIndex(s => s.id === op.resultSegment.id);
+      if (idx === -1) return prev;
+      return [...prev.slice(0, idx), ...op.originalSegments, ...prev.slice(idx + 1)];
+    }
+    case 'EditTextOp':
+    case 'AIReplaceOp': {
+      const idx = prev.findIndex(s => s.id === op.segmentId);
+      if (idx === -1) return prev;
+      // Same retokenisation as the edit itself. Putting only `text` back
+      // would undo what the reviewer reads but not what the card draws.
+      return [
+        ...prev.slice(0, idx),
+        retokenizeSegment(prev[idx], op.previousText),
+        ...prev.slice(idx + 1),
+      ];
+    }
+    case 'ShiftTimestampOp': {
+      const idx = prev.findIndex(s => s.id === op.segmentId);
+      if (idx === -1) return prev;
+      return [...prev.slice(0, idx), { ...prev[idx], [op.field]: op.previousValue }, ...prev.slice(idx + 1)];
+    }
+    case 'RippleTimestampOp': {
+      return prev.map(seg => {
+        const change = op.changes.find(c => c.segmentId === seg.id);
+        return change ? { ...seg, [change.field]: change.previousValue } : seg;
+      });
+    }
+    default:
+      return prev;
+  }
+}
+
+/** The transcript with `op` applied again. */
+function applyRedo(prev: Segment[], op: UndoOperation): Segment[] {
+  switch (op.type) {
+    case 'SplitOp': {
+      const idx = prev.findIndex(s => s.id === op.originalSegment.id);
+      if (idx === -1) return prev;
+      return [...prev.slice(0, idx), ...op.resultSegments, ...prev.slice(idx + 1)];
+    }
+    case 'MergeOp': {
+      const idx = prev.findIndex(s => s.id === op.originalSegments[0].id);
+      if (idx === -1) return prev;
+      return [...prev.slice(0, idx), op.resultSegment, ...prev.slice(idx + 2)];
+    }
+    case 'EditTextOp':
+    case 'AIReplaceOp': {
+      const idx = prev.findIndex(s => s.id === op.segmentId);
+      if (idx === -1) return prev;
+      return [
+        ...prev.slice(0, idx),
+        retokenizeSegment(prev[idx], op.newText),
+        ...prev.slice(idx + 1),
+      ];
+    }
+    case 'ShiftTimestampOp': {
+      const idx = prev.findIndex(s => s.id === op.segmentId);
+      if (idx === -1) return prev;
+      return [...prev.slice(0, idx), { ...prev[idx], [op.field]: op.newValue }, ...prev.slice(idx + 1)];
+    }
+    case 'RippleTimestampOp': {
+      return prev.map(seg => {
+        const change = op.changes.find(c => c.segmentId === seg.id);
+        return change ? { ...seg, [change.field]: change.newValue } : seg;
+      });
+    }
+    default:
+      return prev;
+  }
+}
 
 /**
  * Core state management for the transcript editor.
@@ -89,9 +174,13 @@ export function useTranscriptEditor(
         if (idx === -1) return prev;
 
         const old = prev[idx];
+        if (old.text === newText) return prev;
         push({ type: 'EditTextOp', segmentId, previousText: old.text, newText });
 
-        const updated = { ...old, text: newText };
+        // Retokenised, not just re-texted: the card renders `words`, so setting
+        // `text` alone left the correction invisible until the box was opened
+        // again — and saved the old words back over it.
+        const updated = retokenizeSegment(old, newText);
         const next = [...prev.slice(0, idx), updated, ...prev.slice(idx + 1)];
 
         setStaleTranslations(s => new Set(s).add(segmentId));
@@ -230,7 +319,7 @@ export function useTranscriptEditor(
         const old = prev[idx];
         push({ type: 'AIReplaceOp', segmentId, previousText: old.text, newText });
 
-        const updated = { ...old, text: newText };
+        const updated = retokenizeSegment(old, newText);
         const next = [...prev.slice(0, idx), updated, ...prev.slice(idx + 1)];
 
         setStaleTranslations(s => new Set(s).add(segmentId));
@@ -259,45 +348,24 @@ export function useTranscriptEditor(
     });
   }, []);
 
-  /** Apply undo — reverse the last operation. */
+  /**
+   * Apply undo — reverse the last operation.
+   *
+   * The result goes through the same debounced save as any other edit. It used
+   * to change the editor's own state and stop there, so an admin who fixed a
+   * typo, undid it and left the page had persisted the typo: the screen and the
+   * saved transcript disagreed, silently.
+   */
   const handleUndo = useCallback(() => {
     const op = undo();
     if (!op) return;
 
     setSegments(prev => {
-      switch (op.type) {
-        case 'SplitOp': {
-          const idx = prev.findIndex(s => s.id === op.resultSegments[0].id);
-          if (idx === -1) return prev;
-          return [...prev.slice(0, idx), op.originalSegment, ...prev.slice(idx + 2)];
-        }
-        case 'MergeOp': {
-          const idx = prev.findIndex(s => s.id === op.resultSegment.id);
-          if (idx === -1) return prev;
-          return [...prev.slice(0, idx), ...op.originalSegments, ...prev.slice(idx + 1)];
-        }
-        case 'EditTextOp':
-        case 'AIReplaceOp': {
-          const idx = prev.findIndex(s => s.id === op.segmentId);
-          if (idx === -1) return prev;
-          return [...prev.slice(0, idx), { ...prev[idx], text: op.previousText }, ...prev.slice(idx + 1)];
-        }
-        case 'ShiftTimestampOp': {
-          const idx = prev.findIndex(s => s.id === op.segmentId);
-          if (idx === -1) return prev;
-          return [...prev.slice(0, idx), { ...prev[idx], [op.field]: op.previousValue }, ...prev.slice(idx + 1)];
-        }
-        case 'RippleTimestampOp': {
-          return prev.map(seg => {
-            const change = op.changes.find(c => c.segmentId === seg.id);
-            return change ? { ...seg, [change.field]: change.previousValue } : seg;
-          });
-        }
-        default:
-          return prev;
-      }
+      const next = applyUndo(prev, op);
+      debounceSave(next);
+      return next;
     });
-  }, [undo]);
+  }, [undo, debounceSave]);
 
   /** Apply redo — reapply the last undone operation. */
   const handleRedo = useCallback(() => {
@@ -305,39 +373,11 @@ export function useTranscriptEditor(
     if (!op) return;
 
     setSegments(prev => {
-      switch (op.type) {
-        case 'SplitOp': {
-          const idx = prev.findIndex(s => s.id === op.originalSegment.id);
-          if (idx === -1) return prev;
-          return [...prev.slice(0, idx), ...op.resultSegments, ...prev.slice(idx + 1)];
-        }
-        case 'MergeOp': {
-          const idx = prev.findIndex(s => s.id === op.originalSegments[0].id);
-          if (idx === -1) return prev;
-          return [...prev.slice(0, idx), op.resultSegment, ...prev.slice(idx + 2)];
-        }
-        case 'EditTextOp':
-        case 'AIReplaceOp': {
-          const idx = prev.findIndex(s => s.id === op.segmentId);
-          if (idx === -1) return prev;
-          return [...prev.slice(0, idx), { ...prev[idx], text: op.newText }, ...prev.slice(idx + 1)];
-        }
-        case 'ShiftTimestampOp': {
-          const idx = prev.findIndex(s => s.id === op.segmentId);
-          if (idx === -1) return prev;
-          return [...prev.slice(0, idx), { ...prev[idx], [op.field]: op.newValue }, ...prev.slice(idx + 1)];
-        }
-        case 'RippleTimestampOp': {
-          return prev.map(seg => {
-            const change = op.changes.find(c => c.segmentId === seg.id);
-            return change ? { ...seg, [change.field]: change.newValue } : seg;
-          });
-        }
-        default:
-          return prev;
-      }
+      const next = applyRedo(prev, op);
+      debounceSave(next);
+      return next;
     });
-  }, [redo]);
+  }, [redo, debounceSave]);
 
   return {
     segments,

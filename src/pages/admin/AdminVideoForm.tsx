@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -14,6 +14,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Loader2, ArrowLeft, Sparkles, Save, Upload, Download, Plus, Trash2, Image as ImageIcon } from "lucide-react";
 import { AdminTranscriptEditor } from "@/components/admin/AdminTranscriptEditor";
+import { TranscriptDraftBanner } from "@/components/admin/TranscriptDraftBanner";
+import { useTranscriptDraft } from "@/hooks/useTranscriptDraft";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import type { TranscriptLine } from "@/types/transcript";
@@ -127,6 +129,53 @@ const AdminVideoForm = () => {
   const [transcriptLines, setTranscriptLines] = useState<TranscriptLine[]>([]);
   const [vocabulary, setVocabulary] = useState<any[]>([]);
   const [grammarPoints, setGrammarPoints] = useState<any[]>([]);
+
+  /**
+   * Whether the transcript in this form has been edited in this session.
+   *
+   * The hydrate-from-server effect below re-seeds every field whenever the video
+   * row arrives again, which is right for a first load and destructive once
+   * somebody is halfway through a correction pass: a background refetch would
+   * drop an hour of unpublished work back to the stored transcript with no
+   * warning. A ref rather than `draft.dirty`, because an empty transcript
+   * filling in when background transcription finishes is also a difference from
+   * what was stored, and that one must still land.
+   */
+  const transcriptEdited = useRef(false);
+
+  const handleTranscriptChange = useCallback((next: TranscriptLine[]) => {
+    transcriptEdited.current = true;
+    setTranscriptLines(next);
+  }, []);
+
+  /**
+   * The transcript as it is actually stored, which is what "published" means
+   * here — the editor's copy is compared against it to decide whether there is
+   * anything unpublished to warn about or to keep safe.
+   */
+  const publishedLines = useMemo(
+    () => ((existingVideo?.transcript_lines as unknown as TranscriptLine[]) ?? []),
+    [existingVideo],
+  );
+
+  /**
+   * The safety net under an hour of transcript corrections.
+   *
+   * Everything in this form lives in React state until Update Video is pressed,
+   * and a transcript pass is the one job on the page long enough for that to
+   * matter: a closed tab or a reload used to take the lot. Drafts are local and
+   * per-video, and are emphatically not a publish — the banner over the editor
+   * exists to keep those two apart.
+   */
+  const draft = useTranscriptDraft({
+    videoId,
+    lines: transcriptLines,
+    publishedLines,
+    onRestore: handleTranscriptChange,
+    // Only once the stored transcript has arrived; before that the editor's
+    // empty list would read as "the whole transcript was deleted".
+    enabled: isEditing && Boolean(existingVideo),
+  });
 
   const [isSaving, setIsSaving] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -318,7 +367,9 @@ const AdminVideoForm = () => {
       setPublished(existingVideo.published);
       setIsMeme(Boolean((existingVideo as any).is_meme) || memeQueryFlag);
       setCulturalContext(existingVideo.cultural_context || "");
-      setTranscriptLines(((existingVideo.transcript_lines as any[]) ?? []) as TranscriptLine[]);
+      if (!transcriptEdited.current) {
+        setTranscriptLines(((existingVideo.transcript_lines as any[]) ?? []) as TranscriptLine[]);
+      }
       setVocabulary(((existingVideo.vocabulary as any[]) ?? []) as any[]);
       setGrammarPoints(((existingVideo.grammar_points as any[]) ?? []) as any[]);
     }
@@ -1047,6 +1098,9 @@ const AdminVideoForm = () => {
         }
         const { error } = await (supabase.from("discover_videos" as any) as any).update(record).eq("id", videoId);
         if (error) throw error;
+        // Published, so the local copy has nothing left to protect. Cleared
+        // only on success: a failed save is exactly when the draft matters.
+        draft.clear();
         toast.success("Video updated!");
       } else {
         const { error } = await (supabase.from("discover_videos" as any) as any).insert(record);
@@ -1538,9 +1592,10 @@ const AdminVideoForm = () => {
                   <input id="audio-upload-transcript" type="file" accept="audio/*,video/*" className="hidden" aria-label="Upload audio or video file for transcript playback" onChange={handleFileUpload} />
                 </div>
               )}
+              <TranscriptDraftBanner draft={draft} />
               <AdminTranscriptEditor
                 lines={transcriptLines}
-                onChange={setTranscriptLines}
+                onChange={handleTranscriptChange}
                 audioUrl={stableAudioUrl}
               />
             </CardContent>
@@ -1685,10 +1740,17 @@ const AdminVideoForm = () => {
         )}
 
         {/* Save button */}
-        <Button onClick={handleSave} disabled={isSaving} className="w-full" size="lg">
-          {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-          {isEditing ? "Update Video" : "Save Video"}
-        </Button>
+        <div className="space-y-2">
+          {draft.dirty && (
+            <p className="text-center text-sm text-amber-700 dark:text-amber-400">
+              You have unpublished transcript changes. This button is what publishes them.
+            </p>
+          )}
+          <Button onClick={handleSave} disabled={isSaving} className="w-full" size="lg">
+            {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+            {isEditing ? "Update Video" : "Save Video"}
+          </Button>
+        </div>
       </main>
     </div>
   );

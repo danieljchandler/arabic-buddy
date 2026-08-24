@@ -409,6 +409,42 @@ re-translate, C to comment, brackets to nudge timings, `?` for the list. The map
 lives in `src/lib/transcriptShortcuts.ts` and both the resolver and the help
 panel read it, so a shortcut cannot exist undocumented.
 
+An Arabic edit rewrites the line's **word list**, not just its text
+(`retokenizeSegment` in `src/lib/transcriptOps.ts`). The card draws its Arabic
+from `words` — that is where per-word confidence colouring and the split tool
+live — and the video form persists each line's tokens from `words` too, so an
+edit that set only `text` was invisible the moment the box closed and was
+overwritten by the old words on the next save. The English underneath, a plain
+string with no word layer, had always updated at once; that mismatch is what
+made the bug read as "the Arabic doesn't save". The rebuild is a
+longest-common-subsequence alignment, so words the edit did not touch keep the
+timings the recogniser gave them; a word somebody typed is interpolated into the
+gap its neighbours leave and trusted at confidence 1. Undo and redo go through
+the same rebuild, and now run the debounced save, so what is on screen and what
+has been reported to the page cannot disagree.
+
+### Unpublished drafts in the video form
+
+The admin video form holds an entire correction pass in React state until
+**Update Video** is pressed, which is long enough that a closed tab, a reload or
+a background refetch of the video row used to take an hour of work with it.
+`src/lib/transcriptDraft.ts` and `useTranscriptDraft` keep every settled edit in
+`localStorage`, keyed per video, and `TranscriptDraftBanner` says — in those
+words — that the changes are **auto-saved to this device** and **not
+published**. That distinction is the whole design: a reviewer who reads "saved"
+as "live" walks away believing learners have their corrections, which is a
+quieter and worse failure than losing the work. So a draft is never written over
+one still being offered back, never deleted except on publish or an explicit
+discard, and a browser that refuses storage (private mode, full quota) is
+reported rather than silently swallowed. Publishing clears the draft; a failed
+save deliberately does not.
+
+Two consequences elsewhere in the form: `beforeunload` asks for confirmation
+while anything is unpublished, and the hydrate-from-server effect no longer
+re-seeds the transcript once it has been edited in this session — a refetch
+landing under a reviewer used to drop their work back to the stored version with
+no warning.
+
 ## PWA and push notifications
 
 The frontend is installable: `public/manifest.webmanifest` plus a hand-rolled

@@ -18,6 +18,14 @@ export interface SegmentReviewProps {
   state: ReviewState;
   /** ISO timestamp of the sign-off, for the tooltip. */
   reviewedAt?: string;
+  /**
+   * The pipeline's own doubt about this line — its translation models
+   * disagreed, or nothing settled it. Different from anything a person thinks,
+   * and the best place for a native speaker to start.
+   */
+  flagged?: boolean;
+  /** Why the pipeline flagged it, when it said. */
+  flagReason?: string;
   /** Comments on this line nobody has closed off. */
   openComments: number;
   /** Logged changes to this line. */
@@ -163,15 +171,19 @@ export default function SegmentCard({
       className={cn(
         'rounded-lg border p-3 transition-all',
         isSelected && 'ring-2 ring-blue-400 ring-offset-1 dark:ring-offset-gray-950',
-        // The review state owns the left edge, so a reviewer scrolling a long
-        // transcript can see what is still outstanding without reading a word
-        // of it. The active-line highlight keeps the rest of the border.
-        review?.state === 'reviewed' && 'border-l-4 border-l-green-500',
-        review?.state === 'stale' && 'border-l-4 border-l-amber-500',
-        review?.state === 'unreviewed' && 'border-l-4 border-l-transparent',
         isActive
           ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-950/20 shadow-soft'
           : 'border-gray-200 dark:border-gray-700 hover:border-gray-300',
+        // Last, so it survives the merge: `cn` runs tailwind-merge, and the
+        // all-sides `border-gray-200` above would otherwise win over a
+        // left-side colour declared before it.
+        //
+        // The review state owns the left edge so a reviewer scrolling a long
+        // transcript can see what is still outstanding without reading a word
+        // of it. The active-line highlight keeps the other three sides.
+        review?.state === 'reviewed' && 'border-l-4 border-l-green-500',
+        review?.state === 'stale' && 'border-l-4 border-l-amber-500',
+        review?.state === 'unreviewed' && 'border-l-4 border-l-transparent',
       )}
     >
       {/* Header row */}
@@ -218,6 +230,18 @@ export default function SegmentCard({
           </span>
           {segment.speaker && (
             <span className="text-[10px] text-muted-foreground">{segment.speaker}</span>
+          )}
+          {review?.flagged && (
+            <span
+              className="rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
+              title={
+                review.flagReason
+                  ? `The pipeline was unsure about this line: ${review.flagReason.replace(/_/g, " ")}`
+                  : "The pipeline was unsure about this line"
+              }
+            >
+              AI unsure
+            </span>
           )}
         </div>
         <div className="flex items-center gap-1">

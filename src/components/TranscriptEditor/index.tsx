@@ -28,6 +28,9 @@ import type { SegmentReviewProps } from './SegmentCard';
 export interface LineReviewSlot {
   state: ReviewState;
   reviewedAt?: string;
+  /** The pipeline's own doubt about this line, from `needs_review`. */
+  flagged?: boolean;
+  flagReason?: string;
   openComments: number;
   revisions: number;
   onToggleReviewed: () => void;
@@ -141,8 +144,15 @@ export default function TranscriptEditor({
   );
 
   const handleRetranslate = useCallback(
-    (segmentId: string) => onRetranslate?.(segmentId),
-    [onRetranslate],
+    (segmentId: string) => {
+      // Flush before asking. The server re-translates the Arabic it has stored,
+      // and the correction that prompted the reviewer to press this is usually
+      // seconds old — still inside the 800 ms save debounce. Without this, the
+      // one flow the button exists for translates the words they just replaced.
+      onSave?.(segments);
+      onRetranslate?.(segmentId);
+    },
+    [onRetranslate, onSave, segments],
   );
 
   // Keyboard shortcuts. The map itself lives in lib/transcriptShortcuts so the
@@ -153,19 +163,20 @@ export default function TranscriptEditor({
       const action = resolveShortcut(e, { editing });
       if (!action) return;
 
-      // Everything the editor handles below is claimed; anything it doesn't
-      // recognise has already returned.
       const claim = () => e.preventDefault();
 
-      const universal: ShortcutAction[] = ['undo', 'redo'];
-      if (!reviewMode && !universal.includes(action)) {
-        // Outside the workspace only the pre-existing shortcuts apply, so the
-        // video form's editor behaves as it always did.
-        if (action !== 'nudge-start-earlier' && action !== 'nudge-start-later' &&
-            action !== 'nudge-end-earlier' && action !== 'nudge-end-later') {
-          return;
-        }
-      }
+      // Outside the workspace only the shortcuts this editor already had apply,
+      // so the admin video form behaves exactly as it did before review mode
+      // existed — in particular a bare `m` there is still just the letter m.
+      const ALWAYS_ON: ShortcutAction[] = [
+        'undo',
+        'redo',
+        'nudge-start-earlier',
+        'nudge-start-later',
+        'nudge-end-earlier',
+        'nudge-end-later',
+      ];
+      if (!reviewMode && !ALWAYS_ON.includes(action)) return;
 
       const segment = selectedIndex >= 0 ? segments[selectedIndex] : undefined;
       // The timing nudges predate selection and follow the playhead, which is
@@ -355,6 +366,7 @@ export default function TranscriptEditor({
         onSuggestBreaks={handleSuggestBreaks}
         onAIResegment={onAIResegment ? handleAIResegment : undefined}
         onCancelAI={cancelAI}
+        onShowShortcuts={() => setShowHelp((open) => !open)}
       />
 
       {reviewMode && (
@@ -365,7 +377,6 @@ export default function TranscriptEditor({
           onRateChange={playback.setRate}
           onLoopChange={playback.setLoop}
           onStop={playback.stop}
-          onShowHelp={() => setShowHelp(true)}
         />
       )}
 

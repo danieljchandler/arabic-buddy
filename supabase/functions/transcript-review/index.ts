@@ -26,7 +26,9 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { askBrain } from "../_shared/aiBrain.ts";
 import { getLineup } from "../_shared/modelRegistry.ts";
 import { normalizeDialect } from "../_shared/transcriptDiffCore.ts";
-import type { Dialect } from "../_shared/dialectHelpers.ts";
+// From dialectTypes rather than dialectHelpers: the latter builds a Supabase
+// client and reads Deno.env at module scope, and this only wants the type.
+import type { Dialect } from "../_shared/dialectTypes.ts";
 import {
   diffTranscriptRevisions,
   diffVideoField,
@@ -81,7 +83,7 @@ async function resolveReviewer(req: Request): Promise<Reviewer | null> {
     .from("user_roles")
     .select("role")
     .eq("user_id", userData.user.id)
-    .in("role", REVIEWER_ROLES as unknown as string[]);
+    .in("role", [...REVIEWER_ROLES]);
 
   if (!Array.isArray(roles) || roles.length === 0) return null;
   return {
@@ -153,6 +155,43 @@ function asLines(value: unknown): TranscriptLine[] {
   return Array.isArray(value) ? (value as TranscriptLine[]) : [];
 }
 
+/**
+ * Bounds on a mistake, not a threat model.
+ *
+ * Set far above any plausible transcript — these videos are short-form clips,
+ * so a few hundred lines is a long one — because the job here is to catch a
+ * client posting nonsense or a loop running away, not to police length.
+ */
+const MAX_LINES = 5000;
+const MAX_TRANSCRIPT_BYTES = 2_000_000;
+
+/**
+ * Is this a transcript, or is something wrong?
+ *
+ * The reviewer replaces the whole `transcript_lines` blob on every save, and a
+ * transcriber is a contributor rather than staff — so the one thing worth
+ * checking is that what arrived is shaped like a transcript at all. A bad
+ * client that posts a scalar, or a runaway loop that posts a million lines,
+ * should be refused here rather than written into a column every learner reads.
+ */
+function rejectBadTranscript(lines: unknown[]): string | null {
+  if (lines.length > MAX_LINES) return `A transcript cannot have more than ${MAX_LINES} lines.`;
+  for (const line of lines) {
+    if (typeof line !== "object" || line === null || Array.isArray(line)) {
+      return "Every line must be an object.";
+    }
+    if (typeof (line as TranscriptLine).id !== "string" || !(line as TranscriptLine).id) {
+      // Without an id there is nothing to hang a review or a revision on, and
+      // the line would be invisible to the audit trail.
+      return "Every line must carry an id.";
+    }
+  }
+  if (JSON.stringify(lines).length > MAX_TRANSCRIPT_BYTES) {
+    return "That transcript is too large to save.";
+  }
+  return null;
+}
+
 // ── Actions ─────────────────────────────────────────────────────────────────
 
 async function saveLines(
@@ -165,6 +204,9 @@ async function saveLines(
   if (!videoId || !Array.isArray(lines)) {
     return json({ error: "videoId and lines are required" }, 400, cors);
   }
+
+  const malformed = rejectBadTranscript(lines);
+  if (malformed) return json({ error: "invalid_transcript", message: malformed }, 400, cors);
 
   const video = await loadVideo(videoId);
   if (!video) return json({ error: "video_not_found" }, 404, cors);

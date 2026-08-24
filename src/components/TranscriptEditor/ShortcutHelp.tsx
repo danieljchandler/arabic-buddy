@@ -62,6 +62,8 @@ export default function ShortcutHelp({ onClose }: ShortcutHelpProps) {
 
       <p className="mt-3 text-[11px] text-muted-foreground">
         Letter keys work when you are not typing in a box. ⌘ is Ctrl on Windows and Linux.
+        Timings can also be dragged on the bar under each line — the handle turns orange when
+        the change will push a neighbouring line.
       </p>
     </div>
   );

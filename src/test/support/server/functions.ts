@@ -206,6 +206,11 @@ function transcriptReview({ db, userId, body }: FunctionContext): FunctionRespon
     case "save_lines": {
       if (!video) return { status: 404, body: { error: "video_not_found" } };
       const lines = Array.isArray(payload.lines) ? (payload.lines as Row[]) : [];
+      // Mirrors the real function's shape check, so a fixture that posts
+      // something that is not a transcript fails here too.
+      if (lines.some((line) => typeof line?.id !== "string" || !line.id)) {
+        return { status: 400, body: { error: "invalid_transcript" } };
+      }
       const revisions = diffTranscriptRevisions(storedLines, lines);
       writeLines(lines);
       logRevisions(revisions, payload.source === "ai_resegment" ? "ai_resegment" : "human");

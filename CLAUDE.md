@@ -198,10 +198,28 @@ pattern rather than a blanket RLS policy.
 **RBAC**: roles live in `public.user_roles`, admin-writable only, and are
 checked through the `has_role` RPC (never by reading the table client-side).
 The `app_role` enum carries `admin`, `user`, `content_reviewer`, `recorder`,
-`beta_tester` and `bible_reader`. `useAdminAuth` collapses the staff-facing
-ones into a single `admin | content_reviewer | recorder | null` role; see
-README for exact scoping (e.g. `bible_reader` is overridden when the user is
-also `content_reviewer`).
+`beta_tester`, `bible_reader`, `complimentary` and `transcriber`. `useAdminAuth`
+collapses the staff-facing ones into a single
+`admin | content_reviewer | recorder | transcriber | null` role; see README for
+exact scoping (e.g. `bible_reader` is overridden when the user is also
+`content_reviewer`). Adding an enum value takes **two migration files** —
+Postgres will not use a value in the transaction that added it — and touches
+more than the SQL: `src/lib/rbac.ts` (`MANAGED_ROLES` drives the grant UI),
+`useAdminAuth`, the generated types, `src/test/support/personas.ts`,
+`src/test/support/server/rpc.ts`, and the route manifest.
+
+**Transcript review** is where native speakers correct the pipeline's output,
+at `/admin/transcribe`. Three tables (`transcript_line_reviews`,
+`transcript_line_revisions`, `transcript_line_comments`) key off a line id
+*inside* the `discover_videos.transcript_lines` jsonb array, since the transcript
+is a blob rather than rows. Reads are RLS'd to reviewers; **all writes go
+through the `transcript-review` edge function**, which computes the diff against
+what is actually stored — an audit trail its own subject can author is worth
+nothing. A checkmark stores the text it approved so it can be shown as stale
+when the line moves on; note that merging keeps the *left* line's id, so without
+that snapshot a tick would silently carry onto unread words. Reviewer chrome in
+`TranscriptEditor` hangs off one optional `lineReview` prop, so the admin video
+form renders unchanged. Full writeup in README.
 
 ## Project layout
 

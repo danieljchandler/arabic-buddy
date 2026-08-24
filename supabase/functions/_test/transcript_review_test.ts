@@ -42,8 +42,12 @@ function upstreams(
   return {
     "/auth/v1/user": () => json({ id: USER, aud: "authenticated", role: "authenticated" }),
     "/rest/v1/user_roles": () => json(role ? [{ role }] : []),
+    // PostgREST answers a PATCH with 204 and no body at all — and `json(null, 204)`
+    // would build a Response with the four characters "null" in it, which the
+    // platform refuses outright ("Response with null body status cannot have
+    // body"). The function then reports that as a failed save.
     "/rest/v1/discover_videos": (request) =>
-      request.method === "GET" ? json(VIDEO_ROW) : json(null, 204),
+      request.method === "GET" ? json(VIDEO_ROW) : new Response(null, { status: 204 }),
     "/rest/v1/transcript_line_revisions": () => json(null, 201),
     "/rest/v1/transcript_line_reviews": () => json(null, 201),
     "/rest/v1/transcript_line_comments": (request) =>
@@ -267,4 +271,37 @@ Deno.test("transcript-review rejects an unknown action", async () => {
   const result = await call({ action: "delete_everything", videoId: VIDEO });
   assertEquals(result.status, 400);
   assertEquals(result.body.error, "unknown_action");
+});
+
+Deno.test("transcript-review refuses a body that is not a transcript", async () => {
+  const result = await call({ action: "save_lines", videoId: VIDEO, lines: ["not an object"] });
+
+  assertEquals(result.status, 400);
+  assertEquals(result.body.error, "invalid_transcript");
+});
+
+Deno.test("transcript-review refuses a line with no id", async () => {
+  // Nothing could hang a review or a revision on it, so it would be invisible
+  // to the audit trail while still being served to learners.
+  const result = await call({
+    action: "save_lines",
+    videoId: VIDEO,
+    lines: [{ arabic: "بدون معرف", translation: "no id" }],
+  });
+
+  assertEquals(result.status, 400);
+});
+
+Deno.test("transcript-review refuses an implausibly long transcript", async () => {
+  const lines = Array.from({ length: 5001 }, (_, i) => ({ id: `L${i}`, arabic: "x" }));
+  const result = await call({ action: "save_lines", videoId: VIDEO, lines });
+
+  assertEquals(result.status, 400);
+});
+
+Deno.test("transcript-review accepts an empty transcript", async () => {
+  // Deleting every line is a legitimate thing to do to a bad auto-transcript.
+  const result = await call({ action: "save_lines", videoId: VIDEO, lines: [] });
+
+  assertEquals(result.status, 200);
 });

@@ -112,9 +112,18 @@ interface Options {
   videoUrl?: string;
   aiApiCall?: (prompt: string, signal: AbortSignal) => Promise<string>;
   onAIResegment?: (segments: Segment[]) => Promise<Segment[] | null>;
+  lineReview?: React.ComponentProps<typeof TranscriptEditor>["lineReview"];
+  onRetranslate?: (segmentId: string) => void;
 }
 
-function render({ segments = SEGMENTS, videoUrl, aiApiCall, onAIResegment }: Options = {}) {
+function render({
+  segments = SEGMENTS,
+  videoUrl,
+  aiApiCall,
+  onAIResegment,
+  lineReview,
+  onRetranslate,
+}: Options = {}) {
   const onSave = vi.fn();
   const harness = renderWithProviders(
     <TranscriptEditor
@@ -123,6 +132,8 @@ function render({ segments = SEGMENTS, videoUrl, aiApiCall, onAIResegment }: Opt
       onSave={onSave}
       aiApiCall={aiApiCall}
       onAIResegment={onAIResegment}
+      lineReview={lineReview}
+      onRetranslate={onRetranslate}
     />,
     { persona: "admin" },
   );
@@ -746,5 +757,271 @@ describe("saving", () => {
     // Debounced, because this fires on every keystroke of an Arabic sentence.
     await waitFor(() => expect(onSave).toHaveBeenCalled());
     expect(onSave.mock.calls.at(-1)![0][0].text).toBe("شلونكم");
+  });
+});
+
+/**
+ * Review mode — the wiring the native-speaker workspace depends on.
+ *
+ * Everything here hangs off the one `lineReview` prop, and the property that
+ * matters most is the negative: the admin video form renders this same editor
+ * without it and must be untouched. After that it is the keyboard, which is
+ * where a transcription tool is either fast or useless — and where the failure
+ * mode is silent, because a shortcut that fires while someone is typing Arabic
+ * corrupts the very line they were fixing.
+ */
+describe("review mode", () => {
+  const slots = () => {
+    const calls = {
+      toggle: vi.fn(),
+      comments: vi.fn(),
+      history: vi.fn(),
+    };
+    const lineReview = (segmentId: string) => ({
+      state: "unreviewed" as const,
+      openComments: 0,
+      revisions: 0,
+      onToggleReviewed: () => calls.toggle(segmentId),
+      onOpenComments: () => calls.comments(segmentId),
+      onOpenHistory: () => calls.history(segmentId),
+    });
+    return { calls, lineReview };
+  };
+
+  const key = (k: string, mods: Record<string, boolean> = {}) =>
+    fireEvent.keyDown(window, { key: k, ...mods });
+
+  describe("when no reviewer is attached", () => {
+    it("shows no playback controls", () => {
+      render();
+
+      expect(screen.queryByText(/Listen at/)).not.toBeInTheDocument();
+    });
+
+    it("leaves the review keys alone", () => {
+      // The video form's editor has always ignored these, and an admin typing
+      // in it must not trip a merge.
+      const { container } = render();
+
+      key("m");
+
+      expect(container.querySelectorAll("[data-segment-id]")).toHaveLength(2);
+    });
+  });
+
+  describe("the listening controls", () => {
+    it("appear once a reviewer is attached", () => {
+      const { lineReview } = slots();
+      render({ lineReview });
+
+      expect(screen.getByText(/Listen at/)).toBeInTheDocument();
+    });
+
+    it("open the shortcut list from the toolbar", () => {
+      const { lineReview } = slots();
+      render({ lineReview });
+
+      fireEvent.click(screen.getByRole("button", { name: /Shortcuts/ }));
+
+      expect(screen.getByRole("dialog", { name: /Keyboard shortcuts/i })).toBeInTheDocument();
+    });
+
+    it("open it on ? as well", () => {
+      const { lineReview } = slots();
+      render({ lineReview });
+
+      key("?");
+
+      expect(screen.getByRole("dialog", { name: /Keyboard shortcuts/i })).toBeInTheDocument();
+    });
+  });
+
+  describe("the keyboard cursor", () => {
+    it("starts on the first line", () => {
+      const { lineReview } = slots();
+      const { container } = render({ lineReview });
+
+      expect(container.querySelector("[data-segment-id='seg-1']")?.className).toContain("ring-2");
+    });
+
+    it("moves down on j", () => {
+      const { lineReview } = slots();
+      const { container } = render({ lineReview });
+
+      key("j");
+
+      expect(container.querySelector("[data-segment-id='seg-2']")?.className).toContain("ring-2");
+    });
+
+    it("moves back up on k", () => {
+      const { lineReview } = slots();
+      const { container } = render({ lineReview });
+
+      key("j");
+      key("k");
+
+      expect(container.querySelector("[data-segment-id='seg-1']")?.className).toContain("ring-2");
+    });
+
+    it("stops at the ends rather than wrapping", () => {
+      // Wrapping from the last line back to the first, silently, is how a
+      // reviewer ends up re-checking work they already did.
+      const { lineReview } = slots();
+      const { container } = render({ lineReview });
+
+      key("k");
+      expect(container.querySelector("[data-segment-id='seg-1']")?.className).toContain("ring-2");
+
+      key("j");
+      key("j");
+      key("j");
+      expect(container.querySelector("[data-segment-id='seg-2']")?.className).toContain("ring-2");
+    });
+  });
+
+  describe("acting on the selected line", () => {
+    it("ticks it on r", () => {
+      const { calls, lineReview } = slots();
+      render({ lineReview });
+
+      key("r");
+
+      expect(calls.toggle).toHaveBeenCalledWith("seg-1");
+    });
+
+    it("opens its comments on c", () => {
+      const { calls, lineReview } = slots();
+      render({ lineReview });
+
+      key("j");
+      key("c");
+
+      expect(calls.comments).toHaveBeenCalledWith("seg-2");
+    });
+
+    it("re-translates it on t", () => {
+      const { lineReview } = slots();
+      const onRetranslate = vi.fn();
+      render({ lineReview, onRetranslate });
+
+      key("t");
+
+      expect(onRetranslate).toHaveBeenCalledWith("seg-1");
+    });
+
+    it("saves the corrected Arabic before asking for a new translation", () => {
+      // The server re-translates the Arabic it has stored, and the correction
+      // that prompted the reviewer to press this is seconds old — still inside
+      // the 800ms save debounce. Without the flush, the one flow this button
+      // exists for translates the words they just replaced.
+      const { lineReview } = slots();
+      const onRetranslate = vi.fn();
+      const { container, onSave } = render({ lineReview, onRetranslate });
+
+      editFirstLine(container, "شخبارك");
+      expect(onSave).not.toHaveBeenCalled(); // still debounced
+
+      key("t");
+
+      expect(onSave).toHaveBeenCalled();
+      const flushed = onSave.mock.calls.at(-1)?.[0] as Segment[];
+      expect(flushed[0].text).toBe("شخبارك");
+      expect(onRetranslate).toHaveBeenCalledWith("seg-1");
+
+      // Order matters: the save has to be handed over first.
+      expect(onSave.mock.invocationCallOrder[0]).toBeLessThan(
+        onRetranslate.mock.invocationCallOrder[0],
+      );
+    });
+
+    it("merges it with the line below on m", () => {
+      const { lineReview } = slots();
+      const { container } = render({ lineReview });
+
+      key("m");
+
+      expect(container.querySelectorAll("[data-segment-id]")).toHaveLength(1);
+    });
+
+    it("merges upwards on shift-m", () => {
+      const { lineReview } = slots();
+      const { container } = render({ lineReview });
+
+      key("j");
+      key("M", { shiftKey: true });
+
+      expect(container.querySelectorAll("[data-segment-id]")).toHaveLength(1);
+    });
+
+    it("does not merge the last line into nothing", () => {
+      const { lineReview } = slots();
+      const { container } = render({ lineReview });
+
+      key("j");
+      key("m");
+
+      expect(container.querySelectorAll("[data-segment-id]")).toHaveLength(2);
+    });
+
+    it("opens the editor on Enter", () => {
+      const { lineReview } = slots();
+      const { container } = render({ lineReview });
+
+      key("Enter");
+
+      const box = container.querySelector("textarea");
+      expect(box).toHaveValue("شلونك");
+    });
+  });
+
+  describe("keys inside a text box", () => {
+    it("lets m be the letter m", () => {
+      // The failure this prevents is silent and destructive: a reviewer typing
+      // Arabic that happens to contain these letters would merge lines under
+      // themselves.
+      const { lineReview } = slots();
+      const { container } = render({ lineReview });
+
+      const box = openFirstLine(container);
+      fireEvent.keyDown(box, { key: "m" });
+
+      expect(container.querySelectorAll("[data-segment-id]")).toHaveLength(2);
+    });
+
+    it("does not tick a line when r is typed", () => {
+      const { calls, lineReview } = slots();
+      const { container } = render({ lineReview });
+
+      const box = openFirstLine(container);
+      fireEvent.keyDown(box, { key: "r" });
+
+      expect(calls.toggle).not.toHaveBeenCalled();
+    });
+
+    it("still undoes on cmd-z", () => {
+      const { lineReview } = slots();
+      const { container } = render({ lineReview });
+      editFirstLine(container, "شلونكم");
+
+      const box = openFirstLine(container);
+      fireEvent.keyDown(box, { key: "z", metaKey: true });
+      fireEvent.keyDown(box, { key: "Escape" });
+
+      expect(firstLineText(container)).toBe("شلونك");
+    });
+  });
+
+  describe("keeping the selection valid", () => {
+    it("moves off a line that a merge dissolved", () => {
+      const { lineReview } = slots();
+      const { container } = render({ lineReview });
+
+      key("j");
+      // Merging seg-1 with seg-2 keeps seg-1's id and drops seg-2's, which was
+      // the selected one.
+      key("M", { shiftKey: true });
+
+      expect(container.querySelector("[data-segment-id='seg-1']")?.className).toContain("ring-2");
+    });
   });
 });

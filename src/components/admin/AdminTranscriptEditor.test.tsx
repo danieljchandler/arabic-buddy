@@ -160,8 +160,11 @@ describe("AdminTranscriptEditor — word timings", () => {
     expect(words.at(-1)?.end).toBeCloseTo(8, 10);
   });
 
-  it("produces no words for a line with no tokens", () => {
-    render([aLine({ tokens: [] })]);
+  it("produces no words for a line with neither tokens nor text", () => {
+    // A line with tokens missing but Arabic present is filled in from the
+    // Arabic instead — see "a line that arrives without tokens" below. Truly
+    // empty is the only case with nothing to draw.
+    render([aLine({ tokens: [], arabic: "" })]);
     expect(props().initialSegments[0].words).toEqual([]);
   });
 
@@ -595,5 +598,130 @@ describe("AdminTranscriptEditor — AI re-segmentation", () => {
     expect(toast).toHaveBeenCalledWith(
       expect.objectContaining({ description: "The server returned 500." }),
     );
+  });
+});
+
+/**
+ * The fields the editor never sees.
+ *
+ * `Segment` carries five; `TranscriptLine` carries a dozen. Everything the
+ * conversion out drops has to be put back on the way in, or a save deletes it —
+ * and the analysis pass that produced `fusha`, `literal` and the ensemble's
+ * review flags costs several model calls per line to redo. The bug this covers
+ * wiped all of them, for every line in the transcript, on any edit to any one
+ * of them.
+ */
+describe("AdminTranscriptEditor — the fields the editor cannot see", () => {
+  const rich = () =>
+    aLine({
+      literal: "hello with-you",
+      fusha: "مرحبا بك",
+      needs_review: true,
+      review_reason: "ensemble_disagreement" as const,
+      altTranslation: "Greetings",
+      resolved_by: "shaheen→claude-sonnet-4.5",
+      segmentType: "audio" as const,
+    });
+
+  /** Save the segments back unchanged, as an untouched editor would. */
+  const saveUnchanged = (onChange: ReturnType<typeof vi.fn>) => {
+    props().onSave?.(props().initialSegments);
+    return onChange.mock.calls.at(-1)?.[0] as TranscriptLine[];
+  };
+
+  it("keeps every one of them when nothing was edited", () => {
+    const { onChange } = render([rich()]);
+
+    const saved = saveUnchanged(onChange);
+
+    expect(saved[0]).toMatchObject({
+      literal: "hello with-you",
+      fusha: "مرحبا بك",
+      needs_review: true,
+      review_reason: "ensemble_disagreement",
+      altTranslation: "Greetings",
+      resolved_by: "shaheen→claude-sonnet-4.5",
+      segmentType: "audio",
+    });
+  });
+
+  it("keeps them on the lines nobody touched when one line is edited", () => {
+    const { onChange } = render([rich(), aLine({ id: "line-2", fusha: "نص ثاني" })]);
+
+    const segments = props().initialSegments;
+    props().onSave?.([{ ...segments[0], text: "أهلا بك" }, segments[1]]);
+    const saved = onChange.mock.calls.at(-1)?.[0] as TranscriptLine[];
+
+    expect(saved[1].fusha).toBe("نص ثاني");
+  });
+
+  it("drops the renderings of the old wording when the Arabic changes", () => {
+    // A Fusha row for words that are no longer there is worse than none, and
+    // `useFushaLines` refills it on demand.
+    const { onChange } = render([rich()]);
+
+    props().onSave?.([{ ...props().initialSegments[0], text: "أهلا بك" }]);
+    const saved = onChange.mock.calls.at(-1)?.[0] as TranscriptLine[];
+
+    expect(saved[0].fusha).toBeUndefined();
+    expect(saved[0].altTranslation).toBeUndefined();
+    expect(saved[0].resolved_by).toBeUndefined();
+    // The flag itself is the ensemble's judgement about the line, not about a
+    // particular wording, so it stays until a reviewer clears it.
+    expect(saved[0].needs_review).toBe(true);
+  });
+
+  it("still carries the edited text and timings", () => {
+    const { onChange } = render([rich()]);
+
+    props().onSave?.([{ ...props().initialSegments[0], text: "أهلا بك", start: 2, end: 5 }]);
+    const saved = onChange.mock.calls.at(-1)?.[0] as TranscriptLine[];
+
+    expect(saved[0]).toMatchObject({ arabic: "أهلا بك", startMs: 2000, endMs: 5000 });
+  });
+
+  it("gives a line the editor invented nothing to inherit", () => {
+    // A split mints a fresh id, and there is no original to copy from — which
+    // is right: the new half's Fusha row was never written.
+    const { onChange } = render([rich()]);
+
+    props().onSave?.([
+      { ...props().initialSegments[0], id: "brand-new", text: "أهلا" },
+    ]);
+    const saved = onChange.mock.calls.at(-1)?.[0] as TranscriptLine[];
+
+    expect(saved[0].id).toBe("brand-new");
+    expect(saved[0].fusha).toBeUndefined();
+  });
+});
+
+describe("AdminTranscriptEditor — a line that arrives without tokens", () => {
+  it("splits the Arabic into words so the line is visible at all", () => {
+    // The card draws its Arabic from `words`, which comes from the tokens. A
+    // line with none rendered as a blank row that could not even be clicked
+    // into — the reviewer could see there was a line, and nothing else.
+    render([aLine({ tokens: [] })]);
+
+    expect(props().initialSegments[0].words.map((w) => w.word)).toEqual(["مرحبا", "بك"]);
+  });
+
+  it("spreads the invented words across the line's own span", () => {
+    render([aLine({ tokens: [], startMs: 2000, endMs: 4000 })]);
+
+    const [first, second] = props().initialSegments[0].words;
+    expect(first.start).toBe(2);
+    expect(second.end).toBe(4);
+  });
+
+  it("leaves a genuinely empty line empty", () => {
+    render([aLine({ tokens: [], arabic: "" })]);
+
+    expect(props().initialSegments[0].words).toEqual([]);
+  });
+
+  it("prefers real tokens when there are any", () => {
+    render([aLine()]);
+
+    expect(props().initialSegments[0].words.map((w) => w.word)).toEqual(["مرحبا", "بك"]);
   });
 });

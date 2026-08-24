@@ -353,9 +353,61 @@ admins via RLS; users may only read their own role):
 - `admin`: full access everywhere, including admin and Bible management.
 - `content_reviewer`: can manage content workflows (transcripts / translations /
   cultural notes / dialect rules) but is blocked from Bible access.
+- `transcriber`: a native speaker hired to check the AI's Arabic and English.
+  The narrowest role in the app — `/admin/transcribe` and nothing else. See
+  **Transcript review** below.
 - `beta_tester`: can access beta-only features.
 - `bible_reader`: grants Bible reading access (except when the user is also
   `content_reviewer`).
+
+The two path allow-lists live in `src/lib/rbac.ts`
+(`canAccessContentReviewerAdminPath`, `canAccessTranscriberAdminPath`) and are
+enforced by `AdminLayout`. `src/test/routeManifest.test.ts` asks those functions
+directly, so a route cannot be marked reachable by a role that rbac.ts does not
+actually admit — nor can a new admin route quietly become reachable by a
+transcriber.
+
+## Transcript review
+
+Native speakers check the pipeline's output at `/admin/transcribe`: a queue
+sorted by how much is left rather than by date, and a per-video workspace at
+`/admin/transcribe/:videoId`. It is deliberately **not** the admin video form,
+which can publish, delete and re-run the pipeline.
+
+Three tables key off a line id inside the `discover_videos.transcript_lines`
+jsonb array (there is no foreign key to hang them on, and turning the transcript
+into rows would be a far larger change):
+
+- `transcript_line_reviews` — the human checkmark. It stores the Arabic and
+  English that were signed off, which is what lets the workspace show a tick as
+  **stale** once the line changes. Without that snapshot a tick outlives the
+  words it approved — and merging keeps the left-hand line's id, so a checked
+  line can silently acquire words nobody read.
+- `transcript_line_revisions` — the old/new audit trail. Unlike
+  `transcriptDiffCore` (which builds training pairs and is right to skip what it
+  cannot pair confidently), this records structural edits too: a split shows as
+  a line appearing, a merge as one disappearing.
+- `transcript_line_comments` — notes, better-translation suggestions and
+  concerns, per line or per video. A suggestion carries the proposed English in
+  its own column so it can be applied in one click.
+
+RLS grants reviewers `SELECT` and nothing else. **Every write goes through the
+`transcript-review` edge function** under the service role, which is what makes
+the audit trail worth having: the diff is computed there against what is
+actually stored, so a client cannot record a "previous value" that was never in
+the database, and `changed_by` comes from the caller's JWT rather than from the
+request body. That function's column allow-list is also the whole of what a
+transcriber can change about a video — `published` is not on it.
+
+The editor itself (`src/components/TranscriptEditor/`) is shared with the admin
+video form and renders identically there; all the reviewer chrome hangs off one
+optional `lineReview` prop. In review mode it adds per-line playback (play the
+line, loop it, slow it down — the speed is the reviewer's own and never touches
+the published video), a re-translate button per line, and a keyboard map:
+J/K to move, Space to play, ⇧Space to play slowly, M to merge, R to tick, T to
+re-translate, C to comment, brackets to nudge timings, `?` for the list. The map
+lives in `src/lib/transcriptShortcuts.ts` and both the resolver and the help
+panel read it, so a shortcut cannot exist undocumented.
 
 ## PWA and push notifications
 

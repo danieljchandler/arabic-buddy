@@ -308,20 +308,23 @@ describe("the publish checklist", () => {
 });
 
 describe("the shortcut list", () => {
-  it("stays closed until it is wanted", () => {
-    render();
-
-    expect(screen.queryByText(/Nudge active segment start/)).toBeNull();
-  });
-
-  it("explains the keys that have no button", () => {
-    render();
+  it("asks the editor to open it, rather than keeping a copy", () => {
+    // The panel used to live here as a hand-written table, and it had already
+    // drifted: it listed keys the editor no longer had and none of the review
+    // ones it gained. It is now generated from lib/transcriptShortcuts, which
+    // the resolver reads too, and the editor owns the one instance so `?` and
+    // this button cannot disagree.
+    const onShowShortcuts = vi.fn();
+    render({ onShowShortcuts });
 
     fireEvent.click(button(/Shortcuts/));
 
-    // Nudging a timestamp by 100ms is the most-used action in the editor and
-    // there is deliberately no button for it — a mouse is too slow.
-    expect(screen.getByText(/Nudge active segment start/)).toBeInTheDocument();
-    expect(screen.getByText("[ / ]")).toBeInTheDocument();
+    expect(onShowShortcuts).toHaveBeenCalled();
+  });
+
+  it("hides the button when there is no panel to open", () => {
+    render();
+
+    expect(screen.queryByRole("button", { name: /Shortcuts/ })).toBeNull();
   });
 });

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowLeft, Loader2 } from "lucide-react";
@@ -93,27 +93,33 @@ export default function AdminTranscribeWorkspace() {
    * the server against what is stored, so saving an unchanged transcript
    * records nothing.
    */
+  /**
+   * The save the editor last asked for, so anything that reads the transcript
+   * back off the server can wait for it to land first.
+   */
+  const inFlightSave = useRef<Promise<unknown>>(Promise.resolve());
+
   const handleLinesChange = useCallback(
     (next: TranscriptLine[]) => {
       setLines(next);
-      review.saveLines.mutate(
-        { lines: next },
-        {
-          onError: (error: unknown) =>
-            toast({
-              title: "Could not save",
-              description: (error as Error).message,
-              variant: "destructive",
-            }),
-        },
-      );
+      inFlightSave.current = review.saveLines.mutateAsync({ lines: next }).catch((error) => {
+        toast({
+          title: "Could not save",
+          description: (error as Error).message,
+          variant: "destructive",
+        });
+      });
     },
     [review.saveLines],
   );
 
   const handleRetranslate = useCallback(
-    (lineId: string) => {
+    async (lineId: string) => {
       setRetranslating(lineId);
+      // The editor flushes its pending save before calling this, so awaiting it
+      // is what guarantees the server re-translates the corrected Arabic rather
+      // than the version it replaced.
+      await inFlightSave.current;
       review.retranslateLine.mutate(
         { lineId },
         {
@@ -145,18 +151,32 @@ export default function AdminTranscribeWorkspace() {
     setDetailTab(tab);
   }, []);
 
+  // Destructured rather than closed over as `review`, which is a fresh object
+  // every render: this callback reaches every card in the list and re-binds the
+  // editor's keydown listener, and a four-hundred-line transcript is exactly
+  // where that churn would be felt.
+  const { reviews, commentsByLine, revisionsByLine, setReviewed } = review;
+
   const lineReview = useCallback(
     (lineId: string): LineReviewSlot | undefined => {
       const line = lines.find((l) => l.id === lineId);
       if (!line) return undefined;
-      const row = review.reviews.get(lineId);
+      const row = reviews.get(lineId);
       return {
         state: reviewStateFor(row, line),
         reviewedAt: row?.reviewedAt,
-        openComments: (review.commentsByLine.get(lineId) ?? []).filter((c) => !c.resolvedAt).length,
-        revisions: (review.revisionsByLine.get(lineId) ?? []).length,
+        // Set by the translation ensemble when its models disagreed, or when
+        // nothing settled the line. A different question from whether a person
+        // has looked at it, and the best place for one to start.
+        flagged: line.needs_review === true,
+        flagReason: line.review_reason,
+        openComments: (commentsByLine.get(lineId) ?? []).filter((c) => !c.resolvedAt).length,
+        revisions: (revisionsByLine.get(lineId) ?? []).length,
         onToggleReviewed: () =>
-          review.setReviewed.mutate(
+          setReviewed.mutate(
+            // A stale tick is re-confirmed rather than cleared: the reviewer has
+            // just looked at the new text, which is the whole point of the
+            // prompt to look again.
             { lineId, reviewed: reviewStateFor(row, line) !== "reviewed" },
             {
               onError: (error: unknown) =>
@@ -171,7 +191,7 @@ export default function AdminTranscribeWorkspace() {
         onOpenHistory: () => openDetail(lineId, "history"),
       };
     },
-    [lines, openDetail, review],
+    [commentsByLine, lines, openDetail, reviews, revisionsByLine, setReviewed],
   );
 
   const detailLine = lines.find((l) => l.id === detailLineId);
@@ -245,6 +265,19 @@ export default function AdminTranscribeWorkspace() {
           </div>
         </div>
       </div>
+
+      {/*
+        The pipeline rewrites `transcript_lines` wholesale when it finishes, so
+        anything corrected while it is mid-run is about to be thrown away. Worth
+        saying before the reviewer spends an hour on it rather than after.
+      */}
+      {(video.transcription_status === "processing" ||
+        video.transcription_status === "pending") && (
+        <p className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-800 dark:bg-red-950/30 dark:text-red-200">
+          This video is still being transcribed. Anything you correct now will be overwritten
+          when the pipeline finishes — come back once it is done.
+        </p>
+      )}
 
       {!audioUrl && (
         <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">

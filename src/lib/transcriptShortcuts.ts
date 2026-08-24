@@ -22,6 +22,10 @@ export type ShortcutAction =
   | "merge-next"
   | "merge-prev"
   | "split-here"
+  /** Owned by the segment card's textarea, listed here so the panel is complete. */
+  | "commit-edit"
+  /** Owned by the segment card's textarea, listed here so the panel is complete. */
+  | "cancel-edit"
   | "toggle-reviewed"
   | "retranslate"
   | "comment"
@@ -77,6 +81,11 @@ export const SHORTCUTS: readonly ShortcutSpec[] = [
 
   { action: "edit-line", keys: "Enter", label: "Edit the Arabic", group: "Edit" },
   { action: "split-here", keys: "Enter", label: "Split at the caret (while editing)", group: "Edit" },
+  // Handled by the card's own textarea rather than by the resolver, but a
+  // reviewer looking for "how do I get out of this box" does not care which
+  // component owns the key — and this panel is the only place they will look.
+  { action: "commit-edit", keys: "⌘Enter", label: "Finish editing without splitting", group: "Edit" },
+  { action: "cancel-edit", keys: "Esc", label: "Abandon the edit", group: "Edit" },
   { action: "merge-next", keys: "M", label: "Merge with the line below", group: "Edit" },
   { action: "merge-prev", keys: "⇧M", label: "Merge with the line above", group: "Edit" },
   { action: "undo", keys: "⌘Z", label: "Undo", group: "Edit", whileEditing: true },

@@ -8,7 +8,6 @@ interface PlaybackControlsProps {
   onRateChange: (rate: number) => void;
   onLoopChange: (loop: boolean) => void;
   onStop: () => void;
-  onShowHelp: () => void;
 }
 
 /**
@@ -27,7 +26,6 @@ export default function PlaybackControls({
   onRateChange,
   onLoopChange,
   onStop,
-  onShowHelp,
 }: PlaybackControlsProps) {
   return (
     <div className="flex flex-wrap items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/40">
@@ -81,15 +79,6 @@ export default function PlaybackControls({
       <span className="text-[11px] text-muted-foreground">
         Affects your playback here only — not the published video.
       </span>
-
-      <button
-        type="button"
-        onClick={onShowHelp}
-        className="ml-auto rounded border border-gray-300 bg-white px-2 py-0.5 text-xs transition-colors hover:bg-gray-100 dark:border-gray-600 dark:bg-gray-800 dark:hover:bg-gray-700"
-        title="Keyboard shortcuts (?)"
-      >
-        ⌨ Shortcuts
-      </button>
     </div>
   );
 }

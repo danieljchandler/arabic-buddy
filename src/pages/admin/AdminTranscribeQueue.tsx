@@ -52,7 +52,10 @@ export default function AdminTranscribeQueue() {
         .select("id, title, dialect, difficulty, published, transcript_lines")
         .eq("dialect", activeDialect)
         .order("created_at", { ascending: false })
-        .limit(200);
+        // Bounded well under a hundred so the two `.in()` filters below stay a
+        // sane URL length: PostgREST puts them in the query string, and a
+        // hundred uuids is already ~4 KB of it.
+        .limit(80);
       if (error) throw error;
 
       const ids = (videos ?? []).map((v) => v.id);
@@ -61,6 +64,9 @@ export default function AdminTranscribeQueue() {
       // Two extra round-trips rather than a join: the review tables key on a
       // line id inside a jsonb array, so there is no foreign key for PostgREST
       // to embed on.
+      //
+      // Errors are deliberately not thrown: if the counts cannot be read the
+      // queue still lists what there is to review, which is most of its value.
       const [{ data: reviews }, { data: comments }] = await Promise.all([
         supabase.from("transcript_line_reviews").select("video_id, line_id").in("video_id", ids),
         supabase

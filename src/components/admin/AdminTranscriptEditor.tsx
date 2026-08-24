@@ -80,9 +80,24 @@ export function AdminTranscriptEditor({
    */
   const glossPoolRef = useRef<Map<string, WordToken[]>>(new Map());
 
+  /**
+   * The rest of each line, which the editor never sees.
+   *
+   * `Segment` carries five fields; `TranscriptLine` carries a dozen. The
+   * conversion out drops `literal`, `fusha`, `needs_review`, `review_reason`,
+   * `altTranslation`, `resolved_by` and `segmentType`, and the conversion back
+   * rebuilt each line from scratch — so every save through this editor deleted
+   * all of them, for every line, whether or not it had been touched. Fixing one
+   * typo threw away the Fusha row and the ensemble's own review flags for the
+   * entire transcript, silently, and the analysis pass that produced them costs
+   * several model calls per line to redo.
+   */
+  const extrasRef = useRef<Map<string, TranscriptLine>>(new Map());
+
   useMemo(() => {
     for (const line of lines) {
       glossPoolRef.current.set(line.id, [...(line.tokens ?? [])]);
+      extrasRef.current.set(line.id, line);
     }
   }, [lines]);
 
@@ -91,7 +106,19 @@ export function AdminTranscriptEditor({
       lines.map((line) => {
         const startSec = (line.startMs ?? 0) / 1000;
         const endSec = (line.endMs ?? 0) / 1000;
-        const tokens = line.tokens ?? [];
+        // The card renders its Arabic from `words`, which is built from the
+        // line's tokens — so a line that arrives without any is drawn blank and
+        // cannot be clicked into. The pipeline splits on whitespace when it
+        // finds a line in that state; do the same here rather than showing a
+        // reviewer an empty row and no way to fix it.
+        const stored = line.tokens ?? [];
+        const tokens =
+          stored.length > 0
+            ? stored
+            : (line.arabic ?? "")
+                .split(/\s+/)
+                .filter(Boolean)
+                .map<WordToken>((surface) => ({ id: crypto.randomUUID(), surface }));
         const n = Math.max(tokens.length, 1);
         const dur = Math.max(endSec - startSec, 0);
         const step = dur / n;
@@ -152,24 +179,39 @@ export function AdminTranscriptEditor({
         return undefined;
       };
 
-      const updated: TranscriptLine[] = segments.map((seg) => ({
-        id: seg.id,
-        arabic: seg.text,
-        translation: seg.translation,
-        startMs: Math.round(seg.start * 1000),
-        endMs: Math.round(seg.end * 1000),
-        tokens: seg.words.map<WordToken>((w) => {
-          const cached = take(perLine.get(seg.id), w.word) ?? take(anywhere, w.word);
-          if (cached) claimed.add(cached);
-          return {
-            id: cached?.id ?? crypto.randomUUID(),
-            surface: w.word,
-            standard: cached?.standard,
-            gloss: cached?.gloss,
-            compoundRef: cached?.compoundRef,
-          };
-        }),
-      }));
+      const updated: TranscriptLine[] = segments.map((seg) => {
+        const original = extrasRef.current.get(seg.id);
+        const arabic = seg.text;
+        // `fusha` and `altTranslation` are renderings of the exact previous
+        // wording, so they are dropped when the Arabic moves — a Fusha row for
+        // words that are no longer there is worse than none, and `useFushaLines`
+        // refills it on demand. Everything else survives.
+        const arabicChanged = Boolean(original) && original!.arabic !== arabic;
+
+        return {
+          ...original,
+          ...(arabicChanged
+            ? { fusha: undefined, altTranslation: undefined, resolved_by: undefined }
+            : {}),
+          id: seg.id,
+          arabic,
+          translation: seg.translation,
+          literal: seg.literal ?? original?.literal,
+          startMs: Math.round(seg.start * 1000),
+          endMs: Math.round(seg.end * 1000),
+          tokens: seg.words.map<WordToken>((w) => {
+            const cached = take(perLine.get(seg.id), w.word) ?? take(anywhere, w.word);
+            if (cached) claimed.add(cached);
+            return {
+              id: cached?.id ?? crypto.randomUUID(),
+              surface: w.word,
+              standard: cached?.standard,
+              gloss: cached?.gloss,
+              compoundRef: cached?.compoundRef,
+            };
+          }),
+        };
+      });
       onChange(updated);
     },
     [onChange],

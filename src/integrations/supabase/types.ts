@@ -2738,6 +2738,36 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_role_grants: {
+        Row: {
+          claimed_at: string | null
+          claimed_by: string | null
+          created_at: string
+          created_by: string | null
+          email: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Insert: {
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          email: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+        }
+        Update: {
+          claimed_at?: string | null
+          claimed_by?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+        }
+        Relationships: []
+      }
       picture_scene_hotspots: {
         Row: {
           created_at: string
@@ -2914,36 +2944,6 @@ export type Database = {
           transcription_data?: Json
           updated_at?: string
           video_id?: string
-        }
-        Relationships: []
-      }
-      pending_role_grants: {
-        Row: {
-          claimed_at: string | null
-          claimed_by: string | null
-          created_at: string
-          created_by: string | null
-          email: string
-          id: string
-          role: Database["public"]["Enums"]["app_role"]
-        }
-        Insert: {
-          claimed_at?: string | null
-          claimed_by?: string | null
-          created_at?: string
-          created_by?: string | null
-          email: string
-          id?: string
-          role: Database["public"]["Enums"]["app_role"]
-        }
-        Update: {
-          claimed_at?: string | null
-          claimed_by?: string | null
-          created_at?: string
-          created_by?: string | null
-          email?: string
-          id?: string
-          role?: Database["public"]["Enums"]["app_role"]
         }
         Relationships: []
       }
@@ -5279,6 +5279,17 @@ export type Database = {
           user_id: string
         }[]
       }
+      admin_grant_role_by_email: {
+        Args: {
+          _identifier: string
+          _role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: {
+          email: string
+          status: string
+          user_id: string
+        }[]
+      }
       admin_list_managed_roles: {
         Args: never
         Returns: {
@@ -5286,14 +5297,6 @@ export type Database = {
           email: string
           id: string
           role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }[]
-      }
-      admin_grant_role_by_email: {
-        Args: { _identifier: string; _role: Database["public"]["Enums"]["app_role"] }
-        Returns: {
-          email: string
-          status: string
           user_id: string
         }[]
       }
@@ -5312,10 +5315,6 @@ export type Database = {
       can_review_transcripts: { Args: never; Returns: boolean }
       grant_achievement: { Args: { _achievement_id: string }; Returns: Json }
       has_bible_access: { Args: never; Returns: boolean }
-      is_grantable_role: {
-        Args: { _role: Database["public"]["Enums"]["app_role"] }
-        Returns: boolean
-      }
       has_complimentary_access: { Args: { _user_id: string }; Returns: boolean }
       has_redeemed_invite: { Args: never; Returns: boolean }
       has_role: {
@@ -5338,6 +5337,10 @@ export type Database = {
       is_admin: { Args: never; Returns: boolean }
       is_beta_tester: { Args: never; Returns: boolean }
       is_content_reviewer: { Args: never; Returns: boolean }
+      is_grantable_role: {
+        Args: { _role: Database["public"]["Enums"]["app_role"] }
+        Returns: boolean
+      }
       is_recorder: { Args: never; Returns: boolean }
       is_transcriber: { Args: never; Returns: boolean }
       match_content: {

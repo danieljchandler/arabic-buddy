@@ -1560,8 +1560,6 @@ export type Database = {
           created_by: string
           cultural_context: string | null
           dialect: string
-          dialect_features: Json
-          dialect_subvariety: string | null
           difficulty: string
           difficulty_metrics: Json | null
           difficulty_rationale: string | null
@@ -1591,8 +1589,6 @@ export type Database = {
           created_by: string
           cultural_context?: string | null
           dialect?: string
-          dialect_features?: Json
-          dialect_subvariety?: string | null
           difficulty?: string
           difficulty_metrics?: Json | null
           difficulty_rationale?: string | null
@@ -1622,8 +1618,6 @@ export type Database = {
           created_by?: string
           cultural_context?: string | null
           dialect?: string
-          dialect_features?: Json
-          dialect_subvariety?: string | null
           difficulty?: string
           difficulty_metrics?: Json | null
           difficulty_rationale?: string | null

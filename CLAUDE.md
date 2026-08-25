@@ -220,18 +220,26 @@ more than the SQL: `src/lib/rbac.ts` (`MANAGED_ROLES` drives the grant UI),
 `useAdminAuth`, the generated types, `src/test/support/personas.ts`,
 `src/test/support/server/rpc.ts`, and the route manifest.
 
-**Transcript review** is where native speakers correct the pipeline's output,
-at `/admin/transcribe`. Three tables (`transcript_line_reviews`,
+**Transcript review** is where native speakers correct the pipeline's output.
+It lives on the Manage Videos pages: `/admin/videos` doubles as the review
+queue and each video's `/admin/videos/:id/edit` page carries the workspace
+(the old `/admin/transcribe*` addresses just redirect there). A `transcriber`
+reaches only those two pages, and the pages hide the management surface from
+them — RLS and the edge function are what actually refuse the writes. Three
+tables (`transcript_line_reviews`,
 `transcript_line_revisions`, `transcript_line_comments`) key off a line id
 *inside* the `discover_videos.transcript_lines` jsonb array, since the transcript
 is a blob rather than rows. Reads are RLS'd to reviewers; **all writes go
 through the `transcript-review` edge function**, which computes the diff against
 what is actually stored — an audit trail its own subject can author is worth
-nothing. A checkmark stores the text it approved so it can be shown as stale
+nothing. That includes the transcript itself: the edit page persists lines via
+`save_lines` for every role (that is what writes the revision log), keeping
+local edits as an on-device draft with a visible "not saved yet" state until
+saved. A checkmark stores the text it approved so it can be shown as stale
 when the line moves on; note that merging keeps the *left* line's id, so without
 that snapshot a tick would silently carry onto unread words. Reviewer chrome in
-`TranscriptEditor` hangs off one optional `lineReview` prop, so the admin video
-form renders unchanged. The reviewer also sets the **sub-dialect** — a second
+`TranscriptEditor` hangs off one optional `lineReview` prop — the video edit
+page supplies it, the create form does not. The reviewer also sets the **sub-dialect** — a second
 dropdown that depends on the dialect, off the taxonomy in
 `_shared/dialectSubvarieties.ts` (`dialect_subvariety`) — and lists what marks
 the clip as that variety (`dialect_features`), which is a separate key space

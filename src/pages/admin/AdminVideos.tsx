@@ -1,4 +1,8 @@
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
 import {
   useAdminDiscoverVideos,
   useBackfillThumbnails,
@@ -9,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Loader2, ArrowLeft, Plus, Edit, Trash2, Eye, EyeOff, ImageDown, ScanText } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -21,20 +26,85 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { useState } from "react";
 import { formatDuration, getThumbnailCandidates } from "@/lib/videoEmbed";
 import { VideoThumbnail } from "@/components/media/VideoThumbnail";
+import type { TranscriptLine } from "@/types/transcript";
+import { cn } from "@/lib/utils";
+
+type ReviewFilter = "all" | "needs_review" | "in_progress" | "done";
+
+const FILTER_LABELS: Record<ReviewFilter, string> = {
+  all: "All",
+  needs_review: "Not started",
+  in_progress: "Part-checked",
+  done: "Fully checked",
+};
+
+interface ReviewMeta {
+  /** Review-row count per video — how many lines carry a tick. */
+  reviewCounts: Map<string, number>;
+  /** Open (unresolved) comment count per video. */
+  commentCounts: Map<string, number>;
+}
+
+/**
+ * How much of each video a native speaker has checked, for the whole list.
+ *
+ * Folded in from the old /admin/transcribe queue. Fetched without an `.in()`
+ * filter on purpose: the admin list is unbounded, and a hundred uuids in a
+ * PostgREST query string is already ~4 KB of URL — two skinny full-table reads
+ * are cheaper and simpler. Errors are swallowed rather than thrown: if the
+ * counts cannot be read, the list still manages videos, which is most of its
+ * value.
+ */
+function useReviewMeta() {
+  return useQuery({
+    queryKey: ["admin-video-review-counts"],
+    queryFn: async (): Promise<ReviewMeta> => {
+      const [{ data: reviews }, { data: comments }] = await Promise.all([
+        supabase.from("transcript_line_reviews").select("video_id, line_id"),
+        supabase.from("transcript_line_comments").select("video_id, resolved_at"),
+      ]);
+
+      const reviewCounts = new Map<string, number>();
+      for (const row of reviews ?? []) {
+        reviewCounts.set(row.video_id, (reviewCounts.get(row.video_id) ?? 0) + 1);
+      }
+      const commentCounts = new Map<string, number>();
+      for (const row of comments ?? []) {
+        if (row.resolved_at) continue;
+        commentCounts.set(row.video_id, (commentCounts.get(row.video_id) ?? 0) + 1);
+      }
+      return { reviewCounts, commentCounts };
+    },
+  });
+}
 
 const AdminVideos = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { data: videos, isLoading } = useAdminDiscoverVideos();
+  const { data: reviewMeta } = useReviewMeta();
   const deleteMutation = useDeleteDiscoverVideo();
   const togglePublish = useTogglePublish();
   const backfillThumbnails = useBackfillThumbnails();
   const reextractOnScreenText = useReextractOnScreenText();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [rereadingId, setRereadingId] = useState<string | null>(null);
+  const [filter, setFilter] = useState<ReviewFilter>("all");
+  const [search, setSearch] = useState("");
+
+  /**
+   * Whether this person manages videos or only reviews their transcripts.
+   *
+   * A transcriber — a native speaker checking the AI's Arabic, not a member of
+   * staff — reaches this list too now that the review workspace lives on the
+   * edit page. RLS is what actually stops them writing; hiding the publish,
+   * delete and pipeline controls stops the page offering buttons that would
+   * only ever error. False until roles load, so nothing flashes.
+   */
+  const { isAdmin, isContentReviewer, isRecorder, loading: rolesLoading } = useAdminAuth();
+  const canManage = !rolesLoading && (isAdmin || isContentReviewer || isRecorder);
 
   /**
    * Re-read one video's on-screen text.
@@ -101,6 +171,71 @@ const AdminVideos = () => {
     );
   };
 
+  /** Each video plus what the review layer knows about it. */
+  const rows = useMemo(() => {
+    return (videos ?? []).map((video) => {
+      const lines = (video.transcript_lines as unknown as TranscriptLine[]) ?? [];
+      return {
+        video,
+        lineCount: lines.length,
+        reviewedCount: reviewMeta?.reviewCounts.get(video.id) ?? 0,
+        // The translation ensemble's own doubt: lines where its models
+        // disagreed. The best place for a native speaker to start.
+        flaggedCount: lines.filter((line) => line.needs_review).length,
+        openComments: reviewMeta?.commentCounts.get(video.id) ?? 0,
+      };
+    });
+  }, [videos, reviewMeta]);
+
+  const counts = useMemo(() => {
+    const reviewable = rows.filter((row) => row.lineCount > 0);
+    return {
+      all: rows.length,
+      needs_review: reviewable.filter((r) => r.reviewedCount === 0).length,
+      in_progress: reviewable.filter(
+        (r) => r.reviewedCount > 0 && r.reviewedCount < r.lineCount,
+      ).length,
+      done: reviewable.filter((r) => r.reviewedCount >= r.lineCount).length,
+    } satisfies Record<ReviewFilter, number>;
+  }, [rows]);
+
+  const visibleRows = useMemo(() => {
+    const matching = search.trim()
+      ? rows.filter((row) =>
+          row.video.title.toLowerCase().includes(search.trim().toLowerCase()),
+        )
+      : rows;
+
+    if (filter === "all") return matching;
+
+    const byFilter = matching
+      .filter((row) => row.lineCount > 0)
+      .filter((row) => {
+        switch (filter) {
+          case "needs_review":
+            return row.reviewedCount === 0;
+          case "in_progress":
+            return row.reviewedCount > 0 && row.reviewedCount < row.lineCount;
+          case "done":
+            return row.reviewedCount >= row.lineCount;
+          default:
+            return true;
+        }
+      });
+
+    // Under a review filter, sorted by how much is left rather than by date: a
+    // video where one line is outstanding should be finishable in a minute,
+    // and burying it under a fresh-off-the-pipeline hour of audio is how it
+    // stays outstanding for a month.
+    return [...byFilter].sort((a, b) => {
+      const left = a.lineCount - a.reviewedCount;
+      const right = b.lineCount - b.reviewedCount;
+      if (left === 0 && right !== 0) return 1;
+      if (right === 0 && left !== 0) return -1;
+      return left - right;
+    });
+  }, [rows, filter, search]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -119,38 +254,74 @@ const AdminVideos = () => {
             </Button>
             <h1 className="text-xl font-bold">Manage Videos</h1>
           </div>
-          <div className="flex gap-2">
-            {/* Only offered when there is something to do — the count is the
-                whole point of the button, so a zero would be a dead control. */}
-            {missingThumbnails.length > 0 && (
-              <Button
-                variant="outline"
-                onClick={runBackfill}
-                disabled={backfillThumbnails.isPending}
-              >
-                {backfillThumbnails.isPending ? (
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                ) : (
-                  <ImageDown className="h-4 w-4 mr-2" />
-                )}
-                Find {missingThumbnails.length} missing thumbnail
-                {missingThumbnails.length === 1 ? "" : "s"}
+          {canManage && (
+            <div className="flex gap-2">
+              {/* Only offered when there is something to do — the count is the
+                  whole point of the button, so a zero would be a dead control. */}
+              {missingThumbnails.length > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={runBackfill}
+                  disabled={backfillThumbnails.isPending}
+                >
+                  {backfillThumbnails.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <ImageDown className="h-4 w-4 mr-2" />
+                  )}
+                  Find {missingThumbnails.length} missing thumbnail
+                  {missingThumbnails.length === 1 ? "" : "s"}
+                </Button>
+              )}
+              <Button onClick={() => navigate("/admin/videos/new")}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Video
               </Button>
-            )}
-            <Button onClick={() => navigate("/admin/videos/new")}>
-              <Plus className="h-4 w-4 mr-2" />
-              Add Video
-            </Button>
-          </div>
+            </div>
+          )}
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
+      <main className="container mx-auto px-4 py-8 space-y-4">
+        {/* The review queue's lens over the same list: how much of each video a
+            native speaker has actually checked. */}
+        <div className="flex flex-wrap items-center gap-2">
+          {(Object.keys(FILTER_LABELS) as ReviewFilter[]).map((option) => (
+            <Button
+              key={option}
+              size="sm"
+              variant={filter === option ? "default" : "outline"}
+              onClick={() => setFilter(option)}
+            >
+              {FILTER_LABELS[option]}
+              <span className="ml-1.5 tabular-nums opacity-70">{counts[option]}</span>
+            </Button>
+          ))}
+          <Input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search titles"
+            className="ml-auto w-48"
+            aria-label="Search videos"
+          />
+        </div>
+
         {videos && videos.length > 0 ? (
           <div className="space-y-3">
-            {videos.map((video) => (
-              <Card key={video.id} className="flex items-center">
-                <CardContent className="flex-1 p-4 flex items-center justify-between">
+            {visibleRows.length === 0 && (
+              <p className="py-12 text-center text-sm text-muted-foreground">
+                Nothing here. Try another filter.
+              </p>
+            )}
+            {visibleRows.map(({ video, lineCount, reviewedCount, flaggedCount, openComments }) => {
+              const percent = lineCount === 0 ? 0 : Math.round((reviewedCount / lineCount) * 100);
+              return (
+              <Card
+                key={video.id}
+                className="flex items-center cursor-pointer transition-colors hover:border-blue-400"
+                onClick={() => navigate(`/admin/videos/${video.id}/edit`)}
+              >
+                <CardContent className="flex-1 p-4 flex items-center justify-between gap-3 flex-wrap">
                   <div className="flex items-center gap-4">
                     <VideoThumbnail
                       src={video.thumbnail_url}
@@ -164,7 +335,7 @@ const AdminVideos = () => {
                     />
                     <div>
                       <h3 className="font-semibold">{video.title}</h3>
-                      <div className="flex gap-1.5 mt-1">
+                      <div className="flex flex-wrap gap-1.5 mt-1">
                         <Badge variant="outline" className="text-xs">{video.dialect}</Badge>
                         <Badge variant="outline" className="text-xs">{video.difficulty}</Badge>
                         <Badge variant="outline" className="text-xs capitalize">{video.platform}</Badge>
@@ -200,64 +371,109 @@ const AdminVideos = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() =>
-                        togglePublish.mutate(
-                          { id: video.id, published: !video.published },
-                          {
-                            onSuccess: () =>
-                              toast({
-                                title: video.published ? "Unpublished" : "Published",
-                              }),
-                          }
-                        )
-                      }
-                    >
-                      {video.published ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      title="Re-read the text on this video's screen"
-                      aria-label="Re-read the text on this video's screen"
-                      disabled={rereadingId !== null}
-                      onClick={() => rereadScreenText(video.id)}
-                    >
-                      {rereadingId === video.id
-                        ? <Loader2 className="h-4 w-4 animate-spin" />
-                        : <ScanText className="h-4 w-4" />}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => navigate(`/admin/videos/${video.id}/edit`)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="text-destructive hover:text-destructive"
-                      onClick={() => setDeleteId(video.id)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+
+                  <div className="flex items-center gap-3">
+                    {flaggedCount > 0 && (
+                      <span
+                        className="rounded bg-amber-100 px-2 py-0.5 text-[11px] text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
+                        title="Lines the translation ensemble was unsure about"
+                      >
+                        {flaggedCount} uncertain
+                      </span>
+                    )}
+                    {openComments > 0 && (
+                      <span className="rounded bg-sky-100 px-2 py-0.5 text-[11px] text-sky-800 dark:bg-sky-900/40 dark:text-sky-200">
+                        💬 {openComments}
+                      </span>
+                    )}
+                    {lineCount > 0 && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs tabular-nums text-muted-foreground">
+                          {reviewedCount}/{lineCount}
+                        </span>
+                        <div className="h-2 w-24 overflow-hidden rounded bg-gray-200 dark:bg-gray-700">
+                          <div
+                            className={cn(
+                              "h-full rounded",
+                              percent === 100 ? "bg-green-500" : "bg-blue-500",
+                            )}
+                            style={{ width: `${percent}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* The buttons must not also open the editor. */}
+                    {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions, jsx-a11y/click-events-have-key-events */}
+                    <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                      {canManage && (
+                        <>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            onClick={() =>
+                              togglePublish.mutate(
+                                { id: video.id, published: !video.published },
+                                {
+                                  onSuccess: () =>
+                                    toast({
+                                      title: video.published ? "Unpublished" : "Published",
+                                    }),
+                                }
+                              )
+                            }
+                          >
+                            {video.published ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="icon"
+                            title="Re-read the text on this video's screen"
+                            aria-label="Re-read the text on this video's screen"
+                            disabled={rereadingId !== null}
+                            onClick={() => rereadScreenText(video.id)}
+                          >
+                            {rereadingId === video.id
+                              ? <Loader2 className="h-4 w-4 animate-spin" />
+                              : <ScanText className="h-4 w-4" />}
+                          </Button>
+                        </>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        aria-label={`Edit ${video.title}`}
+                        onClick={() => navigate(`/admin/videos/${video.id}/edit`)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      {canManage && (
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          className="text-destructive hover:text-destructive"
+                          onClick={() => setDeleteId(video.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <Card>
             <CardContent className="py-12 text-center">
               <p className="text-muted-foreground mb-4">No videos yet. Add your first video!</p>
-              <Button onClick={() => navigate("/admin/videos/new")}>
-                <Plus className="h-4 w-4 mr-2" />
-                Add Video
-              </Button>
+              {canManage && (
+                <Button onClick={() => navigate("/admin/videos/new")}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Video
+                </Button>
+              )}
             </CardContent>
           </Card>
         )}
@@ -282,7 +498,7 @@ const AdminVideos = () => {
                       toast({ title: "Video deleted" });
                       setDeleteId(null);
                     },
-                    onError: (err: any) => {
+                    onError: (err: Error) => {
                       toast({ variant: "destructive", title: "Error", description: err.message });
                     },
                   });

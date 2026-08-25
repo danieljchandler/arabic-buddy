@@ -2,7 +2,7 @@ import { useEffect, lazy, Suspense, type ComponentType } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, useParams } from "react-router-dom";
 import { TransitionRoutes } from "@/components/shell/TransitionRoutes";
 import { toast } from "sonner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
@@ -120,8 +120,15 @@ const AdminReadingLibrary = lazyPage(() => import("./pages/admin/AdminReadingLib
 const AdminReadingLibraryForm = lazyPage(() => import("./pages/admin/AdminReadingLibraryForm"));
 const AdminChannels = lazyPage(() => import("./pages/admin/AdminChannels"));
 const AdminClips = lazyPage(() => import("./pages/admin/AdminClips"));
-const AdminTranscribeQueue = lazyPage(() => import("./pages/admin/AdminTranscribeQueue"));
-const AdminTranscribeWorkspace = lazyPage(() => import("./pages/admin/AdminTranscribeWorkspace"));
+/**
+ * The old review workspace address. Transcript review now lives on the video
+ * edit page itself, so a bookmarked per-video link is carried across rather
+ * than dumped on the list.
+ */
+const AdminTranscribeVideoRedirect = () => {
+  const { videoId } = useParams<{ videoId: string }>();
+  return <Navigate to={videoId ? `/admin/videos/${videoId}/edit` : "/admin/videos"} replace />;
+};
 const SetPhrases = lazyPage(() => import("./pages/SetPhrases"));
 const SetPhrasesPractice = lazyPage(() => import("./pages/SetPhrasesPractice"));
 const SetPhrasesReview = lazyPage(() => import("./pages/SetPhrasesReview"));
@@ -508,8 +515,10 @@ const App = () => {
               <Route path="reading-library/:id/edit" element={<AdminReadingLibraryForm />} />
               <Route path="channels" element={<AdminChannels />} />
               <Route path="clips" element={<AdminClips />} />
-              <Route path="transcribe" element={<AdminTranscribeQueue />} />
-              <Route path="transcribe/:videoId" element={<AdminTranscribeWorkspace />} />
+              {/* The review queue and workspace merged into Manage Videos; the
+                  old addresses keep working for bookmarks and shared links. */}
+              <Route path="transcribe" element={<Navigate to="/admin/videos" replace />} />
+              <Route path="transcribe/:videoId" element={<AdminTranscribeVideoRedirect />} />
             </Route>
 
             <Route path="/set-phrases" element={<ErrorBoundary name="SetPhrasesRoute"><SetPhrases /></ErrorBoundary>} />

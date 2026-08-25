@@ -69,23 +69,10 @@ const CONTENT_REVIEWER_ALLOWED_ADMIN_PREFIXES = [
   // candidate queue. Same audience as video review.
   "/admin/channels",
   "/admin/clips",
-  // The transcript review workspace. A content reviewer is already trusted with
-  // the video form, which is a superset of it.
+  // The old transcript review workspace, kept only so its redirect to the
+  // video pages still renders for people holding stale links.
   "/admin/transcribe",
 ];
-
-/**
- * The only part of /admin a transcriber may open.
- *
- * Deliberately one prefix. A transcriber is an outside contributor — a native
- * speaker hired to check Arabic — not a member of staff, and the review
- * workspace is built so that everything they legitimately need (the lines, the
- * audio, the cultural notes, the grammar points, the vocabulary) is reachable
- * from inside it. Widening this list is how a transcriber ends up next to the
- * publish button or the role-grant page, so treat any addition as a decision
- * about trust rather than about convenience.
- */
-const TRANSCRIBER_ALLOWED_ADMIN_PREFIXES = ["/admin/transcribe"];
 
 function matchesPrefix(pathname: string, prefixes: readonly string[]): boolean {
   return prefixes.some(
@@ -99,12 +86,30 @@ export function canAccessContentReviewerAdminPath(pathname: string): boolean {
   return matchesPrefix(pathname, CONTENT_REVIEWER_ALLOWED_ADMIN_PREFIXES);
 }
 
+/**
+ * The only part of /admin a transcriber may open.
+ *
+ * Transcript review lives on the Manage Videos pages now, so a transcriber — an
+ * outside contributor, a native speaker hired to check Arabic, not a member of
+ * staff — may open the video list and a video's edit page, where the pages
+ * themselves hide the management controls and RLS plus the `transcript-review`
+ * function refuse every write that is not a review. Deliberately NOT a bare
+ * "/admin/videos" prefix: that would also admit "/admin/videos/new", and
+ * creating videos is management, not review. Widening this list is how a
+ * transcriber ends up next to the publish button or the role-grant page, so
+ * treat any addition as a decision about trust rather than about convenience.
+ */
 export function canAccessTranscriberAdminPath(pathname: string): boolean {
   // The dashboard renders a role-appropriate tile set, so it is safe to land on
   // and is the only way a transcriber finds the workspace in the first place.
   if (pathname === "/admin") return true;
 
-  return matchesPrefix(pathname, TRANSCRIBER_ALLOWED_ADMIN_PREFIXES);
+  // The old workspace addresses only redirect to the video pages now, but the
+  // redirect has to render to happen.
+  if (matchesPrefix(pathname, ["/admin/transcribe"])) return true;
+
+  if (pathname === "/admin/videos") return true;
+  return /^\/admin\/videos\/[^/]+\/edit$/.test(pathname);
 }
 
 export function hasBibleAccessFromRoles(roles: Iterable<AppRole>): boolean {

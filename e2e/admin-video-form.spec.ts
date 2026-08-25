@@ -319,6 +319,10 @@ test.describe("the transcript, vocabulary and grammar", () => {
     await expect(page.getByText("Grammar Points (1)")).toBeVisible();
   });
 
+  // The vocabulary and grammar lists live in the Notes & grammar editor — the
+  // one folded in from the native-speaker workspace — and save through the
+  // `transcript-review` function, which is what writes the revision log.
+
   test("edits a vocabulary entry and saves it back", async ({ page, db }) => {
     seedVideo(db, {
       transcript_lines: [aLine(0)],
@@ -326,12 +330,12 @@ test.describe("the transcript, vocabulary and grammar", () => {
     });
 
     await page.goto(`/admin/videos/${VIDEO}/edit`);
-    await page.getByPlaceholder("English", { exact: true }).fill("Arabic coffee");
-    await saveButton(page).click();
+    await page.getByLabel("Vocabulary 1 English").fill("Arabic coffee");
+    await page.getByRole("button", { name: "Save notes" }).click();
 
-    expect((await writtenTo(db, "discover_videos"))[0].vocabulary).toEqual([
-      { arabic: "قهوة", english: "Arabic coffee", root: "ق ه و" },
-    ]);
+    await expect
+      .poll(() => db.rows("discover_videos").find((r) => r.id === VIDEO)?.vocabulary)
+      .toEqual([{ arabic: "قهوة", english: "Arabic coffee", root: "ق ه و" }]);
   });
 
   test("adds and removes a vocabulary entry", async ({ page, db }) => {
@@ -341,14 +345,22 @@ test.describe("the transcript, vocabulary and grammar", () => {
     });
 
     await page.goto(`/admin/videos/${VIDEO}/edit`);
-    await page.getByRole("button", { name: "Add Word" }).click();
-    await expect(page.getByPlaceholder("Arabic", { exact: true })).toHaveCount(2);
-    await page.getByPlaceholder("Arabic", { exact: true }).nth(1).fill("شاي");
-    await page.getByPlaceholder("English", { exact: true }).nth(1).fill("tea");
-    await saveButton(page).click();
+    // The vocabulary card's Add button is the last one; the grammar card's
+    // sits above it.
+    await page.getByRole("button", { name: "Add", exact: true }).last().click();
+    await page.getByLabel("Vocabulary 2 Arabic").fill("شاي");
+    await page.getByLabel("Vocabulary 2 English").fill("tea");
+    await page.getByRole("button", { name: "Save notes" }).click();
 
-    const vocab = (await writtenTo(db, "discover_videos"))[0].vocabulary as Array<Record<string, string>>;
-    expect(vocab).toHaveLength(2);
+    await expect
+      .poll(
+        () =>
+          (db.rows("discover_videos").find((r) => r.id === VIDEO)?.vocabulary as unknown[])
+            ?.length,
+      )
+      .toBe(2);
+    const vocab = db.rows("discover_videos").find((r) => r.id === VIDEO)!
+      .vocabulary as Array<Record<string, string>>;
     expect(vocab[1]).toMatchObject({ arabic: "شاي", english: "tea" });
   });
 
@@ -358,12 +370,16 @@ test.describe("the transcript, vocabulary and grammar", () => {
     });
 
     await page.goto(`/admin/videos/${VIDEO}/edit`);
-    await page.getByPlaceholder("Explanation").fill("The prefix al- makes a noun definite.");
-    await saveButton(page).click();
+    await page
+      .getByLabel("Grammar point 1 explanation")
+      .fill("The prefix al- makes a noun definite.");
+    await page.getByRole("button", { name: "Save notes" }).click();
 
-    expect((await writtenTo(db, "discover_videos"))[0].grammar_points).toEqual([
-      { title: "Definite article", explanation: "The prefix al- makes a noun definite." },
-    ]);
+    await expect
+      .poll(() => db.rows("discover_videos").find((r) => r.id === VIDEO)?.grammar_points)
+      .toEqual([
+        { title: "Definite article", explanation: "The prefix al- makes a noun definite." },
+      ]);
   });
 
   test("adds an empty grammar point to fill in", async ({ page, db }) => {
@@ -372,13 +388,20 @@ test.describe("the transcript, vocabulary and grammar", () => {
     });
 
     await page.goto(`/admin/videos/${VIDEO}/edit`);
-    await page.getByRole("button", { name: "Add Grammar Point" }).click();
-    await page.getByPlaceholder("Title").nth(1).fill("Idafa");
-    await saveButton(page).click();
+    await page.getByRole("button", { name: "Add", exact: true }).first().click();
+    await page.getByLabel("Grammar point 2 title").fill("Idafa");
+    await page.getByRole("button", { name: "Save notes" }).click();
 
-    const points = (await writtenTo(db, "discover_videos"))[0].grammar_points as Array<Record<string, string>>;
-    expect(points).toHaveLength(2);
-    expect(points[1]).toMatchObject({ title: "Idafa", explanation: "" });
+    await expect
+      .poll(
+        () =>
+          (db.rows("discover_videos").find((r) => r.id === VIDEO)?.grammar_points as unknown[])
+            ?.length,
+      )
+      .toBe(2);
+    const points = db.rows("discover_videos").find((r) => r.id === VIDEO)!
+      .grammar_points as Array<Record<string, string>>;
+    expect(points[1]).toMatchObject({ title: "Idafa" });
   });
 
   test("removes a grammar point", async ({ page, db }) => {
@@ -390,16 +413,22 @@ test.describe("the transcript, vocabulary and grammar", () => {
     });
 
     await page.goto(`/admin/videos/${VIDEO}/edit`);
-    await expect(page.getByPlaceholder("Title")).toHaveCount(2);
-    await page.locator("button.text-destructive\\/50").first().click();
-    await saveButton(page).click();
+    await page.getByLabel("Remove grammar point 1").click();
+    await page.getByRole("button", { name: "Save notes" }).click();
 
-    const points = (await writtenTo(db, "discover_videos"))[0].grammar_points as Array<Record<string, string>>;
-    expect(points).toHaveLength(1);
+    await expect
+      .poll(
+        () =>
+          (db.rows("discover_videos").find((r) => r.id === VIDEO)?.grammar_points as unknown[])
+            ?.length,
+      )
+      .toBe(1);
+    const points = db.rows("discover_videos").find((r) => r.id === VIDEO)!
+      .grammar_points as Array<Record<string, string>>;
     expect(points[0].title).toBe("Idafa");
   });
 
-  test("overwrites the pipeline's output with whatever is on screen", async ({ page, db }) => {
+  test("no longer overwrites the pipeline's notes on save", async ({ page, db }) => {
     seedVideo(db, {
       transcript_lines: [aLine(0)],
       vocabulary: [{ arabic: "قهوة", english: "coffee", root: "ق ه و" }],
@@ -410,14 +439,15 @@ test.describe("the transcript, vocabulary and grammar", () => {
     await expect(page.getByText("Vocabulary (1)")).toBeVisible();
     await saveButton(page).click();
 
-    // Pinned. Save writes the form's whole state back, including transcript,
-    // vocabulary and grammar. If the server pipeline finishes while the form is
-    // open, pressing Save replaces its results with what was loaded before it
-    // ran — there is no conflict check and no warning.
+    // Pinned, and deliberately the inverse of what this test used to pin. The
+    // notes save through the revision-logged editor and the transcript through
+    // `transcript-review`, so Update Video writing this form's stale copies
+    // over them would silently undo a save made minutes ago.
     const written = (await writtenTo(db, "discover_videos"))[0];
-    expect(written).toHaveProperty("transcript_lines");
-    expect(written).toHaveProperty("vocabulary");
-    expect(written).toHaveProperty("grammar_points");
+    expect(written).not.toHaveProperty("vocabulary");
+    expect(written).not.toHaveProperty("grammar_points");
+    expect(written).not.toHaveProperty("cultural_context");
+    expect(written).toHaveProperty("published");
   });
 });
 
@@ -478,11 +508,20 @@ test.describe("unpublished transcript changes", () => {
 
     await saveButton(page).click();
 
-    const written = (await writtenTo(db, "discover_videos"))[0];
-    const writtenLines = written.transcript_lines as Array<Record<string, unknown>>;
-    expect(writtenLines[0].arabic).toBe("سطر مصحح");
+    // The lines land through `transcript-review`'s save_lines — that is what
+    // writes the revision log — so the proof is the stored row, not the form's
+    // own update payload (which deliberately no longer carries the transcript).
+    await expect
+      .poll(() => {
+        const lines = db.rows("discover_videos").find((r) => r.id === VIDEO)
+          ?.transcript_lines as Array<Record<string, unknown>> | undefined;
+        return lines?.[0]?.arabic;
+      })
+      .toBe("سطر مصحح");
+    const storedLines = db.rows("discover_videos").find((r) => r.id === VIDEO)!
+      .transcript_lines as Array<Record<string, unknown>>;
     // And the word layer under it, which is what the next reviewer will read.
-    expect((writtenLines[0].tokens as Array<Record<string, string>>).map((t) => t.surface)).toEqual([
+    expect((storedLines[0].tokens as Array<Record<string, string>>).map((t) => t.surface)).toEqual([
       "سطر",
       "مصحح",
     ]);

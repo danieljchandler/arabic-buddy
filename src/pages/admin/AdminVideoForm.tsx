@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useDiscoverVideo } from "@/hooks/useDiscoverVideos";
 import { extractTikTokVideoId, parseVideoUrl, getYouTubeThumbnail } from "@/lib/videoEmbed";
 import { Button } from "@/components/ui/button";
@@ -12,10 +13,24 @@ import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, ArrowLeft, Sparkles, Save, Upload, Download, Plus, Trash2, Image as ImageIcon } from "lucide-react";
+import { Loader2, ArrowLeft, Sparkles, Save, Upload, Download, Image as ImageIcon } from "lucide-react";
 import { AdminTranscriptEditor } from "@/components/admin/AdminTranscriptEditor";
 import { TranscriptDraftBanner } from "@/components/admin/TranscriptDraftBanner";
 import { useTranscriptDraft } from "@/hooks/useTranscriptDraft";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import LineRevisionHistory from "@/components/admin/transcribe/LineRevisionHistory";
+import LineComments from "@/components/admin/transcribe/LineComments";
+import VideoNotesEditor, {
+  type DialectFeature,
+  type GrammarPoint,
+  type VocabEntry,
+} from "@/components/admin/transcribe/VideoNotesEditor";
+import type { LineReviewSlot } from "@/components/TranscriptEditor";
+import { useTranscriptReview } from "@/hooks/useTranscriptReview";
+import { reviewProgress, reviewStateFor } from "@/lib/reviewStatus";
+import { linesEqual } from "@/lib/transcriptDraft";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import type { TranscriptLine } from "@/types/transcript";
@@ -27,7 +42,7 @@ import { VideoThumbnail } from "@/components/media/VideoThumbnail";
 // The same array the review workspace offers and the `transcript-review` write
 // path validates against. Two copies would drift, and the one that drifts is
 // always the one enforcing.
-import { REVIEWABLE_DIALECTS } from "../../../supabase/functions/_shared/dialectSubvarieties";
+import { REVIEWABLE_DIALECTS, subvarietyLabel } from "../../../supabase/functions/_shared/dialectSubvarieties";
 
 const DIALECTS = REVIEWABLE_DIALECTS;
 const DIFFICULTIES = ["Beginner", "Intermediate", "Advanced", "Expert"];
@@ -106,6 +121,28 @@ const AdminVideoForm = () => {
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
+  /**
+   * Who is looking, and what they may do here.
+   *
+   * This page is now the one workspace for everyone who touches a transcript:
+   * admins and content reviewers manage the video itself, and a transcriber — a
+   * native speaker hired to check the Arabic, not a member of staff — checks
+   * and corrects lines. The management surface (publish, delete, re-running the
+   * pipeline, metadata) is hidden from a transcriber; RLS and the
+   * `transcript-review` function are what actually enforce that split, this
+   * just stops the page offering buttons that would only ever error.
+   *
+   * `canManage` stays false until the roles have loaded, so a transcriber never
+   * sees the management controls flash before their role resolves.
+   */
+  const {
+    isAdmin,
+    isContentReviewer,
+    isRecorder,
+    loading: rolesLoading,
+  } = useAdminAuth();
+  const canManage = !rolesLoading && (isAdmin || isContentReviewer || isRecorder);
+
   const isEditing = !!videoId;
   const { data: existingVideo, isLoading: loadingVideo } = useDiscoverVideo(videoId);
 
@@ -147,8 +184,21 @@ const AdminVideoForm = () => {
    */
   const transcriptEdited = useRef(false);
 
+  /**
+   * The transcript as of *right now*, not as of the last render.
+   *
+   * The editor flushes its pending edit synchronously before actions like
+   * re-translate, and the handler that runs next must see that flush — reading
+   * `transcriptLines` from state there would act on the version one render old.
+   */
+  const latestLines = useRef<TranscriptLine[]>([]);
+  useEffect(() => {
+    latestLines.current = transcriptLines;
+  }, [transcriptLines]);
+
   const handleTranscriptChange = useCallback((next: TranscriptLine[]) => {
     transcriptEdited.current = true;
+    latestLines.current = next;
     setTranscriptLines(next);
   }, []);
 
@@ -182,7 +232,182 @@ const AdminVideoForm = () => {
   });
 
   const [isSaving, setIsSaving] = useState(false);
+  const [isSavingTranscript, setIsSavingTranscript] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+
+  /**
+   * The native-speaker review layer, folded in from the old /admin/transcribe
+   * workspace: checkmarks, per-line comments, the change log, re-translation.
+   * All of its writes go through the `transcript-review` edge function — the
+   * audit trail's subject must not be able to author it, so the diff behind
+   * every revision row is computed server-side against what is stored.
+   */
+  const review = useTranscriptReview(isEditing ? videoId : undefined);
+  const [detailLineId, setDetailLineId] = useState<string | null>(null);
+  const [detailTab, setDetailTab] = useState<"history" | "comments">("comments");
+  const [retranslating, setRetranslating] = useState<string | null>(null);
+
+  const progress = useMemo(
+    () =>
+      reviewProgress(
+        transcriptLines.map((l) => ({ id: l.id, arabic: l.arabic, translation: l.translation })),
+        review.reviews,
+      ),
+    [transcriptLines, review.reviews],
+  );
+
+  // Destructured rather than closed over as `review`, which is a fresh object
+  // every render: `lineReview` below reaches every card in the list and
+  // re-binds the editor's keydown listener, and a four-hundred-line transcript
+  // is exactly where that churn would be felt.
+  const { reviews, commentsByLine, revisionsByLine, setReviewed, saveLines, retranslateLine } =
+    review;
+  // `draft` is a fresh object every render; its `clear` is the stable part.
+  const clearLocalDraft = draft.clear;
+
+  /**
+   * Persist the transcript through `transcript-review`'s save_lines.
+   *
+   * This — not a direct row update — is what "keeping history" means: the
+   * server diffs the incoming lines against what is stored and writes a
+   * revision row for every change, under the identity in the JWT. It is also
+   * the only write path a transcriber has, so routing everyone through it
+   * keeps the page to one save model. The training-data capture runs first,
+   * while the old lines are still stored to diff against, and stays
+   * best-effort: a failed capture must never block the save.
+   */
+  const persistTranscript = useCallback(
+    async (lines: TranscriptLine[]) => {
+      if (!videoId) return;
+      try {
+        await supabase.functions.invoke("record-transcript-corrections", {
+          body: { videoId, lines },
+        });
+      } catch (captureErr) {
+        console.warn("transcript correction capture failed:", captureErr);
+      }
+      await saveLines.mutateAsync({ lines });
+      // The server now holds it, so the local safety net has nothing to guard.
+      clearLocalDraft();
+      queryClient.invalidateQueries({ queryKey: ["discover-video", videoId] });
+      queryClient.invalidateQueries({ queryKey: ["admin-discover-videos"] });
+    },
+    [videoId, saveLines, clearLocalDraft, queryClient],
+  );
+
+  const handleSaveTranscript = useCallback(async () => {
+    setIsSavingTranscript(true);
+    try {
+      await persistTranscript(latestLines.current);
+      toast.success("Transcript saved");
+    } catch (err) {
+      toast.error("Could not save the transcript", {
+        description: err instanceof Error ? err.message : "Unknown error",
+      });
+    } finally {
+      setIsSavingTranscript(false);
+    }
+  }, [persistTranscript]);
+
+  const openDetail = useCallback((lineId: string, tab: "history" | "comments") => {
+    setDetailLineId(lineId);
+    setDetailTab(tab);
+  }, []);
+
+  const toggleReviewed = useCallback(
+    async (lineId: string, reviewed: boolean) => {
+      try {
+        // The tick snapshots the text the *server* holds — that snapshot is
+        // what later proves the tick stale — so a line corrected but not yet
+        // saved must land first, or the reviewer would be signing off on the
+        // version they just replaced.
+        if (reviewed && !linesEqual(latestLines.current, publishedLines)) {
+          await persistTranscript(latestLines.current);
+        }
+        await setReviewed.mutateAsync({ lineId, reviewed });
+      } catch (error) {
+        toast.error("Could not record the review", {
+          description: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
+    },
+    [persistTranscript, publishedLines, setReviewed],
+  );
+
+  const handleRetranslate = useCallback(
+    async (lineId: string) => {
+      setRetranslating(lineId);
+      try {
+        // The server re-translates the Arabic it has stored, and the correction
+        // that prompted this press is usually seconds old — flush it first so
+        // the model sees the corrected words rather than the ones they replaced.
+        if (!linesEqual(latestLines.current, publishedLines)) {
+          await persistTranscript(latestLines.current);
+        }
+        const data = await retranslateLine.mutateAsync({ lineId });
+        handleTranscriptChange(
+          latestLines.current.map((line) =>
+            line.id === lineId
+              ? { ...line, translation: data.translation, literal: data.literal ?? line.literal }
+              : line,
+          ),
+        );
+        toast.success("Re-translated", { description: data.translation });
+      } catch (error) {
+        toast.error("Re-translation failed", {
+          description: error instanceof Error ? error.message : "Unknown error",
+        });
+      } finally {
+        setRetranslating(null);
+      }
+    },
+    [handleTranscriptChange, persistTranscript, publishedLines, retranslateLine],
+  );
+
+  const lineReview = useCallback(
+    (lineId: string): LineReviewSlot | undefined => {
+      const line = transcriptLines.find((l) => l.id === lineId);
+      if (!line) return undefined;
+      const row = reviews.get(lineId);
+      return {
+        state: reviewStateFor(row, line),
+        reviewedAt: row?.reviewedAt,
+        // Set by the translation ensemble when its models disagreed, or when
+        // nothing settled the line. A different question from whether a person
+        // has looked at it, and the best place for one to start.
+        flagged: line.needs_review === true,
+        flagReason: line.review_reason,
+        openComments: (commentsByLine.get(lineId) ?? []).filter((c) => !c.resolvedAt).length,
+        revisions: (revisionsByLine.get(lineId) ?? []).length,
+        onToggleReviewed: () =>
+          // A stale tick is re-confirmed rather than cleared: the reviewer has
+          // just looked at the new text, which is the whole point of the
+          // prompt to look again.
+          void toggleReviewed(lineId, reviewStateFor(row, line) !== "reviewed"),
+        onOpenComments: () => openDetail(lineId, "comments"),
+        onOpenHistory: () => openDetail(lineId, "history"),
+      };
+    },
+    [commentsByLine, openDetail, reviews, revisionsByLine, toggleReviewed, transcriptLines],
+  );
+
+  const detailLine = transcriptLines.find((l) => l.id === detailLineId);
+  const detailIndex = transcriptLines.findIndex((l) => l.id === detailLineId);
+
+  const applySuggestion = useCallback(
+    (suggestion: string) => {
+      if (!detailLineId) return;
+      handleTranscriptChange(
+        latestLines.current.map((line) =>
+          line.id === detailLineId ? { ...line, translation: suggestion } : line,
+        ),
+      );
+      toast.success("Translation updated", {
+        description: "Save the transcript to publish it.",
+      });
+    },
+    [detailLineId, handleTranscriptChange],
+  );
 
   // Time range selection
   const [mediaDuration, setMediaDuration] = useState<number | null>(null);
@@ -1078,36 +1303,32 @@ const AdminVideoForm = () => {
         difficulty,
         cefr_level: cefrLevel,
         difficulty_rationale: difficultyRationale,
-
-        transcript_lines: transcriptLines as any,
-        vocabulary: vocabulary as any,
-        grammar_points: grammarPoints as any,
-        cultural_context: culturalContext || null,
         published,
         is_meme: isMeme,
         created_by: user!.id,
       };
 
       if (isEditing) {
-        // Capture what the editor changed BEFORE the destructive update below
-        // overwrites the stored lines — the server diffs old vs new and banks
-        // every corrected line as training data (the flywheel's W1 source).
-        // Best-effort: a failed capture must never block the save.
-        try {
-          await supabase.functions.invoke("record-transcript-corrections", {
-            body: { videoId, lines: transcriptLines },
-          });
-        } catch (captureErr) {
-          console.warn("transcript correction capture failed:", captureErr);
-        }
+        // The transcript goes through the review pipeline rather than the row
+        // update: `transcript-review` computes the diff server-side and writes
+        // the revision log (and the training capture inside persistTranscript
+        // banks corrected lines while the old text is still stored to diff
+        // against). The notes fields — cultural context, vocabulary, grammar —
+        // are deliberately NOT in the record: the notes editor below saves them
+        // through the same function, and writing this form's stale copies here
+        // would silently undo a save made minutes ago.
+        await persistTranscript(latestLines.current);
         const { error } = await (supabase.from("discover_videos" as any) as any).update(record).eq("id", videoId);
         if (error) throw error;
-        // Published, so the local copy has nothing left to protect. Cleared
-        // only on success: a failed save is exactly when the draft matters.
-        draft.clear();
         toast.success("Video updated!");
       } else {
-        const { error } = await (supabase.from("discover_videos" as any) as any).insert(record);
+        const { error } = await (supabase.from("discover_videos" as any) as any).insert({
+          ...record,
+          transcript_lines: transcriptLines as unknown as Record<string, unknown>[],
+          vocabulary: vocabulary as unknown as Record<string, unknown>[],
+          grammar_points: grammarPoints as unknown as Record<string, unknown>[],
+          cultural_context: culturalContext || null,
+        });
         if (error) throw error;
         toast.success("Video created!");
       }
@@ -1140,19 +1361,30 @@ const AdminVideoForm = () => {
             <Button variant="ghost" size="icon" onClick={() => navigate("/admin/videos")}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <h1 className="text-xl font-bold">{isEditing ? "Edit Video" : "Add Video"}</h1>
+            <h1 className="text-xl font-bold">
+              {isEditing ? (canManage ? "Edit Video" : "Review Transcript") : "Add Video"}
+            </h1>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 max-w-2xl space-y-6">
+      {/* Wider when editing: the transcript editor's review chrome — checkmarks,
+          comments, per-line playback — needs the room the old workspace gave it. */}
+      <main
+        className={cn(
+          "container mx-auto px-4 py-8 space-y-6",
+          isEditing ? "max-w-6xl" : "max-w-2xl",
+        )}
+      >
         {/* Background transcription status banner */}
         {isEditing && existingVideo && (existingVideo as any).transcription_status === 'processing' && (
           <Card className="border-blue-300 bg-blue-50 dark:bg-blue-950/30">
             <CardContent className="py-3 flex items-center gap-2 text-blue-700 dark:text-blue-300">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span className="text-sm font-medium">
-                Transcription is being processed on the server. This page will update automatically when complete.
+                Transcription is being processed on the server. This page will update automatically
+                when complete — the pipeline rewrites the transcript wholesale when it finishes, so
+                anything corrected now will be overwritten.
               </span>
             </CardContent>
           </Card>
@@ -1177,13 +1409,37 @@ const AdminVideoForm = () => {
             <CardContent className="py-3 flex items-center gap-2 text-amber-700 dark:text-amber-300">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span className="text-sm font-medium">
-                Transcription is queued and will start shortly. You can safely leave this page.
+                Transcription is queued and will start shortly. You can safely leave this page —
+                but don&apos;t correct lines yet, the pipeline will overwrite them when it finishes.
               </span>
             </CardContent>
           </Card>
         )}
 
+        {/* What a reviewer without management access sees instead of the
+            metadata cards: enough to know which clip this is, nothing they
+            could misclick into publishing or re-transcribing. */}
+        {isEditing && !canManage && existingVideo && (
+          <div>
+            <h2 className="truncate text-lg font-semibold">{existingVideo.title}</h2>
+            <p className="text-xs text-muted-foreground">
+              {existingVideo.dialect}
+              {/*
+                The sub-variety reads as part of the dialect rather than as
+                another facet — "Saudi · Ḥijāzi" — because that is what it is,
+                and because its absence is the prompt to go and set it.
+              */}
+              {existingVideo.dialect_subvariety
+                ? ` · ${subvarietyLabel(existingVideo.dialect_subvariety)}`
+                : ""}{" "}
+              · {existingVideo.difficulty}
+              {existingVideo.published ? " · published" : " · not published"}
+            </p>
+          </div>
+        )}
+
         {/* URL Input */}
+        {canManage && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Video Source</CardTitle>
@@ -1303,8 +1559,10 @@ const AdminVideoForm = () => {
             )}
           </CardContent>
         </Card>
+        )}
 
         {/* Metadata */}
+        {canManage && (
         <Card>
           <CardHeader>
             <CardTitle className="text-lg">Details</CardTitle>
@@ -1414,15 +1672,20 @@ const AdminVideoForm = () => {
                 onChange={(e) => setDurationSeconds(e.target.value ? parseInt(e.target.value) : null)}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Cultural Context</Label>
-              <Textarea
-                value={culturalContext}
-                onChange={(e) => setCulturalContext(e.target.value)}
-                placeholder="Optional cultural notes for viewers..."
-                rows={3}
-              />
-            </div>
+            {/* Once the video exists, cultural notes live in the revision-logged
+                Notes & grammar editor below, next to the grammar and vocabulary
+                they are argued over with. */}
+            {!isEditing && (
+              <div className="space-y-2">
+                <Label>Cultural Context</Label>
+                <Textarea
+                  value={culturalContext}
+                  onChange={(e) => setCulturalContext(e.target.value)}
+                  placeholder="Optional cultural notes for viewers..."
+                  rows={3}
+                />
+              </div>
+            )}
             <div className="flex items-center gap-3">
               <Switch checked={published} onCheckedChange={setPublished} />
               <Label>Published (visible to all users)</Label>
@@ -1439,12 +1702,36 @@ const AdminVideoForm = () => {
             </div>
           </CardContent>
         </Card>
+        )}
 
         {/* Editable Transcript */}
         {transcriptLines.length > 0 && (
           <Card>
-            <CardHeader>
+            <CardHeader className="flex-row flex-wrap items-center justify-between space-y-0 gap-3">
               <CardTitle className="text-lg">Transcript</CardTitle>
+              {isEditing && (
+                <div className="flex items-center gap-2">
+                  <div className="text-right">
+                    <p className="text-sm font-medium tabular-nums">
+                      {progress.reviewed} / {progress.total} lines checked
+                    </p>
+                    {progress.stale > 0 && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400">
+                        {progress.stale} changed since being checked
+                      </p>
+                    )}
+                  </div>
+                  <div className="h-2 w-28 overflow-hidden rounded bg-gray-200 dark:bg-gray-700">
+                    <div
+                      className={cn(
+                        "h-full rounded transition-all",
+                        progress.percent === 100 ? "bg-green-500" : "bg-blue-500",
+                      )}
+                      style={{ width: `${progress.percent}%` }}
+                    />
+                  </div>
+                </div>
+              )}
             </CardHeader>
             <CardContent className="space-y-4">
               {(() => {
@@ -1567,7 +1854,13 @@ const AdminVideoForm = () => {
                   </div>
                 );
               })()}
-              {!stableAudioUrl && (
+              {!stableAudioUrl && !canManage && (
+                <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                  No audio is staged for this video, so the per-line playback controls have
+                  nothing to play. The transcript can still be corrected.
+                </p>
+              )}
+              {!stableAudioUrl && canManage && (
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border">
                   <p className="text-sm text-muted-foreground flex-1">
                     Load audio to listen to each line and verify timestamps.
@@ -1597,82 +1890,121 @@ const AdminVideoForm = () => {
                 </div>
               )}
               <TranscriptDraftBanner draft={draft} />
+              {retranslating && (
+                <p className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Re-translating…
+                </p>
+              )}
               <AdminTranscriptEditor
                 lines={transcriptLines}
                 onChange={handleTranscriptChange}
                 audioUrl={stableAudioUrl}
+                lineReview={isEditing ? lineReview : undefined}
+                onRetranslate={isEditing ? handleRetranslate : undefined}
               />
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Editable Vocabulary */}
-        {vocabulary.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Vocabulary ({vocabulary.length})</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {vocabulary.map((item: any, i: number) => (
-                <div key={i} className="flex items-center gap-2 p-2 rounded bg-muted/50">
-                  <Input
-                    value={item.arabic || ""}
-                    onChange={(e) => {
-                      const updated = [...vocabulary];
-                      updated[i] = { ...item, arabic: e.target.value };
-                      setVocabulary(updated);
-                    }}
-                    dir="rtl"
-                    className="flex-1 h-8 text-sm"
-                    style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
-                    placeholder="Arabic"
-                  />
-                  <Input
-                    value={item.english || ""}
-                    onChange={(e) => {
-                      const updated = [...vocabulary];
-                      updated[i] = { ...item, english: e.target.value };
-                      setVocabulary(updated);
-                    }}
-                    className="flex-1 h-8 text-sm"
-                    placeholder="English"
-                  />
-                  <Input
-                    value={item.root || ""}
-                    onChange={(e) => {
-                      const updated = [...vocabulary];
-                      updated[i] = { ...item, root: e.target.value };
-                      setVocabulary(updated);
-                    }}
-                    dir="rtl"
-                    className="w-20 h-8 text-sm"
-                    placeholder="Root"
-                  />
+              {isEditing && (
+                <div className="flex flex-wrap items-center gap-3">
                   <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-destructive/50 hover:text-destructive shrink-0"
-                    onClick={() => setVocabulary(vocabulary.filter((_: any, j: number) => j !== i))}
+                    onClick={handleSaveTranscript}
+                    disabled={isSavingTranscript || !draft.dirty}
+                    variant={draft.dirty ? "default" : "outline"}
                   >
-                    <Trash2 className="h-3 w-3" />
+                    {isSavingTranscript ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4 mr-2" />
+                    )}
+                    Save transcript
                   </Button>
+                  <span className="text-xs text-muted-foreground">
+                    {draft.dirty
+                      ? "You have transcript changes that are not saved yet — this is what publishes them and records the change history."
+                      : "The transcript matches what is saved."}
+                  </span>
                 </div>
-              ))}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setVocabulary([...vocabulary, { arabic: "", english: "", root: "" }])}
-              >
-                <Plus className="h-3 w-3 mr-1" />
-                Add Word
-              </Button>
+              )}
             </CardContent>
           </Card>
         )}
 
-        {/* Editable Grammar Points */}
-        {/* Grammar generator (admin) */}
-        {isEditing && (
+        {/* Notes, grammar, dialect classification and the activity log — the
+            native-reviewer surface folded in from the old /admin/transcribe
+            workspace. Everything here saves through `transcript-review`, which
+            is what writes the revision log and what lets a transcriber (who
+            cannot touch the row directly) contribute at all. */}
+        {isEditing && existingVideo && (
+          <Tabs defaultValue="notes">
+            <TabsList>
+              <TabsTrigger value="notes">Notes &amp; grammar</TabsTrigger>
+              <TabsTrigger value="activity">Activity</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="notes" className="mt-4">
+              <VideoNotesEditor
+                culturalContext={existingVideo.cultural_context ?? ""}
+                grammarPoints={(existingVideo.grammar_points as unknown as GrammarPoint[]) ?? []}
+                vocabulary={(existingVideo.vocabulary as unknown as VocabEntry[]) ?? []}
+                dialect={existingVideo.dialect}
+                dialectSubvariety={existingVideo.dialect_subvariety ?? null}
+                dialectFeatures={
+                  (existingVideo.dialect_features as unknown as DialectFeature[]) ?? []
+                }
+                // The live editor state rather than the stored lines: someone
+                // who has just split a line should be able to pin a feature to
+                // the half it actually happens on.
+                lines={transcriptLines}
+                busy={review.saveNotes.isPending}
+                onSave={(input) =>
+                  review.saveNotes.mutateAsync(input).then(
+                    () => {
+                      toast.success("Notes saved");
+                      queryClient.invalidateQueries({ queryKey: ["discover-video", videoId] });
+                    },
+                    (error: unknown) =>
+                      toast.error("Could not save the notes", {
+                        description: error instanceof Error ? error.message : "Unknown error",
+                      }),
+                  )
+                }
+              />
+            </TabsContent>
+
+            <TabsContent value="activity" className="mt-4 space-y-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Everything that changed</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <LineRevisionHistory
+                    revisions={review.revisions}
+                    emptyLabel="Nothing has been changed on this video yet."
+                  />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Notes about the whole video</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <LineComments
+                    comments={review.comments.filter((c) => !c.lineId)}
+                    busy={review.addComment.isPending}
+                    onAdd={(input) => review.addComment.mutateAsync({ ...input, lineId: null })}
+                    onResolve={(commentId, resolved) =>
+                      review.resolveComment.mutate({ commentId, resolved })
+                    }
+                  />
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        )}
+
+        {/* Grammar generator (admin) — the editable grammar/vocabulary lists
+            themselves live in the Notes & grammar tab above. */}
+        {isEditing && canManage && (
           <Card>
             <CardHeader>
               <CardTitle className="text-lg">Generate Grammar Notes</CardTitle>
@@ -1690,72 +2022,69 @@ const AdminVideoForm = () => {
           </Card>
         )}
 
-        {grammarPoints.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Grammar Points ({grammarPoints.length})</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {grammarPoints.map((gp: any, i: number) => (
-                <div key={i} className="p-3 rounded bg-muted/50 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Input
-                      value={gp.title || ""}
-                      onChange={(e) => {
-                        const updated = [...grammarPoints];
-                        updated[i] = { ...gp, title: e.target.value };
-                        setGrammarPoints(updated);
-                      }}
-                      className="flex-1 h-8 text-sm font-medium"
-                      placeholder="Title"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-destructive/50 hover:text-destructive shrink-0"
-                      onClick={() => setGrammarPoints(grammarPoints.filter((_: any, j: number) => j !== i))}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
-                  </div>
-                  <Textarea
-                    value={gp.explanation || ""}
-                    onChange={(e) => {
-                      const updated = [...grammarPoints];
-                      updated[i] = { ...gp, explanation: e.target.value };
-                      setGrammarPoints(updated);
-                    }}
-                    className="text-sm"
-                    rows={2}
-                    placeholder="Explanation"
-                  />
-                </div>
-              ))}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setGrammarPoints([...grammarPoints, { title: "", explanation: "" }])}
-              >
-                <Plus className="h-3 w-3 mr-1" />
-                Add Grammar Point
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Save button */}
-        <div className="space-y-2">
-          {draft.dirty && (
-            <p className="text-center text-sm text-amber-700 dark:text-amber-400">
-              You have unpublished transcript changes. This button is what publishes them.
-            </p>
-          )}
-          <Button onClick={handleSave} disabled={isSaving} className="w-full" size="lg">
-            {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
-            {isEditing ? "Update Video" : "Save Video"}
-          </Button>
-        </div>
+        {canManage && (
+          <div className="space-y-2">
+            {draft.dirty && (
+              <p className="text-center text-sm text-amber-700 dark:text-amber-400">
+                You have unsaved transcript changes. This button saves them too.
+              </p>
+            )}
+            <Button onClick={handleSave} disabled={isSaving} className="w-full" size="lg">
+              {isSaving ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Save className="h-4 w-4 mr-2" />}
+              {isEditing ? "Update Video" : "Save Video"}
+            </Button>
+          </div>
+        )}
       </main>
+
+      {/* Per-line comments and history, opened from the buttons on each line. */}
+      <Dialog open={detailLineId !== null} onOpenChange={(open) => !open && setDetailLineId(null)}>
+        <DialogContent className="max-h-[85vh] max-w-2xl overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Line {detailIndex + 1}</DialogTitle>
+          </DialogHeader>
+
+          {detailLine && (
+            <>
+              <div className="rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+                <p dir="rtl" className="text-right font-cairo text-base">
+                  {detailLine.arabic}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">{detailLine.translation}</p>
+              </div>
+
+              <Tabs value={detailTab} onValueChange={(v) => setDetailTab(v as "history" | "comments")}>
+                <TabsList>
+                  <TabsTrigger value="comments">Comments</TabsTrigger>
+                  <TabsTrigger value="history">History</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="comments" className="mt-3">
+                  <LineComments
+                    comments={review.commentsByLine.get(detailLine.id) ?? []}
+                    busy={review.addComment.isPending}
+                    onAdd={(input) =>
+                      review.addComment.mutateAsync({ ...input, lineId: detailLine.id })
+                    }
+                    onResolve={(commentId, resolved) =>
+                      review.resolveComment.mutate({ commentId, resolved })
+                    }
+                    onApplySuggestion={applySuggestion}
+                  />
+                </TabsContent>
+
+                <TabsContent value="history" className="mt-3">
+                  <LineRevisionHistory
+                    revisions={review.revisionsByLine.get(detailLine.id) ?? []}
+                    emptyLabel="This line has not been changed since it was transcribed."
+                  />
+                </TabsContent>
+              </Tabs>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

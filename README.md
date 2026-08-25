@@ -354,8 +354,10 @@ admins via RLS; users may only read their own role):
 - `content_reviewer`: can manage content workflows (transcripts / translations /
   cultural notes / dialect rules) but is blocked from Bible access.
 - `transcriber`: a native speaker hired to check the AI's Arabic and English.
-  The narrowest role in the app — `/admin/transcribe` and nothing else. See
-  **Transcript review** below.
+  The narrowest role in the app — the `/admin/videos` list and each video's
+  `/admin/videos/:id/edit` page (where the review tools live, with the
+  management controls hidden), and nothing else — not even
+  `/admin/videos/new`. See **Transcript review** below.
 - `beta_tester`: can access beta-only features.
 - `bible_reader`: grants Bible reading access (except when the user is also
   `content_reviewer`).
@@ -404,10 +406,25 @@ otherwise turn "delete this user" into a hard error.
 
 ## Transcript review
 
-Native speakers check the pipeline's output at `/admin/transcribe`: a queue
-sorted by how much is left rather than by date, and a per-video workspace at
-`/admin/transcribe/:videoId`. It is deliberately **not** the admin video form,
-which can publish, delete and re-run the pipeline.
+Native speakers check the pipeline's output on the **Manage Videos** pages —
+there is no separate review app. `/admin/videos` doubles as the queue (review
+filters, and under a filter it sorts by how much is left rather than by date),
+and each video's `/admin/videos/:id/edit` page carries the whole workspace:
+checkmarks, per-line comments and history, per-line playback, re-translation,
+the notes editor and the activity log. What keeps a reviewer away from the
+dangerous parts is role, not address: for a `transcriber` the page hides the
+management surface (publish, delete, metadata, the pipeline controls), and RLS
+plus the `transcript-review` function refuse those writes anyway. The old
+`/admin/transcribe` and `/admin/transcribe/:videoId` addresses redirect to the
+merged pages so bookmarks survive.
+
+Transcript saves go through the same pipeline for every role — an explicit
+**Save transcript** (or the admin's Update Video, which flushes the transcript
+first): local edits are drafted on-device (`useTranscriptDraft`) with a visible
+"not saved yet" state, and persisting them via `transcript-review`'s
+`save_lines` is what writes the revision log. Ticking a line whose local text
+differs from what is stored flushes the transcript first, because the tick
+snapshots the *stored* text.
 
 Three tables key off a line id inside the `discover_videos.transcript_lines`
 jsonb array (there is no foreign key to hang them on, and turning the transcript

@@ -258,6 +258,31 @@ test.describe("reviewing on the edit page", () => {
     expect(lines[0].arabic).toBe("شخبارك اليوم");
   });
 
+  test("shows a correction whose word layer went stale under it", async ({ page, db }) => {
+    // The revert-on-blur bug: an Arabic correction saved by a build that set
+    // only `arabic` left the old words in `tokens`, and the card draws its
+    // sentence from tokens — so the reviewer saw their fix inside the edit box
+    // and watched it "revert" the moment they clicked away.
+    db.raw("discover_videos").find((r) => r.id === VIDEO)!.transcript_lines = [
+      {
+        id: "L1",
+        arabic: "شخبارك اليوم",
+        translation: "How are you today",
+        startMs: 0,
+        endMs: 1500,
+        tokens: [
+          { id: "t1", surface: "شلونك" },
+          { id: "t2", surface: "اليوم" },
+        ],
+      },
+    ];
+
+    await page.goto(`/admin/videos/${VIDEO}/edit`);
+
+    await expect(page.getByText("شخبارك")).toBeVisible();
+    await expect(page.locator("[data-segment-id]").first()).not.toContainText("شلونك");
+  });
+
   test("offers the per-line listening controls", async ({ page }) => {
     await page.goto(`/admin/videos/${VIDEO}/edit`);
 

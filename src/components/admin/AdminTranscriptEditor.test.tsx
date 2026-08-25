@@ -137,6 +137,9 @@ describe("AdminTranscriptEditor — word timings", () => {
       aLine({
         startMs: 0,
         endMs: 4000,
+        // The arabic mirrors the tokens: a line where the two disagree is
+        // reconciled from the text first, which is its own test below.
+        arabic: "a b c",
         tokens: [token({ surface: "a" }), token({ surface: "b" }), token({ surface: "c" })],
       }),
     ]);
@@ -723,5 +726,34 @@ describe("AdminTranscriptEditor — a line that arrives without tokens", () => {
     render([aLine()]);
 
     expect(props().initialSegments[0].words.map((w) => w.word)).toEqual(["مرحبا", "بك"]);
+  });
+});
+
+describe("AdminTranscriptEditor — a line whose tokens went stale", () => {
+  // The bug this pins: an Arabic correction saved by a build that set only
+  // `arabic` left the old words in `tokens`. The card draws from tokens, so
+  // the reviewer saw their fix inside the edit box and watched it "revert"
+  // the moment they clicked away.
+  const stale = () =>
+    aLine({
+      arabic: "شخبارك اليوم",
+      tokens: [token({ surface: "شلونك", gloss: "how are you" }), token({ surface: "اليوم", gloss: "today" })],
+    });
+
+  it("draws the corrected Arabic, not the stale words", () => {
+    render([stale()]);
+
+    expect(props().initialSegments[0].words.map((w) => w.word)).toEqual(["شخبارك", "اليوم"]);
+  });
+
+  it("keeps the gloss of the word the correction did not touch", () => {
+    const { onChange } = render([stale()]);
+    act(() => props().onSave?.(props().initialSegments));
+
+    const tokens = (onChange.mock.calls[0][0] as TranscriptLine[])[0].tokens!;
+    expect(tokens.map((t) => t.surface)).toEqual(["شخبارك", "اليوم"]);
+    // Saving writes the healed tokens back, so the stored line stops lying.
+    expect(tokens[1].gloss).toBe("today");
+    expect(tokens[0].gloss).toBeUndefined();
   });
 });

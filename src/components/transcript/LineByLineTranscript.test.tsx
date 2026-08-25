@@ -250,17 +250,48 @@ describe("showing the transcript", () => {
     }
   });
 
-  it("shows the sentence as written when it was never tokenised", () => {
+  it("splits a line that was never tokenised into tappable words", () => {
     render({ lines: [{ ...A_LINE, tokens: [] }] });
 
-    // Older transcripts predate tokenisation. Losing the words entirely would
-    // be worse than losing the lookups.
-    expect(screen.getByText("رحت السوق أمس")).toBeInTheDocument();
+    // Older transcripts predate tokenisation. The words are rebuilt from the
+    // sentence text, so the learner still gets the tap-a-word lookups instead
+    // of a wall of Arabic.
+    for (const word of ["رحت", "السوق", "أمس"]) {
+      expect(screen.getByText(word)).toHaveAttribute("role", "button");
+    }
+  });
+
+  it("shows the corrected Arabic when the tokens went stale under it", () => {
+    // A correction saved by a build that set only `arabic` left the old words
+    // in `tokens` — and this screen draws the sentence from tokens, so it was
+    // teaching learners words nobody said.
+    render({
+      lines: [
+        {
+          ...A_LINE,
+          arabic: "رحت السوق اليوم",
+          tokens: [aToken("رحت", { gloss: "I went" }), aToken("السوق"), aToken("أمس")],
+        },
+      ],
+    });
+
+    expect(screen.getByText("اليوم")).toBeInTheDocument();
+    expect(screen.queryByText("أمس")).not.toBeInTheDocument();
+    // The words the correction kept keep their glosses too.
+    expect(screen.getByText("رحت")).toHaveAttribute("role", "button");
   });
 
   it("attaches a comma to the word after it rather than the word before", () => {
     const { container } = render({
-      lines: [{ ...A_LINE, tokens: [aToken("رحت", { gloss: "I went" }), aToken("،"), aToken("أمس")] }],
+      lines: [
+        {
+          ...A_LINE,
+          // The arabic mirrors the tokens — a mismatch would be reconciled
+          // away before the spacing rule this test pins ever ran.
+          arabic: "رحت ، أمس",
+          tokens: [aToken("رحت", { gloss: "I went" }), aToken("،"), aToken("أمس")],
+        },
+      ],
     });
 
     // Pinned: the spacing rule suppresses the space that follows a punctuation

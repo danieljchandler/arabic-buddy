@@ -1,5 +1,6 @@
 import { useMemo, useCallback, useRef } from "react";
 import type { TranscriptLine, WordToken, Segment, Word } from "@/types/transcript";
+import { reconcileLineTokens } from "@/lib/transcriptTokens";
 import TranscriptEditor, { type LineReviewSlot } from "@/components/TranscriptEditor";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -107,18 +108,13 @@ export function AdminTranscriptEditor({
         const startSec = (line.startMs ?? 0) / 1000;
         const endSec = (line.endMs ?? 0) / 1000;
         // The card renders its Arabic from `words`, which is built from the
-        // line's tokens — so a line that arrives without any is drawn blank and
-        // cannot be clicked into. The pipeline splits on whitespace when it
-        // finds a line in that state; do the same here rather than showing a
-        // reviewer an empty row and no way to fix it.
-        const stored = line.tokens ?? [];
-        const tokens =
-          stored.length > 0
-            ? stored
-            : (line.arabic ?? "")
-                .split(/\s+/)
-                .filter(Boolean)
-                .map<WordToken>((surface) => ({ id: crypto.randomUUID(), surface }));
+        // line's tokens — so a line whose tokens are missing was drawn blank,
+        // and a line whose tokens have gone stale (an edit saved by a build
+        // that set only `arabic`) kept showing the OLD words: the correction
+        // was visible inside the edit box and "reverted" the moment it closed.
+        // Reconcile against `arabic`, the source of truth — it also means the
+        // next save writes the healed tokens back.
+        const tokens = reconcileLineTokens(line).tokens ?? [];
         const n = Math.max(tokens.length, 1);
         const dur = Math.max(endSec - startSec, 0);
         const step = dur / n;

@@ -1,4 +1,4 @@
- import { useState, useRef, useEffect, useCallback } from "react";
+ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
  import { ChevronDown, ChevronUp, Eye, EyeOff, Play, Pause, Plus, BookOpen, Check, Link2, MonitorPlay, Trash2 } from "lucide-react";
  import { cn } from "@/lib/utils";
  import { Switch } from "@/components/ui/switch";
@@ -16,6 +16,7 @@ import { TranslationPair } from "@/components/shared/TranslationPair";
 import { FushaLine } from "@/components/shared/FushaLine";
 import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
 import { useFushaLines } from "@/hooks/useFushaLines";
+import { reconcileTranscriptTokens } from "@/lib/transcriptTokens";
 
  interface LineByLineTranscriptProps {
    lines: TranscriptLine[];
@@ -754,7 +755,7 @@ interface TranscriptLineCardProps {
  };
  
 export const LineByLineTranscript = ({
-   lines,
+   lines: rawLines,
    audioUrl,
    currentTimeMs,
    onAddToVocabSection,
@@ -763,6 +764,10 @@ export const LineByLineTranscript = ({
    vocabSectionWords,
   onDeleteLine,
  }: LineByLineTranscriptProps) => {
+  // The sentence is drawn from each line's tokens, but `arabic` is the source
+  // of truth — a line whose tokens went stale (an edit saved by a build that
+  // set only the text) would otherwise teach the learner words nobody said.
+  const lines = useMemo(() => reconcileTranscriptTokens(rawLines ?? []), [rawLines]);
    const { activeDialect } = useDialect();
    // The Fusha row rides on the global "Formal Arabic (MSA)" display
    // preference, the same switch Settings and the Bible reader use — a learner

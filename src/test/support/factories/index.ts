@@ -595,6 +595,10 @@ export const aDiscoverVideo = (over: Row = {}): Row => ({
   platform: "youtube",
   thumbnail_url: null,
   dialect: "Gulf",
+  // Unjudged, which is what almost every row looks like: the pipeline never
+  // sets these, only a native reviewer does.
+  dialect_subvariety: null,
+  dialect_features: [],
   difficulty: "beginner",
   cefr_level: "A2",
   duration_seconds: 60,

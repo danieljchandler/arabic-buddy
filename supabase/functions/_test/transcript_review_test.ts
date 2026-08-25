@@ -29,11 +29,26 @@ const STORED_LINES = [
 const VIDEO_ROW = {
   id: VIDEO,
   dialect: "Kuwaiti",
+  dialect_subvariety: null,
+  dialect_features: [],
   transcript_lines: STORED_LINES,
   cultural_context: "A greeting exchange.",
   grammar_points: [],
   vocabulary: [],
 };
+
+/** The stored row with the dialect classification already filled in. */
+function classifiedVideo(over: Record<string, unknown> = {}) {
+  return { ...VIDEO_ROW, dialect_subvariety: "kuwaiti-hadar", ...over };
+}
+
+/** Upstreams serving a specific stored row rather than the default one. */
+function withVideo(row: Record<string, unknown>, role = "transcriber") {
+  return upstreams(role, {
+    "/rest/v1/discover_videos": (request) =>
+      request.method === "GET" ? json(row) : new Response(null, { status: 204 }),
+  });
+}
 
 function upstreams(
   role = "transcriber",
@@ -265,6 +280,155 @@ Deno.test("transcript-review does not let a reviewer touch other columns", async
   for (const write of writes) {
     assertEquals("published" in write, false);
   }
+});
+
+// ── The dialect classification ──────────────────────────────────────────────
+//
+// The country label was being set by a model off a thirty-second sample, which
+// is one of the things it is worst at, and there was nowhere short of admin to
+// correct it. It is a classification rather than a publishing decision, so it
+// joins the notes allow-list — which means the tests have to hold the line
+// between those two categories where it now sits.
+
+Deno.test("transcript-review records the sub-dialect a reviewer set", async () => {
+  const result = await call({
+    action: "save_notes",
+    videoId: VIDEO,
+    dialect: "Kuwaiti",
+    dialectSubvariety: "kuwaiti-badu",
+  });
+
+  assertEquals(result.status, 200);
+  const writes = result.patches("/rest/v1/discover_videos");
+  assertEquals(writes[0].dialect_subvariety, "kuwaiti-badu");
+  // The label did not move, so nothing should claim it did.
+  assertEquals("dialect" in writes[0], false);
+
+  const logged = result.posts("/rest/v1/transcript_line_revisions");
+  assertEquals(logged.length, 1);
+  assertEquals(logged[0].field, "dialect_subvariety");
+  assertEquals(logged[0].changed_by, USER);
+});
+
+Deno.test("transcript-review refuses a dialect label it does not know", async () => {
+  // Unlike the sub-variety there is nothing sensible to fall back to, and
+  // silently keeping the old country while reporting success is the failure
+  // mode most likely to go unnoticed.
+  const result = await call({ action: "save_notes", videoId: VIDEO, dialect: "Kuwaity" });
+
+  assertEquals(result.status, 400);
+  assertEquals(result.body.error, "unknown_dialect");
+});
+
+Deno.test("transcript-review still accepts a legacy label already on rows", async () => {
+  // The curriculum builder writes "Emirati" where the video form writes "UAE".
+  // The notes form posts the dialect on every save, so refusing it would lock
+  // the reviewer out of the whole tab on those videos.
+  const result = await call(
+    { action: "save_notes", videoId: VIDEO, dialect: "Emirati" },
+    withVideo({ ...VIDEO_ROW, dialect: "Emirati" }),
+  );
+
+  assertEquals(result.status, 200);
+});
+
+Deno.test("transcript-review drops a sub-dialect that does not belong to the dialect", async () => {
+  // A reviewer correcting a mis-tagged video must not leave it claiming
+  // "Ḥijāzi" under "Egyptian" — nobody ever asserted that pair.
+  const result = await call(
+    {
+      action: "save_notes",
+      videoId: VIDEO,
+      dialect: "Egyptian",
+      dialectSubvariety: "kuwaiti-hadar",
+    },
+    withVideo(classifiedVideo()),
+  );
+
+  assertEquals(result.status, 200);
+  const writes = result.patches("/rest/v1/discover_videos");
+  assertEquals(writes[0].dialect, "Egyptian");
+  assertEquals(writes[0].dialect_subvariety, null);
+});
+
+Deno.test("transcript-review clears a stranded sub-dialect the client said nothing about", async () => {
+  // The country moved and the payload carried no sub-variety. Leaving the
+  // stored one would make the row assert something nobody said.
+  const result = await call(
+    { action: "save_notes", videoId: VIDEO, dialect: "Egyptian" },
+    withVideo(classifiedVideo()),
+  );
+
+  assertEquals(result.status, 200);
+  const writes = result.patches("/rest/v1/discover_videos");
+  assertEquals(writes[0].dialect_subvariety, null);
+
+  const fields = result
+    .posts("/rest/v1/transcript_line_revisions")
+    .map((row) => row.field)
+    .sort();
+  assertEquals(fields, ["dialect", "dialect_subvariety"]);
+});
+
+Deno.test("transcript-review keeps a sub-dialect that survives a change of dialect", async () => {
+  // Shiḥḥi is on both the UAE and the Omani list, and it is the same variety.
+  const result = await call(
+    { action: "save_notes", videoId: VIDEO, dialect: "Omani" },
+    withVideo(classifiedVideo({ dialect: "UAE", dialect_subvariety: "shihhi" })),
+  );
+
+  assertEquals(result.status, 200);
+  const writes = result.patches("/rest/v1/discover_videos");
+  assertEquals("dialect_subvariety" in writes[0], false);
+});
+
+Deno.test("transcript-review cleans the dialect features before storing them", async () => {
+  const result = await call({
+    action: "save_notes",
+    videoId: VIDEO,
+    dialectFeatures: [
+      { category: "question-words", title: "شنو", contrast: "Riyadh says وش." },
+      // An invented category would grow a key space nothing can group by.
+      { category: "vibes", title: "dropped" },
+      // A category and nothing else is a dropdown left on its default.
+      { category: "lexicon" },
+      "not an object",
+    ],
+  });
+
+  assertEquals(result.status, 200);
+  const stored = result.patches("/rest/v1/discover_videos")[0].dialect_features as unknown[];
+  assertEquals(stored.length, 1);
+  assertEquals((stored[0] as Record<string, unknown>).category, "question-words");
+});
+
+Deno.test("transcript-review tells the translator which variety it is looking at", async () => {
+  // `dialect` alone puts the model in "Gulf Arabic" and leaves it guessing
+  // between Kuwait City and the badu. Reaching the prompt is the point of
+  // setting the sub-variety at all — otherwise this is a field nothing reads.
+  let sent = "";
+  const capture = async (request: Request) => {
+    sent += await request.clone().text();
+    return chatCompletion("", { translation: "How's it going?", literal: "what-news-your" });
+  };
+
+  const result = await call(
+    { action: "retranslate_line", videoId: VIDEO, lineId: "line-1" },
+    upstreams("transcriber", {
+      "/rest/v1/discover_videos": (request) =>
+        request.method === "GET"
+          ? json(classifiedVideo())
+          : new Response(null, { status: 204 }),
+      "ai.gateway.lovable.dev": capture,
+      "openrouter.ai": capture,
+    }),
+  );
+
+  assertEquals(result.status, 200);
+  assert(
+    sent.includes("Ḥaḍar"),
+    `the sub-variety never reached the model; prompt was: ${sent.slice(0, 400)}`,
+  );
 });
 
 Deno.test("transcript-review rejects an unknown action", async () => {

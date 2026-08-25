@@ -458,6 +458,62 @@ gap its neighbours leave and trusted at confidence 1. Undo and redo go through
 the same rebuild, and now run the debounced save, so what is on screen and what
 has been reported to the page cannot disagree.
 
+### Sub-dialects and dialect features
+
+`discover_videos.dialect` stops at the country — "Saudi", "Kuwaiti",
+"Egyptian" — which is roughly the resolution of a passport rather than of a
+dialect. A Jeddah clip and a Riyadh clip land on the same label, a Ṣaʿīdi clip
+and a Cairene one land on the same label, and every generator that conditions on
+that label then teaches two systems at once and calls it one. Guessing Ḥijāzi
+from Najdi off a thirty-second clip is one of the things the pipeline is worst
+at; a native reviewer does it in a second. So the **Notes & grammar** tab of the
+workspace now opens with the classification, writing two columns:
+
+- `dialect_subvariety` — one id from `_shared/dialectSubvarieties.ts`, chosen
+  from a **second dropdown that depends on the first**. Picking "Saudi" offers
+  Najdi, Qassimi, Ḥijāzi, Eastern Province, Southern and Northern; "Yemeni"
+  offers Ṣanʿāni, Taʿizzi–ʿAdeni, Tihāmi, Ḥaḍrami, Yāfiʿi and northern tribal;
+  "Egyptian" offers Cairene, Alexandrian, Delta/Fallāḥi, the Canal cities,
+  Ṣaʿīdi and the two Bedouin groups; and so on for each Gulf state, with plain
+  "Gulf" offering the ḥaḍar/badu split that cuts across all of them. Two levels
+  rather than one flat list is the whole design: reached from the country, no
+  dropdown is more than seven long, and a dropdown a reviewer has to scroll is
+  one they leave on its default.
+- `dialect_features` — an array of `{ category, subvariety, title, arabic,
+  lineId, explanation, contrast }`, deliberately **not** folded into
+  `grammar_points`. A grammar point is what a learner should take away about
+  Arabic and ladders into `user_concept_mastery`; a dialect feature answers a
+  different question — *what makes this sound like Jeddah and not Riyadh* — and
+  most of the answers are not grammar at all. They are a ق, a Persian borrowing,
+  an intonation contour, a word that means something else one border away.
+  `category` comes from its own list (sound, pronouns, demonstratives,
+  article/genitive exponent, negation, verb shapes, tense-aspect markers,
+  question words, relatives, prepositions, word order, lexicon, discourse
+  particles, loanwords, numbers, prosody, register), kept separate from
+  `grammarTaxonomy.ts` for exactly that reason — a shared key space would force
+  every phonological note into "sentence-structure". `contrast` is the field
+  that earns the section: "uses شنو" is a fact, "uses شنو where Riyadh says وش
+  and Cairo says إيه" is what builds an ear.
+
+The reviewer can also correct `dialect` itself, which was previously admin-only.
+It is a classification rather than a publishing decision, which is the line the
+allow-list has always drawn. Two consequences are handled server-side: an
+unrecognised label is **refused** (there is nothing sensible to fall back to,
+and silently keeping the old country while reporting success is the failure mode
+most likely to go unnoticed), while a sub-variety that no longer belongs under
+the new country is **cleared** rather than refused — the case that produces one
+is somebody correcting a mis-tagged video, and refusing the save would leave
+them with the wrong country *and* the wrong variety under it. `Emirati` is
+accepted alongside `UAE` because both are already on rows; it is accepted, not
+rewritten, since re-labelling a row as a side effect of saving a note would put
+a change nobody made into the audit trail under their name.
+
+All three columns are logged like any other note — `transcript_line_revisions`
+gained `dialect`, `dialect_subvariety` and `dialect_features` — and the
+sub-variety reaches the per-line re-translation prompt, so a Ṣaʿīdi line is not
+glossed by an instruction that says "Egyptian Arabic" and leaves the model to
+assume Cairo.
+
 ### Unpublished drafts in the video form
 
 The admin video form holds an entire correction pass in React state until

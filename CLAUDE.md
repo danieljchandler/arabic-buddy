@@ -219,7 +219,12 @@ nothing. A checkmark stores the text it approved so it can be shown as stale
 when the line moves on; note that merging keeps the *left* line's id, so without
 that snapshot a tick would silently carry onto unread words. Reviewer chrome in
 `TranscriptEditor` hangs off one optional `lineReview` prop, so the admin video
-form renders unchanged. Full writeup in README.
+form renders unchanged. The reviewer also sets the **sub-dialect** — a second
+dropdown that depends on the dialect, off the taxonomy in
+`_shared/dialectSubvarieties.ts` (`dialect_subvariety`) — and lists what marks
+the clip as that variety (`dialect_features`), which is a separate key space
+from `grammarTaxonomy.ts` on purpose: most of what places a speaker is a sound,
+a borrowing or an intonation, not a grammar category. Full writeup in README.
 
 ## Project layout
 

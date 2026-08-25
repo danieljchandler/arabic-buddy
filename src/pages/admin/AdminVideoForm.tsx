@@ -24,8 +24,12 @@ import { extractFramesWithTimestamps } from "@/lib/videoFrameExtractor";
 import { extractAudioForAsr } from "@/lib/audioToWav";
 import { resolveStagedVideoAudioUrl, STAGED_AUDIO_EXTENSIONS } from "@/lib/videoAudioStaging";
 import { VideoThumbnail } from "@/components/media/VideoThumbnail";
+// The same array the review workspace offers and the `transcript-review` write
+// path validates against. Two copies would drift, and the one that drifts is
+// always the one enforcing.
+import { REVIEWABLE_DIALECTS } from "../../../supabase/functions/_shared/dialectSubvarieties";
 
-const DIALECTS = ["Saudi", "Kuwaiti", "UAE", "Bahraini", "Qatari", "Omani", "Gulf", "MSA", "Egyptian", "Yemeni", "Levantine", "Maghrebi"];
+const DIALECTS = REVIEWABLE_DIALECTS;
 const DIFFICULTIES = ["Beginner", "Intermediate", "Advanced", "Expert"];
 const CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
 const isVideoFile = (file: File) => file.type.startsWith("video/") || /\.(mp4|mov|m4v|webm|mkv)$/i.test(file.name);

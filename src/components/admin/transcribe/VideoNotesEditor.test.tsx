@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import VideoNotesEditor from "./VideoNotesEditor";
 
@@ -11,6 +12,10 @@ import VideoNotesEditor from "./VideoNotesEditor";
  * editable here rather than behind the admin-only video form, and the grammar
  * examples in particular are editable at all for the first time: the pipeline
  * writes them and nothing in the old form could correct them.
+ *
+ * The dialect classification joined them for the same reason: the label the
+ * pipeline guessed off a thirty-second clip was reaching every generator
+ * downstream with nobody able to say it was Ḥijāzi and not Najdi.
  */
 
 function setup(over: Partial<React.ComponentProps<typeof VideoNotesEditor>> = {}) {
@@ -18,6 +23,9 @@ function setup(over: Partial<React.ComponentProps<typeof VideoNotesEditor>> = {}
     culturalContext: "A greeting exchange.",
     grammarPoints: [{ title: "Negation", explanation: "ما before a verb.", examples: ["ما أدري"] }],
     vocabulary: [{ arabic: "شلونك", english: "how are you", root: "ل و ن" }],
+    dialect: "Saudi",
+    dialectSubvariety: null,
+    dialectFeatures: [],
     onSave: vi.fn().mockResolvedValue(undefined),
     ...over,
   };
@@ -73,7 +81,7 @@ describe("saving", () => {
     expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
   });
 
-  it("sends all three fields together", async () => {
+  it("sends every field together", async () => {
     const props = setup();
 
     fireEvent.change(screen.getByLabelText("Cultural notes"), { target: { value: "Revised." } });
@@ -84,6 +92,9 @@ describe("saving", () => {
         culturalContext: "Revised.",
         grammarPoints: props.grammarPoints,
         vocabulary: props.vocabulary,
+        dialect: props.dialect,
+        dialectSubvariety: props.dialectSubvariety,
+        dialectFeatures: props.dialectFeatures,
       }),
     );
   });
@@ -147,6 +158,75 @@ describe("adding and removing", () => {
   });
 });
 
+describe("the dialect classification", () => {
+  it("sits above the notes it frames", () => {
+    setup();
+
+    expect(screen.getByText("Which variety is this?")).toBeInTheDocument();
+    expect(screen.getByLabelText("Dialect")).toHaveTextContent("Saudi");
+  });
+
+  it("keeps dialect features in their own section, apart from grammar points", () => {
+    // The separation is the point: a grammar point is what a learner should
+    // take away about Arabic, a dialect feature is what places this speaker,
+    // and most of the latter are not grammar at all.
+    setup();
+
+    expect(screen.getByText("Grammar points (1)")).toBeInTheDocument();
+    expect(screen.getByText("Dialect-specific features (0)")).toBeInTheDocument();
+  });
+
+  it("sends the sub-dialect with the rest of the notes", async () => {
+    const props = setup();
+
+    await userEvent.click(screen.getByLabelText("Sub-dialect"));
+    await userEvent.click(screen.getByRole("option", { name: /Ḥijāzi/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Save notes" }));
+
+    await waitFor(() =>
+      expect(props.onSave).toHaveBeenCalledWith(
+        expect.objectContaining({ dialect: "Saudi", dialectSubvariety: "hijazi" }),
+      ),
+    );
+  });
+
+  it("sends a dialect feature", async () => {
+    const props = setup({ dialectSubvariety: "najdi" });
+
+    await userEvent.click(screen.getByRole("button", { name: "Add a dialect feature" }));
+    fireEvent.change(screen.getByLabelText("Dialect feature 1 contrast"), {
+      target: { value: "Jeddah would say إيش." },
+    });
+    await userEvent.click(screen.getByRole("button", { name: "Save notes" }));
+
+    await waitFor(() =>
+      expect(props.onSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dialectFeatures: [
+            expect.objectContaining({
+              category: "phonology",
+              subvariety: "najdi",
+              contrast: "Jeddah would say إيش.",
+            }),
+          ],
+        }),
+      ),
+    );
+  });
+
+  it("counts a change of dialect as unsaved work", () => {
+    // Otherwise a reviewer re-labels a mis-tagged video, sees a disabled save
+    // button, and concludes it went through.
+    const { view, ...props } = setup();
+
+    view.rerender(<VideoNotesEditor {...props} />);
+    expect(screen.getByRole("button", { name: "Save notes" })).toBeDisabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add a dialect feature" }));
+    expect(screen.getByRole("button", { name: "Save notes" })).toBeEnabled();
+  });
+});
+
 describe("when the video finishes loading", () => {
   it("takes up the notes that arrive", () => {
     const { view, ...props } = setup({ culturalContext: "" });
@@ -158,5 +238,14 @@ describe("when the video finishes loading", () => {
     // Otherwise the reviewer sees an empty box over a video that has notes, and
     // saving would wipe them.
     expect(screen.getByLabelText("Cultural notes")).toHaveValue("Arrived from the server.");
+  });
+
+  it("takes up the dialect classification that arrives", () => {
+    const { view, ...props } = setup();
+
+    view.rerender(<VideoNotesEditor {...props} dialect="Yemeni" dialectSubvariety="tihami" />);
+
+    expect(screen.getByLabelText("Dialect")).toHaveTextContent("Yemeni");
+    expect(screen.getByLabelText("Sub-dialect")).toHaveTextContent("Tihāmi");
   });
 });

@@ -222,7 +222,15 @@ export function useTranscriptReview(videoId: string | undefined) {
       culturalContext?: string;
       grammarPoints?: unknown[];
       vocabulary?: unknown[];
+      /** The country-level label. Refused server-side if it is not a known one. */
+      dialect?: string;
+      /** Cleared server-side if it does not belong under `dialect`. */
+      dialectSubvariety?: string | null;
+      dialectFeatures?: unknown[];
     }) => callReview<{ saved: boolean; revisions: number }>({ action: "save_notes", videoId, ...vars }),
+    // The dialect columns live on `discover_videos`, which this hook does not
+    // own — the workspace refetches its own video query on success, the same
+    // way it already does for the notes.
     onSuccess: () => invalidate("transcript-revisions"),
   });
 

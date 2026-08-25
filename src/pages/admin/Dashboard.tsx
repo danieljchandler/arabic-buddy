@@ -227,21 +227,7 @@ const Dashboard = () => {
                     </div>
                     <div>
                       <h3 className="font-semibold text-lg">Manage Videos</h3>
-                      <p className="text-muted-foreground">Add and manage Discover videos</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="cursor-pointer hover:shadow-elegant transition-shadow border-green-500/30" onClick={() => navigate('/admin/transcribe')}>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-green-500/10 rounded-full p-4">
-                      <CheckCheck className="h-8 w-8 text-green-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-lg">Transcription Review</h3>
-                      <p className="text-muted-foreground">What native speakers have checked, changed and questioned</p>
+                      <p className="text-muted-foreground">Add and manage Discover videos — including transcription review: what native speakers have checked, changed and questioned</p>
                     </div>
                   </div>
                 </CardContent>
@@ -463,9 +449,10 @@ const Dashboard = () => {
           {/*
             The transcriber's whole console. They hold the narrowest role in the
             app — a native speaker checking the AI's Arabic, not a member of
-            staff — so this is one card and a way into the one page they can
-            open. The guard in rbac.ts is what enforces that; this is what makes
-            it findable.
+            staff — so this is one card and a way into the one place they can
+            open: the video list, whose edit pages carry the review tools. The
+            guard in rbac.ts is what enforces that; this is what makes it
+            findable.
           */}
           {isTranscriber && !isAdmin && !isRecorder && !isContentReviewer && (
             <>
@@ -488,7 +475,7 @@ const Dashboard = () => {
 
               <Card
                 className="cursor-pointer hover:shadow-elegant transition-shadow"
-                onClick={() => navigate('/admin/transcribe')}
+                onClick={() => navigate('/admin/videos')}
               >
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
@@ -551,21 +538,7 @@ const Dashboard = () => {
                     </div>
                     <div>
                       <h3 className="font-semibold text-lg">Manage Video Content</h3>
-                      <p className="text-muted-foreground">Edit transcripts, translations, and cultural context</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="cursor-pointer hover:shadow-elegant transition-shadow border-green-500/30" onClick={() => navigate('/admin/transcribe')}>
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-4">
-                    <div className="bg-green-500/10 rounded-full p-4">
-                      <CheckCheck className="h-8 w-8 text-green-600" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-lg">Transcription Review</h3>
-                      <p className="text-muted-foreground">What native speakers have checked, changed and questioned</p>
+                      <p className="text-muted-foreground">Edit transcripts, translations, and cultural context — including what native speakers have checked, changed and questioned</p>
                     </div>
                   </div>
                 </CardContent>

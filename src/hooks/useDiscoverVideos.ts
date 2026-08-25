@@ -38,6 +38,10 @@ export interface DiscoverVideo {
   thumbnail_url: string | null;
   duration_seconds: number | null;
   dialect: string;
+  /** The sub-variety under `dialect`, e.g. "hijazi". Null until a reviewer judges it. */
+  dialect_subvariety?: string | null;
+  /** What marks the clip as that variety — a separate key space from grammar points. */
+  dialect_features?: Json | null;
   difficulty: string;
   cefr_level?: string | null;
   transcript_lines: Json;

@@ -201,9 +201,15 @@ export const ROUTES: RouteSpec[] = [
   // ── Admin ──────────────────────────────────────────────────────────────────
   { path: "/admin/login", gate: "public", boundary: "AdminLoginRoute" },
   { path: "/admin", gate: "admin-or-reviewer", boundary: "AdminRoute" },
-  { path: "/admin/videos", gate: "admin-or-reviewer" },
+  // The video list and edit page carry the transcript review workspace now, so
+  // a transcriber reaches them; creating a video stays management-only.
+  { path: "/admin/videos", gate: "admin-reviewer-or-transcriber" },
   { path: "/admin/videos/new", gate: "admin-or-reviewer" },
-  { path: "/admin/videos/:videoId/edit", params: { videoId: VIDEO_ID }, gate: "admin-or-reviewer" },
+  {
+    path: "/admin/videos/:videoId/edit",
+    params: { videoId: VIDEO_ID },
+    gate: "admin-reviewer-or-transcriber",
+  },
   { path: "/admin/set-phrases", gate: "admin-or-reviewer" },
   { path: "/admin/dialect-rules", gate: "admin-or-reviewer" },
 
@@ -242,7 +248,13 @@ export const ROUTES: RouteSpec[] = [
   { path: "/admin/reading-library/:id/edit", params: { id: STORY_ID }, gate: "admin" },
   { path: "/admin/channels", gate: "admin-or-reviewer" },
   { path: "/admin/clips", gate: "admin-or-reviewer" },
-  { path: "/admin/transcribe", gate: "admin-reviewer-or-transcriber" },
+  // The old review workspace addresses, kept as redirects into Manage Videos so
+  // bookmarks and shared links survive the merge.
+  {
+    path: "/admin/transcribe",
+    gate: "admin-reviewer-or-transcriber",
+    redirectsTo: "/admin/videos",
+  },
   {
     path: "/admin/transcribe/:videoId",
     params: { videoId: VIDEO_ID },

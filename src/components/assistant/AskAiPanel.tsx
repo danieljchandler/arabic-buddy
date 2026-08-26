@@ -20,6 +20,7 @@ import { useAiAssistant, type AssistantTab } from "@/contexts/AiAssistantContext
 import { useAuth } from "@/hooks/useAuth";
 import { useDialect } from "@/contexts/DialectContext";
 import { useKeyboardInset } from "@/hooks/useKeyboardInset";
+import { useVisibleViewport } from "@/hooks/useVisibleViewport";
 import { useSaveConversation } from "@/hooks/useSavedConversations";
 import { buildPagePayload } from "@/lib/pageAiContext";
 import { cn } from "@/lib/utils";
@@ -39,6 +40,16 @@ import { VoiceTab } from "./VoiceTab";
  * answers; on desktop it's a right rail with no scrim over the page. The
  * mobile/desktop split is pure CSS — branching on a JS breakpoint would remount
  * the subtree on rotation and drop a live voice call.
+ *
+ * Every one of those heights is a share of the viewport, which is a safe
+ * measure right up until the app is embedded: a preview pane hands the frame a
+ * viewport far taller than the pane itself, and a sheet anchored to the bottom
+ * of that viewport is laid out below the fold. Because the sheet is then
+ * enormous, its transcript never overflows and never scrolls — a long answer
+ * shows its first paragraph and strands the rest somewhere nobody can reach.
+ * So the geometry is written against `--ai-band-*`: the slice of the viewport
+ * the reader can actually see (see `useVisibleViewport`), falling back in the
+ * CSS to the `dvh` measures it replaces, which is what an ordinary tab gets.
  *
  * Staying out of the way stops being a kindness once there's a conversation to
  * read: a long answer, or a voice transcript, in a 56dvh sheet is a paragraph
@@ -94,6 +105,25 @@ export function AskAiPanel() {
     [],
   );
   const kbInset = useKeyboardInset(isOpen);
+  // What the reader can actually see. Normally the whole viewport, and then
+  // this is null and the dvh geometry below stands; inside a preview iframe
+  // taller than its pane it's the visible band, and everything the panel
+  // measures against the viewport has to be measured against that instead —
+  // otherwise the sheet is laid out below the fold, its transcript never
+  // overflows, and a long answer has no scrollbar and no way to reach the end.
+  const visible = useVisibleViewport(isOpen);
+
+  // One band, however it got shortened: a host that clips the frame takes it
+  // from the bottom, and so does the software keyboard.
+  const bottomInset = (visible?.bottom ?? 0) + kbInset;
+  // The 0.5rem is clearance the composer wants above a keyboard; there's
+  // nothing to clear when the shortening is the host's.
+  const keyboardGap = kbInset > 0 ? 8 : 0;
+  const bandHeight = visible
+    ? `${Math.max(0, visible.height - kbInset - keyboardGap)}px`
+    : kbInset > 0
+      ? `calc(100dvh - ${kbInset + keyboardGap}px)`
+      : null;
 
   // A live call needs the transcript and the call controls; peek can't hold both.
   useEffect(() => {
@@ -194,10 +224,14 @@ export function AskAiPanel() {
           }
         }}
         data-snap={snap}
+        // The three custom properties the geometry below is written against.
+        // Each one falls back, in the CSS itself, to the viewport measure it
+        // replaces, so an unembedded page with no keyboard up gets exactly the
+        // `dvh` layout it had before any of this existed.
         style={{
-          ...(kbInset
-            ? { bottom: kbInset, maxHeight: `calc(100dvh - ${kbInset}px - 0.5rem)` }
-            : null),
+          ...(bottomInset > 0 ? { "--ai-band-bottom": `${bottomInset}px` } : null),
+          ...(visible ? { "--ai-band-top": `${visible.top}px` } : null),
+          ...(bandHeight ? { "--ai-band-h": bandHeight } : null),
           // Reading mode is the only snap that reaches the top of the screen,
           // so it's the only one that has to duck the notch. AppShell's own
           // safe-area padding doesn't reach here — the sheet is portalled.
@@ -207,7 +241,7 @@ export function AskAiPanel() {
                 paddingBottom: "env(safe-area-inset-bottom)",
               }
             : null),
-        }}
+        } as React.CSSProperties}
         className={cn(
           // Named so descendants can size their own type off the snap without
           // prop drilling — a prop would be fine, but ChatTab and VoiceTab both
@@ -218,12 +252,16 @@ export function AskAiPanel() {
           // than snapping to it.
           "transition-[height,max-width] duration-300 ease-lahja motion-reduce:transition-none",
           "data-[state=open]:duration-300 data-[state=closed]:duration-300",
-          // Mobile: a bottom sheet that leaves the page visible above it.
-          "max-sm:inset-x-0 max-sm:bottom-0 max-sm:top-auto max-sm:w-full",
+          // Mobile: a bottom sheet that leaves the page visible above it. The
+          // bottom it sits on is the bottom of the *visible* band, not of the
+          // layout viewport — they differ inside an embedded preview, and with
+          // the keyboard up.
+          "max-sm:inset-x-0 max-sm:bottom-[var(--ai-band-bottom,0px)] max-sm:top-auto max-sm:w-full",
           "max-sm:shadow-[0_-8px_30px_-12px_rgba(0,0,0,0.35)]",
           "max-sm:data-[state=open]:slide-in-from-bottom max-sm:data-[state=closed]:slide-out-to-bottom",
-          // Desktop: a right rail, no scrim over the page.
-          "sm:inset-y-0 sm:right-0 sm:h-full sm:w-full",
+          // Desktop: a right rail, no scrim over the page. Spanning the band
+          // top to band bottom rather than inset-y-0, for the same reason.
+          "sm:top-[var(--ai-band-top,0px)] sm:bottom-[var(--ai-band-bottom,0px)] sm:h-auto sm:right-0 sm:w-full",
           "sm:rounded-none sm:shadow-elegant",
           "sm:data-[state=open]:slide-in-from-right sm:data-[state=closed]:slide-out-to-right",
           // The geometry that reading mode overrides is branched rather than
@@ -232,14 +270,16 @@ export function AskAiPanel() {
           // override that sits next to what it overrides is a coin toss.
           // Static literals throughout, so the scanner emits every height.
           isCover
-            ? // Reading mode: the whole viewport on a phone (bottom-0 plus a
-              // full-height box, so `top` stays out of the fight), and a
+            ? // Reading mode: the whole band on a phone (bottom plus a
+              // full-band box, so `top` stays out of the fight), and a
               // centred column on desktop — a 1440px-wide line of chat is no
               // more readable than a 380px-tall one.
-              "max-sm:h-[100dvh] max-sm:rounded-none sm:left-0 sm:max-w-none"
+              "max-sm:h-[var(--ai-band-h,100dvh)] max-sm:rounded-none sm:left-0 sm:max-w-none"
             : cn(
                 "max-sm:rounded-t-2xl max-sm:border-t sm:left-auto sm:max-w-md sm:border-l",
-                snap === "full" ? "max-sm:h-[92dvh]" : "max-sm:h-[56dvh]",
+                snap === "full"
+                  ? "max-sm:h-[calc(var(--ai-band-h,100dvh)*0.92)]"
+                  : "max-sm:h-[calc(var(--ai-band-h,100dvh)*0.56)]",
               ),
         )}
       >

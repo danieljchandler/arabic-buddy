@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "./support/fixtures";
 import { aProfile, aUserXp } from "../src/test/support/factories";
+import { streaming } from "../src/test/support/server/functions";
 
 /**
  * The Ask AI panel has to leave the learner looking at whatever they asked
@@ -192,5 +193,130 @@ test.describe("Ask AI panel", () => {
     await expect(page.getByRole("heading", { name: /reading practice/i })).toBeInViewport();
 
     await page.screenshot({ path: "/tmp/ask-ai-desktop.png" });
+  });
+});
+
+/**
+ * The panel embedded in a preview pane.
+ *
+ * A hosted preview (Lovable's, an editor's live pane, an embedded demo) puts
+ * the app in an iframe whose *layout* viewport is whatever the host asked for,
+ * which is routinely much taller than the pane the reader is looking at. Every
+ * `dvh` measurement and every `bottom: 0` then points at a part of the frame
+ * nobody can see, and a bottom sheet lands below the fold.
+ *
+ * That failure is quiet, which is what makes it worth a spec of its own: the
+ * sheet is a thousand pixels tall, so its transcript never overflows, never
+ * grows a scrollbar, and simply strands the rest of a long answer underneath
+ * the visible pane — a learner sees the first paragraph of a reply, no
+ * scrollbar, and no way to reach the rest. Nothing errors and nothing looks
+ * broken from the inside.
+ */
+test.describe("Ask AI panel, embedded in a preview", () => {
+  // Long enough that the reply cannot fit any plausible pane — the end of it
+  // has to be reachable by scrolling rather than by luck.
+  const LONG_REPLY = Array.from(
+    { length: 20 },
+    (_, i) =>
+      `Paragraph ${i + 1}: what the word means, the grammar behind it, and how a Gulf speaker would actually use it.\n\n`,
+  ).concat(["The last thing the answer says. ENDMARKER"]);
+
+  /** The pane the reader can see; the frame's own viewport is far taller. */
+  const PANE = { width: 1200, height: 700 };
+
+  test.beforeEach(async ({ signInAs, backend, db }) => {
+    await signInAs("free");
+    db.seed("profiles", [aProfile()]);
+    db.seed("reading_passages", []);
+    db.seed("user_xp", [aUserXp()]);
+    backend.stubFunction("reading-passage", { passage: PASSAGE });
+    backend.stubFunction("assistant-chat", () => streaming(...LONG_REPLY));
+  });
+
+  test("keeps a long answer readable inside the visible pane", async ({ page }) => {
+    await page.setViewportSize(PANE);
+    // Load the app once so the frame below is same-origin and signed in.
+    await page.goto("/reading");
+    await expect(page.getByRole("heading", { name: /reading practice/i })).toBeVisible();
+
+    await page.setContent(`
+      <style>html,body{margin:0;height:100%;overflow:hidden}
+      .preview{position:absolute;top:0;left:0;width:390px;height:2000px;border:0}</style>
+      <iframe class="preview" src="/reading"></iframe>
+    `);
+
+    const app = page.frameLocator("iframe.preview");
+    const heading = app.getByRole("heading", { name: /reading practice/i });
+    await expect(heading).toBeVisible();
+
+    // Cmd/Ctrl+K goes to whichever frame has focus, so give it to the app.
+    await heading.click();
+    await page.keyboard.press("ControlOrMeta+k");
+    const dialog = app.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+
+    await app.getByPlaceholder("Ask a question…").fill("explain this");
+    // A plain click, deliberately: Playwright refuses to click something
+    // outside the window, which is exactly what the composer used to be.
+    await app.getByRole("button", { name: "Send" }).click();
+    await expect(app.getByText(/Paragraph 1:/)).toBeVisible();
+
+    // The whole panel — transcript, composer and all — is inside the pane.
+    const panel = (await dialog.boundingBox())!;
+    expect(panel.y).toBeGreaterThanOrEqual(0);
+    expect(panel.y + panel.height).toBeLessThanOrEqual(PANE.height + 1);
+
+    // And the transcript overflows it, which is what gives the reader a
+    // scrollbar instead of an answer that runs off into the dark.
+    const transcript = app.locator("#ask-ai-body > div").first();
+    const overflow = await transcript.evaluate(
+      (el) => el.scrollHeight - el.clientHeight,
+    );
+    expect(overflow).toBeGreaterThan(0);
+
+    // The end of the answer is reachable, and lands where it can be read.
+    const end = app.getByText(/ENDMARKER/);
+    await end.scrollIntoViewIfNeeded();
+    const last = (await end.boundingBox())!;
+    expect(last.y).toBeGreaterThanOrEqual(0);
+    expect(last.y + last.height).toBeLessThanOrEqual(PANE.height + 1);
+
+    await page.screenshot({ path: "/tmp/ask-ai-embedded-preview.png" });
+  });
+
+  test("spans the visible pane rather than the frame as a desktop rail", async ({ page }) => {
+    await page.setViewportSize(PANE);
+    await page.goto("/reading");
+    await expect(page.getByRole("heading", { name: /reading practice/i })).toBeVisible();
+
+    // The same host, at a width where the panel is a side rail: the rail runs
+    // the height of the viewport, which is the measure that goes wrong here.
+    await page.setContent(`
+      <style>html,body{margin:0;height:100%;overflow:hidden}
+      .preview{position:absolute;top:0;left:0;width:900px;height:2000px;border:0}</style>
+      <iframe class="preview" src="/reading"></iframe>
+    `);
+
+    const app = page.frameLocator("iframe.preview");
+    const heading = app.getByRole("heading", { name: /reading practice/i });
+    await expect(heading).toBeVisible();
+    await heading.click();
+    await page.keyboard.press("ControlOrMeta+k");
+
+    const dialog = app.getByRole("dialog");
+    await expect(dialog).toBeVisible();
+    await app.getByPlaceholder("Ask a question…").fill("explain this");
+    await app.getByRole("button", { name: "Send" }).click();
+    await expect(app.getByText(/Paragraph 1:/)).toBeVisible();
+
+    const panel = (await dialog.boundingBox())!;
+    expect(panel.y).toBeGreaterThanOrEqual(0);
+    expect(panel.y + panel.height).toBeLessThanOrEqual(PANE.height + 1);
+
+    const overflow = await app
+      .locator("#ask-ai-body > div")
+      .first()
+      .evaluate((el) => el.scrollHeight - el.clientHeight);
+    expect(overflow).toBeGreaterThan(0);
   });
 });

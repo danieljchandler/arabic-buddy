@@ -314,12 +314,18 @@ test.describe("what the page promises", () => {
     await expect(page.getByText("$0")).toBeVisible();
   });
 
-  test("states the vocabulary limits the free tier is capped by", async ({ page }) => {
+  test("describes what the tiers actually enforce", async ({ page }) => {
     await page.goto("/pricing");
 
-    await expect(page.getByText("10 vocabulary words")).toBeVisible();
-    await expect(page.getByText("100 vocabulary words")).toBeVisible();
-    await expect(page.getByText("Unlimited vocabulary storage")).toBeVisible();
+    // Pinned to the backend's real levers — daily caps (usageCap.ts) and the
+    // monthly voice budget (voiceBudgetCore.ts). This page used to promise
+    // vocabulary caps and Discover tiers that no code implements, which is
+    // the kind of claim a diligent buyer checks.
+    await expect(page.getByText("Every AI tool, with daily free limits")).toBeVisible();
+    await expect(page.getByText("No daily limits on AI learning tools")).toBeVisible();
+    await expect(page.getByText(/voice conversations — 2 hours\/month/i)).toBeVisible();
+    await expect(page.getByText(/voice conversations — 5 hours\/month/i)).toBeVisible();
+    await expect(page.getByText(/vocabulary words/)).toHaveCount(0);
   });
 
   test("answers the questions a buyer asks before paying", async ({ page }) => {

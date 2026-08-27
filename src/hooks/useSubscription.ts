@@ -30,12 +30,14 @@ export const SUBSCRIPTION_TIERS = {
     annualPrice: 50,
     priceId: 'price_1T8t8sHVAO3F9uuDOpwSh2zQ',
     productId: 'prod_U77NfmTFN3mabx',
+    // These bullets are shown on the pricing page and must describe what the
+    // backend actually enforces (usageCap.ts, voiceBudgetCore.ts) — they used
+    // to promise vocabulary caps and Discover tiers no code implements.
     features: [
-      'AI-powered Transcribe tool',
-      'Meme Analyzer',
-      'How Do I Say feature',
-      '100 vocabulary words',
-      'Basic Discover content',
+      'No daily limits on AI learning tools',
+      'Live AI voice conversations — 2 hours/month',
+      'More AI flashcard images & word jingles each day',
+      'Unlimited Transcribe, Meme Analyzer & How Do I Say',
     ],
   },
   allin: {
@@ -46,9 +48,8 @@ export const SUBSCRIPTION_TIERS = {
     productId: 'prod_U77OH1rRl0YAiF',
     features: [
       'Everything in Standard',
-      'Unlimited vocabulary storage',
-      'Full Discover content library',
-      'Priority AI processing',
+      'Live AI voice conversations — 5 hours/month',
+      'Our highest allowances for AI images & jingles',
       'Early access to new features',
     ],
   },

@@ -7,7 +7,7 @@
 
 -- Credits are a ledger, not a counter: every grant, spend and refund is a row,
 -- balance is a sum, and a Stripe session can be credited exactly once.
-CREATE TABLE public.native_feedback_credits (
+CREATE TABLE IF NOT EXISTS public.native_feedback_credits (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   delta integer NOT NULL CHECK (delta <> 0),
@@ -16,11 +16,12 @@ CREATE TABLE public.native_feedback_credits (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_native_feedback_credits_user
+CREATE INDEX IF NOT EXISTS idx_native_feedback_credits_user
   ON public.native_feedback_credits (user_id, created_at DESC);
 
 ALTER TABLE public.native_feedback_credits ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users read own credit ledger" ON public.native_feedback_credits;
 CREATE POLICY "Users read own credit ledger"
   ON public.native_feedback_credits FOR SELECT TO authenticated
   USING (user_id = auth.uid());
@@ -31,7 +32,7 @@ GRANT ALL ON public.native_feedback_credits TO service_role;
 -- The learner-facing side of a request. The reviewer never touches this
 -- table: they answer in dialect_native_reviews and the trigger below mirrors
 -- the answer here.
-CREATE TABLE public.native_feedback_requests (
+CREATE TABLE IF NOT EXISTS public.native_feedback_requests (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   dialect text NOT NULL CHECK (dialect IN ('Gulf', 'Egyptian', 'Yemeni')),
@@ -45,11 +46,12 @@ CREATE TABLE public.native_feedback_requests (
   answered_at timestamptz
 );
 
-CREATE INDEX idx_native_feedback_requests_user
+CREATE INDEX IF NOT EXISTS idx_native_feedback_requests_user
   ON public.native_feedback_requests (user_id, created_at DESC);
 
 ALTER TABLE public.native_feedback_requests ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users read own feedback requests" ON public.native_feedback_requests;
 CREATE POLICY "Users read own feedback requests"
   ON public.native_feedback_requests FOR SELECT TO authenticated
   USING (user_id = auth.uid());
@@ -103,6 +105,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_settle_native_feedback ON public.dialect_native_reviews;
 DROP TRIGGER IF EXISTS trg_settle_native_feedback ON public.dialect_native_reviews;
 CREATE TRIGGER trg_settle_native_feedback
   AFTER UPDATE ON public.dialect_native_reviews

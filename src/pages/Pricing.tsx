@@ -134,10 +134,10 @@ const Pricing = () => {
                 <CardContent>
                   <ul className="space-y-3">
                     {[
-                      'Browse vocabulary topics',
-                      'Basic flashcard review',
-                      '10 vocabulary words',
-                      'Limited Discover videos',
+                      'Full lesson library & flashcard review',
+                      'Discover video feed in all three dialects',
+                      'Every AI tool, with daily free limits',
+                      'Voice practice — 30 minutes/month',
                     ].map((feature) => (
                       <li key={feature} className="flex items-start gap-2">
                         <Check className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
@@ -147,9 +147,22 @@ const Pricing = () => {
                   </ul>
                 </CardContent>
                 <CardFooter>
-                  <Button variant="outline" className="w-full" disabled>
-                    Current Plan
-                  </Button>
+                  {/* Three truths, three buttons: a visitor can claim this plan,
+                      a free learner is on it, a subscriber has outgrown it —
+                      it used to say "Current Plan" to all three. */}
+                  {!user ? (
+                    <Button variant="outline" className="w-full" onClick={() => navigate('/auth')}>
+                      Sign Up Free
+                    </Button>
+                  ) : subscribed ? (
+                    <Button variant="outline" className="w-full" disabled>
+                      Included in your plan
+                    </Button>
+                  ) : (
+                    <Button variant="outline" className="w-full" disabled>
+                      Current Plan
+                    </Button>
+                  )}
                 </CardFooter>
               </Card>
 
@@ -273,11 +286,11 @@ const Pricing = () => {
                 {[
                   {
                     q: 'Which dialects are included?',
-                    a: 'Every paid plan unlocks all active dialect modules — Gulf, Egyptian, and Yemeni — with native audio, immersion-first lessons, and the MSA bridge track. New dialects roll out to All-In subscribers first.',
+                    a: 'All three — Gulf, Egyptian, and Yemeni — on every plan, the Free plan included, with native audio and dialect-first lessons throughout. New dialects roll out to All-In subscribers first.',
                   },
                   {
-                    q: 'What counts toward the vocabulary limit?',
-                    a: 'Only words you actively save to "My Words" count. Browsing topics, transcripts, and Discover videos is unlimited. Free covers 10 saved words, Standard 100, and All-In is uncapped.',
+                    q: 'What do the daily limits cover?',
+                    a: 'Free accounts get a generous daily allowance on AI-powered tools — stories, drills, transcription, pronunciation scoring and the like. Saving words, reviewing flashcards, and watching Discover videos are unlimited on every plan. Paid plans remove the daily limits.',
                   },
                   {
                     q: 'Can I switch plans or cancel later?',
@@ -285,7 +298,7 @@ const Pricing = () => {
                   },
                   {
                     q: 'Do I keep my progress if I downgrade?',
-                    a: 'Always. Your streak, XP, saved words, and review history are tied to your account, not your plan. If you exceed a lower tier\'s limits, older items go read-only until you upgrade again.',
+                    a: 'Always. Your streak, XP, saved words, and review history are tied to your account, not your plan — nothing is deleted or locked when you change plans.',
                   },
                   {
                     q: 'Is there a free trial?',

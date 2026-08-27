@@ -114,6 +114,7 @@ Deno.test("learnerMemory returns nothing rather than failing when the read fails
         summary: "",
         openQuestions: [],
         turnsSeen: 0,
+        turnsTotal: 0,
       });
       assertEquals(await mod.learnerMemoryBlock(USER, "Gulf"), "");
     },

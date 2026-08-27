@@ -22,6 +22,7 @@ GRANT EXECUTE ON FUNCTION public.is_transcriber() TO anon, authenticated, servic
 GRANT EXECUTE ON FUNCTION public.can_review_transcripts() TO anon, authenticated, service_role;
 
 DROP POLICY IF EXISTS "Anyone can view published videos" ON public.discover_videos;
+DROP POLICY IF EXISTS "Published videos are public, reviewers see every video" ON public.discover_videos;
 CREATE POLICY "Published videos are public, reviewers see every video"
 ON public.discover_videos
 FOR SELECT
@@ -87,14 +88,17 @@ CREATE INDEX IF NOT EXISTS transcript_line_comments_video_idx
 CREATE INDEX IF NOT EXISTS transcript_line_comments_open_idx
   ON public.transcript_line_comments (video_id) WHERE resolved_at IS NULL;
 
+DROP POLICY IF EXISTS "Reviewers read line reviews" ON public.transcript_line_reviews;
 CREATE POLICY "Reviewers read line reviews"
 ON public.transcript_line_reviews FOR SELECT TO authenticated
 USING (public.can_review_transcripts());
 
+DROP POLICY IF EXISTS "Reviewers read line revisions" ON public.transcript_line_revisions;
 CREATE POLICY "Reviewers read line revisions"
 ON public.transcript_line_revisions FOR SELECT TO authenticated
 USING (public.can_review_transcripts());
 
+DROP POLICY IF EXISTS "Reviewers read line comments" ON public.transcript_line_comments;
 CREATE POLICY "Reviewers read line comments"
 ON public.transcript_line_comments FOR SELECT TO authenticated
 USING (public.can_review_transcripts());

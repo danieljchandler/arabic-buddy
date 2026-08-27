@@ -172,10 +172,10 @@ test.describe("deleting", () => {
 
 test.describe("the free-tier vocabulary cap", () => {
   test("a free learner is not stopped from saving beyond ten words", async ({ page, signInAs, db }) => {
-    // Recording current behaviour. src/lib/featureAccess.ts declares
-    // FREE_TIER_LIMITS.vocabularyWords = 10 and STANDARD_TIER_LIMITS = 100, but
-    // nothing imports either constant — the caps are declared and never
-    // enforced. This will fail if they are ever wired up, which is the point.
+    // Recording current behaviour: no vocabulary cap exists on any tier, and
+    // since the pricing page stopped promising one this is now the product's
+    // position rather than a gap. This fails if a cap is ever wired up, which
+    // is the point — the pricing copy would have to change with it.
     await signInAs("free");
     seedWords(db, 25);
 

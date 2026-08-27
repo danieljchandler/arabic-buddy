@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { useDialect, type DialectModule } from '@/contexts/DialectContext';
 import { supabase } from '@/integrations/supabase/client';
 import { markTourPending } from '@/components/onboarding/OnboardingTour';
 import { AppShell } from '@/components/layout/AppShell';
@@ -69,6 +70,11 @@ const GOALS = [
 const Onboarding = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading } = useAuth();
+  // The app-wide dialect, not just this wizard's draft. DialectContext syncs
+  // from the profile only on mount — before this wizard writes it — so a pick
+  // that stays local never reaches the feed, the curriculum or the placement
+  // quiz: choose Egyptian here and the quiz would have tested Gulf.
+  const { setDialect: setAppDialect } = useDialect();
   const [step, setStep] = useState<Step>('welcome');
   const [dialect, setDialect] = useState('Gulf');
   const [level, setLevel] = useState('beginner');
@@ -147,6 +153,9 @@ const Onboarding = () => {
       }
 
       markTourPending();
+      // The wizard's pick becomes the active dialect right now — not after
+      // the next full reload, which is when the context would next read it.
+      setAppDialect(dialect as DialectModule);
       toast.success('Welcome to Hakiya! 🎉');
       navigate('/');
     } catch (e) {
@@ -233,7 +242,12 @@ const Onboarding = () => {
               {DIALECTS.map((d) => (
                 <button
                   key={d.id}
-                  onClick={() => setDialect(d.id)}
+                  onClick={() => {
+                    setDialect(d.id);
+                    // Applied app-wide immediately, so leaving the wizard for
+                    // the placement quiz tests the dialect just chosen.
+                    setAppDialect(d.id as DialectModule);
+                  }}
                   className={cn(
                     'w-full overflow-hidden rounded-2xl border-2 text-left transition-all duration-200 active:scale-[0.99]',
                     dialect === d.id

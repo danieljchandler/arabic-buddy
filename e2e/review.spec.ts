@@ -84,3 +84,23 @@ test.describe("review is never more than a tap away", () => {
       .toContainText("caught up");
   });
 });
+
+test.describe("when the queue cannot load", () => {
+  test("says the load failed instead of pretending the queue is clear", async ({ page }) => {
+    await signIn(page);
+    const backend = await stubSupabase(page, { curriculumDue: 2 });
+    backend.db.failAlways("vocabulary_words", 500);
+
+    await page.goto("/review");
+
+    // A failed fetch used to render "All caught up!" — a false success that
+    // told a learner with cards waiting that there was nothing to do.
+    await expect(page.getByText("Your reviews didn't load")).toBeVisible();
+    await expect(page.getByText(/caught up/i)).toHaveCount(0);
+
+    // And the retry is real: once the backend recovers, the session loads.
+    backend.db.clearFailure("vocabulary_words");
+    await page.getByRole("button", { name: "Try again" }).click();
+    await expect(page.getByText("كلمة1")).toBeVisible();
+  });
+});

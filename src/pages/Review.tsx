@@ -47,7 +47,7 @@ const Review = () => {
   const { enabled: leechTrackingEnabled } = useLeechPrefs();
   const [mixAll, setMixAll] = useState(false);
 
-  const { data: dueWords, isLoading: wordsLoading, refetch } = useDueWords(mixAll);
+  const { data: dueWords, isLoading: wordsLoading, isError: wordsError, refetch } = useDueWords(mixAll);
   const { data: stats } = useReviewStats(mixAll);
   const { enqueue, pendingCount, isFlushing, isOnline } = useReviewQueue();
   const session = useReviewSession(mixAll);
@@ -238,6 +238,22 @@ const Review = () => {
     return (
       <AppShell compact>
         <LoadingPanel variant="page" statusOverride="Loading your reviews…" />
+      </AppShell>
+    );
+  }
+
+  // A failed fetch used to fall through to "All caught up!" — a false success
+  // on the app's central loop. Say what happened and offer a retry instead.
+  if (wordsError) {
+    return (
+      <AppShell compact>
+        <div className="max-w-md mx-auto text-center pt-24">
+          <h1 className="text-xl font-bold text-foreground mb-3">Your reviews didn&apos;t load</h1>
+          <p className="text-muted-foreground mb-8">
+            Check your connection and try again — your cards and progress are safe.
+          </p>
+          <Button onClick={() => refetch()}>Try again</Button>
+        </div>
       </AppShell>
     );
   }

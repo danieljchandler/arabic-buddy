@@ -8,4 +8,4 @@
 -- Nullable: every story already in the table keeps working through the page's
 -- splitting fallback.
 ALTER TABLE public.daily_vocab_stories
-  ADD COLUMN sentences jsonb;
+  ADD COLUMN IF NOT EXISTS sentences jsonb;

@@ -97,7 +97,11 @@ test.describe("the feed", () => {
       .getByRole("navigation", { name: "Primary" })
       .getByRole("link", { name: /Your account/ });
     await expect(mark).toBeVisible();
-    await expect(face.locator("img")).toHaveAttribute("src", "/avatars/sadu-rose.png");
+    // Scoped to the avatar's own src, same as shell.spec: until the profile
+    // query resolves the emblem shows its two-image fallback, and a bare
+    // locator("img") dies on the strict-mode violation instead of waiting.
+    await expect(face.locator('img[src="/avatars/sadu-rose.png"]')).toBeVisible();
+    await expect(face.locator("img")).toHaveCount(1);
   });
 
   test("carries the dialect choice on the feed itself", async ({ page, db, backend }) => {
@@ -188,5 +192,20 @@ test.describe("the feed", () => {
     // Tapping a number to find out where that number came from is the only
     // thing that chip can mean, and /today is the page that answers it.
     await expect(page).toHaveURL(/\/today$/);
+  });
+});
+
+test.describe("when the feed cannot load", () => {
+  test("says so instead of claiming there are no clips", async ({ page, signInAs, backend }) => {
+    await signInAs("free");
+    backend.stubFunctionFailure("discover-feed", 500);
+
+    await page.goto("/");
+
+    // A failed fetch used to render the "No new clips right now" empty state —
+    // the front door claiming the library was empty on every network blip.
+    await expect(page.getByText("The feed didn't load")).toBeVisible();
+    await expect(page.getByText("No new clips right now")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
   });
 });

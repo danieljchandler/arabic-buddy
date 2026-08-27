@@ -536,3 +536,20 @@ test.describe("slowing a video down", () => {
     await expect(page.getByRole("button", { name: "Slow 0.75x" })).toBeVisible({ timeout: 10_000 });
   });
 });
+
+test.describe("a clip that cannot be loaded", () => {
+  test("offers a way out instead of a bare dead end", async ({ page, signInAs }) => {
+    await signInAs("free");
+
+    // Nothing seeded: the player's .single() lookup fails, which is also what
+    // a deleted or unreachable clip looks like from the page's point of view.
+    await page.goto(`/discover/${videoId(7)}`);
+
+    await expect(page.getByText("This clip didn't load")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
+
+    // The escape hatch is the point — this page used to render only the text.
+    await page.getByRole("button", { name: "Browse clips" }).click();
+    await expect(page).toHaveURL(/\/discover$/);
+  });
+});

@@ -502,4 +502,97 @@ test.describe("the placement quiz", () => {
       await expect(page.getByText(/failed to calculate results/i)).toBeVisible();
     });
   });
+
+  test("returns to the wizard it was launched from, draft intact", async ({
+    page,
+    db,
+    backend,
+  }) => {
+    // Twenty 1.5s feedback pauses plus the wizard walk need more than the
+    // default 30s.
+    test.setTimeout(120_000);
+    // Jumping to the quiz from the wizard's level step used to abandon the
+    // wizard: local state gone, onboarding_completed still false, and the
+    // finish line moved back to step one.
+    db.seed("profiles", [aProfile({ onboarding_completed: false })]);
+    stubQuiz(backend);
+
+    await page.goto("/onboarding");
+    await advanceTo(page, "dialect");
+    await page.getByRole("button", { name: /Egyptian Arabic/ }).click();
+    await page.getByRole("button", { name: /^continue$/i }).click();
+
+    await page.getByRole("button", { name: /placement quiz/i }).click();
+    await expect(page).toHaveURL(/\/placement\?from=onboarding/);
+
+    await page.getByRole("button", { name: /start quiz/i }).click();
+    for (let index = 1; index <= 20; index++) {
+      await page.getByRole("button", { name: new RegExp(`صح ${index}$`) }).click();
+    }
+    await expect(page.getByRole("heading", { name: "B2" })).toBeVisible({ timeout: 20_000 });
+    await page.getByRole("button", { name: /start learning/i }).click();
+
+    // Back on the level step with the Egyptian pick still in hand — not on
+    // the feed, and not at "Welcome to Hakiya" again.
+    await expect(page).toHaveURL(/\/onboarding$/);
+    await expect(page.getByRole("heading", { name: STEP_HEADINGS.level })).toBeVisible();
+  });
+
+  test("asks an anonymous finisher to sign up rather than discarding the run", async ({
+    page,
+    signInAs,
+    backend,
+  }) => {
+    test.setTimeout(120_000);
+    await signInAs("anonymous");
+    stubQuiz(backend);
+
+    await page.goto("/placement");
+    await page.getByRole("button", { name: /start quiz/i }).click();
+    for (let index = 1; index <= 20; index++) {
+      await page.getByRole("button", { name: new RegExp(`صح ${index}$`) }).click();
+    }
+    await expect(page.getByRole("heading", { name: "B2" })).toBeVisible({ timeout: 20_000 });
+
+    await page.getByRole("button", { name: /start learning/i }).click();
+
+    // Twenty answers used to be dropped silently on the landing page. The
+    // level is only keepable on an account, and now the page says so.
+    await expect(page.getByText(/sign up free to keep your B2 level/i).first()).toBeVisible();
+    await expect(page).toHaveURL(/\/auth/);
+  });
+
+  test("offers a retry when a mid-run batch fails, instead of a blank pane", async ({
+    page,
+    backend,
+    expectConsoleErrors,
+  }) => {
+    test.setTimeout(60_000);
+    expectConsoleErrors([/.*/]);
+
+    let generated = 0;
+    let failBatches = false;
+    backend.stubFunction("placement-quiz", ({ body }) => {
+      const action = (body as { action?: string })?.action;
+      if (action === "score") return { cefr_level: "B2", confidence: 80, strengths: [], weaknesses: [] };
+      if (failBatches) return { status: 500, body: { error: "generator down" } };
+      return { questions: Array.from({ length: 5 }, () => question(++generated)) };
+    });
+
+    await page.goto("/placement");
+    await page.getByRole("button", { name: /start quiz/i }).click();
+    // Only fail the SECOND batch — the flag must not race the first fetch.
+    await expect(page.getByText("سؤال 1")).toBeVisible();
+    failBatches = true;
+    for (let index = 1; index <= 5; index++) {
+      await page.getByRole("button", { name: new RegExp(`صح ${index}$`) }).click();
+    }
+
+    // The run stalls at the batch boundary — visibly, with the answers safe.
+    await expect(page.getByText(/couldn.t load the next questions/i)).toBeVisible({ timeout: 20_000 });
+
+    failBatches = false;
+    await page.getByRole("button", { name: /try again/i }).click();
+    await expect(page.getByText("سؤال 6")).toBeVisible();
+  });
 });

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { useDialect, type DialectModule } from '@/contexts/DialectContext';
@@ -39,6 +39,17 @@ import goalIntensiveArt from '@/assets/illustrations/goal-intensive.webp';
 
 type Step = 'welcome' | 'dialect' | 'level' | 'purpose' | 'goal';
 
+const DRAFT_KEY = 'hakiya_onboarding_draft';
+
+interface Draft {
+  step: Step;
+  dialect: string;
+  level: string;
+  goal: string;
+  reason: string | null;
+  interests: string[];
+}
+
 const STEPS: Step[] = ['welcome', 'dialect', 'level', 'purpose', 'goal'];
 
 // Must match DialectModule ('Gulf' | 'Egyptian' | 'Yemeni') — the only values
@@ -75,13 +86,36 @@ const Onboarding = () => {
   // that stays local never reaches the feed, the curriculum or the placement
   // quiz: choose Egyptian here and the quiz would have tested Gulf.
   const { setDialect: setAppDialect } = useDialect();
-  const [step, setStep] = useState<Step>('welcome');
-  const [dialect, setDialect] = useState('Gulf');
-  const [level, setLevel] = useState('beginner');
-  const [goal, setGoal] = useState('regular');
-  const [reason, setReason] = useState<string | null>(null);
-  const [interests, setInterests] = useState<string[]>([]);
+  // The wizard's draft survives the round trip to the placement quiz — the
+  // level step links there, and losing four answered steps to that link made
+  // the CTA a trap. sessionStorage: a draft should not outlive the visit.
+  const draft = useMemo(() => {
+    try {
+      const raw = sessionStorage.getItem(DRAFT_KEY);
+      return raw ? (JSON.parse(raw) as Partial<Draft>) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+  const [step, setStep] = useState<Step>(
+    draft?.step && STEPS.includes(draft.step) ? draft.step : 'welcome',
+  );
+  const [dialect, setDialect] = useState(draft?.dialect ?? 'Gulf');
+  const [level, setLevel] = useState(draft?.level ?? 'beginner');
+  const [goal, setGoal] = useState(draft?.goal ?? 'regular');
+  const [reason, setReason] = useState<string | null>(draft?.reason ?? null);
+  const [interests, setInterests] = useState<string[]>(draft?.interests ?? []);
   const [saving, setSaving] = useState(false);
+
+  const goToPlacement = () => {
+    try {
+      const toSave: Draft = { step, dialect, level, goal, reason, interests };
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify(toSave));
+    } catch {
+      /* a lost draft is survivable; a blocked jump is not */
+    }
+    navigate('/placement?from=onboarding');
+  };
 
   // Same taxonomy the Listen catalog uses, scoped to the dialect just picked —
   // no second topic vocabulary to keep in sync.
@@ -152,6 +186,11 @@ const Onboarding = () => {
         } as any, { onConflict: 'user_id,week_start_date' });
       }
 
+      try {
+        sessionStorage.removeItem(DRAFT_KEY);
+      } catch {
+        /* ignore */
+      }
       markTourPending();
       // The wizard's pick becomes the active dialect right now — not after
       // the next full reload, which is when the context would next read it.
@@ -308,7 +347,7 @@ const Onboarding = () => {
 
             {/* Placement Quiz CTA */}
             <button
-              onClick={() => navigate('/placement')}
+              onClick={goToPlacement}
               className="w-full flex items-center gap-3 p-3.5 rounded-xl border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 transition-all duration-200 text-left"
             >
               <span className="text-2xl">🧠</span>

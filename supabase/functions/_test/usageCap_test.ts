@@ -237,3 +237,81 @@ Deno.test("a subscriber with no recorded tier gets the top tier's ladder, not a 
   const body = await response.json();
   assertEquals(body.tier, "allin");
 });
+
+// ── The anonymous cap ────────────────────────────────────────────────────────
+// Three endpoints are deliberately usable signed out (the placement quiz is
+// the landing page's CTA), which made them unlimited paid calls for anyone
+// holding the anon key. enforceAnonymousDailyCap buckets those callers per IP
+// through the same counter RPC, under a synthetic id. Driven through
+// score-shadow-attempt, the plainest caller.
+
+async function callShadow(
+  upstreams: Record<string, () => Response>,
+  headers: Record<string, string>,
+  // `{ jwt: null }` (the default) sends no Authorization at all; pass `{}` to
+  // send the fixture JWT — an explicit `undefined` would just re-trigger a
+  // parameter default and silently mean anonymous again.
+  auth: { jwt?: string | null } = { jwt: null },
+): Promise<{ response: Response; rpcBodies: unknown[] }> {
+  const fn = await loadFunction("score-shadow-attempt", { upstreams });
+  try {
+    const response = await fn.handler(
+      jsonRequest(
+        "score-shadow-attempt",
+        { audioBase64: "aGk=", referenceText: "مرحبا", dialect: "Gulf" },
+        { jwt: auth.jwt, headers },
+      ),
+    );
+    await response.text();
+    return {
+      response,
+      rpcBodies: fn.calls
+        .filter((call) => call.url.includes("increment_usage_counter"))
+        .map((call) => call.body),
+    };
+  } finally {
+    fn.restore();
+  }
+}
+
+Deno.test("an anonymous caller over the limit gets the 429, told to sign up", async () => {
+  const { response } = await callShadow(
+    { ...backend({ user: null, usageCount: 61 }) },
+    { "x-forwarded-for": "203.0.113.9" },
+  );
+
+  assertEquals(response.status, 429);
+});
+
+Deno.test("anonymous callers are bucketed per IP, stably", async () => {
+  const upstreams = () => backend({ user: null, usageCount: 1 });
+
+  const first = await callShadow(upstreams(), { "x-forwarded-for": "203.0.113.9" });
+  const again = await callShadow(upstreams(), { "x-forwarded-for": "203.0.113.9" });
+  const other = await callShadow(upstreams(), { "x-forwarded-for": "198.51.100.7" });
+
+  const idOf = (bodies: unknown[]) =>
+    (JSON.parse((bodies[0] as string | null) ?? "{}") as { _user_id?: string })._user_id;
+  // Same IP, same bucket — the count accumulates. A different IP gets its own,
+  // so one saturated café NAT cannot spend a stranger's allowance elsewhere.
+  assertEquals(idOf(first.rpcBodies), idOf(again.rpcBodies));
+  assertEquals(idOf(first.rpcBodies) === idOf(other.rpcBodies), false);
+});
+
+Deno.test("a signed-in caller keeps the ordinary per-user cap", async () => {
+  const { rpcBodies } = await callShadow(
+    {
+      ...backend({ usageCount: 1 }),
+      // Past the cap, the function reaches for Munsit; fail it fast — the
+      // accounting id is what this test is about.
+      "api.cntxt.tools": () => json({ error: "down" }, 500),
+    },
+    {},
+    {}, // jwt omitted: jsonRequest sends its fixture JWT — a signed-in caller
+  );
+
+  assertEquals(
+    (JSON.parse((rpcBodies[0] as string | null) ?? "{}") as { _user_id?: string })._user_id,
+    "00000000-0000-4000-8000-000000000001",
+  );
+});

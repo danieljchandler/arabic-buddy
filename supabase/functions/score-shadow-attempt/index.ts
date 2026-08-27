@@ -21,6 +21,7 @@
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { enforceAnonymousDailyCap } from "../_shared/usageCap.ts";
 import { munsitModel, munsitFallbackModel } from "../_shared/asrConfig.ts";
 import {
   recordLearnerErrorsForRequest,
@@ -159,6 +160,11 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
+    // verify_jwt is off and no cap existed: fully anonymous paid ASR. Same
+    // ceiling as azure-pronunciation next door; IP-bucketed when signed out.
+    const cap = await enforceAnonymousDailyCap(req, "score-shadow-attempt", 60, corsHeaders);
+    if (cap.limited) return cap.response;
+
     const { audioBase64, mimeType, referenceText, dialect } = await req.json();
     if (!audioBase64 || !referenceText) {
       return new Response(JSON.stringify({ error: "audioBase64 and referenceText are required" }), {

@@ -2,7 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
-import { resolveUserId } from "../_shared/usageCap.ts";
+import { enforceAnonymousDailyCap, resolveUserId } from "../_shared/usageCap.ts";
 import { normalizeDialect } from "../_shared/transcriptDiffCore.ts";
 
 // Service-role client for the placement_history trajectory, cached per
@@ -124,6 +124,15 @@ serve(async (req) => {
     const { action, current_difficulty, question_number, history, dialect } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+
+    // Every generate/score action is a model call, and this endpoint is
+    // reachable with just the anon key — it was unlimited spend for anyone
+    // holding the JS bundle. A 20-question run is ~5 generates + 1 score, so
+    // 40/day leaves room for several full runs, per account or per IP.
+    if (action === "generate" || action === "score") {
+      const cap = await enforceAnonymousDailyCap(req, "placement-quiz", 40, corsHeaders);
+      if (cap.limited) return cap.response;
+    }
 
     // The learner's assessment trajectory (C4) — server-written rows only,
     // so the chart can't be self-reported.

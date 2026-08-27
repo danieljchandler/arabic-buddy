@@ -10,6 +10,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { enforceAnonymousDailyCap } from "../_shared/usageCap.ts";
 import { munsitModel, munsitFallbackModel } from "../_shared/asrConfig.ts";
 import {
   recordLearnerErrorsForRequest,
@@ -66,6 +67,12 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
+    // Paid ASR on a public page: azure-pronunciation caps the same family at
+    // 60/day, this endpoint had no ceiling at all. Anonymous callers get an
+    // IP bucket so the practice page keeps working signed out.
+    const cap = await enforceAnonymousDailyCap(req, "score-set-phrase-voice", 60, corsHeaders);
+    if (cap.limited) return cap.response;
+
     const { audioBase64, mimeType, phraseId, target } = await req.json();
     if (!audioBase64 || !phraseId) {
       return new Response(JSON.stringify({ error: "audioBase64 and phraseId are required" }), {

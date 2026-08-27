@@ -613,7 +613,7 @@ const DiscoverVideo = ({
   const { videoId: videoIdParam } = useParams<{ videoId: string }>();
   const videoId = videoIdProp ?? videoIdParam;
   const navigate = useNavigate();
-  const { data: video, isLoading } = useDiscoverVideo(videoId);
+  const { data: video, isLoading, isError: videoError, refetch: refetchVideo } = useDiscoverVideo(videoId);
   const { user, isAuthenticated } = useAuth();
   const addUserVocabulary = useAddUserVocabulary();
   const recordView = useRecordVideoView();
@@ -1740,9 +1740,30 @@ const DiscoverVideo = ({
   }
 
   if (!video) {
+    // This page is also the feed's inline overlay, where browser-back is not
+    // an obvious escape — a bare "Video not found" was a dead end with no way
+    // out. `.single()` throws for a missing row and a failed fetch alike, so
+    // offer the retry either way; a genuinely deleted clip just fails again.
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Video not found</p>
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 px-8 text-center">
+        <p className="text-lg font-semibold text-foreground">
+          {videoError ? "This clip didn't load" : "Video not found"}
+        </p>
+        <p className="text-sm text-muted-foreground">
+          {videoError
+            ? "It may have been removed, or the connection dropped."
+            : "It may have been removed."}
+        </p>
+        <div className="flex gap-2.5">
+          {videoError && (
+            <Button variant="outline" onClick={() => refetchVideo()}>
+              Try again
+            </Button>
+          )}
+          <Button onClick={() => (onBack ? onBack() : navigate("/discover"))}>
+            {onBack ? "Back to the feed" : "Browse clips"}
+          </Button>
+        </div>
       </div>
     );
   }

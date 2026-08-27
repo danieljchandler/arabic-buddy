@@ -7,7 +7,7 @@ import { useDialect } from "@/contexts/DialectContext";
 import { PageCorner } from "@/components/shell/PageCorner";
 import { RatingButtons } from "@/components/review/RatingButtons";
 import { AppShell } from "@/components/layout/AppShell";
-import { Loader2, Trophy, LogIn, Eye, Volume2, Music, RefreshCw, Sparkles, Play, Brain, Mic2, Quote, Undo2, MessageSquarePlus } from "lucide-react";
+import { Loader2, Trophy, LogIn, Eye, Volume2, Music, RefreshCw, Sparkles, Play, Brain, Mic2, Quote, Undo2, MessageSquarePlus, SkipForward } from "lucide-react";
 import { SentencePracticeSheet } from "@/components/practice/SentencePracticeSheet";
 import { LeechHelperPanel } from "@/components/review/LeechHelperPanel";
 import { SiblingWordsPanel } from "@/components/review/SiblingWordsPanel";
@@ -341,7 +341,13 @@ const MyWordsReview = () => {
       // The cap is the user's session preference, further limited by how many
       // new cards they've already studied today (server-persisted, so it
       // survives reloads) — see useNewCardBudget.
-      return buildReviewOrder(cards, {
+      // A row whose Arabic and English are both blank has nothing to review —
+      // it used to render as an empty card the learner couldn't get past.
+      const usable = cards.filter(
+        (c) => (c.word_arabic ?? "").trim() !== "" || (c.word_english ?? "").trim() !== "",
+      );
+
+      return buildReviewOrder(usable, {
         newCardCap: Math.min(newCap, remainingNewBudget),
       });
     },
@@ -653,6 +659,30 @@ const MyWordsReview = () => {
       }
     } finally {
       ratingInFlightRef.current = false;
+    }
+  };
+
+  /**
+   * Move past the current card without rating it. Nothing is written, so the
+   * card stays due and returns later — this is an escape hatch for a card the
+   * learner can't answer (e.g. one with missing content), not a rating.
+   */
+  const handleSkip = () => {
+    if (ratingInFlightRef.current) return;
+    setShowAnswer(false);
+    setShowContext(false);
+    setShowLyrics(false);
+    setClozeResult(null);
+    if (relearnPick) {
+      // Drop this relearn card from the queue so skipping actually moves on.
+      setRelearn((prev) => prev.filter((r) => r.card.id !== relearnPick.card.id));
+      return;
+    }
+    const wordCount = dueWords?.length ?? 0;
+    if (currentIndex < wordCount - 1) {
+      setCurrentIndex((prev) => prev + 1);
+    } else {
+      setCurrentIndex(0);
     }
   };
 
@@ -1163,6 +1193,16 @@ const MyWordsReview = () => {
             >
               <MessageSquarePlus className="h-3.5 w-3.5" />
               <span className="text-xs font-medium">Practice a sentence</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSkip}
+              className="gap-1.5 text-muted-foreground"
+              title="Skip this card without rating it"
+            >
+              <SkipForward className="h-3.5 w-3.5" />
+              <span className="text-xs font-medium">Skip card</span>
             </Button>
             {lastAction && (
               <Button

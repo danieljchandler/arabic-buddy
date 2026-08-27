@@ -290,3 +290,74 @@ export async function enforceDailyCap(
 
   return { limited: false, userId, count, limit: effectiveLimit };
 }
+
+/**
+ * A daily cap that also holds for callers with no account.
+ *
+ * Three endpoints are deliberately usable signed-out — the placement quiz is
+ * the landing page's CTA, and set-phrase/shadow scoring sit on public practice
+ * pages — which made them unlimited paid model/ASR calls for anyone holding
+ * the anon key from the JS bundle. Signed-in callers get the ordinary
+ * per-user cap (admins and subscribers keep their treatment); anonymous
+ * callers are bucketed per IP for the day, counted through the same
+ * increment_usage_counter RPC under a synthetic id (usage_counters.user_id
+ * carries no FK, so the id only has to be stable and non-colliding).
+ *
+ * An IP bucket is a backstop, not accounting: NAT shares it and a botnet
+ * rotates out of it, but it turns "unbounded spend" into "bounded per IP per
+ * day", which is what this is for.
+ */
+export async function enforceAnonymousDailyCap(
+  req: Request,
+  key: string,
+  limit: number,
+  corsHeaders: Record<string, string>,
+): Promise<CapResult> {
+  const userId = await getUserId(req);
+  if (userId) return enforceDailyCap(req, key, limit, corsHeaders);
+
+  const ip = (req.headers.get("x-forwarded-for") ?? "unknown").split(",")[0].trim();
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`anon-cap:${ip}`));
+  const hex = Array.from(new Uint8Array(digest).slice(0, 16))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
+  const anonId =
+    `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-` +
+    `${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+
+  const { data, error } = await admin().rpc("increment_usage_counter", {
+    _user_id: anonId,
+    _key: key,
+    _amount: 1,
+  });
+
+  if (error) {
+    console.error(`[usageCap] anonymous increment failed for ${key}:`, error.message);
+    // Same posture as the signed-in path: never block on counter failure.
+    return { limited: false, userId: anonId, count: 0, limit };
+  }
+
+  const count = typeof data === "number" ? data : Number(data);
+  if (count > limit) {
+    return {
+      limited: true,
+      response: new Response(
+        JSON.stringify({
+          error: "daily_limit_reached",
+          message:
+            `You've reached today's free limit for this feature (${limit}/day). ` +
+            `Sign up free to keep going.`,
+          key,
+          count,
+          limit,
+          tier: "free",
+          upgrade_url: "/auth",
+        }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      ),
+    };
+  }
+
+  // The synthetic id doubles as the accounting identity the caller may log.
+  return { limited: false, userId: anonId, count, limit };
+}

@@ -28,6 +28,7 @@ import {
   useDeleteListenEpisode,
 } from "@/hooks/useListen";
 import { toast } from "sonner";
+import { isCappedError } from "@/lib/invokeError";
 
 const ListenEpisode = () => {
   const { id } = useParams();
@@ -88,7 +89,7 @@ const ListenEpisode = () => {
       await a.play();
     } catch (e: any) {
       setPlayingLine(null);
-      toast.error(e?.message ?? "Could not play");
+      if (!isCappedError(e)) toast.error(e?.message ?? "Could not play");
     }
   };
 

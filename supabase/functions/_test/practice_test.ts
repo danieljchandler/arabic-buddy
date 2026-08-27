@@ -366,17 +366,19 @@ Deno.test("listening-quiz answers a generation failure with a single greeting", 
   assertEquals(questions[0].audioTextEnglish, "Hello");
 });
 
-Deno.test("listening-quiz fails outright when no words array is sent", async () => {
-  const { status } = await call(
+Deno.test("listening-quiz answers a missing words array with a 400, not a 500", async () => {
+  const { status, body } = await call(
     "listening-quiz",
     { mode: "dictation" },
     caller({ "ai.gateway.lovable.dev": emitting({ questions: [aQuizItem()] }) }),
   );
 
-  // Pinned. `words` is destructured with no default and immediately `.slice`d,
-  // so a request without it throws before any validation and comes back as a
-  // bare 500 — unlike every other input on this function, which has a default.
-  assertEquals(status, 500);
+  // `words` used to be destructured with no default and immediately `.slice`d,
+  // so a request without it threw before any validation and came back as a
+  // bare 500. It is the client's mistake, named as such — and an empty list
+  // stays a real request, since the quiz generates fine with no saved words.
+  assertEquals(status, 400);
+  assertStringIncludes(String(body.error), "words");
 });
 
 Deno.test("listening-quiz turns an anonymous caller away", async () => {

@@ -16,6 +16,7 @@ import { AskAISentence } from "@/components/shared/AskAISentence";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
 import { supabase } from "@/integrations/supabase/client";
+import { describeInvokeFailure } from "@/lib/invokeError";
 import { useToast } from "@/hooks/use-toast";
 import { showCapToastIfLimited } from "@/lib/handleCapResponse";
 import { streamChat, SseChatError } from "@/lib/sseChat";
@@ -231,7 +232,10 @@ export default function ConversationSimulator() {
           handleSend(text);
         } catch (err: any) {
           console.error("transcribe error:", err);
-          toast({ title: "Transcription failed", description: err?.message ?? "Try again", variant: "destructive" });
+          const failure = await describeInvokeFailure(err, undefined, "Try again.");
+          if (!failure.capped) {
+            toast({ title: "Transcription failed", description: failure.message, variant: "destructive" });
+          }
         } finally {
           setTranscribing(false);
         }

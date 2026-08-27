@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useDialect } from "@/contexts/DialectContext";
@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { isCappedError, toInvokeFailureError } from "@/lib/invokeError";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import {
@@ -116,6 +117,10 @@ const BATCH_SIZE = 5;
 
 export default function PlacementQuiz() {
   const navigate = useNavigate();
+  // The onboarding wizard's level step links here; finishing goes back to the
+  // wizard instead of dropping the learner on the feed half-onboarded.
+  const [searchParams] = useSearchParams();
+  const fromOnboarding = searchParams.get("from") === "onboarding";
   const { user } = useAuth();
   const { activeDialect } = useDialect();
 
@@ -148,13 +153,16 @@ export default function PlacementQuiz() {
             dialect: activeDialect,
           },
         });
-        if (error) throw error;
-        if (data?.error) throw new Error(data.error);
+        if (error || data?.error) {
+          throw await toInvokeFailureError(error, data, "Please try again.");
+        }
         if (!data?.questions?.length) throw new Error("No questions received");
         return data.questions as Question[];
       } catch (e: any) {
         console.error("Failed to fetch questions:", e);
-        toast.error("Failed to load questions", { description: e.message || "Please try again." });
+        if (!isCappedError(e)) {
+          toast.error("Failed to load questions", { description: e.message || "Please try again." });
+        }
         return null;
       } finally {
         setLoading(false);
@@ -227,6 +235,13 @@ export default function PlacementQuiz() {
         if (nextBatch) {
           setQuestions(nextBatch);
           setCurrentIndex(0);
+        } else {
+          // The spent batch must go: leaving it made the last answered
+          // question reappear, answerable again, appending duplicate history
+          // forever. With no current question the stalled panel offers the
+          // retry instead.
+          setQuestions([]);
+          setCurrentIndex(0);
         }
       } else {
         setCurrentIndex((i) => i + 1);
@@ -235,8 +250,17 @@ export default function PlacementQuiz() {
   };
 
   const saveAndContinue = async () => {
-    if (!results || !user) {
+    if (!results) {
       navigate("/");
+      return;
+    }
+    if (!user) {
+      // Twenty questions of signal used to be dropped on the floor here with
+      // no explanation. The level can only be kept on an account.
+      toast.info(`Sign up free to keep your ${results.cefr_level} level`, {
+        description: "Your placement is saved to your account the moment you have one.",
+      });
+      navigate("/auth");
       return;
     }
     setSaving(true);
@@ -261,7 +285,7 @@ export default function PlacementQuiz() {
         .eq("user_id", user.id);
       if (error) throw error;
       toast.success(`${DIALECT_LABELS[activeDialect]} level set to ${results.cefr_level}!`);
-      navigate("/");
+      navigate(fromOnboarding ? "/onboarding" : "/");
     } catch (e) {
       console.error(e);
       toast.error("Failed to save results");
@@ -452,7 +476,27 @@ export default function PlacementQuiz() {
                   })}
                 </div>
               </div>
-            ) : null}
+            ) : (
+              // A batch fetch failed mid-run: without this the learner sat on
+              // a blank pane with their 20-question run half done.
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center space-y-4">
+                  <p className="font-medium text-foreground">Couldn&apos;t load the next questions</p>
+                  <p className="text-sm text-muted-foreground">Your answers so far are safe.</p>
+                  <Button
+                    onClick={async () => {
+                      const batch = await fetchBatch(answers.length, answers);
+                      if (batch) {
+                        setQuestions(batch);
+                        setCurrentIndex(0);
+                      }
+                    }}
+                  >
+                    Try again
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

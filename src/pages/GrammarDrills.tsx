@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
 import { toast } from "sonner";
+import { isCappedError, toInvokeFailureError } from "@/lib/invokeError";
 import { Switch } from "@/components/ui/switch";
 import {
   BookOpen,
@@ -172,7 +173,7 @@ const GrammarDrills = () => {
       const { data, error } = await supabase.functions.invoke("grammar-drill", {
         body: { category: cat, difficulty, dialect: activeDialect },
       });
-      if (error) throw error;
+      if (error) throw await toInvokeFailureError(error, data, "Couldn't build the drill. Please try again.");
       if (data?.questions) {
         setQuestions(data.questions);
       } else {
@@ -180,7 +181,7 @@ const GrammarDrills = () => {
       }
     } catch (e: any) {
       console.error(e);
-      toast.error(e.message || "Failed to generate drill");
+      if (!isCappedError(e)) toast.error(e.message || "Failed to generate drill");
       setCategory(null);
     } finally {
       setIsLoading(false);

@@ -413,17 +413,20 @@ test.describe("finishing a battle", () => {
     await expect(page.getByRole("button", { name: "New Challenge" })).toBeVisible();
   });
 
-  test("says so when the score cannot be submitted", async ({ page, db }) => {
+  test("says so when the score cannot be submitted", async ({ page, db, expectConsoleErrors }) => {
+    // The raw cause goes to the console for debugging; the toast stays human.
+    expectConsoleErrors([/battle score submit failed/]);
     db.seed("vocab_battles", [asOpponent()]);
     db.failWrites("vocab_battles", 403, { message: "new row violates row-level security policy" });
 
     await page.goto(`/battles/${BATTLE}`);
     await playThrough(page);
 
-    // Pinned. The turn is unrecoverable: the questions have been seen and the
-    // page offers no retry, so a failed submit costs the learner the battle
-    // with nothing but a toast to say why.
-    await expect(page.getByText(/row-level security/)).toBeVisible();
+    // The turn is unrecoverable: the questions have been seen and the page
+    // offers no retry, so a failed submit costs the learner the battle with a
+    // toast to say why — worded for them now, not Postgres's RLS message.
+    await expect(page.getByText(/could not submit your score/i)).toBeVisible();
+    await expect(page.getByText(/row-level security/)).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Try Again|Retry/ })).toHaveCount(0);
   });
 });

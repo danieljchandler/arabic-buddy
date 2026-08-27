@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { toInvokeFailureError } from "@/lib/invokeError";
 import { useAuth } from "@/hooks/useAuth";
 import { useDialect } from "@/contexts/DialectContext";
 import type { ReaderSentence } from "@/lib/sentences";
@@ -63,7 +64,7 @@ export function useGenerateDailyStory() {
       const { data, error } = await supabase.functions.invoke("generate-daily-story", {
         body: { dialect: activeDialect, force },
       });
-      if (error) throw error;
+      if (error) throw await toInvokeFailureError(error, data, "Couldn't write today's story. Please try again.");
       if (!data?.story) throw new Error(data?.message || data?.error || "No story returned");
       return data.story as DailyStory;
     },

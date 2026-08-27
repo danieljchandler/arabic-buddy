@@ -8,6 +8,7 @@ import { PageCorner } from "@/components/shell/PageCorner";
 import { AppShell } from "@/components/layout/AppShell";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { supabase } from "@/integrations/supabase/client";
+import { isCappedError, toInvokeFailureError } from "@/lib/invokeError";
 import { useDialect } from "@/contexts/DialectContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
@@ -58,22 +59,6 @@ interface HowDoISayResult {
   vocabulary: VocabItem[];
   culturalNotes?: string;
   genderVariants?: string;
-}
-
-/** Extracts the real error message from a supabase.functions.invoke error. */
-async function readInvokeError(err: unknown): Promise<string> {
-  if (!err || typeof err !== "object") return String(err);
-  const context = (err as { context?: Response }).context;
-  if (context) {
-    try {
-      const body = await context.clone().json();
-      if (body?.error) return body.error;
-      if (body?.message) return body.message;
-    } catch {
-      /* ignore */
-    }
-  }
-  return (err as Error).message ?? "Unknown error";
 }
 
 const NaturalnessStars = ({ value }: { value: number }) => (
@@ -136,7 +121,7 @@ const HowDoISay = () => {
         body: { phrase: trimmed, dialect: activeDialect },
       });
 
-      if (error) throw new Error(await readInvokeError(error));
+      if (error) throw await toInvokeFailureError(error, data, "Please try again.");
       if (!data?.success || !data?.result) throw new Error(data?.error ?? "Translation failed");
 
       const r = data.result as HowDoISayResult;
@@ -151,9 +136,11 @@ const HowDoISay = () => {
       toast.success("Got it!", { description: modeLabel });
     } catch (err) {
       console.error("how-do-i-say error:", err);
-      toast.error("Translation failed", {
-        description: err instanceof Error ? err.message : "An unexpected error occurred",
-      });
+      if (!isCappedError(err)) {
+        toast.error("Translation failed", {
+          description: err instanceof Error ? err.message : "An unexpected error occurred",
+        });
+      }
     } finally {
       setIsLoading(false);
     }

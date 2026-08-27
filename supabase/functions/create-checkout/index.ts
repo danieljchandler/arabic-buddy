@@ -53,7 +53,14 @@ serve(async (req) => {
     }
     logStep("Tier selected", { tier, billing, priceId });
 
-    const authHeader = req.headers.get("Authorization")!;
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      // Was a 500 "Cannot read properties of null (reading 'replace')".
+      return new Response(JSON.stringify({ error: "auth_required", message: "Please sign in to subscribe." }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
     const token = authHeader.replace("Bearer ", "");
     const { data } = await supabaseClient.auth.getUser(token);
     const user = data.user;

@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toInvokeFailureError } from "@/lib/invokeError";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { useDialect } from "@/contexts/DialectContext";
@@ -258,7 +259,7 @@ export const useGenerateQuiz = () => {
       const { data, error } = await supabase.functions.invoke("generate-set-phrase-quiz", {
         body: { dialect: activeDialect, occasionId, length },
       });
-      if (error) throw error;
+      if (error) throw await toInvokeFailureError(error, data, "Couldn't load the quiz. Please try again.");
       return (data?.items ?? []) as QuizItem[];
     },
   });
@@ -280,7 +281,7 @@ export const useScoreVoice = () => {
       const { data, error } = await supabase.functions.invoke("score-set-phrase-voice", {
         body: { audioBase64, mimeType, phraseId, target },
       });
-      if (error) throw error;
+      if (error) throw await toInvokeFailureError(error, data, "Voice scoring didn't work. Please try again.");
       return data as {
         transcript: string;
         similarity: number;

@@ -162,23 +162,18 @@ test.describe("when the translator fails", () => {
     await expect(page.getByRole("textbox")).toHaveValue(ARABIC);
   });
 
-  test("flattens the daily cap into a message that helps nobody", async ({ page, backend }) => {
+  test("turns the daily cap into the upgrade toast", async ({ page, backend }) => {
     backend.stubFunctionCapped("translate-text");
 
     await page.goto("/translate");
     await translate(page);
 
-    // Recording current behaviour. The function answers 429 with
-    // { error: "daily_limit_reached", message, limit, upgrade_url } — an
-    // actionable body — but useTranslateText rethrows supabase-js's
-    // FunctionsHttpError before looking at it, so the learner is told "Edge
-    // Function returned a non-2xx status code" and nothing about upgrading.
-    //
-    // src/lib/handleCapResponse.ts exists for exactly this and is wired into
-    // three call sites; thirty-six edge functions enforce a cap. This test
-    // fails once Translate is one of them.
-    await expect(page.getByText(/non-2xx status code/i).first()).toBeVisible();
-    await expect(page.getByText(/upgrade|pricing/i)).toHaveCount(0);
+    // The 429 body ({ error: "daily_limit_reached", message, upgrade_url }) is
+    // actionable, and this is the one moment worth an upsell — the learner
+    // gets the limit and an Upgrade action, never supabase-js's dev-speak.
+    await expect(page.getByText(/daily free limit/i).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /upgrade/i })).toBeVisible();
+    await expect(page.getByText(/non-2xx status code/i)).toHaveCount(0);
   });
 });
 

@@ -27,6 +27,16 @@ serve(async (req) => {
   try {
     const { mode, words, count = 5, dialect = "Gulf", difficulty = "beginner" } = await req.json();
 
+    if (!Array.isArray(words)) {
+      // An empty list is a real request — the quiz generates fine with no
+      // personal vocabulary — but a missing/mistyped one used to 500 with
+      // "Cannot read properties of undefined (reading 'slice')".
+      return new Response(
+        JSON.stringify({ error: "words must be a list — send [] when the learner has none saved." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const dialectLabel = getDialectLabel(dialect);
 
     const vocabContext = words

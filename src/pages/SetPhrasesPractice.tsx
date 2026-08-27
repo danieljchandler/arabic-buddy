@@ -14,6 +14,7 @@ import {
 } from "@/hooks/useSetPhrases";
 import { Loader2, Mic, MicOff, Star, Volume2, ArrowRight, Check, X } from "lucide-react";
 import { toast } from "sonner";
+import { isCappedError } from "@/lib/invokeError";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { usePageAiContext } from "@/contexts/AiAssistantContext";
 
@@ -47,7 +48,9 @@ const SetPhrasesPractice = ({ reviewMode = false }: Props) => {
         if (!data.length) toast.error("No phrases available — ask an admin to seed some.");
         setItems(data);
       },
-      onError: (e: any) => toast.error(e.message || "Failed to load quiz"),
+      onError: (e: any) => {
+        if (!isCappedError(e)) toast.error(e.message || "Failed to load quiz");
+      },
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [occasionId]);
@@ -114,7 +117,9 @@ const SetPhrasesPractice = ({ reviewMode = false }: Props) => {
               review.mutate({ phraseId: current.phrase_id, quality: res.quality });
               if (!res.accepted && current.expected_audio_url) playAudio(current.expected_audio_url);
             },
-            onError: (e: any) => toast.error(e.message || "Voice scoring failed"),
+            onError: (e: any) => {
+              if (!isCappedError(e)) toast.error(e.message || "Voice scoring failed");
+            },
           },
         );
       };

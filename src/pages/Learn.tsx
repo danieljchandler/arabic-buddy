@@ -320,9 +320,15 @@ const Learn = () => {
               {isMixedMode ? "No new words" : "No words yet"}
             </p>
             <p className="text-sm text-muted-foreground mb-6">
-              {isMixedMode ? "You've seen all available words. Try reviewing!" : "Add vocabulary in the admin panel."}
+              {isMixedMode
+                ? "You've seen all available words. Try reviewing!"
+                // Learners have no admin panel — this lesson simply has no
+                // vocabulary yet, and the path forward is another lesson.
+                : "This lesson has no vocabulary yet — pick another from the curriculum."}
             </p>
-            <Button onClick={() => navigate("/")}>Go Home</Button>
+            <Button onClick={() => navigate(isMixedMode ? "/review" : "/curriculum")}>
+              {isMixedMode ? "Review your words" : "Browse the curriculum"}
+            </Button>
           </div>
         </div>
       </AppShell>

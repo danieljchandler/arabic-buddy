@@ -375,7 +375,10 @@ test.describe("when it cannot answer", () => {
     await page.getByRole("button", { name: "Ask", exact: true }).click();
 
     // A 429 carrying `daily_limit_reached` is a different situation from an
-    // outage, and the learner can act on it.
-    await expect(page.getByText("Translation failed")).toBeVisible();
+    // outage, and now the learner can act on it: the upgrade toast, not a
+    // generic failure.
+    await expect(page.getByText(/daily free limit/i).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /upgrade/i })).toBeVisible();
+    await expect(page.getByText("Translation failed")).toHaveCount(0);
   });
 });

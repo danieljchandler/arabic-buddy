@@ -7,7 +7,7 @@ import { useDialect } from "@/contexts/DialectContext";
 import { PageCorner } from "@/components/shell/PageCorner";
 import { RatingButtons } from "@/components/review/RatingButtons";
 import { AppShell } from "@/components/layout/AppShell";
-import { Loader2, Trophy, LogIn, Eye, Volume2, Music, RefreshCw, Sparkles, Play, Brain, Mic2, Quote, Undo2, MessageSquarePlus } from "lucide-react";
+import { Loader2, Trophy, LogIn, Eye, Volume2, Music, RefreshCw, Sparkles, Play, Brain, Mic2, Quote, Undo2, MessageSquarePlus, SkipForward } from "lucide-react";
 import { SentencePracticeSheet } from "@/components/practice/SentencePracticeSheet";
 import { LeechHelperPanel } from "@/components/review/LeechHelperPanel";
 import { SiblingWordsPanel } from "@/components/review/SiblingWordsPanel";

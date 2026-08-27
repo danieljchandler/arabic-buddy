@@ -27,7 +27,10 @@ const PNG_B64 =
 function caller(extra: Record<string, UpstreamHandler> = {}): Record<string, UpstreamHandler> {
   return {
     "/auth/v1/user": () => json({ id: USER, aud: "authenticated", role: "authenticated" }),
-    "/rest/v1/rpc/can_manage_content": () => json(true),
+    // edit-story-scene-image reads the roles table directly rather than the
+    // can_manage_content() RPC — auth.uid() is NULL on its service-role
+    // client, so the RPC answered false for every caller.
+    "/rest/v1/user_roles": () => json([{ role: "admin" }]),
     "/storage/v1": () => json({ Key: "listen-audio/authentic-stories/file" }),
     ...extra,
   };
@@ -390,7 +393,7 @@ Deno.test("edit-story-scene-image turns away a caller who may not manage content
   const result = await call(
     "edit-story-scene-image",
     { story_id: STORY, scene_index: 0 },
-    sceneBackend({ extra: { "/rest/v1/rpc/can_manage_content": () => json(false) } }),
+    sceneBackend({ extra: { "/rest/v1/user_roles": () => json([]) } }),
   );
 
   assertEquals(result.status, 403);

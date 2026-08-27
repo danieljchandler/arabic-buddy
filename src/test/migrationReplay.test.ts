@@ -46,7 +46,7 @@ const KNOWN_REPLAY_FAILURES = [
 ];
 
 /** Tables the app reads that replaying the migrations does not produce. */
-const KNOWN_MISSING_TABLES = ["processed_videos", "review_streaks", "subscribers"];
+const KNOWN_MISSING_TABLES = ["processed_videos", "review_streaks"];
 
 describe.skipIf(!DATABASE_URL)("migration replay", () => {
   let result: BuildResult;
@@ -104,9 +104,9 @@ describe.skipIf(!DATABASE_URL)("migration replay", () => {
   it("records the tables a rebuilt database would be missing", () => {
     const missing = KNOWN_MISSING_TABLES.filter((table) => !result.tables.includes(table));
 
-    // subscribers is the one that matters most: _shared/usageCap.ts reads it to
-    // decide whether a caller is a paying customer, so on a rebuilt database
-    // every user would look free-tier.
+    // subscribers used to be on this list — _shared/usageCap.ts reads it to
+    // decide whether a caller is a paying customer — until a migration finally
+    // created it. The two left are admin-side pipelines.
     expect(missing.sort()).toEqual(KNOWN_MISSING_TABLES);
   });
 });

@@ -17,6 +17,7 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('learner-audio', 'learner-audio', false)
 ON CONFLICT (id) DO NOTHING;
 
+DROP POLICY IF EXISTS "Admins read learner audio" ON storage.objects;
 CREATE POLICY "Admins read learner audio"
   ON storage.objects FOR SELECT TO authenticated
   USING (bucket_id = 'learner-audio' AND public.is_admin());
@@ -61,6 +62,7 @@ BEGIN
 END;
 $$;
 
+DROP TRIGGER IF EXISTS trg_corpus_sentence_from_gold ON public.training_examples;
 DROP TRIGGER IF EXISTS trg_corpus_sentence_from_gold ON public.training_examples;
 CREATE TRIGGER trg_corpus_sentence_from_gold
   AFTER INSERT ON public.training_examples

@@ -10,8 +10,10 @@ CREATE TABLE IF NOT EXISTS public.vocab_concepts (
 
 ALTER TABLE public.vocab_concepts ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "vocab_concepts_read" ON public.vocab_concepts;
 CREATE POLICY "vocab_concepts_read" ON public.vocab_concepts
   FOR SELECT USING (true);
+DROP POLICY IF EXISTS "vocab_concepts_manage" ON public.vocab_concepts;
 CREATE POLICY "vocab_concepts_manage" ON public.vocab_concepts
   FOR ALL USING (public.can_manage_content())
   WITH CHECK (public.can_manage_content());
@@ -36,8 +38,10 @@ CREATE INDEX IF NOT EXISTS idx_concept_realizations_concept
 
 ALTER TABLE public.concept_realizations ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "concept_realizations_read" ON public.concept_realizations;
 CREATE POLICY "concept_realizations_read" ON public.concept_realizations
   FOR SELECT USING (status = 'approved' OR public.can_manage_content());
+DROP POLICY IF EXISTS "concept_realizations_manage" ON public.concept_realizations;
 CREATE POLICY "concept_realizations_manage" ON public.concept_realizations
   FOR ALL USING (public.can_manage_content())
   WITH CHECK (public.can_manage_content());
@@ -63,6 +67,7 @@ CREATE TABLE IF NOT EXISTS public.content_channels (
 
 ALTER TABLE public.content_channels ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "content_channels_manage" ON public.content_channels;
 CREATE POLICY "content_channels_manage" ON public.content_channels
   FOR ALL USING (public.can_manage_content())
   WITH CHECK (public.can_manage_content());
@@ -89,6 +94,7 @@ CREATE INDEX IF NOT EXISTS idx_channel_videos_channel
 
 ALTER TABLE public.channel_videos ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "channel_videos_manage" ON public.channel_videos;
 CREATE POLICY "channel_videos_manage" ON public.channel_videos
   FOR ALL USING (public.can_manage_content())
   WITH CHECK (public.can_manage_content());
@@ -116,6 +122,7 @@ CREATE INDEX IF NOT EXISTS idx_caption_lines_fts
 
 ALTER TABLE public.caption_lines ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "caption_lines_manage" ON public.caption_lines;
 CREATE POLICY "caption_lines_manage" ON public.caption_lines
   FOR ALL USING (public.can_manage_content())
   WITH CHECK (public.can_manage_content());
@@ -204,6 +211,7 @@ CREATE INDEX IF NOT EXISTS idx_clip_candidates_concept
 
 ALTER TABLE public.clip_candidates ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "clip_candidates_manage" ON public.clip_candidates;
 CREATE POLICY "clip_candidates_manage" ON public.clip_candidates
   FOR ALL USING (public.can_manage_content())
   WITH CHECK (public.can_manage_content());
@@ -227,8 +235,10 @@ CREATE INDEX IF NOT EXISTS idx_lesson_clips_lesson
 
 ALTER TABLE public.lesson_clips ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "lesson_clips_read" ON public.lesson_clips;
 CREATE POLICY "lesson_clips_read" ON public.lesson_clips
   FOR SELECT USING (true);
+DROP POLICY IF EXISTS "lesson_clips_manage" ON public.lesson_clips;
 CREATE POLICY "lesson_clips_manage" ON public.lesson_clips
   FOR ALL USING (public.can_manage_content())
   WITH CHECK (public.can_manage_content());

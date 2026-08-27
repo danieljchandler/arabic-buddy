@@ -22,8 +22,10 @@ CREATE INDEX IF NOT EXISTS idx_published_clips_dialect
 
 ALTER TABLE public.published_clips ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "published_clips_read" ON public.published_clips;
 CREATE POLICY "published_clips_read" ON public.published_clips
   FOR SELECT USING (true);
+DROP POLICY IF EXISTS "published_clips_manage" ON public.published_clips;
 CREATE POLICY "published_clips_manage" ON public.published_clips
   FOR ALL USING (public.can_manage_content())
   WITH CHECK (public.can_manage_content());

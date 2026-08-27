@@ -1,4 +1,4 @@
-CREATE TABLE public.training_examples (
+CREATE TABLE IF NOT EXISTS public.training_examples (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   task_type text NOT NULL CHECK (task_type IN
     ('asr', 'translation', 'generation', 'diacritization', 'pronunciation', 'dialect_id')),
@@ -24,16 +24,17 @@ CREATE TABLE public.training_examples (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_training_examples_export
+CREATE INDEX IF NOT EXISTS idx_training_examples_export
   ON public.training_examples (task_type, dialect, tier, created_at);
-CREATE INDEX idx_training_examples_unexported
+CREATE INDEX IF NOT EXISTS idx_training_examples_unexported
   ON public.training_examples (created_at) WHERE export_batch_id IS NULL;
-CREATE UNIQUE INDEX idx_training_examples_review_source
+CREATE UNIQUE INDEX IF NOT EXISTS idx_training_examples_review_source
   ON public.training_examples (source_id)
   WHERE source_table = 'dialect_native_reviews';
 
 ALTER TABLE public.training_examples ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Admins read training examples" ON public.training_examples;
 CREATE POLICY "Admins read training examples"
   ON public.training_examples FOR SELECT TO authenticated
   USING (public.is_admin());
@@ -41,6 +42,7 @@ CREATE POLICY "Admins read training examples"
 GRANT SELECT ON public.training_examples TO authenticated;
 GRANT ALL ON public.training_examples TO service_role;
 
+DROP POLICY IF EXISTS "Admins read training exports" ON storage.objects;
 DROP POLICY IF EXISTS "Admins read training exports" ON storage.objects;
 CREATE POLICY "Admins read training exports"
   ON storage.objects FOR SELECT TO authenticated

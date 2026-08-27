@@ -10,6 +10,8 @@ interface SessionHandoffProps {
   session: ReviewSession;
   /** Shown when this deck has nothing due. */
   message: string;
+  /** Replaces "All caught up!" — a brand-new learner has caught up on nothing. */
+  heading?: string;
   /** Where "done" goes once every deck is clear. */
   fallbackLabel: string;
   fallbackRoute: string;
@@ -29,6 +31,7 @@ export const SessionHandoff = ({
   deckId,
   session,
   message,
+  heading,
   fallbackLabel,
   fallbackRoute,
   children,
@@ -48,7 +51,7 @@ export const SessionHandoff = ({
         className="h-32 w-32 mx-auto mb-6 rounded-full object-cover bg-card-cream ring-1 ring-border/60 shadow-soft select-none animate-scale-in"
       />
       <h1 className="text-xl font-bold text-foreground mb-3">
-        {next ? "Deck complete" : "All caught up!"}
+        {next ? "Deck complete" : heading ?? "All caught up!"}
       </h1>
       <p className="text-muted-foreground mb-8">
         {next

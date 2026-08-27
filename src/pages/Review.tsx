@@ -38,6 +38,7 @@ import { usePageAiContext } from "@/contexts/AiAssistantContext";
 const DIALECT_FLAGS: Record<string, string> = {
   Gulf: "🇦🇪",
   Egyptian: "🇪🇬",
+  Yemeni: "🇾🇪",
 };
 
 const Review = () => {
@@ -298,6 +299,7 @@ const Review = () => {
     // other decks have work waiting — forward straight into the next one.
     // Only on arrival: if cards were rated here, show the completion state
     // first and let the learner choose to continue.
+    const brandNew = !!stats && stats.learnedCount === 0 && stats.masteredCount === 0;
     const forwardTo = sessionCount === 0 ? session.nextDeck("curriculum") : null;
     if (forwardTo) {
       return <Navigate to={forwardTo.route} replace />;
@@ -331,9 +333,17 @@ const Review = () => {
         <SessionHandoff
           deckId="curriculum"
           session={session}
-          message={`You've reviewed all your due ${mixAll ? "" : `${activeDialect} `}curriculum words.`}
-          fallbackLabel="Back to Topics"
-          fallbackRoute="/"
+          // A brand-new learner has reviewed nothing: "you've reviewed all
+          // your words" was a lie, and "Back to Topics" went home. Point them
+          // at learning their first words instead.
+          heading={brandNew ? "Nothing to review yet" : undefined}
+          message={
+            brandNew
+              ? "Words you learn in lessons come back here on the day you'd be about to forget them."
+              : `You've reviewed all your due ${mixAll ? "" : `${activeDialect} `}curriculum words.`
+          }
+          fallbackLabel={brandNew ? "Learn your first words" : "Go Home"}
+          fallbackRoute={brandNew ? "/curriculum" : "/"}
         >
           {stats && (
             <div className="grid grid-cols-2 gap-4 mb-8">

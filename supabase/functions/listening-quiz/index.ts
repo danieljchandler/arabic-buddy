@@ -27,6 +27,14 @@ serve(async (req) => {
   try {
     const { mode, words, count = 5, dialect = "Gulf", difficulty = "beginner" } = await req.json();
 
+    if (!Array.isArray(words) || words.length === 0) {
+      // Was a 500 with "Cannot read properties of undefined (reading 'slice')".
+      return new Response(
+        JSON.stringify({ error: "Save some words to your vocabulary first, then try the quiz." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     const dialectLabel = getDialectLabel(dialect);
 
     const vocabContext = words

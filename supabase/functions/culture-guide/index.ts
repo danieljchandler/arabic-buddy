@@ -105,6 +105,14 @@ serve(async (req) => {
 
   try {
     const { messages, dialect = "Gulf" } = await req.json();
+
+    if (!Array.isArray(messages) || messages.length === 0) {
+      // Was a 500 with "Cannot read properties of undefined (reading 'filter')".
+      return new Response(
+        JSON.stringify({ error: "Ask a question first — messages came through empty." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
     if (!GEMINI_API_KEY) throw new Error("GEMINI_API_KEY is not configured");
 

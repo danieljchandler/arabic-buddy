@@ -115,9 +115,13 @@ describe("the learner's library", () => {
       {
         persona: "free",
         seed: seedVideos([
-          aDiscoverVideo({ id: videoId(0), title: "Easy", difficulty: "Beginner" }),
-          aDiscoverVideo({ id: videoId(1), title: "Mid", difficulty: "Intermediate" }),
-          aDiscoverVideo({ id: videoId(2), title: "Hard", difficulty: "Expert" }),
+          // Explicit timestamps: the factory stamps created_at from Date.now()
+          // per call, so two rows usually tie and keep seed order — until a
+          // millisecond boundary falls between the calls and the newest-first
+          // sort flips them. The assertion below pins order incidentally.
+          aDiscoverVideo({ id: videoId(0), title: "Easy", difficulty: "Beginner", created_at: daysAgo(1) }),
+          aDiscoverVideo({ id: videoId(1), title: "Mid", difficulty: "Intermediate", created_at: daysAgo(2) }),
+          aDiscoverVideo({ id: videoId(2), title: "Hard", difficulty: "Expert", created_at: daysAgo(3) }),
         ]),
       },
     );

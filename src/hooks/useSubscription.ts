@@ -125,9 +125,12 @@ export const useSubscription = () => {
     });
 
     if (error) throw error;
-    if (data?.url) {
-      window.open(data.url, '_blank');
-    }
+    if (!data?.url) throw new Error('No checkout link came back');
+    // After an await we are outside the click gesture, so Safari and popup
+    // blockers return null from window.open — and the button would appear to
+    // do nothing. Fall back to taking this tab there.
+    const win = window.open(data.url, '_blank');
+    if (!win) window.location.assign(data.url);
   }, [session?.access_token]);
 
   const openCustomerPortal = useCallback(async () => {
@@ -142,9 +145,9 @@ export const useSubscription = () => {
     });
 
     if (error) throw error;
-    if (data?.url) {
-      window.open(data.url, '_blank');
-    }
+    if (!data?.url) throw new Error('No portal link came back');
+    const win = window.open(data.url, '_blank');
+    if (!win) window.location.assign(data.url);
   }, [session?.access_token]);
 
   // Helper to check if user has access to a feature

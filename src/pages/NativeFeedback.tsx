@@ -43,11 +43,19 @@ const NativeFeedback = () => {
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const [loadFailed, setLoadFailed] = useState(false);
+
   const load = useCallback(async () => {
     const { data, error } = await supabase.functions.invoke("native-feedback", {
       body: { action: "status" },
     });
-    if (!error && data && typeof data.balance === "number") setStatus(data as FeedbackStatus);
+    if (!error && data && typeof data.balance === "number") {
+      setStatus(data as FeedbackStatus);
+      setLoadFailed(false);
+    } else {
+      // Without this the balance shows "—" forever with nothing to explain it.
+      setLoadFailed(true);
+    }
   }, []);
 
   useEffect(() => {
@@ -59,16 +67,26 @@ const NativeFeedback = () => {
   }, [user, load]);
 
   // Returning from Stripe: confirm the session (exactly-once server-side),
-  // then drop the param so a bookmark doesn't re-confirm forever.
+  // then drop the param so a bookmark doesn't re-confirm forever. The param
+  // is the retry token — money has changed hands by now, so it only leaves
+  // the URL once the confirm actually succeeded; on failure it stays put and
+  // a reload retries.
   useEffect(() => {
     const sessionId = searchParams.get("purchase");
     if (!sessionId || !user) return;
     void (async () => {
-      const { data } = await supabase.functions.invoke("native-feedback", {
+      const { data, error } = await supabase.functions.invoke("native-feedback", {
         body: { action: "confirm", sessionId },
       });
-      if (data?.ok) toast.success("Credits added!");
-      setSearchParams({}, { replace: true });
+      if (!error && data?.ok) {
+        toast.success("Credits added!");
+        setSearchParams({}, { replace: true });
+      } else {
+        console.error("credit confirm failed", error ?? data);
+        toast.error("We couldn't confirm your purchase yet", {
+          description: "Your payment went through. Reload this page to try again — your credits are safe.",
+        });
+      }
       void load();
     })();
   }, [searchParams, setSearchParams, user, load]);
@@ -101,7 +119,10 @@ const NativeFeedback = () => {
         toast.error("Couldn't start the purchase — try again.");
         return;
       }
-      window.open(data.url as string, "_blank");
+      // Outside the click gesture by now — popup blockers hand back null, and
+      // a paid flow must never silently do nothing.
+      const win = window.open(data.url as string, "_blank");
+      if (!win) window.location.assign(data.url as string);
     } finally {
       setBusy(false);
     }
@@ -120,6 +141,15 @@ const NativeFeedback = () => {
         <div>
           <p className="text-sm font-medium">Credits</p>
           <p className="text-2xl font-bold">{status?.balance ?? "—"}</p>
+          {loadFailed && !status && (
+            <button
+              type="button"
+              className="mt-1 text-xs text-muted-foreground underline underline-offset-2"
+              onClick={() => void load()}
+            >
+              Balance didn&apos;t load — try again
+            </button>
+          )}
         </div>
         {status?.purchase_enabled && (
           <Button onClick={buy} disabled={busy} className="gap-1.5">

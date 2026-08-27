@@ -341,7 +341,13 @@ const MyWordsReview = () => {
       // The cap is the user's session preference, further limited by how many
       // new cards they've already studied today (server-persisted, so it
       // survives reloads) — see useNewCardBudget.
-      return buildReviewOrder(cards, {
+      // A row whose Arabic and English are both blank has nothing to review —
+      // it used to render as an empty card the learner couldn't get past.
+      const usable = cards.filter(
+        (c) => (c.word_arabic ?? "").trim() !== "" || (c.word_english ?? "").trim() !== "",
+      );
+
+      return buildReviewOrder(usable, {
         newCardCap: Math.min(newCap, remainingNewBudget),
       });
     },

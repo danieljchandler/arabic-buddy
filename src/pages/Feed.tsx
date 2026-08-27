@@ -65,6 +65,25 @@ const Feed = () => {
   const { data: feed, isLoading, isError, refetch } = useDiscoverFeed(seed);
   const swipe = useSwipeSurfaces({ onNext: () => navigate("/choose") });
 
+  // OAuth sign-in redirects here, not to /auth — so without this gate a
+  // Google signup never met the onboarding wizard at all: no dialect, no
+  // level, no tour, straight into the feed. Same check /auth and /today run.
+  useEffect(() => {
+    if (!isAuthenticated || authLoading || !user) return;
+    let cancelled = false;
+    supabase
+      .from("profiles")
+      .select("onboarding_completed")
+      .eq("user_id", user.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!cancelled && data && !data.onboarding_completed) navigate("/onboarding");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, authLoading, user, navigate]);
+
   /**
    * The clip playing in place. Tapping a card used to navigate to
    * /discover/:id — a route change, a chunk load and a refetch between the

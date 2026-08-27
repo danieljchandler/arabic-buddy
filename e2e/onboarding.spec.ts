@@ -42,6 +42,17 @@ test.describe("onboarding", () => {
     db.seed("profiles", [aProfile({ onboarding_completed: false })]);
   });
 
+  test("catches a signup that landed on the feed instead of /auth", async ({ page, backend }) => {
+    // OAuth redirects to the site root, so the feed is the first page a
+    // Google signup ever sees. It has to run the same gate /auth does.
+    backend.stubFunction("discover-feed", { items: [], cold_start: true, seed: 1 });
+
+    await page.goto("/");
+
+    await expect(page).toHaveURL(/\/onboarding$/);
+    await expect(page.getByRole("heading", { name: STEP_HEADINGS.welcome })).toBeVisible();
+  });
+
   test("opens on the welcome step and counts the steps honestly", async ({ page }) => {
     await page.goto("/onboarding");
 
@@ -86,6 +97,21 @@ test.describe("onboarding", () => {
     await expect(page.getByRole("button", { name: /Gulf Arabic/ })).toBeVisible();
     await expect(page.getByRole("button", { name: /Egyptian Arabic/ })).toBeVisible();
     await expect(page.getByRole("button", { name: /Yemeni Arabic/ })).toBeVisible();
+  });
+
+  test("applies the chosen dialect app-wide immediately", async ({ page, db }) => {
+    await page.goto("/onboarding");
+    await advanceTo(page, "dialect");
+
+    await page.getByRole("button", { name: /Egyptian Arabic/ }).click();
+
+    // The pick must reach the app's dialect context at once. DialectContext
+    // reads the profile only on mount, so a wizard-local pick used to mean
+    // the placement quiz — reachable from the very next step — tested Gulf.
+    await expect
+      .poll(() => page.evaluate(() => localStorage.getItem("hakiya_dialect_module")))
+      .toBe("Egyptian");
+    await expect.poll(() => db.rows("profiles")[0]?.preferred_dialect).toBe("Egyptian");
   });
 
   test("saves every answer to the profile and lands on the home page", async ({ page, db }) => {

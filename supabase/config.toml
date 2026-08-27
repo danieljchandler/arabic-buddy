@@ -279,3 +279,15 @@ verify_jwt = true
 # `reviewed_by` on every checkmark come from this JWT, not from the body.
 [functions.transcript-review]
 verify_jwt = true
+
+# Placement quiz is the landing page's own CTA — a full model generation that
+# must run signed out. Anonymous callers are IP-bucketed per day by
+# enforceAnonymousDailyCap in _shared/usageCap.ts, so the anon key alone is
+# enough to reach it; a JWT requirement would block the onboarding funnel.
+[functions.placement-quiz]
+verify_jwt = false
+
+# Set-phrase voice scorer: paid ASR on a public practice page, usable signed
+# out. Anonymous callers are IP-bucketed per day by enforceAnonymousDailyCap.
+[functions.score-set-phrase-voice]
+verify_jwt = false

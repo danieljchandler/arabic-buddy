@@ -51,6 +51,9 @@ export function installBrowserFakes(): void {
   (window as unknown as { __openedUrls: string[] }).__openedUrls = opened;
   window.open = (url?: string | URL) => {
     opened.push(String(url ?? ""));
-    return null;
+    // A truthy handle, like a browser whose popups are allowed. Returning
+    // null read as a blocked popup, which the checkout flow now answers by
+    // navigating the current tab — tearing down the page mid-test.
+    return { closed: false, focus: () => {} } as unknown as Window;
   };
 }

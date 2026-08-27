@@ -97,7 +97,11 @@ test.describe("the feed", () => {
       .getByRole("navigation", { name: "Primary" })
       .getByRole("link", { name: /Your account/ });
     await expect(mark).toBeVisible();
-    await expect(face.locator("img")).toHaveAttribute("src", "/avatars/sadu-rose.png");
+    // Scoped to the avatar's own src, same as shell.spec: until the profile
+    // query resolves the emblem shows its two-image fallback, and a bare
+    // locator("img") dies on the strict-mode violation instead of waiting.
+    await expect(face.locator('img[src="/avatars/sadu-rose.png"]')).toBeVisible();
+    await expect(face.locator("img")).toHaveCount(1);
   });
 
   test("carries the dialect choice on the feed itself", async ({ page, db, backend }) => {

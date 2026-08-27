@@ -662,6 +662,30 @@ const MyWordsReview = () => {
     }
   };
 
+  /**
+   * Move past the current card without rating it. Nothing is written, so the
+   * card stays due and returns later — this is an escape hatch for a card the
+   * learner can't answer (e.g. one with missing content), not a rating.
+   */
+  const handleSkip = () => {
+    if (ratingInFlightRef.current) return;
+    setShowAnswer(false);
+    setShowContext(false);
+    setShowLyrics(false);
+    setClozeResult(null);
+    if (relearnPick) {
+      // Drop this relearn card from the queue so skipping actually moves on.
+      setRelearn((prev) => prev.filter((r) => r.card.id !== relearnPick.card.id));
+      return;
+    }
+    const wordCount = dueWords?.length ?? 0;
+    if (currentIndex < wordCount - 1) {
+      setCurrentIndex((prev) => prev + 1);
+    } else {
+      setCurrentIndex(0);
+    }
+  };
+
   const handleUndo = async (action?: NonNullable<typeof lastAction>) => {
     const target = action ?? lastAction;
     if (!target || undoing) return;

@@ -1194,6 +1194,16 @@ const MyWordsReview = () => {
               <MessageSquarePlus className="h-3.5 w-3.5" />
               <span className="text-xs font-medium">Practice a sentence</span>
             </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSkip}
+              className="gap-1.5 text-muted-foreground"
+              title="Skip this card without rating it"
+            >
+              <SkipForward className="h-3.5 w-3.5" />
+              <span className="text-xs font-medium">Skip card</span>
+            </Button>
             {lastAction && (
               <Button
                 variant="ghost"

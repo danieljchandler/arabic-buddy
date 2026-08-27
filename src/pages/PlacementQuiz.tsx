@@ -11,6 +11,7 @@ import { Progress } from "@/components/ui/progress";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { isCappedError, toInvokeFailureError } from "@/lib/invokeError";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import {
@@ -148,13 +149,16 @@ export default function PlacementQuiz() {
             dialect: activeDialect,
           },
         });
-        if (error) throw error;
-        if (data?.error) throw new Error(data.error);
+        if (error || data?.error) {
+          throw await toInvokeFailureError(error, data, "Please try again.");
+        }
         if (!data?.questions?.length) throw new Error("No questions received");
         return data.questions as Question[];
       } catch (e: any) {
         console.error("Failed to fetch questions:", e);
-        toast.error("Failed to load questions", { description: e.message || "Please try again." });
+        if (!isCappedError(e)) {
+          toast.error("Failed to load questions", { description: e.message || "Please try again." });
+        }
         return null;
       } finally {
         setLoading(false);

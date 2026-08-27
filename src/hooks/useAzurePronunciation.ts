@@ -28,6 +28,7 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { describeInvokeFailure } from '@/lib/invokeError';
 import { blobToWav } from '@/lib/audioToWav';
 
 export interface PhonemeResult {
@@ -163,7 +164,14 @@ export function useAzurePronunciation() {
 
         if (reqId !== requestIdRef.current) return null;
 
-        if (fnError) throw new Error(fnError.message);
+        if (fnError) {
+          // Learner-facing text, not supabase-js's "non-2xx" line. A cap hit
+          // has shown its own upgrade toast; the score panel stays quiet.
+          const failure = await describeInvokeFailure(fnError, data, "Scoring didn't work. Please try again.");
+          if (reqId !== requestIdRef.current) return null;
+          setError(failure.capped ? null : failure.message);
+          return null;
+        }
         if (data?.error) throw new Error(data.error);
 
         const pronunciationResult = data as PronunciationResult;

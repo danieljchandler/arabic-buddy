@@ -17,6 +17,7 @@ import { useDialect } from "@/contexts/DialectContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useBibleAccess } from "@/hooks/useBibleAccess";
 import { supabase } from "@/integrations/supabase/client";
+import { isCappedError, toInvokeFailureError } from "@/lib/invokeError";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { InfoHint } from "@/components/InfoHint";
@@ -278,13 +279,7 @@ const BibleReadingInner = () => {
           }
         );
 
-        if (error) {
-          const message =
-            typeof error === "object" && error !== null && "message" in error
-              ? (error as { message: string }).message
-              : String(error);
-          throw new Error(message);
-        }
+        if (error) throw await toInvokeFailureError(error, data, "Please try again later.");
 
         const response = data as BibleFunctionResponse | null;
 
@@ -320,10 +315,11 @@ const BibleReadingInner = () => {
       }
     } catch (err: unknown) {
       console.error("Failed to fetch Bible passage:", err);
-      toast.error("Failed to load passage", {
-        description:
-          err instanceof Error ? err.message : "Please try again later.",
-      });
+      if (!isCappedError(err)) {
+        toast.error("Failed to load passage", {
+          description: err instanceof Error ? err.message : "Please try again later.",
+        });
+      }
     } finally {
       setLoading(false);
     }

@@ -187,12 +187,10 @@ test.describe("where the questions come from", () => {
     await expect(page.getByRole("button", { name: new RegExp("Verb Conjugation") })).toBeVisible();
     await expect(page.getByText(/Question 1 of/)).toHaveCount(0);
 
-    // The toast title is `e.message || "Failed to generate drill"`, and a
-    // failed `functions.invoke` supplies a message — so the learner is shown
-    // supabase-js's wording ("non-2xx status code") rather than the app's.
-    // Pinned as-is: the fallback string is only reachable for an error with no
-    // message at all.
-    await expect(page.getByText(/non-2xx status code/i)).toBeVisible();
+    // The failure is worded for a learner now — supabase-js's "non-2xx status
+    // code" line stays in the console, never in the toast.
+    await expect(page.getByText(/couldn.t build the drill/i)).toBeVisible();
+    await expect(page.getByText(/non-2xx status code/i)).toHaveCount(0);
   });
 });
 

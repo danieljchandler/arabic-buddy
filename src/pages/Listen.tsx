@@ -19,6 +19,7 @@ import {
 } from "@/hooks/useListen";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { isCappedError } from "@/lib/invokeError";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useComprehensionMap } from "@/hooks/useComprehensionMap";
 import { ComprehensionBar } from "@/components/shared/ComprehensionBar";
@@ -81,7 +82,7 @@ const Listen = () => {
       toast.success("Episode ready");
       navigate(`/listen/${ep.id}`);
     } catch (e: any) {
-      toast.error(e?.message ?? "Generation failed");
+      if (!isCappedError(e)) toast.error(e?.message ?? "Generation failed");
     }
   };
 

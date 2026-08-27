@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { PageCorner } from "@/components/shell/PageCorner";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
+import { isCappedError, toInvokeFailureError } from "@/lib/invokeError";
 import { Badge } from "@/components/ui/badge";
 import { LineByLineTranscript } from "@/components/transcript/LineByLineTranscript";
 import { useAuth } from "@/hooks/useAuth";
@@ -246,7 +247,7 @@ const MemeAnalyzer = () => {
         },
       });
 
-      if (error) throw new Error(error.message);
+      if (error) throw await toInvokeFailureError(error, data, "Couldn't analyse the meme. Please try again.");
       if (!data?.success || !data?.result) throw new Error(data?.error || "Analysis failed");
 
       const analysisResult = data.result as MemeAnalysisResult;
@@ -263,9 +264,11 @@ const MemeAnalyzer = () => {
       toast.success("Meme analyzed! 🎉");
     } catch (err) {
       console.error("Meme analysis error:", err);
-      toast.error("Analysis failed", {
-        description: err instanceof Error ? err.message : "An unexpected error occurred",
-      });
+      if (!isCappedError(err)) {
+        toast.error("Analysis failed", {
+          description: err instanceof Error ? err.message : "An unexpected error occurred",
+        });
+      }
     } finally {
       clearInterval(progressInterval);
       setIsProcessing(false);

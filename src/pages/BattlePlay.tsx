@@ -102,7 +102,9 @@ const BattlePlay = () => {
       }
       toast.success('Score submitted!');
     } catch (err: any) {
-      toast.error(err.message || 'Failed to submit score');
+      // A raw PostgREST message helps nobody here; the fix is retrying.
+      console.error('battle score submit failed', err);
+      toast.error('Could not submit your score. Check your connection and try again.');
     }
   }, [battleId, isChallenger, submitChallenger, submitOpponent]);
 

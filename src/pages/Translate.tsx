@@ -23,6 +23,7 @@ import { useDialect } from "@/contexts/DialectContext";
 import { useAuth } from "@/hooks/useAuth";
 import { consumeShareHandoff } from "@/lib/shareInbox";
 import { toast } from "sonner";
+import { isCappedError } from "@/lib/invokeError";
 import { BookOpen, Check, Languages, Loader2, BookmarkPlus, Info, RotateCcw, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -63,7 +64,7 @@ const Translate = () => {
     const shared = handoff.text.slice(0, 4000);
     setText(shared);
     translate(shared, "auto").catch((e) => {
-      toast.error(e instanceof Error ? e.message : "Translation failed");
+      if (!isCappedError(e)) toast.error(e instanceof Error ? e.message : "Translation failed");
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -103,8 +104,7 @@ const Translate = () => {
       setSavedId(null);
       await translate(trimmed, dialectOpt);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Translation failed";
-      toast.error(msg);
+      if (!isCappedError(e)) toast.error(e instanceof Error ? e.message : "Translation failed");
     }
   };
 

@@ -8,6 +8,7 @@ import { LoadingPanel } from "@/components/loading/LoadingPanel";
 import { ProfileEmblem } from "@/components/shell/ProfileEmblem";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
+import { isCappedError, toInvokeFailureError } from "@/lib/invokeError";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -503,8 +504,8 @@ const Transcribe = () => {
         body: { url: trimmed },
       });
 
-      if (error) throw new Error(error.message);
-      
+      if (error) throw await toInvokeFailureError(error, data, "Couldn't fetch that link. Check the URL and try again.");
+
       // Check if we got cached transcription data
       if (data?.cached && data?.transcriptionData) {
         toast.success("Using cached transcription!", {
@@ -543,9 +544,11 @@ const Transcribe = () => {
       });
     } catch (err) {
       console.error("URL processing error:", err);
-      toast.error("Failed to process URL", {
-        description: err instanceof Error ? err.message : "An unexpected error occurred",
-      });
+      if (!isCappedError(err)) {
+        toast.error("Failed to process URL", {
+          description: err instanceof Error ? err.message : "An unexpected error occurred",
+        });
+      }
     } finally {
       setIsLoadingUrl(false);
     }
@@ -628,7 +631,7 @@ const Transcribe = () => {
         body,
       });
 
-      if (error) throw new Error(error.message || "Analysis failed");
+      if (error) throw await toInvokeFailureError(error, data, "Analysis didn't finish. Please try again.");
       if (!data?.success || !data.result) throw new Error(data?.error || "Analysis failed");
 
       const normalized = normalizeTranscriptResult(data.result);
@@ -667,7 +670,9 @@ const Transcribe = () => {
     } catch (error) {
       console.error("Analysis error:", error);
       setDebugTrace({ phase: "error:analyze", at: new Date().toISOString(), message: error instanceof Error ? error.message : String(error) });
-      toast.error("Analysis failed", { description: error instanceof Error ? error.message : "An unexpected error occurred" });
+      if (!isCappedError(error)) {
+        toast.error("Analysis failed", { description: error instanceof Error ? error.message : "An unexpected error occurred" });
+      }
       return null;
     } finally {
       setIsAnalyzing(false);
@@ -988,7 +993,9 @@ const Transcribe = () => {
     } catch (error) {
       console.error("Transcription error:", error);
       setDebugTrace({ phase: "error", at: new Date().toISOString(), message: error instanceof Error ? error.message : String(error) });
-      toast.error("Transcription failed", { description: error instanceof Error ? error.message : "An unexpected error occurred" });
+      // The engines' own errors carry provider internals ("Munsit 401: …");
+      // the debug trace keeps the raw text, the learner gets a sentence.
+      toast.error("Transcription failed", { description: "The transcription engines had a problem. Please try again." });
     } finally {
       if (progressInterval) clearInterval(progressInterval);
       setIsProcessing(false);
@@ -1047,7 +1054,7 @@ const Transcribe = () => {
       toast.success("Transcription saved!");
     } catch (error) {
       console.error("Save error:", error);
-      toast.error("Save failed", { description: error instanceof Error ? error.message : "An unexpected error occurred" });
+      toast.error("Save failed", { description: "Your transcription couldn't be saved. Please try again." });
     } finally {
       setIsSaving(false);
     }

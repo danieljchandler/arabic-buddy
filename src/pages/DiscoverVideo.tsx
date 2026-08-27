@@ -46,6 +46,7 @@ import { DIALECT_LOCALE, extractYouTubeId, type ShadowClip } from "@/hooks/useSh
 import { loadYouTubeIframeAPI } from "@/lib/youtubeIframeApi";
 import { Mic } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { isCappedError, toInvokeFailureError } from "@/lib/invokeError";
 import { recordContinue } from "@/lib/continueProgress";
 import { useUserLevel } from "@/hooks/useUserLevel";
 import { useQueryClient } from "@tanstack/react-query";
@@ -505,7 +506,7 @@ const GrammarNotesSection = ({
       const { data, error } = await supabase.functions.invoke("extract-grammar-points", {
         body: { video_id: videoId, target_level: userLevel, count: 4 },
       });
-      if (error) throw error;
+      if (error) throw await toInvokeFailureError(error, data, "Couldn't generate grammar notes. Please try again.");
       if ((data as any)?.added > 0) {
         toast.success(`Added ${(data as any).added} new grammar note${(data as any).added === 1 ? "" : "s"}`);
         qc.invalidateQueries({ queryKey: ["discover-video", videoId] });
@@ -513,7 +514,7 @@ const GrammarNotesSection = ({
         toast.info((data as any)?.message || "No new grammar notes found");
       }
     } catch (e: any) {
-      toast.error(e?.message || "Failed to generate grammar notes");
+      if (!isCappedError(e)) toast.error(e?.message || "Failed to generate grammar notes");
     } finally {
       setGenerating(false);
     }

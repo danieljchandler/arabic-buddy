@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { toInvokeFailureError } from "@/lib/invokeError";
 
 export interface TranslatedSentence {
   arabic: string;
@@ -36,9 +37,11 @@ export function useTranslateText() {
       setResult(data as TranslateTextResult);
       return data as TranslateTextResult;
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Translation failed";
-      setError(msg);
-      throw e;
+      // Learner-facing message, never supabase-js's "non-2xx" dev-speak. A cap
+      // hit has already shown the upgrade toast; the page's catch stands down.
+      const failure = await toInvokeFailureError(e, undefined, "Translation failed. Please try again.");
+      setError(failure.capped ? null : failure.message);
+      throw failure;
     } finally {
       setLoading(false);
     }

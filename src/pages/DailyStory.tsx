@@ -13,6 +13,7 @@ import { useDailyStory, useGenerateDailyStory } from "@/hooks/useDailyStory";
 import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
 import { markTaskCompletedToday, isTaskCompletedToday } from "@/lib/todayCompletion";
 import { toast } from "sonner";
+import { isCappedError } from "@/lib/invokeError";
 import { LoadingPanel } from "@/components/loading/LoadingPanel";
 
 const DailyStoryPage = () => {
@@ -208,7 +209,9 @@ const DailyStoryPage = () => {
                 onClick={() =>
                   generate.mutate({ force: true }, {
                     onSuccess: () => toast.success("Fresh story generated"),
-                    onError: (e) => toast.error(e instanceof Error ? e.message : "Failed"),
+                    onError: (e) => {
+                      if (!isCappedError(e)) toast.error(e instanceof Error ? e.message : "Failed");
+                    },
                   })
                 }
                 disabled={generate.isPending}

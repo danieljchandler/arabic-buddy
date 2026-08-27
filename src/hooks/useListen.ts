@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { toInvokeFailureError } from "@/lib/invokeError";
 import { useAuth } from "@/hooks/useAuth";
 import { useDialect } from "@/contexts/DialectContext";
 
@@ -110,7 +111,7 @@ export function useRetryListenAudio() {
       const { error } = await supabase.functions.invoke("generate-listen-audio", {
         body: { episodeId },
       });
-      if (error) throw error;
+      if (error) throw await toInvokeFailureError(error, undefined, "Couldn't start the audio. Please try again.");
     },
     onSuccess: (_d, episodeId) => {
       qc.invalidateQueries({ queryKey: ["listen-episode", episodeId] });
@@ -133,7 +134,7 @@ export function useGenerateListenEpisode() {
       const { data, error } = await supabase.functions.invoke("generate-listen-script", {
         body: { ...input, dialect: activeDialect },
       });
-      if (error) throw error;
+      if (error) throw await toInvokeFailureError(error, data, "Couldn't make the episode. Please try again.");
       if (!data?.episode) throw new Error(data?.message || data?.error || "No episode returned");
       return data.episode as ListenEpisode;
     },
@@ -149,7 +150,7 @@ export function useGenerateListenLineAudio() {
       const { data, error } = await supabase.functions.invoke("generate-listen-line-audio", {
         body: input,
       });
-      if (error) throw error;
+      if (error) throw await toInvokeFailureError(error, data, "Couldn't fetch this line's audio.");
       if (!data?.audio_url) throw new Error(data?.error ?? "No audio");
       return data.audio_url as string;
     },

@@ -9,6 +9,7 @@ import { LoadingPanel } from "@/components/loading/LoadingPanel";
 import { ProfileEmblem } from "@/components/shell/ProfileEmblem";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { supabase } from "@/integrations/supabase/client";
+import { isCappedError, toInvokeFailureError } from "@/lib/invokeError";
 import { LineByLineTranscript } from "@/components/transcript/LineByLineTranscript";
 import { useAuth } from "@/hooks/useAuth";
 import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
@@ -68,23 +69,6 @@ function normalizeTranscriptResult(input: TranscriptResult): TranscriptResult {
       })
       .filter((l) => l.arabic.length > 0),
   };
-}
-
-/** Extracts the real error message from a supabase.functions.invoke error.
- *  The SDK wraps non-2xx responses in FunctionsHttpError whose `.message` is
- *  always the generic "Edge Function returned a non-2xx status code".
- *  The actual JSON body (with our own `error` field) lives in `.context`. */
-async function readInvokeError(err: unknown): Promise<string> {
-  if (!err || typeof err !== "object") return String(err);
-  const context = (err as { context?: Response }).context;
-  if (context) {
-    try {
-      const body = await context.clone().json();
-      if (body?.error) return body.error;
-      if (body?.message) return body.message;
-    } catch { /* ignore parse failure */ }
-  }
-  return (err as Error).message ?? "Unknown error";
 }
 
 const LearnFromX = () => {
@@ -157,7 +141,7 @@ const LearnFromX = () => {
         body: { url: trimmed },
       });
 
-      if (scrapeError) throw new Error(await readInvokeError(scrapeError));
+      if (scrapeError) throw await toInvokeFailureError(scrapeError, scrapeData, "Couldn’t read that post. Please try again.");
       if (!scrapeData?.success) throw new Error(scrapeData?.error ?? "Failed to extract post text");
 
       const text: string = scrapeData.text;
@@ -172,7 +156,7 @@ const LearnFromX = () => {
         body: { transcript: text },
       });
 
-      if (analyzeError) throw new Error(await readInvokeError(analyzeError));
+      if (analyzeError) throw await toInvokeFailureError(analyzeError, analyzeData, "Analysis didn’t finish. Please try again.");
       if (!analyzeData?.success || !analyzeData.result) throw new Error(analyzeData?.error ?? "Analysis failed");
 
       const normalized = normalizeTranscriptResult(analyzeData.result);
@@ -183,7 +167,9 @@ const LearnFromX = () => {
       });
     } catch (err) {
       console.error("Error:", err);
-      toast.error("Failed", { description: err instanceof Error ? err.message : "An unexpected error occurred" });
+      if (!isCappedError(err)) {
+        toast.error("Failed", { description: err instanceof Error ? err.message : "An unexpected error occurred" });
+      }
     } finally {
       setIsScraping(false);
       setIsAnalyzing(false);

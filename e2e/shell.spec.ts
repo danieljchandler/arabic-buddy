@@ -124,8 +124,14 @@ test.describe("the emblem's picture", () => {
     await signInAs("free", { profile: { avatar_url: "/avatars/sadu-rose.png" } });
     await page.goto("/choose");
 
+    // Scoped to the avatar's own src, not `locator("img")`: while the profile
+    // query is still in flight the emblem legitimately shows its two-image
+    // fallback (frame + mark), and an ambiguous locator inside a web-first
+    // assertion dies on the strict-mode violation instead of polling — a race
+    // this test lost whenever the chooser rendered faster than the query.
     const emblem = page.getByRole("link", { name: /Your account/ }).first();
-    await expect(emblem.locator("img")).toHaveAttribute("src", "/avatars/sadu-rose.png");
+    await expect(emblem.locator('img[src="/avatars/sadu-rose.png"]')).toBeVisible();
+    await expect(emblem.locator("img")).toHaveCount(1);
   });
 
   test("falls back to the mark when no picture has been chosen", async ({ page, signInAs }) => {

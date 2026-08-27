@@ -85,6 +85,10 @@ const InlineToken = ({
   const [liveTranslation, setLiveTranslation] = useState<string | null>(null);
   const [liveMsa, setLiveMsa] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
+  // A failed attempt must not re-arm the auto-translate effect below, or an
+  // outage turns into an infinite loop against a paid endpoint while the
+  // popover is open. Retry stays manual.
+  const [translateFailed, setTranslateFailed] = useState(false);
   const hasGloss = !!token.gloss && !token.gloss.startsWith("(→") && !token.compoundRef;
   const displayGloss = hasGloss ? token.gloss : liveTranslation;
   
@@ -109,6 +113,7 @@ const InlineToken = ({
   const handleTranslateSingle = useCallback(async () => {
     if (isTranslating || liveTranslation) return;
     setIsTranslating(true);
+    setTranslateFailed(false);
     try {
       const { data, error } = await supabase.functions.invoke('translate-phrase', {
         body: {
@@ -123,9 +128,12 @@ const InlineToken = ({
         if (data.msa) {
           setLiveMsa(data.msa);
         }
+      } else {
+        setTranslateFailed(true);
       }
     } catch (err) {
       console.warn('Single word translation failed:', err);
+      setTranslateFailed(true);
     } finally {
       setIsTranslating(false);
     }
@@ -133,10 +141,10 @@ const InlineToken = ({
 
   // Auto-translate when single popover opens and no gloss
   useEffect(() => {
-    if (effectiveOpen && !hasGloss && !liveTranslation && !isTranslating) {
+    if (effectiveOpen && !hasGloss && !liveTranslation && !isTranslating && !translateFailed) {
       handleTranslateSingle();
     }
-  }, [effectiveOpen, hasGloss, liveTranslation, isTranslating, handleTranslateSingle]);
+  }, [effectiveOpen, hasGloss, liveTranslation, isTranslating, translateFailed, handleTranslateSingle]);
 
   const handleClick = (e: React.MouseEvent) => {
     e.stopPropagation();

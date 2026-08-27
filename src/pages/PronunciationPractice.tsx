@@ -14,6 +14,7 @@ import { Mic, MicOff, RotateCcw, Loader2, ChevronRight, ChevronLeft, Volume2, Tr
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
 import { AskAISentence } from "@/components/shared/AskAISentence";
@@ -50,6 +51,7 @@ interface VocabWord {
 
 const PronunciationPractice = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   const { assess, result, isLoading, error, reset } = useAzurePronunciation();
   const { activeDialect } = useDialect();
@@ -156,10 +158,17 @@ const PronunciationPractice = () => {
           setIsRecording(false);
         }
       }, MAX_DURATION_MS);
-    } catch {
-      console.error("Microphone access denied");
+    } catch (err) {
+      // The same failure ConversationSimulator toasts — a denied prompt or a
+      // machine with no mic. Silence here left the record button looking dead.
+      toast({
+        title: "Microphone blocked",
+        description: "Allow microphone access in your browser to practise pronunciation.",
+        variant: "destructive",
+      });
+      console.error("Microphone access denied", err);
     }
-  }, [referenceText, assess, reset, assessLocale]);
+  }, [referenceText, assess, reset, assessLocale, toast]);
 
   const goToNext = () => {
     reset();

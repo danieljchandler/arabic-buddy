@@ -635,6 +635,25 @@ describe("looking up one word", () => {
     // network from a word the model does not know.
     await waitFor(() => expect(backend.callsTo("translate-phrase")).toHaveLength(2));
   });
+
+  it("does not retry a failed lookup on its own", async () => {
+    const { backend } = render({
+      lines: [UNGLOSSED_LAST_WORD],
+      seed: (b) => b.stubFunctionFailure("translate-phrase", 500),
+    });
+
+    tap("أمس");
+    await waitFor(() =>
+      expect(within(wordPopover()).getByText("No definition found")).toBeInTheDocument(),
+    );
+
+    // The failed state re-renders with the popover still open, which is
+    // exactly when an effect keyed on "no translation yet" would fire again —
+    // and again, forever, against a paid endpoint. Retrying is the learner's
+    // button, not the effect's.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(backend.callsTo("translate-phrase")).toHaveLength(1);
+  });
 });
 
 describe("keeping a word", () => {

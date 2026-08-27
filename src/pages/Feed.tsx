@@ -62,7 +62,7 @@ const Feed = () => {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { activeDialect, setDialect } = useDialect();
   const [seed] = useState(() => Math.floor(Math.random() * 100000));
-  const { data: feed, isLoading } = useDiscoverFeed(seed);
+  const { data: feed, isLoading, isError, refetch } = useDiscoverFeed(seed);
   const swipe = useSwipeSurfaces({ onNext: () => navigate("/choose") });
 
   /**
@@ -230,6 +230,10 @@ const Feed = () => {
         <div className="flex min-h-[100dvh] items-center justify-center">
           <LoadingPanel size="sm" />
         </div>
+      ) : isError ? (
+        // A failed fetch is not an empty library — showing EmptyFeed here told
+        // learners the app had no content whenever the network blipped.
+        <FeedError onRetry={() => refetch()} />
       ) : items.length === 0 ? (
         <EmptyFeed />
       ) : (
@@ -355,6 +359,26 @@ function Clip({
  * videos is worse than a list. So the empty state does not apologise; it hands
  * over the two things that work without a library behind them.
  */
+function FeedError({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-5 px-8 text-center">
+      <div>
+        <p className="text-lg font-semibold">The feed didn&apos;t load</p>
+        <p className="mt-1 text-sm text-white/60">
+          Check your connection and try again — your clips are still there.
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
+      >
+        Try again
+      </button>
+    </div>
+  );
+}
+
 function EmptyFeed() {
   return (
     <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-5 px-8 text-center">

@@ -190,3 +190,18 @@ test.describe("the feed", () => {
     await expect(page).toHaveURL(/\/today$/);
   });
 });
+
+test.describe("when the feed cannot load", () => {
+  test("says so instead of claiming there are no clips", async ({ page, signInAs, backend }) => {
+    await signInAs("free");
+    backend.stubFunctionFailure("discover-feed", 500);
+
+    await page.goto("/");
+
+    // A failed fetch used to render the "No new clips right now" empty state —
+    // the front door claiming the library was empty on every network blip.
+    await expect(page.getByText("The feed didn't load")).toBeVisible();
+    await expect(page.getByText("No new clips right now")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
+  });
+});

@@ -1,13 +1,9 @@
-import { FREE_TIER_LIMITS, STANDARD_TIER_LIMITS } from "../../lib/featureAccess";
 import type { MemoryDb } from "./postgrest/store";
 import {
   aProfile,
   aRole,
   aSubscriber,
-  aUserVocabulary,
   aUserXp,
-  many,
-  vocabId,
   TEST_USER_ID,
 } from "./factories";
 import type { SupabaseBackend } from "./server/handler";
@@ -126,32 +122,4 @@ export function seedPersona(
 /** The shape check-subscription returns for someone with no active plan. */
 function unsubscribedResponse() {
   return { subscribed: false, tier: null, product_id: null, subscription_end: null };
-}
-
-/** Fill the free tier's vocabulary allowance exactly, so the next add is capped. */
-export function seedAtFreeVocabCap(db: MemoryDb, userId = TEST_USER_ID): void {
-  // Reads the constant rather than hardcoding 10, so the test follows the limit
-  // if the product changes it.
-  db.seed(
-    "user_vocabulary",
-    many(aUserVocabulary, FREE_TIER_LIMITS.vocabularyWords, (index) => ({
-      id: vocabId(index),
-      user_id: userId,
-      word_arabic: `كلمة${index + 1}`,
-      word_english: `word ${index + 1}`,
-    })),
-  );
-}
-
-/** Fill the standard tier's vocabulary allowance exactly. */
-export function seedAtStandardVocabCap(db: MemoryDb, userId = TEST_USER_ID): void {
-  db.seed(
-    "user_vocabulary",
-    many(aUserVocabulary, STANDARD_TIER_LIMITS.vocabularyWords, (index) => ({
-      id: vocabId(index),
-      user_id: userId,
-      word_arabic: `كلمة${index + 1}`,
-      word_english: `word ${index + 1}`,
-    })),
-  );
 }

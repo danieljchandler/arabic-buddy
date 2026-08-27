@@ -3,8 +3,6 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   FEATURE_REQUIREMENTS,
-  FREE_TIER_LIMITS,
-  STANDARD_TIER_LIMITS,
   featureLabel,
   type PremiumFeature,
 } from "./featureAccess";
@@ -12,16 +10,20 @@ import {
 /**
  * The premium tier table.
  *
- * Worth pinning even though nothing enforces it yet. `RequireSubscription`,
- * `useFeatureAccess` and this module are all written and none of them is
- * imported by a page — the paid features are currently reachable on every tier.
- * That makes this file a specification of intent rather than a description of
- * behaviour, and the risk is that it drifts out of agreement with the Pricing
- * page in the meantime, so that wiring it up later silently locks or unlocks
- * the wrong things.
+ * Worth pinning even though the client barely enforces it. `RequireSubscription`
+ * and `useFeatureAccess` are written and not imported by a page — the real
+ * gates live server-side: usageCap.ts lifts the daily caps for subscribers,
+ * realtime-session-token refuses live voice without a subscription, and
+ * voiceBudgetCore.ts meters minutes by tier. This file is the client-side
+ * naming of those gates, and the risk is that it drifts out of agreement with
+ * the Pricing page, so that wiring the paywall up later locks or unlocks the
+ * wrong things.
  *
  * These tests therefore do two jobs: pin the table itself, and check it against
- * the numbers Pricing.tsx actually shows a prospective subscriber.
+ * what Pricing.tsx actually shows a prospective subscriber. This module used to
+ * also declare vocabulary caps and Discover content tiers — promises no code
+ * kept, repeated on the pricing page. Both now describe the enforced product;
+ * see e2e/my-words.spec.ts for the test recording that no vocab cap exists.
  */
 
 const ALL_FEATURES = Object.keys(FEATURE_REQUIREMENTS) as PremiumFeature[];
@@ -42,10 +44,13 @@ describe("the tier table", () => {
     expect(FEATURE_REQUIREMENTS.learn_from_x).toBe("standard");
   });
 
-  it("reserves the uncapped features for All-In", () => {
-    expect(FEATURE_REQUIREMENTS.unlimited_vocab).toBe("allin");
-    expect(FEATURE_REQUIREMENTS.full_discover).toBe("allin");
-    expect(FEATURE_REQUIREMENTS.priority_ai).toBe("allin");
+  it("puts live voice on Standard, matching the server", () => {
+    // The one feature with a real gate today: realtime-session-token calls
+    // requireActiveSubscription, and any paid tier satisfies it.
+    expect(FEATURE_REQUIREMENTS.live_voice).toBe("standard");
+  });
+
+  it("reserves early access for All-In", () => {
     expect(FEATURE_REQUIREMENTS.early_access).toBe("allin");
   });
 
@@ -65,32 +70,21 @@ describe("the tier table", () => {
   });
 });
 
-describe("the free and standard caps", () => {
-  it("caps free vocabulary below standard", () => {
-    // The ordering is the invariant: a cap that did not increase with the tier
-    // would make upgrading a downgrade.
-    expect(FREE_TIER_LIMITS.vocabularyWords).toBeLessThan(STANDARD_TIER_LIMITS.vocabularyWords);
-  });
-
-  it("caps free Discover by the day rather than in total", () => {
-    // A lifetime cap on browsing would end the free tier rather than sample it.
-    expect(FREE_TIER_LIMITS.discoverVideosPerDay).toBeGreaterThan(0);
-  });
-});
-
 describe("agreement with the Pricing page", () => {
   const pricing = readFileSync(resolve(__dirname, "../pages/Pricing.tsx"), "utf8");
   const subscription = readFileSync(resolve(__dirname, "../hooks/useSubscription.ts"), "utf8");
 
-  it("shows the free vocabulary cap this module enforces", () => {
+  it("sells the free tier as limited by the day, not by content", () => {
     // Pricing.tsx hardcodes its bullet list rather than reading this file, so
-    // the two can disagree without anything failing to compile. Someone
-    // charging for a limit is entitled to have the page state the same one.
-    expect(pricing).toContain(`${FREE_TIER_LIMITS.vocabularyWords} vocabulary words`);
+    // the two can disagree without anything failing to compile. The free tier's
+    // real ceiling is the daily caps in usageCap.ts — not a vocabulary count,
+    // which this page used to promise and nothing enforced.
+    expect(pricing).toMatch(/daily free limits/i);
+    expect(pricing).not.toMatch(/\d+ vocabulary words/);
   });
 
-  it("shows the standard vocabulary cap this module enforces", () => {
-    expect(subscription).toContain(`${STANDARD_TIER_LIMITS.vocabularyWords} vocabulary words`);
+  it("sells Standard as the removal of the daily limits", () => {
+    expect(subscription).toMatch(/No daily limits/i);
   });
 
   it("sells the Standard features this module gates behind Standard", () => {
@@ -99,12 +93,10 @@ describe("agreement with the Pricing page", () => {
     expect(subscription).toMatch(/Transcribe/i);
     expect(subscription).toMatch(/Meme Analyzer/i);
     expect(subscription).toMatch(/How Do I Say/i);
+    expect(subscription).toMatch(/voice conversations/i);
   });
 
   it("sells the All-In features this module gates behind All-In", () => {
-    expect(subscription).toMatch(/Unlimited vocabulary/i);
-    expect(subscription).toMatch(/Full Discover/i);
-    expect(subscription).toMatch(/Priority AI/i);
     expect(subscription).toMatch(/Early access/i);
   });
 });

@@ -116,7 +116,7 @@ describe("RequireSubscription — letting a subscriber through", () => {
   });
 
   it("shows an All-In feature to an All-In subscriber", async () => {
-    await render({ feature: "unlimited_vocab", tier: "allin" });
+    await render({ feature: "early_access", tier: "allin" });
     expect(paidFeature()).toBeInTheDocument();
   });
 
@@ -134,7 +134,7 @@ describe("RequireSubscription — holding a non-subscriber back", () => {
 
   it("hides an All-In feature from a Standard subscriber", async () => {
     // The commonest real case: someone has paid, just not for this.
-    await render({ feature: "unlimited_vocab", tier: "standard" });
+    await render({ feature: "early_access", tier: "standard" });
     expect(paidFeature()).not.toBeInTheDocument();
   });
 
@@ -147,8 +147,7 @@ describe("RequireSubscription — holding a non-subscriber back", () => {
     ["transcribe", "Transcribe tool"],
     ["how_do_i_say", "How Do I Say"],
     ["learn_from_x", "Learn from X posts"],
-    ["full_discover", "Full Discover library"],
-    ["priority_ai", "Priority AI processing"],
+    ["live_voice", "Live voice conversations"],
     ["early_access", "Early access features"],
   ] as const)("labels %s properly", async (feature, label) => {
     await render({ feature, tier: "free" });
@@ -162,12 +161,12 @@ describe("RequireSubscription — holding a non-subscriber back", () => {
 
   it("says which plan would unlock an All-In feature", async () => {
     // Telling a Standard subscriber to "subscribe" would be wrong — they have.
-    await render({ feature: "priority_ai", tier: "standard" });
+    await render({ feature: "early_access", tier: "standard" });
     expect(screen.getByText("Upgrade to the All-In plan to unlock this.")).toBeInTheDocument();
   });
 
   it("marks an All-In feature with the crown", async () => {
-    const { container } = await render({ feature: "priority_ai", tier: "free" });
+    const { container } = await render({ feature: "early_access", tier: "free" });
     expect(container.querySelector(".lucide-crown")).toBeInTheDocument();
   });
 

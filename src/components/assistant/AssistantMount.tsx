@@ -11,12 +11,12 @@ const AskAiPanel = lazy(() =>
  * is only fetched the first time the assistant is opened, and stays mounted
  * afterwards so the conversation survives closing the sheet.
  *
- * It also owns Cmd/Ctrl+K, the assistant's one global opener. That shortcut
- * used to live on the floating sadu disc, which sat on top of the bottom bar
- * at tablet widths — a button covering the navigation is worse than no button,
- * and the assistant is already offered where it is actually wanted: the Ask AI
- * chip on a sentence, a tapped word, the phrase of the day. The keystroke
- * outlives the button because nothing was covering anything.
+ * It also owns Cmd/Ctrl+K, the assistant's global keyboard opener. The
+ * shortcut lives here rather than on the floating sadu disc (AskAiFab) so the
+ * two ways in stay independent: the disc had a spell off-screen — removed for
+ * covering the bottom bar before coming back above it — and the keystroke
+ * must not disappear with it. Both share this route list, so neither can open
+ * a tutor over the sign-in form or the admin console.
  * (Cmd+/ belongs to feedback.)
  */
 export function AssistantMount() {
@@ -24,9 +24,9 @@ export function AssistantMount() {
   const [everOpened, setEverOpened] = useState(false);
   const { pathname } = useLocation();
 
-  // The routes the assistant has nothing to say about — the same list the
-  // button carried, kept so a stray keystroke can't open a tutor over the
-  // sign-in form or the admin console.
+  // The routes the assistant has nothing to say about — mirrored in AskAiFab,
+  // kept so a stray keystroke can't open a tutor over the sign-in form or the
+  // admin console.
   const off = useMemo(
     () =>
       pathname.startsWith("/auth") ||

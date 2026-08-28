@@ -1,7 +1,8 @@
 // The global Ask AI assistant: one streaming chat that knows what the learner
 // is looking at (page context published by the client), what they were opened
 // about (an optional seed sentence), and who they are (learner profile +
-// recent content history, fetched server-side on the first turn).
+// recent content history, fetched server-side on the first turn and refreshed
+// every few turns after that — see PROFILE_REFRESH_TURNS).
 //
 // Page context and seed are learner/content-influenced strings entering a
 // system prompt, so they are length-capped and framed as data, never as
@@ -11,7 +12,11 @@ import { getDialectLabel, getDialectTransliterationRules, type Dialect } from ".
 import { DEFAULT_CHAT } from "../_shared/modelRegistry.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
-import { learnerPromptBlock } from "../_shared/learnerProfile.ts";
+import {
+  buildLearnerProfile,
+  onScreenVocabBlock,
+  renderProfileForPrompt,
+} from "../_shared/learnerProfile.ts";
 import { contentHistoryBlock } from "../_shared/contentHistory.ts";
 import {
   CHAT_BUDGET,
@@ -51,6 +56,16 @@ const MAX_MESSAGES = 20;
 const MAX_MESSAGE_CHARS = 4000;
 const MAX_SEED_CHARS = 500;
 
+/**
+ * How often the learner profile, content history and memory are re-fetched:
+ * the first user turn, then every PROFILE_REFRESH_TURNS user turns. In
+ * between, the visible history carries that knowledge forward for free — but
+ * a long conversation drifts away from a first-turn snapshot (reviews land
+ * mid-chat, the learner changes page), and the snapshot never corrects itself
+ * without this.
+ */
+const PROFILE_REFRESH_TURNS = 5;
+
 const clip = (value: unknown, max: number): string =>
   typeof value === "string" ? value.slice(0, max) : "";
 
@@ -76,6 +91,13 @@ Deno.serve(async (req) => {
       .slice(-MAX_MESSAGES)
       .filter((m) => (m?.role === "user" || m?.role === "assistant") && typeof m?.content === "string")
       .map((m) => ({ role: m.role, content: m.content.slice(0, MAX_MESSAGE_CHARS) }));
+
+    // Which user turn this is — counted on the full history, not the
+    // truncated window, or every turn past MAX_MESSAGES would look like the
+    // same turn and refresh on every message.
+    const userTurn = Math.ceil(body.messages.length / 2);
+    const refreshLearnerContext =
+      userTurn <= 1 || userTurn % PROFILE_REFRESH_TURNS === 0;
 
     const resolvedDialect: Dialect = body.dialect || "Gulf";
     const dialectLabel = getDialectLabel(resolvedDialect);
@@ -139,30 +161,41 @@ ${pageText}
     // to the model on the first, like the profile.
     const memoryPromise = readLearnerMemory(cap.userId, resolvedDialect);
 
-    // Only the first turn pays for the profile queries: on later turns the
-    // same knowledge is already reflected in the visible history.
+    // Only some turns pay for the profile queries — the first, then every
+    // PROFILE_REFRESH_TURNS-th (see above): in between, the same knowledge is
+    // already reflected in the visible history.
     let learnerBlock = "";
+    let vocabBlock = "";
     let historyBlock = "";
-    if (messages.length <= 2) {
-      [learnerBlock, historyBlock] = await Promise.all([
-        learnerPromptBlock({
-          userId: cap.userId,
-          dialect: resolvedDialect,
-          includeWeak: true,
-          includeInterests: true,
+    if (refreshLearnerContext && cap.userId) {
+      const [profile, history] = await Promise.all([
+        buildLearnerProfile({ userId: cap.userId, dialect: resolvedDialect }).catch((e) => {
+          console.warn("[assistant-chat] profile unavailable:", e);
+          return null;
         }),
         contentHistoryBlock({ userId: cap.userId }),
       ]);
+      historyBlock = history;
+      if (profile) {
+        learnerBlock = renderProfileForPrompt(profile, {
+          includeWeak: true,
+          includeInterests: true,
+        });
+        // The profile says what they know globally; the page says what is in
+        // front of them. This is the join: which of the words on screen are
+        // due work, which are safe, which need a gloss.
+        vocabBlock = onScreenVocabBlock(profile.membership, page.meta?.vocabulary);
+      }
     }
     const [retrievalBlockText, toolBlockText, memory] = await Promise.all([
       retrievalPromise,
       toolsPromise,
       memoryPromise,
     ]);
-    const memoryText = messages.length <= 2 ? memoryBlock(memory) : "";
+    const memoryText = refreshLearnerContext ? memoryBlock(memory) : "";
 
     const systemPromptExtra = `You are Hakiya's in-app AI tutor, a friendly expert in spoken ${dialectLabel}. The learner can ask about anything they see in the app — a video, a story, a grammar point, a word — or about Arabic in general.
-${seedBlock}${pageBlock}${learnerBlock ? `\n${learnerBlock}\n` : ""}${historyBlock ? `\n${historyBlock}\n` : ""}${memoryText ? `\n${memoryText}\n` : ""}${retrievalBlockText ? `\n${retrievalBlockText}\n` : ""}${toolBlockText ? `\n${toolBlockText}\n` : ""}
+${seedBlock}${pageBlock}${learnerBlock ? `\n${learnerBlock}\n` : ""}${vocabBlock ? `\n${vocabBlock}\n` : ""}${historyBlock ? `\n${historyBlock}\n` : ""}${memoryText ? `\n${memoryText}\n` : ""}${retrievalBlockText ? `\n${retrievalBlockText}\n` : ""}${toolBlockText ? `\n${toolBlockText}\n` : ""}
 ${getDialectTransliterationRules(resolvedDialect)}
 
 GROUNDING (critical — the learner is asking about what is on their screen):

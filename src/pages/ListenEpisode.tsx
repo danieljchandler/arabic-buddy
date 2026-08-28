@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Loader2, ArrowLeft, Play, Pause, Volume2, Plus, Check, Trash2, Eye } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
@@ -27,6 +27,7 @@ import {
   useIncrementPlayCount,
   useDeleteListenEpisode,
 } from "@/hooks/useListen";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import { toast } from "sonner";
 import { isCappedError } from "@/lib/invokeError";
 
@@ -62,6 +63,87 @@ const ListenEpisode = () => {
       return next;
     });
   const incrementedRef = useRef(false);
+
+  // Which line the *full-episode* playback is sounding right now. The full
+  // file is stitched from the per-line clips and generate-listen-audio stores
+  // each line's duration on the row, so the prefix sums map currentTime to a
+  // line index — which is what lets Ask AI answer "what did I just hear?"
+  // mid-play instead of only knowing per-line taps. Kept after a pause on
+  // purpose: right after pausing is exactly when that question gets asked.
+  const [fullPlayLine, setFullPlayLine] = useState<number | null>(null);
+  const [fullPlaySeconds, setFullPlaySeconds] = useState<number | null>(null);
+
+  const lineStartTimes = useMemo(() => {
+    const durations = episode?.line_durations;
+    if (!durations || durations.length === 0) return null;
+    const starts: number[] = [];
+    let t = 0;
+    for (const d of durations) {
+      starts.push(t);
+      t += d || 0;
+    }
+    return starts;
+  }, [episode?.line_durations]);
+
+  // Everything the assistant is told about this episode — the script, the key
+  // vocabulary, which line is playing. But only *revealed* lines carry their
+  // text: the page blurs the Arabic as a listening-first exercise, and the
+  // per-line Ask AI chip already waits for the reveal so it can't leak the
+  // answer around the blur. The assistant quoting a hidden line would defeat
+  // the same exercise, so it sees that the line exists and nothing more.
+  usePageAiContext(
+    useMemo(() => {
+      if (!episode) return null;
+      const revealed = (i: number) => revealAll || revealedLines.has(i);
+      // A tapped line wins over the full-play position: tapping is the more
+      // deliberate "this one" gesture.
+      const focusIndex = playingLine ?? fullPlayLine;
+      const playing = focusIndex !== null ? episode.script[focusIndex] : undefined;
+      return {
+        kind: "story" as const,
+        title: episode.title,
+        summary: [
+          `Listening to a ${episode.dialect} dialect ${episode.format} episode, listen-first: each line's text stays hidden until the learner reveals it, and hidden lines are withheld below on purpose — if asked about one, encourage another listen instead of guessing.`,
+          episode.summary ?? "",
+        ]
+          .filter(Boolean)
+          .join(" "),
+        content:
+          playing && focusIndex !== null && revealed(focusIndex)
+            ? `${playing.arabic}${playing.english ? ` — ${playing.english}` : ""}`
+            : undefined,
+        document: {
+          label: "Episode script",
+          sourceId: episode.id,
+          lines: episode.script.map((line, i) =>
+            revealed(i)
+              ? {
+                  index: i + 1,
+                  arabic: `${line.speaker}: ${line.arabic}`,
+                  english: line.english,
+                }
+              : {
+                  index: i + 1,
+                  arabic: `${line.speaker}: (not yet revealed)`,
+                },
+          ),
+        },
+        meta: {
+          dialect: episode.dialect,
+          vocabulary: episode.key_vocabulary.map((v) => ({
+            arabic: v.arabic,
+            english: v.english,
+          })),
+        },
+        position: {
+          index: focusIndex !== null ? focusIndex + 1 : undefined,
+          total: episode.script.length,
+          atSeconds: fullPlaySeconds ?? undefined,
+          durationSeconds: episode.duration_seconds ?? undefined,
+        },
+      };
+    }, [episode, revealAll, revealedLines, playingLine, fullPlayLine, fullPlaySeconds]),
+  );
 
   useEffect(() => {
     if (episode && !incrementedRef.current) {
@@ -102,13 +184,30 @@ const ListenEpisode = () => {
     }
     const a = new Audio(episode.full_audio_url);
     audioRef.current = a;
+    // Map currentTime to the sounding line for the Ask AI context. Both
+    // setters dedupe via state equality (the index changes per line, the
+    // seconds are floored), so ~4Hz timeupdate costs ~1 re-render a second.
+    a.ontimeupdate = () => {
+      setFullPlaySeconds(Math.floor(a.currentTime));
+      if (!lineStartTimes) return;
+      let idx = 0;
+      while (idx + 1 < lineStartTimes.length && a.currentTime >= lineStartTimes[idx + 1]) idx++;
+      setFullPlayLine(idx);
+    };
     a.onended = () => {
       setIsPlayingFull(false);
+      setFullPlayLine(null);
+      setFullPlaySeconds(null);
       // One full pass by ear has been earned — reading along is now review,
       // not a crutch.
       setRevealAll(true);
     };
-    a.onerror = () => { setIsPlayingFull(false); toast.error("Playback failed"); };
+    a.onerror = () => {
+      setIsPlayingFull(false);
+      setFullPlayLine(null);
+      setFullPlaySeconds(null);
+      toast.error("Playback failed");
+    };
     setIsPlayingFull(true);
     await a.play();
   };

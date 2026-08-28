@@ -15,7 +15,11 @@ import {
   resolveUserId,
 } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { learnerPromptBlock } from "../_shared/learnerProfile.ts";
+import {
+  buildLearnerProfile,
+  onScreenVocabBlock,
+  renderProfileForPrompt,
+} from "../_shared/learnerProfile.ts";
 import {
   clampReportedSeconds,
   remainingSeconds,
@@ -225,12 +229,14 @@ Deno.serve(async (req) => {
     const topicHint = (body.topicHint ?? "") as string;
     // Structured context is the current path; the plain string is what browser
     // bundles from before this shipped still send, and a live call must not
-    // break on a stale tab. Both end up clamped by the same budget.
-    const context = body.pageContext
-      ? serializePageContext(
-          clampPageContext(body.pageContext as PageContextPayload, VOICE_BUDGET),
-          VOICE_BUDGET,
-        )
+    // break on a stale tab. Both end up clamped by the same budget. The
+    // clamped object is kept, not just its serialisation — the on-screen
+    // vocabulary cross-reference below needs the structured meta.
+    const clampedPage = body.pageContext
+      ? clampPageContext(body.pageContext as PageContextPayload, VOICE_BUDGET)
+      : null;
+    const context = clampedPage
+      ? serializePageContext(clampedPage, VOICE_BUDGET)
       // The legacy blob keeps the legacy ceiling. The document allowance is
       // for structured content that has been through clampPageContext field by
       // field; an opaque string has had none of that, so it gets the tighter
@@ -248,7 +254,23 @@ Deno.serve(async (req) => {
           dialect,
           context,
           ...(await Promise.all([
-            learnerPromptBlock({ userId: cap.userId, dialect, includeWeak: true }),
+            // Profile plus the on-screen cross-reference: which of the words
+            // in front of the learner are weak, in progress, known, or new.
+            // Same failure posture as learnerPromptBlock had — a broken
+            // profile degrades to an unpersonalised call, never a failed one.
+            (async () => {
+              if (!cap.userId) return "";
+              try {
+                const profile = await buildLearnerProfile({ userId: cap.userId, dialect });
+                return [
+                  renderProfileForPrompt(profile, { includeWeak: true }),
+                  onScreenVocabBlock(profile.membership, clampedPage?.meta?.vocabulary),
+                ].filter(Boolean).join("\n\n");
+              } catch (e) {
+                console.warn("[realtime-session-token] profile unavailable:", e);
+                return "";
+              }
+            })(),
             // The same notes the text tutor keeps. A learner who spent last
             // week's chat untangling one construction should not have to
             // explain that again to the voice tutor.

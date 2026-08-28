@@ -11,6 +11,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useBetaTester } from "@/hooks/useBetaTester";
 import { useDialect } from "@/contexts/DialectContext";
+import { shouldShowDock } from "@/components/shell/AppDock";
 import { cn } from "@/lib/utils";
 
 type FeedbackType = "bug" | "idea" | "confusing" | "praise" | "other";
@@ -185,7 +186,15 @@ export function FeedbackWidget() {
         onClick={openWithCapture}
         aria-label="Send feedback"
         className={cn(
-          "fixed z-40 left-3 bottom-20 md:bottom-6 md:left-6",
+          "fixed z-40 left-3 bottom-20",
+          // Clear the dock, which is a bottom bar until lg and a w-20 left
+          // rail from there: dropping to the corner at md put this on the bar
+          // (the same geometry that got the Ask AI disc removed), and left-6
+          // from lg sat it inside the rail. On the immersive routes the dock
+          // hides and both corners are actually free.
+          shouldShowDock(pathname)
+            ? "lg:bottom-6 lg:left-24"
+            : "md:bottom-6 md:left-6",
           "h-12 w-12 rounded-full shadow-elegant",
           "bg-primary text-primary-foreground hover:bg-primary/90",
           "flex items-center justify-center transition-transform active:scale-[0.98]",

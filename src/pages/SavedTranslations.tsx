@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageCorner } from "@/components/shell/PageCorner";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,29 @@ const SavedTranslations = () => {
   const [active, setActive] = useState<SavedTranslation | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+
+  // Published only while a saved translation is open — the list view has
+  // nothing to discuss line by line, so it keeps the route blurb.
+  usePageAiContext(
+    useMemo(() => {
+      if (!active || active.sentences.length === 0) return null;
+      return {
+        kind: "passage" as const,
+        title: "Saved translation",
+        summary: `Re-reading a translation the learner saved earlier${active.detected_dialect ? ` (detected dialect: ${active.detected_dialect})` : ""}. Each line shows the Arabic, a literal rendering, then the natural English.`,
+        document: {
+          label: "The saved translation",
+          sourceId: active.id,
+          lines: active.sentences.map((s, i) => ({
+            index: i + 1,
+            arabic: s.arabic,
+            english: `literal: ${s.literal} — natural: ${s.natural}${s.note ? ` (note: ${s.note})` : ""}`,
+          })),
+        },
+        meta: { dialect: active.detected_dialect ?? undefined },
+      };
+    }, [active]),
+  );
 
   const confirmDelete = async () => {
     const id = pendingDeleteId;

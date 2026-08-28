@@ -5,13 +5,10 @@ import { useAiAssistant } from "@/contexts/AiAssistantContext";
 import { AssistantMount } from "./AssistantMount";
 
 /**
- * The mount owns the assistant's one global opener now that the floating disc
- * is gone — it covered the bottom bar from tablet widths up, and everything
- * else that opens the assistant is attached to the thing being asked about.
- *
- * So what is worth pinning is the keystroke and the routes it stays off: a
- * tutor sheet over the sign-in form or the admin console is a bug, and the FAB
- * used to be what kept it away.
+ * The mount owns the assistant's keyboard opener; the floating disc
+ * (AskAiFab, tested separately) is the visible one. What is worth pinning
+ * here is the keystroke and the routes it stays off: a tutor sheet over the
+ * sign-in form or the admin console is a bug.
  */
 
 let cleanup: (() => void) | undefined;

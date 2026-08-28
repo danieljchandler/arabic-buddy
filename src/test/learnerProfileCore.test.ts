@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   classifyRows,
   dedupe,
+  onScreenVocabBlock,
   renderProfileForPrompt,
   sample,
   MATURE_INTERVAL_DAYS,
@@ -234,5 +235,63 @@ describe("renderProfileForPrompt", () => {
     const p = profile({ weakGrammar: [shaky] });
     expect(renderProfileForPrompt(p)).toContain("Negation");
     expect(renderProfileForPrompt(p, { includeWeak: false })).not.toContain("Negation");
+  });
+});
+
+describe("onScreenVocabBlock", () => {
+  const membership = {
+    known: ["بيت", "سوق"],
+    learning: ["قهوة"],
+    weak: ["شغل"],
+  };
+
+  it("sorts the on-screen words into the learner's real buckets", () => {
+    const out = onScreenVocabBlock(membership, [
+      { arabic: "شغل", english: "work" },
+      { arabic: "قهوة", english: "coffee" },
+      { arabic: "بيت", english: "house" },
+      { arabic: "تمر", english: "dates" },
+    ]);
+    // Each word lands under its own heading — the whole point is that
+    // "of the words on screen, these are due work" stops being a guess.
+    const lineWith = (word: string) => out.split("\n").find((l) => l.includes(word)) ?? "";
+    expect(lineWith("شغل")).toContain("FAILING");
+    expect(lineWith("قهوة")).toContain("LEARNING");
+    expect(lineWith("بيت")).toContain("KNOW");
+    expect(lineWith("تمر")).toContain("NEW");
+  });
+
+  it("matches through the definite article and diacritics", () => {
+    // The deck stores سوق; a subtitle shows السُّوق. That pair failing to
+    // match is the common case this exists for, not a corner one.
+    const out = onScreenVocabBlock(membership, [{ arabic: "السُّوق", english: "the market" }]);
+    expect(out.split("\n").find((l) => l.includes("السُّوق"))).toContain("KNOW");
+    expect(out).not.toContain("NEW");
+  });
+
+  it("prefers weak over known when both decks carry the word", () => {
+    const both = { known: ["شغل"], learning: [], weak: ["شغل"] };
+    const out = onScreenVocabBlock(both, [{ arabic: "شغل", english: "work" }]);
+    // A leech with a comfortable sibling entry is still the thing to call out.
+    expect(out).toContain("FAILING");
+    expect(out).not.toContain("KNOW these well");
+  });
+
+  it("says nothing without membership data or on-screen vocabulary", () => {
+    expect(onScreenVocabBlock(undefined, [{ arabic: "بيت" }])).toBe("");
+    expect(onScreenVocabBlock(membership, [])).toBe("");
+    expect(onScreenVocabBlock(membership, undefined)).toBe("");
+  });
+
+  it("dedupes repeats and caps each list", () => {
+    const many = Array.from({ length: 30 }, (_, i) => ({ arabic: `كلمة${i}` }));
+    const out = onScreenVocabBlock(membership, [
+      { arabic: "بيت" },
+      { arabic: "البيت" },
+      ...many,
+    ]);
+    // One entry for the بيت pair, and the NEW list stays bounded.
+    expect(out.match(/بيت/g)).toHaveLength(1);
+    expect((out.match(/كلمة/g) ?? []).length).toBeLessThanOrEqual(10);
   });
 });

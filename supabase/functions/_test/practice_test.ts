@@ -1,4 +1,5 @@
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { FakeTime } from "https://deno.land/std@0.224.0/testing/time.ts";
 import { jsonRequest, loadFunction } from "./harness.ts";
 import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
 import { GRAMMAR_CATEGORY_IDS } from "../_shared/grammarTaxonomy.ts";
@@ -412,43 +413,59 @@ Deno.test("daily-challenge returns a challenge", async () => {
   assert(body.challenge ?? body.type ?? body.questions);
 });
 
-Deno.test("daily-challenge sources its words from the learner's deck", async () => {
-  const { bodies, calls } = await call(
-    "daily-challenge",
-    { dialect: "Gulf", userVocab: [{ word_arabic: "كتاب", word_english: "book" }] },
-    caller({
-      "ai.gateway.lovable.dev": speaking(aChallenge),
-      "/rest/v1/user_vocabulary": () =>
-        json([
-          {
-            word_arabic: "بيت",
-            word_english: "house",
-            next_review_at: new Date(Date.now() - 86_400_000).toISOString(),
-            ease_factor: 1.3,
-            lapses: 5,
-          },
-        ]),
-    }),
-  );
+// The challenge type rotates on the weekday, and Friday's culture quiz is the
+// one prompt that (rightly) embeds no learner vocabulary — so the two cases
+// asserting on the word list pin the clock to a Monday. Unpinned, they went
+// red every Friday and green again on Saturday, which reads as CI flake.
+const A_MONDAY = new Date("2026-08-24T10:00:00Z");
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
-  // The client used to send `userVocab` as the whole curriculum shuffled, so
-  // the "daily challenge" routinely quizzed words the learner had never
-  // studied. The learner's own deck wins over whatever the client supplies.
-  assertStringIncludes(bodies[i] ?? "", "بيت");
+Deno.test("daily-challenge sources its words from the learner's deck", async () => {
+  const time = new FakeTime(A_MONDAY);
+  try {
+    const { bodies, calls } = await call(
+      "daily-challenge",
+      { dialect: "Gulf", userVocab: [{ word_arabic: "كتاب", word_english: "book" }] },
+      caller({
+        "ai.gateway.lovable.dev": speaking(aChallenge),
+        "/rest/v1/user_vocabulary": () =>
+          json([
+            {
+              word_arabic: "بيت",
+              word_english: "house",
+              next_review_at: new Date(Date.now() - 86_400_000).toISOString(),
+              ease_factor: 1.3,
+              lapses: 5,
+            },
+          ]),
+      }),
+    );
+
+    const i = calls.findIndex((u) => u.includes("ai.gateway"));
+    // The client used to send `userVocab` as the whole curriculum shuffled, so
+    // the "daily challenge" routinely quizzed words the learner had never
+    // studied. The learner's own deck wins over whatever the client supplies.
+    assertStringIncludes(bodies[i] ?? "", "بيت");
+  } finally {
+    time.restore();
+  }
 });
 
 Deno.test("daily-challenge falls back to the client's words when the deck is empty", async () => {
-  const { bodies, calls } = await call(
-    "daily-challenge",
-    { dialect: "Gulf", userVocab: [{ word_arabic: "كتاب", word_english: "book" }] },
-    caller({ "ai.gateway.lovable.dev": speaking(aChallenge) }),
-  );
+  const time = new FakeTime(A_MONDAY);
+  try {
+    const { bodies, calls } = await call(
+      "daily-challenge",
+      { dialect: "Gulf", userVocab: [{ word_arabic: "كتاب", word_english: "book" }] },
+      caller({ "ai.gateway.lovable.dev": speaking(aChallenge) }),
+    );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
-  // A learner on their first day has no deck; a challenge built from nothing
-  // is not a challenge.
-  assertStringIncludes(bodies[i] ?? "", "كتاب");
+    const i = calls.findIndex((u) => u.includes("ai.gateway"));
+    // A learner on their first day has no deck; a challenge built from nothing
+    // is not a challenge.
+    assertStringIncludes(bodies[i] ?? "", "كتاب");
+  } finally {
+    time.restore();
+  }
 });
 
 Deno.test("daily-challenge uses the dialect's own examples when there is nothing else", async () => {

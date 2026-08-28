@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import { nextRelearn, pushRelearn, type RelearnEntry } from "@/lib/relearn";
 import { useAuth } from "@/hooks/useAuth";
 import { useUpdateUserVocabularyReview } from "@/hooks/useUserVocabulary";
@@ -370,6 +371,46 @@ const MyWordsReview = () => {
   const remainingFromIndex = (dueWords || []).slice(currentIndex);
   const newRemaining = remainingFromIndex.filter((c) => c.repetitions === 0).length;
   const reviewRemaining = remainingFromIndex.length - newRemaining;
+
+  // What the tutor sees mid-review. The hidden side of the card stays hidden
+  // until the learner flips it — this is an active recall attempt, and Ask AI
+  // volunteering the answer would do to the card what leaking a blurred line
+  // would do to a listening pass. After the flip, everything the card holds.
+  usePageAiContext(
+    useMemo(() => {
+      if (!currentWord) return null;
+      const front = isProduction ? currentWord.word_english : currentWord.word_arabic;
+      const back = isProduction ? currentWord.word_arabic : currentWord.word_english;
+      const notes: string[] = [];
+      if (showAnswer) {
+        if (currentWord.sentence_text) {
+          notes.push(
+            `Example sentence: ${currentWord.sentence_text}${currentWord.sentence_english ? ` — ${currentWord.sentence_english}` : ""}`,
+          );
+        }
+        if (currentWord.mnemonic) notes.push(`Their mnemonic: ${currentWord.mnemonic}`);
+        if (currentWord.is_leech) {
+          notes.push("This card is a leech — they have failed it repeatedly; a new angle would help.");
+        }
+      }
+      return {
+        kind: "word" as const,
+        title: "My Words review",
+        summary: `Mid-flashcard-review of their personal deck (${activeDialect} dialect). This is a ${
+          isProduction
+            ? "production card: the English is shown and they must produce the Arabic"
+            : "recognition card: the Arabic is shown and they must recall the meaning"
+        }.${
+          showAnswer
+            ? ""
+            : " The answer side is still hidden — they are mid-retrieval, so coach with hints rather than volunteering the answer unless they ask for it outright."
+        }`,
+        content: showAnswer ? `${front} — ${back}` : front,
+        meta: { dialect: activeDialect, notes: notes.length > 0 ? notes : undefined },
+        position: { total: remainingFromIndex.length },
+      };
+    }, [currentWord, isProduction, showAnswer, activeDialect, remainingFromIndex.length]),
+  );
 
   // Cloze variant: enable for recognition cards that have sentence context
   // containing the target word AND at least 3 distractor words available.

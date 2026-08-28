@@ -128,24 +128,28 @@ const Discover = () => {
   const { user } = useAuth();
   const [tab, setTab] = useState<string>(user ? "feed" : "browse");
   const [seed, setSeed] = useState(() => Math.floor(Date.now() / (15 * 60 * 1000)));
-  const { difficulty: levelDifficulty, hasTakenPlacement } = useUserLevel();
+  const { difficulty: levelDifficulty, hasDialectPlacement } = useUserLevel();
 
   // Browse state
   const [search, setSearch] = useState("");
   const [dialect, setDialect] = useState<string>(activeDialect);
   // Default the difficulty filter to the learner's placement level (still a
   // plain dropdown they can override) instead of always showing everything.
+  // Only when that level was actually measured *for this dialect* — a level
+  // inherited from the legacy single-dialect field would filter a dialect's
+  // whole library down to one bucket and look like nothing was uploaded.
   // The profile query isn't resolved on first render, so we can't set this in
   // a useState initializer — apply it once via effect when placement resolves.
   const [difficulty, setDifficulty] = useState<string>("All");
   const appliedAutoLevel = useRef(false);
   useEffect(() => {
-    if (appliedAutoLevel.current || !hasTakenPlacement || !levelDifficulty) return;
+    if (appliedAutoLevel.current || !hasDialectPlacement || !levelDifficulty) return;
     appliedAutoLevel.current = true;
     setDifficulty(
       levelDifficulty.charAt(0).toUpperCase() + levelDifficulty.slice(1),
     );
-  }, [hasTakenPlacement, levelDifficulty]);
+  }, [hasDialectPlacement, levelDifficulty]);
+
 
   const { data: browseVideos, isLoading: isBrowseLoading } = useDiscoverVideos({
     dialect: dialect === "All" ? undefined : dialect,

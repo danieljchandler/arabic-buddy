@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/select";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
-import { useDialect } from "@/contexts/DialectContext";
 import {
   engagementLabel,
   type SocialPost,
@@ -82,10 +81,10 @@ function PostCard({ post, onStudy }: { post: SocialPost; onStudy: () => void }) 
 
 const Trending = () => {
   const navigate = useNavigate();
-  const { activeDialect } = useDialect();
-  const [dialect, setDialect] = useState<string>(
-    DIALECTS.includes(activeDialect) ? activeDialect : "All",
-  );
+  // Default to All: the screened feed is thin per-dialect, and a Gulf learner
+  // landing on an empty page reads as broken when Egyptian posts exist.
+  const [dialect, setDialect] = useState<string>("All");
+
   const [platform, setPlatform] = useState<string>("All");
 
   const { data: topicsByCountry, isLoading: topicsLoading } = useTrendingTopics(dialect);

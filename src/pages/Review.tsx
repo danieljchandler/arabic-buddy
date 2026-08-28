@@ -62,7 +62,11 @@ const Review = () => {
   const [sessionCount, setSessionCount] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
+  const [jingleLoading, setJingleLoading] = useState(false);
+  const [showLyrics, setShowLyrics] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const fallbackAudioUrlRef = useRef<string | null>(null);
+
 
   // In-session relearn: cards rated Again/Hard come back a few cards later
   // (see lib/relearn). Without this, a failed card's 1-minute learning step

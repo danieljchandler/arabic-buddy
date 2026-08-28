@@ -267,6 +267,7 @@ const Review = () => {
   const goToNext = async () => {
     if (!dueWords) return;
     setShowAnswer(false);
+    setShowLyrics(false);
     if (currentIndex < dueWords.length - 1) {
       setCurrentIndex((prev) => prev + 1);
     } else {

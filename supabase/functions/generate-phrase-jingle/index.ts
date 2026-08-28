@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getDialectLabel, getDialectVocabRules } from "../_shared/dialectHelpers.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { getJingleStyleLine } from "../_shared/jingleStyles.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 
@@ -42,11 +43,7 @@ serve(async (req) => {
 
     const dialectLabel = getDialectLabel(dialect);
     const dialectRules = getDialectVocabRules(dialect);
-    const dialectStyle = dialect === "Egyptian"
-      ? "Egyptian Arabic pop/shaabi style with Egyptian dialect vocals"
-      : dialect === "Yemeni"
-      ? "Yemeni folk-pop style with Yemeni dialect vocals"
-      : "Khaliji/Gulf Arabic pop style with Gulf dialect vocals";
+    const dialectStyle = getJingleStyleLine(dialect);
 
     const promptGen = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -68,7 +65,7 @@ ${dialectRules}
 Return STRICT JSON only (no markdown, no commentary):
 {
   "lyrics": "<sung lyrics in ${dialectLabel} Arabic with full tashkeel. 2-4 short lines. Repeat the target phrase at least 3 times. Tiny bit of simple English is OK if it helps the hook.>",
-  "prompt": "<English music-generation prompt: 12-second ${dialectStyle} jingle. Describe mood, tempo, voices, instrumentation. State that the lyrics above must be sung clearly.>"
+  "prompt": "<English music-generation prompt for a 12-second jingle in this exact musical style: ${dialectStyle}. Describe mood, tempo, voices, instrumentation. State that the lyrics above must be sung clearly.>"
 }
 
 SAFETY: no violence, weapons, politics, religion, romance, alcohol, drugs, body parts, or anything explicit. Keep it cheerful and family-friendly.`,

@@ -65,7 +65,7 @@ ${dialectRules}
 Return STRICT JSON only (no markdown, no commentary):
 {
   "lyrics": "<sung lyrics in ${dialectLabel} Arabic with full tashkeel. 2-4 short lines. Repeat the target phrase at least 3 times. Tiny bit of simple English is OK if it helps the hook.>",
-  "prompt": "<English music-generation prompt: 12-second ${dialectStyle} jingle. Describe mood, tempo, voices, instrumentation. State that the lyrics above must be sung clearly.>"
+  "prompt": "<English music-generation prompt for a 12-second jingle in this exact musical style: ${dialectStyle}. Describe mood, tempo, voices, instrumentation. State that the lyrics above must be sung clearly.>"
 }
 
 SAFETY: no violence, weapons, politics, religion, romance, alcohol, drugs, body parts, or anything explicit. Keep it cheerful and family-friendly.`,

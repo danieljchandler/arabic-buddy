@@ -73,7 +73,7 @@ ${dialectRules}
 Return STRICT JSON only (no markdown fences, no commentary), shape:
 {
   "lyrics": "<the actual sung lyrics in ${dialectLabel} Arabic with full tashkeel (harakat). 2-4 short lines. Repeat the target word at least 3 times. A tiny bit of simple English is OK if it helps the hook.>",
-  "prompt": "<English music-generation prompt: 10-second ${dialectStyle} jingle, describe mood, tempo, voices, instrumentation. Emphasize that the lyrics above must be sung clearly and prominently.>"
+  "prompt": "<English music-generation prompt for a 10-second jingle in this exact musical style: ${dialectStyle}, describe mood, tempo, voices, instrumentation. Emphasize that the lyrics above must be sung clearly and prominently.>"
 }
 
 STRICT SAFETY RULES (the music model has a strict safety filter — violations cause generation to fail):

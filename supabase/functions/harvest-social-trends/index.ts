@@ -385,6 +385,16 @@ async function screenPending(limit: number): Promise<Record<string, number>> {
   return outcomes;
 }
 
+async function countApproved(): Promise<number> {
+  const { data, error } = await admin()
+    .from("social_posts")
+    .select("id")
+    .eq("status", "approved")
+    .limit(200);
+  if (error) throw new Error(`social_posts count failed: ${error.message}`);
+  return data?.length ?? 0;
+}
+
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -399,10 +409,14 @@ Deno.serve(async (req) => {
       ? (body.platform as string)
       : "all";
     const perSource = Math.max(1, Math.min(20, Number(body.perSource) || 10));
-    // Screening is the run's model spend; bounded per run, the caller loops.
-    const screenLimit = body.screenLimit === undefined
-      ? 12
-      : Math.max(0, Math.min(30, Number(body.screenLimit) || 0));
+    // Keep screening until `targetApproved` approved posts exist, or the
+    // pending backlog is exhausted. Bounds: each batch is one screenLimit of
+    // model calls and the whole run stops at maxScreenCalls or the time
+    // budget so a full-reject backlog can't loop forever.
+    const targetApproved = Math.max(1, Math.min(50, Number(body.targetApproved) || 10));
+    const batchSize = Math.max(1, Math.min(30, Number(body.screenLimit) || 12));
+    const maxScreenCalls = Math.max(batchSize, Math.min(120, Number(body.maxScreenCalls) || 48));
+    const timeBudgetMs = 100_000;
 
     const started = Date.now();
     const summary: Record<string, unknown> = {};
@@ -415,9 +429,30 @@ Deno.serve(async (req) => {
     if (platform === "reddit" || platform === "all") {
       summary.redditPosts = await harvestPosts("reddit", perSource);
     }
-    if (screenLimit > 0) {
-      summary.screened = await screenPending(screenLimit);
+
+    const approvedBefore = await countApproved();
+    let screenCalls = 0;
+    const screenedTotal: Record<string, number> = {};
+    while (
+      approvedBefore + (screenedTotal.approved ?? 0) < targetApproved &&
+      screenCalls < maxScreenCalls &&
+      Date.now() - started < timeBudgetMs
+    ) {
+      const batch = Math.min(batchSize, maxScreenCalls - screenCalls);
+      const outcomes = await screenPending(batch);
+      screenCalls += batch;
+      for (const [k, v] of Object.entries(outcomes)) {
+        screenedTotal[k] = (screenedTotal[k] ?? 0) + v;
+      }
+      const touched = Object.values(outcomes).reduce((a, b) => a + b, 0);
+      // No pending rows left, or the screen is down and left everything pending.
+      if (touched < batch || (outcomes.pending ?? 0) === touched) break;
     }
+    const approved = approvedBefore + (screenedTotal.approved ?? 0);
+    summary.screened = screenedTotal;
+    summary.approved = approved;
+    summary.targetApproved = targetApproved;
+    summary.targetReached = approved >= targetApproved;
 
     emitMetric({
       feature: FEATURE,

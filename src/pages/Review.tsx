@@ -127,6 +127,113 @@ const Review = () => {
   };
 
   /**
+   * Play a stored jingle, repairing older files whose container header the
+   * generator wrote wrong (same path the personal decks use).
+   */
+  const playJingle = async (url: string) => {
+    if (audioRef.current) audioRef.current.pause();
+    if (fallbackAudioUrlRef.current) {
+      URL.revokeObjectURL(fallbackAudioUrlRef.current);
+      fallbackAudioUrlRef.current = null;
+    }
+    try {
+      const audioFile = await createPlayableJingleAudioFromUrl(url);
+      const repairedUrl = URL.createObjectURL(audioFile.blob);
+      fallbackAudioUrlRef.current = repairedUrl;
+      const audio = new Audio(repairedUrl);
+      audioRef.current = audio;
+      await audio.play();
+    } catch (err) {
+      console.error("Jingle playback failed:", err);
+      toast.error("Couldn't play that jingle. Try regenerating it.");
+    }
+  };
+
+  /**
+   * Generate (or replay) a jingle for the curriculum word on screen.
+   *
+   * The personal decks have had this since jingles landed; the curriculum deck
+   * had no button at all, so an Egyptian (or any) lesson word could never get
+   * one. The jingle is stored on the learner's own `word_reviews` row —
+   * `vocabulary_words` is admin-write only — upserted because a brand-new card
+   * has no review row yet.
+   */
+  const generateJingle = async (word: DueCurriculumCard, regenerate = false) => {
+    if (!user) return;
+    const existingUrl = word.review?.jingle_audio_url ?? null;
+    if (existingUrl && !regenerate) {
+      playJingle(existingUrl);
+      return;
+    }
+    setJingleLoading(true);
+    try {
+      const response = await supabase.functions.invoke("generate-word-jingle", {
+        body: {
+          word_arabic: word.word_arabic,
+          word_english: word.word_english,
+          dialect: word.dialect_module ?? activeDialect,
+        },
+      });
+      if (showCapToastIfLimited(response.error, response.data)) return;
+      if (response.error) throw new Error(response.error.message || "Failed to generate jingle");
+      const audioFile = await createPlayableJingleAudio(response.data);
+      const fileName = `jingles/${user.id}/curriculum-${word.id}-${Date.now()}.${audioFile.extension}`;
+      const { error: uploadError } = await supabase.storage
+        .from("flashcard-audio")
+        .upload(fileName, audioFile.blob, { contentType: audioFile.mimeType, upsert: true });
+      if (uploadError) throw uploadError;
+      const { data: urlData } = supabase.storage.from("flashcard-audio").getPublicUrl(fileName);
+      const jingleUrl = urlData.publicUrl;
+      const lyrics = (response.data as { lyrics?: string | null })?.lyrics ?? null;
+      const { error: saveError } = await supabase
+        .from("word_reviews")
+        .upsert(
+          {
+            user_id: user.id,
+            word_id: word.id,
+            jingle_audio_url: jingleUrl,
+            jingle_lyrics: lyrics,
+          } as never,
+          { onConflict: "user_id,word_id" },
+        );
+      if (saveError) throw saveError;
+      // Patch the cached queue in place rather than refetching — a refetch
+      // reorders the deck under the learner mid-card.
+      queryClient.setQueriesData<DueCurriculumCard[] | undefined>(
+        { queryKey: ["due-words"] },
+        (prev) =>
+          prev?.map((c) =>
+            c.id === word.id
+              ? {
+                  ...c,
+                  review: {
+                    ...(c.review ?? ({} as NonNullable<DueCurriculumCard["review"]>)),
+                    jingle_audio_url: jingleUrl,
+                    jingle_lyrics: lyrics,
+                  },
+                }
+              : c,
+          ),
+      );
+      setShowLyrics(true);
+      toast.success("🎵 Jingle created — tap Play jingle to listen.");
+    } catch (err) {
+      console.error("Jingle generation error:", err);
+      const message = err instanceof Error ? err.message : "";
+      if (message.includes("Rate limit") || message.includes("429")) {
+        toast.error("Rate limited — try again in a moment");
+      } else if (message.includes("402") || message.includes("Credits")) {
+        toast.error("AI credits exhausted — please add funds");
+      } else {
+        toast.error("Failed to generate jingle");
+      }
+    } finally {
+      setJingleLoading(false);
+    }
+  };
+
+
+  /**
    * Cache a synthesised pronunciation onto the shared curriculum word.
    *
    * `vocabulary_words` is admin/recorder-write only, so unlike the personal

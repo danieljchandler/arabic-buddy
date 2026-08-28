@@ -201,9 +201,11 @@ Deno.serve(async (req) => {
       if (excludeIds.has(vid)) continue;
 
       const seen = viewedMap.get(vid);
-      if (seen?.completed && seen.watchedAt > fourteenDaysAgo && !likedSet.has(vid)) {
-        continue; // hard filter
-      }
+      // Finished recently: demote hard, but don't drop. A dialect whose library
+      // is only a handful of clips would otherwise lose one to every watch and
+      // read as "nothing published here". Ranking keeps it out of the way.
+      const recentlyFinished =
+        !!seen?.completed && seen.watchedAt > fourteenDaysAgo && !likedSet.has(vid);
 
       const lemmas = extractLemmas((v as any).vocabulary);
       const total = lemmas.size;
@@ -255,19 +257,23 @@ Deno.serve(async (req) => {
         noveltyScore = Math.min(1, daysSince / 30);
       }
 
-      const score = isColdStart
+      const rewatchPenalty = recentlyFinished ? 0.35 : 1;
+      const score = (isColdStart
         ? 0.5 * freshScore + 0.3 * dialectScore + 0.2 * engagementScore
         : 0.35 * vocabScore +
           0.20 * cefrScore +
           0.15 * dialectScore +
           0.10 * freshScore +
           0.10 * engagementScore +
-          0.10 * noveltyScore;
+          0.10 * noveltyScore) * rewatchPenalty;
 
       // Determine reason chip
       let reason = "Picked for you";
       let bucket: FeedItem["bucket"] = "match";
-      if (likedSet.has(vid)) {
+      if (recentlyFinished) {
+        reason = "Watch again";
+        bucket = "comfort";
+      } else if (likedSet.has(vid)) {
         reason = "Because you liked this";
       } else if (overlap >= 0.8 && overlap <= 0.95 && total >= 5) {
         reason = `${Math.round(overlap * 100)}% known words`;

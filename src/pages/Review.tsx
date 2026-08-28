@@ -28,11 +28,16 @@ import { scheduleDirectionFor } from "@/lib/reviewOrder";
 import { ReviewAudioCard } from "@/components/review/ReviewAudioCard";
 import { LeechHelperPanel } from "@/components/review/LeechHelperPanel";
 import { useLeechPrefs } from "@/hooks/useLeechPrefs";
-import { Trophy, Brain, Sparkles, LogIn, Shuffle, Eye, Volume2, ImagePlus, WifiOff, CloudUpload, PenLine, BookOpen } from "lucide-react";
+import { Trophy, Brain, Sparkles, LogIn, Shuffle, Eye, Volume2, ImagePlus, WifiOff, CloudUpload, PenLine, BookOpen, Music, Play, Loader2, RefreshCw } from "lucide-react";
 import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
 import { useReviewKeyboard } from "@/hooks/useKeyboardShortcuts";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { usePageAiContext } from "@/contexts/AiAssistantContext";
+import { TappableArabicText } from "@/components/shared/TappableArabicText";
+import { createPlayableJingleAudio, createPlayableJingleAudioFromUrl } from "@/lib/jingleAudio";
+import { showCapToastIfLimited } from "@/lib/handleCapResponse";
+import { toast } from "sonner";
+
 
 
 const DIALECT_FLAGS: Record<string, string> = {

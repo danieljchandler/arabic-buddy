@@ -372,6 +372,25 @@ const Dashboard = () => {
                 </CardContent>
               </Card>
 
+              <Card
+                className="cursor-pointer hover:shadow-elegant transition-shadow border-orange-500/30"
+                onClick={() => { if (!harvesting) void runSocialHarvest(); }}
+              >
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-orange-500/10 rounded-full p-4">
+                      {harvesting
+                        ? <Loader2 className="h-8 w-8 text-orange-600 animate-spin" />
+                        : <Rss className="h-8 w-8 text-orange-600" />}
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">{harvesting ? 'Harvesting…' : 'Run Social Harvest'}</h3>
+                      <p className="text-muted-foreground">Pull fresh X trends, Telegram & Reddit posts into the Trending feed</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
               <Card className="cursor-pointer hover:shadow-elegant transition-shadow border-primary/30" onClick={() => navigate('/admin/bible-access')}>
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">

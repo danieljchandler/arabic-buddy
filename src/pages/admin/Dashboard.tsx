@@ -31,9 +31,34 @@ const Dashboard = () => {
     },
   });
 
+  const [harvesting, setHarvesting] = useState(false);
+
   const handleSignOut = async () => {
     await signOut();
     navigate('/admin/login');
+  };
+
+  const runSocialHarvest = async () => {
+    setHarvesting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('harvest-social-trends', {
+        body: { platform: 'all' },
+      });
+      if (error) throw error;
+      const result = (data ?? {}) as { topics?: number; telegramPosts?: number; redditPosts?: number; screened?: Record<string, number> };
+      toast({
+        title: 'Social harvest complete',
+        description: `${result.topics ?? 0} topics, ${(result.telegramPosts ?? 0) + (result.redditPosts ?? 0)} posts collected · ${result.screened?.approved ?? 0} approved, ${result.screened?.rejected ?? 0} rejected, ${result.screened?.pending ?? 0} pending`,
+      });
+    } catch (err) {
+      toast({
+        title: 'Harvest failed',
+        description: err instanceof Error ? err.message : 'Unknown error',
+        variant: 'destructive',
+      });
+    } finally {
+      setHarvesting(false);
+    }
   };
 
   // The flywheel's north-star numbers: corrections banked, and minutes of

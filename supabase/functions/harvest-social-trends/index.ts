@@ -430,10 +430,14 @@ Deno.serve(async (req) => {
       summary.redditPosts = await harvestPosts("reddit", perSource);
     }
 
-    let approved = await countApproved();
+    const approvedBefore = await countApproved();
     let screenCalls = 0;
     const screenedTotal: Record<string, number> = {};
-    while (approved < targetApproved && screenCalls < maxScreenCalls && Date.now() - started < timeBudgetMs) {
+    while (
+      approvedBefore + (screenedTotal.approved ?? 0) < targetApproved &&
+      screenCalls < maxScreenCalls &&
+      Date.now() - started < timeBudgetMs
+    ) {
       const batch = Math.min(batchSize, maxScreenCalls - screenCalls);
       const outcomes = await screenPending(batch);
       screenCalls += batch;
@@ -443,8 +447,8 @@ Deno.serve(async (req) => {
       const touched = Object.values(outcomes).reduce((a, b) => a + b, 0);
       // No pending rows left, or the screen is down and left everything pending.
       if (touched < batch || (outcomes.pending ?? 0) === touched) break;
-      approved = await countApproved();
     }
+    const approved = approvedBefore + (screenedTotal.approved ?? 0);
     summary.screened = screenedTotal;
     summary.approved = approved;
     summary.targetApproved = targetApproved;

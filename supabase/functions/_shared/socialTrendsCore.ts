@@ -183,16 +183,19 @@ export function extractRedditPosts(listing: unknown, minLength = 12): HarvestedP
 const KNOWN_DIALECTS = new Set(["Gulf", "Egyptian", "Yemeni"]);
 
 /**
- * Turn a screening verdict into a row status. The bar mirrors the clip
- * pipeline's: nothing auto-publishes unjudged (a model outage leaves the post
- * pending, not approved), MSA never reaches learners, and "mixed" passes —
- * real social writing code-switches constantly, and rejecting it would empty
- * the feed of exactly the register the app teaches.
+ * Turn a screening verdict into a row status. The screen is triage, not the
+ * publisher: a pass means "screened" — a human on /admin/social-trends makes
+ * the approve/reject call — so the bar can afford to be generous. "mixed" and
+ * low-confidence dialect calls go to the review queue (real social writing
+ * code-switches constantly, and a strict bar was starving Gulf, whose sources
+ * lean news-register). Only the clear-cut negatives — MSA, not Arabic — are
+ * binned without a human look, and a model outage leaves the post pending so
+ * the next run retries it.
  */
 export function decideScreenOutcome(
   verdict: ScreenVerdict | null,
   sourceDialect: string,
-): { status: "approved" | "rejected" | "pending"; dialect: string; reason: string } {
+): { status: "screened" | "rejected" | "pending"; dialect: string; reason: string } {
   const dialect =
     verdict && KNOWN_DIALECTS.has(verdict.dialect) ? verdict.dialect : sourceDialect;
   if (!verdict) return { status: "pending", dialect, reason: "screen unavailable" };
@@ -200,8 +203,20 @@ export function decideScreenOutcome(
   if (verdict.register === "msa" || verdict.register === "other") {
     return { status: "rejected", dialect, reason: verdict.reason || `register: ${verdict.register}` };
   }
-  if (verdict.confidence < 0.5) {
-    return { status: "rejected", dialect, reason: verdict.reason || "low confidence" };
+  return { status: "screened", dialect, reason: verdict.reason || "dialect content" };
+}
+
+/**
+ * The oldest message id on a t.me/s page, for pagination: requesting
+ * `t.me/s/<handle>?before=<id>` serves the previous ~20 messages. Null when
+ * the page had no parseable ids (nothing further to page to).
+ */
+export function lowestTelegramPostId(posts: HarvestedPost[]): number | null {
+  let lowest: number | null = null;
+  for (const post of posts) {
+    const id = Number(post.externalId.split("/").pop());
+    if (!Number.isFinite(id)) continue;
+    if (lowest === null || id < lowest) lowest = id;
   }
-  return { status: "approved", dialect, reason: verdict.reason || "dialect content" };
+  return lowest;
 }

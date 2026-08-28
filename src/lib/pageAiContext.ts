@@ -70,7 +70,6 @@ const ROUTE_HINTS: Array<[prefix: string, hintKey: string]> = [
   ["/share", "share"],
   ["/share-target", "share"],
   ["/discover", "discover"],
-  ["/trending", "trending"],
   ["/learn-from-x", "learn-from-x"],
   ["/how-do-i-say", "how-do-i-say"],
   ["/culture-guide", "culture-guide"],

@@ -7,11 +7,13 @@ import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
  *
  * The function stitches together three fetch paths that cost nothing (Jina
  * over getdaytrends, t.me channel previews, Reddit's registered-app API) and
- * one thing that costs model tokens: the per-post dialect screen. The tests
- * pin the two properties the feature stands on — that nothing reaches
- * learners unscreened (a model outage leaves posts pending rather than
- * approving them), and that MSA is rejected rather than published, because a
- * "trending" feed that teaches فصحى is worse than no feed at all.
+ * one thing that costs model tokens: the per-post dialect screen. The screen
+ * is triage — a pass lands the post in the human review queue as 'screened',
+ * never published — so the tests pin the properties the feature stands on:
+ * nothing skips the queue, clear MSA is binned rather than queued, an outage
+ * leaves posts pending, and the screening budget is spent per dialect so one
+ * productive dialect cannot starve the others (the bug the first cut shipped:
+ * Egyptian filled a global quota while Gulf stayed at zero).
  */
 
 const USER = "00000000-0000-4000-8000-000000000001";
@@ -22,15 +24,15 @@ const TRENDS_MARKDOWN = [
   "| 1 | [#yesterday_recap](https://getdaytrends.com/saudi-arabia/trend/c/) |  | View details |",
 ].join("\n");
 
-const TELEGRAM_HTML = [
-  '<div class="tgme_widget_message_wrap"><div class="tgme_widget_message" data-post="kuwaitnews/101">',
-  '<div class="tgme_widget_message_text js-message_text" dir="auto">شلونكم يا جماعة؟ اليوم عندنا خبر <b>مهم</b></div>',
-  '<span class="tgme_widget_message_views">14.7K</span>',
-  '<time datetime="2026-08-28T09:00:00+00:00" class="time">09:00</time></div></div>',
-  '<div class="tgme_widget_message_wrap"><div class="tgme_widget_message" data-post="kuwaitnews/102">',
-  '<div class="tgme_widget_message_text js-message_text" dir="auto">English only message</div>',
-  '<span class="tgme_widget_message_views">2K</span></div></div>',
-].join("\n");
+const telegramPage = (posts: Array<{ id: number; text: string }>) =>
+  posts
+    .map(
+      (p) =>
+        `<div class="tgme_widget_message_wrap"><div class="tgme_widget_message" data-post="kuwaitnews/${p.id}">` +
+        `<div class="tgme_widget_message_text js-message_text" dir="auto">${p.text}</div>` +
+        `<span class="tgme_widget_message_views">1.2K</span></div></div>`,
+    )
+    .join("\n");
 
 const REDDIT_LISTING = {
   data: {
@@ -76,12 +78,28 @@ function caller(
     },
     "/rest/v1/trending_topics": () => json([], 201),
     "/rest/v1/social_posts": (request) => {
-      if (request.method === "GET") return json(pending);
+      // Three shapes hit this table: the countInReview head-count
+      // (status=in.(…)), the per-dialect pending select (status=eq.pending),
+      // and the upsert/update writes.
+      if (request.method === "GET") {
+        if (request.url.includes("status=in.")) return json([]);
+        const dialect = /dialect=eq\.(\w+)/.exec(request.url)?.[1];
+        return json(pending.filter((p) => !dialect || p.dialect === dialect));
+      }
       return json([], request.method === "POST" ? 201 : 200);
     },
     "https://r.jina.ai/https://getdaytrends.com": () =>
       json({ code: 200, data: { content: TRENDS_MARKDOWN } }),
-    "https://t.me/s/": () => new Response(TELEGRAM_HTML, { status: 200 }),
+    "https://t.me/s/": (request) =>
+      new Response(
+        request.url.includes("before=")
+          ? ""
+          : telegramPage([
+              { id: 101, text: "شلونكم يا جماعة؟ اليوم عندنا خبر <b>مهم</b>" },
+              { id: 102, text: "English only message" },
+            ]),
+        { status: 200 },
+      ),
     "www.reddit.com/api/v1/access_token": () =>
       json({ access_token: "fixture-token", expires_in: 3600 }),
     "oauth.reddit.com": () => json(REDDIT_LISTING),
@@ -114,6 +132,8 @@ async function call(
   }
 }
 
+type Review = Record<string, { have: number; screenedThisRun: Record<string, number>; queueEmpty: boolean }>;
+
 Deno.test("harvest-social-trends refuses a caller with neither secret nor manager role", async () => {
   const { status, body, calls } = await call({}, caller([]), { secret: false });
 
@@ -124,7 +144,7 @@ Deno.test("harvest-social-trends refuses a caller with neither secret nor manage
   assert(!calls.some((c) => c.url.includes("getdaytrends") || c.url.includes("t.me")));
 });
 
-Deno.test("harvest-social-trends stores topics and Arabic posts from all three platforms", async () => {
+Deno.test("harvest-social-trends stores topics and Arabic posts, queueing passes for human review", async () => {
   const pending = [{ id: "post-1", arabic_text: "شلونكم يا جماعة؟", dialect: "Gulf" }];
   const { status, body, calls } = await call({}, caller(pending));
 
@@ -133,41 +153,77 @@ Deno.test("harvest-social-trends stores topics and Arabic posts from all three p
   assertEquals(body.topics, 2);
   const topicUpsert = calls.find((c) => c.url.includes("trending_topics") && c.method === "POST");
   assertStringIncludes(topicUpsert?.body ?? "", "#يوم_الجمعه");
-  // Trends link out to X search rather than embedding post bodies — the only
-  // free (and terms-compatible) way to show the tweets themselves.
   assertStringIncludes(topicUpsert?.body ?? "", "https://x.com/search?q=");
 
-  // The English-only Telegram caption and Reddit thread never become rows:
-  // an Arabic-script filter is cheaper than a model call that says "no".
+  // The English-only Telegram caption and Reddit thread never become rows.
   assertEquals(body.telegramPosts, 1);
   assertEquals(body.redditPosts, 1);
-  const postUpserts = calls.filter((c) => c.url.includes("social_posts") && c.method === "POST");
-  const upserted = postUpserts.map((c) => c.body ?? "").join("\n");
+  const upserted = calls
+    .filter((c) => c.url.includes("social_posts") && c.method === "POST")
+    .map((c) => c.body ?? "")
+    .join("\n");
   assertStringIncludes(upserted, "kuwaitnews/101");
   assertStringIncludes(upserted, "t3_arabic");
   assert(!upserted.includes("t3_english"));
 
-  // The pending post passed the screen, so the row carries the verdict's
-  // translation and lands approved.
-  assertEquals((body.screened as Record<string, number>).approved, 1);
+  // The pass lands in the review queue — 'screened', never 'approved'. The
+  // human on /admin/social-trends is the publisher now.
+  assertEquals((body.review as Review).Gulf.screenedThisRun.screened, 1);
   const patch = calls.find((c) => c.url.includes("social_posts") && c.method === "PATCH");
-  assertStringIncludes(patch?.body ?? "", '"status":"approved"');
+  assertStringIncludes(patch?.body ?? "", '"status":"screened"');
   assertStringIncludes(patch?.body ?? "", "How is everyone?");
+  assert(!(patch?.body ?? "").includes('"status":"approved"'));
 });
 
-Deno.test("harvest-social-trends rejects MSA rather than publishing it", async () => {
+Deno.test("harvest-social-trends screens each dialect's own queue", async () => {
+  const pending = [
+    { id: "post-g", arabic_text: "شلونكم", dialect: "Gulf" },
+    { id: "post-e", arabic_text: "إزيكم", dialect: "Egyptian" },
+  ];
+  const { body, calls } = await call({ platform: "x", targetPerDialect: 2 }, caller(pending));
+
+  // The first cut screened one global pool: whichever dialect harvested most
+  // filled the quota and the rest never got a model call. Now each dialect's
+  // pending rows are fetched and screened separately.
+  const review = body.review as Review;
+  assertEquals(review.Gulf.screenedThisRun.screened, 1);
+  assertEquals(review.Egyptian.screenedThisRun.screened, 1);
+  // Yemeni had nothing pending: its queue is reported empty rather than the
+  // run pretending it was served.
+  assertEquals(review.Yemeni.queueEmpty, true);
+  assertEquals(review.Yemeni.screenedThisRun, {});
+  const pendingSelects = calls.filter(
+    (c) => c.url.includes("status=eq.pending") && c.url.includes("dialect=eq."),
+  );
+  assert(pendingSelects.length >= 3);
+});
+
+Deno.test("harvest-social-trends pages further back through a thin Telegram channel", async () => {
+  const { calls } = await call({ platform: "telegram", screenLimit: 0 }, caller([]));
+
+  // One preview page is ~20 messages and a news channel's captions are often
+  // media-only: a single page can yield one screenable post. The harvester
+  // walks ?before= pages until it has enough Arabic posts or pages run out.
+  const telegramFetches = calls.filter((c) => c.url.includes("t.me/s/kuwaitnews"));
+  assert(telegramFetches.length >= 2, `expected pagination, saw ${telegramFetches.length} fetches`);
+  // The cursor is the oldest id of everything parsed — 101 — not of the
+  // Arabic survivors only.
+  assert(telegramFetches.some((c) => c.url.includes("before=101")));
+});
+
+Deno.test("harvest-social-trends rejects MSA without queueing it for review", async () => {
   const pending = [{ id: "post-1", arabic_text: "أعلنت الوزارة اليوم", dialect: "Gulf" }];
   const { body, calls } = await call(
-    { platform: "x", screenLimit: 5 },
+    { platform: "x", targetPerDialect: 1 },
     caller(pending, {
       "ai.gateway.lovable.dev": () =>
         chatCompletion("", aVerdict({ register: "msa", reason: "Formal news register." })),
     }),
   );
 
-  // The whole feature exists to surface dialect; a news-register post going
-  // out as "trending" would teach exactly the فصحى the app promises never to.
-  assertEquals((body.screened as Record<string, number>).rejected, 1);
+  // Generous triage still has a floor: clear فصحى wastes reviewer time, and
+  // is the one register the app promises never to teach.
+  assertEquals((body.review as Review).Gulf.screenedThisRun.rejected, 1);
   const patch = calls.find((c) => c.url.includes("social_posts") && c.method === "PATCH");
   assertStringIncludes(patch?.body ?? "", '"status":"rejected"');
 });
@@ -175,24 +231,27 @@ Deno.test("harvest-social-trends rejects MSA rather than publishing it", async (
 Deno.test("harvest-social-trends leaves posts pending when the screen is down", async () => {
   const pending = [{ id: "post-1", arabic_text: "شلونكم", dialect: "Gulf" }];
   const { status, body, calls } = await call(
-    { platform: "x", screenLimit: 5 },
+    { platform: "x", targetPerDialect: 1 },
     caller(pending, {
       "ai.gateway.lovable.dev": () => json({ error: "boom" }, 503),
       "openrouter.ai": () => json({ error: "boom" }, 503),
     }),
   );
 
-  // Nothing auto-publishes unjudged (the clip pipeline's rule, same reason):
-  // an outage must mean "try again next run", never "approve everything".
+  // Nothing reaches the review queue unjudged: an outage must mean "try
+  // again next run", never "queue everything".
   assertEquals(status, 200);
-  assertEquals((body.screened as Record<string, number>).pending, 1);
+  assertEquals((body.review as Review).Gulf.screenedThisRun.pending, 1);
   assert(!calls.some((c) => c.url.includes("social_posts") && c.method === "PATCH"));
 });
 
 Deno.test("harvest-social-trends skips Reddit quietly when no app is registered", async () => {
   const { status, body, calls } = await call(
-    { platform: "reddit", screenLimit: 0 },
-    caller([]),
+    { platform: "reddit", screenLimit: 0, targetPerDialect: 1 },
+    caller([], {
+      "/rest/v1/social_posts": (request) =>
+        request.method === "GET" ? json([]) : json([], 201),
+    }),
     { env: { REDDIT_CLIENT_ID: undefined, REDDIT_CLIENT_SECRET: undefined } },
   );
 

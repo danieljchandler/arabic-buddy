@@ -1,3 +1,9 @@
+-- NOTE: this file duplicates 20260828120000/20260828120500 (it was applied
+-- to production through a separate deploy path). Everything in it is
+-- IF NOT EXISTS / ON CONFLICT idempotent except CREATE POLICY, which has no
+-- such form -- so each policy is dropped first to keep the from-scratch
+-- replay (contract/) green.
+
 CREATE TABLE IF NOT EXISTS public.social_content_sources (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   platform text NOT NULL CHECK (platform IN ('x', 'reddit', 'telegram')),
@@ -16,6 +22,7 @@ CREATE TABLE IF NOT EXISTS public.social_content_sources (
 
 ALTER TABLE public.social_content_sources ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "social_content_sources_manage" ON public.social_content_sources;
 CREATE POLICY "social_content_sources_manage" ON public.social_content_sources
   FOR ALL USING (public.can_manage_content())
   WITH CHECK (public.can_manage_content());
@@ -40,6 +47,7 @@ CREATE INDEX IF NOT EXISTS idx_trending_topics_day
 
 ALTER TABLE public.trending_topics ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "trending_topics_read" ON public.trending_topics;
 CREATE POLICY "trending_topics_read" ON public.trending_topics
   FOR SELECT USING (true);
 GRANT SELECT ON public.trending_topics TO anon, authenticated;
@@ -71,6 +79,7 @@ CREATE INDEX IF NOT EXISTS idx_social_posts_status_recent
 
 ALTER TABLE public.social_posts ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "social_posts_read" ON public.social_posts;
 CREATE POLICY "social_posts_read" ON public.social_posts
   FOR SELECT USING (status = 'approved' OR public.can_manage_content());
 GRANT SELECT ON public.social_posts TO anon, authenticated;

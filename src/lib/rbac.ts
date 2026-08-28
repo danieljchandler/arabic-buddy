@@ -69,6 +69,9 @@ const CONTENT_REVIEWER_ALLOWED_ADMIN_PREFIXES = [
   // candidate queue. Same audience as video review.
   "/admin/channels",
   "/admin/clips",
+  // The social-post review queue: judging harvested posts is the same
+  // editorial call as vetting clips, so the same audience.
+  "/admin/social-trends",
   // The old transcript review workspace, kept only so its redirect to the
   // video pages still renders for people holding stale links.
   "/admin/transcribe",

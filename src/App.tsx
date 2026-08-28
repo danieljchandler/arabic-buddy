@@ -45,7 +45,6 @@ const MyWordsReview = lazyPage(() => import("./pages/MyWordsReview"));
 const MyPhrasesReview = lazyPage(() => import("./pages/MyPhrasesReview"));
 const MemeAnalyzer = lazyPage(() => import("./pages/MemeAnalyzer"));
 const Discover = lazyPage(() => import("./pages/Discover"));
-const Trending = lazyPage(() => import("./pages/Trending"));
 const DiscoverVideo = lazyPage(() => import("./pages/DiscoverVideo"));
 const LearnFromX = lazyPage(() => import("./pages/LearnFromX"));
 const Share = lazyPage(() => import("./pages/Share"));
@@ -109,6 +108,7 @@ const CurriculumBuilder = lazyPage(() => import("./pages/admin/CurriculumBuilder
 const AdminStories = lazyPage(() => import("./pages/admin/AdminStories"));
 const AdminStoryForm = lazyPage(() => import("./pages/admin/AdminStoryForm"));
 const TrendingVideos = lazyPage(() => import("./pages/admin/TrendingVideos"));
+const AdminSocialTrends = lazyPage(() => import("./pages/admin/AdminSocialTrends"));
 const AdminMemes = lazyPage(() => import("./pages/admin/AdminMemes"));
 const AdminMemeForm = lazyPage(() => import("./pages/admin/AdminMemeForm"));
 const BibleAccess = lazyPage(() => import("./pages/admin/BibleAccess"));
@@ -288,7 +288,6 @@ const App = () => {
             <Route path="/learn/:lessonId" element={<ErrorBoundary name="LearnLessonRoute"><Learn /></ErrorBoundary>} />
             <Route path="/quiz/:lessonId" element={<ErrorBoundary name="QuizRoute"><Quiz /></ErrorBoundary>} />
             <Route path="/discover" element={<ErrorBoundary name="DiscoverRoute"><Discover /></ErrorBoundary>} />
-            <Route path="/trending" element={<ErrorBoundary name="TrendingRoute"><Trending /></ErrorBoundary>} />
             <Route path="/discover/:videoId" element={<ErrorBoundary name="DiscoverVideoRoute"><DiscoverVideo /></ErrorBoundary>} />
             <Route path="/learn-from-x" element={
               <ErrorBoundary name="LearnFromXRoute">
@@ -501,6 +500,7 @@ const App = () => {
               <Route path="stories/new" element={<AdminStoryForm />} />
               <Route path="stories/:storyId/edit" element={<AdminStoryForm />} />
               <Route path="trending" element={<TrendingVideos />} />
+              <Route path="social-trends" element={<AdminSocialTrends />} />
               <Route path="bible-access" element={<BibleAccess />} />
               <Route path="bible-lessons" element={<AdminBibleLessons />} />
               <Route path="coverage" element={<AdminCoverage />} />

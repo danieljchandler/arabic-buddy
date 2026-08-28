@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Loader2, ArrowLeft, Play, Pause, Volume2, Plus, Check, Trash2, Eye } from "lucide-react";
 import { AppShell } from "@/components/layout/AppShell";
@@ -27,6 +27,7 @@ import {
   useIncrementPlayCount,
   useDeleteListenEpisode,
 } from "@/hooks/useListen";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import { toast } from "sonner";
 import { isCappedError } from "@/lib/invokeError";
 
@@ -62,6 +63,61 @@ const ListenEpisode = () => {
       return next;
     });
   const incrementedRef = useRef(false);
+
+  // Everything the assistant is told about this episode — the script, the key
+  // vocabulary, which line is playing. But only *revealed* lines carry their
+  // text: the page blurs the Arabic as a listening-first exercise, and the
+  // per-line Ask AI chip already waits for the reveal so it can't leak the
+  // answer around the blur. The assistant quoting a hidden line would defeat
+  // the same exercise, so it sees that the line exists and nothing more.
+  usePageAiContext(
+    useMemo(() => {
+      if (!episode) return null;
+      const revealed = (i: number) => revealAll || revealedLines.has(i);
+      const playing = playingLine !== null ? episode.script[playingLine] : undefined;
+      return {
+        kind: "story" as const,
+        title: episode.title,
+        summary: [
+          `Listening to a ${episode.dialect} dialect ${episode.format} episode, listen-first: each line's text stays hidden until the learner reveals it, and hidden lines are withheld below on purpose — if asked about one, encourage another listen instead of guessing.`,
+          episode.summary ?? "",
+        ]
+          .filter(Boolean)
+          .join(" "),
+        content:
+          playing && playingLine !== null && revealed(playingLine)
+            ? `${playing.arabic}${playing.english ? ` — ${playing.english}` : ""}`
+            : undefined,
+        document: {
+          label: "Episode script",
+          sourceId: episode.id,
+          lines: episode.script.map((line, i) =>
+            revealed(i)
+              ? {
+                  index: i + 1,
+                  arabic: `${line.speaker}: ${line.arabic}`,
+                  english: line.english,
+                }
+              : {
+                  index: i + 1,
+                  arabic: `${line.speaker}: (not yet revealed)`,
+                },
+          ),
+        },
+        meta: {
+          dialect: episode.dialect,
+          vocabulary: episode.key_vocabulary.map((v) => ({
+            arabic: v.arabic,
+            english: v.english,
+          })),
+        },
+        position: {
+          index: playingLine !== null ? playingLine + 1 : undefined,
+          total: episode.script.length,
+        },
+      };
+    }, [episode, revealAll, revealedLines, playingLine]),
+  );
 
   useEffect(() => {
     if (episode && !incrementedRef.current) {

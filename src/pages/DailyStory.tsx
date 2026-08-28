@@ -10,6 +10,7 @@ import { TranslationPair } from "@/components/shared/TranslationPair";
 import { pairSentences, type ReaderSentence } from "@/lib/sentences";
 import { useAuth } from "@/hooks/useAuth";
 import { useDailyStory, useGenerateDailyStory } from "@/hooks/useDailyStory";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
 import { markTaskCompletedToday, isTaskCompletedToday } from "@/lib/todayCompletion";
 import { toast } from "sonner";
@@ -60,6 +61,37 @@ const DailyStoryPage = () => {
 
   const perSentenceEnglish = lines.some((l) => l.english || l.literal);
   const perSentenceTransliteration = lines.some((l) => l.transliteration);
+
+  // Tell the assistant what today's story says — it is written from the
+  // learner's own review words, so "which of my words is this using?" is a
+  // question it should be able to answer from the context alone.
+  usePageAiContext(
+    useMemo(() => {
+      if (!story) return null;
+      return {
+        kind: "story" as const,
+        title: story.title,
+        summary: `Today's personalised daily story in ${story.dialect} dialect, generated from the learner's own vocabulary deck.`,
+        document: {
+          label: "Today's story",
+          sourceId: story.id,
+          lines: lines.map((l, i) => ({
+            index: i + 1,
+            arabic: l.arabic,
+            english: l.english ?? l.literal ?? undefined,
+          })),
+        },
+        meta: {
+          dialect: story.dialect,
+          vocabulary: story.vocab_used?.map((w) => ({ arabic: w })),
+          notes:
+            story.new_words?.length > 0
+              ? [`New words introduced by this story: ${story.new_words.join("، ")}`]
+              : undefined,
+        },
+      };
+    }, [story, lines]),
+  );
 
   if (authLoading) {
     return (

@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageCorner } from "@/components/shell/PageCorner";
@@ -14,6 +14,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Switch } from "@/components/ui/switch";
 import { useDialect } from "@/contexts/DialectContext";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useBibleAccess } from "@/hooks/useBibleAccess";
 import { supabase } from "@/integrations/supabase/client";
@@ -257,6 +258,38 @@ const BibleReadingInner = () => {
     showDialect,
     mode,
   ]);
+
+  // ── Tell the assistant what passage is open ──────────────────────────────
+  // The dialect rendering is the point of this page, so when it is shown that
+  // is the text the tutor gets, with the formal Van Dyck line as the English
+  // slot's companion; "compare this verse's dialect and formal wording" is
+  // the question this context exists to answer.
+  usePageAiContext(
+    useMemo(() => {
+      if (mode !== "reading" || !passage) return null;
+      const reference = `${selectedBook?.name ?? passage.bookUsfm} ${passage.chapter || selectedChapter}`;
+      const dialectVerses = makeVerseArray(passage.arabicVerses.length, passage.dialectVerses);
+      const englishVerses = makeVerseArray(passage.arabicVerses.length, passage.englishVerses);
+      return {
+        kind: "passage" as const,
+        title: reference,
+        summary: `Reading ${reference} with a spoken ${passage.dialect || dialectLabel} rendering alongside the formal Arabic (Van Dyck).`,
+        document: {
+          label: `Verses of ${reference}`,
+          lines: passage.arabicVerses.map((verse, i) => ({
+            index: i + 1,
+            arabic:
+              showDialect && dialectVerses[i]
+                ? dialectVerses[i]
+                : verse,
+            english: englishVerses[i] || undefined,
+          })),
+        },
+        meta: { dialect: passage.dialect || activeDialect },
+        position: { total: passage.arabicVerses.length },
+      };
+    }, [mode, passage, selectedBook, selectedChapter, showDialect, dialectLabel, activeDialect]),
+  );
 
   // ── Fetch passage with retry ─────────────────────────────────────────────
   const fetchPassage = useCallback(async () => {

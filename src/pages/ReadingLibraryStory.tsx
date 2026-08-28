@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -17,6 +17,7 @@ import { SaveUnknownsBar } from '@/components/shared/SaveUnknownsBar';
 import { ArrowLeft, Loader2, Play, Pause, SkipForward, SkipBack, BookOpen, Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
+import { usePageAiContext } from '@/contexts/AiAssistantContext';
 import { cn } from '@/lib/utils';
 import type { Database } from '@/integrations/supabase/types';
 
@@ -116,6 +117,37 @@ const ReadingLibraryStory = () => {
       });
     }
   }, [currentLineIndex]);
+
+  // What the assistant sees: the whole story with the line the learner is on
+  // marked, in whichever register they are reading (the dialect toggle swaps
+  // the text on screen, so it swaps what the tutor is shown too).
+  usePageAiContext(
+    useMemo(() => {
+      if (!story || !lines || lines.length === 0) return null;
+      const textOf = (l: AuthenticStoryLine) =>
+        showDialect
+          ? (l.dialect_vocalized || l.dialect || l.arabic_vocalized || l.arabic)
+          : (l.arabic_vocalized || l.arabic);
+      const focus = lines[focusedIdx];
+      return {
+        kind: 'story' as const,
+        title: story.title,
+        summary: `Reading an authentic story from the reading library${story.dialect ? ` (${story.dialect} dialect)` : ''}${showDialect ? ', currently shown in its dialect version' : ''}.`,
+        content: focus ? `${textOf(focus)}${focus.english ? ` — ${focus.english}` : ''}` : undefined,
+        document: {
+          label: 'Full story text',
+          sourceId: story.id,
+          lines: lines.map((l, i) => ({
+            index: i + 1,
+            arabic: textOf(l),
+            english: l.english ?? undefined,
+          })),
+        },
+        meta: { dialect: story.dialect ?? undefined },
+        position: { index: focusedIdx + 1, total: lines.length },
+      };
+    }, [story, lines, focusedIdx, showDialect]),
+  );
 
   const mountedRef = useRef(true);
   useEffect(() => {

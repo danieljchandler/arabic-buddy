@@ -1005,3 +1005,42 @@ export const anAlert = (over: Row = {}): Row => ({
   acknowledged_by: null,
   ...over,
 });
+
+export const trendingTopicId = makeId("d7d7d7d7");
+export const socialPostId = makeId("d8d8d8d8");
+
+/** A day's trend chip for one country, harvested from the aggregator scrape. */
+export const aTrendingTopic = (over: Row = {}): Row => ({
+  id: trendingTopicId(0),
+  platform: "x",
+  country: "Saudi Arabia",
+  dialect: "Gulf",
+  topic: "#يوم_الجمعه",
+  rank: 1,
+  source_url: "https://x.com/search?q=%23%D9%8A%D9%88%D9%85_%D8%A7%D9%84%D8%AC%D9%85%D8%B9%D9%87&f=live",
+  captured_on: new Date().toISOString().slice(0, 10),
+  captured_at: iso(-60 * 60 * 1000),
+  ...over,
+});
+
+// Defaults to approved because that is the only status learners can read;
+// screening states are the harvester's business, not the feed's.
+export const aSocialPost = (over: Row = {}): Row => ({
+  id: socialPostId(0),
+  source_id: null,
+  platform: "telegram",
+  external_id: "kuwaitnews/101",
+  url: "https://t.me/kuwaitnews/101",
+  author: "Kuwait News",
+  dialect: "Gulf",
+  country: "Kuwait",
+  topic: null,
+  arabic_text: "شلونكم يا جماعة؟ اليوم عندنا خبر حلو",
+  translation: "How is everyone? We have good news today.",
+  engagement: { views: 14700 },
+  screen: { register: "dialect", confidence: 0.9 },
+  status: "approved",
+  posted_at: iso(-2 * 60 * 60 * 1000),
+  captured_at: iso(-60 * 60 * 1000),
+  ...over,
+});

@@ -291,3 +291,11 @@ verify_jwt = false
 # out. Anonymous callers are IP-bucketed per day by enforceAnonymousDailyCap.
 [functions.score-set-phrase-voice]
 verify_jwt = false
+
+# Social trends harvester: scrapes free sources (trend aggregators via Jina,
+# t.me channel previews, Reddit's registered-app API) and screens every post
+# through askBrain before learners can read it. No JWT requirement because the
+# scheduled automation loop calls it with the SOCIAL_HARVEST_SECRET header;
+# human callers are content-manager-role checked inside.
+[functions.harvest-social-trends]
+verify_jwt = false

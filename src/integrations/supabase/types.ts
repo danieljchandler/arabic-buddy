@@ -3592,6 +3592,113 @@ export type Database = {
           },
         ]
       }
+      social_content_sources: {
+        Row: {
+          country: string | null
+          created_at: string
+          dialect: string
+          display_name: string
+          handle: string
+          id: string
+          last_harvested_at: string | null
+          notes: string | null
+          platform: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          country?: string | null
+          created_at?: string
+          dialect: string
+          display_name: string
+          handle: string
+          id?: string
+          last_harvested_at?: string | null
+          notes?: string | null
+          platform: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          country?: string | null
+          created_at?: string
+          dialect?: string
+          display_name?: string
+          handle?: string
+          id?: string
+          last_harvested_at?: string | null
+          notes?: string | null
+          platform?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      social_posts: {
+        Row: {
+          arabic_text: string
+          author: string | null
+          captured_at: string
+          country: string | null
+          dialect: string
+          engagement: Json
+          external_id: string
+          id: string
+          platform: string
+          posted_at: string | null
+          screen: Json
+          source_id: string | null
+          status: string
+          topic: string | null
+          translation: string | null
+          url: string | null
+        }
+        Insert: {
+          arabic_text: string
+          author?: string | null
+          captured_at?: string
+          country?: string | null
+          dialect?: string
+          engagement?: Json
+          external_id: string
+          id?: string
+          platform: string
+          posted_at?: string | null
+          screen?: Json
+          source_id?: string | null
+          status?: string
+          topic?: string | null
+          translation?: string | null
+          url?: string | null
+        }
+        Update: {
+          arabic_text?: string
+          author?: string | null
+          captured_at?: string
+          country?: string | null
+          dialect?: string
+          engagement?: Json
+          external_id?: string
+          id?: string
+          platform?: string
+          posted_at?: string | null
+          screen?: Json
+          source_id?: string | null
+          status?: string
+          topic?: string | null
+          translation?: string | null
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "social_posts_source_id_fkey"
+            columns: ["source_id"]
+            isOneToOne: false
+            referencedRelation: "social_content_sources"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       story_progress: {
         Row: {
           completed: boolean
@@ -3968,6 +4075,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      trending_topics: {
+        Row: {
+          captured_at: string
+          captured_on: string
+          country: string
+          dialect: string
+          id: string
+          platform: string
+          rank: number | null
+          source_url: string | null
+          topic: string
+        }
+        Insert: {
+          captured_at?: string
+          captured_on?: string
+          country: string
+          dialect: string
+          id?: string
+          platform?: string
+          rank?: number | null
+          source_url?: string | null
+          topic: string
+        }
+        Update: {
+          captured_at?: string
+          captured_on?: string
+          country?: string
+          dialect?: string
+          id?: string
+          platform?: string
+          rank?: number | null
+          source_url?: string | null
+          topic?: string
+        }
+        Relationships: []
       }
       trending_video_candidates: {
         Row: {

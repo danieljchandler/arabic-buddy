@@ -58,6 +58,8 @@ const FACTORY_TABLES: Record<string, string> = {
   aVocabBattle: "vocab_battles",
   aSavedTranscription: "saved_transcriptions",
   aChallengeCompletion: "daily_challenge_completions",
+  aTrendingTopic: "trending_topics",
+  aSocialPost: "social_posts",
   aNativeReview: "dialect_native_reviews",
   aDiscoverVideo: "discover_videos",
   aTrendingCandidate: "trending_video_candidates",

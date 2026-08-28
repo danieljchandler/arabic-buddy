@@ -37,6 +37,7 @@ import { TappableArabicText } from "@/components/shared/TappableArabicText";
 import { createPlayableJingleAudio, createPlayableJingleAudioFromUrl } from "@/lib/jingleAudio";
 import { showCapToastIfLimited } from "@/lib/handleCapResponse";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 
 

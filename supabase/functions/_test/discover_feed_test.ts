@@ -340,7 +340,7 @@ Deno.test("discover-feed prefers a newer video when everything else ties", async
   assertEquals(order[0], "new");
 });
 
-Deno.test("discover-feed hides something finished recently", async () => {
+Deno.test("discover-feed demotes something finished recently without hiding it", async () => {
   const { items } = await call(
     { seed: 1 },
     caller({
@@ -350,9 +350,13 @@ Deno.test("discover-feed hides something finished recently", async () => {
     }),
   );
 
-  // A hard filter, not a penalty: a video watched to the end two days ago has
-  // nothing left to teach this week.
-  assertEquals(items.map((i) => i.video_id), ["fresh"]);
+  // A penalty, not a hard filter: a dialect whose library is a handful of
+  // clips would otherwise lose one to every completed watch and read as
+  // "nothing published here". It stays available, ranked behind everything
+  // unwatched and labelled as a rewatch.
+  assertEquals(items.map((i) => i.video_id), ["fresh", "watched"]);
+  assertEquals(items[1].reason, "Watch again");
+  assertEquals(items[1].bucket, "comfort");
 });
 
 Deno.test("discover-feed brings a finished video back after a fortnight", async () => {

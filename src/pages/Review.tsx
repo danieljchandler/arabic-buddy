@@ -666,7 +666,99 @@ const Review = () => {
                   Word
                 </Button>
               )}
+
+              {/* Jingle: a sung mnemonic in the word's own dialect. Held to the
+                  same reveal rule as the audio — the lyrics contain the word. */}
+              {(!isProduction || showAnswer) && (
+                review?.jingle_audio_url ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => playJingle(review.jingle_audio_url!)}
+                      className="gap-1.5"
+                    >
+                      <Play className="h-4 w-4" />
+                      Play jingle
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      disabled={jingleLoading}
+                      onClick={() => generateJingle(currentWord, true)}
+                      className="gap-1.5 text-muted-foreground"
+                    >
+                      {jingleLoading ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <RefreshCw className="h-4 w-4" />
+                      )}
+                      Regenerate
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={jingleLoading}
+                    onClick={() => generateJingle(currentWord)}
+                    className="gap-1.5"
+                  >
+                    {jingleLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Music className="h-4 w-4" />
+                    )}
+                    {jingleLoading ? "Creating jingle…" : "Create jingle"}
+                  </Button>
+                )
+              )}
             </div>
+
+            {/* Lyrics of the generated jingle, tappable like everywhere else. */}
+            {review?.jingle_audio_url && review?.jingle_lyrics && (!isProduction || showAnswer) && (
+              <div className="mb-6">
+                {showLyrics ? (
+                  <div className="rounded-lg bg-muted/40 border border-border p-3 text-left animate-in fade-in duration-200 max-w-md mx-auto">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Jingle lyrics
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setShowLyrics(false)}
+                        className="text-[10px] uppercase tracking-wide text-muted-foreground hover:text-foreground"
+                      >
+                        Hide
+                      </button>
+                    </div>
+                    <div
+                      className="text-sm leading-relaxed space-y-1"
+                      dir="rtl"
+                      style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
+                    >
+                      {review.jingle_lyrics.split(/\r?\n/).map((line, i) =>
+                        line.trim() ? (
+                          <TappableArabicText key={i} text={line} source="jingle-lyrics" />
+                        ) : (
+                          <div key={i} className="h-2" />
+                        ),
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowLyrics(true)}
+                    className="gap-1.5 text-muted-foreground text-xs"
+                  >
+                    Show lyrics
+                  </Button>
+                )}
+              </div>
+            )}
+
 
             {/* Pronunciation practice. Same reasoning: on a production card the
                 learner must recall the word before being scored saying it. */}

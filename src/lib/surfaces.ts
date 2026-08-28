@@ -115,6 +115,12 @@ export const SKILLS: Skill[] = [
         icon: "Newspaper",
       },
       {
+        label: "Trending",
+        description: "Real posts from X, Reddit and Telegram, screened for dialect",
+        to: "/trending",
+        icon: "TrendingUp",
+      },
+      {
         label: "Interactive Stories",
         description: "Branching stories you steer as you read",
         to: "/stories",

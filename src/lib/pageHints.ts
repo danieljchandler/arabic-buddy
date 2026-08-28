@@ -25,6 +25,11 @@ export const PAGE_HINTS: Record<string, { title: string; body: string; cta?: str
     body: "Curated native videos with tap-to-translate subtitles. The fastest way to train your ear on real-world Arabic.",
     cta: "Tap any word in the subtitles to save it.",
   },
+  trending: {
+    title: "Trending",
+    body: "What's actually being posted across the Arab world today — trend topics per country, plus real posts from Telegram and Reddit that passed a dialect screen (news-register MSA is filtered out).",
+    cta: "Tap Study on any post to break it down word by word.",
+  },
   transcribe: {
     title: "Transcribe",
     body: "Drop in audio, video, TikTok, or YouTube and get a word-by-word transcript with translations, dialect notes, and tappable vocab.",

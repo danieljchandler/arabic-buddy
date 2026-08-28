@@ -45,6 +45,9 @@ export const FIXTURE_ENV: Record<string, string> = {
   COBALT_API_KEY: "fixture-cobalt",
   FIRECRAWL_API_KEY: "fixture-firecrawl",
   JINA_API_KEY: "fixture-jina",
+  SOCIAL_HARVEST_SECRET: "fixture-harvest-secret",
+  REDDIT_CLIENT_ID: "fixture-reddit-id",
+  REDDIT_CLIENT_SECRET: "fixture-reddit-secret",
 
   // A real, throwaway P-256 pair. `web-push` validates the key length before
   // it will send anything — a placeholder string throws

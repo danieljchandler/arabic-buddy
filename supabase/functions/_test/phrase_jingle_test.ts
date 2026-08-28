@@ -158,19 +158,23 @@ Deno.test("generate-phrase-jingle asks for the learner's own dialect", async () 
   const { system, user } = writerPrompt(result);
 
   // A Gulf tune for an Egyptian learner teaches the phrase in a voice they will
-  // not hear again.
-  assertStringIncludes(system, "Egyptian Arabic pop/shaabi style");
+  // not hear again. The style prompts live in _shared/jingleStyles.ts and are
+  // long music-direction paragraphs now; pin each one's distinctive core plus
+  // its guard against the neighbouring dialects' styles.
+  assertStringIncludes(system, "mahraganat-flavoured shaabi from Cairo");
+  assertStringIncludes(system, "Do NOT use Khaliji/Gulf styles");
   assertStringIncludes(user, "Egyptian");
 });
 
 Deno.test("generate-phrase-jingle styles a Yemeni jingle as Yemeni folk-pop", async () => {
-  const result = await call({ ...PHRASE, dialect: "Yemeni" }, backend());
-  assertStringIncludes(writerPrompt(result).system, "Yemeni folk-pop style");
+  const system = writerPrompt(await call({ ...PHRASE, dialect: "Yemeni" }, backend())).system;
+  assertStringIncludes(system, "Yemeni folk-pop from Sana'a");
+  assertStringIncludes(system, "Do NOT use Khaliji/Gulf pop or Egyptian shaabi styles");
 });
 
 Deno.test("generate-phrase-jingle defaults an unspecified dialect to Gulf", async () => {
   const result = await call(PHRASE, backend());
-  assertStringIncludes(writerPrompt(result).system, "Khaliji/Gulf Arabic pop style");
+  assertStringIncludes(writerPrompt(result).system, "Khaliji/Gulf Arabic pop");
 });
 
 Deno.test("generate-phrase-jingle asks for tashkeel on the lyrics", async () => {

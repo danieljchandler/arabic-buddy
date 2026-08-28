@@ -553,6 +553,47 @@ re-seeds the transcript once it has been edited in this session — a refetch
 landing under a reviewer used to drop their work back to the stored version with
 no warning.
 
+## Trending (free social harvest)
+
+`/trending` shows what the Arab world is posting right now: per-country X trend
+chips plus real Telegram/Reddit posts, every one screened for dialect before a
+learner sees it. The design constraint was **zero API spend** — X's API moved
+to pay-per-use in 2026 ($0.005/post read; the Trends endpoint needs the $5k/mo
+Pro tier) — so each platform gets the free route that actually exists:
+
+- **X** — trending *topics* per country, scraped from getdaytrends.com via
+  Jina Reader (the same path `scrape-x-post` uses). Topics only: X search is
+  behind login, so post bodies are unreachable for free. Chips link out to
+  `x.com/search` instead of embedding, which also keeps us inside X's terms.
+  Yemen has no X trend location at all — the Yemeni column deliberately leans
+  on the other two platforms.
+- **Telegram** — public channel previews at `t.me/s/<handle>`, no key needed.
+  The richest free source for Yemeni content, and where view counts come from.
+- **Reddit** — top-of-day posts from country subreddits through a free
+  registered app (`REDDIT_CLIENT_ID`/`REDDIT_CLIENT_SECRET`, client_credentials
+  grant). Reddit blocks anonymous datacenter fetches, so without the secrets
+  the platform is skipped with a metric, not an error.
+
+The pipeline is `harvest-social-trends` (edge function) over three tables:
+`social_content_sources` (the curated registry of subreddits/channels/trend
+slugs, per dialect, `candidate → approved → rejected` like `content_channels`,
+seeded in `20260828120500`), `trending_topics` (one row per country/topic/day)
+and `social_posts`. Harvested posts land `pending`; an askBrain screen (UTILITY
+lineup, forced tool call) judges register — **MSA is rejected, dialect and
+mixed pass** — and produces the English translation in the same call. A screen
+outage leaves rows pending rather than approving them: nothing reaches
+learners unjudged, same rule as the clip pipeline. Learners read
+`status='approved'` under RLS; all writes are service-role. Parsing lives pure
+in `_shared/socialTrendsCore.ts`.
+
+Scheduling follows the clip pipeline's convention: nothing in-repo fires it.
+Call it daily with the service-role key or the `x-harvest-secret` header
+(`SOCIAL_HARVEST_SECRET` secret), e.g.
+`POST /functions/v1/harvest-social-trends {"platform":"all"}` — a content
+manager can also trigger it authenticated. Screening is capped per run
+(`screenLimit`, default 12) so a burst of new sources cannot spend an
+unbounded number of model calls.
+
 ## PWA and push notifications
 
 The frontend is installable: `public/manifest.webmanifest` plus a hand-rolled

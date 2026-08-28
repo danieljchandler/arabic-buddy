@@ -5147,6 +5147,8 @@ export type Database = {
           id: string
           interval_days: number
           is_leech: boolean
+          jingle_audio_url: string | null
+          jingle_lyrics: string | null
           lapses: number
           last_result: string | null
           last_reviewed_at: string | null
@@ -5174,6 +5176,8 @@ export type Database = {
           id?: string
           interval_days?: number
           is_leech?: boolean
+          jingle_audio_url?: string | null
+          jingle_lyrics?: string | null
           lapses?: number
           last_result?: string | null
           last_reviewed_at?: string | null
@@ -5201,6 +5205,8 @@ export type Database = {
           id?: string
           interval_days?: number
           is_leech?: boolean
+          jingle_audio_url?: string | null
+          jingle_lyrics?: string | null
           lapses?: number
           last_result?: string | null
           last_reviewed_at?: string | null

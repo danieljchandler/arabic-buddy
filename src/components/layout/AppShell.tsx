@@ -69,18 +69,17 @@ export function AppShell({ children, className, compact = false, wide = false }:
         "relative mx-auto w-full max-w-2xl animate-fade-up",
         wide && "lg:max-w-5xl",
         compact ? "px-4 pb-5 sm:px-5 sm:pb-6" : "px-4 pb-8 sm:px-6 md:pb-12",
-        // Clearance for the dock AND the feedback FAB, at every width. The md:
-        // variant above is a separate group as far as tailwind-merge is
-        // concerned, so a bare value loses to md:pb-12 from 768px up — the
-        // clearance is stated at both widths. On phones the FAB floats at
-        // bottom-20 and is 48px tall, so it reaches ~128px up from the edge:
-        // pb-24 (96px) left it sitting on whatever ended a page — the Start
-        // a lesson button on My Words, the empty-state copy on Discover.
-        // 128px lets every page scroll its last element clear of it. From md
-        // the FAB drops to bottom-6 and pb-24 already clears it. From lg there
-        // is no bottom bar at all — the dock is a left rail — so the page only
-        // needs to clear the FAB.
-        showNav && "pb-32 md:pb-24 lg:pb-16",
+        // Clearance for the dock AND the floating buttons, at every width
+        // below lg. Both FABs (feedback left, Ask AI right) sit at bottom-20
+        // and are ~48-68px tall while the dock is a bottom bar, so they reach
+        // ~128-148px up from the edge: pb-24 (96px) left them sitting on
+        // whatever ended a page — the Start a lesson button on My Words, the
+        // empty-state copy on Discover. The md:pb-12 above is a separate
+        // group as far as tailwind-merge is concerned, so the clearance is
+        // restated at md or it would lose to it from 768px up. From lg the
+        // dock is a left rail and both FABs drop to bottom-6, so the page
+        // only needs to clear the FAB height itself.
+        showNav && "pb-32 md:pb-32 lg:pb-16",
         // Let the page scroll clear of the bottom sheet, or its lower half is
         // unreachable while the panel is open.
         aiOpen && "max-sm:pb-[60dvh]",

@@ -41,12 +41,15 @@ import {
 export {
   DEFAULT_BUDGET,
   MATURE_INTERVAL_DAYS,
+  onScreenVocabBlock,
   renderProfileForPrompt,
 } from "./learnerProfileCore.ts";
 export type {
+  BucketMembership,
   Buckets,
   LearnerProfile,
   LearnerWord,
+  OnScreenVocabItem,
   ProfileBudget,
   ScheduleRow,
 } from "./learnerProfileCore.ts";
@@ -309,6 +312,13 @@ export async function buildLearnerProfile(
     // Not sampled: there are only six categories, and which grammar point a
     // learner is failing is not something to randomise for variety.
     weakGrammar,
+    // Complete membership for the on-screen cross-reference — a sampled list
+    // answers "is this word known?" with "no" for words it didn't draw.
+    membership: {
+      known: buckets.known.map((w) => w.arabic),
+      learning: buckets.learning.map((w) => w.arabic),
+      weak: buckets.weak.map((w) => w.arabic),
+    },
   };
 }
 

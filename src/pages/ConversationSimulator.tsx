@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useDialect } from "@/contexts/DialectContext";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserLevel } from "@/hooks/useUserLevel";
 import { useAddUserPhrase } from "@/hooks/useUserPhrases";
@@ -93,6 +94,34 @@ export default function ConversationSimulator() {
   const ttsCache = useRef<Map<string, string>>(new Map());
 
   const cefr = (placementLevel || "A2").toUpperCase();
+
+  // What the tutor sees if the learner opens Ask AI mid-roleplay: the whole
+  // exchange so far, corrections included. "What should I have said there?"
+  // and "why did it correct me?" are the questions this page produces, and
+  // they are unanswerable without the transcript.
+  usePageAiContext(
+    useMemo(() => {
+      if (messages.length === 0) return null;
+      const last = messages[messages.length - 1];
+      return {
+        kind: "passage" as const,
+        title: "Conversation practice",
+        summary: `Roleplaying a text conversation with an AI partner in ${activeDialect} dialect (learner level ${cefr}). Lines marked "correction" are the partner's fixes to what the learner wrote.`,
+        content: last.content || undefined,
+        document: {
+          label: "The conversation so far",
+          lines: messages.map((m, i) => ({
+            index: i + 1,
+            arabic: `${m.role === "user" ? "Learner" : "Partner"}: ${m.content}${
+              m.correction ? ` [correction: ${m.correction}]` : ""
+            }`,
+          })),
+        },
+        meta: { dialect: activeDialect, level: cefr },
+        position: { index: messages.length, total: messages.length },
+      };
+    }, [messages, activeDialect, cefr]),
+  );
 
   // ── Persistence ──────────────────────────────────────────────────────────
   useEffect(() => {

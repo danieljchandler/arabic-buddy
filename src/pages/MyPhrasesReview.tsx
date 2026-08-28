@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useDialect } from "@/contexts/DialectContext";
 import { useDueUserPhrases, useUpdateUserPhraseReview, useDeleteUserPhrase } from "@/hooks/useUserPhrases";
@@ -66,6 +67,35 @@ const MyPhrasesReview = () => {
       ? Math.min(currentIndex, duePhrases.length - 1)
       : 0;
   const current = duePhrases?.[safeIndex] ?? null;
+
+  // Same contract as the word review: the Arabic stays out of the context
+  // until the learner flips the card — they are mid-retrieval, and the tutor
+  // handing them the phrase would grade the card for them.
+  usePageAiContext(
+    useMemo(() => {
+      if (!current) return null;
+      return {
+        kind: "phrase" as const,
+        title: "My Phrases review",
+        summary: `Mid-review of their saved phrases (${activeDialect} dialect): the English is shown and they must produce the Arabic phrase.${
+          showAnswer
+            ? ""
+            : " The Arabic is still hidden — coach with hints rather than volunteering it unless they ask outright."
+        }`,
+        content: showAnswer
+          ? `${current.phrase_arabic} — ${current.phrase_english}`
+          : current.phrase_english,
+        meta: {
+          dialect: activeDialect,
+          notes:
+            showAnswer && current.is_leech
+              ? ["This phrase is a leech — repeatedly failed; a new angle would help."]
+              : undefined,
+        },
+        position: { total: duePhrases?.length ?? undefined },
+      };
+    }, [current, showAnswer, activeDialect, duePhrases?.length]),
+  );
 
   // Persist TTS audio on first generation so subsequent reviews reuse it
   // instead of calling the AI synthesis endpoint again.

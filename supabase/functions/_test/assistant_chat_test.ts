@@ -386,30 +386,81 @@ Deno.test("assistant-chat answers normally when no lookup is needed", async () =
   assert(!sentPrompt(bodies).includes("LOOKED UP FOR THIS QUESTION"));
 });
 
-Deno.test("assistant-chat fetches the learner profile on the first turn only", async () => {
+Deno.test("assistant-chat fetches the learner profile on the first turn, then every fifth", async () => {
+  const turn = (n: number) =>
+    Array.from({ length: n * 2 - 1 }, (_, i) => ({
+      role: i % 2 === 0 ? "user" : "assistant",
+      content: `turn ${i}`,
+    }));
+
   const firstTurn = await call(
     "assistant-chat",
-    { messages: [{ role: "user", content: "hi" }] },
+    { messages: turn(1) },
     subscriber({ "openrouter.ai": gateway }),
   );
   assert(firstTurn.calls.some((url) => url.includes("user_vocabulary")));
   assert(firstTurn.calls.some((url) => url.includes("video_views")));
 
-  const laterTurn = await call(
+  // In-between turns already carry that knowledge in the visible history;
+  // paying the five queries per message would be pure latency.
+  const secondTurn = await call(
     "assistant-chat",
-    {
-      messages: [
-        { role: "user", content: "hi" },
-        { role: "assistant", content: "أهلاً" },
-        { role: "user", content: "more" },
-      ],
-    },
+    { messages: turn(2) },
     subscriber({ "openrouter.ai": gateway }),
   );
-  // Later turns already carry that knowledge in the visible history; paying
-  // the five queries per message would be pure latency.
-  assert(!laterTurn.calls.some((url) => url.includes("user_vocabulary")));
-  assert(!laterTurn.calls.some((url) => url.includes("video_views")));
+  assert(!secondTurn.calls.some((url) => url.includes("user_vocabulary")));
+  assert(!secondTurn.calls.some((url) => url.includes("video_views")));
+
+  // …but a long conversation drifts away from a first-turn snapshot — reviews
+  // land mid-chat, the learner changes page — so every fifth turn re-fetches.
+  const fifthTurn = await call(
+    "assistant-chat",
+    { messages: turn(5) },
+    subscriber({ "openrouter.ai": gateway }),
+  );
+  assert(fifthTurn.calls.some((url) => url.includes("user_vocabulary")));
+  assert(fifthTurn.calls.some((url) => url.includes("video_views")));
+});
+
+Deno.test("assistant-chat says which on-screen words the learner knows, is learning, or keeps failing", async () => {
+  const { bodies } = await call(
+    "assistant-chat",
+    {
+      messages: [{ role: "user", content: "quiz me on this video" }],
+      dialect: "Gulf",
+      pageContext: {
+        route: "/discover/abc",
+        title: "Souq tour",
+        meta: {
+          vocabulary: [
+            { arabic: "سوق", english: "market" },
+            { arabic: "شغل", english: "work" },
+            { arabic: "تمر", english: "dates" },
+          ],
+        },
+      },
+    },
+    subscriber({
+      "openrouter.ai": gateway,
+      // A real deck: سوق mature, شغل a leech. تمر appears nowhere.
+      "/rest/v1/user_vocabulary": () =>
+        json([
+          { word_arabic: "سوق", word_english: "market", interval_days: 40, repetitions: 9, lapses: 0, is_leech: false },
+          { word_arabic: "شغل", word_english: "work", interval_days: 2, repetitions: 4, lapses: 5, is_leech: true },
+        ]),
+    }),
+  );
+
+  const sent = sentPrompt(bodies);
+  // The join nothing else makes: the profile says what they know globally,
+  // the page says what is in front of them, and this line says which of the
+  // words on screen are due work, which are safe, and which need a gloss.
+  assertStringIncludes(sent, "ON THE LEARNER'S SCREEN");
+  const line = (marker: string) =>
+    sent.split("\\n").find((l) => l.includes(marker)) ?? "";
+  assertStringIncludes(line("FAILING"), "شغل");
+  assertStringIncludes(line("KNOW"), "سوق");
+  assertStringIncludes(line("NEW"), "تمر");
 });
 
 // _shared/contentHistory.ts is exercised through the function: the three

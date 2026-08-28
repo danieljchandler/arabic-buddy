@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageCorner } from "@/components/shell/PageCorner";
 import { Button } from "@/components/ui/button";
@@ -55,6 +56,29 @@ const Translate = () => {
   const [dialectOpt, setDialectOpt] = useState<DialectOpt>("auto");
   const [saving, setSaving] = useState(false);
   const [savedId, setSavedId] = useState<string | null>(null);
+
+  // Once a translation is on screen, that is what the learner will ask about
+  // — "why is this line translated that way?" needs the sentences, both
+  // renderings, and the translator's own notes in front of the tutor.
+  usePageAiContext(
+    useMemo(() => {
+      if (!result || result.sentences.length === 0) return null;
+      return {
+        kind: "passage" as const,
+        title: "Translation",
+        summary: `The learner pasted Arabic text and the app translated it sentence by sentence (detected dialect: ${result.detected_dialect}). Each line shows the Arabic, a literal rendering, then the natural English.`,
+        document: {
+          label: "The translated text",
+          lines: result.sentences.map((s, i) => ({
+            index: i + 1,
+            arabic: s.arabic,
+            english: `literal: ${s.literal} — natural: ${s.natural}${s.note ? ` (note: ${s.note})` : ""}`,
+          })),
+        },
+        meta: { dialect: result.detected_dialect },
+      };
+    }, [result]),
+  );
 
   // Text shared into the app (via /share) arrives pre-screened: seed the box
   // and translate straight away — the share was the "go" gesture.

@@ -11,6 +11,7 @@ import {
   renderWeakGrammarForPrompt,
   type ConceptMastery,
 } from "./conceptMasteryCore.ts";
+import { normalizeArabic } from "./arabicMatch.ts";
 
 export interface LearnerWord {
   arabic: string;
@@ -41,6 +42,21 @@ export interface LearnerProfile {
    * hasn't drilled, which is why every consumer treats it as optional.
    */
   weakGrammar: ConceptMastery[];
+  /**
+   * Full bucket membership (Arabic surface forms) before sampling. The sampled
+   * lists above are for showing the model a slice of the lexicon; this is for
+   * membership tests — "is the word on the learner's screen one they know?" —
+   * where a sampled list would answer "no" for words it merely didn't draw.
+   * Optional: older call sites and tests never constructed it.
+   */
+  membership?: BucketMembership;
+}
+
+/** Arabic surface forms per bucket, complete rather than sampled. */
+export interface BucketMembership {
+  known: string[];
+  learning: string[];
+  weak: string[];
 }
 
 export interface ProfileBudget {
@@ -218,4 +234,95 @@ export function renderProfileForPrompt(
   return `LEARNER PROFILE — tailor the content to this specific learner.
 ${lines.join("\n")}
 Build mostly from KNOWN words so the material is comprehensible, and stretch slightly beyond it — aim for roughly one unfamiliar word in twenty, not a vocabulary test. Never list these words or mention this profile in the output.`;
+}
+
+// ── On-screen vocabulary × SRS state ─────────────────────────────────────────
+
+/** A vocabulary item the page published (PageContextVocabItem-shaped). */
+export interface OnScreenVocabItem {
+  arabic: string;
+  english?: string;
+}
+
+/** Words shown per category in the rendered block. */
+const ON_SCREEN_CAP = 10;
+
+/**
+ * Match key for one Arabic surface form: diacritics/hamza-seat differences
+ * folded by normalizeArabic, then the definite article stripped — the deck
+ * stores سوق where a subtitle shows السوق, and that pair failing to match is
+ * the common case, not the corner one.
+ */
+function vocabKey(surface: string): string {
+  const normalized = normalizeArabic(surface).trim();
+  return normalized.replace(/^ال(?=..)/, "");
+}
+
+/**
+ * Cross-reference the vocabulary on the learner's screen against their real
+ * SRS state, and say which of it is weak / in progress / known / brand new.
+ *
+ * The learner profile says what they know globally and the page context says
+ * what is in front of them; nothing else joins the two, so "of the words in
+ * this video, these three are due work" was previously the model's guess.
+ * Precedence weak > learning > known: a leech with a comfortable sibling
+ * entry is still the thing worth calling out.
+ *
+ * Returns "" when there is nothing to say (no on-screen vocabulary, or no
+ * membership data), so callers can append unconditionally.
+ */
+export function onScreenVocabBlock(
+  membership: BucketMembership | undefined,
+  onScreen: OnScreenVocabItem[] | undefined,
+): string {
+  if (!membership || !onScreen || onScreen.length === 0) return "";
+
+  const toSet = (words: string[]) => new Set(words.map(vocabKey));
+  const weakSet = toSet(membership.weak);
+  const learningSet = toSet(membership.learning);
+  const knownSet = toSet(membership.known);
+
+  const weak: OnScreenVocabItem[] = [];
+  const learning: OnScreenVocabItem[] = [];
+  const known: OnScreenVocabItem[] = [];
+  const fresh: OnScreenVocabItem[] = [];
+  const seen = new Set<string>();
+
+  for (const item of onScreen) {
+    const arabic = item.arabic?.trim();
+    if (!arabic) continue;
+    const key = vocabKey(arabic);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    if (weakSet.has(key)) weak.push(item);
+    else if (learningSet.has(key)) learning.push(item);
+    else if (knownSet.has(key)) known.push(item);
+    else fresh.push(item);
+  }
+
+  const list = (items: OnScreenVocabItem[]) =>
+    items
+      .slice(0, ON_SCREEN_CAP)
+      .map((w) => (w.english ? `${w.arabic} (${w.english})` : w.arabic))
+      .join(", ");
+
+  const lines: string[] = [];
+  if (weak.length > 0) {
+    lines.push(`- They keep FAILING these — call them out and reinforce them: ${list(weak)}`);
+  }
+  if (learning.length > 0) {
+    lines.push(
+      `- They are currently LEARNING these — a perfect moment for another exposure: ${list(learning)}`,
+    );
+  }
+  if (known.length > 0) {
+    lines.push(`- They already KNOW these well: ${list(known)}`);
+  }
+  if (fresh.length > 0) {
+    lines.push(`- These are NEW to them — gloss them when they come up: ${list(fresh)}`);
+  }
+  if (lines.length === 0) return "";
+
+  return `OF THE VOCABULARY ON THE LEARNER'S SCREEN RIGHT NOW, matched against their real flashcard record:
+${lines.join("\n")}`;
 }

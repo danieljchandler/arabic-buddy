@@ -45,10 +45,9 @@ export const useUserLevel = () => {
   // to the legacy single-dialect field for users who placed before per-dialect
   // tracking existed.
   const dialectKey = activeDialect.toLowerCase() as 'gulf' | 'egyptian' | 'yemeni';
-  const placementLevel =
-    (profile as Record<string, string | null> | null | undefined)?.[`placement_level_${dialectKey}`]
-    ?? profile?.placement_level
-    ?? null;
+  const dialectPlacement =
+    (profile as Record<string, string | null> | null | undefined)?.[`placement_level_${dialectKey}`] ?? null;
+  const placementLevel = dialectPlacement ?? profile?.placement_level ?? null;
   const difficulty = cefrToDifficulty(placementLevel);
 
   return {
@@ -58,5 +57,13 @@ export const useUserLevel = () => {
     difficulty,
     /** Whether the user has taken the placement quiz */
     hasTakenPlacement: !!placementLevel,
+    /**
+     * Whether the level is the learner's *measured* level for the dialect they
+     * are actually browsing. A level inherited from the legacy single-dialect
+     * field says nothing about this dialect, so it must not be used to filter
+     * a dialect's library down to one bucket — that reads as an empty library.
+     */
+    hasDialectPlacement: !!dialectPlacement,
   };
 };
+

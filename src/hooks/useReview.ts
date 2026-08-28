@@ -36,6 +36,10 @@ export interface WordReview {
   is_leech?: boolean | null;
   /** Learner's own memory hook for a stuck card; written by LeechHelperPanel. */
   mnemonic?: string | null;
+  /** Learner-generated jingle for this curriculum word (see Review.tsx). */
+  jingle_audio_url?: string | null;
+  jingle_lyrics?: string | null;
+
   // Production schedule (meaning → Arabic). production_next_review_at is null
   // until the learner recognises the word reliably; see buildReviewUpdate.
   production_lapses?: number | null;

@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getDialectLabel, getDialectVocabRules } from "../_shared/dialectHelpers.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { getJingleStyleLine } from "../_shared/jingleStyles.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 
@@ -42,11 +43,7 @@ serve(async (req) => {
 
     const dialectLabel = getDialectLabel(dialect);
     const dialectRules = getDialectVocabRules(dialect);
-    const dialectStyle = dialect === "Egyptian"
-      ? "Egyptian Arabic pop/shaabi style with Egyptian dialect vocals"
-      : dialect === "Yemeni"
-      ? "Yemeni folk-pop style with Yemeni dialect vocals"
-      : "Khaliji/Gulf Arabic pop style with Gulf dialect vocals";
+    const dialectStyle = getJingleStyleLine(dialect);
 
     const promptGen = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",

@@ -386,12 +386,13 @@ async function screenPending(limit: number): Promise<Record<string, number>> {
 }
 
 async function countApproved(): Promise<number> {
-  const { count, error } = await admin()
+  const { data, error } = await admin()
     .from("social_posts")
-    .select("id", { count: "exact", head: true })
-    .eq("status", "approved");
+    .select("id")
+    .eq("status", "approved")
+    .limit(200);
   if (error) throw new Error(`social_posts count failed: ${error.message}`);
-  return count ?? 0;
+  return data?.length ?? 0;
 }
 
 Deno.serve(async (req) => {

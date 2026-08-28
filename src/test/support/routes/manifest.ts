@@ -128,7 +128,6 @@ export const ROUTES: RouteSpec[] = [
 
   // ── Discover ───────────────────────────────────────────────────────────────
   { path: "/discover", gate: "public", boundary: "DiscoverRoute" },
-  { path: "/trending", gate: "public", boundary: "TrendingRoute" },
   { path: "/discover/:videoId", params: { videoId: VIDEO_ID }, gate: "public", boundary: "DiscoverVideoRoute" },
   { path: "/liked-videos", gate: "auth", boundary: "LikedVideosRoute" },
 
@@ -234,6 +233,7 @@ export const ROUTES: RouteSpec[] = [
   { path: "/admin/stories/new", gate: "admin" },
   { path: "/admin/stories/:storyId/edit", params: { storyId: STORY_ID }, gate: "admin" },
   { path: "/admin/trending", gate: "admin" },
+  { path: "/admin/social-trends", gate: "admin-or-reviewer" },
   { path: "/admin/bible-access", gate: "admin" },
   { path: "/admin/bible-lessons", gate: "admin" },
   { path: "/admin/coverage", gate: "admin" },

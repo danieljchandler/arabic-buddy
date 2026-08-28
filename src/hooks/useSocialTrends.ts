@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Json } from "@/integrations/supabase/types";
 
@@ -14,6 +14,15 @@ export interface TrendingTopic {
   captured_at: string;
 }
 
+/** What the askBrain screen recorded about a post (subset the UI shows). */
+export interface ScreenInfo {
+  register?: string;
+  confidence?: number;
+  reason?: string;
+  outcome?: string;
+  error?: string;
+}
+
 export interface SocialPost {
   id: string;
   platform: string;
@@ -26,6 +35,7 @@ export interface SocialPost {
   arabic_text: string;
   translation: string | null;
   engagement: Json;
+  screen: Json;
   status: string;
   posted_at: string | null;
   captured_at: string;
@@ -84,6 +94,11 @@ export function engagementLabel(platform: string, engagement: Json): string {
   return "";
 }
 
+/** The screen verdict out of the jsonb blob, typed for display. */
+export function screenInfo(post: SocialPost): ScreenInfo {
+  return (post.screen ?? {}) as ScreenInfo;
+}
+
 /** Today's trend chips, one bundle per country, already rank-sorted. */
 export function useTrendingTopics(dialect?: string) {
   return useQuery({
@@ -104,29 +119,84 @@ export function useTrendingTopics(dialect?: string) {
 }
 
 /**
- * The screened feed. RLS already hides non-approved rows from learners, but
- * the filter is stated here too so the query means what the page shows even
- * when a content manager (whose RLS lets pending rows through) is looking.
+ * The review-side post list. No implicit status filter: the admin page's tabs
+ * pass one explicitly, and RLS restricts the whole table to content managers
+ * anyway — this feature has no learner surface.
  */
-export function useSocialPosts(filters?: { dialect?: string; platform?: string }) {
+export function useAdminSocialPosts(filters: {
+  status?: string;
+  dialect?: string;
+  platform?: string;
+}) {
   return useQuery({
-    queryKey: ["social-posts", filters ?? {}],
+    queryKey: ["admin-social-posts", filters],
     queryFn: async () => {
       let query = supabase
         .from("social_posts")
         .select("*")
-        .eq("status", "approved")
         .order("captured_at", { ascending: false })
-        .limit(60);
-      if (filters?.dialect && filters.dialect !== "All") {
+        .limit(100);
+      if (filters.status && filters.status !== "All") {
+        query = query.eq("status", filters.status);
+      }
+      if (filters.dialect && filters.dialect !== "All") {
         query = query.eq("dialect", filters.dialect);
       }
-      if (filters?.platform && filters.platform !== "All") {
+      if (filters.platform && filters.platform !== "All") {
         query = query.eq("platform", filters.platform);
       }
       const { data, error } = await query;
       if (error) throw error;
       return (data ?? []) as unknown as SocialPost[];
+    },
+  });
+}
+
+/**
+ * The human verdict: a content manager approving or rejecting a screened post.
+ * This write is the publisher now — the AI screen only fills the queue.
+ */
+export function useSetSocialPostStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: "approved" | "rejected" }) => {
+      const { error } = await supabase
+        .from("social_posts")
+        .update({ status })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-social-posts"] }),
+  });
+}
+
+export interface HarvestSummary {
+  topics?: number;
+  telegramPosts?: number;
+  redditPosts?: number;
+  screenCalls?: number;
+  allTargetsReached?: boolean;
+  review?: Record<
+    string,
+    { target: number; have: number; screenedThisRun: Record<string, number>; queueEmpty: boolean }
+  >;
+}
+
+/** Fire a harvest run from the admin page and hand back its summary. */
+export function useRunSocialHarvest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke<HarvestSummary>(
+        "harvest-social-trends",
+        { body: { platform: "all" } },
+      );
+      if (error) throw error;
+      return (data ?? {}) as HarvestSummary;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["admin-social-posts"] });
+      qc.invalidateQueries({ queryKey: ["trending-topics"] });
     },
   });
 }

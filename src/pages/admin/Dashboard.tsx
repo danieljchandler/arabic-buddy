@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useLessons } from '@/hooks/useLessons';
@@ -7,7 +6,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Loader2, LogOut, BookOpen, Plus, Settings, Mic, PlayCircle, Upload, GraduationCap, Sparkles, BookMarked, TrendingUp, Image as ImageIcon, Laugh, MessageCircle, Languages, Activity, AlertTriangle, Ticket, Clapperboard, Antenna, CheckCheck, ShieldCheck, Rss } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
-import { toast } from '@/hooks/use-toast';
 import { SaduMark } from '@/components/brand/SaduMark';
 import { useDialect } from '@/contexts/DialectContext';
 
@@ -31,34 +29,9 @@ const Dashboard = () => {
     },
   });
 
-  const [harvesting, setHarvesting] = useState(false);
-
   const handleSignOut = async () => {
     await signOut();
     navigate('/admin/login');
-  };
-
-  const runSocialHarvest = async () => {
-    setHarvesting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('harvest-social-trends', {
-        body: { platform: 'all' },
-      });
-      if (error) throw error;
-      const result = (data ?? {}) as { topics?: number; telegramPosts?: number; redditPosts?: number; screened?: Record<string, number> };
-      toast({
-        title: 'Social harvest complete',
-        description: `${result.topics ?? 0} topics, ${(result.telegramPosts ?? 0) + (result.redditPosts ?? 0)} posts collected · ${result.screened?.approved ?? 0} approved, ${result.screened?.rejected ?? 0} rejected, ${result.screened?.pending ?? 0} pending`,
-      });
-    } catch (err) {
-      toast({
-        title: 'Harvest failed',
-        description: err instanceof Error ? err.message : 'Unknown error',
-        variant: 'destructive',
-      });
-    } finally {
-      setHarvesting(false);
-    }
   };
 
   // The flywheel's north-star numbers: corrections banked, and minutes of
@@ -374,18 +347,16 @@ const Dashboard = () => {
 
               <Card
                 className="cursor-pointer hover:shadow-elegant transition-shadow border-orange-500/30"
-                onClick={() => { if (!harvesting) void runSocialHarvest(); }}
+                onClick={() => navigate('/admin/social-trends')}
               >
                 <CardContent className="pt-6">
                   <div className="flex items-center gap-4">
                     <div className="bg-orange-500/10 rounded-full p-4">
-                      {harvesting
-                        ? <Loader2 className="h-8 w-8 text-orange-600 animate-spin" />
-                        : <Rss className="h-8 w-8 text-orange-600" />}
+                      <Rss className="h-8 w-8 text-orange-600" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-lg">{harvesting ? 'Harvesting…' : 'Run Social Harvest'}</h3>
-                      <p className="text-muted-foreground">Pull fresh X trends, Telegram & Reddit posts into the Trending feed</p>
+                      <h3 className="font-semibold text-lg">Social Trends</h3>
+                      <p className="text-muted-foreground">Harvest X trends, Telegram & Reddit posts, and review what gets approved</p>
                     </div>
                   </div>
                 </CardContent>

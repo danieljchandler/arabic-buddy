@@ -3,6 +3,7 @@ import {
   decideScreenOutcome,
   extractRedditPosts,
   hasArabic,
+  lowestTelegramPostId,
   parseCompactCount,
   parseDayTrendsMarkdown,
   parseTelegramPreviewHtml,
@@ -160,21 +161,24 @@ describe("decideScreenOutcome", () => {
     reason: "colloquial",
   };
 
-  it("approves dialect and mixed registers, refining the dialect tag", () => {
-    // "mixed" passes on purpose: real social writing code-switches, and a
-    // dialect-only bar would empty the feed of the register the app teaches.
+  it("sends dialect and mixed registers to the review queue, refining the dialect tag", () => {
+    // A pass is 'screened', never 'approved': the screen triages for a human
+    // on /admin/social-trends, it does not publish. "mixed" passes on purpose
+    // — real social writing code-switches — and so do low-confidence dialect
+    // calls, because with a person deciding, a generous queue beats the
+    // strict bar that was starving Gulf of anything to review at all.
     expect(decideScreenOutcome(verdict, "Gulf")).toEqual({
-      status: "approved",
+      status: "screened",
       dialect: "Egyptian",
       reason: "colloquial",
     });
-    expect(decideScreenOutcome({ ...verdict, register: "mixed" }, "Gulf").status).toBe("approved");
+    expect(decideScreenOutcome({ ...verdict, register: "mixed" }, "Gulf").status).toBe("screened");
+    expect(decideScreenOutcome({ ...verdict, confidence: 0.3 }, "Gulf").status).toBe("screened");
   });
 
-  it("rejects MSA, non-Arabic and low-confidence calls", () => {
+  it("rejects only the clear-cut negatives: MSA and non-Arabic", () => {
     expect(decideScreenOutcome({ ...verdict, register: "msa" }, "Gulf").status).toBe("rejected");
     expect(decideScreenOutcome({ ...verdict, is_arabic: false }, "Gulf").status).toBe("rejected");
-    expect(decideScreenOutcome({ ...verdict, confidence: 0.3 }, "Gulf").status).toBe("rejected");
   });
 
   it("leaves a post pending when there is no verdict at all", () => {
@@ -191,6 +195,26 @@ describe("decideScreenOutcome", () => {
     expect(decideScreenOutcome({ ...verdict, dialect: "Levantine" }, "Yemeni").dialect).toBe(
       "Yemeni",
     );
+  });
+});
+
+describe("lowestTelegramPostId", () => {
+  const post = (externalId: string) => ({
+    externalId,
+    text: "نص",
+    url: "",
+    author: null,
+    postedAt: null,
+    engagement: {},
+  });
+
+  it("finds the oldest message id for the ?before= pagination cursor", () => {
+    expect(lowestTelegramPostId([post("kuwaitnews/104"), post("kuwaitnews/98")])).toBe(98);
+  });
+
+  it("answers null when no id parses, so pagination stops instead of looping", () => {
+    expect(lowestTelegramPostId([post("kuwaitnews/abc")])).toBeNull();
+    expect(lowestTelegramPostId([])).toBeNull();
   });
 });
 

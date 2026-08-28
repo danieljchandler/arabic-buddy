@@ -14,13 +14,20 @@
 //   telegram  public channel previews at t.me/s/<handle> — no key at all.
 //             Fetched direct, with Jina as fallback for blocked egress.
 //
-// Every harvested post lands as status='pending' and must pass an askBrain
-// screen (UTILITY lineup, solo, forced tool call) before learners see it:
-// trending and news content skews MSA, the one register this app refuses to
-// teach, so the screen is the feature's load-bearing wall, not a nicety.
-// The same call produces the English translation, so screening adds no
-// second model pass. A screen outage leaves posts pending — nothing
-// auto-publishes unjudged (same rule as the clip pipeline).
+// Every harvested post lands as status='pending' and goes through an askBrain
+// screen (UTILITY lineup, solo, forced tool call). The screen is TRIAGE, not
+// the publisher: a pass moves the post to status='screened', where a content
+// manager on /admin/social-trends makes the actual approve/reject call — only
+// clear MSA and non-Arabic are binned without a human look. The same call
+// produces the English translation, so screening adds no second model pass,
+// and a screen outage leaves posts pending for the next run.
+//
+// Screening runs per dialect with a target: each run keeps fetching (older
+// Telegram pages included) and screening a dialect's pending queue until that
+// dialect has `targetPerDialect` posts awaiting or past review, its queue is
+// empty, or the run's global call/time budget is spent. Neediest dialect
+// first, so Gulf's news-heavy sources can't be starved by Egyptian filling a
+// global quota — the failure mode the first cut shipped with.
 //
 // Gated to content managers, plus the SOCIAL_HARVEST_SECRET header for the
 // scheduled automation loop. Parsing/decision logic is pure and lives in
@@ -35,6 +42,7 @@ import {
   extractRedditPosts,
   hasArabic,
   type HarvestedPost,
+  lowestTelegramPostId,
   parseDayTrendsMarkdown,
   parseTelegramPreviewHtml,
   type ScreenVerdict,
@@ -167,9 +175,10 @@ async function harvestTrends(): Promise<number> {
 
 // ---------- telegram + reddit: posts ----------
 
-async function fetchTelegramHtml(handle: string): Promise<string> {
+async function fetchTelegramHtml(handle: string, before: number | null = null): Promise<string> {
+  const url = `https://t.me/s/${handle}${before === null ? "" : `?before=${before}`}`;
   try {
-    const res = await fetch(`https://t.me/s/${handle}`);
+    const res = await fetch(url);
     if (res.ok) {
       const html = await res.text();
       if (html.includes("tgme_widget_message")) return html;
@@ -177,7 +186,35 @@ async function fetchTelegramHtml(handle: string): Promise<string> {
   } catch {
     /* fall through to Jina */
   }
-  return await fetchViaJina(`https://t.me/s/${handle}`, "html");
+  return await fetchViaJina(url, "html");
+}
+
+/**
+ * Walk a channel's preview backwards (t.me's ?before= pagination) until
+ * `wanted` Arabic posts are in hand or `maxPages` pages have been read. One
+ * page is ~20 messages; a news channel where most captions are links or media
+ * needs the extra pages to yield anything screenable.
+ */
+async function collectTelegramPosts(
+  handle: string,
+  wanted: number,
+  maxPages: number,
+): Promise<HarvestedPost[]> {
+  const collected: HarvestedPost[] = [];
+  let before: number | null = null;
+  for (let page = 0; page < maxPages && collected.length < wanted; page++) {
+    const parsed = parseTelegramPreviewHtml(await fetchTelegramHtml(handle, before));
+    if (parsed.length === 0) break;
+    // Same bar Reddit posts clear in the parser: an all-emoji or all-media
+    // caption never costs a screening call.
+    collected.push(...parsed.filter((p) => hasArabic(p.text)));
+    // The pagination cursor comes from everything parsed, not just the Arabic
+    // survivors — the next page starts before the oldest message seen.
+    const oldest = lowestTelegramPostId(parsed);
+    if (oldest === null || oldest <= 1) break;
+    before = oldest;
+  }
+  return collected;
 }
 
 let redditToken: { token: string; expiresAt: number } | null = null;
@@ -261,10 +298,7 @@ async function harvestPosts(platform: "telegram" | "reddit", perSource: number):
     const started = Date.now();
     let posts: HarvestedPost[] = [];
     if (platform === "telegram") {
-      // Same bar Reddit posts clear in the parser: an all-emoji or all-media
-      // caption never costs a screening call.
-      posts = parseTelegramPreviewHtml(await fetchTelegramHtml(source.handle))
-        .filter((p) => hasArabic(p.text));
+      posts = await collectTelegramPosts(source.handle, perSource, 3);
     } else {
       const listing = await fetchRedditListing(source.handle);
       posts = listing ? extractRedditPosts(listing) : [];
@@ -339,12 +373,15 @@ async function screenPost(
   }
 }
 
-async function screenPending(limit: number): Promise<Record<string, number>> {
+async function screenPending(dialect: string, limit: number): Promise<Record<string, number>> {
+  // Newest first: this is a trending queue, and the reviewer should see
+  // today's posts before working back through the backlog.
   const { data, error } = await admin()
     .from("social_posts")
     .select("id, arabic_text, dialect")
     .eq("status", "pending")
-    .order("captured_at", { ascending: true })
+    .eq("dialect", dialect)
+    .order("captured_at", { ascending: false })
     .limit(limit);
   if (error) throw new Error(`social_posts fetch failed: ${error.message}`);
   const rows = (data ?? []) as Array<{ id: string; arabic_text: string; dialect: string }>;
@@ -385,14 +422,15 @@ async function screenPending(limit: number): Promise<Record<string, number>> {
   return outcomes;
 }
 
-async function countApproved(): Promise<number> {
-  const { data, error } = await admin()
+/** Posts a dialect already has awaiting or past human review. */
+async function countInReview(dialect: string): Promise<number> {
+  const { count, error } = await admin()
     .from("social_posts")
-    .select("id")
-    .eq("status", "approved")
-    .limit(200);
+    .select("id", { count: "exact", head: true })
+    .in("status", ["screened", "approved"])
+    .eq("dialect", dialect);
   if (error) throw new Error(`social_posts count failed: ${error.message}`);
-  return data?.length ?? 0;
+  return count ?? 0;
 }
 
 Deno.serve(async (req) => {
@@ -408,14 +446,14 @@ Deno.serve(async (req) => {
     const platform = ["x", "reddit", "telegram", "all"].includes(body.platform)
       ? (body.platform as string)
       : "all";
-    const perSource = Math.max(1, Math.min(20, Number(body.perSource) || 10));
-    // Keep screening until `targetApproved` approved posts exist, or the
-    // pending backlog is exhausted. Bounds: each batch is one screenLimit of
-    // model calls and the whole run stops at maxScreenCalls or the time
-    // budget so a full-reject backlog can't loop forever.
-    const targetApproved = Math.max(1, Math.min(50, Number(body.targetApproved) || 10));
+    const perSource = Math.max(1, Math.min(30, Number(body.perSource) || 15));
+    // Keep screening until every dialect has `targetPerDialect` posts awaiting
+    // or past human review, or its pending queue runs dry. Bounds: the run
+    // stops at maxScreenCalls model calls or the time budget, so a
+    // full-reject backlog can't loop forever.
+    const targetPerDialect = Math.max(1, Math.min(20, Number(body.targetPerDialect) || 5));
     const batchSize = Math.max(1, Math.min(30, Number(body.screenLimit) || 12));
-    const maxScreenCalls = Math.max(batchSize, Math.min(120, Number(body.maxScreenCalls) || 48));
+    const maxScreenCalls = Math.max(batchSize, Math.min(150, Number(body.maxScreenCalls) || 60));
     const timeBudgetMs = 100_000;
 
     const started = Date.now();
@@ -430,29 +468,60 @@ Deno.serve(async (req) => {
       summary.redditPosts = await harvestPosts("reddit", perSource);
     }
 
-    const approvedBefore = await countApproved();
-    let screenCalls = 0;
-    const screenedTotal: Record<string, number> = {};
-    while (
-      approvedBefore + (screenedTotal.approved ?? 0) < targetApproved &&
-      screenCalls < maxScreenCalls &&
-      Date.now() - started < timeBudgetMs
-    ) {
-      const batch = Math.min(batchSize, maxScreenCalls - screenCalls);
-      const outcomes = await screenPending(batch);
-      screenCalls += batch;
-      for (const [k, v] of Object.entries(outcomes)) {
-        screenedTotal[k] = (screenedTotal[k] ?? 0) + v;
-      }
-      const touched = Object.values(outcomes).reduce((a, b) => a + b, 0);
-      // No pending rows left, or the screen is down and left everything pending.
-      if (touched < batch || (outcomes.pending ?? 0) === touched) break;
+    // Per-dialect screening, neediest dialect first so one productive dialect
+    // can't spend the whole budget while another sits at zero. Two rounds:
+    // the first caps each dialect at an equal share of the budget, the second
+    // gives whatever is left to dialects still under target.
+    const DIALECTS = ["Gulf", "Egyptian", "Yemeni"];
+    interface DialectReview {
+      target: number;
+      have: number;
+      screenedThisRun: Record<string, number>;
+      queueEmpty: boolean;
     }
-    const approved = approvedBefore + (screenedTotal.approved ?? 0);
-    summary.screened = screenedTotal;
-    summary.approved = approved;
-    summary.targetApproved = targetApproved;
-    summary.targetReached = approved >= targetApproved;
+    const review: Record<string, DialectReview> = {};
+    for (const dialect of DIALECTS) {
+      review[dialect] = {
+        target: targetPerDialect,
+        have: await countInReview(dialect),
+        screenedThisRun: {},
+        queueEmpty: false,
+      };
+    }
+    let screenCalls = 0;
+    const fairShare = Math.ceil(maxScreenCalls / DIALECTS.length);
+    for (const roundCap of [fairShare, maxScreenCalls]) {
+      const needy = DIALECTS
+        .filter((d) => review[d].have < review[d].target && !review[d].queueEmpty)
+        .sort((a, b) => review[a].have - review[b].have);
+      for (const dialect of needy) {
+        const info = review[dialect];
+        let spentThisRound = 0;
+        while (
+          info.have < info.target &&
+          !info.queueEmpty &&
+          spentThisRound < roundCap &&
+          screenCalls < maxScreenCalls &&
+          Date.now() - started < timeBudgetMs
+        ) {
+          const batch = Math.min(batchSize, roundCap - spentThisRound, maxScreenCalls - screenCalls);
+          const outcomes = await screenPending(dialect, batch);
+          const touched = Object.values(outcomes).reduce((a, b) => a + b, 0);
+          screenCalls += touched;
+          spentThisRound += touched;
+          for (const [k, v] of Object.entries(outcomes)) {
+            info.screenedThisRun[k] = (info.screenedThisRun[k] ?? 0) + v;
+          }
+          info.have += outcomes.screened ?? 0;
+          if (touched < batch) info.queueEmpty = true;
+          // The screen itself is down: stop burning the budget on retries.
+          if (touched > 0 && (outcomes.pending ?? 0) === touched) break;
+        }
+      }
+    }
+    summary.review = review;
+    summary.screenCalls = screenCalls;
+    summary.allTargetsReached = DIALECTS.every((d) => review[d].have >= review[d].target);
 
     emitMetric({
       feature: FEATURE,

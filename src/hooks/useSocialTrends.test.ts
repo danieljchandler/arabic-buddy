@@ -11,19 +11,19 @@ import {
   engagementLabel,
   latestTopicsByCountry,
   type TrendingTopic,
-  useSocialPosts,
+  useAdminSocialPosts,
+  useRunSocialHarvest,
+  useSetSocialPostStatus,
   useTrendingTopics,
 } from "./useSocialTrends";
 import type { SupabaseBackend } from "@/test/support/server/handler";
 
 /**
- * The Trending feed: per-country trend chips plus social posts that survived
- * the dialect screen.
- *
- * The screen happens server-side in harvest-social-trends; what this hook owns
- * is never *undoing* it — the feed must show approved rows only, whatever else
- * the table holds — and keeping a partial harvest partial: one country's
- * failed scrape shows that country's yesterday, not everyone's.
+ * The social-trends review hooks, admin-side only: the AI screen fills a
+ * queue, and these are the tools a content manager uses to work it. What the
+ * hooks own is honest filtering (each tab shows exactly its status, because a
+ * pending post rendered under "Approved" would look published when it is not)
+ * and the human verdict write — the only path that publishes anything.
  */
 
 let cleanup: (() => void) | undefined;
@@ -83,7 +83,7 @@ describe("the trend chips", () => {
 
   it("filters to the selected dialect's countries", async () => {
     const harness = renderHookWithProviders(() => useTrendingTopics("Egyptian"), {
-      persona: "anonymous",
+      persona: "content_reviewer",
       seed: seedTopics([
         aTrendingTopic({ id: trendingTopicId(0), country: "Saudi Arabia", dialect: "Gulf" }),
         aTrendingTopic({
@@ -98,47 +98,39 @@ describe("the trend chips", () => {
     await waitFor(() => expect(harness.result.current.isSuccess).toBe(true));
     expect([...harness.result.current.data!.keys()]).toEqual(["Egypt"]);
   });
-
-  it("shows everything to a signed-out visitor", async () => {
-    // /trending is a public page like /discover: the chips are the hook, and
-    // the door has to open before anyone has an account.
-    const harness = renderHookWithProviders(() => useTrendingTopics("All"), {
-      persona: "anonymous",
-      seed: seedTopics([aTrendingTopic({ id: trendingTopicId(0) })]),
-    });
-    cleanup = harness.cleanup;
-    await waitFor(() => expect(harness.result.current.isSuccess).toBe(true));
-    expect(harness.result.current.data!.size).toBe(1);
-  });
 });
 
-describe("the screened feed", () => {
+describe("the review queue", () => {
   const seedPosts =
     (rows: Record<string, unknown>[]) =>
     (backend: SupabaseBackend) =>
       backend.db.seed("social_posts", rows);
 
-  it("shows approved posts only, newest capture first", async () => {
-    const harness = renderHookWithProviders(() => useSocialPosts(), {
-      persona: "free",
-      seed: seedPosts([
-        aSocialPost({
-          id: socialPostId(0),
-          external_id: "a/1",
-          captured_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
-        }),
-        aSocialPost({
-          id: socialPostId(1),
-          external_id: "a/2",
-          captured_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-        }),
-        // The screen's leftovers. RLS hides these from learners in
-        // production; the explicit filter keeps the page honest for content
-        // managers too, whose role lets pending rows through.
-        aSocialPost({ id: socialPostId(2), external_id: "a/3", status: "pending" }),
-        aSocialPost({ id: socialPostId(3), external_id: "a/4", status: "rejected" }),
-      ]),
-    });
+  it("shows exactly the requested status, newest capture first", async () => {
+    // Each tab is a status. A pending post surfacing under "Approved" would
+    // read as published — the exact confusion the human gate exists to end.
+    const harness = renderHookWithProviders(
+      () => useAdminSocialPosts({ status: "screened" }),
+      {
+        persona: "content_reviewer",
+        seed: seedPosts([
+          aSocialPost({
+            id: socialPostId(0),
+            external_id: "a/1",
+            status: "screened",
+            captured_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+          }),
+          aSocialPost({
+            id: socialPostId(1),
+            external_id: "a/2",
+            status: "screened",
+            captured_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+          }),
+          aSocialPost({ id: socialPostId(2), external_id: "a/3", status: "approved" }),
+          aSocialPost({ id: socialPostId(3), external_id: "a/4", status: "pending" }),
+        ]),
+      },
+    );
     cleanup = harness.cleanup;
     await waitFor(() => expect(harness.result.current.isSuccess).toBe(true));
     expect(harness.result.current.data!.map((p) => p.external_id)).toEqual(["a/2", "a/1"]);
@@ -146,18 +138,19 @@ describe("the screened feed", () => {
 
   it("narrows by dialect and platform together", async () => {
     const harness = renderHookWithProviders(
-      () => useSocialPosts({ dialect: "Yemeni", platform: "telegram" }),
+      () => useAdminSocialPosts({ status: "screened", dialect: "Yemeni", platform: "telegram" }),
       {
-        persona: "free",
+        persona: "content_reviewer",
         seed: seedPosts([
-          aSocialPost({ id: socialPostId(0), external_id: "a/1", dialect: "Yemeni" }),
+          aSocialPost({ id: socialPostId(0), external_id: "a/1", dialect: "Yemeni", status: "screened" }),
           aSocialPost({
             id: socialPostId(1),
             external_id: "a/2",
             dialect: "Yemeni",
             platform: "reddit",
+            status: "screened",
           }),
-          aSocialPost({ id: socialPostId(2), external_id: "a/3", dialect: "Gulf" }),
+          aSocialPost({ id: socialPostId(2), external_id: "a/3", dialect: "Gulf", status: "screened" }),
         ]),
       },
     );
@@ -168,17 +161,12 @@ describe("the screened feed", () => {
 
   it("treats 'All' as no filter rather than a value to match", async () => {
     const harness = renderHookWithProviders(
-      () => useSocialPosts({ dialect: "All", platform: "All" }),
+      () => useAdminSocialPosts({ status: "All", dialect: "All", platform: "All" }),
       {
-        persona: "free",
+        persona: "content_reviewer",
         seed: seedPosts([
-          aSocialPost({ id: socialPostId(0), external_id: "a/1", dialect: "Gulf" }),
-          aSocialPost({
-            id: socialPostId(1),
-            external_id: "a/2",
-            dialect: "Egyptian",
-            platform: "reddit",
-          }),
+          aSocialPost({ id: socialPostId(0), external_id: "a/1", status: "screened" }),
+          aSocialPost({ id: socialPostId(1), external_id: "a/2", status: "rejected" }),
         ]),
       },
     );
@@ -187,15 +175,85 @@ describe("the screened feed", () => {
     expect(harness.result.current.data).toHaveLength(2);
   });
 
-  it("surfaces a read failure instead of an empty feed", async () => {
-    const harness = renderHookWithProviders(() => useSocialPosts(), {
-      persona: "free",
+  it("surfaces a read failure instead of an empty queue", async () => {
+    const harness = renderHookWithProviders(() => useAdminSocialPosts({ status: "screened" }), {
+      persona: "content_reviewer",
       seed: (backend: SupabaseBackend) =>
         backend.db.failAlways("social_posts", 500, { message: "boom" }),
     });
     cleanup = harness.cleanup;
-    // An error rendered as "nothing has passed the screen yet" would send
-    // someone to check the harvester when the database is what broke.
+    // An error rendered as "review queue is empty" would send the reviewer
+    // off to run harvests when the database is what broke.
     await waitFor(() => expect(harness.result.current.isError).toBe(true));
+  });
+});
+
+describe("the human verdict", () => {
+  it("writes exactly a status change for the chosen post", async () => {
+    const harness = renderHookWithProviders(() => useSetSocialPostStatus(), {
+      persona: "content_reviewer",
+      seed: (backend: SupabaseBackend) =>
+        backend.db.seed("social_posts", [
+          aSocialPost({ id: socialPostId(0), status: "screened" }),
+        ]),
+    });
+    cleanup = harness.cleanup;
+
+    await harness.result.current.mutateAsync({ id: socialPostId(0), status: "approved" });
+
+    // Only the status moves: the screen verdict, translation and engagement
+    // stay as the harvester wrote them, because they are the audit trail of
+    // what the reviewer saw when they decided.
+    const write = harness.backend.db.lastWriteTo("social_posts");
+    expect(write?.payload[0]).toEqual({ status: "approved" });
+  });
+
+  it("reports a refused write instead of pretending it stuck", async () => {
+    const harness = renderHookWithProviders(() => useSetSocialPostStatus(), {
+      persona: "content_reviewer",
+      seed: (backend: SupabaseBackend) =>
+        backend.db.failWrites("social_posts", 403, { message: "not allowed" }),
+    });
+    cleanup = harness.cleanup;
+
+    await expect(
+      harness.result.current.mutateAsync({ id: socialPostId(0), status: "rejected" }),
+    ).rejects.toBeTruthy();
+  });
+});
+
+describe("running a harvest", () => {
+  it("invokes the edge function and hands back the per-dialect summary", async () => {
+    const summary = {
+      topics: 12,
+      telegramPosts: 9,
+      redditPosts: 2,
+      screenCalls: 15,
+      allTargetsReached: false,
+      review: {
+        Gulf: { target: 5, have: 3, screenedThisRun: { screened: 3, rejected: 7 }, queueEmpty: true },
+      },
+    };
+    const harness = renderHookWithProviders(() => useRunSocialHarvest(), {
+      persona: "content_reviewer",
+      seed: (backend: SupabaseBackend) =>
+        backend.stubFunction("harvest-social-trends", summary),
+    });
+    cleanup = harness.cleanup;
+
+    // The summary is the reviewer's feedback loop: "Gulf 3/5, queue empty"
+    // says add sources; a bare "done" would hide exactly that signal.
+    await expect(harness.result.current.mutateAsync()).resolves.toEqual(summary);
+  });
+
+  it("propagates a failed run", async () => {
+    const harness = renderHookWithProviders(() => useRunSocialHarvest(), {
+      persona: "content_reviewer",
+      seed: (backend: SupabaseBackend) =>
+        backend.stubFunctionFailure("harvest-social-trends", 500, { error: "boom" }),
+    });
+    cleanup = harness.cleanup;
+
+    await expect(harness.result.current.mutateAsync()).rejects.toBeTruthy();
   });
 });

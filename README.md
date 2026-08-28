@@ -576,23 +576,34 @@ Pro tier) — so each platform gets the free route that actually exists:
 
 The pipeline is `harvest-social-trends` (edge function) over three tables:
 `social_content_sources` (the curated registry of subreddits/channels/trend
-slugs, per dialect, `candidate → approved → rejected` like `content_channels`,
-seeded in `20260828120500`), `trending_topics` (one row per country/topic/day)
-and `social_posts`. Harvested posts land `pending`; an askBrain screen (UTILITY
-lineup, forced tool call) judges register — **MSA is rejected, dialect and
-mixed pass** — and produces the English translation in the same call. A screen
-outage leaves rows pending rather than approving them: nothing reaches
-learners unjudged, same rule as the clip pipeline. Learners read
-`status='approved'` under RLS; all writes are service-role. Parsing lives pure
-in `_shared/socialTrendsCore.ts`.
+slugs, per dialect, `candidate → approved → rejected` like `content_channels`),
+`trending_topics` (one row per country/topic/day) and `social_posts`.
+
+**A human publishes; the AI only triages.** Post lifecycle:
+`pending` (harvested) → `screened` (passed the askBrain triage, UTILITY
+lineup, forced tool call — which also produces the English translation) →
+`approved`/`rejected` by a content manager on **`/admin/social-trends`**, the
+review queue with status tabs, dialect/platform filters, the screen's own
+verdict shown per post, and the Run-harvest button. Triage is deliberately
+generous — "mixed" register and low-confidence dialect calls go to the queue,
+only clear MSA and non-Arabic are binned — because with a person deciding, a
+full queue beats the strict auto-publisher that starved Gulf (its sources
+lean news-register). A screen outage leaves rows pending for the next run.
+The whole feature is admin-side: reads require `can_manage_content()`, and
+there is currently no learner surface at all.
+
+**Screening runs per dialect with a target** (`targetPerDialect`, default 5):
+each run works the neediest dialect first and keeps screening that dialect's
+pending queue — fetching older Telegram pages via `t.me/s/…?before=` as
+needed — until it has enough posts awaiting review, its queue runs dry, or
+the run's call/time budget (`maxScreenCalls`, 100s) is spent. The response
+reports `review.<dialect> = {target, have, queueEmpty}`, which is the
+add-more-sources signal when a dialect can't fill its quota.
 
 Scheduling follows the clip pipeline's convention: nothing in-repo fires it.
-Call it daily with the service-role key or the `x-harvest-secret` header
-(`SOCIAL_HARVEST_SECRET` secret), e.g.
-`POST /functions/v1/harvest-social-trends {"platform":"all"}` — a content
-manager can also trigger it authenticated. Screening is capped per run
-(`screenLimit`, default 12) so a burst of new sources cannot spend an
-unbounded number of model calls.
+Call it daily with the `x-harvest-secret` header (`SOCIAL_HARVEST_SECRET`
+secret), e.g. `POST /functions/v1/harvest-social-trends {"platform":"all"}` —
+or use the button on `/admin/social-trends`.
 
 ## PWA and push notifications
 

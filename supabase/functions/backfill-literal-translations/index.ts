@@ -2,6 +2,7 @@
 // for videos transcribed before literal glosses were added to the pipeline.
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { requireContentManager } from "../_shared/requireRole.ts";
 
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -57,6 +58,13 @@ ${numbered}`;
 Deno.serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
+
+  // A one-shot backfill tool, but mounted as a permanent endpoint: it holds
+  // the service role, rewrites `transcript_lines` on rows it selects itself,
+  // and bills an LLM call per video. It had no authentication of any kind, so
+  // the publishable key in the browser bundle was enough to drive it.
+  const gate = await requireContentManager(req, corsHeaders);
+  if (gate.denied) return gate.response;
 
   try {
     const supabase = createClient(SUPABASE_URL, SERVICE_ROLE);

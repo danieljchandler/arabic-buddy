@@ -53,12 +53,26 @@ Deno.test("omits the CORS header for an origin that is not allowed", async () =>
   }
 });
 
-Deno.test("allows a Lovable preview origin", async () => {
-  const fn = await loadFunction("grammar-drill");
+Deno.test("allows a Lovable preview origin when previews are enabled", async () => {
+  const fn = await loadFunction("grammar-drill", { env: { ALLOW_PREVIEW_ORIGINS: "true" } });
   try {
     const origin = "https://id-preview--abc.lovable.app";
     const response = await fn.handler(optionsRequest("grammar-drill", origin));
     assertEquals(response.headers.get("access-control-allow-origin"), origin);
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("refuses a Lovable preview origin by default", async () => {
+  // The wildcard covers three domains anyone can get a subdomain in, so it is
+  // a trusted origin for every function while it is on. Production must not
+  // carry it, which means off unless a preview project asks for it.
+  const fn = await loadFunction("grammar-drill");
+  try {
+    const origin = "https://id-preview--abc.lovable.app";
+    const response = await fn.handler(optionsRequest("grammar-drill", origin));
+    assertEquals(response.headers.get("access-control-allow-origin"), null);
   } finally {
     fn.restore();
   }

@@ -52,6 +52,7 @@ function backend(
   } = options;
   return {
     "/auth/v1/user": () => json({ id: USER, aud: "authenticated", role: "authenticated" }),
+    "/rest/v1/user_roles": () => json([{ role: "content_reviewer" }]),
     "/rest/v1/authentic_stories": (request) => {
       if (request.method !== "GET") return json([], 200);
       // The second read asks only for video_status, to decide what to preserve.
@@ -120,7 +121,7 @@ Deno.test("generate-story-video turns away an anonymous caller", async () => {
   );
 
   assertEquals(result.status, 401);
-  assertEquals(result.body.error, "unauthorized");
+  assertEquals(result.body.error, "auth_required");
 });
 
 Deno.test("generate-story-video needs a story", async () => {

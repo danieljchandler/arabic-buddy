@@ -97,14 +97,29 @@ Deno.serve(async (req) => {
           corsHeaders,
         );
       }
-      const balance = await balanceOf(user.id);
-      if (balance < 1) {
+      // Spend first, and atomically. Reading the balance and appending the
+      // `-1` as separate statements let concurrent submits all see the same
+      // credit and all spend it; `spend_native_feedback_credit` takes a
+      // per-user advisory lock and returns NULL when there was nothing to
+      // spend. The old ordering existed so a mid-flight failure could never
+      // charge for nothing — that property is kept by refunding below, which
+      // is the only ordering that can also refuse an overdraft.
+      const { data: spentBalance, error: spendErr } = await admin().rpc(
+        "spend_native_feedback_credit",
+        { _user_id: user.id, _reason: "submit" },
+      );
+      if (spendErr) {
+        console.error("[native-feedback] spend failed:", spendErr.message);
+        return json({ error: "ledger_unavailable" }, 500, corsHeaders);
+      }
+      if (spentBalance === null || spentBalance === undefined) {
         return json(
           { error: "no_credits", message: "You're out of feedback credits." },
           402,
           corsHeaders,
         );
       }
+      const balance = Number(spentBalance) + 1;
 
       const { data: request, error: requestErr } = await admin()
         .from("native_feedback_requests")
@@ -112,16 +127,14 @@ Deno.serve(async (req) => {
         .select("id")
         .single();
       if (requestErr || !request) {
+        // Give the credit back rather than charging for a question that was
+        // never queued.
+        await admin()
+          .from("native_feedback_credits")
+          .insert([{ user_id: user.id, delta: 1, reason: "refund" }] as unknown as never);
         return json({ error: requestErr?.message ?? "could not create request" }, 500, corsHeaders);
       }
       const requestId = (request as { id: string }).id;
-
-      // Spend the credit only after the request exists; a failure between the
-      // two leaves the learner a free question, never a paid nothing.
-      const { error: spendErr } = await admin()
-        .from("native_feedback_credits")
-        .insert([{ user_id: user.id, delta: -1, reason: "submit" }] as unknown as never);
-      if (spendErr) console.warn("[native-feedback] spend failed:", spendErr.message);
 
       const { error: reviewErr } = await admin().from("dialect_native_reviews").insert([
         {

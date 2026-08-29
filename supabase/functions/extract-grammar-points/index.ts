@@ -1,11 +1,13 @@
 // Extracts level-tagged dialect grammar points from a Discover video transcript
 // and appends them to discover_videos.grammar_points. Avoids duplicating
 // existing titles. Callable by signed-in users (target their own level) or
-// admins (any level).
+// admins (any level), under a daily cap — the append lands on shared content,
+// so an uncapped call was an open invitation.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 
 
@@ -41,18 +43,13 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get("Authorization") ?? "";
-    const supabaseAuth = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
-    const { data: { user } } = await supabaseAuth.auth.getUser();
-    if (!user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // Deliberately still open to signed-in learners: the notes they generate
+    // append to the shared `discover_videos.grammar_points`, and the Discover
+    // page re-reads the row to show them. That shared append is a product
+    // decision, not an oversight — but it was also an uncapped LLM call, which
+    // is what actually made it abusable. The cap is the fix; the write stays.
+    const cap = await enforceDailyCap(req, "extract-grammar-points", 20, corsHeaders);
+    if (cap.limited) return cap.response;
 
     const body = await req.json().catch(() => ({}));
     const videoId: string = body.video_id;

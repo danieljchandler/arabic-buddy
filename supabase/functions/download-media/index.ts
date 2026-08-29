@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { assertPublicHttpUrl, BlockedUrlError, safeFetch } from "../_shared/safeFetch.ts";
 
 function encodeBase64(data: Uint8Array): string {
   const binString = Array.from(data, (b) => String.fromCharCode(b)).join('');
@@ -620,8 +621,10 @@ async function downloadAsBase64(
 ): Promise<{ base64: string; contentType: string; size: number } | null> {
   try {
     console.log(`Downloading: ${url.substring(0, 120)}...`);
-    const resp = await fetch(url, {
-      redirect: 'follow',
+    // Vetted the same way as the caller's own URL: this is the call that puts
+    // the bytes in the response, and a CDN URL handed back by Cobalt or TikTok
+    // is no more trusted than one the caller typed.
+    const { response: resp } = await safeFetch(url, {
       headers: {
         'User-Agent': 'Mozilla/5.0 (Linux; Android 14; SM-S928B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36',
         'Accept': '*/*',
@@ -932,19 +935,20 @@ serve(async (req) => {
 
     console.log(`Processing URL: ${normalizedUrl}`);
 
+    // Strategy 1 below fetches this URL directly and hands the bytes back to
+    // the caller, so an unvetted host here is an SSRF with the response
+    // attached. `assertPublicHttpUrl` refuses loopback, private and
+    // link-local destinations — cloud instance metadata above all — and
+    // `safeFetch` re-checks each redirect hop rather than letting the runtime
+    // follow one into the same place.
     let parsedUrl: URL;
     try {
-      parsedUrl = new URL(normalizedUrl);
-    } catch {
+      parsedUrl = assertPublicHttpUrl(normalizedUrl);
+    } catch (e: unknown) {
       return new Response(
-        JSON.stringify({ error: "Invalid URL format" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-      return new Response(
-        JSON.stringify({ error: "Only HTTP/HTTPS URLs are supported" }),
+        JSON.stringify({
+          error: e instanceof BlockedUrlError ? e.message : "Invalid URL format",
+        }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -968,13 +972,11 @@ serve(async (req) => {
 
     // Strategy 1: Direct media file check
     try {
-      const headResp = await fetch(normalizedUrl, {
+      const { response: headResp, finalUrl } = await safeFetch(normalizedUrl, {
         method: 'HEAD',
-        redirect: 'follow',
         signal: AbortSignal.timeout(10000),
       });
       const ct = headResp.headers.get('content-type') || '';
-      const finalUrl = headResp.url || normalizedUrl;
 
       if (looksLikeMedia(finalUrl, ct)) {
         console.log(`Direct media URL detected (${ct}), downloading...`);

@@ -101,6 +101,7 @@ function backend(
 
   return {
     "/auth/v1/user": () => json({ id: USER, aud: "authenticated", role: "authenticated" }),
+    "/rest/v1/user_roles": () => json([{ role: "content_reviewer" }]),
     "/rest/v1/authentic_stories": (request) =>
       request.method === "GET"
         ? json(story, storyStatus)
@@ -199,7 +200,7 @@ Deno.test("generate-story-video-full refuses a caller with no token", async () =
   }, { jwt: null });
 
   assertEquals(result.status, 401);
-  assertEquals(result.body.error, "unauthorized");
+  assertEquals(result.body.error, "auth_required");
 });
 
 Deno.test("generate-story-video-full refuses a token the auth server rejects", async () => {
@@ -209,23 +210,33 @@ Deno.test("generate-story-video-full refuses a token the auth server rejects", a
   });
 
   assertEquals(result.status, 401);
-  assertEquals(result.body.error, "unauthorized");
+  assertEquals(result.body.error, "auth_required");
 });
 
-Deno.test("generate-story-video-full lets any signed-in learner spend the render budget", async () => {
-  // Pinned, not fixed. This is the most expensive function in the codebase —
-  // one planning call plus up to six image generations and six TTS syntheses
-  // per invocation — and the only thing standing in front of it is
-  // `getUser(token)`. There is no `has_role(user, 'admin')` check and no
-  // `user_roles` read at all, so a plain learner with a valid session can
-  // trigger a full render of any approved story, repeatedly. Its sibling
-  // `generate-story-video` has the same gap; `generate-story-full-audio` and
-  // `translate-story-dialect` are the other two of the four.
+Deno.test("generate-story-video-full refuses a signed-in learner the render budget", async () => {
+  // This was pinned as a known hole and is now closed. It is the most expensive
+  // function in the codebase — one planning call plus up to six image
+  // generations and six TTS syntheses per invocation — and `getUser(token)` was
+  // the whole of the gate, with no `user_roles` read at all. A plain learner
+  // could render any approved story, repeatedly. Its sibling
+  // `generate-story-video`, plus `generate-story-full-audio` and
+  // `translate-story-dialect`, had the same gap and were closed with it.
+  const result = await call({ story_id: STORY }, {
+    ...backend(),
+    "/rest/v1/user_roles": () => json([]),
+  });
+
+  assertEquals(result.status, 403);
+  assertEquals(result.body.error, "forbidden");
+});
+
+Deno.test("generate-story-video-full renders for a content manager", async () => {
   const result = await call({ story_id: STORY }, backend());
 
   assertEquals(result.status, 200);
   assertEquals(result.body.status, "generating");
-  assertEquals(result.calls.some((u) => u.includes("user_roles")), false);
+  // The role came from the database, not from the request.
+  assertEquals(result.calls.some((u) => u.includes("user_roles")), true);
 });
 
 Deno.test("generate-story-video-full needs a story id", async () => {

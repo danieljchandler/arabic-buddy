@@ -26,8 +26,21 @@ export function getCorsHeaders(req?: Request): Record<string, string> {
 
   // During local development (localhost / 127.0.0.1) always allow
   const isLocal = origin.startsWith('http://localhost') || origin.startsWith('http://127.0.0.1');
-  // Allow Lovable preview/sandbox subdomains (e.g. id-preview--*.lovable.app, *.lovable.dev)
-  const isLovablePreview = /^https:\/\/([a-z0-9-]+\.)*(lovable\.(app|dev)|lovableproject\.com)$/i.test(origin);
+  // Lovable preview/sandbox subdomains (e.g. id-preview--*.lovable.app).
+  //
+  // This is a wildcard over three domains anyone can register a subdomain in,
+  // so while it is on it makes every such subdomain a trusted origin for every
+  // edge function — a standing browser-side CSRF surface against everything the
+  // publishable key alone can reach. It exists for the preview environment, and
+  // it used to be unconditional, which meant production carried it too.
+  //
+  // Now it is opt-in: set ALLOW_PREVIEW_ORIGINS=true in the preview project
+  // only. Absent or anything else, preview origins are refused like any other
+  // unknown origin.
+  const previewOriginsAllowed = (Deno.env.get('ALLOW_PREVIEW_ORIGINS') ?? '').toLowerCase() === 'true';
+  const isLovablePreview =
+    previewOriginsAllowed &&
+    /^https:\/\/([a-z0-9-]+\.)*(lovable\.(app|dev)|lovableproject\.com)$/i.test(origin);
   const matchedOrigin = allowed.includes(origin) || isLocal || isLovablePreview ? origin : '';
 
   return {

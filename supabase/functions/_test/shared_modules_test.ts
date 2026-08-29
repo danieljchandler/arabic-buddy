@@ -34,8 +34,8 @@ const withEnv = <T>(vars: Record<string, string | undefined>, run: () => T): T =
   }
 };
 
-const originFor = (origin: string, allowed?: string): string | undefined =>
-  withEnv({ ALLOWED_ORIGINS: allowed }, () =>
+const originFor = (origin: string, allowed?: string, preview?: string): string | undefined =>
+  withEnv({ ALLOWED_ORIGINS: allowed, ALLOW_PREVIEW_ORIGINS: preview }, () =>
     getCorsHeaders(new Request("https://fn.test/x", { headers: { origin } }))[
       "Access-Control-Allow-Origin"
     ]);
@@ -69,14 +69,28 @@ Deno.test("cors allows local development on either loopback name", () => {
   assertEquals(originFor("http://127.0.0.1:5173", "https://hakiya.app"), "http://127.0.0.1:5173");
 });
 
-Deno.test("cors allows Lovable preview subdomains", () => {
+Deno.test("cors allows Lovable preview subdomains when previews are enabled", () => {
   // Preview deploys get a generated subdomain per branch, so they cannot be
   // enumerated in the allow-list.
   assertEquals(
-    originFor("https://id-preview--abc123.lovable.app", "https://hakiya.app"),
+    originFor("https://id-preview--abc123.lovable.app", "https://hakiya.app", "true"),
     "https://id-preview--abc123.lovable.app",
   );
-  assertEquals(originFor("https://foo.lovable.dev", "https://hakiya.app"), "https://foo.lovable.dev");
+  assertEquals(
+    originFor("https://foo.lovable.dev", "https://hakiya.app", "true"),
+    "https://foo.lovable.dev",
+  );
+});
+
+Deno.test("cors refuses Lovable preview subdomains unless asked", () => {
+  // The pattern matches any subdomain of three domains anyone can register in,
+  // so while it is on, every one of them is a trusted origin for every edge
+  // function. Production must not carry that, which means off by default and
+  // on only where a preview project sets ALLOW_PREVIEW_ORIGINS.
+  assertEquals(originFor("https://id-preview--abc123.lovable.app", "https://hakiya.app"), undefined);
+  assertEquals(originFor("https://foo.lovable.dev", undefined), undefined);
+  // Not a boolean-ish string — anything but "true" is off.
+  assertEquals(originFor("https://foo.lovable.dev", undefined, "1"), undefined);
 });
 
 Deno.test("cors does not allow a domain that merely ends in a Lovable name", () => {

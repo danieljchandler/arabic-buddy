@@ -34,6 +34,7 @@
 // _shared/socialTrendsCore.ts.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { hasSharedSecret } from "../_shared/requireRole.ts";
 import { askBrain } from "../_shared/aiBrain.ts";
 import { getLineup } from "../_shared/modelRegistry.ts";
 import { emitMetric } from "../_shared/featureMetrics.ts";
@@ -84,10 +85,8 @@ async function isContentManager(req: Request): Promise<boolean> {
   return Array.isArray(roles) && roles.length > 0;
 }
 
-function hasHarvestSecret(req: Request): boolean {
-  const secret = Deno.env.get("SOCIAL_HARVEST_SECRET");
-  if (!secret) return false;
-  return req.headers.get("x-harvest-secret") === secret;
+async function hasHarvestSecret(req: Request): Promise<boolean> {
+  return await hasSharedSecret(req, "x-harvest-secret", "SOCIAL_HARVEST_SECRET");
 }
 
 /** Fetch a page through Jina Reader; empty string on any failure. */
@@ -438,7 +437,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    if (!hasHarvestSecret(req) && !(await isContentManager(req))) {
+    if (!(await hasHarvestSecret(req)) && !(await isContentManager(req))) {
       return json({ error: "content_manager_required" }, 403, corsHeaders);
     }
 

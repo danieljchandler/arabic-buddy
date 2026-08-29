@@ -1,15 +1,41 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { enforceAnonymousDailyCap } from "../_shared/usageCap.ts";
 
 type JinaResponse = {
   data?: { title?: string; description?: string; content?: string };
 };
+
+/**
+ * An X/Twitter status URL, decided by parsing rather than by substring.
+ *
+ * Host equality (plus `www.`) and a `/{handle}/status/{id}` path — anything
+ * else, including a URL that merely embeds one, is refused.
+ */
+function isXPostUrl(raw: string): boolean {
+  let parsed: URL;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return false;
+  }
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
+  const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+  if (host !== 'twitter.com' && host !== 'x.com') return false;
+  return /^\/[A-Za-z0-9_]{1,15}\/status\/\d+\/?$/.test(parsed.pathname);
+}
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
+
+  // The URL below is concatenated into a Jina Reader request on our API key.
+  // Unmetered and unauthenticated, that is a fetch-proxy anyone may point
+  // anywhere; the cap is what makes it a feature rather than an offer.
+  const cap = await enforceAnonymousDailyCap(req, 'scrape-x-post', 20, corsHeaders);
+  if (cap.limited) return cap.response;
 
   try {
     const { url } = await req.json();
@@ -20,8 +46,14 @@ serve(async (req) => {
       );
     }
 
-    // Validate it's an X/Twitter post URL
-    const isXPost = /https?:\/\/(twitter\.com|x\.com)\/\w+\/status\/\d+/.test(url);
+    // Validate it's an X/Twitter post URL.
+    //
+    // This test used to be an unanchored regex, which asks "does an X post URL
+    // appear anywhere in this string" — so `https://attacker.tld/?u=https://x.com/a/status/1`
+    // passed it and was then fetched. Parse the URL and compare the host, the
+    // way `download-media` does, rather than pattern-matching a string that
+    // only has to *contain* the right shape.
+    const isXPost = isXPostUrl(url);
     if (!isXPost) {
       return new Response(
         JSON.stringify({ success: false, error: 'Please provide a valid X (Twitter) post URL, e.g. https://x.com/username/status/123' }),

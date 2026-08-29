@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { isServiceRoleCall, requireContentManager } from "../_shared/requireRole.ts";
 import {
   arbitrateDispute,
   jaccard,
@@ -1649,23 +1650,14 @@ serve(async (req) => {
   }
 
   // Allow internal service-role calls (e.g. from process-approved-video).
-  // Detect by exact env match OR by inspecting the JWT payload for a
-  // service role / missing sub claim — robust to env-var drift across functions.
-  const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
-  const bearer = authHeader.slice('Bearer '.length).trim();
-  let isInternalServiceCall = !!(serviceRoleKey && bearer === serviceRoleKey);
-  if (!isInternalServiceCall) {
-    try {
-      const parts = bearer.split('.');
-      if (parts.length === 3) {
-        const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-        // Service-role / anon JWTs have role but no user sub
-        if (payload && (payload.role === 'service_role' || !payload.sub)) {
-          isInternalServiceCall = true;
-        }
-      }
-    } catch { /* not a JWT we can parse — fall through to user auth */ }
-  }
+  //
+  // This used to also decode the bearer's JWT payload — without verifying the
+  // signature — and accept `role === 'service_role' || !payload.sub` as proof
+  // of an internal call. The publishable/anon key has no `sub`, so the public
+  // key in the browser bundle satisfied that test, and so did any unsigned
+  // token an attacker cared to assemble. Only the service-role key counts, and
+  // only by a constant-time comparison against the secret itself.
+  const isInternalServiceCall = await isServiceRoleCall(req);
 
   try {
     if (!isInternalServiceCall) {
@@ -1683,6 +1675,16 @@ serve(async (req) => {
     }
     const body = await req.json();
     const { transcript, munsitTranscript, fanarTranscript, sonioxTranscript, azureTranscript, scribeTranscript, cohereTranscript, sonioxTranslation, visualContext, originalUrl, videoId: pipelineVideoId, dialectModule, isMeme, onScreenTextSegments } = body;
+
+    // `videoId` names a row in the shared catalogue, not one the caller owns,
+    // and the persistence below writes it under the service role. Analysing a
+    // transcript is something any learner may do; replacing a published
+    // video's transcript, vocabulary and cultural context is not. Establish
+    // the right to that write once, here, rather than at three write sites.
+    if (pipelineVideoId && typeof pipelineVideoId === 'string' && !isInternalServiceCall) {
+      const gate = await requireContentManager(req, corsHeaders);
+      if (gate.denied) return gate.response;
+    }
     DIALECT_MODULE = (dialectModule === 'Egyptian' || dialectModule === 'Yemeni') ? dialectModule : 'Gulf';
     console.log('Dialect module for this request:', DIALECT_MODULE);
 

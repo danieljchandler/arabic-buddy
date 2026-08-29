@@ -358,9 +358,25 @@ exactly one succeeded, the balance ended at 0 and never went negative.
   is not reachable from CI, revert this single dependency and accept the
   advisory — the only parse path is the admin lesson importer
   (`src/lib/parseLessonXlsx.ts:229`), where the file is admin-supplied.
-  What is left: `react-router` (moderate, an open-redirect XSS) needs a major
-  version bump, which is a breaking change and wants its own PR rather than
-  being smuggled into a security fix. Prod tree is now 2 moderate, 0 high.
+  `react-router` (2 moderate) is left at v6 **after tracing both advisories to
+  their sinks**, not out of caution:
+  * *Arbitrary constructor injection via `deserializeErrors()`* is an SSR
+    hydration bug. This is a Vite SPA with no SSR, so the code path does not
+    exist here.
+  * *Open redirect via backslash in `<Link>`/`useNavigate`* needs a
+    user-controlled destination. There is exactly one dynamic `<Link to>` in
+    the app (`Share.tsx:330`), and its value is a path the `ingest-shared-video`
+    function builds server-side (`/admin/videos/${videoId}/edit`). The
+    post-login redirect (`Auth.tsx:41`) reads `location.state.from`, which the
+    router sets internally and a crafted URL cannot reach — it is not a query
+    parameter. Every `navigate()` argument is a literal or a value from a fixed
+    table, and all seven `actionUrl`s in `useSmartNotifications.ts` are string
+    literals.
+
+  So the v6→v7 major — a breaking migration across every route in `App.tsx` —
+  would buy no security here. It is worth doing on its own schedule as
+  maintenance, and this note is the reason it was not done under a security
+  banner. Prod tree is 2 moderate, 0 high, both unreachable.
 - **L2 — Non-constant-time secret comparison.**
   **Fixed:** `CLIP_PIPELINE_SECRET` (six functions), `SOCIAL_HARVEST_SECRET`,
   and both service-role bearer comparisons now go through `secretEquals` in
@@ -440,28 +456,54 @@ Eleven edge functions gained a gate; seven had a secret comparison replaced;
 ### Verification
 
 - `deno check` over every function and shared module: clean.
-- Edge suite: **1746 passed, 0 failed**. Four tests that *pinned these
+- Edge suite: **1747 passed, 0 failed**. Four tests that *pinned these
   vulnerabilities as known-broken* now assert the fixed behaviour, and new
   tests cover the gate, the SSRF guard and the CORS default.
 - Vitest: **5806 passed**, including every drift guard.
 - `lint:ratchet`: no new errors. `tsc`: clean. Production build: clean.
-- Migration replay: both new migrations apply from scratch, and both fixes were
-  exercised against the replayed schema (see M3 and M6).
+- Playwright: **2082 passed, 0 failed**.
+- Migration replay: the whole set now replays clean from scratch, and both new
+  fixes were exercised against the replayed schema (see M3 and M6).
 
-### Known-failing, and not from this work
+### Also fixed, found while building the guard
 
-`supabase/migrations/20260828192151_…sql` fails to replay from scratch —
-`policy "social_posts_manage" for table "social_posts" already exists`. It
-arrived with the previous commit on this branch and fails identically with this
-diff stashed. It needs a `DROP POLICY IF EXISTS` and is left alone here so that
-a security change stays a security change.
+- **`supabase/migrations/20260828192151_…sql` could not replay from scratch** —
+  `policy "social_posts_manage" … already exists`. It is a verbatim
+  re-application of `20260828150000_social_posts_human_approval.sql` plus a seed
+  INSERT, so every statement above the INSERT should have been a no-op; as
+  written they were not. Now idempotent (`DROP CONSTRAINT IF EXISTS`,
+  `DROP POLICY IF EXISTS` before each `CREATE POLICY`), matching the convention
+  in `20260828131316`. It arrived with the previous commit, not with this work,
+  but it was failing CI's migration-replay job and the fix is four keywords.
+- **Three uncapped paid endpoints.** The guard's first run flagged eight
+  service-role functions with no authorization marker. Five turned out to be
+  correct — the caller acting on their own rows really is the whole rule, and
+  they are exempted with that reason. The other three were genuine, though
+  smaller than the H-tier: `generate-listen-line-audio` (paid TTS),
+  `generate-set-phrase-quiz` (an LLM call per uncached quiz item) and
+  `download-media` (third-party extractors, 25 MB a call — the largest
+  uncounted spend in the system) all ran with no cap at all. Each now has one.
+  `download-media` exempts the internal pipeline call, which holds no user
+  identity and is already bounded by what an admin approved; its service-role
+  check also moved to the constant-time comparison.
 
-### Still worth doing
+### The guard
 
-- A drift guard in `src/test/`: every function directory that mentions
-  `SUPABASE_SERVICE_ROLE_KEY` must also name an authorization helper, with a
-  written exemption list. That is what would keep this class of gap from coming
-  back, the way the existing coverage guards do.
-- `react-router` major bump (L1).
-- Decide whether `extract-grammar-points` should really let any learner append
-  to shared video content, or whether those notes belong in a review queue (H6).
+`src/test/serviceRoleAuthorization.test.ts`: every function directory that
+mentions `SUPABASE_SERVICE_ROLE_KEY` must also name an authorization helper.
+Deliberately shallow, like the coverage guards it sits beside — a helper's name
+in the file is a claim that someone decided who may call it, and that decision
+is the thing that goes missing.
+
+Its exemption list is where the judgement lives, so it carries two guards of its
+own: an exemption for a function that no longer exists fails, and so does an
+exemption for a function that has since grown a real role gate (the exemption
+would then be lying about what protects it). Verified to actually catch the
+regression: removing the gate from `backfill-literal-translations` turns it red.
+
+### Still open
+
+- Whether `extract-grammar-points` should let any learner append to shared video
+  content, or whether those notes belong in a review queue (H6). A product
+  decision, not a security one — the spend is now bounded either way.
+- `react-router` v7 as ordinary maintenance (L1), on its own schedule.

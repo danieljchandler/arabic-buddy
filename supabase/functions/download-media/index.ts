@@ -2,6 +2,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { assertPublicHttpUrl, BlockedUrlError, safeFetch } from "../_shared/safeFetch.ts";
+import { isServiceRoleCall } from "../_shared/requireRole.ts";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 function encodeBase64(data: Uint8Array): string {
   const binString = Array.from(data, (b) => String.fromCharCode(b)).join('');
@@ -830,8 +832,9 @@ serve(async (req) => {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
     }
-    const token = authHeader.slice('Bearer '.length).trim();
-    const isInternalServiceCall = token === (Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '\u0000');
+    // Constant-time, and against the secret alone — a public key is not a
+    // credential, whatever it is prefixed with.
+    const isInternalServiceCall = await isServiceRoleCall(req);
 
     if (!isInternalServiceCall) {
       const supabaseAuth = createClient(
@@ -845,6 +848,13 @@ serve(async (req) => {
           status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
+
+      // Downloads run third-party extractor APIs and pull up to 25 MB per
+      // call, which made this the largest uncounted spend in the system. The
+      // internal pipeline call is exempt: it holds no user identity, and it is
+      // already bounded by the videos an admin approved.
+      const cap = await enforceDailyCap(req, 'download-media', 60, corsHeaders);
+      if (cap.limited) return cap.response;
     } else {
       console.log('download-media: internal service-role call');
     }

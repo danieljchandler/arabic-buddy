@@ -4,6 +4,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { planProvider, slotsNeeded, synthesizeLine } from "../_shared/listenTts.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -30,6 +31,13 @@ Deno.serve(async (req) => {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Paid TTS on a learner-facing endpoint. The result is cached per
+    // (episode, line) and the text comes from the episode's own script, so this
+    // cannot be steered into synthesising arbitrary content — but a first
+    // generation is a real spend, and nothing was counting them.
+    const cap = await enforceDailyCap(req, "listen-line-audio", 200, corsHeaders);
+    if (cap.limited) return cap.response;
 
     const { episodeId, lineIndex } = await req.json();
     if (!episodeId || typeof lineIndex !== "number") {

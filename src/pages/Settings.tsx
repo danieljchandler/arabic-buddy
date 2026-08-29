@@ -551,9 +551,12 @@ const Settings = () => {
                 </div>
               </SettingSection>
 
-              {/* Sign Out. Save lives in the bar at the foot of the window, which
-                  follows the learner rather than waiting at the bottom of the
-                  scroll — so the only thing that ends this group is leaving. */}
+              {/* Sign Out ends the Account group rather than the page. It was
+                  the last thing on a 4,500px scroll, which read as "the end of
+                  Settings" — the position a destructive action is least
+                  expected in and most easily hit on the way past. Here it is
+                  the last thing about *this account*, next to the plan it
+                  belongs with, and Save is nowhere near it. */}
               <Button variant="outline" onClick={handleSignOut} className="w-full h-11 text-destructive hover:text-destructive">
                 Sign Out
               </Button>

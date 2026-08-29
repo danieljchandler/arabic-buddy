@@ -66,7 +66,29 @@ export function AppShell({ children, className, compact = false, wide = false }:
           paddingTop: `calc(var(--sadu-band-height) + ${compact ? "0.75rem" : "1rem"})`,
         }}
         className={cn(
-        "relative mx-auto w-full max-w-2xl animate-fade-up",
+        // `animation-fill-mode: backwards` rather than the `both` the Lahja
+        // motion language ships, and this is a correctness fix, not taste.
+        //
+        // With `both`, the element keeps the final keyframe forever — and that
+        // keyframe is `translateY(0)`, which computes to
+        // `transform: matrix(1,0,0,1,0,0)`. Any transform other than `none`
+        // makes an element a containing block for its `position: fixed`
+        // descendants, so every fixed child of a page anchored to *this
+        // column* instead of to the viewport. Measured on /settings: a fixed
+        // probe dropped in here landed at y=3850 on a 1000px-tall window.
+        //
+        // That silently broke Settings' unsaved-changes bar (whose comment
+        // claimed it "follows the learner" — it did not), the word-tap bar in
+        // TappableArabicText, SaveUnknownsBar, XPPopup and the admin banners.
+        // Overlays that portal to document.body — the dialect switcher, Radix
+        // dialogs, toasts — escaped it, which is why it went unnoticed.
+        //
+        // `backwards` is safe precisely because fade-up's 100% *is* the
+        // natural resting state (opacity 1, no translate): dropping the
+        // retained fill changes nothing visible and leaves `transform: none`
+        // behind. Anything animating to a non-default resting state must keep
+        // `both`.
+        "relative mx-auto w-full max-w-2xl animate-fade-up [animation-fill-mode:backwards]",
         wide && "lg:max-w-5xl",
         compact ? "px-4 pb-5 sm:px-5 sm:pb-6" : "px-4 pb-8 sm:px-6 md:pb-12",
         // Clearance for the dock AND the floating buttons, at every width

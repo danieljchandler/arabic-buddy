@@ -58,7 +58,7 @@ export interface Skill extends Surface {
    *  and emerald, colours left over from before the brand guide. Carried here
    *  so the chooser tile and the skill's own header cannot drift apart.
    *
-   *  A `hsl(var(--skill-*))` reference rather than a hex, so night majlis can
+   *  A `hsl(var(--ramp-*))` reference rather than a hex, so night majlis can
    *  lighten it (index.css defines both halves). It used to paint the whole
    *  tile; the tile carries `art` now and the tint is the rule beneath it. */
   tint: string;
@@ -78,7 +78,7 @@ export const SKILLS: Skill[] = [
     label: "Listen",
     arabic: "استماع",
     to: "/skills/listen",
-    tint: "hsl(var(--skill-listen))",
+    tint: "hsl(var(--ramp-1))",
     art: skillListenArt,
     icon: "Headphones",
     activities: [
@@ -108,7 +108,7 @@ export const SKILLS: Skill[] = [
     label: "Read",
     arabic: "قراءة",
     to: "/skills/read",
-    tint: "hsl(var(--skill-read))",
+    tint: "hsl(var(--ramp-2))",
     art: skillReadArt,
     icon: "BookOpen",
     activities: [
@@ -150,7 +150,7 @@ export const SKILLS: Skill[] = [
     label: "Speak",
     arabic: "تحدّث",
     to: "/skills/speak",
-    tint: "hsl(var(--skill-speak))",
+    tint: "hsl(var(--ramp-3))",
     art: skillSpeakArt,
     icon: "Mic",
     activities: [
@@ -180,7 +180,7 @@ export const SKILLS: Skill[] = [
     label: "Write",
     arabic: "كتابة",
     to: "/skills/write",
-    tint: "hsl(var(--skill-write))",
+    tint: "hsl(var(--ramp-4))",
     art: skillWriteArt,
     icon: "PenLine",
     activities: [

@@ -23,6 +23,7 @@ import { isCappedError } from "@/lib/invokeError";
 import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useComprehensionMap } from "@/hooks/useComprehensionMap";
 import { ComprehensionBar } from "@/components/shared/ComprehensionBar";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 const FORMAT_META: Record<ListenFormat, { label: string; icon: any; blurb: string }> = {
   podcast: { label: "Podcast", icon: Headphones, blurb: "Two-host conversation" },
@@ -122,18 +123,26 @@ const Listen = () => {
               <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
             )}
             {!isLoading && (!shelfEpisodes || shelfEpisodes.length === 0) && (
-              <Card className="p-6 text-center space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  {justRightOnly
-                    ? "Nothing in your sweet spot yet."
-                    : `No episodes yet in ${activeDialect}.`}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {justRightOnly
+              /* Two different absences: a filter that matched nothing is
+                 "no-results", a dialect with no episodes recorded yet is the
+                 invitation state. They used to share one bare card of grey
+                 text — the only empty state on this page that did not look
+                 like the rest of the app's. */
+              <EmptyState
+                art={justRightOnly ? "no-results" : "nothing-yet"}
+                size="sm"
+                className="py-8"
+                title={
+                  justRightOnly
+                    ? "Nothing in your sweet spot yet"
+                    : `No episodes yet in ${activeDialect}`
+                }
+                body={
+                  justRightOnly
                     ? "Turn the filter off to see everything."
-                    : "Be the first — open the Create tab."}
-                </p>
-              </Card>
+                    : "Be the first — open the Create tab."
+                }
+              />
             )}
             <div className="space-y-2">
               {shelfEpisodes?.map((ep) => {

@@ -14,8 +14,7 @@ import { useDialect, type DialectModule } from "@/contexts/DialectContext";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingPanel } from "@/components/loading/LoadingPanel";
 import { AppShell } from "@/components/layout/AppShell";
-import { LandingHero } from "@/components/LandingHero";
-import { Footer } from "@/components/Footer";
+import { LandingPage } from "@/components/LandingPage";
 import { cn } from "@/lib/utils";
 import { VideoThumbnail } from "@/components/media/VideoThumbnail";
 
@@ -187,18 +186,7 @@ const Feed = () => {
   // them. Dropping a stranger into an empty video feed would be the worst
   // possible first impression of an app whose whole pitch is the content.
   if (!authLoading && !isAuthenticated) {
-    return (
-      // `wide` because LandingHero's card grids already ask for max-w-3xl,
-      // which the default max-w-2xl shell was silently clamping to 672px: the
-      // three value cards and the three dialect cards were rendering at
-      // roughly 200px each on a 1440px screen, on the one page a stranger
-      // judges the product by. The shell still holds max-w-2xl below lg, so
-      // phones and tablets are untouched.
-      <AppShell wide>
-        <LandingHero />
-        <Footer />
-      </AppShell>
-    );
+    return <LandingPage />;
   }
 
   return (

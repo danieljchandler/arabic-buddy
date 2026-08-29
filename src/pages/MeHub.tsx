@@ -110,19 +110,35 @@ const account = (signedIn: boolean, admin: boolean): Item[] => [
 
 const visible = (items: Item[]) => items.filter((i) => i.show !== false);
 
-/** Section accents — the charcoal→terracotta ramp Choose's skill tiles use
- *  (src/lib/surfaces.ts tints), so the hub's hierarchy comes from the brand
+/** The chip's 15% wash of its section accent.
+ *
+ *  This used to be a `26` suffix appended to a hex literal. That trick dies
+ *  with the tokens — the value is now an `hsl(var(--ramp-n))` expression, and
+ *  string-appending to it produces garbage CSS that silently computes to
+ *  nothing. `color-mix` is the equivalent that works on any colour value,
+ *  including a custom property resolved at paint time, so the wash follows the
+ *  token into night majlis instead of being frozen at the light value. */
+const withAlpha = (color: string) => `color-mix(in srgb, ${color} 15%, transparent)`;
+
+/** Section accents — the brand's charcoal→terracotta ramp, the same four
+ *  steps Choose's skill tiles use, so the hub's hierarchy comes from the brand
  *  ramp rather than the pre-brand-guide per-section colours this page once
  *  had. Account stays neutral on purpose: it is chrome, not content.
  *
  *  Chips carry the accent at 15%. The first pass used 8%, which on a page of
  *  thirty tiles was invisible — the hierarchy it was meant to buy simply was
- *  not legible. */
+ *  not legible.
+ *
+ *  These were the ramp's four hex literals until the tokens existed, which
+ *  left night majlis broken in a way nobody would report: the chip's *text*
+ *  took the same value as its 15% background, so a #2E3532 charcoal label sat
+ *  on a near-black card at roughly 1.2:1. The tokens carry a night-tuned
+ *  value, so the same expression works in both themes. */
 const ACCENTS = {
-  library: "#2E3532",
-  tools: "#4A3733",
-  practice: "#6B3A31",
-  progress: "#8C4135",
+  library: "hsl(var(--ramp-1))",
+  tools: "hsl(var(--ramp-2))",
+  practice: "hsl(var(--ramp-3))",
+  progress: "hsl(var(--ramp-4))",
 } as const;
 
 const MeHub = () => {
@@ -133,7 +149,11 @@ const MeHub = () => {
   const { data: srs } = useSRSStats();
 
   return (
-    <AppShell>
+    // `wide` because this is a directory, not a reading column: thirty tiles
+    // four-across in a 672px column ran 1,600px tall on a 1440px screen with
+    // half the viewport empty beside it. Six-across at lg roughly halves that.
+    // Below lg nothing changes — the shell still holds max-w-2xl.
+    <AppShell wide>
       <h1 className="pb-1 pt-1 text-[28px] font-bold leading-tight">Me</h1>
       <p className="pb-5 text-sm text-muted-foreground">Your library, tools &amp; account.</p>
 
@@ -145,7 +165,7 @@ const MeHub = () => {
       </div>
 
       <Section title="Your library">
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
           {visible(library(isAuthenticated)).map(({ label, icon: Icon, to }) => (
             <Link
               key={to}
@@ -157,7 +177,7 @@ const MeHub = () => {
             >
               <span
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl"
-                style={{ backgroundColor: `${ACCENTS.library}26`, color: ACCENTS.library }}
+                style={{ backgroundColor: withAlpha(ACCENTS.library), color: ACCENTS.library }}
               >
                 <Icon className="h-5 w-5" />
               </span>
@@ -211,7 +231,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
  *  idea of what it is looking at. */
 function Grid({ items, accent }: { items: Item[]; accent?: string }) {
   return (
-    <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4">
+    <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
       {items.map(({ label, icon: Icon, to }) => (
         <Link
           key={`${to}-${label}`}
@@ -226,7 +246,7 @@ function Grid({ items, accent }: { items: Item[]; accent?: string }) {
               "flex h-9 w-9 items-center justify-center rounded-xl",
               !accent && "bg-muted text-muted-foreground",
             )}
-            style={accent ? { backgroundColor: `${accent}26`, color: accent } : undefined}
+            style={accent ? { backgroundColor: withAlpha(accent), color: accent } : undefined}
           >
             <Icon className="h-5 w-5" />
           </span>

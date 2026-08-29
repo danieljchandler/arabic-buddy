@@ -37,8 +37,7 @@ import { TaskRow } from "@/components/today/TaskRow";
 import { WatchTodayCard } from "@/components/today/WatchTodayCard";
 import { getDailyGoal, setDailyGoal } from "@/lib/todayCompletion";
 import { ContinueCard } from "@/components/ContinueCard";
-import { LandingHero } from "@/components/LandingHero";
-import { Footer } from "@/components/Footer";
+import { LandingPage } from "@/components/LandingPage";
 
 
 // Daily-queue task hints, keyed by useTodayQueue's TodayTaskId — moved here
@@ -159,16 +158,7 @@ const Index = () => {
 
   // Logged-out visitors get the landing hero instead of the authed home.
   if (!authLoading && !isAuthenticated) {
-    // Kept in step with the identical branch in Feed.tsx, which is the one
-    // mounted at "/" and therefore the one a visitor actually lands on; this
-    // copy is what /today shows a signed-out visitor. See there for why the
-    // landing hero needs the wide shell.
-    return (
-      <AppShell wide>
-        <LandingHero />
-        <Footer />
-      </AppShell>
-    );
+    return <LandingPage />;
   }
 
   return (

@@ -14,6 +14,7 @@
 // fill in.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { hasSharedSecret } from "../_shared/requireRole.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -50,10 +51,8 @@ async function isContentManager(req: Request): Promise<boolean> {
   return Array.isArray(roles) && roles.length > 0;
 }
 
-function hasPipelineSecret(req: Request): boolean {
-  const secret = Deno.env.get("CLIP_PIPELINE_SECRET");
-  if (!secret) return false;
-  return req.headers.get("x-pipeline-secret") === secret;
+async function hasPipelineSecret(req: Request): Promise<boolean> {
+  return await hasSharedSecret(req, "x-pipeline-secret", "CLIP_PIPELINE_SECRET");
 }
 
 async function yt(apiKey: string, endpoint: string, params: Record<string, string>): Promise<{
@@ -241,7 +240,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    if (!hasPipelineSecret(req) && !(await isContentManager(req))) {
+    if (!(await hasPipelineSecret(req)) && !(await isContentManager(req))) {
       return json({ error: "content_manager_required" }, 403, corsHeaders);
     }
     const apiKey = Deno.env.get("YOUTUBE_API_KEY");

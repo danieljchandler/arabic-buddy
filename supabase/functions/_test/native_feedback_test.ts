@@ -23,6 +23,12 @@ function backend(options: {
       json({ id: USER, email: "learner@example.com", aud: "authenticated", role: "authenticated" }),
     "/rest/v1/native_feedback_credits": (request) =>
       request.method === "GET" ? json(ledger) : json({}, 201),
+    // The spend is one atomic RPC now, not read-then-insert: it returns the
+    // balance after spending, or null when there was nothing to spend.
+    "/rest/v1/rpc/spend_native_feedback_credit": () => {
+      const balance = ledger.reduce((sum, row) => sum + row.delta, 0);
+      return json(balance < 1 ? null : balance - 1);
+    },
     "/rest/v1/native_feedback_requests": (request) =>
       request.method === "GET"
         ? json([])
@@ -87,10 +93,8 @@ Deno.test("native-feedback submit spends one credit and queues for review", asyn
   assertEquals(status, 200);
   assertEquals(body.balance, 4);
 
-  const spend = calls.findIndex(
-    (url, i) => url.includes("native_feedback_credits") && (bodies[i] ?? "").includes('"delta":-1'),
-  );
-  assert(spend >= 0, "expected a -1 ledger row");
+  const spend = calls.findIndex((url) => url.includes("rpc/spend_native_feedback_credit"));
+  assert(spend >= 0, "expected the atomic spend RPC to be called");
 
   // The review row carries the linkage the settle trigger keys on.
   const review = calls.findIndex((url) => url.includes("dialect_native_reviews"));
@@ -107,8 +111,12 @@ Deno.test("native-feedback submit refuses an empty balance before writing anythi
 
   assertEquals(status, 402);
   assertEquals(body.error, "no_credits");
-  const writes = calls.filter((_, i) => (bodies[i] ?? "").length > 0);
-  assertEquals(writes.length, 0);
+  // The spend RPC is the check — it refuses and writes nothing. What must not
+  // happen is a request row, a review row, or a ledger row.
+  const writes = calls.filter((url, i) =>
+    (bodies[i] ?? "").length > 0 && !url.includes("rpc/spend_native_feedback_credit")
+  );
+  assertEquals(writes.length, 0, `unexpected writes: ${writes.join(", ")}`);
 });
 
 Deno.test("native-feedback submit bounds the text", async () => {

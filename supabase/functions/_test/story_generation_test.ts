@@ -319,6 +319,9 @@ function audioBackend(
     extra = {},
   } = options;
   return caller({
+    // generate-story-full-audio edits catalogue content, so its caller is a
+    // content manager — `caller()`'s learner default is the wrong shape here.
+    "/rest/v1/user_roles": () => json([{ role: "content_reviewer" }]),
     "/rest/v1/authentic_stories": (request) =>
       request.method === "GET" ? json(story) : json([], 200),
     "/rest/v1/authentic_story_lines": (request) => {
@@ -351,7 +354,7 @@ Deno.test("generate-story-full-audio turns away an anonymous caller", async () =
   );
 
   assertEquals(result.status, 401);
-  assertEquals(result.body.error, "unauthorized");
+  assertEquals(result.body.error, "auth_required");
 });
 
 Deno.test("generate-story-full-audio needs a story", async () => {

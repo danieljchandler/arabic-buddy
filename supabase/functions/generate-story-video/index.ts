@@ -8,6 +8,7 @@
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { estimateSeconds, planProvider, synthesizeLine } from "../_shared/listenTts.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { requireContentManager } from "../_shared/requireRole.ts";
 
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -149,16 +150,15 @@ Deno.serve(async (req) => {
   try {
     if (!LOVABLE_API_KEY) throw new Error("Missing LOVABLE_API_KEY");
 
-    const authHeader = req.headers.get("Authorization") ?? "";
-    const token = authHeader.replace("Bearer ", "");
+    // Every write below lands on `authentic_stories` / `authentic_story_lines`
+    // — shared editorial content keyed by a `story_id` from the request body,
+    // not by the caller. Being signed in was the whole gate, so any account
+    // could overwrite the catalogue and run the paid image/TTS generators in a
+    // loop. Editing a story takes the content team.
+    const gate = await requireContentManager(req, corsHeaders);
+    if (gate.denied) return gate.response;
+
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE);
-    const { data: { user }, error: authErr } = await admin.auth.getUser(token);
-    if (authErr || !user) {
-      return new Response(JSON.stringify({ error: "unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     const { story_id } = await req.json();
     if (!story_id) {

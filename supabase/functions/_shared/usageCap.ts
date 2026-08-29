@@ -307,6 +307,28 @@ export async function enforceDailyCap(
  * rotates out of it, but it turns "unbounded spend" into "bounded per IP per
  * day", which is what this is for.
  */
+/**
+ * The client address to bucket an anonymous caller under.
+ *
+ * `X-Forwarded-For` is append-only: each proxy adds what *it* observed to the
+ * end and leaves whatever the client sent in front of it. Reading index 0 —
+ * which this did — reads the client's own header, so `X-Forwarded-For: <random>`
+ * bought a fresh bucket per request and the cap counted nothing. The last entry
+ * is the one written by the hop we actually trust.
+ *
+ * An IP bucket is still a backstop and not accounting: NAT shares one and a
+ * botnet rotates out of one. The point is only that it now takes more than a
+ * header to leave it.
+ */
+export function clientIpForBucket(req: Request): string {
+  const forwarded = req.headers.get("x-forwarded-for");
+  if (forwarded) {
+    const hops = forwarded.split(",").map((hop) => hop.trim()).filter(Boolean);
+    if (hops.length > 0) return hops[hops.length - 1];
+  }
+  return req.headers.get("cf-connecting-ip")?.trim() || "unknown";
+}
+
 export async function enforceAnonymousDailyCap(
   req: Request,
   key: string,
@@ -316,7 +338,7 @@ export async function enforceAnonymousDailyCap(
   const userId = await getUserId(req);
   if (userId) return enforceDailyCap(req, key, limit, corsHeaders);
 
-  const ip = (req.headers.get("x-forwarded-for") ?? "unknown").split(",")[0].trim();
+  const ip = clientIpForBucket(req);
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`anon-cap:${ip}`));
   const hex = Array.from(new Uint8Array(digest).slice(0, 16))
     .map((b) => b.toString(16).padStart(2, "0"))

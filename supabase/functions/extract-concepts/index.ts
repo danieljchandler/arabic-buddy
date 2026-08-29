@@ -5,6 +5,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { requireContentManager } from "../_shared/requireRole.ts";
 import { canonicalGrammarKey, GRAMMAR_CATEGORY_SET } from "../_shared/grammarTaxonomy.ts";
 
 
@@ -103,18 +104,13 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const authHeader = req.headers.get("Authorization") ?? "";
-    const supabaseAuth = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
-    const { data: { user } } = await supabaseAuth.auth.getUser();
-    if (!user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // Upserts into `curriculum_concepts` / `content_concept_links` under the
+    // service role, with `content_id` from the body. Those tables share a key
+    // space with `grammarTaxonomy.ts` and the mastery ladder, so a row planted
+    // here propagates into every learner's grammar mastery — "is signed in"
+    // was not the right gate for that.
+    const gate = await requireContentManager(req, corsHeaders);
+    if (gate.denied) return gate.response;
 
     const body = await req.json();
     const {

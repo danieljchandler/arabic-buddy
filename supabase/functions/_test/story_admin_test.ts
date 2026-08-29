@@ -473,14 +473,30 @@ Deno.test("translate-story-dialect turns away an anonymous caller", async () => 
   assertEquals(result.status, 401);
 });
 
-Deno.test("translate-story-dialect lets any signed-in user run it", async () => {
-  // Pinned, not fixed. Its three siblings all check for the admin role; this
-  // one does not, so any authenticated account can rewrite every line of a
-  // published story in the reading library.
+Deno.test("translate-story-dialect refuses a plain signed-in user", async () => {
+  // This was pinned as a known hole and is now closed. Its three siblings
+  // checked for a staff role; this one did not, so any authenticated account
+  // could rewrite every line of a published story in the reading library.
   const result = await call(
     "translate-story-dialect",
     { story_id: STORY, dialect: "Gulf" },
     plainUser({
+      "ai.gateway.lovable.dev": emitting(translated),
+      "openrouter.ai": emitting(translated),
+      "/rest/v1/authentic_story_lines": () => json(storyLines),
+      "/rest/v1/authentic_stories": () => json([]),
+    }),
+  );
+
+  assertEquals(result.status, 403);
+  assertEquals(result.body.error, "forbidden");
+});
+
+Deno.test("translate-story-dialect runs for a content manager", async () => {
+  const result = await call(
+    "translate-story-dialect",
+    { story_id: STORY, dialect: "Gulf" },
+    admin({
       "ai.gateway.lovable.dev": emitting(translated),
       "openrouter.ai": emitting(translated),
       "/rest/v1/authentic_story_lines": () => json(storyLines),

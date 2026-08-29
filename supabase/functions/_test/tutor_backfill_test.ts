@@ -24,6 +24,7 @@ const VIDEO = "aaaaaaaa-0000-4000-8000-000000000000";
 function caller(extra: Record<string, UpstreamHandler> = {}): Record<string, UpstreamHandler> {
   return {
     "/auth/v1/user": () => json({ id: USER, aud: "authenticated", role: "authenticated" }),
+    "/rest/v1/user_roles": () => json([{ role: "content_reviewer" }]),
     ...extra,
   };
 }
@@ -391,6 +392,8 @@ function backfillUpstreams(
   extra: Record<string, UpstreamHandler> = {},
 ) {
   return {
+    "/auth/v1/user": () => json({ id: USER, aud: "authenticated", role: "authenticated" }),
+    "/rest/v1/user_roles": () => json([{ role: "content_reviewer" }]),
     "/rest/v1/discover_videos": (request: Request) =>
       request.method === "GET" ? json(videos) : json([], 204),
     "ai.gateway.lovable.dev": literals("the market"),
@@ -410,12 +413,13 @@ Deno.test("backfill-literal-translations answers the preflight", async () => {
   }
 });
 
-Deno.test("backfill-literal-translations runs for an anonymous caller", async () => {
-  // Pinned, not fixed. There is no auth check and no role check, and the client
-  // it builds uses the service role — so anyone who can reach the function can
-  // rewrite `transcript_lines` on any Discover video. It is also absent from
-  // config.toml, so it falls to the platform's verify_jwt default rather than
-  // declaring one.
+Deno.test("backfill-literal-translations refuses an anonymous caller", async () => {
+  // This was pinned as a known hole and is now closed. The function has no
+  // notion of a caller of its own — it builds a service-role client and
+  // rewrites `transcript_lines` on rows it selects itself — so with no auth
+  // check, anyone who could reach it could rewrite any Discover video. Being
+  // absent from config.toml did not help: the platform default is satisfied by
+  // the publishable key, which ships in the browser bundle.
   const result = await call(
     "backfill-literal-translations",
     {},
@@ -423,8 +427,21 @@ Deno.test("backfill-literal-translations runs for an anonymous caller", async ()
     { jwt: null },
   );
 
-  assertEquals(result.status, 200);
-  assertEquals(result.body.ok, true);
+  assertEquals(result.status, 401);
+});
+
+Deno.test("backfill-literal-translations refuses a signed-in learner", async () => {
+  const result = await call(
+    "backfill-literal-translations",
+    {},
+    backfillUpstreams(
+      [{ id: VIDEO, dialect: "Gulf", transcript_lines: [line("السوق")] }],
+      { "/rest/v1/user_roles": () => json([]) },
+    ),
+  );
+
+  assertEquals(result.status, 403);
+  assertEquals(result.body.error, "forbidden");
 });
 
 Deno.test("backfill-literal-translations writes the gloss onto each line", async () => {
@@ -579,9 +596,9 @@ Deno.test("backfill-literal-translations reports a failed read as a server error
   const result = await call(
     "backfill-literal-translations",
     {},
-    {
+    backfillUpstreams([], {
       "/rest/v1/discover_videos": () => json({ message: "permission denied" }, 403),
-    },
+    }),
   );
 
   assertEquals(result.status, 500);

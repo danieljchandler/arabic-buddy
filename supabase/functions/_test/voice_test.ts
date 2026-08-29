@@ -532,11 +532,13 @@ Deno.test("scrape-x-post retries with the API key when the free tier finds nothi
 
   assertEquals(status, 200);
   assertEquals(body.text, "الجو حلو اليوم");
-  assertEquals(calls.length, 2);
+  // Only the Jina hops — the daily cap makes Supabase calls of its own.
+  const jinaHops = calls.map((url, i) => ({ url, i })).filter((c) => c.url.includes("r.jina.ai"));
+  assertEquals(jinaHops.length, 2);
   // Free first, authenticated second. Reversing that spends quota on every
   // post, including the ones the free tier would have handled.
-  assertEquals(headers[0].authorization, undefined);
-  assert(headers[1].authorization);
+  assertEquals(headers[jinaHops[0].i].authorization, undefined);
+  assert(headers[jinaHops[1].i].authorization);
 });
 
 Deno.test("scrape-x-post does not retry when the free tier succeeded", async () => {
@@ -546,7 +548,7 @@ Deno.test("scrape-x-post does not retry when the free tier succeeded", async () 
     { "r.jina.ai": jina({ title: 'Someone on X: "الجو حلو اليوم" / X' }) },
   );
 
-  assertEquals(calls.length, 1);
+  assertEquals(calls.filter((url) => url.includes("r.jina.ai")).length, 1);
 });
 
 Deno.test("scrape-x-post reports an unreadable post as 422", async () => {
@@ -628,7 +630,11 @@ Deno.test("scrape-x-post fetches nothing for a URL that is not an X post", async
     // handed, so an unvalidated URL makes it a proxy for arbitrary requests —
     // including link-local metadata endpoints — from the app's own network.
     assertEquals(status, 400, `expected ${url} to be refused`);
-    assertEquals(calls.length, 0, `expected no fetch for ${url}`);
+    assertEquals(
+      calls.filter((c) => c.includes("r.jina.ai")).length,
+      0,
+      `expected no fetch for ${url}`,
+    );
   }
 });
 

@@ -11,6 +11,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 
 
@@ -149,6 +150,13 @@ serve(async (req) => {
         status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Builds up to `length` quiz items, each of which may cost an LLM call to
+    // synthesise a scenario and distractors (then cached onto the phrase). The
+    // per-user reads below are correctly scoped to `user.id`; the spend was
+    // not bounded at all.
+    const cap = await enforceDailyCap(req, "set-phrase-quiz", 40, corsHeaders);
+    if (cap.limited) return cap.response;
 
     const now = new Date().toISOString();
 

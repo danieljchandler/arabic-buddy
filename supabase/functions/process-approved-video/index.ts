@@ -1,7 +1,8 @@
-// process-approved-video — v2: accept anon-key bearer + early logging
+// process-approved-video — the approval pipeline, gated to the content team.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { requireContentManager } from "../_shared/requireRole.ts";
 import {
   SONIOX_MODEL,
   buildSonioxContext,
@@ -1515,45 +1516,23 @@ serve(async (req) => {
 
   const authHeader = req.headers.get("Authorization");
   console.log(`[handler] auth header present: ${!!authHeader}`);
-  if (!authHeader?.startsWith("Bearer ")) {
-    console.error("[handler] Missing/invalid Authorization header");
-    return new Response(JSON.stringify({ error: "Unauthorized" }), {
-      status: 401,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+
+  // This runs the whole paid pipeline — media download, several ASR providers,
+  // several LLM passes, image generation — against a `videoId` from the body,
+  // under the service role. It used to accept the publishable/anon key as
+  // proof of anything, and `token.startsWith("sb_publishable_")` as proof that
+  // a token *was* the publishable key: both are public, the second was
+  // satisfied by any attacker-chosen string with the right prefix, so the
+  // endpoint was effectively unauthenticated. Approving a video is a content
+  // action; it takes a content-team session, or the pipeline's own key.
+  const gate = await requireContentManager(req, corsHeaders);
+  if (gate.denied) {
+    console.error("[handler] rejected: caller is not a content manager");
+    return gate.response;
   }
-
-  const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-  const publishableKey = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ?? "";
-  const token = authHeader.slice("Bearer ".length).trim();
-  const isInternalServiceCall = token === serviceRoleKey;
-  // The admin form sends the publishable/anon key directly. Accept both the
-  // legacy anon JWT and the new sb_publishable_... key as valid public bearers
-  // — `verify_jwt = false` already means anyone can hit this endpoint.
-  const isAnonKey = token === anonKey;
-  const isPublishableKey = publishableKey.length > 0 && token === publishableKey;
-  const looksLikePublishable = token.startsWith("sb_publishable_");
-  const isPublicKey = isAnonKey || isPublishableKey || looksLikePublishable;
-  console.log(`[handler] isInternalServiceCall=${isInternalServiceCall} isAnonKey=${isAnonKey} isPublishableKey=${isPublishableKey} looksLikePublishable=${looksLikePublishable}`);
-
-  if (!isInternalServiceCall && !isPublicKey) {
-    const supabaseAuth = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      anonKey,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
-    if (userError || !user) {
-      console.error("[handler] auth.getUser failed:", userError?.message);
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    console.log(`[handler] authenticated user ${user.id}`);
-  }
+  console.log(
+    `[handler] authorized ${gate.viaServiceRole ? "internal service-role call" : `user ${gate.userId}`}`,
+  );
 
   let body: { videoId?: string } | null = null;
   try {
@@ -1600,7 +1579,7 @@ serve(async (req) => {
   const projectUrl = Deno.env.get("SUPABASE_URL")!;
   // Always use service-role key for inter-function calls so the pipeline
   // keeps working even after the original user JWT expires mid-run.
-  const pipelineAuth = `Bearer ${serviceRoleKey}`;
+  const pipelineAuth = `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""}`;
 
   // Launch the pipeline as a background task that is fully decoupled from this
   // HTTP request. When the response is returned below, req.signal fires (the

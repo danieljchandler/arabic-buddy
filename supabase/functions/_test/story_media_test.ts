@@ -133,7 +133,7 @@ Deno.test("generate-story-preview-audio turns away an anonymous caller", async (
   );
 
   assertEquals(result.status, 401);
-  assertEquals(result.body.error, "unauthorized");
+  assertEquals(result.body.error, "auth_required");
 });
 
 Deno.test("generate-story-preview-audio needs a story", async () => {

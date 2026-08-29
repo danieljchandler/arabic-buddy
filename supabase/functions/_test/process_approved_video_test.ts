@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { jsonRequest, loadFunction, optionsRequest } from "./harness.ts";
+import { FIXTURE_ENV, jsonRequest, loadFunction, optionsRequest } from "./harness.ts";
 import { json, type UpstreamHandler } from "./upstreams.ts";
 
 /**
@@ -94,6 +94,7 @@ function backend(
 
   return {
     "/auth/v1/user": () => json({ id: "00000000-0000-4000-8000-000000000001", aud: "authenticated" }),
+    "/rest/v1/user_roles": () => json([{ role: "content_reviewer" }]),
 
     "/rest/v1/discover_videos": (request) => {
       if (request.method !== "GET") return json([], 200);
@@ -215,7 +216,7 @@ Deno.test("process-approved-video refuses a request with no Authorization header
   const result = await call({ videoId: VIDEO }, backend(), { jwt: null });
 
   assertEquals(result.status, 401);
-  assertEquals(result.body.error, "Unauthorized");
+  assertEquals(result.body.error, "auth_required");
 });
 
 Deno.test("process-approved-video refuses a header that is not a bearer token", async () => {
@@ -233,39 +234,61 @@ Deno.test("process-approved-video refuses a header that is not a bearer token", 
   }
 });
 
-Deno.test("process-approved-video lets anything shaped like a publishable key straight through", async () => {
-  // Pinned, not fixed. The token check accepts three things without ever asking
-  // the auth server: the service-role key, the anon key, and — via
-  // `looksLikePublishable` — *any* string starting with "sb_publishable_". The
-  // anon and publishable keys are both public by design, and the prefix test
-  // does not compare against the configured key at all, so
-  // `Bearer sb_publishable_x` from anyone on the internet reaches the pipeline.
-  // `config.toml` has `verify_jwt = false` for this function, so the platform
-  // does not check either. The practical effect is an unauthenticated trigger
-  // for the most expensive job in the system: six ASR engines plus an LLM
-  // ensemble, on any video id that can be guessed.
-  const result = await call({ videoId: VIDEO }, backend(), { jwt: "sb_publishable_not_a_real_key" });
+Deno.test("process-approved-video refuses anything merely shaped like a publishable key", async () => {
+  // This was pinned as a known hole and is now closed. The old check accepted
+  // three things without ever asking the auth server: the service-role key, the
+  // anon key, and — via `looksLikePublishable` — *any* string starting with
+  // "sb_publishable_", compared against nothing. The first is a secret; the
+  // other two are public, and the third was not even a comparison. That made
+  // the most expensive job in the system (six ASR engines plus an LLM ensemble)
+  // an unauthenticated trigger on any guessable video id.
+  // The auth server is what decides now, and it does not know this token.
+  const result = await call({ videoId: VIDEO }, {
+    ...backend(),
+    "/auth/v1/user": () => json({ error: "invalid claim" }, 401),
+  }, { jwt: "sb_publishable_not_a_real_key" });
 
-  assertEquals(result.status, 202);
-  assertEquals(result.calls.some((u) => u.includes("/auth/v1/user")), false);
+  assertEquals(result.status, 401);
 });
 
-Deno.test("process-approved-video accepts the anon key without checking a user", async () => {
-  // Same finding, the documented half: the admin form sends the publishable key
-  // directly rather than the signed-in admin's JWT.
-  const result = await call({ videoId: VIDEO }, backend(), { jwt: ANON });
+Deno.test("process-approved-video refuses the anon key", async () => {
+  // The anon key ships in the browser bundle. Whatever the admin form used to
+  // send, a public key is not a credential.
+  const result = await call({ videoId: VIDEO }, {
+    ...backend(),
+    "/auth/v1/user": () => json({ error: "invalid claim" }, 401),
+  }, { jwt: ANON });
 
-  assertEquals(result.status, 202);
-  assertEquals(result.calls.some((u) => u.includes("/auth/v1/user")), false);
+  assertEquals(result.status, 401);
 });
 
-Deno.test("process-approved-video verifies a real user token with the auth server", async () => {
+Deno.test("process-approved-video accepts a content manager's token", async () => {
   const result = await call({ videoId: VIDEO }, backend(), { jwt: "a.real.looking.jwt" });
 
   assertEquals(result.status, 202);
-  // A token that is none of the three known keys is the one case that gets
-  // checked.
+  // The role came from the database, not from the token.
   assertEquals(result.calls.some((u) => u.includes("/auth/v1/user")), true);
+  assertEquals(result.calls.some((u) => u.includes("/rest/v1/user_roles")), true);
+});
+
+Deno.test("process-approved-video refuses a signed-in learner with no staff role", async () => {
+  const result = await call({ videoId: VIDEO }, {
+    ...backend(),
+    "/rest/v1/user_roles": () => json([]),
+  }, { jwt: "a.real.looking.jwt" });
+
+  assertEquals(result.status, 403);
+  assertEquals(result.body.error, "forbidden");
+});
+
+Deno.test("process-approved-video still accepts the internal service-role call", async () => {
+  const result = await call({ videoId: VIDEO }, backend(), {
+    jwt: FIXTURE_ENV.SUPABASE_SERVICE_ROLE_KEY,
+  });
+
+  assertEquals(result.status, 202);
+  // The internal path short-circuits before any auth-server round trip.
+  assertEquals(result.calls.some((u) => u.includes("/auth/v1/user")), false);
 });
 
 Deno.test("process-approved-video refuses a user token the auth server rejects", async () => {
@@ -275,7 +298,7 @@ Deno.test("process-approved-video refuses a user token the auth server rejects",
   }, { jwt: "a.real.looking.jwt" });
 
   assertEquals(result.status, 401);
-  assertEquals(result.body.error, "Unauthorized");
+  assertEquals(result.body.error, "auth_required");
 });
 
 Deno.test("process-approved-video rejects a body that is not JSON", async () => {

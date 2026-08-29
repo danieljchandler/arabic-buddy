@@ -941,9 +941,8 @@ serve(async (req) => {
     // link-local destinations — cloud instance metadata above all — and
     // `safeFetch` re-checks each redirect hop rather than letting the runtime
     // follow one into the same place.
-    let parsedUrl: URL;
     try {
-      parsedUrl = assertPublicHttpUrl(normalizedUrl);
+      assertPublicHttpUrl(normalizedUrl);
     } catch (e: unknown) {
       return new Response(
         JSON.stringify({

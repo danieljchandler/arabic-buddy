@@ -29,6 +29,7 @@ import { SoundSpotlight } from "@/components/learn/SoundSpotlight";
 import { LessonPlanSection } from "@/components/learn/LessonPlanSection";
 import { useLessonProgressFor, useUpsertLessonProgress } from "@/hooks/useLessonProgress";
 import { ListChecks, Sparkles } from "lucide-react";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 type Phase = "intro" | "quiz";
 
@@ -314,23 +315,25 @@ const Learn = () => {
         <div className="mb-6">
           <PageCorner />
         </div>
-        <div className="flex items-center justify-center py-16">
-          <div className="text-center">
-            <p className="text-lg text-muted-foreground mb-2">
-              {isMixedMode ? "No new words" : "No words yet"}
-            </p>
-            <p className="text-sm text-muted-foreground mb-6">
-              {isMixedMode
-                ? "You've seen all available words. Try reviewing!"
-                // Learners have no admin panel — this lesson simply has no
-                // vocabulary yet, and the path forward is another lesson.
-                : "This lesson has no vocabulary yet — pick another from the curriculum."}
-            </p>
+        {/* Two different absences, so two different plates: having seen every
+            word there is is the reward state, and a lesson that carries no
+            vocabulary is a dead end you leave by picking another. */}
+        <EmptyState
+          art={isMixedMode ? "caught-up" : "no-lessons"}
+          title={isMixedMode ? "No new words" : "No words yet"}
+          body={
+            isMixedMode
+              ? "You've seen all available words. Try reviewing!"
+              // Learners have no admin panel — this lesson simply has no
+              // vocabulary yet, and the path forward is another lesson.
+              : "This lesson has no vocabulary yet — pick another from the curriculum."
+          }
+          action={
             <Button onClick={() => navigate(isMixedMode ? "/review" : "/curriculum")}>
               {isMixedMode ? "Review your words" : "Browse the curriculum"}
             </Button>
-          </div>
-        </div>
+          }
+        />
       </AppShell>
     );
   }

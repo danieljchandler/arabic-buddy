@@ -1,8 +1,7 @@
 import { ReactNode } from "react";
-import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { AppBackdrop } from "@/components/layout/AppBackdrop";
-import { AppDock, shouldShowDock } from "@/components/shell/AppDock";
+import { AppDock, useDockVisible } from "@/components/shell/AppDock";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { useAiAssistant } from "@/contexts/AiAssistantContext";
 
@@ -29,8 +28,9 @@ interface AppShellProps {
  * Use compact mode for immersive learning screens.
  */
 export function AppShell({ children, className, compact = false, wide = false }: AppShellProps) {
-  const { pathname } = useLocation();
-  const showNav = shouldShowDock(pathname);
+  // Route policy AND signed in — a signed-out visitor gets no dock, so the
+  // page must not reserve a column for one either.
+  const showNav = useDockVisible();
   // The Ask AI panel is non-modal, so the page has to make room for it rather
   // than sit underneath it.
   const { isOpen: aiOpen } = useAiAssistant();

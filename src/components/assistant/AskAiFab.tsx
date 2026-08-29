@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import art from "@/assets/sadu-ask.svg";
 import { useAiAssistant } from "@/contexts/AiAssistantContext";
+import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
 /**
@@ -18,13 +19,18 @@ import { cn } from "@/lib/utils";
  * `lg`, and only then into the corner the left rail leaves free. The feedback
  * FAB owns the bottom-left; this owns the bottom-right.
  *
- * Hidden while the panel is open — the panel is the button, opened — and on
- * the routes where a tutor has no business (auth, onboarding, admin).
+ * Hidden while the panel is open — the panel is the button, opened — on the
+ * routes where a tutor has no business (auth, onboarding, admin), and for a
+ * visitor who is not signed in. The last one is not a permission check (the
+ * panel enforces its own): it is that the disc sat on top of the marketing
+ * page offering a signed-out visitor a tutor they cannot open, right beside a
+ * dock of tabs they cannot use.
  * Must do no fetching on mount: the route sweep renders every page.
  */
 export function AskAiFab({ className }: { className?: string }) {
   const { openChat, isOpen } = useAiAssistant();
   const { pathname } = useLocation();
+  const { isAuthenticated } = useAuth();
 
   const hidden = useMemo(
     () =>
@@ -35,7 +41,7 @@ export function AskAiFab({ className }: { className?: string }) {
     [pathname],
   );
 
-  if (hidden || isOpen) return null;
+  if (hidden || isOpen || !isAuthenticated) return null;
 
   return (
     <button

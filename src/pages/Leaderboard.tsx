@@ -375,6 +375,7 @@ const Leaderboard = () => {
             ))
           ) : (
             <EmptyState
+              art="no-rankings"
               title="No rankings yet"
               body="Finish a lesson or a review and you will show up here."
             />

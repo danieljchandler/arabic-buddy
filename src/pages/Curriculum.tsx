@@ -120,6 +120,7 @@ const Curriculum = () => {
 
       {!hasLessons && (
         <EmptyState
+          art="no-lessons"
           className="py-12"
           title={`No lessons yet for ${activeDialect}`}
           body={

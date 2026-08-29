@@ -84,6 +84,17 @@
     --dialect-egyptian: 38 85% 45%;
     --dialect-yemeni: 0 70% 42%;
 
+    /* The four skill tints, one step apart down the brand ramp from charcoal
+       to Desert Red. Tokens rather than hex in surfaces.ts — they were the
+       last four literals painting a whole surface, and night majlis needs
+       them lighter: as a rule under painted art on a --card plate, a #2E3532
+       charcoal reads as a black bar on a near-black page. See
+       src/lib/surfaces.ts, which reads these. */
+    --skill-listen: 150 8% 19%;
+    --skill-read: 12 18% 24%;
+    --skill-speak: 9 37% 32%;
+    --skill-write: 8 45% 38%;
+
     /* Plum — deep wine used for the welcome majlis, hub tiles and MSA bridge.
        Was hardcoded as #5C3A46 across the app before being promoted here. */
     --plum: 339 23% 29%;
@@ -178,6 +189,14 @@
     --olive: 8 45% 62%;
     --plum: 339 30% 70%;
     --plum-foreground: 0 0% 10%;
+
+    /* Skill tints, night-tuned: each lifted to stay visible as a rule against
+       --card without leaving the brand ramp. Listen's charcoal in particular
+       is invisible on near-black at its light value. */
+    --skill-listen: 150 10% 62%;
+    --skill-read: 12 30% 60%;
+    --skill-speak: 9 45% 60%;
+    --skill-write: 8 55% 62%;
 
     --dialect-gulf: 14 62% 67%;
     --dialect-egyptian: 38 78% 58%;

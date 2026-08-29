@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useDialect } from "@/contexts/DialectContext";
 import { CheckCircle2, Clock, Loader2, PenLine, Sparkles, Undo2 } from "lucide-react";
 import { toast } from "sonner";
+import { EmptyState } from "@/components/shared/EmptyState";
 
 interface FeedbackRequest {
   id: string;
@@ -224,9 +225,12 @@ const NativeFeedback = () => {
           </div>
         ))}
         {status !== null && status.requests.length === 0 && (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            Nothing yet — your first correction is one paragraph away.
-          </p>
+          <EmptyState
+            size="sm"
+            className="py-8"
+            title="Nothing yet"
+            body="Your first correction is one paragraph away."
+          />
         )}
       </div>
     </AppShell>

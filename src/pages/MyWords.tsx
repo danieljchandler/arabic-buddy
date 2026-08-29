@@ -404,16 +404,24 @@ const MyWords = () => {
         </div>
 
         {(!phrases || phrases.length === 0) ? (
-          <div className="p-6 text-center text-sm text-muted-foreground">
-            Save phrases from{" "}
-            <button
-              className="text-primary underline underline-offset-2"
-              onClick={() => navigate("/how-do-i-say")}
-            >
-              How do I say…?
-            </button>{" "}
-            to start practicing them here.
-          </div>
+          <EmptyState
+            art="no-phrases"
+            size="sm"
+            className="py-6"
+            title="No phrases saved yet"
+            body={
+              <>
+                Save phrases from{" "}
+                <button
+                  className="text-primary underline underline-offset-2"
+                  onClick={() => navigate("/how-do-i-say")}
+                >
+                  How do I say…?
+                </button>{" "}
+                to start practicing them here.
+              </>
+            }
+          />
         ) : (
           <>
             {(showAllPhrases ? phrases : phrases.slice(0, 4)).map((p, i, arr) => (

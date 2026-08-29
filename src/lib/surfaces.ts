@@ -23,6 +23,11 @@
  * most sits first.
  */
 
+import skillListenArt from "@/assets/illustrations/skill-listen.webp";
+import skillReadArt from "@/assets/illustrations/skill-read.webp";
+import skillSpeakArt from "@/assets/illustrations/skill-speak.webp";
+import skillWriteArt from "@/assets/illustrations/skill-write.webp";
+
 export interface Surface {
   id: string;
   /** English label — the app's chrome speaks English; Arabic is the material. */
@@ -48,11 +53,20 @@ export interface Activity {
 
 export interface Skill extends Surface {
   arabic: string;
-  /** The tile's ground: four steps from charcoal to Desert Red, all inside the
+  /** The tile's accent: four steps from charcoal to Desert Red, all inside the
    *  brand ramp. Tints, not hues — the old hubs accented tiles sky-blue, amber
    *  and emerald, colours left over from before the brand guide. Carried here
-   *  so the chooser tile and the skill's own header cannot drift apart. */
+   *  so the chooser tile and the skill's own header cannot drift apart.
+   *
+   *  A `hsl(var(--skill-*))` reference rather than a hex, so night majlis can
+   *  lighten it (index.css defines both halves). It used to paint the whole
+   *  tile; the tile carries `art` now and the tint is the rule beneath it. */
   tint: string;
+  /** The painted scene on the chooser tile — same watercolour hand as the
+   *  dialect cards and the campfire. Before these, every tile was its flat
+   *  `tint` plus a 24px icon, which left roughly 60% of the app's main menu
+   *  as bare colour. */
+  art: string;
   /** Primary first: the one a learner picking this skill most likely wants. */
   activities: Activity[];
 }
@@ -64,7 +78,8 @@ export const SKILLS: Skill[] = [
     label: "Listen",
     arabic: "استماع",
     to: "/skills/listen",
-    tint: "#2E3532",
+    tint: "hsl(var(--skill-listen))",
+    art: skillListenArt,
     icon: "Headphones",
     activities: [
       {
@@ -93,7 +108,8 @@ export const SKILLS: Skill[] = [
     label: "Read",
     arabic: "قراءة",
     to: "/skills/read",
-    tint: "#4A3733",
+    tint: "hsl(var(--skill-read))",
+    art: skillReadArt,
     icon: "BookOpen",
     activities: [
       {
@@ -134,7 +150,8 @@ export const SKILLS: Skill[] = [
     label: "Speak",
     arabic: "تحدّث",
     to: "/skills/speak",
-    tint: "#6B3A31",
+    tint: "hsl(var(--skill-speak))",
+    art: skillSpeakArt,
     icon: "Mic",
     activities: [
       {
@@ -163,7 +180,8 @@ export const SKILLS: Skill[] = [
     label: "Write",
     arabic: "كتابة",
     to: "/skills/write",
-    tint: "#8C4135",
+    tint: "hsl(var(--skill-write))",
+    art: skillWriteArt,
     icon: "PenLine",
     activities: [
       {

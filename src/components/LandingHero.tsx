@@ -1,6 +1,7 @@
 import { useNavigate } from "react-router-dom";
 import { ArrowRight, Globe2 } from "lucide-react";
 import { Button, CampfireMedallion } from "@/components/design-system";
+import { Reveal } from "@/components/shared/Reveal";
 import hakiyaLockup from "@/assets/hakiya-lockup.webp";
 import valueVoicesArt from "@/assets/illustrations/value-voices.webp";
 import valueMemoryArt from "@/assets/illustrations/value-memory.webp";
@@ -87,23 +88,33 @@ export function LandingHero() {
         </Button>
       </div>
 
-      {/* Value props — who tells the story, how it sticks, what you hear next */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 max-w-3xl mx-auto mb-6">
-        <ValueCard
-          image={valueVoicesArt}
-          title="Told by native voices"
-          body="Every word and sentence recorded by native speakers from the Gulf, Egypt and Yemen — so what you learn is what you'll actually hear."
-        />
-        <ValueCard
-          image={valueMemoryArt}
-          title="Every story stays with you"
-          body="Words come back exactly when you're about to forget them. Built on FSRS, the modern successor to SM-2."
-        />
-        <ValueCard
-          image={valueMediaArt}
-          title="Stories you'd actually watch"
-          body="TikToks, news clips, stories and conversations — tap any word to learn and save it."
-        />
+      {/* Value props — who tells the story, how it sticks, what you hear next.
+          `items-stretch` plus `h-full` on the card keeps the three the same
+          height: "Every story stays with you" wraps to two lines where the
+          other titles take one, so without it the cards ended at three
+          different heights and the body copy stopped sharing a baseline. */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 items-stretch gap-3 max-w-3xl mx-auto mb-6">
+        {[
+          {
+            image: valueVoicesArt,
+            title: "Told by native voices",
+            body: "Every word and sentence recorded by native speakers from the Gulf, Egypt and Yemen — so what you learn is what you'll actually hear.",
+          },
+          {
+            image: valueMemoryArt,
+            title: "Every story stays with you",
+            body: "Words come back exactly when you're about to forget them. Built on FSRS, the modern successor to SM-2.",
+          },
+          {
+            image: valueMediaArt,
+            title: "Stories you'd actually watch",
+            body: "TikToks, news clips, stories and conversations — tap any word to learn and save it.",
+          },
+        ].map((card, i) => (
+          <Reveal key={card.title} delayMs={i * 90} className="h-full">
+            <ValueCard {...card} />
+          </Reveal>
+        ))}
       </div>
 
       {/* Below the fold: the three worlds a learner is choosing between.
@@ -117,10 +128,16 @@ export function LandingHero() {
           Pick one to start — a Gulf majlis, a Cairo ahwa, or an Old Sana&rsquo;a
           rooftop. Real spoken Arabic, never textbook فصحى.
         </p>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <DialectCard image={dialectGulfArt} name="Gulf" nameAr="خليجي" line="The unhurried cadence of the majlis." />
-          <DialectCard image={dialectEgyptianArt} name="Egyptian" nameAr="مصري" line="Quick, warm, theatrical — the dialect of cinema." />
-          <DialectCard image={dialectYemeniArt} name="Yemeni" nameAr="يمني" line="Mountain Arabic — old vowels, deep hospitality." />
+        <div className="grid grid-cols-1 sm:grid-cols-3 items-stretch gap-3">
+          {[
+            { image: dialectGulfArt, name: "Gulf", nameAr: "خليجي", line: "The unhurried cadence of the majlis." },
+            { image: dialectEgyptianArt, name: "Egyptian", nameAr: "مصري", line: "Quick, warm, theatrical — the dialect of cinema." },
+            { image: dialectYemeniArt, name: "Yemeni", nameAr: "يمني", line: "Mountain Arabic — old vowels, deep hospitality." },
+          ].map((d, i) => (
+            <Reveal key={d.name} delayMs={i * 90} className="h-full">
+              <DialectCard {...d} />
+            </Reveal>
+          ))}
         </div>
       </div>
 
@@ -167,7 +184,7 @@ function DialectCard({
   line: string;
 }) {
   return (
-    <div className="overflow-hidden rounded-2xl bg-card border border-desert-red/15">
+    <div className="flex h-full flex-col overflow-hidden rounded-2xl bg-card border border-desert-red/15">
       <img
         src={image}
         alt={`${name} Arabic illustration`}
@@ -197,7 +214,7 @@ function ValueCard({
   body: string;
 }) {
   return (
-    <div className="p-4 rounded-2xl bg-card border border-desert-red/15">
+    <div className="flex h-full flex-col p-4 rounded-2xl bg-card border border-desert-red/15">
       <img
         src={image}
         alt=""

@@ -60,14 +60,19 @@ const Pricing = () => {
   const loading = authLoading || subLoading;
 
   return (
-    <AppShell>
+    // `wide` rather than the app-wide default: this is the one page that has
+    // to show three plans side by side, and inside max-w-2xl each card is
+    // ~190px — narrow enough that the Best Value badge wrapped onto the card
+    // and every feature bullet ran four lines deep. `wide` only lifts the cap
+    // from lg up, so the phone layout is untouched.
+    <AppShell wide>
       <div className="mb-8">
         <PageCorner />
       </div>
 
-      <div className="max-w-4xl mx-auto">
+      <div>
         <div className="text-center mb-12">
-          <h1 className="text-3xl font-bold text-foreground mb-3 font-heading inline-flex items-center gap-2 justify-center">
+          <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-3 font-heading inline-flex items-center gap-2 justify-center">
             Choose Your Plan <InfoHint {...PAGE_HINTS["pricing"]} size="md" />
           </h1>
           <p className="text-muted-foreground text-lg">
@@ -120,9 +125,18 @@ const Pricing = () => {
               </div>
             )}
 
-            <div className="grid md:grid-cols-3 gap-6">
+            {/* Three across only from lg, because that is where AppShell's
+                `wide` actually widens the column — at md the column is still
+                max-w-2xl and three of these are ~190px each. Stacked cards at
+                tablet width read better than three squeezed ones.
+                pt-4 reserves the space the Best Value badge hangs above its
+                card into; without it the badge overlaps whatever sits above.
+                items-stretch (the grid default, restated because it is
+                load-bearing here) plus h-full on each card is what makes the
+                three CTAs land on one line. */}
+            <div className="grid items-stretch gap-6 pt-4 lg:grid-cols-3 lg:gap-8">
               {/* Free tier */}
-              <Card className="border-border">
+              <Card className="flex h-full flex-col border-border">
                 <CardHeader>
                   <CardTitle className="text-xl">Free</CardTitle>
                   <CardDescription>Get started with the basics</CardDescription>
@@ -131,7 +145,7 @@ const Pricing = () => {
                     <span className="text-muted-foreground">/month</span>
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="flex-1">
                   <ul className="space-y-3">
                     {[
                       'Full lesson library & flashcard review',
@@ -141,7 +155,7 @@ const Pricing = () => {
                     ].map((feature) => (
                       <li key={feature} className="flex items-start gap-2">
                         <Check className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
-                        <span className="text-sm text-muted-foreground">{feature}</span>
+                        <span className="text-sm leading-relaxed text-muted-foreground">{feature}</span>
                       </li>
                     ))}
                   </ul>
@@ -167,7 +181,7 @@ const Pricing = () => {
               </Card>
 
               {/* Standard tier */}
-              <Card className={`border-2 ${tier === 'standard' ? 'border-primary' : 'border-border'}`}>
+              <Card className={`flex h-full flex-col border-2 ${tier === 'standard' ? 'border-primary' : 'border-border'}`}>
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="text-xl">{SUBSCRIPTION_TIERS.standard.name}</CardTitle>
@@ -193,12 +207,12 @@ const Pricing = () => {
                     )}
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="flex-1">
                   <ul className="space-y-3">
                     {SUBSCRIPTION_TIERS.standard.features.map((feature) => (
                       <li key={feature} className="flex items-start gap-2">
                         <Check className="h-4 w-4 text-primary mt-0.5 shrink-0" />
-                        <span className="text-sm">{feature}</span>
+                        <span className="text-sm leading-relaxed">{feature}</span>
                       </li>
                     ))}
                   </ul>
@@ -217,9 +231,15 @@ const Pricing = () => {
               </Card>
 
               {/* All-In tier */}
-              <Card className={`border-2 ${tier === 'allin' ? 'border-primary' : 'border-accent'} relative`}>
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <Badge className="bg-accent text-accent-foreground">
+              <Card className={`relative flex h-full flex-col border-2 ${tier === 'allin' ? 'border-primary' : 'border-accent'}`}>
+                {/* The badge straddles the top border, so it must never become
+                    two lines: the second line landed inside the card and sat
+                    across the border. whitespace-nowrap makes that impossible
+                    rather than merely unlikely — the label is short, and a
+                    plan card is never the thing that should shrink to fit it.
+                    z-10 keeps it above the card's own border. */}
+                <div className="absolute -top-3 left-1/2 z-10 -translate-x-1/2">
+                  <Badge className="whitespace-nowrap bg-accent text-accent-foreground shadow-card">
                     <Sparkles className="h-3 w-3 mr-1" />
                     Best Value
                   </Badge>
@@ -249,12 +269,12 @@ const Pricing = () => {
                     )}
                   </div>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="flex-1">
                   <ul className="space-y-3">
                     {SUBSCRIPTION_TIERS.allin.features.map((feature) => (
                       <li key={feature} className="flex items-start gap-2">
                         <Check className="h-4 w-4 text-accent mt-0.5 shrink-0" />
-                        <span className="text-sm">{feature}</span>
+                        <span className="text-sm leading-relaxed">{feature}</span>
                       </li>
                     ))}
                   </ul>
@@ -279,7 +299,10 @@ const Pricing = () => {
 
             {/* FAQ */}
             <section className="mt-16 max-w-3xl mx-auto">
-              <h2 className="text-2xl font-bold text-center mb-8 font-heading">
+              {/* A step below the h1 (text-3xl/sm:text-4xl). At text-2xl it
+                  measured the same as the page title, so the page read as two
+                  titles rather than a title and a section under it. */}
+              <h2 className="text-xl font-bold text-center mb-8 font-heading">
                 Frequently asked questions
               </h2>
               <div className="space-y-6">
@@ -310,7 +333,11 @@ const Pricing = () => {
                   },
                 ].map(({ q, a }) => (
                   <div key={q} className="border-b border-border pb-4">
-                    <h3 className="font-semibold text-foreground mb-2">{q}</h3>
+                    {/* Sized explicitly. The base layer gives a bare h3
+                        md:text-title (24px), which is larger than this
+                        section's own h2 and read as six competing titles
+                        stacked down the page rather than as questions. */}
+                    <h3 className="text-base font-semibold text-foreground mb-2">{q}</h3>
                     <p className="text-sm text-muted-foreground leading-relaxed">{a}</p>
                   </div>
                 ))}

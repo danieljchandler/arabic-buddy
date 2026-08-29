@@ -159,8 +159,12 @@ const Index = () => {
 
   // Logged-out visitors get the landing hero instead of the authed home.
   if (!authLoading && !isAuthenticated) {
+    // Kept in step with the identical branch in Feed.tsx, which is the one
+    // mounted at "/" and therefore the one a visitor actually lands on; this
+    // copy is what /today shows a signed-out visitor. See there for why the
+    // landing hero needs the wide shell.
     return (
-      <AppShell>
+      <AppShell wide>
         <LandingHero />
         <Footer />
       </AppShell>

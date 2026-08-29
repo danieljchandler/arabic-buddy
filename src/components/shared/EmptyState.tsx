@@ -2,6 +2,10 @@ import { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import caughtUpArt from "@/assets/illustrations/empty-caught-up.webp";
 import nothingArt from "@/assets/illustrations/empty-nothing.webp";
+import noLessonsArt from "@/assets/illustrations/empty-no-lessons.webp";
+import noRankingsArt from "@/assets/illustrations/empty-no-rankings.webp";
+import noPhrasesArt from "@/assets/illustrations/empty-no-phrases.webp";
+import noResultsArt from "@/assets/illustrations/empty-no-results.webp";
 
 /**
  * What a screen says when it has nothing to show yet.
@@ -14,10 +18,27 @@ import nothingArt from "@/assets/illustrations/empty-nothing.webp";
  * notebook and a finjan waiting on a sadu cushion — begin here). The image
  * rides a circular cream plate so the vignette's own background reads as
  * intentional on every surface, card or warm sand alike.
+ *
+ * Four more were added because two were doing the work of six: "nothing-yet"
+ * alone answered no words, no lessons, no rankings and no saved phrases, so
+ * four unrelated screens showed the identical picture and it stopped meaning
+ * anything. Each new one names its own absence — an unlit lantern over blank
+ * notebooks, an empty podium, an empty sadu speech bubble, a magnifier over a
+ * blank page. Pick the one that matches what is missing; "nothing-yet" stays
+ * the default for anything with no better fit.
  */
 const ART = {
   "caught-up": caughtUpArt,
   "nothing-yet": nothingArt,
+  /** No curriculum or lesson content for this dialect yet. */
+  "no-lessons": noLessonsArt,
+  /** Leaderboard with nobody on it. */
+  "no-rankings": noRankingsArt,
+  /** No saved phrases or set phrases. */
+  "no-phrases": noPhrasesArt,
+  /** A search or filter that matched nothing — distinct from never having
+   *  started, which is "nothing-yet". */
+  "no-results": noResultsArt,
 } as const;
 
 export interface EmptyStateProps {

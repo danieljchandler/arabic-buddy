@@ -14,8 +14,7 @@ import { useDialect, type DialectModule } from "@/contexts/DialectContext";
 import { supabase } from "@/integrations/supabase/client";
 import { LoadingPanel } from "@/components/loading/LoadingPanel";
 import { AppShell } from "@/components/layout/AppShell";
-import { LandingHero } from "@/components/LandingHero";
-import { Footer } from "@/components/Footer";
+import { LandingPage } from "@/components/LandingPage";
 import { cn } from "@/lib/utils";
 import { VideoThumbnail } from "@/components/media/VideoThumbnail";
 
@@ -187,12 +186,7 @@ const Feed = () => {
   // them. Dropping a stranger into an empty video feed would be the worst
   // possible first impression of an app whose whole pitch is the content.
   if (!authLoading && !isAuthenticated) {
-    return (
-      <AppShell>
-        <LandingHero />
-        <Footer />
-      </AppShell>
-    );
+    return <LandingPage />;
   }
 
   return (

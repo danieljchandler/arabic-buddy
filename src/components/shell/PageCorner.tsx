@@ -1,7 +1,7 @@
 import * as React from "react";
 import { Home } from "lucide-react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { shouldShowDock } from "@/components/shell/AppDock";
+import { useNavigate } from "react-router-dom";
+import { useDockVisible } from "@/components/shell/AppDock";
 import { cn } from "@/lib/utils";
 
 /**
@@ -16,9 +16,10 @@ import { cn } from "@/lib/utils";
  * the two most valuable spots on the screen. So on dock pages the corner
  * yields entirely and the page keeps the room.
  *
- * Where the dock is hidden — playback, review, quizzes, auth, admin — the home
- * button stays exactly as it was. Those are the routes with no other way out,
- * and taking away their only escape hatch would strand people mid-lesson.
+ * Where the dock is hidden — playback, review, quizzes, auth, admin, and any
+ * page seen by a visitor who is not signed in — the home button stays exactly
+ * as it was. Those are the places with no other way out, and taking away their
+ * only escape hatch would strand people mid-lesson.
  *
  * Some Radix/shadcn components pass refs to their children via `asChild`, so
  * this forwards refs.
@@ -26,9 +27,9 @@ import { cn } from "@/lib/utils";
 export const PageCorner = React.forwardRef<HTMLButtonElement, { className?: string }>(
   ({ className }, ref) => {
     const navigate = useNavigate();
-    const { pathname } = useLocation();
+    const dockVisible = useDockVisible();
 
-    if (shouldShowDock(pathname)) {
+    if (dockVisible) {
       return null;
     }
 

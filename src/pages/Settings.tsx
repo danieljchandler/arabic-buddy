@@ -13,6 +13,12 @@ import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import { Loader2, Check, ArrowLeft, User, Globe2, Target, Eye, Heart, ChevronRight, Camera, AlertTriangle, Info, Compass, Bell, Palette } from 'lucide-react';
 import { AvatarPicker } from '@/components/settings/AvatarPicker';
+import {
+  SettingSection,
+  SettingsGroup,
+  type SettingsGroupMeta,
+} from '@/components/settings/SettingsGroup';
+import { SettingsGroupNav } from '@/components/settings/SettingsGroupNav';
 import { invalidateProfileAvatar } from '@/hooks/useProfileAvatar';
 import { HomeLayoutEditor } from '@/components/settings/HomeLayoutEditor';
 import { DisplayPrefsEditor } from '@/components/settings/DisplayPrefsEditor';
@@ -27,6 +33,58 @@ import { useTheme, type ThemePref } from '@/hooks/useTheme';
 import { useSRSStats } from '@/hooks/useSRSStats';
 import { useFsrsCalibration } from '@/hooks/useFsrsCalibration';
 import { LEARNING_REASONS, reasonLabel, reasonIdFromLabel } from '@/data/learningReasons';
+
+/**
+ * The four groups the page's fifteen settings fall into, in the order they are
+ * rendered and indexed.
+ *
+ * Before this, the settings sat in one flat 4,500px column in the order they
+ * happened to be added — Appearance, then Profile, then dialect, with the
+ * subscription and Sign Out four thousand pixels below. Nothing said which
+ * settings belonged together, so the only way to find one was to read all of
+ * them.
+ *
+ * The split is by *what you came here to change*, not by which table the value
+ * lands in: "Learning" mixes profile columns (dialect, level) with
+ * device-local review preferences because a learner adjusting how hard the app
+ * pushes them does not care which of those is which. The one thing the split
+ * must not do is separate a setting from the save model it belongs to, and it
+ * doesn't — the unsaved-changes bar follows the learner rather than living at
+ * the bottom of any one group.
+ */
+const GROUPS: SettingsGroupMeta[] = [
+  {
+    id: 'account',
+    label: 'Account',
+    icon: User,
+    blurb: "Who you are here, what you've saved, and your plan.",
+  },
+  {
+    id: 'learning',
+    label: 'Learning',
+    icon: Compass,
+    blurb: 'The Arabic you want, and how hard the app pushes you towards it.',
+  },
+  {
+    id: 'appearance',
+    label: 'Appearance & Display',
+    icon: Palette,
+    blurb: 'How the app looks, and how much of each phrase it shows by default.',
+  },
+  {
+    id: 'privacy',
+    label: 'Privacy & Data',
+    icon: Eye,
+    blurb: 'What other learners can see, and what the tutor remembers about you.',
+  },
+];
+
+/** Addressed by name below, so a reordering of GROUPS can't silently reshuffle
+ *  which settings sit under which heading. */
+const GROUP = Object.fromEntries(GROUPS.map((g) => [g.id, g])) as Record<
+  string,
+  SettingsGroupMeta
+>;
 
 const DIALECTS = [
   { id: 'Gulf', label: 'Gulf Arabic', labelAr: 'خليجي', flag: '🌊' },
@@ -354,8 +412,8 @@ const Settings = () => {
   }
 
   return (
-    <AppShell>
-      <div className="max-w-lg mx-auto py-4">
+    <AppShell wide>
+      <div className="py-4">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
           <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
@@ -364,448 +422,434 @@ const Settings = () => {
           <h1 className="text-2xl font-bold font-heading text-foreground">Settings</h1>
         </div>
 
-        <div className="space-y-8">
-          {/* Appearance Section */}
-          <section className="space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              <Palette className="h-4 w-4" />
-              Appearance
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {([
-                { id: 'light', label: 'Light', desc: 'Warm sand' },
-                { id: 'dark', label: 'Dark', desc: 'Night majlis' },
-                { id: 'system', label: 'System', desc: 'Match device' },
-              ] as { id: ThemePref; label: string; desc: string }[]).map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  onClick={() => setThemePref(t.id)}
-                  aria-pressed={themePref === t.id}
-                  className={cn(
-                    'rounded-2xl border-2 p-3 text-left transition-all active:scale-[0.98]',
-                    themePref === t.id
-                      ? 'border-primary bg-primary/5 shadow-soft'
-                      : 'border-border bg-card hover:border-primary/30',
-                  )}
-                >
-                  <span className="block text-sm font-semibold text-foreground">{t.label}</span>
-                  <span className="block text-xs text-muted-foreground mt-0.5">{t.desc}</span>
-                </button>
-              ))}
-            </div>
-          </section>
+        {/*
+          The index sits beside the settings from lg and above them below it.
 
-          {/* Profile Section */}
-          <section className="space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              <User className="h-4 w-4" />
-              Profile
-            </div>
+          `AppShell wide` only widens from lg, so on a phone this is still one
+          column in DOM order — the chip strip, then the groups — and becomes a
+          two-column grid exactly where there is room for one. What it replaces
+          is a max-w-lg column: narrower even than the shell's own max-w-2xl,
+          which is how a 1440px screen ended up almost entirely empty next to a
+          four-thousand-pixel scroll.
+        */}
+        <div className="lg:grid lg:grid-cols-[13rem_minmax(0,1fr)] lg:items-start lg:gap-10">
+          <SettingsGroupNav groups={GROUPS} className="mb-6 lg:mb-0" />
 
-            <div className="flex items-center gap-4">
-              <div className="relative">
-                <Avatar className="h-20 w-20 border-2 border-border">
-                  <AvatarImage src={avatarUrl || undefined} alt="Profile picture" />
-                  <AvatarFallback className="text-lg font-semibold">
-                    {(displayName || user?.email || '?').charAt(0).toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
-                {uploadingAvatar && (
-                  <div className="absolute inset-0 flex items-center justify-center rounded-full bg-background/70">
-                    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+          <div className="min-w-0 space-y-12">
+            <SettingsGroup group={GROUP.account}>
+              {/* Profile Section */}
+              <SettingSection icon={User} title="Profile">
+                {/* Who you are on the left, what you could look like on the
+                    right. Stacked, the preset grid is six 100px medallions
+                    across the full column — five hundred pixels of decoration
+                    between the upload button and the name field, on a page
+                    whose problem is its length. */}
+                <div className="space-y-3 lg:grid lg:grid-cols-2 lg:items-start lg:gap-6 lg:space-y-0">
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-4">
+                      <div className="relative">
+                        <Avatar className="h-20 w-20 border-2 border-border">
+                          <AvatarImage src={avatarUrl || undefined} alt="Profile picture" />
+                          <AvatarFallback className="text-lg font-semibold">
+                            {(displayName || user?.email || '?').charAt(0).toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        {uploadingAvatar && (
+                          <div className="absolute inset-0 flex items-center justify-center rounded-full bg-background/70">
+                            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex-1 space-y-2">
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleAvatarUpload}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={uploadingAvatar}
+                        >
+                          <Camera className="h-4 w-4 mr-2" />
+                          {avatarUrl ? 'Change picture' : 'Upload picture'}
+                        </Button>
+                        <p className="text-xs text-muted-foreground">JPG or PNG, up to 5MB</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="displayName" className="text-foreground">Display Name</Label>
+                      <Input
+                        id="displayName"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        placeholder="Your display name"
+                        maxLength={50}
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {user?.email}
+                      </p>
+                    </div>
                   </div>
-                )}
-              </div>
-              <div className="flex-1 space-y-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleAvatarUpload}
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploadingAvatar}
-                >
-                  <Camera className="h-4 w-4 mr-2" />
-                  {avatarUrl ? 'Change picture' : 'Upload picture'}
-                </Button>
-                <p className="text-xs text-muted-foreground">JPG or PNG, up to 5MB</p>
-              </div>
-            </div>
 
-            <AvatarPicker
-              value={avatarUrl}
-              onSelect={handlePresetAvatarSelect}
-              disabled={uploadingAvatar}
-            />
-
-            <div className="space-y-2">
-              <Label htmlFor="displayName" className="text-foreground">Display Name</Label>
-              <Input
-                id="displayName"
-                value={displayName}
-                onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Your display name"
-                maxLength={50}
-              />
-              <p className="text-xs text-muted-foreground">
-                {user?.email}
-              </p>
-            </div>
-          </section>
-
-          {/* Dialect Section */}
-          <section className="space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              <Globe2 className="h-4 w-4" />
-              Preferred Dialect
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {DIALECTS.map((d) => (
-                <button
-                  key={d.id}
-                  onClick={() => setDialect(d.id)}
-                  className={cn(
-                    'flex items-center gap-2 p-3 rounded-xl border-2 transition-all duration-200 text-left',
-                    dialect === d.id
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border bg-card hover:border-primary/30'
-                  )}
-                >
-                  <span className="text-lg">{d.flag}</span>
-                  <div className="min-w-0">
-                    <span className="font-medium text-foreground text-sm block">{d.label}</span>
-                    <span className="text-xs text-muted-foreground" dir="rtl">{d.labelAr}</span>
-                  </div>
-                  {dialect === d.id && <Check className="h-4 w-4 text-primary ml-auto shrink-0" />}
-                </button>
-              ))}
-            </div>
-          </section>
-
-          {/* Level Section */}
-          <section className="space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              <Target className="h-4 w-4" />
-              Proficiency Level
-            </div>
-            <div className="space-y-2">
-              {LEVELS.map((l) => (
-                <button
-                  key={l.id}
-                  onClick={() => setLevel(l.id)}
-                  className={cn(
-                    'w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all duration-200 text-left',
-                    level === l.id
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border bg-card hover:border-primary/30'
-                  )}
-                >
-                  <span className="text-xl">{l.icon}</span>
-                  <span className="font-medium text-foreground text-sm flex-1">{l.label}</span>
-                  <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground">{l.cefr}</span>
-                  {level === l.id && <Check className="h-4 w-4 text-primary shrink-0" />}
-                </button>
-              ))}
-            </div>
-          </section>
-
-          {/* Goal Section */}
-          <section className="space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              <Target className="h-4 w-4" />
-              Weekly Goal
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {GOALS.map((g) => (
-                <button
-                  key={g.id}
-                  onClick={() => setGoal(g.id)}
-                  className={cn(
-                    'flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all duration-200',
-                    goal === g.id
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border bg-card hover:border-primary/30'
-                  )}
-                >
-                  <span className="text-2xl">{g.icon}</span>
-                  <span className="font-semibold text-foreground text-sm">{g.label}</span>
-                  <span className="text-xs text-muted-foreground">{g.desc}</span>
-                </button>
-              ))}
-            </div>
-          </section>
-
-          {/* What you want Arabic for — feeds generated content */}
-          <section className="space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              <Compass className="h-4 w-4" />
-              What you're learning for
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Shapes the situations and topics in your stories, listening and drills.
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              {LEARNING_REASONS.map((r) => (
-                <button
-                  key={r.id}
-                  onClick={() => setReason((prev) => (prev === r.id ? null : r.id))}
-                  aria-pressed={reason === r.id}
-                  className={cn(
-                    'flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all duration-200',
-                    reason === r.id
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border bg-card hover:border-primary/30'
-                  )}
-                >
-                  <span className="text-2xl">{r.icon}</span>
-                  <span className="font-semibold text-foreground text-sm">{r.label}</span>
-                </button>
-              ))}
-            </div>
-
-            <div className="flex flex-wrap gap-2 pt-1">
-              {topicCategories.map((c) => {
-                const selected = interests.includes(c.id);
-                return (
-                  <button
-                    key={c.id}
-                    onClick={() => toggleInterest(c.id)}
-                    aria-pressed={selected}
-                    className={cn(
-                      'flex items-center gap-1.5 px-3 py-2 rounded-full border-2 text-sm transition-all duration-200',
-                      selected
-                        ? 'border-primary bg-primary/5 text-foreground font-medium'
-                        : 'border-border bg-card text-muted-foreground hover:border-primary/30'
-                    )}
-                  >
-                    <span>{c.emoji}</span>
-                    <span>{c.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* Library */}
-          <section className="space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              <Heart className="h-4 w-4" />
-              My Library
-            </div>
-            <button
-              onClick={() => navigate('/liked-videos')}
-              className="w-full flex items-center justify-between p-3 rounded-xl bg-card border border-border hover:border-primary/30 transition-all"
-            >
-              <div className="flex items-center gap-3">
-                <Heart className="h-5 w-5 text-primary fill-primary/30" />
-                <div className="text-left">
-                  <p className="font-medium text-foreground text-sm">Liked Videos</p>
-                  <p className="text-xs text-muted-foreground">Videos you've saved</p>
+                  <AvatarPicker
+                    value={avatarUrl}
+                    onSelect={handlePresetAvatarSelect}
+                    disabled={uploadingAvatar}
+                  />
                 </div>
-              </div>
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-            </button>
-          </section>
+              </SettingSection>
 
-          {/* Home Layout */}
-          <HomeLayoutEditor />
+              {/* Library */}
+              <SettingSection icon={Heart} title="My Library">
+                <button
+                  onClick={() => navigate('/liked-videos')}
+                  className="w-full flex items-center justify-between p-3 rounded-xl bg-card border border-border hover:border-primary/30 transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <Heart className="h-5 w-5 text-primary fill-primary/30" />
+                    <div className="text-left">
+                      <p className="font-medium text-foreground text-sm">Liked Videos</p>
+                      <p className="text-xs text-muted-foreground">Videos you've saved</p>
+                    </div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </button>
+              </SettingSection>
 
-          {/* Global Display Preferences */}
-          <DisplayPrefsEditor />
-
-          {/* Feature Hints */}
-          <section className="space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              <Info className="h-4 w-4" />
-              Feature Hints
-            </div>
-            <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
-              <div className="min-w-0 pr-3">
-                <p className="font-medium text-foreground text-sm">Show feature hints</p>
-                <p className="text-xs text-muted-foreground">
-                  Small (i) icons across the app explain what each feature does. Turn off once you know your way around.
-                </p>
-              </div>
-              <Switch checked={hintsEnabled} onCheckedChange={setHintsEnabled} />
-            </div>
-          </section>
-
-          {/* Review Preferences */}
-          <section className="space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              <AlertTriangle className="h-4 w-4" />
-              Review Preferences
-            </div>
-            <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
-              <div className="min-w-0 pr-3">
-                <p className="font-medium text-foreground text-sm">Flag difficult cards as "leeches"</p>
-                <p className="text-xs text-muted-foreground">
-                  After several misses, show an AI mnemonic and memory jingle to help you remember.
-                </p>
-              </div>
-              <Switch checked={leechEnabled} onCheckedChange={setLeechEnabled} />
-            </div>
-            <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
-              <div className="min-w-0 pr-3">
-                <p className="font-medium text-foreground text-sm">Show related words from the same root</p>
-                <p className="text-xs text-muted-foreground">
-                  Under a card you've answered, quietly list the other words you know that are built
-                  from its Arabic root — كتب, كتاب, مكتب.
-                </p>
-              </div>
-              <Switch checked={rootFamiliesEnabled} onCheckedChange={setRootFamiliesEnabled} />
-            </div>
-            <div className="p-3 rounded-xl bg-card border border-border">
-              <p className="font-medium text-foreground text-sm">Review intensity</p>
-              <p className="text-xs text-muted-foreground mb-2">
-                How reliably you want to remember cards at review time. Lighter means fewer,
-                longer-spaced reviews and a little more forgetting; intense means the reverse.
-              </p>
-              <div className="flex gap-2" role="radiogroup" aria-label="Review intensity">
-                {[
-                  { value: 0.85, label: 'Lighter' },
-                  { value: 0.9, label: 'Standard' },
-                  { value: 0.95, label: 'Intense' },
-                ].map(({ value, label }) => (
-                  <Button
-                    key={value}
-                    size="sm"
-                    variant={Math.abs(desiredRetention - value) < 0.001 ? 'default' : 'outline'}
-                    role="radio"
-                    aria-checked={Math.abs(desiredRetention - value) < 0.001}
-                    onClick={() => setDesiredRetention(value)}
-                    className="flex-1"
-                  >
-                    {label}
-                  </Button>
-                ))}
-              </div>
-              {/* The correction is invisible otherwise, and an invisible
-                  scheduler change is indistinguishable from a bug when a
-                  learner notices their intervals moved. */}
-              {calibrationNote && (
-                <p className="text-xs text-muted-foreground mt-2">{calibrationNote}</p>
-              )}
-            </div>
-            <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
-              <div className="min-w-0 pr-3">
-                <p className="font-medium text-foreground text-sm">Contribute my practice recordings</p>
-                <p className="text-xs text-muted-foreground">
-                  Keep my pronunciation clips (with the phrase I was saying and my score) to help
-                  improve Arabic speech recognition. Off by default; stored privately, never
-                  published, and you can turn this off anytime — see the Terms for details.
-                </p>
-              </div>
-              <Switch checked={contributeAudio} onCheckedChange={setContributeAudio} />
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="w-full"
-              onClick={clearAllLeeches}
-              disabled={clearingLeeches}
-            >
-              {clearingLeeches ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Clear all leech flags'}
-            </Button>
-          </section>
-
-          {/* Reminders. Hidden entirely when the browser can't do push or the
-              deployment has no VAPID key — a dead toggle is worse than none. */}
-          {push.isSupported && (
-            <section className="space-y-3">
-              <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                <Bell className="h-4 w-4" />
-                Reminders
-              </div>
-              <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-card border border-border">
-                <div className="min-w-0">
-                  <p className="font-medium text-foreground text-sm">Review reminders</p>
-                  <p className="text-xs text-muted-foreground">
-                    {push.permission === 'denied'
-                      ? 'Blocked in your browser settings — allow notifications for this site to enable.'
-                      : 'One evening nudge when you have cards waiting.'}
+              {/* Subscription */}
+              <SettingSection icon={Heart} title="Subscription">
+                <div className="p-3 rounded-xl bg-card border border-border space-y-2">
+                  <p className="text-sm font-medium text-foreground">
+                    {subscribed ? `Active plan: ${tier === 'allin' ? 'All-In' : 'Standard'}` : 'Free plan'}
                   </p>
+                  <p className="text-xs text-muted-foreground">
+                    {subscribed
+                      ? 'Manage billing, update payment method, or cancel anytime.'
+                      : 'Upgrade to remove daily limits and unlock everything.'}
+                  </p>
+                  {subscribed ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={handleManageSubscription}
+                      disabled={openingPortal}
+                    >
+                      {openingPortal ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Manage subscription'}
+                    </Button>
+                  ) : (
+                    <Button variant="outline" size="sm" className="w-full" onClick={() => navigate('/pricing')}>
+                      View plans
+                    </Button>
+                  )}
                 </div>
-                <Switch
-                  checked={push.isSubscribed}
-                  disabled={push.isBusy || push.permission === 'denied'}
-                  onCheckedChange={(next) => {
-                    if (next) void push.subscribe();
-                    else void push.unsubscribe();
-                  }}
-                />
-              </div>
-            </section>
-          )}
+              </SettingSection>
 
-          {/* Privacy Section */}
-          <section className="space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              <Eye className="h-4 w-4" />
-              Privacy
-            </div>
-            <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
-              <div>
-                <p className="font-medium text-foreground text-sm">Show on Leaderboard</p>
-                <p className="text-xs text-muted-foreground">Others can see your name and XP</p>
-              </div>
-              <Switch checked={showOnLeaderboard} onCheckedChange={setShowOnLeaderboard} />
-            </div>
-            <TutorMemoryCard />
-          </section>
+              {/* Sign Out ends the Account group rather than the page. It was
+                  the last thing on a 4,500px scroll, which read as "the end of
+                  Settings" — the position a destructive action is least
+                  expected in and most easily hit on the way past. Here it is
+                  the last thing about *this account*, next to the plan it
+                  belongs with, and Save is nowhere near it. */}
+              <Button variant="outline" onClick={handleSignOut} className="w-full h-11 text-destructive hover:text-destructive">
+                Sign Out
+              </Button>
+            </SettingsGroup>
 
-          {/* Subscription */}
-          <section className="space-y-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-              <Heart className="h-4 w-4" />
-              Subscription
-            </div>
-            <div className="p-3 rounded-xl bg-card border border-border space-y-2">
-              <p className="text-sm font-medium text-foreground">
-                {subscribed ? `Active plan: ${tier === 'allin' ? 'All-In' : 'Standard'}` : 'Free plan'}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {subscribed
-                  ? 'Manage billing, update payment method, or cancel anytime.'
-                  : 'Upgrade to remove daily limits and unlock everything.'}
-              </p>
-              {subscribed ? (
+            <SettingsGroup group={GROUP.learning}>
+              {/* Dialect Section */}
+              <SettingSection icon={Globe2} title="Preferred Dialect">
+                <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+                  {DIALECTS.map((d) => (
+                    <button
+                      key={d.id}
+                      onClick={() => setDialect(d.id)}
+                      className={cn(
+                        'flex items-center gap-2 p-3 rounded-xl border-2 transition-all duration-200 text-left',
+                        dialect === d.id
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border bg-card hover:border-primary/30'
+                      )}
+                    >
+                      <span className="text-lg">{d.flag}</span>
+                      <div className="min-w-0">
+                        <span className="font-medium text-foreground text-sm block">{d.label}</span>
+                        <span className="text-xs text-muted-foreground" dir="rtl">{d.labelAr}</span>
+                      </div>
+                      {dialect === d.id && <Check className="h-4 w-4 text-primary ml-auto shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              </SettingSection>
+
+              {/* Level Section */}
+              <SettingSection icon={Target} title="Proficiency Level">
+                {/* Five full-width rows are a lot of vertical run for five words
+                    each; from lg the column is wide enough to read them two abreast. */}
+                <div className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-2 lg:space-y-0">
+                  {LEVELS.map((l) => (
+                    <button
+                      key={l.id}
+                      onClick={() => setLevel(l.id)}
+                      className={cn(
+                        'w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all duration-200 text-left',
+                        level === l.id
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border bg-card hover:border-primary/30'
+                      )}
+                    >
+                      <span className="text-xl">{l.icon}</span>
+                      <span className="font-medium text-foreground text-sm flex-1">{l.label}</span>
+                      <span className="text-[10px] bg-muted px-1.5 py-0.5 rounded text-muted-foreground">{l.cefr}</span>
+                      {level === l.id && <Check className="h-4 w-4 text-primary shrink-0" />}
+                    </button>
+                  ))}
+                </div>
+              </SettingSection>
+
+              {/* Goal Section */}
+              <SettingSection icon={Target} title="Weekly Goal">
+                <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+                  {GOALS.map((g) => (
+                    <button
+                      key={g.id}
+                      onClick={() => setGoal(g.id)}
+                      className={cn(
+                        'flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all duration-200',
+                        goal === g.id
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border bg-card hover:border-primary/30'
+                      )}
+                    >
+                      <span className="text-2xl">{g.icon}</span>
+                      <span className="font-semibold text-foreground text-sm">{g.label}</span>
+                      <span className="text-xs text-muted-foreground">{g.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </SettingSection>
+
+              {/* What you want Arabic for — feeds generated content */}
+              <SettingSection icon={Compass} title="What you're learning for">
+                <p className="text-xs text-muted-foreground">
+                  Shapes the situations and topics in your stories, listening and drills.
+                </p>
+                <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
+                  {LEARNING_REASONS.map((r) => (
+                    <button
+                      key={r.id}
+                      onClick={() => setReason((prev) => (prev === r.id ? null : r.id))}
+                      aria-pressed={reason === r.id}
+                      className={cn(
+                        'flex flex-col items-center gap-1 p-3 rounded-xl border-2 transition-all duration-200',
+                        reason === r.id
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border bg-card hover:border-primary/30'
+                      )}
+                    >
+                      <span className="text-2xl">{r.icon}</span>
+                      <span className="font-semibold text-foreground text-sm">{r.label}</span>
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {topicCategories.map((c) => {
+                    const selected = interests.includes(c.id);
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => toggleInterest(c.id)}
+                        aria-pressed={selected}
+                        className={cn(
+                          'flex items-center gap-1.5 px-3 py-2 rounded-full border-2 text-sm transition-all duration-200',
+                          selected
+                            ? 'border-primary bg-primary/5 text-foreground font-medium'
+                            : 'border-border bg-card text-muted-foreground hover:border-primary/30'
+                        )}
+                      >
+                        <span>{c.emoji}</span>
+                        <span>{c.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </SettingSection>
+
+              {/* Review Preferences */}
+              <SettingSection icon={AlertTriangle} title="Review Preferences">
+                <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
+                  <div className="min-w-0 pr-3">
+                    <p className="font-medium text-foreground text-sm">Flag difficult cards as "leeches"</p>
+                    <p className="text-xs text-muted-foreground">
+                      After several misses, show an AI mnemonic and memory jingle to help you remember.
+                    </p>
+                  </div>
+                  <Switch checked={leechEnabled} onCheckedChange={setLeechEnabled} />
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
+                  <div className="min-w-0 pr-3">
+                    <p className="font-medium text-foreground text-sm">Show related words from the same root</p>
+                    <p className="text-xs text-muted-foreground">
+                      Under a card you've answered, quietly list the other words you know that are built
+                      from its Arabic root — كتب, كتاب, مكتب.
+                    </p>
+                  </div>
+                  <Switch checked={rootFamiliesEnabled} onCheckedChange={setRootFamiliesEnabled} />
+                </div>
+                <div className="p-3 rounded-xl bg-card border border-border">
+                  <p className="font-medium text-foreground text-sm">Review intensity</p>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    How reliably you want to remember cards at review time. Lighter means fewer,
+                    longer-spaced reviews and a little more forgetting; intense means the reverse.
+                  </p>
+                  <div className="flex gap-2" role="radiogroup" aria-label="Review intensity">
+                    {[
+                      { value: 0.85, label: 'Lighter' },
+                      { value: 0.9, label: 'Standard' },
+                      { value: 0.95, label: 'Intense' },
+                    ].map(({ value, label }) => (
+                      <Button
+                        key={value}
+                        size="sm"
+                        variant={Math.abs(desiredRetention - value) < 0.001 ? 'default' : 'outline'}
+                        role="radio"
+                        aria-checked={Math.abs(desiredRetention - value) < 0.001}
+                        onClick={() => setDesiredRetention(value)}
+                        className="flex-1"
+                      >
+                        {label}
+                      </Button>
+                    ))}
+                  </div>
+                  {/* The correction is invisible otherwise, and an invisible
+                      scheduler change is indistinguishable from a bug when a
+                      learner notices their intervals moved. */}
+                  {calibrationNote && (
+                    <p className="text-xs text-muted-foreground mt-2">{calibrationNote}</p>
+                  )}
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
+                  <div className="min-w-0 pr-3">
+                    <p className="font-medium text-foreground text-sm">Contribute my practice recordings</p>
+                    <p className="text-xs text-muted-foreground">
+                      Keep my pronunciation clips (with the phrase I was saying and my score) to help
+                      improve Arabic speech recognition. Off by default; stored privately, never
+                      published, and you can turn this off anytime — see the Terms for details.
+                    </p>
+                  </div>
+                  <Switch checked={contributeAudio} onCheckedChange={setContributeAudio} />
+                </div>
                 <Button
                   variant="outline"
                   size="sm"
                   className="w-full"
-                  onClick={handleManageSubscription}
-                  disabled={openingPortal}
+                  onClick={clearAllLeeches}
+                  disabled={clearingLeeches}
                 >
-                  {openingPortal ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Manage subscription'}
+                  {clearingLeeches ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Clear all leech flags'}
                 </Button>
-              ) : (
-                <Button variant="outline" size="sm" className="w-full" onClick={() => navigate('/pricing')}>
-                  View plans
-                </Button>
+              </SettingSection>
+
+              {/* Reminders. Hidden entirely when the browser can't do push or the
+                  deployment has no VAPID key — a dead toggle is worse than none. */}
+              {push.isSupported && (
+                <SettingSection icon={Bell} title="Reminders">
+                  <div className="flex items-center justify-between gap-3 p-3 rounded-xl bg-card border border-border">
+                    <div className="min-w-0">
+                      <p className="font-medium text-foreground text-sm">Review reminders</p>
+                      <p className="text-xs text-muted-foreground">
+                        {push.permission === 'denied'
+                          ? 'Blocked in your browser settings — allow notifications for this site to enable.'
+                          : 'One evening nudge when you have cards waiting.'}
+                      </p>
+                    </div>
+                    <Switch
+                      checked={push.isSubscribed}
+                      disabled={push.isBusy || push.permission === 'denied'}
+                      onCheckedChange={(next) => {
+                        if (next) void push.subscribe();
+                        else void push.unsubscribe();
+                      }}
+                    />
+                  </div>
+                </SettingSection>
               )}
-            </div>
-          </section>
+            </SettingsGroup>
 
-          {/* Sign Out. Save lives in the bar below, which follows the learner
-              rather than waiting at the bottom of the scroll. */}
-          <div className="space-y-3 pb-8">
-            <Button variant="outline" onClick={handleSignOut} className="w-full h-11 text-destructive hover:text-destructive">
-              Sign Out
-            </Button>
+            <SettingsGroup group={GROUP.appearance}>
+              {/* Appearance Section */}
+              <SettingSection icon={Palette} title="Appearance">
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { id: 'light', label: 'Light', desc: 'Warm sand' },
+                    { id: 'dark', label: 'Dark', desc: 'Night majlis' },
+                    { id: 'system', label: 'System', desc: 'Match device' },
+                  ] as { id: ThemePref; label: string; desc: string }[]).map((t) => (
+                    <button
+                      key={t.id}
+                      type="button"
+                      onClick={() => setThemePref(t.id)}
+                      aria-pressed={themePref === t.id}
+                      className={cn(
+                        'rounded-2xl border-2 p-3 text-left transition-all active:scale-[0.98]',
+                        themePref === t.id
+                          ? 'border-primary bg-primary/5 shadow-soft'
+                          : 'border-border bg-card hover:border-primary/30',
+                      )}
+                    >
+                      <span className="block text-sm font-semibold text-foreground">{t.label}</span>
+                      <span className="block text-xs text-muted-foreground mt-0.5">{t.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </SettingSection>
+
+              {/* Global Display Preferences */}
+              <DisplayPrefsEditor />
+
+              {/* Home Layout */}
+              <HomeLayoutEditor />
+
+              {/* Feature Hints */}
+              <SettingSection icon={Info} title="Feature Hints">
+                <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
+                  <div className="min-w-0 pr-3">
+                    <p className="font-medium text-foreground text-sm">Show feature hints</p>
+                    <p className="text-xs text-muted-foreground">
+                      Small (i) icons across the app explain what each feature does. Turn off once you know your way around.
+                    </p>
+                  </div>
+                  <Switch checked={hintsEnabled} onCheckedChange={setHintsEnabled} />
+                </div>
+              </SettingSection>
+            </SettingsGroup>
+
+            <SettingsGroup group={GROUP.privacy}>
+              {/* Privacy Section */}
+              <SettingSection icon={Eye} title="Privacy">
+                <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
+                  <div>
+                    <p className="font-medium text-foreground text-sm">Show on Leaderboard</p>
+                    <p className="text-xs text-muted-foreground">Others can see your name and XP</p>
+                  </div>
+                  <Switch checked={showOnLeaderboard} onCheckedChange={setShowOnLeaderboard} />
+                </div>
+                <TutorMemoryCard />
+              </SettingSection>
+            </SettingsGroup>
+
+            {/* Room for the unsaved-changes bar, which is fixed and would
+                otherwise sit on top of whatever ends the page — the same way
+                the Ask AI FAB used to. */}
+            {isDirty && <div aria-hidden className="h-20" />}
           </div>
-
-          {/* Room for the unsaved-changes bar, which is fixed and would
-              otherwise sit on top of Sign Out — the same way the Ask AI FAB
-              used to sit on top of whatever ended a page. */}
-          {isDirty && <div aria-hidden className="h-20" />}
         </div>
       </div>
 
@@ -836,7 +880,9 @@ const Settings = () => {
             "animate-in slide-in-from-bottom-2 duration-200 motion-reduce:animate-none",
           )}
         >
-          <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-3">
+          {/* Same column the page uses, `wide` included, so the button sits
+              under the settings it saves rather than under the section index. */}
+          <div className="mx-auto flex max-w-2xl lg:max-w-5xl items-center gap-3 px-4 py-3 sm:px-6">
             <p className="flex-1 text-sm text-muted-foreground">
               You have unsaved changes.
             </p>

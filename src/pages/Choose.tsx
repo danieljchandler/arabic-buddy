@@ -112,19 +112,56 @@ const Choose = () => {
               <Link
                 key={s.id}
                 to={s.to}
-                style={{ backgroundColor: s.tint }}
                 className={cn(
-                  "relative flex aspect-[4/3.4] flex-col justify-between overflow-hidden rounded-2xl p-4 text-white",
-                  "transition-transform active:scale-[0.98]",
+                  "group relative flex aspect-[4/3.4] flex-col overflow-hidden rounded-2xl",
+                  "border border-border bg-card shadow-topic",
+                  "transition-all hover:shadow-topic-hover active:scale-[0.98]",
                 )}
               >
-                <span className="text-[11px] font-semibold tracking-[0.14em] text-white/85">
-                  {String(i + 1).padStart(2, "0")}
+                {/* The scene takes the top two thirds. The label never sits on
+                    it: the art is a light watercolour and the label is ink, so
+                    overlaying them is the one arrangement that cannot be made
+                    to clear 4.5:1. It rides the cream plate below instead, and
+                    the tint survives as the rule between the two. */}
+                <span className="relative block h-[66%] overflow-hidden">
+                  <img
+                    src={s.art}
+                    alt=""
+                    aria-hidden
+                    loading="lazy"
+                    draggable={false}
+                    className={cn(
+                      "h-full w-full select-none object-cover",
+                      "transition-transform duration-500 group-hover:scale-[1.04]",
+                    )}
+                  />
+                  {/* Index and icon ride one capsule rather than sitting
+                      straight on the art. White with a drop-shadow was the
+                      obvious thing and it failed: these scenes are pale
+                      watercolour, so white-on-cream left the Read tile's icon
+                      invisible and every numeral a smudge. A --card capsule
+                      carrying the skill's own tint is legible over any of the
+                      four, and flips with the theme for free. */}
+                  <span
+                    className={cn(
+                      "absolute left-2.5 top-2.5 inline-flex items-center gap-1.5",
+                      "rounded-full bg-card/85 px-2 py-1 backdrop-blur-sm",
+                      "ring-1 ring-black/5",
+                    )}
+                    style={{ color: s.tint }}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    <span className="text-[10px] font-bold tracking-[0.12em] tabular-nums">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+                  </span>
                 </span>
-                <Icon className="absolute right-3 top-3 h-6 w-6 text-white/35" />
-                <span className="flex flex-col gap-0.5">
-                  <span className="text-2xl font-bold leading-tight">{s.label}</span>
-                  <span dir="rtl" lang="ar" className="text-right font-arabic text-[13px] text-white/80">
+                <span aria-hidden className="h-[3px] w-full shrink-0" style={{ backgroundColor: s.tint }} />
+                <span className="flex flex-1 flex-col justify-center gap-0.5 px-3.5">
+                  <span className="font-heading text-xl font-bold leading-tight text-foreground">
+                    {s.label}
+                  </span>
+                  <span dir="rtl" lang="ar" className="text-right font-arabic text-[13px] text-muted-foreground">
                     {s.arabic}
                   </span>
                 </span>

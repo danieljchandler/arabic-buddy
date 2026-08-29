@@ -37,8 +37,7 @@ import { TaskRow } from "@/components/today/TaskRow";
 import { WatchTodayCard } from "@/components/today/WatchTodayCard";
 import { getDailyGoal, setDailyGoal } from "@/lib/todayCompletion";
 import { ContinueCard } from "@/components/ContinueCard";
-import { LandingHero } from "@/components/LandingHero";
-import { Footer } from "@/components/Footer";
+import { LandingPage } from "@/components/LandingPage";
 
 
 // Daily-queue task hints, keyed by useTodayQueue's TodayTaskId — moved here
@@ -159,12 +158,7 @@ const Index = () => {
 
   // Logged-out visitors get the landing hero instead of the authed home.
   if (!authLoading && !isAuthenticated) {
-    return (
-      <AppShell>
-        <LandingHero />
-        <Footer />
-      </AppShell>
-    );
+    return <LandingPage />;
   }
 
   return (

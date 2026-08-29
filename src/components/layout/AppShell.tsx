@@ -1,8 +1,7 @@
 import { ReactNode } from "react";
-import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { AppBackdrop } from "@/components/layout/AppBackdrop";
-import { AppDock, shouldShowDock } from "@/components/shell/AppDock";
+import { AppDock, useDockVisible } from "@/components/shell/AppDock";
 import { FeedbackWidget } from "@/components/feedback/FeedbackWidget";
 import { useAiAssistant } from "@/contexts/AiAssistantContext";
 
@@ -29,8 +28,9 @@ interface AppShellProps {
  * Use compact mode for immersive learning screens.
  */
 export function AppShell({ children, className, compact = false, wide = false }: AppShellProps) {
-  const { pathname } = useLocation();
-  const showNav = shouldShowDock(pathname);
+  // Route policy AND signed in — a signed-out visitor gets no dock, so the
+  // page must not reserve a column for one either.
+  const showNav = useDockVisible();
   // The Ask AI panel is non-modal, so the page has to make room for it rather
   // than sit underneath it.
   const { isOpen: aiOpen } = useAiAssistant();
@@ -66,7 +66,29 @@ export function AppShell({ children, className, compact = false, wide = false }:
           paddingTop: `calc(var(--sadu-band-height) + ${compact ? "0.75rem" : "1rem"})`,
         }}
         className={cn(
-        "relative mx-auto w-full max-w-2xl animate-fade-up",
+        // `animation-fill-mode: backwards` rather than the `both` the Lahja
+        // motion language ships, and this is a correctness fix, not taste.
+        //
+        // With `both`, the element keeps the final keyframe forever — and that
+        // keyframe is `translateY(0)`, which computes to
+        // `transform: matrix(1,0,0,1,0,0)`. Any transform other than `none`
+        // makes an element a containing block for its `position: fixed`
+        // descendants, so every fixed child of a page anchored to *this
+        // column* instead of to the viewport. Measured on /settings: a fixed
+        // probe dropped in here landed at y=3850 on a 1000px-tall window.
+        //
+        // That silently broke Settings' unsaved-changes bar (whose comment
+        // claimed it "follows the learner" — it did not), the word-tap bar in
+        // TappableArabicText, SaveUnknownsBar, XPPopup and the admin banners.
+        // Overlays that portal to document.body — the dialect switcher, Radix
+        // dialogs, toasts — escaped it, which is why it went unnoticed.
+        //
+        // `backwards` is safe precisely because fade-up's 100% *is* the
+        // natural resting state (opacity 1, no translate): dropping the
+        // retained fill changes nothing visible and leaves `transform: none`
+        // behind. Anything animating to a non-default resting state must keep
+        // `both`.
+        "relative mx-auto w-full max-w-2xl animate-fade-up [animation-fill-mode:backwards]",
         wide && "lg:max-w-5xl",
         compact ? "px-4 pb-5 sm:px-5 sm:pb-6" : "px-4 pb-8 sm:px-6 md:pb-12",
         // Clearance for the dock AND the floating buttons, at every width

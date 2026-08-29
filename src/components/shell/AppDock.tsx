@@ -2,6 +2,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import { Home, LayoutGrid, Plus, Layers } from "lucide-react";
 import { ProfileEmblem } from "@/components/shell/ProfileEmblem";
 import { useSRSStats } from "@/hooks/useSRSStats";
+import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
 /**
@@ -87,14 +88,37 @@ export function shouldShowDock(pathname: string) {
   return !HIDE_PATTERNS.some((re) => re.test(pathname));
 }
 
+/**
+ * Whether the dock is actually on screen, which is the route policy above
+ * *and* being signed in.
+ *
+ * A visitor who is not signed in cannot use any of these five slots: Home is
+ * the landing page they are already on, Skills and Review are behind
+ * ProtectedRoute, Upload needs an account, and the fifth slot is a face they
+ * do not have. Rendering them anyway put four dead tabs and a stranger's
+ * emblem down the left edge of the marketing page — the first thing a new
+ * visitor sees, and the one screen that has to look finished.
+ *
+ * A hook rather than a second exported predicate because three places need
+ * the same answer — the dock itself, AppShell (which insets the page to clear
+ * it) and PageCorner (which puts the home button back when it is gone) — and
+ * they drift the moment one of them asks a different question.
+ */
+export function useDockVisible() {
+  const { pathname } = useLocation();
+  const { isAuthenticated } = useAuth();
+  return isAuthenticated && shouldShowDock(pathname);
+}
+
 export function AppDock({ className }: { className?: string }) {
   const { pathname } = useLocation();
   // Cached for a minute and disabled when signed out, so this costs the dock
   // one query a session rather than one a page.
   const { data: srs } = useSRSStats();
   const due = srs?.totalDueNow ?? 0;
+  const visible = useDockVisible();
 
-  if (!shouldShowDock(pathname)) return null;
+  if (!visible) return null;
 
   return (
     <nav

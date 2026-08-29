@@ -1,6 +1,7 @@
 import { Eye } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
+import { SettingSection } from "@/components/settings/SettingsGroup";
 
 const ROWS: Array<{
   key: "showArabic" | "showTashkil" | "showFormal" | "showEnglish";
@@ -22,16 +23,15 @@ export function DisplayPrefsEditor() {
   const { prefs, update } = useDisplayPrefs();
 
   return (
-    <section className="space-y-3">
-      <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-        <Eye className="h-4 w-4" />
-        Display Preferences
-      </div>
+    <SettingSection icon={Eye} title="Display Preferences">
       <p className="text-xs text-muted-foreground">
         Choose what to show by default across the app — lessons, transcripts, stories, and reading.
         Turn things off to focus your memory.
       </p>
-      <div className="space-y-2">
+      {/* Two abreast from lg. Four rows of one line each is a lot of column
+          for very little text, and the Settings page's whole problem was
+          length — below lg the column is too narrow to split, so it doesn't. */}
+      <div className="space-y-2 lg:grid lg:grid-cols-2 lg:gap-2 lg:space-y-0">
         {ROWS.map((row) => (
           <div
             key={row.key}
@@ -49,6 +49,6 @@ export function DisplayPrefsEditor() {
           </div>
         ))}
       </div>
-    </section>
+    </SettingSection>
   );
 }

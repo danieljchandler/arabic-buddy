@@ -2,6 +2,7 @@ import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { ChevronUp, ChevronDown, RotateCcw, LayoutDashboard } from "lucide-react";
 import { useHomeLayout } from "@/hooks/useHomeLayout";
+import { SettingSection } from "@/components/settings/SettingsGroup";
 import { HOME_SECTIONS } from "@/lib/homeLayout";
 import { cn } from "@/lib/utils";
 
@@ -13,12 +14,10 @@ export const HomeLayoutEditor = () => {
     .filter((s): s is (typeof HOME_SECTIONS)[number] => Boolean(s));
 
   return (
-    <section className="space-y-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-          <LayoutDashboard className="h-4 w-4" />
-          Home Layout
-        </div>
+    <SettingSection
+      icon={LayoutDashboard}
+      title="Home Layout"
+      action={
         <Button
           variant="ghost"
           size="sm"
@@ -28,7 +27,8 @@ export const HomeLayoutEditor = () => {
           <RotateCcw className="h-3 w-3 mr-1" />
           Reset
         </Button>
-      </div>
+      }
+    >
       <p className="text-xs text-muted-foreground">
         Toggle features on or off and reorder them on your home page.
       </p>
@@ -94,6 +94,6 @@ export const HomeLayoutEditor = () => {
           );
         })}
       </div>
-    </section>
+    </SettingSection>
   );
 };

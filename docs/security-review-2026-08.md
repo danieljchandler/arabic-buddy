@@ -456,10 +456,10 @@ Eleven edge functions gained a gate; seven had a secret comparison replaced;
 ### Verification
 
 - `deno check` over every function and shared module: clean.
-- Edge suite: **1747 passed, 0 failed**. Four tests that *pinned these
+- Edge suite: **1755 passed, 0 failed**. Four tests that *pinned these
   vulnerabilities as known-broken* now assert the fixed behaviour, and new
   tests cover the gate, the SSRF guard and the CORS default.
-- Vitest: **5806 passed**, including every drift guard.
+- Vitest: **5810 passed**, including every drift guard.
 - `lint:ratchet`: no new errors. `tsc`: clean. Production build: clean.
 - Playwright: **2082 passed, 0 failed**.
 - Migration replay: the whole set now replays clean from scratch, and both new
@@ -501,9 +501,30 @@ exemption for a function that has since grown a real role gate (the exemption
 would then be lying about what protects it). Verified to actually catch the
 regression: removing the gate from `backfill-literal-translations` turns it red.
 
+### H6, decided
+
+The open question was whether `extract-grammar-points` should let any learner
+append to shared video content. Decided: yes, keep the shared append — and go
+further, because if a model call is being paid for, its output should outlive
+one page render.
+
+Each extracted note is now filed in `curriculum_concepts` under its
+`grammarTaxonomy.ts` key and linked to its video through
+`content_concept_links`. That closes the gap the review only noted in passing:
+`CLAUDE.md` states that *both* writers tagging content with grammar concepts go
+through the shared taxonomy, and this was the half that did not — its output
+was a jsonb blob on one row that nothing could query. Now `planCoverage` (and
+so `curriculum-chat`) can see what a video already teaches, the link table
+answers "which videos teach this?", and the key space is the one
+`user_concept_mastery` already uses.
+
+Filed insert-if-absent rather than upserted: the unique key is
+`(kind, key, dialect)` with no CEFR in it, so a blind upsert would let one
+video's guess at a level overwrite a curated concept — the same refusal
+`conceptMastery` already makes, for the same reason. Filing failures are
+swallowed: the note is saved to the video first, and losing the reuse must not
+cost a learner the extraction they already paid for.
+
 ### Still open
 
-- Whether `extract-grammar-points` should let any learner append to shared video
-  content, or whether those notes belong in a review queue (H6). A product
-  decision, not a security one — the spend is now bounded either way.
 - `react-router` v7 as ordinary maintenance (L1), on its own schedule.

@@ -3,12 +3,20 @@
 // existing titles. Callable by signed-in users (target their own level) or
 // admins (any level), under a daily cap — the append lands on shared content,
 // so an uncapped call was an open invitation.
+//
+// Every note is also filed in `curriculum_concepts` under its
+// `grammarTaxonomy.ts` key and linked to the video through
+// `content_concept_links`. That is what makes a paid extraction reusable: the
+// note shows on the video for a learner at its level, *and* the concept is
+// visible to `planCoverage`, so the curriculum can build on what a video
+// already teaches instead of re-deriving it from a jsonb blob nothing queries.
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
+import { canonicalGrammarKey } from "../_shared/grammarTaxonomy.ts";
 
 
 type Cefr = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
@@ -18,6 +26,12 @@ interface GrammarPoint {
   explanation: string;
   examples: string[];
   cefr_level?: Cefr;
+  /**
+   * The taxonomy key this note was filed under, stored alongside the note so
+   * every later reader joins on the same string the mastery ladder uses
+   * instead of re-deriving it from free text and drifting.
+   */
+  concept_key?: string;
 }
 
 const LEVEL_GUIDE: Record<Cefr, string> = {
@@ -36,6 +50,81 @@ function normTitle(t: string): string {
     .normalize("NFC")
     .replace(/[\u064B-\u0652\u0670]/g, "")
     .replace(/\s+/g, " ");
+}
+
+/**
+ * File one extracted note in the shared concept taxonomy, and link it to the
+ * video it came from.
+ *
+ * This is what makes a paid extraction worth more than one page render. Until
+ * now the model's output landed only in `discover_videos.grammar_points` — a
+ * jsonb blob on a single row, invisible to anything that plans lessons or
+ * tracks mastery. Going through `canonicalGrammarKey` puts it in the same key
+ * space as `user_concept_mastery` and `curriculum_concepts`, which is the
+ * invariant CLAUDE.md states for *both* writers that tag content with grammar
+ * concepts; this one was the half that did not.
+ *
+ * Once linked, `planCoverage` can see the concept (so curriculum-chat stops
+ * proposing what a video already teaches, and can reinforce what is due), and
+ * the link table answers "which videos teach this?" for a learner at the level.
+ *
+ * Deliberately insert-if-absent rather than a plain upsert: the unique key is
+ * (kind, key, dialect) with no CEFR in it, so a blind upsert would let one
+ * video's guess at a level overwrite a curated concept's. An existing concept
+ * keeps everything it has and just gains a link.
+ */
+async function fileConcept(
+  service: SupabaseClient,
+  point: GrammarPoint,
+  opts: { dialect: string; videoId: string },
+): Promise<string | null> {
+  const key = canonicalGrammarKey(point.title);
+  if (!key) return null;
+
+  try {
+    await service.from("curriculum_concepts").upsert(
+      {
+        kind: "grammar",
+        key,
+        display_english: point.title,
+        dialect: opts.dialect,
+        cefr_level: point.cefr_level ?? null,
+        source_type: "discover_video",
+        source_id: opts.videoId,
+      } as unknown as never,
+      { onConflict: "kind,key,dialect", ignoreDuplicates: true },
+    );
+
+    // Re-read rather than trusting the upsert's return: with
+    // ignoreDuplicates an existing row comes back empty, and that is the
+    // common case once the taxonomy has filled in.
+    const { data: concept } = await service
+      .from("curriculum_concepts")
+      .select("id")
+      .eq("kind", "grammar")
+      .eq("key", key)
+      .eq("dialect", opts.dialect)
+      .maybeSingle();
+    const conceptId = (concept as { id?: string } | null)?.id;
+    if (!conceptId) return null;
+
+    await service.from("content_concept_links").upsert(
+      {
+        concept_id: conceptId,
+        content_type: "discover_video",
+        content_id: opts.videoId,
+        role: "introduce",
+      } as unknown as never,
+      { onConflict: "concept_id,content_type,content_id,role" },
+    );
+    return key;
+  } catch (e) {
+    // The note itself is already saved on the video by the time this runs.
+    // Failing to file it costs reuse, not the learner's page — so log and
+    // carry on rather than turning a successful extraction into an error.
+    console.error(`[extract-grammar-points] could not file "${point.title}":`, e);
+    return null;
+  }
 }
 
 serve(async (req) => {
@@ -183,6 +272,20 @@ Return ONLY JSON of the form:
       });
     }
 
+    // File each note in the shared taxonomy before saving, so the key it was
+    // filed under travels with the note rather than having to be re-derived.
+    // Sequential on purpose: several notes in one batch often canonicalise to
+    // the same key, and racing them turns the insert-if-absent into a pile of
+    // duplicate-key conflicts for no gain on a list this short.
+    const conceptKeys: string[] = [];
+    for (const point of fresh) {
+      const key = await fileConcept(service, point, { dialect, videoId });
+      if (key) {
+        point.concept_key = key;
+        conceptKeys.push(key);
+      }
+    }
+
     const merged = [...existing, ...fresh];
     const { error: upErr } = await service
       .from("discover_videos")
@@ -194,9 +297,17 @@ Return ONLY JSON of the form:
       });
     }
 
-    return new Response(JSON.stringify({ added: fresh.length, points: fresh, total: merged.length }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        added: fresh.length,
+        points: fresh,
+        total: merged.length,
+        // What the extraction contributed to the curriculum, not just to this
+        // page — the caller can say so, and a test can assert it.
+        concept_keys: [...new Set(conceptKeys)],
+      }),
+      { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
   } catch (e) {
     console.error("extract-grammar-points error:", e);
     return new Response(

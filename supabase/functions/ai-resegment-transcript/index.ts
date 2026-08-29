@@ -1,5 +1,5 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { requireContentManager } from "../_shared/requireRole.ts";
+import { requireRole, TRANSCRIPT_EDITOR_ROLES } from "../_shared/requireRole.ts";
 // AI Re-segment Transcript
 // Takes existing word-level segments and asks an LLM to restructure them into
 // thought-by-thought lines, starting a new line on speaker changes. Word
@@ -330,7 +330,12 @@ Deno.serve(async (req) => {
   // an unbounded LLM call sized by the caller's own payload. The function had
   // no authentication at all — `verify_jwt` is satisfied by the publishable
   // key, so that was no gate.
-  const gate = await requireContentManager(req, corsHeaders);
+  //
+  // `transcriber` is included deliberately: the transcript editor renders for
+  // that role, and re-segmenting is the work it exists to do. Gating this to
+  // content managers alone would have taken a tool away from the people it was
+  // built for.
+  const gate = await requireRole(req, TRANSCRIPT_EDITOR_ROLES, corsHeaders);
   if (gate.denied) return gate.response;
 
   try {

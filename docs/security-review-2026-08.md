@@ -132,7 +132,13 @@ The only `Authorization` header in the file is the outbound one to the model
 provider (`:196`). `config.toml` sets `verify_jwt = true`, which per §0 the anon
 key satisfies. Anyone can post a large segment array and bill an LLM call.
 
-**Fixed:** gated with `requireContentManager`.
+**Fixed:** gated with `requireRole(req, TRANSCRIPT_EDITOR_ROLES, …)` —
+`admin`, `content_reviewer` *and* `transcriber`. The wider set is deliberate and
+was caught by tracing the callers: `AdminTranscriptEditor` renders for a
+transcriber, and re-segmenting is the work that role exists to do, so the
+content-manager gate used everywhere else would have taken a tool away from the
+people it was built for. Kept in step with `REVIEWER_ROLES` in
+`transcript-review`, which is the other half of the same permission.
 
 ### H5 — The `authentic_stories` editorial pipeline is gated on "is signed in", nothing more
 

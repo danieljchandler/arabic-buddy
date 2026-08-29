@@ -44,6 +44,14 @@ function admin() {
 export const CONTENT_MANAGER_ROLES = ["admin", "content_reviewer"] as const;
 
 /**
+ * Who may work on a transcript. Wider than the content managers by exactly one
+ * role: a `transcriber` is a native speaker whose whole job is this page, and
+ * the transcript editor renders for them. Kept in step with `REVIEWER_ROLES` in
+ * `transcript-review`, which is the other half of the same permission.
+ */
+export const TRANSCRIPT_EDITOR_ROLES = ["admin", "content_reviewer", "transcriber"] as const;
+
+/**
  * Constant-time string comparison.
  *
  * Both sides are hashed first so the comparison is over two fixed-length

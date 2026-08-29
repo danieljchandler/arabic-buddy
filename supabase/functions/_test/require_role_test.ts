@@ -1,6 +1,6 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { FIXTURE_ENV, jsonRequest, loadFunction } from "./harness.ts";
-import { json } from "./upstreams.ts";
+import { chatCompletion, json } from "./upstreams.ts";
 
 /**
  * The authorization gate in front of every service-role write to catalogue
@@ -91,4 +91,51 @@ Deno.test("requireRole: the publishable/anon key is NOT a bypass", async () => {
     const res = await handler(jsonRequest("backfill-literal-translations", { limit: 1 }, { jwt: token }));
     assertEquals(res.status, 401, `${token.slice(0, 20)}… should not authorize`);
   }
+});
+
+Deno.test("requireRole: a transcriber may re-segment, though not manage content", async () => {
+  // The two role sets are deliberately different. `transcriber` is a native
+  // speaker whose whole job is the transcript editor, so gating
+  // ai-resegment-transcript to content managers alone would have taken a tool
+  // away from the people it was built for — while backfill-literal-translations,
+  // which rewrites whole videos in bulk, stays narrower.
+  const upstreams = {
+    "/auth/v1/user": () => json({ id: USER, aud: "authenticated", role: "authenticated" }),
+    "/rest/v1/user_roles": (request: Request) =>
+      // The gate filters server-side with `.in("role", …)`, so a transcriber row
+      // comes back only when the query asked for that role.
+      json(request.url.includes("transcriber") ? [{ role: "transcriber" }] : []),
+    "ai.gateway.lovable.dev": () =>
+      chatCompletion("", {
+        lines: [{ start: 0, end: 1, text: "مرحبا", translation: "hello", wordIndices: [0] }],
+      }),
+    "/rest/v1/": () =>
+      new Response("[]", {
+        status: 200,
+        headers: { "content-type": "application/json", "content-range": "*/0" },
+      }),
+  };
+
+  const resegment = await loadFunction("ai-resegment-transcript", { upstreams });
+  const allowed = await resegment.handler(
+    jsonRequest("ai-resegment-transcript", {
+      segments: [{
+        id: "s1",
+        video_id: "v1",
+        start: 0,
+        end: 1,
+        text: "مرحبا",
+        translation: "hello",
+        confidence: 1,
+        words: [{ word: "مرحبا", start: 0, end: 1, confidence: 1 }],
+      }],
+    }, { jwt: "transcriber-jwt" }),
+  );
+  assert(allowed.status < 400, `a transcriber should be allowed, got ${allowed.status}`);
+
+  const backfill = await loadFunction("backfill-literal-translations", { upstreams });
+  const refused = await backfill.handler(
+    jsonRequest("backfill-literal-translations", { limit: 1 }, { jwt: "transcriber-jwt" }),
+  );
+  assertEquals(refused.status, 403);
 });

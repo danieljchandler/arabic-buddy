@@ -475,7 +475,44 @@ gap its neighbours leave and trusted at confidence 1. Undo and redo go through
 the same rebuild, and now run the debounced save, so what is on screen and what
 has been reported to the page cannot disagree.
 
-### Sub-dialects and dialect features
+### Timing
+
+Line timings come from **text alignment against the ASR word stream**, not from
+walking indices and not from guesswork. The engines with word timestamps
+(Soniox, Munsit, Scribe) return real per-word times, but the LLM merge rewrites
+the Arabic, so the merged lines no longer match the token stream word for word.
+`_shared/transcriptTimingAlign.ts` bridges that: both streams are normalised
+with the `arabicMatch` folding, anchored on words unique to both (kept monotone
+by longest-increasing-subsequence), and the gaps filled by exact, fuzzy and
+split/merge matching before anything unmatched is interpolated between its
+neighbours. Each line's `startMs`/`endMs` comes from the words that actually
+matched — which is what keeps a pause a pause instead of smearing it across
+every following line as cumulative drift — and the per-word times persist on
+the line as `words` (parallel to the whitespace split of `arabic`, each entry
+flagged `matched` or interpolated). When too few words match, the pipeline
+falls back to the old proportional-by-character allocation: wrong in detail but
+bounded, and it leaves no `words` array behind to be mistaken for real times.
+
+After a reviewer has corrected the text, the text is ground truth and the
+timing is not — so the workspace's **Re-sync timing** button runs *forced
+alignment*: `resync-transcript-timing` sends the editor's current lines
+(unsaved draft included) and the staged audio to ElevenLabs' forced-alignment
+endpoint, maps the timed words back through the same anchoring module, and the
+proposal lands in the editor's diff preview. Accepting persists through
+`save_lines` with revision source `resync`, so a machine re-time is
+distinguishable from a native speaker's judgement in the history. The function
+refuses audio that doesn't fit the transcript (a trust gate on the match
+ratio) rather than writing a confident mistake, and `save_lines` itself now
+refuses timings the player can't use: a NaN from a half-typed field, a line
+ending before it starts, a timeline running backwards. Gaps between lines are
+legal — with honest timings they are silences, not errors.
+
+The editor reads the persisted `words` for its per-word highlight, split
+boundaries and AI re-segmentation anchors, falling back to an even spread only
+when an edit left them stale, and writes its word times back on save. The
+Discover player keeps a deliberate `LINE_END_GRACE_MS` (500 ms) past each
+line's end so captions don't flicker off during short pauses; the reverse scan
+means a line that has started always beats its predecessor's grace.
 
 `discover_videos.dialect` stops at the country — "Saudi", "Kuwaiti",
 "Egyptian" — which is roughly the resolution of a passport rather than of a

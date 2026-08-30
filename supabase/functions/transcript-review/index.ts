@@ -186,7 +186,8 @@ const MAX_TRANSCRIPT_BYTES = 2_000_000;
  */
 function rejectBadTranscript(lines: unknown[]): string | null {
   if (lines.length > MAX_LINES) return `A transcript cannot have more than ${MAX_LINES} lines.`;
-  for (const line of lines) {
+  let prevStart: number | null = null;
+  for (const [index, line] of lines.entries()) {
     if (typeof line !== "object" || line === null || Array.isArray(line)) {
       return "Every line must be an object.";
     }
@@ -194,6 +195,27 @@ function rejectBadTranscript(lines: unknown[]): string | null {
       // Without an id there is nothing to hang a review or a revision on, and
       // the line would be invisible to the audit trail.
       return "Every line must carry an id.";
+    }
+
+    // Timing, when present, has to be usable by the player. A NaN from a
+    // half-typed time field, an end before its start, or a line that jumps
+    // behind its predecessor all break the highlight silently for every
+    // learner — better to refuse the save and show the reviewer which line.
+    const at = `line ${index + 1}`;
+    const { startMs, endMs } = line as TranscriptLine;
+    for (const [name, value] of [["startMs", startMs], ["endMs", endMs]] as const) {
+      if (value !== undefined && (typeof value !== "number" || !Number.isFinite(value) || value < 0)) {
+        return `The ${name} on ${at} is not a valid time.`;
+      }
+    }
+    if (typeof startMs === "number" && typeof endMs === "number" && endMs < startMs) {
+      return `${at} ends before it starts.`;
+    }
+    if (typeof startMs === "number") {
+      if (prevStart !== null && startMs < prevStart) {
+        return `${at} starts before the line above it.`;
+      }
+      prevStart = startMs;
     }
   }
   if (JSON.stringify(lines).length > MAX_TRANSCRIPT_BYTES) {

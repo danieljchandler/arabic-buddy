@@ -444,6 +444,62 @@ Deno.test("transcript-review refuses a body that is not a transcript", async () 
   assertEquals(result.body.error, "invalid_transcript");
 });
 
+Deno.test("transcript-review refuses a timing that is not a number", async () => {
+  // A half-typed time field serialises NaN as null; a save carrying it would
+  // break the player's highlight silently for every learner.
+  const result = await call({
+    action: "save_lines",
+    videoId: VIDEO,
+    lines: [{ id: "line-1", arabic: "شلونك", startMs: null, endMs: 1500 }],
+  });
+
+  assertEquals(result.status, 400);
+  assertEquals(result.body.error, "invalid_transcript");
+});
+
+Deno.test("transcript-review refuses a line that ends before it starts", async () => {
+  const result = await call({
+    action: "save_lines",
+    videoId: VIDEO,
+    lines: [{ id: "line-1", arabic: "شلونك", startMs: 2000, endMs: 1500 }],
+  });
+
+  assertEquals(result.status, 400);
+  assertEquals(result.body.error, "invalid_transcript");
+});
+
+Deno.test("transcript-review refuses a timeline that runs backwards", async () => {
+  // The player picks the active line by scanning startMs in order; a line
+  // that starts before its predecessor is unreachable or steals the highlight.
+  const result = await call({
+    action: "save_lines",
+    videoId: VIDEO,
+    lines: [
+      { id: "line-1", arabic: "شلونك اليوم", startMs: 5000, endMs: 6000 },
+      { id: "line-2", arabic: "زين الحمدلله", startMs: 1000, endMs: 2000 },
+    ],
+  });
+
+  assertEquals(result.status, 400);
+  assertEquals(result.body.error, "invalid_transcript");
+});
+
+Deno.test("transcript-review accepts a well-timed transcript, gaps included", async () => {
+  // A silence between lines is real data, not an error — the whole point of
+  // honest timings is that they are allowed to leave room for a pause.
+  const result = await call({
+    action: "save_lines",
+    videoId: VIDEO,
+    lines: [
+      { id: "line-1", arabic: "شلونك اليوم", translation: "How are you today", startMs: 500, endMs: 1600 },
+      { id: "line-2", arabic: "زين الحمدلله", translation: "Fine, thank God", startMs: 5000, endMs: 6400 },
+    ],
+  });
+
+  assertEquals(result.status, 200);
+  assertEquals(result.body.saved, true);
+});
+
 Deno.test("transcript-review refuses a line with no id", async () => {
   // Nothing could hang a review or a revision on it, so it would be invisible
   // to the audit trail while still being served to learners.

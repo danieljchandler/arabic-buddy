@@ -220,6 +220,35 @@ Deno.test("resync-transcript-timing reports a video with nothing staged and noth
   assertEquals(result.body.error, "no_audio");
 });
 
+Deno.test("resync-transcript-timing aligns the lines the editor sent, not the stored ones", async () => {
+  // The editor keeps unsaved corrections as a local draft; a re-sync must time
+  // the text the reviewer is looking at.
+  const draft = [
+    { id: "draft-1", arabic: "شلونك اليوم الحمد", translation: "" },
+    { id: "draft-2", arabic: "لله بخير", translation: "" },
+  ];
+  const result = await call({ videoId: VIDEO, lines: draft });
+  assertEquals(result.status, 200);
+  const lines = result.body.lines as Array<{ id: string; startMs: number; endMs: number }>;
+  assertEquals(lines.map((l) => l.id), ["draft-1", "draft-2"]);
+  assertEquals(lines[0].startMs, 500);
+  assertEquals(lines[1].startMs, 5500);
+  assertEquals(result.patches.length, 0);
+});
+
+Deno.test("resync-transcript-timing refuses to persist client-sent lines", async () => {
+  // Direct writes are of the stored transcript only; client text lands through
+  // the audited save_lines path or not at all.
+  const result = await call(
+    { videoId: VIDEO, persist: true, lines: [{ id: "x", arabic: "شلونك" }] },
+    upstreams(),
+    SERVICE_ROLE,
+  );
+  assertEquals(result.status, 400);
+  assertEquals(result.body.error, "persist_requires_stored_lines");
+  assertEquals(result.patches.length, 0);
+});
+
 Deno.test("resync-transcript-timing reports a missing transcript", async () => {
   const result = await call(
     { videoId: VIDEO },

@@ -13,6 +13,7 @@ interface ToolbarProps {
   onRedo: () => void;
   onSuggestBreaks?: () => void;
   onAIResegment?: () => void;
+  onResyncTiming?: () => void;
   onRetranslateAllStale?: () => void;
   onCancelAI?: () => void;
   /** Open the editor's keyboard-shortcut panel. Hides the button when absent. */
@@ -33,6 +34,7 @@ export default function Toolbar({
   onRedo,
   onSuggestBreaks,
   onAIResegment,
+  onResyncTiming,
   onRetranslateAllStale,
   onCancelAI,
   onShowShortcuts,
@@ -97,6 +99,15 @@ export default function Toolbar({
               title="AI: Re-segment transcript into thought-by-thought lines, splitting on speaker changes"
             >
               ✨ AI Re-segment
+            </button>
+          )}
+          {onResyncTiming && (
+            <button
+              className="px-2 py-1 text-xs rounded bg-gradient-to-r from-emerald-500 to-teal-500 text-white hover:from-emerald-600 hover:to-teal-600 transition-colors font-medium"
+              onClick={onResyncTiming}
+              title="Align every line and word to the audio by forced alignment — the text stays exactly as written"
+            >
+              🎯 Re-sync timing
             </button>
           )}
           {onSuggestBreaks && (

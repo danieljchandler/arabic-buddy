@@ -1,5 +1,5 @@
 import { useMemo, useCallback, useRef } from "react";
-import type { TranscriptLine, WordToken, Segment, Word } from "@/types/transcript";
+import type { LineWordTiming, TranscriptLine, WordToken, Segment, Word } from "@/types/transcript";
 import { reconcileLineTokens } from "@/lib/transcriptTokens";
 import TranscriptEditor, { type LineReviewSlot } from "@/components/TranscriptEditor";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,6 +36,11 @@ interface AdminTranscriptEditorProps {
   onChange: (lines: TranscriptLine[]) => void;
   audioUrl?: string;
   /**
+   * The video whose transcript this is. Supplying it enables the "Re-sync
+   * timing" action, which needs the id to find the staged audio server-side.
+   */
+  videoId?: string;
+  /**
    * Per-line review state. Supplied by the native-speaker workspace and absent
    * in the video form, which is what decides whether the reviewer's chrome —
    * checkmarks, comments, per-line audio — appears at all.
@@ -55,6 +60,7 @@ export function AdminTranscriptEditor({
   lines,
   onChange,
   audioUrl,
+  videoId,
   lineReview,
   onRetranslate,
 }: AdminTranscriptEditorProps) {
@@ -115,6 +121,17 @@ export function AdminTranscriptEditor({
         // Reconcile against `arabic`, the source of truth — it also means the
         // next save writes the healed tokens back.
         const tokens = reconcileLineTokens(line).tokens ?? [];
+
+        // Real per-word timings, when the alignment pass left them and they
+        // still describe this text: `line.words` parallels the whitespace
+        // split of `arabic`, so a token count that matches means each token
+        // can carry its own word's time. A line edited since alignment (the
+        // counts diverge) falls back to an even spread — the fabrication the
+        // whole editor once ran on, now only the last resort. Either way the
+        // AI re-segmentation, which rebuilds segment start/end from word
+        // timings, gets something to anchor to.
+        const timed = line.words;
+        const useReal = Array.isArray(timed) && timed.length === tokens.length && timed.length > 0;
         const n = Math.max(tokens.length, 1);
         const dur = Math.max(endSec - startSec, 0);
         const step = dur / n;
@@ -126,13 +143,10 @@ export function AdminTranscriptEditor({
           text: line.arabic,
           translation: line.translation,
           confidence: 1,
-          // Distribute word timings evenly across the line so AI re-segmentation
-          // (which rebuilds segment.start/end from word timings) preserves real
-          // timestamps instead of collapsing to 0.
           words: tokens.map<Word>((t, i) => ({
             word: t.surface,
-            start: startSec + step * i,
-            end: startSec + step * (i + 1),
+            start: useReal ? timed![i].startMs / 1000 : startSec + step * i,
+            end: useReal ? timed![i].endMs / 1000 : startSec + step * (i + 1),
             confidence: 1,
           })),
         };
@@ -175,6 +189,36 @@ export function AdminTranscriptEditor({
         return undefined;
       };
 
+      /**
+       * The per-word timings this save should carry.
+       *
+       * The editor's words now hold the best timing knowledge there is — real
+       * where the alignment pass supplied them, respread only where an edit
+       * forced it — so they round-trip back onto the line rather than letting
+       * a save silently revert to whatever the pipeline wrote. When nothing
+       * moved, the original array (with its `matched` provenance flags)
+       * survives byte for byte; once anything differs, provenance is genuinely
+       * mixed and the flags are dropped rather than invented.
+       */
+      const wordsFor = (seg: Segment, original?: TranscriptLine): LineWordTiming[] => {
+        const fresh = seg.words.map<LineWordTiming>((w) => ({
+          surface: w.word,
+          startMs: Math.round(w.start * 1000),
+          endMs: Math.round(w.end * 1000),
+        }));
+        const prior = original?.words;
+        const unchanged =
+          Array.isArray(prior) &&
+          prior.length === fresh.length &&
+          prior.every(
+            (p, i) =>
+              p.surface === fresh[i].surface &&
+              p.startMs === fresh[i].startMs &&
+              p.endMs === fresh[i].endMs,
+          );
+        return unchanged ? prior! : fresh;
+      };
+
       const updated: TranscriptLine[] = segments.map((seg) => {
         const original = extrasRef.current.get(seg.id);
         const arabic = seg.text;
@@ -195,6 +239,7 @@ export function AdminTranscriptEditor({
           literal: seg.literal ?? original?.literal,
           startMs: Math.round(seg.start * 1000),
           endMs: Math.round(seg.end * 1000),
+          words: wordsFor(seg, original),
           tokens: seg.words.map<WordToken>((w) => {
             const cached = take(perLine.get(seg.id), w.word) ?? take(anywhere, w.word);
             if (cached) claimed.add(cached);
@@ -211,6 +256,62 @@ export function AdminTranscriptEditor({
       onChange(updated);
     },
     [onChange],
+  );
+
+  const handleResyncTiming = useCallback(
+    async (segments: Segment[]): Promise<Segment[] | null> => {
+      if (!videoId) return null;
+      try {
+        // The server aligns the text the reviewer is looking at — the editor's
+        // current lines, unsaved edits included — against the staged audio.
+        const { data, error } = await supabase.functions.invoke("resync-transcript-timing", {
+          body: {
+            videoId,
+            lines: segments.map((seg) => ({ id: seg.id, arabic: seg.text })),
+          },
+        });
+        if (error) throw error;
+        const retimed = (data as {
+          lines?: Array<{ id: string; startMs: number; endMs: number; words?: LineWordTiming[] }>;
+        } | null)?.lines;
+        if (!retimed || retimed.length === 0) {
+          toast({
+            title: "Re-sync returned no timings",
+            description: "The audio may not be staged for this video yet.",
+            variant: "destructive",
+          });
+          return null;
+        }
+        const byId = new Map(retimed.map((line) => [line.id, line]));
+        toast({
+          title: "Timings aligned to the audio",
+          description: "Review the proposed times and accept or reject.",
+        });
+        return segments.map((seg) => {
+          const match = byId.get(seg.id);
+          if (!match) return seg;
+          return {
+            ...seg,
+            start: match.startMs / 1000,
+            end: match.endMs / 1000,
+            words: (match.words ?? []).map<Word>((w) => ({
+              word: w.surface,
+              start: w.startMs / 1000,
+              end: w.endMs / 1000,
+              confidence: 1,
+            })),
+          };
+        });
+      } catch (e: unknown) {
+        toast({
+          title: "Re-sync failed",
+          description: await describeFunctionError(e),
+          variant: "destructive",
+        });
+        return null;
+      }
+    },
+    [videoId],
   );
 
   const handleAIResegment = useCallback(
@@ -252,6 +353,7 @@ export function AdminTranscriptEditor({
       videoUrl={audioUrl}
       onSave={handleSave}
       onAIResegment={handleAIResegment}
+      onResyncTiming={videoId ? handleResyncTiming : undefined}
       lineReview={lineReview}
       onRetranslate={onRetranslate}
     />

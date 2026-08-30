@@ -166,9 +166,31 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (!video) return json({ error: "video_not_found" }, 404, cors);
 
-    const lines: TranscriptLine[] = Array.isArray(video.transcript_lines)
-      ? (video.transcript_lines as TranscriptLine[])
-      : [];
+    // The editor keeps unsaved corrections as an on-device draft, so a re-sync
+    // requested from it aligns the text the reviewer is looking at — the lines
+    // it sends — rather than whatever the last save stored. Persisting is a
+    // different matter: a direct write is only ever of the stored transcript,
+    // so the audited save_lines path stays the sole way client text lands.
+    const provided: TranscriptLine[] | null = Array.isArray(body?.lines)
+      ? (body.lines as unknown[]).filter(
+          (l): l is TranscriptLine =>
+            typeof l === "object" && l !== null && !Array.isArray(l) &&
+            typeof (l as TranscriptLine).id === "string",
+        )
+      : null;
+    if (provided && persist) {
+      return json(
+        { error: "persist_requires_stored_lines", message: "Save the transcript first, then persist a re-sync." },
+        400,
+        cors,
+      );
+    }
+
+    const lines: TranscriptLine[] = provided && provided.length > 0
+      ? provided
+      : Array.isArray(video.transcript_lines)
+        ? (video.transcript_lines as TranscriptLine[])
+        : [];
     if (lines.length === 0) return json({ error: "no_transcript" }, 400, cors);
 
     const audio = (await loadStagedAudio(videoId)) ??

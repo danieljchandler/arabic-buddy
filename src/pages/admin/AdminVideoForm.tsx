@@ -1900,6 +1900,7 @@ const AdminVideoForm = () => {
                 lines={transcriptLines}
                 onChange={handleTranscriptChange}
                 audioUrl={stableAudioUrl}
+                videoId={isEditing ? videoId : undefined}
                 lineReview={isEditing ? lineReview : undefined}
                 onRetranslate={isEditing ? handleRetranslate : undefined}
               />

@@ -24,7 +24,7 @@ export interface TranscriptRevisionRow {
   newValue: string | null;
   changedBy: string | null;
   changedAt: string;
-  source: "human" | "ai_retranslate" | "ai_resegment";
+  source: "human" | "ai_retranslate" | "ai_resegment" | "resync";
 }
 
 export interface TranscriptCommentRow {
@@ -167,7 +167,7 @@ export function useTranscriptReview(videoId: string | undefined) {
   });
 
   const saveLines = useMutation({
-    mutationFn: (vars: { lines: TranscriptLine[]; source?: "human" | "ai_resegment" }) =>
+    mutationFn: (vars: { lines: TranscriptLine[]; source?: "human" | "ai_resegment" | "resync" }) =>
       callReview<{ saved: boolean; revisions: number; logged: boolean }>({
         action: "save_lines",
         videoId,

@@ -243,7 +243,10 @@ async function saveLines(
   const video = await loadVideo(videoId);
   if (!video) return json({ error: "video_not_found" }, 404, cors);
 
-  const source: RevisionSource = body.source === "ai_resegment" ? "ai_resegment" : "human";
+  const source: RevisionSource =
+    body.source === "ai_resegment" ? "ai_resegment"
+    : body.source === "resync" ? "resync"
+    : "human";
   const revisions = diffTranscriptRevisions(video.transcript_lines, lines);
 
   const { error } = await admin()

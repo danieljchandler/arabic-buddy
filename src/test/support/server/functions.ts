@@ -218,7 +218,12 @@ function transcriptReview({ db, userId, body }: FunctionContext): FunctionRespon
       }
       const revisions = diffTranscriptRevisions(storedLines, lines);
       writeLines(lines);
-      logRevisions(revisions, payload.source === "ai_resegment" ? "ai_resegment" : "human");
+      logRevisions(
+        revisions,
+        payload.source === "ai_resegment" ? "ai_resegment"
+          : payload.source === "resync" ? "resync"
+          : "human",
+      );
       return ok({ saved: true, revisions: revisions.length, logged: true });
     }
 

@@ -29,7 +29,7 @@ export type RevisionField =
   | "dialect_subvariety"
   | "dialect_features";
 
-export type RevisionSource = "human" | "ai_retranslate" | "ai_resegment";
+export type RevisionSource = "human" | "ai_retranslate" | "ai_resegment" | "resync";
 
 export interface TranscriptRevision {
   /** Null for a change to the video rather than to one of its lines. */

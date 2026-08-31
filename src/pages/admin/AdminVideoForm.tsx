@@ -479,12 +479,24 @@ const AdminVideoForm = () => {
   // Track server-side processing status from polling
   const serverStatus = existingVideo?.transcription_status;
   useEffect(() => {
-    if (serverStatus === 'processing' || serverStatus === 'pending') {
+    if (serverStatus === 'processing' || serverStatus === 'pending' || serverStatus === 'analysis_complete') {
       setIsProcessing(true);
     } else if (serverStatus === 'completed' || serverStatus === 'failed') {
       setIsProcessing(false);
     }
   }, [serverStatus]);
+
+  // A pipeline row that has stopped moving must not disable its own escape
+  // hatch: the server-side reaper normally fails these out, but if it can't
+  // (pg_cron down, older database), the re-transcribe controls would stay
+  // disabled forever. Re-enable them once the row has been stale longer than
+  // the reaper's own windows. Recomputed on every poll-driven render.
+  const serverStatusUpdatedAt = (existingVideo as any)?.updated_at as string | undefined;
+  const processingIsStuck =
+    isProcessing &&
+    !!serverStatusUpdatedAt &&
+    Date.now() - new Date(serverStatusUpdatedAt).getTime() > 20 * 60 * 1000;
+  const blockWhileProcessing = isProcessing && !processingIsStuck;
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1416,8 +1428,9 @@ const AdminVideoForm = () => {
             <CardContent className="py-3 flex items-center gap-2 text-amber-700 dark:text-amber-300">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span className="text-sm font-medium">
-                Transcription is queued and will start shortly. You can safely leave this page —
-                but don&apos;t correct lines yet, the pipeline will overwrite them when it finishes.
+                {processingIsStuck
+                  ? "Transcription has been queued for a while without starting — the kickoff was probably lost. The re-transcribe controls below are enabled so you can run it again."
+                  : "Transcription is queued and will start shortly. You can safely leave this page — but don't correct lines yet, the pipeline will overwrite them when it finishes."}
               </span>
             </CardContent>
           </Card>
@@ -1536,7 +1549,7 @@ const AdminVideoForm = () => {
                 <div className="flex gap-2">
                   <Button
                     onClick={handleDownloadAndProcess}
-                    disabled={!sourceUrl || isDownloading || isProcessing}
+                    disabled={!sourceUrl || isDownloading || blockWhileProcessing}
                     className="flex-1"
                   >
                     {isDownloading ? (
@@ -1550,7 +1563,7 @@ const AdminVideoForm = () => {
                   <Button
                     variant="outline"
                     onClick={handleDownloadAudio}
-                    disabled={!sourceUrl || isDownloading || isProcessing}
+                    disabled={!sourceUrl || isDownloading || blockWhileProcessing}
                   >
                     {isDownloading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -1561,7 +1574,7 @@ const AdminVideoForm = () => {
                   <Button
                     variant="outline"
                     onClick={() => document.getElementById("audio-upload")?.click()}
-                    disabled={isDownloading || isProcessing}
+                    disabled={isDownloading || blockWhileProcessing}
                   >
                     <Upload className="h-4 w-4 mr-2" />
                     Upload File
@@ -1583,7 +1596,7 @@ const AdminVideoForm = () => {
                     if (!audioFile) return;
                     kickOffServerPipeline(audioFile);
                   }}
-                  disabled={isProcessing}
+                  disabled={blockWhileProcessing}
                   className="w-full"
                 >
                   {isProcessing ? (

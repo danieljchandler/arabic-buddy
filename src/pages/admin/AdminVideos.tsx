@@ -358,6 +358,12 @@ const AdminVideos = () => {
                             Transcribing
                           </Badge>
                         )}
+                        {video.transcription_status === 'analysis_complete' && (
+                          <Badge variant="outline" className="text-xs text-blue-600 border-blue-300">
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            Finalizing
+                          </Badge>
+                        )}
                         {video.transcription_status === 'failed' && (
                           <Badge variant="destructive" className="text-xs">
                             Failed

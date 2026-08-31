@@ -129,7 +129,10 @@ export function useDiscoverVideo(videoId: string | undefined) {
       const video = query.state.data;
       const isProcessing =
         video?.transcription_status === 'pending' ||
-        video?.transcription_status === 'processing';
+        video?.transcription_status === 'processing' ||
+        // Transient state between the analysis persisting and the pipeline (or
+        // the reaper) finalizing — keep polling or the UI freezes on it.
+        video?.transcription_status === 'analysis_complete';
       return isProcessing ? 5000 : false;
     },
   });
@@ -150,7 +153,10 @@ export function useAdminDiscoverVideos() {
     refetchInterval: (query) => {
       const videos = query.state.data;
       const hasProcessing = videos?.some(
-        (v) => v.transcription_status === 'pending' || v.transcription_status === 'processing'
+        (v) =>
+          v.transcription_status === 'pending' ||
+          v.transcription_status === 'processing' ||
+          v.transcription_status === 'analysis_complete'
       );
       return hasProcessing ? 10000 : false;
     },

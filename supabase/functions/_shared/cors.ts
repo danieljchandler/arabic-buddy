@@ -6,9 +6,12 @@
  * default is to allow only the known production domain.
  */
 // hakiya.app is the current production domain (see index.html's canonical
-// link/OG tags); lahja-arabic.lovable.app is kept for the pre-rebrand Lovable
-// preview URL in case it's still linked anywhere.
-const DEFAULT_ORIGINS = 'https://hakiya.app,https://lahja-arabic.lovable.app';
+// link/OG tags); laha-arabic.lovable.app is the live Lovable published URL and
+// lahja-arabic.lovable.app is kept for the pre-rebrand one in case it's still
+// linked anywhere.
+const DEFAULT_ORIGINS =
+  'https://hakiya.app,https://laha-arabic.lovable.app,https://lahja-arabic.lovable.app';
+
 
 function getAllowedOrigins(): string[] {
   const raw = Deno.env.get('ALLOWED_ORIGINS') ?? DEFAULT_ORIGINS;

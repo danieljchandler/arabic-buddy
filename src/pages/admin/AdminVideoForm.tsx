@@ -1887,9 +1887,11 @@ const AdminVideoForm = () => {
               {!stableAudioUrl && !canManage && (
                 <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
                   No audio is staged for this video, so the per-line playback controls have
-                  nothing to play. The transcript can still be corrected.
+                  nothing to play. Use the video player at the top of the page to listen,
+                  then correct the transcript here.
                 </p>
               )}
+
               {!stableAudioUrl && canManage && (
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border">
                   <p className="text-sm text-muted-foreground flex-1">

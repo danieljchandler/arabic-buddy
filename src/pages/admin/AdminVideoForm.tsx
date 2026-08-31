@@ -1938,9 +1938,18 @@ const AdminVideoForm = () => {
               />
               {isEditing && (
                 <div className="flex flex-wrap items-center gap-3">
+                  {/*
+                    Never gated on `draft.dirty`. The editor reports changes on
+                    an 800 ms debounce and the dirty check compares against the
+                    stored lines, so a reviewer who typed a correction and went
+                    straight for Save met a disabled button — which reads as
+                    "saving is broken" and loses the edit on navigation. Saving
+                    an unchanged transcript is harmless: the server diffs it and
+                    records no revision.
+                  */}
                   <Button
                     onClick={handleSaveTranscript}
-                    disabled={isSavingTranscript || !draft.dirty}
+                    disabled={isSavingTranscript}
                     variant={draft.dirty ? "default" : "outline"}
                   >
                     {isSavingTranscript ? (
@@ -1957,6 +1966,7 @@ const AdminVideoForm = () => {
                   </span>
                 </div>
               )}
+
             </CardContent>
           </Card>
         )}

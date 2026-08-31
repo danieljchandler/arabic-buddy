@@ -938,7 +938,6 @@ export type Database = {
       curriculum_chat_approvals: {
         Row: {
           approval_type: string
-          approved_at: string
           approved_by: string
           created_at: string
           id: string
@@ -948,7 +947,6 @@ export type Database = {
         }
         Insert: {
           approval_type: string
-          approved_at?: string
           approved_by: string
           created_at?: string
           id?: string
@@ -958,7 +956,6 @@ export type Database = {
         }
         Update: {
           approval_type?: string
-          approved_at?: string
           approved_by?: string
           created_at?: string
           id?: string
@@ -2246,24 +2243,17 @@ export type Database = {
           cefr_target: string | null
           created_at: string
           description: string | null
-          design_rationale: Json | null
           dialect_module: string
           display_order: number
           duration_minutes: number | null
-          flashcard_spec: Json | null
           gradient: string
           icon: string
           id: string
-          image_scenes: Json | null
           lesson_number: number
-          lesson_sequence: Json | null
-          real_world_prompts: Json | null
-          sound_spotlight: Json | null
           stage_id: string
           status: string
           title: string
           title_arabic: string | null
-          unlock_condition: string | null
           updated_at: string
         }
         Insert: {
@@ -2271,24 +2261,17 @@ export type Database = {
           cefr_target?: string | null
           created_at?: string
           description?: string | null
-          design_rationale?: Json | null
           dialect_module?: string
           display_order?: number
           duration_minutes?: number | null
-          flashcard_spec?: Json | null
           gradient?: string
           icon?: string
           id?: string
-          image_scenes?: Json | null
           lesson_number?: number
-          lesson_sequence?: Json | null
-          real_world_prompts?: Json | null
-          sound_spotlight?: Json | null
           stage_id: string
           status?: string
           title: string
           title_arabic?: string | null
-          unlock_condition?: string | null
           updated_at?: string
         }
         Update: {
@@ -2296,24 +2279,17 @@ export type Database = {
           cefr_target?: string | null
           created_at?: string
           description?: string | null
-          design_rationale?: Json | null
           dialect_module?: string
           display_order?: number
           duration_minutes?: number | null
-          flashcard_spec?: Json | null
           gradient?: string
           icon?: string
           id?: string
-          image_scenes?: Json | null
           lesson_number?: number
-          lesson_sequence?: Json | null
-          real_world_prompts?: Json | null
-          sound_spotlight?: Json | null
           stage_id?: string
           status?: string
           title?: string
           title_arabic?: string | null
-          unlock_condition?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -3396,7 +3372,6 @@ export type Database = {
           created_at: string
           cultural_context: string | null
           dialect: string | null
-          dialect_validation: Json | null
           engines_used: Json | null
           grammar_points: Json
           id: string
@@ -3412,7 +3387,6 @@ export type Database = {
           created_at?: string
           cultural_context?: string | null
           dialect?: string | null
-          dialect_validation?: Json | null
           engines_used?: Json | null
           grammar_points?: Json
           id?: string
@@ -3428,7 +3402,6 @@ export type Database = {
           created_at?: string
           cultural_context?: string | null
           dialect?: string | null
-          dialect_validation?: Json | null
           engines_used?: Json | null
           grammar_points?: Json
           id?: string
@@ -5126,63 +5099,51 @@ export type Database = {
       vocabulary_words: {
         Row: {
           audio_url: string | null
-          category: string | null
           created_at: string
           dialect_module: string
           display_order: number
           id: string
           image_position: string | null
-          image_scene_description: string | null
           image_url: string | null
           lesson_id: string | null
           msa_form: string | null
           msa_note: string | null
           root: string | null
-          teaching_note: string | null
           topic_id: string | null
-          transliteration: string | null
           updated_at: string
           word_arabic: string
           word_english: string
         }
         Insert: {
           audio_url?: string | null
-          category?: string | null
           created_at?: string
           dialect_module?: string
           display_order?: number
           id?: string
           image_position?: string | null
-          image_scene_description?: string | null
           image_url?: string | null
           lesson_id?: string | null
           msa_form?: string | null
           msa_note?: string | null
           root?: string | null
-          teaching_note?: string | null
           topic_id?: string | null
-          transliteration?: string | null
           updated_at?: string
           word_arabic: string
           word_english: string
         }
         Update: {
           audio_url?: string | null
-          category?: string | null
           created_at?: string
           dialect_module?: string
           display_order?: number
           id?: string
           image_position?: string | null
-          image_scene_description?: string | null
           image_url?: string | null
           lesson_id?: string | null
           msa_form?: string | null
           msa_note?: string | null
           root?: string | null
-          teaching_note?: string | null
           topic_id?: string | null
-          transliteration?: string | null
           updated_at?: string
           word_arabic?: string
           word_english?: string

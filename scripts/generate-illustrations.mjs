@@ -288,7 +288,7 @@ Motif: a bold lightning bolt.`,
   // the two sides of every crossing this app is about: spoken Arabic on one
   // shore, the learner on the other.
   //
-  // The committed pair in src/assets/landing/ was rendered from these prompts
+  // The committed pair in src/assets/illustrations/ was rendered from these prompts
   // through Higgsfield (nano_banana_pro) rather than this script, then keyed
   // and cropped with scripts/cutout-art.mjs — NOT convert-illustrations.mjs,
   // which flattens alpha. The empty-paper instruction is load-bearing: the key

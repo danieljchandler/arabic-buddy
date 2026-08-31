@@ -1,8 +1,8 @@
 // Turns a painted-on-paper illustration into a transparent-background WebP.
 //
-// The landing hero's two shores have to float *over* the wordmark, so the cream
-// paper they were painted on has to go. Nothing here is generic background
-// removal: these sources are flat, near-uniform paper with the subject painted
+// The two shores (src/assets/illustrations/shore-*.webp) have to sit on a page
+// rather than in a rectangle of their own, so the cream paper they were painted
+// on has to go. Nothing here is generic background removal: these sources are flat, near-uniform paper with the subject painted
 // on top, so a difference key against the paper colour is both simpler and
 // kinder to watercolour than a segmentation model — a soft wash at 8% opacity
 // survives as an 8%-alpha pixel instead of being decided in or out.
@@ -10,23 +10,31 @@
 // Like scripts/convert-illustrations.mjs, it borrows Chromium's canvas rather
 // than pulling in a native image dependency.
 //
-// Usage: node scripts/cutout-art.mjs <in.png> <out.webp> [maxWidth]
+// Usage: node scripts/cutout-art.mjs <in.png> <out.webp> [maxWidth] [cropTop]
+//
+// cropTop discards that fraction of the source from the top before keying. It
+// is for the thing these models do when told to leave a frame empty: they leave
+// it *nearly* empty, and paint a faint mirage of the subject up in the void. A
+// difference key is faithful, so the mirage survives at 20% alpha and floats
+// over whatever the art is placed near. Cropping it off is the honest fix —
+// raising the key threshold enough to kill it also eats the real washes.
 import { chromium } from "playwright-core";
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
-const [, , inPath, outPath, maxWidthArg] = process.argv;
+const [, , inPath, outPath, maxWidthArg, cropTopArg] = process.argv;
 if (!inPath || !outPath) {
-  throw new Error("usage: node scripts/cutout-art.mjs <in.png> <out.webp> [maxWidth]");
+  throw new Error("usage: node scripts/cutout-art.mjs <in.png> <out.webp> [maxWidth] [cropTop]");
 }
 const maxWidth = Number(maxWidthArg ?? 1600);
+const cropTop = Number(cropTopArg ?? 0);
 
 const browser = await chromium.launch();
 const page = await browser.newPage();
 const b64 = readFileSync(inPath).toString("base64");
 
 const dataUrl = await page.evaluate(
-  async ({ b64, maxWidth }) => {
+  async ({ b64, maxWidth, cropTop }) => {
     const img = new Image();
     await new Promise((res, rej) => {
       img.onload = res;
@@ -34,11 +42,12 @@ const dataUrl = await page.evaluate(
       img.src = `data:image/png;base64,${b64}`;
     });
 
+    const top = Math.round(img.height * cropTop);
     const src = document.createElement("canvas");
     src.width = img.width;
-    src.height = img.height;
+    src.height = img.height - top;
     const sctx = src.getContext("2d");
-    sctx.drawImage(img, 0, 0);
+    sctx.drawImage(img, 0, -top);
     const data = sctx.getImageData(0, 0, src.width, src.height);
     const px = data.data;
 
@@ -104,7 +113,7 @@ const dataUrl = await page.evaluate(
     octx.drawImage(src, minX, minY, cw, ch, 0, 0, w, h);
     return out.toDataURL("image/webp", 0.86);
   },
-  { b64, maxWidth },
+  { b64, maxWidth, cropTop },
 );
 
 await browser.close();

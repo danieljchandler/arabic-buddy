@@ -18,6 +18,7 @@ import { useMsaRules, type MsaRule, type MsaRuleCategory } from "@/hooks/useMsaR
 import { ArrowRight, Volume2, Sparkles, BookOpen, Languages } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AskAISentence } from "@/components/shared/AskAISentence";
+import { TwoShores } from "@/components/shared/TwoShores";
 import { usePageAiContext } from "@/contexts/AiAssistantContext";
 
 const CATEGORY_META: Record<MsaRuleCategory, { label: string; arabic: string; tint: string }> = {
@@ -133,8 +134,11 @@ export default function MsaBridge() {
     <AppShell>
       <PageCorner />
 
-      {/* Hero */}
-      <header className="mt-2 mb-6 rounded-3xl border-2 border-plum/30 bg-gradient-to-br from-[#F9F7F2] via-[#F3EDE2] to-[#E8DCC4]/60 p-6 sm:p-8 relative overflow-hidden">
+      {/* Hero.
+          The bottom padding is the shore band's height (see TwoShores) plus a
+          little air, so the copy sits on the near bank rather than in the
+          water. */}
+      <header className="mt-2 mb-6 rounded-3xl border-2 border-plum/30 bg-gradient-to-br from-[#F9F7F2] via-[#F3EDE2] to-[#E8DCC4]/60 p-6 sm:p-8 pb-32 sm:pb-44 relative overflow-hidden">
         <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-primary/10 blur-3xl" />
         <div className="relative">
           <div className="flex items-center gap-2 mb-3">
@@ -155,6 +159,9 @@ export default function MsaBridge() {
             word by word.
           </p>
         </div>
+        {/* The page's own claim, as a picture: الفصحى on one coast, the dialect
+            on the other, and a way across. */}
+        <TwoShores height="h-28 sm:h-36" />
       </header>
 
       {/* Bridge view toggle */}

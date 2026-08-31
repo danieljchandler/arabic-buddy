@@ -147,7 +147,7 @@ const ACCENTS = {
 
 const MeHub = () => {
   const { isAuthenticated } = useAuth();
-  const { isAdmin } = useAdminAuth();
+  const { isAdmin, role } = useAdminAuth();
   const { hasAccess: hasBible } = useBibleAccess();
   const { data: xp } = useUserXP();
   const { data: srs } = useSRSStats();
@@ -204,7 +204,7 @@ const MeHub = () => {
       </Section>
 
       <Section title="Account">
-        <Grid items={visible(account(isAuthenticated, isAdmin))} />
+        <Grid items={visible(account(isAuthenticated, isAdmin, role === "transcriber"))} />
       </Section>
     </AppShell>
   );

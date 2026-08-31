@@ -227,7 +227,7 @@ test.describe("starting a session", () => {
     const written = (await writtenTo(db, "curriculum_chat_sessions"))[0];
     expect(written).toMatchObject({
       target_dialect: "Gulf",
-      llm_model: "google/gemini-3-flash-preview",
+      llm_model: "google/gemini-3.5-flash-lite",
     });
     // Ownership matters: RLS scopes a session to its author.
     expect(written?.admin_id).toBeTruthy();

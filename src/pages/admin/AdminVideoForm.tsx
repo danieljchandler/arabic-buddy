@@ -298,6 +298,12 @@ const AdminVideoForm = () => {
   const handleSaveTranscript = useCallback(async () => {
     setIsSavingTranscript(true);
     try {
+      // The editor reports its edits on an 800 ms debounce, so a reviewer who
+      // types a correction and immediately clicks Save would otherwise save the
+      // text from before that keystroke. Waiting one debounce window out is the
+      // difference between "saving works" and "saving silently drops my last
+      // edit" — the complaint that sent us here.
+      await new Promise((resolve) => setTimeout(resolve, 900));
       await persistTranscript(latestLines.current);
       toast.success("Transcript saved");
     } catch (err) {
@@ -308,6 +314,7 @@ const AdminVideoForm = () => {
       setIsSavingTranscript(false);
     }
   }, [persistTranscript]);
+
 
   const openDetail = useCallback((lineId: string, tab: "history" | "comments") => {
     setDetailLineId(lineId);

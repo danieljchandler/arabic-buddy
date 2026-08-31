@@ -38,10 +38,25 @@ export const MODEL_IDS = {
   // provider is unavailable, so a deprecated id degrades the gate rather than
   // failing the request behind it.
   GEMINI_PRO: 'google/gemini-3.1-pro-preview',
-  // Cheapest utility default. Lite tier, but a *GA* one: the previous pin was
-  // `gemini-3-flash-preview`, and a preview id under the app's highest-volume
-  // path is a deprecation waiting to happen.
-  GEMINI_FAST: 'google/gemini-3.5-flash-lite',
+  // The UTILITY lineup's model — and, despite the name, the one most of the
+  // app's learner-facing Arabic is generated with: set phrases, situational
+  // phrases, souq retellings, jingle lyrics, mnemonics, reading Q&A and the
+  // daily challenge all run through it.
+  //
+  // It is deliberately a full Flash tier and NOT the cheaper `-flash-lite`.
+  // Lite saves ~$0.45/Mtok output, and on classification or extraction that
+  // would be free money — but the dialect literature is that models under-
+  // produce dialect because they are *reluctant* to, a post-training bias that
+  // gets worse as models get smaller and more aligned (AL-QASIDA,
+  // arXiv:2412.04193). Spending the app's highest-volume dialect path to save a
+  // few cents per million tokens is the wrong side of that trade. Flash Lite
+  // also has no published Arabic score; Gemini 3 Flash is measured at 92 on
+  // Artificial Analysis's Arabic index, second only to Gemini 3.1 Pro.
+  //
+  // If a cheap tier is wanted later, split it by *output*: `-flash-lite` for
+  // the calls whose answer is English or a label (CEFR scoring, clip
+  // verification, trend triage), never for the ones that write Arabic.
+  GEMINI_FAST: 'google/gemini-3.7-flash',
   QWEN: 'qwen/qwen3.8-max',                        // third-leg verifier (weight 0.6)
   SABA: 'mistralai/mistral-saba',                  // Arabic-native 24B, via OpenRouter
   // Second drafter in generate-story: a non-Google, non-Anthropic voice so the
@@ -80,7 +95,9 @@ export const MODEL_LINEUPS: Record<LineupName, Lineup> = {
     judge: MODEL_IDS.CLAUDE,
     strategy: 'draft_critic',
   },
-  // Utility: cheap classification, extraction, scoring — single fast model.
+  // Utility: single fast model, one shot. Named for the call shape, not for a
+  // price tier — see GEMINI_FAST above for why this is not the cheapest model
+  // available.
   UTILITY: {
     drafters: [MODEL_IDS.GEMINI_FAST],
     judge: MODEL_IDS.GEMINI_FAST,
@@ -129,9 +146,11 @@ export const IMAGE_MODEL_IDS = {
 // Qwen and the second GPT drafter stay at lower weights.
 export const MODEL_WEIGHTS: Record<string, number> = {
   [MODEL_IDS.CLAUDE]: 1.0,
+  // GEMINI_FLASH and GEMINI_FAST are the same model today, so there is one
+  // entry rather than two — a second key would be a duplicate-property error,
+  // and the weight belongs to the model, not to the lineup slot.
   [MODEL_IDS.GEMINI_FLASH]: 1.0,
   [MODEL_IDS.GEMINI_PRO]: 0.9,
-  [MODEL_IDS.GEMINI_FAST]: 0.7,
   [MODEL_IDS.QWEN]: 0.6,
   [MODEL_IDS.SABA]: 0.7,
   [MODEL_IDS.GPT_MINI]: 0.6,  // second drafter in generate-story

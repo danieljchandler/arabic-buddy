@@ -35,15 +35,19 @@ const MODEL_REGISTRY: Record<string, ModelConfig> = {
   [MODEL_IDS.GEMINI_FAST]: routed(MODEL_IDS.GEMINI_FAST),
   [MODEL_IDS.GEMINI_FLASH]: routed(MODEL_IDS.GEMINI_FLASH),
   [MODEL_IDS.GEMINI_PRO]: routed(MODEL_IDS.GEMINI_PRO),
-  "google/gemini-2.5-flash": routed("google/gemini-2.5-flash"),
-  // Selector sends the hyphenated id; OpenRouter resolves the dotted one —
-  // the hyphen form 404s on that route.
-  "anthropic/claude-sonnet-4-5": routed(MODEL_IDS.CLAUDE),
   [MODEL_IDS.CLAUDE]: routed(MODEL_IDS.CLAUDE),
   [MODEL_IDS.QWEN]: routed(MODEL_IDS.QWEN),
-  "qwen/qwen3-235b-a22b": routed("qwen/qwen3-235b-a22b"),
   [MODEL_IDS.SABA]: routed(MODEL_IDS.SABA),
   "google/gemma-3-12b-it": routed("google/gemma-3-12b-it"),
+  // Retired ids kept as aliases onto their current equivalents. An admin whose
+  // saved preference predates a registry bump gets the current model rather
+  // than "Unknown model" — the selector no longer offers these.
+  "anthropic/claude-sonnet-4-5": routed(MODEL_IDS.CLAUDE),
+  "anthropic/claude-sonnet-4.5": routed(MODEL_IDS.CLAUDE),
+  "google/gemini-3.5-flash": routed(MODEL_IDS.GEMINI_FLASH),
+  "google/gemini-3-flash-preview": routed(MODEL_IDS.GEMINI_FAST),
+  "google/gemini-2.5-flash": routed(MODEL_IDS.GEMINI_FAST),
+  "qwen/qwen3-235b-a22b": routed(MODEL_IDS.QWEN),
   fanar: { endpoint: FANAR_ENDPOINT, model: MODEL_IDS.FANAR, keyEnv: "FANAR_API_KEY" },
 };
 
@@ -548,8 +552,8 @@ serve(async (req) => {
           models: Array.from(
             new Set([
               modelId,
-              "google/gemini-3-flash-preview",
-              "google/gemini-2.5-pro",
+              MODEL_IDS.GEMINI_FAST,
+              MODEL_IDS.GEMINI_PRO,
             ]),
           ).slice(0, 3),
           maxTokens: 4096,
@@ -588,7 +592,7 @@ serve(async (req) => {
         );
         try {
           const repairSys = `You are a ${dialect} Arabic editor. The text below leaked MSA tokens: ${leakResult.leaks.join(", ")}. Rewrite it in authentic ${dialect} dialect ONLY, preserving any \`\`\`json code blocks and all field values' structure EXACTLY (only rewrite Arabic strings inside). Return ONLY the corrected text — no commentary.`;
-          const repairResp = await chatFetch("google/gemini-2.5-flash", {
+          const repairResp = await chatFetch(MODEL_IDS.GEMINI_FAST, {
             messages: [
               { role: "system", content: repairSys },
               { role: "user", content: responseContent },

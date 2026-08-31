@@ -33,7 +33,7 @@ const aSession = (over: Partial<ChatSession> = {}): ChatSession => ({
   target_dialect: "Gulf",
   target_stage_id: null,
   target_cefr: null,
-  llm_model: "google/gemini-3.5-flash",
+  llm_model: "google/gemini-3.7-flash",
   status: "active",
   created_at: daysBefore(3),
   updated_at: daysBefore(0),

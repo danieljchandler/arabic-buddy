@@ -1,6 +1,7 @@
 // translate-story-dialect — Translates Fusha text into a specified dialect with tashkeel
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { askBrain } from "../_shared/aiBrain.ts";
 import { primeDialectPrompt, type Dialect } from "../_shared/dialectHelpers.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -61,7 +62,7 @@ Deno.serve(async (req) => {
       purpose: "utility",
       dialect: targetDialect,
       strategy: "draft_critic",
-      models: ["google/gemini-2.5-flash"],
+      models: [MODEL_IDS.GEMINI_FAST],
       systemPromptExtra: `You are a native ${targetDialect} Arabic speaker and translator. Convert the given Modern Standard Arabic (Fusha) text into natural, authentic ${targetDialect} dialect Arabic. For each line:
 1. Provide the dialect version in natural Arabic script
 2. Provide the dialect version with full tashkeel (diacritics)

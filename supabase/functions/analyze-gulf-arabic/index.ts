@@ -780,7 +780,7 @@ type CallAIArgs = {
   userContent: string;
   isRetry?: boolean;
   maxTokens?: number;
-  model?: string; // defaults to 'qwen/qwen3-235b-a22b'
+  model?: string; // defaults to the registry's third-leg verifier
 };
 
 async function callAI({
@@ -788,7 +788,7 @@ async function callAI({
   userContent,
   isRetry = false,
   maxTokens = 4096,
-  model = 'qwen/qwen3-235b-a22b',
+  model = MODEL_IDS.QWEN,
 }: CallAIArgs): Promise<{ content: string | null; error?: string; status?: number }> {
     const controller = new AbortController();
     // Tightened from 55s → 40s so the full multi-stage pipeline (Call 1 + parallel
@@ -1582,8 +1582,8 @@ async function fallbackLineTranslate(arabicLines: string[], dialect?: string): P
 
   try {
     const [qwenText, geminiText] = await Promise.all([
-      callModel('qwen/qwen3-235b-a22b'),
-      callModel('google/gemini-2.5-flash'),
+      callModel(MODEL_IDS.QWEN),
+      callModel(MODEL_IDS.GEMINI_FAST),
     ]);
 
     const generatedText = qwenText ?? geminiText ?? '';
@@ -1998,9 +1998,9 @@ serve(async (req) => {
         // so upgrades happen in one place. Do NOT hardcode IDs here.
         (async () => {
           const sys = getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation);
-          const CLAUDE = 'anthropic/claude-sonnet-4.5';
-          const GEMINI = 'google/gemini-3.5-flash';
-          const QWEN = 'qwen/qwen3-max';
+          const CLAUDE = MODEL_IDS.CLAUDE;
+          const GEMINI = MODEL_IDS.GEMINI_FLASH;
+          const QWEN = MODEL_IDS.QWEN;
           const settled = await Promise.allSettled([
             callTranslationModel({
               name: CLAUDE,
@@ -2581,8 +2581,7 @@ serve(async (req) => {
 
       const claudeEnrichPromise = (vocab.length > 0)
         ? callAI({
-            // OpenRouter uses the dotted ID; the hyphen form 404s on this route.
-            model: 'anthropic/claude-sonnet-4.5',
+            model: MODEL_IDS.CLAUDE,
             systemPrompt: getVocabEnrichmentSystemPrompt(),
             userContent: `Vocabulary list to enrich:\n${JSON.stringify(vocab.map(v => ({ arabic: v.arabic, english: v.english, root: v.root })))}`,
             maxTokens: 4096,
@@ -2591,7 +2590,7 @@ serve(async (req) => {
 
       const glossPromise = (unknownWords.length > 0)
         ? callAI({
-            model: 'google/gemini-2.5-flash',
+            model: MODEL_IDS.GEMINI_FAST,
             systemPrompt: getGlossEnrichmentPrompt(detectedDialect),
             userContent: `Translate each of these Arabic words to English:\n\n${unknownWords.join('\n')}`,
             maxTokens: 4096,

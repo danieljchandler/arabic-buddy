@@ -511,13 +511,13 @@ describe("managing a session", () => {
     await openSession(harness);
 
     await act(async () => {
-      await harness.result.current.updateModel("anthropic/claude-sonnet-4-5");
+      await harness.result.current.updateModel("anthropic/claude-sonnet-5");
     });
 
     // Persisted on the session rather than held in component state, so the
     // change survives a refresh and applies to the next turn.
     expect(harness.backend.db.rows("curriculum_chat_sessions")[0]).toMatchObject({
-      llm_model: "anthropic/claude-sonnet-4-5",
+      llm_model: "anthropic/claude-sonnet-5",
     });
   });
 
@@ -526,7 +526,7 @@ describe("managing a session", () => {
     await waitFor(() => expect(result.current.sessionsLoading).toBe(false));
 
     await act(async () => {
-      await result.current.updateModel("anthropic/claude-sonnet-4-5");
+      await result.current.updateModel("anthropic/claude-sonnet-5");
     });
 
     expect(backend.db.writesTo("curriculum_chat_sessions")).toEqual([]);
@@ -541,7 +541,7 @@ describe("managing a session", () => {
     await openSession(harness);
 
     await act(async () => {
-      await harness.result.current.updateModel("anthropic/claude-sonnet-4-5");
+      await harness.result.current.updateModel("anthropic/claude-sonnet-5");
     });
 
     // The picker would otherwise show a model the next turn will not use.

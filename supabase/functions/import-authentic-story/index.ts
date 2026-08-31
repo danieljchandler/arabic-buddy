@@ -2,6 +2,7 @@
 // adds tashkeel via AI, translates to English, generates vocabulary list.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { askBrain } from "../_shared/aiBrain.ts";
 import { primeDialectPrompt, type Dialect } from "../_shared/dialectHelpers.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -87,7 +88,7 @@ Deno.serve(async (req) => {
       dialect: targetDialect,
       strategy: "solo",
       skipRepair: true,
-      models: ["google/gemini-2.5-flash"],
+      models: [MODEL_IDS.GEMINI_FAST],
       systemPromptExtra: `You are an expert Arabic text processor. Given a block of Arabic text:
 1. Split it into logical lines/sentences (each line should be a complete sentence or short paragraph suitable for line-by-line reading).
 2. Add full tashkeel (diacritics) to each line.

@@ -1,6 +1,8 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { NO_AI_PROVIDER, loadSharedModule, stubUpstreams, type StubbedUpstreams } from "./harness.ts";
 import { chatCompletion, json } from "./upstreams.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
+import { upstreamModelId } from "../_shared/aiGateway.ts";
 
 /**
  * The native-speaker authenticity gate, and the literal-gloss rule every
@@ -21,8 +23,11 @@ import { chatCompletion, json } from "./upstreams.ts";
 
 const GATEWAY = "generativelanguage.googleapis.com/v1beta/openai";
 const OPENROUTER = "openrouter.ai";
-const STRONG = "google/gemini-2.5-pro";
-const ARABIC = "mistralai/mistral-saba";
+// Taken from the registry rather than copied: these ids are bumped there, and a
+// duplicated literal turns a routine model upgrade into a red test that says
+// nothing about routing — the thing this file actually covers.
+const STRONG = MODEL_IDS.GEMINI_PRO;
+const ARABIC = MODEL_IDS.SABA;
 
 interface ValidatorLeak {
   token: string;
@@ -269,7 +274,7 @@ Deno.test("the judgment is asked for as a tool call, not as prose", async () => 
     assertEquals(body.tool_choice.function.name, "emit_authenticity_score");
     // The id on the wire is Google's own — aiGateway strips the `google/`
     // prefix that only OpenRouter's namespace uses.
-    assertEquals(body.model, "gemini-2.5-pro");
+    assertEquals(body.model, upstreamModelId(STRONG, "google"));
     // Judging is a classification, not a creative task.
     assertEquals(body.temperature, 0.2);
   });

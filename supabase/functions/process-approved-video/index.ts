@@ -21,6 +21,7 @@ import {
 } from "../_shared/audioChunk.ts";
 import { noArabicSpeechNote } from "../_shared/arabicSpeechGate.ts";
 import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { alignLinesToAsrWords } from "../_shared/transcriptTimingAlign.ts";
 import {
   buildVisualContextText,
@@ -1418,7 +1419,7 @@ async function runPipeline(
             `${l.arabic ?? ""}${l.translation ? " — " + l.translation : ""}`
           ).join("\n");
           if (hasAnyProvider() && sampleLines.trim()) {
-            const aiResp = await chatFetch("google/gemini-2.5-flash-lite", {
+            const aiResp = await chatFetch(MODEL_IDS.GEMINI_FAST, {
               messages: [
                 { role: "system", content: 'Return ONLY JSON: {"title": string (English, ≤8 words, no quotes), "titleArabic": string (Arabic, ≤8 words)}. Title should describe the video content based on the transcript snippet.' },
                 { role: "user", content: sampleLines },

@@ -1,4 +1,5 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { requireRole, TRANSCRIPT_EDITOR_ROLES } from "../_shared/requireRole.ts";
 import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
 // AI Re-segment Transcript
@@ -225,8 +226,8 @@ async function callGateway(
 
   // Flash is fast enough for re-segmentation and stays well under the 150s
   // edge-function idle timeout. Pro was timing out on long transcripts.
-  const primary = "google/gemini-3-flash-preview";
-  const fallback = "google/gemini-2.5-flash";
+  const primary = MODEL_IDS.GEMINI_FAST;
+  const fallback = MODEL_IDS.GEMINI_FLASH;
 
   try {
     return await tryModel(primary);

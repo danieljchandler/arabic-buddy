@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 import {
   getDialectIdentity,
@@ -219,9 +220,9 @@ ${JSON.stringify(paired, null, 2)}`;
     }
   }
 
-  // Primary: Gemini 2.5 Pro for translation accuracy. Fallback: Flash preview.
-  let result = await callModel("google/gemini-2.5-pro");
-  if (!result) result = await callModel("google/gemini-3-flash-preview");
+  // Primary: the Pro-tier model for translation accuracy; the cheap tier as fallback.
+  let result = await callModel(MODEL_IDS.GEMINI_PRO);
+  if (!result) result = await callModel(MODEL_IDS.GEMINI_FAST);
 
   if (!result) {
     return { verses: arabicWithNumbers, fallback: true };

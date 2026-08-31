@@ -5,13 +5,11 @@ import { Badge } from '@/components/ui/badge';
 // supabase/functions/curriculum-chat/index.ts — an option this list offers but
 // that map lacks fails at request time with "Unknown model".
 export type LLMModelId =
-  | 'google/gemini-3.5-flash'
-  | 'google/gemini-3-flash-preview'
-  | 'google/gemini-2.5-flash'
+  | 'google/gemini-3.7-flash'
+  | 'google/gemini-3.5-flash-lite'
   | 'google/gemini-2.5-pro'
-  | 'anthropic/claude-sonnet-4-5'
+  | 'anthropic/claude-sonnet-5'
   | 'qwen/qwen3-max'
-  | 'qwen/qwen3-235b-a22b'
   | 'mistralai/mistral-saba'
   | 'google/gemma-3-12b-it'
   | 'fanar';
@@ -26,15 +24,15 @@ interface ModelOption {
 
 const MODEL_OPTIONS: ModelOption[] = [
   {
-    id: 'google/gemini-3.5-flash',
-    name: 'Gemini 3.5 Flash',
+    id: 'google/gemini-3.7-flash',
+    name: 'Gemini 3.7 Flash',
     provider: 'Google',
     description: 'Pipeline-aligned drafter. Top dialect quality.',
     badge: 'Recommended',
   },
   {
-    id: 'anthropic/claude-sonnet-4-5',
-    name: 'Claude Sonnet 4.5',
+    id: 'anthropic/claude-sonnet-5',
+    name: 'Claude Sonnet 5',
     provider: 'OpenRouter',
     description: 'Pipeline-aligned drafter & judge.',
     badge: 'Pipeline',
@@ -61,28 +59,16 @@ const MODEL_OPTIONS: ModelOption[] = [
     badge: 'Verifier',
   },
   {
-    id: 'qwen/qwen3-235b-a22b',
-    name: 'Qwen3 235B',
-    provider: 'OpenRouter',
-    description: 'Strong reasoning, large context.',
-  },
-  {
     id: 'google/gemini-2.5-pro',
     name: 'Gemini 2.5 Pro',
     provider: 'Google',
     description: 'Previous-gen strong Gemini.',
   },
   {
-    id: 'google/gemini-3-flash-preview',
-    name: 'Gemini 3 Flash',
+    id: 'google/gemini-3.5-flash-lite',
+    name: 'Gemini 3.5 Flash Lite',
     provider: 'Google',
-    description: 'Fast preview, lower cost.',
-  },
-  {
-    id: 'google/gemini-2.5-flash',
-    name: 'Gemini 2.5 Flash',
-    provider: 'Google',
-    description: 'Fast, reliable.',
+    description: 'The pipeline\'s cheap tier. Fast one-shots.',
   },
   {
     id: 'google/gemma-3-12b-it',

@@ -2,6 +2,7 @@
 // The Brain owns the dialect identity + vocab rules system block; this file
 // just appends the tutor-specific conversation/correction rules.
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { streamBrain, BrainHttpError } from "../_shared/aiBrain.ts";
 import { getDialectLabel, type Dialect } from "../_shared/dialectHelpers.ts";
 import { detectMsaLeaks } from "../_shared/msaLeakDetector.ts";
@@ -90,7 +91,7 @@ serve(async (req) => {
       dialect: effectiveDialect,
       systemPromptExtra: buildTutorExtras(effectiveDialect, cefrLevel ?? "A2", topicHint) + driftNudge,
       messages,
-      model: "google/gemini-2.5-pro",
+      model: MODEL_IDS.GEMINI_PRO,
       temperature: 0.7,
       responseHeaders: corsHeaders,
       signal: req.signal,

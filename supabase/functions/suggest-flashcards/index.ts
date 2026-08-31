@@ -1,6 +1,7 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 
 
 const DIALECT_GUIDE: Record<string, string> = {
@@ -49,7 +50,7 @@ ${existingList.length ? existingList.join(", ") : "(none)"}
 
 Generate ${count} new flashcards.`;
 
-    const response = await chatFetch("google/gemini-2.5-flash", {
+    const response = await chatFetch(MODEL_IDS.GEMINI_FAST, {
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },

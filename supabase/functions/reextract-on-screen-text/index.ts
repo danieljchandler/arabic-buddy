@@ -15,6 +15,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import {
   ON_SCREEN_TEXT_PROMPT,
   buildVisualContextText,
@@ -88,7 +89,7 @@ async function readFromFrames(
       + `A previous pass may have missed text or read it wrongly. Capture every overlay you can see.`,
   });
 
-  const response = await chatFetch("google/gemini-2.5-flash", {
+  const response = await chatFetch(MODEL_IDS.GEMINI_FLASH, {
     messages: [
       { role: "system", content: ON_SCREEN_TEXT_PROMPT },
       { role: "user", content },

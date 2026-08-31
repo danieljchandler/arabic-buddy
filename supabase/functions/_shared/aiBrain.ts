@@ -551,7 +551,7 @@ async function callModel(opts: CallOptions): Promise<{ raw: string; parsed: unkn
 // first: this path only runs when the primary model has already burned part of
 // the latency budget, so a stable model that answers beats a stronger one that
 // runs the clock out.
-const STABLE_FALLBACKS = ['google/gemini-2.5-flash', 'google/gemini-2.5-pro', 'google/gemini-3-flash-preview'];
+const STABLE_FALLBACKS = [MODEL_IDS.GEMINI_FAST, MODEL_IDS.GEMINI_FLASH, MODEL_IDS.GEMINI_PRO];
 
 /**
  * Calls the requested (best) model. If it returns an empty/unparseable response

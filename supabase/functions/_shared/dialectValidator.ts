@@ -11,12 +11,13 @@ import {
   type Dialect,
 } from './dialectHelpers.ts';
 import { chatFetch, tryChatRoute } from './aiGateway.ts';
+import { MODEL_IDS } from './modelRegistry.ts';
 
-const VALIDATOR_MODEL = 'google/gemini-2.5-pro';
+const VALIDATOR_MODEL = MODEL_IDS.GEMINI_PRO;
 // Arabic-native second opinion. Mistral Saba is a 24B Arabic-focused model on
 // the OpenRouter key the app already uses — roughly an order of magnitude
-// cheaper than Gemini 2.5 Pro on this single-snippet task.
-const ARABIC_VALIDATOR_MODEL = 'mistralai/mistral-saba';
+// cheaper than the Pro-tier judge on this single-snippet task.
+const ARABIC_VALIDATOR_MODEL = MODEL_IDS.SABA;
 
 export interface ValidatorLeak {
   token: string;
@@ -49,7 +50,7 @@ export interface ValidateOptions {
    * Ignored when `signal` is supplied.
    */
   timeoutMs?: number;
-  /** Override the judging model. Defaults to Gemini 2.5 Pro. */
+  /** Override the judging model. Defaults to the registry's Pro-tier judge. */
   model?: string;
 }
 
@@ -162,7 +163,7 @@ Be harsh. When in doubt between 4 and 3, choose 3.`;
  *
  * The two run CONCURRENTLY and both always run. An earlier version asked the
  * cheap Arabic-native validator (Mistral Saba) first and returned its answer
- * without paying for the strong generalist (Gemini 2.5 Pro) whenever Saba said
+ * without paying for the strong generalist (the Pro-tier judge) whenever Saba said
  * `pass` at 5/5. That is the one shortcut this gate cannot afford: Saba is a
  * general Arabic model, so on Yemeni it reads fusha-inflected prose as fine and
  * scores it 5, and the strict reviewer that would have caught it never ran.

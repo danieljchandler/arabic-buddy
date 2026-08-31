@@ -125,7 +125,9 @@ harness.
 - **Model IDs are centralized; providers are chosen, not hardcoded.** Never
   hardcode a model ID in feature code — everything goes through
   `supabase/functions/_shared/modelRegistry.ts` (named lineups: `TRANSLATION`,
-  `CONTENT`, `UTILITY`, `REASONING`, plus `IMAGE_MODEL_IDS`). Which *provider*
+  `CONTENT`, `UTILITY`, `REASONING`, plus `IMAGE_MODEL_IDS`). `src/test/modelRegistry.test.ts`
+  enforces this in both directions: a new hardcoded id fails, and so does an
+  entry left on the allow-list after it was fixed. Which *provider*
   serves a model is `_shared/aiGateway.ts`'s decision, off the vendor prefix:
   `google/*` → Google (`GEMINI_API_KEY`), `openai/*` → OpenAI
   (`OPENAI_API_KEY`), everything else → OpenRouter (`OPENROUTER_API_KEY`).

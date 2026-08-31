@@ -7,8 +7,8 @@
 // in individual edge functions. Only swap models HERE, in one place.
 //
 // Two named lineups power everything translation- or content-related:
-//   - TRANSLATION: Claude Sonnet 4.5 + Gemini 3.5 Flash, ensemble.
-//   - CONTENT:    Claude Sonnet 4.5 + Gemini 3.5 Flash, draft_critic.
+//   - TRANSLATION: Claude Sonnet 5 + Gemini 3.7 Flash, ensemble.
+//   - CONTENT:    Claude Sonnet 5 + Gemini 3.7 Flash, draft_critic.
 //
 // This file names the model; `aiGateway.ts` decides whose API serves it —
 // Gemini via Google (GEMINI_API_KEY), GPT via OpenAI (OPENAI_API_KEY), and
@@ -25,13 +25,29 @@
 // ---- Canonical model IDs ----------------------------------------------------
 // Bump these when upgrading; everything downstream picks it up automatically.
 export const MODEL_IDS = {
-  CLAUDE: 'anthropic/claude-sonnet-4.5',          // one tier below Opus (cheaper)
-  CLAUDE_CHAT: 'anthropic/claude-sonnet-5',        // newest Sonnet — Ask AI text chat
-  GEMINI_FLASH: 'google/gemini-3.5-flash',         // via Google
-  GEMINI_PRO: 'google/gemini-2.5-pro',             // heavy reasoning fallback
-  GEMINI_FAST: 'google/gemini-3-flash-preview',    // cheapest utility default
-  QWEN: 'qwen/qwen3-max',                          // third-leg verifier
+  // One Sonnet for everything, not two. Sonnet 5 superseded Sonnet 4.5 and is
+  // *cheaper* than the model it replaces ($2/$10 vs $3/$15 per Mtok), so the
+  // old split — 4.5 for the pipeline, 5 for chat — cost more and reasoned worse.
+  CLAUDE: 'anthropic/claude-sonnet-5',
+  CLAUDE_CHAT: 'anthropic/claude-sonnet-5',        // same model; kept as a separate name for the chat route
+  GEMINI_FLASH: 'google/gemini-3.7-flash',         // via Google; half the price of the 3.5 it replaces
+  // Heavy reasoning fallback and the native-speaker validator's judge — the
+  // dialect quality ceiling, so it takes the newest Pro even though that one is
+  // still preview-tier. Tolerable here specifically because the validator is
+  // optional by design: `validateDialect` returns `unknown`/`ok:false` when its
+  // provider is unavailable, so a deprecated id degrades the gate rather than
+  // failing the request behind it.
+  GEMINI_PRO: 'google/gemini-3.1-pro-preview',
+  // Cheapest utility default. Lite tier, but a *GA* one: the previous pin was
+  // `gemini-3-flash-preview`, and a preview id under the app's highest-volume
+  // path is a deprecation waiting to happen.
+  GEMINI_FAST: 'google/gemini-3.5-flash-lite',
+  QWEN: 'qwen/qwen3.8-max',                        // third-leg verifier (weight 0.6)
   SABA: 'mistralai/mistral-saba',                  // Arabic-native 24B, via OpenRouter
+  // Second drafter in generate-story: a non-Google, non-Anthropic voice so the
+  // ensemble is not two models with one house style. Luna is the current small
+  // GPT-5 tier and undercuts the gpt-5-mini it replaces.
+  GPT_MINI: 'openai/gpt-5.6-luna',
   // All general Fanar work (merge fallback, meta enrichment, dialect
   // validation, curriculum chat) uses the pinned gen-2 model. Never use the
   // bare 'Fanar' alias (silently tracks gen 1, 4k ctx) and never use
@@ -101,12 +117,16 @@ export const DEFAULT_CHAT = MODEL_IDS.CLAUDE_CHAT;
 // fallback when Google is unavailable or refuses a prompt.
 export const IMAGE_MODEL_IDS = {
   GEMINI: 'google/gemini-3.1-flash-image',
-  OPENAI: 'openai/gpt-image-1',
+  // OpenAI's current image model. Note the id is deliberately not an
+  // OpenRouter-namespaced one: this model is only ever called on OpenAI's own
+  // Images API, where it is `gpt-image-2` (OpenRouter lists the same model as
+  // `openai/gpt-5.4-image-2`, which that API would not recognise).
+  OPENAI: 'openai/gpt-image-2',
 } as const;
 
 // ---- Voting weights for runEnsemble ranking --------------------------------
-// Both Claude Sonnet 4.5 and Gemini 3.5 Flash are co-equal authoritative
-// drafters. Qwen and other legacy models stay at lower weights.
+// Claude Sonnet 5 and Gemini 3.7 Flash are co-equal authoritative drafters.
+// Qwen and the second GPT drafter stay at lower weights.
 export const MODEL_WEIGHTS: Record<string, number> = {
   [MODEL_IDS.CLAUDE]: 1.0,
   [MODEL_IDS.GEMINI_FLASH]: 1.0,
@@ -114,7 +134,7 @@ export const MODEL_WEIGHTS: Record<string, number> = {
   [MODEL_IDS.GEMINI_FAST]: 0.7,
   [MODEL_IDS.QWEN]: 0.6,
   [MODEL_IDS.SABA]: 0.7,
-  'openai/gpt-5-mini': 0.6,   // second drafter in generate-story
+  [MODEL_IDS.GPT_MINI]: 0.6,  // second drafter in generate-story
 };
 
 export function getModelWeight(id: string): number {

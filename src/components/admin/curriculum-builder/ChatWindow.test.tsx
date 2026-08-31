@@ -132,8 +132,8 @@ describe("ChatWindow — the messages", () => {
   it("names the model that answered", () => {
     // The builder lets an admin switch models mid-session, and comparing two
     // drafts is pointless without knowing which produced which.
-    renderWindow({ messages: [aMessage({ llm_model: "anthropic/claude-sonnet-4-5" })] });
-    expect(screen.getByText("Claude Sonnet 4.5")).toBeInTheDocument();
+    renderWindow({ messages: [aMessage({ llm_model: "anthropic/claude-sonnet-5" })] });
+    expect(screen.getByText("Claude Sonnet 5")).toBeInTheDocument();
   });
 
   it("falls back to the raw id for a model the picker no longer offers", () => {
@@ -143,7 +143,7 @@ describe("ChatWindow — the messages", () => {
 
   it("never labels the admin's own message with a model", () => {
     renderWindow({
-      messages: [aMessage({ role: "user", llm_model: "anthropic/claude-sonnet-4-5" })],
+      messages: [aMessage({ role: "user", llm_model: "anthropic/claude-sonnet-5" })],
     });
     expect(screen.queryByText("Claude Sonnet 4.5")).not.toBeInTheDocument();
   });

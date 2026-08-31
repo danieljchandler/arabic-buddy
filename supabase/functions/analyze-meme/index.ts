@@ -113,7 +113,7 @@ async function callQwen(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'qwen/qwen3-235b-a22b',
+        model: MODEL_IDS.QWEN,
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userContent },

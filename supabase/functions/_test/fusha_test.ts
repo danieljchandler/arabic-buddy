@@ -3,6 +3,7 @@ import {
   assertEquals,
   assertStringIncludes,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { jsonRequest, loadFunction, loadSharedModule, optionsRequest } from "./harness.ts";
 import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
 
@@ -123,7 +124,7 @@ Deno.test("convert-to-fusha falls through to the second model when the first ans
 
   assertEquals(status, 200);
   assertEquals(body.fusha, [FUSHA[0]]);
-  assertEquals(body.model, "google/gemini-3.5-flash");
+  assertEquals(body.model, MODEL_IDS.GEMINI_FLASH);
 });
 
 Deno.test("convert-to-fusha reports a failure instead of an empty conversion", async () => {

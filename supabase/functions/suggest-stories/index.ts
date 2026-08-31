@@ -2,6 +2,7 @@
 // checking existing stories to avoid duplicates.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { askBrain } from "../_shared/aiBrain.ts";
 import { type Dialect } from "../_shared/dialectHelpers.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -86,7 +87,7 @@ Deno.serve(async (req) => {
       dialect: targetDialect,
       strategy: "solo",
       skipRepair: true,
-      models: ["google/gemini-3-flash-preview"],
+      models: [MODEL_IDS.GEMINI_FAST],
       systemPromptExtra: `You are an expert Arabic literature curator for a language learning app. Your job is to suggest authentic Arabic stories suitable for reading practice.
 
 Suggest stories from REAL sources — public domain Arabic literature, folktales, short stories by known authors, or well-known cultural narratives. These should be stories that actually exist or are well-known cultural narratives that can be faithfully reproduced.

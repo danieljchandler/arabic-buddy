@@ -2,6 +2,7 @@
 // and inserts it into listen_episodes. Returns the new episode row.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { askBrain } from "../_shared/aiBrain.ts";
 import { primeDialectPrompt, measureTashkeelCoverage, getDialectTransliterationRules, type Dialect } from "../_shared/dialectHelpers.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
@@ -177,7 +178,7 @@ ${learnerBlock}`;
         purpose: "story",
         dialect,
         strategy: "solo",
-        models: ["google/gemini-2.5-flash"],
+        models: [MODEL_IDS.GEMINI_FAST],
         systemPromptExtra: systemExtra,
         userPrompt,
         maxTokens: 8000,
@@ -259,7 +260,7 @@ ${learnerBlock}`;
           dialect,
           strategy: "solo",
           skipRepair: true,
-          models: ["google/gemini-2.5-flash"],
+          models: [MODEL_IDS.GEMINI_FAST],
           systemPromptExtra: `You are a tashkeel specialist. Add full Arabic diacritics (fatha, kasra, damma, sukun, shadda, tanween) to every consonant in the provided dialect Arabic lines. Preserve the dialect forms exactly — do NOT convert to MSA. Return the vocalized lines in the same order via the tool.`,
           userPrompt: `Add full tashkeel to these ${dialect} Arabic lines:\n${script.map((l: any, i: number) => `${i + 1}. ${l.arabic}`).join("\n")}`,
           maxTokens: 4000,

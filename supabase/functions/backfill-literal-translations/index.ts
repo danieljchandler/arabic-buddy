@@ -4,6 +4,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { requireContentManager } from "../_shared/requireRole.ts";
 import { chatFetch } from "../_shared/aiGateway.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -26,7 +27,7 @@ Length MUST equal number of lines.
 Lines:
 ${numbered}`;
 
-  const resp = await chatFetch("google/gemini-2.5-flash", {
+  const resp = await chatFetch(MODEL_IDS.GEMINI_FAST, {
     messages: [{ role: "user", content: prompt }],
     response_format: { type: "json_object" },
   }, { label: "backfill-literal-translations" });

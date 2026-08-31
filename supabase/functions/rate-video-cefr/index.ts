@@ -12,6 +12,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { isAdminUser, resolveUserId } from "../_shared/usageCap.ts";
 import { chatFetch } from "../_shared/aiGateway.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -278,7 +279,7 @@ ${transcript.slice(0, 6000)}
 Respond ONLY with valid JSON:
 {"cefr_level":"A1|A2|B1|B2|C1|C2","rationale":"1-2 sentences referencing concrete evidence from the transcript and metrics"}`;
 
-  const res = await chatFetch("google/gemini-2.5-flash", {
+  const res = await chatFetch(MODEL_IDS.GEMINI_FAST, {
     messages: [{ role: "user", content: prompt }],
     response_format: { type: "json_object" },
   }, { label: "rate-video-cefr" });

@@ -5514,6 +5514,7 @@ export type Database = {
           source_id: string
         }[]
       }
+      reap_stuck_video_transcriptions: { Args: never; Returns: Json }
       record_checkpoint: {
         Args: { _index: number; _score: number }
         Returns: undefined

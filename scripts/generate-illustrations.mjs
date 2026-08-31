@@ -283,6 +283,49 @@ Motif: a round medal on a short ribbon.`,
     prompt: `${BADGE_STYLE}
 Motif: a bold lightning bolt.`,
   },
+  // ── Two shores (3:2) — a matched pair of isolated landmasses, painted on
+  // bare paper so they can be keyed out and floated over other art. They are
+  // the two sides of every crossing this app is about: spoken Arabic on one
+  // shore, the learner on the other.
+  //
+  // The committed pair in src/assets/landing/ was rendered from these prompts
+  // through Higgsfield (nano_banana_pro) rather than this script, then keyed
+  // and cropped with scripts/cutout-art.mjs — NOT convert-illustrations.mjs,
+  // which flattens alpha. The empty-paper instruction is load-bearing: the key
+  // is a difference key against the paper colour, so anything painted in the
+  // background (a horizon, a wash of sky) survives the cutout as debris.
+  "shore-left": {
+    aspect: "3:2",
+    prompt: `${STYLE}
+Subject: ONE isolated landmass — the edge of an Arabian desert coastline, seen
+from a distance in profile, like a small painted continent floating alone.
+Rolling sand dunes topped with two date palms and a few small white-domed
+mud-brick houses and a slender minaret silhouette; the land drops away at its
+outer edge into a sandy cliff and a rocky shoreline. The landmass sits in the
+BOTTOM-LEFT of the frame, its bulk anchored to the bottom-left corner,
+tapering down and thinning out toward the right side of the frame.
+
+CRITICAL: the entire rest of the frame — everything above and to the right of
+the landmass — must be completely EMPTY plain flat cream #F9F4EA, a single
+uniform flat color with nothing painted in it: no sky, no clouds, no horizon
+line, no sea, no birds, no shadows, no vignette, no frame, no border.`,
+  },
+  "shore-right": {
+    aspect: "3:2",
+    prompt: `${STYLE}
+Subject: ONE isolated landmass — a green terraced highland coast, seen from a
+distance in profile, like a small painted continent floating alone.
+Stone-terraced hillsides planted with olive and cypress trees, a cluster of
+tall Yemeni tower houses with white gypsum trim on the ridge, the land dropping
+away at its outer edge into a rocky headland. The landmass sits in the
+BOTTOM-RIGHT of the frame, its bulk anchored to the bottom-right corner,
+tapering down and thinning out toward the left side of the frame.
+
+CRITICAL: the entire rest of the frame — everything above and to the left of
+the landmass — must be completely EMPTY plain flat cream #F9F4EA, a single
+uniform flat color with nothing painted in it: no sky, no clouds, no horizon
+line, no sea, no birds, no shadows, no vignette, no frame, no border.`,
+  },
 };
 
 async function generate(name, spec, attempt = 1) {

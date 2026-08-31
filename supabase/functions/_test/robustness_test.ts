@@ -111,12 +111,14 @@ Deno.test("no function throws on nulls where it expects strings", async () => {
 });
 
 Deno.test("a missing required array gets a 400 naming the problem, not a TypeError", async () => {
-  // Found by the sweep above, pinned as warts for months: listening-quiz
-  // dereferenced `words.slice` and culture-guide `messages.filter` straight
-  // off req.json(), so the caller saw a 500 with "Cannot read properties of
-  // undefined". Both guard now — the message is for a human and the status
-  // is the client's, not the server's.
-  for (const name of ["listening-quiz", "culture-guide"]) {
+  // Found by the sweep above, pinned as warts for months: culture-guide
+  // dereferenced `messages.filter` straight off req.json(), so the caller saw
+  // a 500 with "Cannot read properties of undefined". It guards now — the
+  // message is for a human and the status is the client's, not the server's.
+  // (listening-quiz used to be in this list for `words.slice`, but `words` is
+  // no longer read at all — the learner's vocabulary is assembled
+  // server-side, so a request without it is simply a normal request.)
+  for (const name of ["culture-guide"]) {
     const fn = await loadFunction(name);
     try {
       const response = await fn.handler(malformedRequest(name, JSON.stringify({ dialect: "Gulf" })));

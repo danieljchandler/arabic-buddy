@@ -269,26 +269,40 @@ Deno.test("listening-quiz falls through to speed for an unknown mode", async () 
   assertStringIncludes(bodies[i] ?? "", "speed listening practice");
 });
 
-Deno.test("listening-quiz seeds the prompt from the learner's own words", async () => {
+Deno.test("listening-quiz seeds the prompt from the learner's real deck, not the client's list", async () => {
   const { bodies, calls } = await call(
     "listening-quiz",
     {
       mode: "dictation",
-      words: [
-        { word_arabic: "بيت", word_english: "house" },
-        { word_arabic: "ولد", word_english: "boy" },
-      ],
+      // Sent by an old client; deliberately ignored. The page used to fill
+      // this with the whole shuffled curriculum labelled "words the student
+      // knows" — misinformation, not personalisation.
+      words: [{ word_arabic: "ولد", word_english: "boy" }],
     },
-    caller({ "ai.gateway.lovable.dev": emitting({ questions: [aQuizItem()] }) }),
+    caller({
+      "ai.gateway.lovable.dev": emitting({ questions: [aQuizItem()] }),
+      "/rest/v1/user_vocabulary": () =>
+        json([
+          {
+            word_arabic: "بيت",
+            word_english: "house",
+            next_review_at: new Date(Date.now() - 86_400_000).toISOString(),
+            ease_factor: 1.3,
+            lapses: 5,
+          },
+        ]),
+    }),
   );
 
   const i = calls.findIndex((u) => u.includes("ai.gateway"));
   // A listening exercise is only useful if the learner can decode the rest of
-  // the sentence — the words they know are what the sentence is built from.
+  // the sentence — the words they actually know (server-side SRS state) are
+  // what the sentence is built from.
   assertStringIncludes(bodies[i] ?? "", "بيت (house)");
+  assert(!(bodies[i] ?? "").includes("ولد"));
 });
 
-Deno.test("listening-quiz caps how much vocabulary it puts in the prompt", async () => {
+Deno.test("listening-quiz ignores however many words the client sends", async () => {
   const { bodies, calls } = await call(
     "listening-quiz",
     {
@@ -302,9 +316,11 @@ Deno.test("listening-quiz caps how much vocabulary it puts in the prompt", async
   );
 
   const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  // None of the client-built list reaches the model; vocabulary comes from
+  // learnerPromptBlock (whose own budget caps it) or nothing at all.
   const sent = bodies[i] ?? "";
-  assert(sent.includes("كلمة19"));
-  assert(!sent.includes("كلمة20"));
+  assert(!sent.includes("كلمة0"));
+  assert(!sent.includes("كلمة19"));
 });
 
 Deno.test("listening-quiz demands vocalised audio text", async () => {
@@ -367,19 +383,17 @@ Deno.test("listening-quiz answers a generation failure with a single greeting", 
   assertEquals(questions[0].audioTextEnglish, "Hello");
 });
 
-Deno.test("listening-quiz answers a missing words array with a 400, not a 500", async () => {
-  const { status, body } = await call(
+Deno.test("listening-quiz no longer requires a words array at all", async () => {
+  const { status } = await call(
     "listening-quiz",
     { mode: "dictation" },
     caller({ "ai.gateway.lovable.dev": emitting({ questions: [aQuizItem()] }) }),
   );
 
-  // `words` used to be destructured with no default and immediately `.slice`d,
-  // so a request without it threw before any validation and came back as a
-  // bare 500. It is the client's mistake, named as such — and an empty list
-  // stays a real request, since the quiz generates fine with no saved words.
-  assertEquals(status, 400);
-  assertStringIncludes(String(body.error), "words");
+  // `words` went from required (a missing one 500'd, then 400'd) to ignored:
+  // the learner's vocabulary is assembled server-side, so a request without
+  // the field is simply a normal request.
+  assertEquals(status, 200);
 });
 
 Deno.test("listening-quiz turns an anonymous caller away", async () => {
@@ -450,7 +464,7 @@ Deno.test("daily-challenge sources its words from the learner's deck", async () 
   }
 });
 
-Deno.test("daily-challenge falls back to the client's words when the deck is empty", async () => {
+Deno.test("daily-challenge ignores the client's words when the deck is empty", async () => {
   const time = new FakeTime(A_MONDAY);
   try {
     const { bodies, calls } = await call(
@@ -460,9 +474,12 @@ Deno.test("daily-challenge falls back to the client's words when the deck is emp
     );
 
     const i = calls.findIndex((u) => u.includes("ai.gateway"));
-    // A learner on their first day has no deck; a challenge built from nothing
-    // is not a challenge.
-    assertStringIncludes(bodies[i] ?? "", "كتاب");
+    // The old "cold-start fallback" used the client's list — which the page
+    // filled with 20 shuffled curriculum words, so exactly the learner with no
+    // real history got a challenge built around words labelled as theirs. An
+    // empty deck now falls back to the dialect's curated examples instead
+    // (covered by the Yemeni test below); the client's words never appear.
+    assert(!(bodies[i] ?? "").includes("كتاب"));
   } finally {
     time.restore();
   }

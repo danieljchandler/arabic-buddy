@@ -30,9 +30,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { toast } from "sonner";
-import { Loader2, Plus, Trash2, Shield, Search, MailQuestion } from "lucide-react";
+import { Loader2, Plus, Trash2, Shield, Search, MailQuestion, Link2 } from "lucide-react";
 import { MANAGED_ROLES, ROLE_LABELS, isElevatedRole, type ManagedRole } from "@/lib/rbac";
-import { describeGrantResult, type GrantResult } from "@/lib/roleGrants";
+import { describeGrantResult, roleInviteMessage, type GrantResult } from "@/lib/roleGrants";
 
 interface ManagedRoleRow {
   id: string;
@@ -189,6 +189,22 @@ const BibleAccess = () => {
     }
   };
 
+  /**
+   * Granting a role sends no email, so the link is the whole handoff: copy the
+   * message and send it however you already talk to that person.
+   */
+  const copyInvite = async (role: ManagedRole, email: string | null) => {
+    const message = roleInviteMessage(role, email ?? "your email", window.location.origin);
+    try {
+      await navigator.clipboard.writeText(message);
+      toast.success("Access link copied", { description: "Paste it to them directly." });
+    } catch {
+      // Clipboard is blocked in some embedded contexts; show the text so it can
+      // still be selected by hand rather than failing silently.
+      toast.info(message);
+    }
+  };
+
   if (!isAdmin) {
     return (
       <div className="p-8 text-center text-muted-foreground">
@@ -213,7 +229,8 @@ const BibleAccess = () => {
             Grant and revoke admin, transcriber, beta tester, Bible reader, content reviewer
             and complimentary (free All-In) roles. Enter an email address: if it has no
             account yet, the role is saved and applied automatically when that address
-            signs up.
+            signs up. No email is sent — use the link button on each row to copy an
+            access link and send it to them yourself.
           </p>
         </div>
       </div>
@@ -301,7 +318,7 @@ const BibleAccess = () => {
               <TableHead>Email</TableHead>
               <TableHead>User ID</TableHead>
               <TableHead>Added</TableHead>
-              <TableHead className="w-[80px]" />
+              <TableHead className="w-[120px]" />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -317,7 +334,15 @@ const BibleAccess = () => {
                 <TableCell className="text-sm text-muted-foreground">
                   {new Date(row.created_at).toLocaleDateString()}
                 </TableCell>
-                <TableCell>
+                <TableCell className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Copy access link for ${row.email ?? row.user_id}`}
+                    onClick={() => copyInvite(row.role, row.email)}
+                  >
+                    <Link2 className="h-4 w-4" />
+                  </Button>
                   <Button
                     variant="ghost"
                     size="icon"
@@ -356,7 +381,7 @@ const BibleAccess = () => {
                 <TableHead>Role</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Invited</TableHead>
-                <TableHead className="w-[80px]" />
+                <TableHead className="w-[120px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -369,7 +394,15 @@ const BibleAccess = () => {
                   <TableCell className="text-sm text-muted-foreground">
                     {new Date(row.created_at).toLocaleDateString()}
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={`Copy signup link for ${row.email}`}
+                      onClick={() => copyInvite(row.role, row.email)}
+                    >
+                      <Link2 className="h-4 w-4" />
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"

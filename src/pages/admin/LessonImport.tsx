@@ -53,10 +53,15 @@ const LessonImport = () => {
 
   const handleImport = async () => {
     if (!parsed) return;
+    if (!stageId) {
+      toast({ variant: 'destructive', title: 'Pick a stage', description: 'Choose which curriculum stage this lesson belongs to.' });
+      return;
+    }
 
     try {
       await importMutation.mutateAsync({
-        stageId: 'default',
+        stageId,
+
         lessonNumber: parsed.overview.lessonNumber,
         title: parsed.overview.title || `Lesson ${parsed.overview.lessonNumber}`,
         titleArabic: undefined,

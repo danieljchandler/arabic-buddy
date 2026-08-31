@@ -239,7 +239,9 @@ const GrammarDrills = () => {
     // last question and post every outcome to the mastery ladder again.
     try {
       localStorage.removeItem('session_grammar_drills');
-    } catch {}
+    } catch {
+      // Storage can be unavailable (private mode); losing the cleanup is fine.
+    }
   };
 
   // A restored fully-answered session lands on the results screen with its
@@ -263,7 +265,9 @@ const GrammarDrills = () => {
     // session's entry would survive the reset and be restored later.
     try {
       localStorage.removeItem('session_grammar_drills');
-    } catch {}
+    } catch {
+      // Storage can be unavailable (private mode); losing the cleanup is fine.
+    }
   };
 
   if (!isAuthenticated) {

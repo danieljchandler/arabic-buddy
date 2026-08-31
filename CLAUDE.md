@@ -94,7 +94,7 @@ harness.
   points under the measured figures and are a ratchet — raise them when the
   real numbers move up.
 - **The lint ratchet has a hard-coded baseline.** `scripts/lint-ratchet.mjs`
-  pins `BASELINE` (currently 533 errors). If you legitimately reduce the count,
+  pins `BASELINE` (currently 532 errors). If you legitimately reduce the count,
   lower `BASELINE` in the same commit — the script prints the new number.
 - **Flashcard scheduling is FSRS-5, not FSRS-4.5 or SM-2.** `src/lib/spacedRepetition.ts`
   implements the stock FSRS-5 parameters and formulas (Anki ships this since

@@ -26,6 +26,7 @@ const SOURCE_LABELS: Record<TranscriptRevisionRow["source"], string> = {
   human: "edited by hand",
   ai_retranslate: "re-translated by AI",
   ai_resegment: "re-segmented by AI",
+  resync: "re-timed against the audio",
 };
 
 /** RTL for the Arabic field, LTR for everything else. */

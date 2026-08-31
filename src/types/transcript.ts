@@ -5,6 +5,20 @@
    gloss?: string;          // English meaning for this individual word
    compoundRef?: string;    // if part of a compound phrase, references the first word's surface
  };
+
+/**
+ * One word of a line placed on the audio timeline, written by the ingest
+ * pipeline's alignment pass (`_shared/transcriptTimingAlign.ts`). Parallel to
+ * the whitespace-split of `arabic`, not to `tokens` (which the editor rewrites
+ * freely). `matched` distinguishes a word timed by a real ASR timestamp from
+ * one interpolated between its matched neighbours.
+ */
+export type LineWordTiming = {
+  surface: string;
+  startMs: number;
+  endMs: number;
+  matched?: boolean;
+};
  
  export type TranscriptLine = {
    id: string;
@@ -19,8 +33,10 @@
    */
   fusha?: string;
    tokens: WordToken[];     // clickable words
-   startMs?: number;        // for future audio sync
+   startMs?: number;        // line's place on the audio timeline
    endMs?: number;
+  /** Real per-word timings from ingest alignment; absent on older rows and on proportional-fallback timelines. */
+  words?: LineWordTiming[];
   segmentType?: 'audio' | 'text_overlay';
   /** Set by the translation ensemble when the line couldn't be settled confidently. */
   needs_review?: boolean;

@@ -21,6 +21,7 @@ const editorProps = vi.hoisted(() => ({
     videoUrl?: string;
     onSave?: (segments: Segment[]) => void;
     onAIResegment?: (segments: Segment[]) => Promise<Segment[] | null>;
+    onResyncTiming?: (segments: Segment[]) => Promise<Segment[] | null>;
   },
 }));
 
@@ -61,10 +62,10 @@ const aLine = (over: Partial<TranscriptLine> = {}): TranscriptLine => ({
   ...over,
 });
 
-function render(lines: TranscriptLine[] = [aLine()], audioUrl?: string) {
+function render(lines: TranscriptLine[] = [aLine()], audioUrl?: string, videoId?: string) {
   const onChange = vi.fn();
   const harness = renderWithProviders(
-    <AdminTranscriptEditor lines={lines} onChange={onChange} audioUrl={audioUrl} />,
+    <AdminTranscriptEditor lines={lines} onChange={onChange} audioUrl={audioUrl} videoId={videoId} />,
   );
   cleanup = harness.cleanup;
   return { ...harness, onChange };
@@ -129,8 +130,8 @@ describe("AdminTranscriptEditor — lines in", () => {
 
 describe("AdminTranscriptEditor — word timings", () => {
   it("spreads the words evenly across the line", () => {
-    // Real per-word timings do not exist in the admin model. Even distribution
-    // is the stand-in, and it matters: AI re-segmentation rebuilds each
+    // The stand-in for a line with no aligned `words` (older rows, or the
+    // proportional fallback). It matters: AI re-segmentation rebuilds each
     // segment's start and end from its words, so words all sharing one
     // timestamp would collapse every proposed line to zero length.
     render([
@@ -181,6 +182,81 @@ describe("AdminTranscriptEditor — word timings", () => {
       [5, 5],
       [5, 5],
     ]);
+  });
+});
+
+describe("AdminTranscriptEditor — real word timings", () => {
+  const timedLine = () =>
+    aLine({
+      startMs: 500,
+      endMs: 6400,
+      arabic: "مرحبا بك",
+      words: [
+        { surface: "مرحبا", startMs: 500, endMs: 1000, matched: true },
+        { surface: "بك", startMs: 5900, endMs: 6400, matched: true },
+      ],
+    });
+
+  it("uses the aligned times instead of an even spread", () => {
+    // The whole point of persisting `words`: the editor's word highlight, its
+    // split boundaries and the AI re-segmentation anchors all read from here,
+    // and an even spread across a line with a pause in it puts every one of
+    // them somewhere the speaker was silent.
+    render([timedLine()]);
+    expect(props().initialSegments[0].words).toEqual([
+      { word: "مرحبا", start: 0.5, end: 1, confidence: 1 },
+      { word: "بك", start: 5.9, end: 6.4, confidence: 1 },
+    ]);
+  });
+
+  it("falls back to the even spread when the words no longer fit the text", () => {
+    // An Arabic edit saved by a path that did not update `words` leaves a
+    // stale array; a count mismatch is the tell.
+    render([
+      aLine({
+        startMs: 0,
+        endMs: 3000,
+        arabic: "مرحبا بك جدا",
+        tokens: [token({ surface: "مرحبا" }), token({ surface: "بك" }), token({ surface: "جدا" })],
+        words: [
+          { surface: "مرحبا", startMs: 500, endMs: 1000 },
+          { surface: "بك", startMs: 1100, endMs: 1600 },
+        ],
+      }),
+    ]);
+    expect(props().initialSegments[0].words.map((w) => w.start)).toEqual([0, 1, 2]);
+  });
+
+  it("round-trips the aligned words untouched through a no-op save", () => {
+    // `matched` is provenance — which times came from a real ASR word — and a
+    // plain open-and-save must not strip it.
+    const { onChange } = render([timedLine()]);
+    act(() => props().onSave?.(props().initialSegments));
+    expect((onChange.mock.calls[0][0] as TranscriptLine[])[0].words).toEqual([
+      { surface: "مرحبا", startMs: 500, endMs: 1000, matched: true },
+      { surface: "بك", startMs: 5900, endMs: 6400, matched: true },
+    ]);
+  });
+
+  it("writes the editor's word times back when they moved", () => {
+    const { onChange } = render([timedLine()]);
+    const seg = props().initialSegments[0];
+    act(() =>
+      props().onSave?.([
+        {
+          ...seg,
+          words: [
+            { word: "مرحبا", start: 0.7, end: 1.2, confidence: 1 },
+            { word: "بك", start: 5.9, end: 6.4, confidence: 1 },
+          ],
+        },
+      ]),
+    );
+    const saved = (onChange.mock.calls[0][0] as TranscriptLine[])[0].words!;
+    expect(saved[0]).toEqual({ surface: "مرحبا", startMs: 700, endMs: 1200 });
+    // Once anything moved, provenance is mixed, so the flags are dropped
+    // rather than invented.
+    expect(saved[1]).toEqual({ surface: "بك", startMs: 5900, endMs: 6400 });
   });
 });
 
@@ -600,6 +676,128 @@ describe("AdminTranscriptEditor — AI re-segmentation", () => {
 
     expect(toast).toHaveBeenCalledWith(
       expect.objectContaining({ description: "The server returned 500." }),
+    );
+  });
+});
+
+describe("AdminTranscriptEditor — re-sync timing", () => {
+  const VIDEO = "99999999-9999-4999-8999-999999999999";
+
+  const segments: Segment[] = [
+    {
+      id: "line-1",
+      video_id: "",
+      start: 0,
+      end: 3,
+      text: "مرحبا بك",
+      translation: "Welcome",
+      confidence: 1,
+      words: [
+        { word: "مرحبا", start: 0, end: 1.5, confidence: 1 },
+        { word: "بك", start: 1.5, end: 3, confidence: 1 },
+      ],
+    },
+  ];
+
+  const retimed = {
+    lines: [
+      {
+        id: "line-1",
+        startMs: 500,
+        endMs: 6400,
+        words: [
+          { surface: "مرحبا", startMs: 500, endMs: 1000, matched: true },
+          { surface: "بك", startMs: 5900, endMs: 6400, matched: true },
+        ],
+      },
+    ],
+    matched: 2,
+    total: 2,
+  };
+
+  it("is only offered when the editor knows which video this is", () => {
+    render();
+    expect(props().onResyncTiming).toBeUndefined();
+    render([aLine()], undefined, VIDEO);
+    expect(props().onResyncTiming).toBeDefined();
+  });
+
+  it("sends the current lines so unsaved edits are what gets aligned", async () => {
+    const { backend } = render([aLine()], undefined, VIDEO);
+    backend.stubFunction("resync-transcript-timing", retimed);
+
+    await act(async () => {
+      await props().onResyncTiming?.(segments);
+    });
+
+    expect(backend.lastCallTo("resync-transcript-timing")?.body).toEqual({
+      videoId: VIDEO,
+      lines: [{ id: "line-1", arabic: "مرحبا بك" }],
+    });
+  });
+
+  it("returns the current segments re-timed, text untouched", async () => {
+    const { backend } = render([aLine()], undefined, VIDEO);
+    backend.stubFunction("resync-transcript-timing", retimed);
+
+    let result: Segment[] | null = null;
+    await act(async () => {
+      result = (await props().onResyncTiming?.(segments)) ?? null;
+    });
+
+    expect(result![0]).toMatchObject({ id: "line-1", text: "مرحبا بك", start: 0.5, end: 6.4 });
+    expect(result![0].words).toEqual([
+      { word: "مرحبا", start: 0.5, end: 1, confidence: 1 },
+      { word: "بك", start: 5.9, end: 6.4, confidence: 1 },
+    ]);
+  });
+
+  it("leaves a segment the server did not mention alone", async () => {
+    const { backend } = render([aLine()], undefined, VIDEO);
+    backend.stubFunction("resync-transcript-timing", retimed);
+
+    const extra: Segment = { ...segments[0], id: "line-2", start: 7, end: 9 };
+    let result: Segment[] | null = null;
+    await act(async () => {
+      result = (await props().onResyncTiming?.([...segments, extra])) ?? null;
+    });
+
+    expect(result![1]).toMatchObject({ id: "line-2", start: 7, end: 9 });
+  });
+
+  it("refuses an empty answer rather than proposing nothing", async () => {
+    const { backend } = render([aLine()], undefined, VIDEO);
+    backend.stubFunction("resync-transcript-timing", { lines: [], matched: 0, total: 0 });
+
+    let result: Segment[] | null | undefined;
+    await act(async () => {
+      result = await props().onResyncTiming?.(segments);
+    });
+
+    expect(result).toBeNull();
+    expect(toast).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Re-sync returned no timings", variant: "destructive" }),
+    );
+  });
+
+  it("shows what the function actually said when it fails", async () => {
+    const { backend } = render([aLine()], undefined, VIDEO);
+    backend.stubFunctionFailure("resync-transcript-timing", 422, {
+      error: "alignment_rejected",
+      message: "Too few words matched — the audio may not fit this transcript.",
+    });
+
+    let result: Segment[] | null | undefined;
+    await act(async () => {
+      result = await props().onResyncTiming?.(segments);
+    });
+
+    expect(result).toBeNull();
+    expect(toast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Re-sync failed",
+        description: "422: Too few words matched — the audio may not fit this transcript.",
+      }),
     );
   });
 });

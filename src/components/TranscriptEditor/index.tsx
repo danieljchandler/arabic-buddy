@@ -55,6 +55,12 @@ interface TranscriptEditorProps {
    */
   onAIResegment?: (segments: Segment[]) => Promise<Segment[] | null>;
   /**
+   * Optional handler that re-times the current lines against the audio via
+   * forced alignment. Returns the re-timed Segment[] (shown in the same diff
+   * preview as re-segmentation) or null if cancelled / failed.
+   */
+  onResyncTiming?: (segments: Segment[]) => Promise<Segment[] | null>;
+  /**
    * Re-translate one line from the Arabic it now holds. Offered on every line
    * in review mode, and on stale ones otherwise.
    */
@@ -80,6 +86,7 @@ export default function TranscriptEditor({
   onSave,
   aiApiCall,
   onAIResegment,
+  onResyncTiming,
   onRetranslate,
   lineReview,
 }: TranscriptEditorProps) {
@@ -320,6 +327,23 @@ export default function TranscriptEditor({
     }
   }, [onAIResegment, resegmentLoading, segments]);
 
+  // Same accept/reject flow as re-segmentation — a re-timed transcript is a
+  // proposal too, and the diff preview is what earns it the reviewer's trust.
+  const handleResyncTiming = useCallback(async () => {
+    if (!onResyncTiming || resegmentLoading) return;
+    setResegmentLoading(true);
+    setResegmentSuggestion(null);
+    try {
+      const result = await onResyncTiming(segments);
+      if (result && result.length > 0) {
+        setResegmentSuggestion(result);
+        setShowDiff(true);
+      }
+    } finally {
+      setResegmentLoading(false);
+    }
+  }, [onResyncTiming, resegmentLoading, segments]);
+
   const handleFixArabic = useCallback(
     async (segmentId: string) => {
       if (!aiApiCall) return;
@@ -365,6 +389,7 @@ export default function TranscriptEditor({
         onRedo={handleRedo}
         onSuggestBreaks={handleSuggestBreaks}
         onAIResegment={onAIResegment ? handleAIResegment : undefined}
+        onResyncTiming={onResyncTiming ? handleResyncTiming : undefined}
         onCancelAI={cancelAI}
         onShowShortcuts={() => setShowHelp((open) => !open)}
       />

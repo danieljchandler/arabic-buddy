@@ -710,13 +710,57 @@ Deno.test("process-approved-video prefers what analysis wrote to the row directl
   assertEquals(final?.cultural_context, "persisted directly");
 });
 
+Deno.test("process-approved-video times lines from real ASR word timestamps", async () => {
+  // Soniox hears the fixture's two lines word for word, with a 3.4-second
+  // silence between them — somebody nodding, a cut, a laugh.
+  const soniox: UpstreamHandler = (request) => {
+    const path = new URL(request.url).pathname;
+    if (path.endsWith("/files")) return json({ id: "file_fixture" });
+    if (path.endsWith("/transcript")) {
+      return json({
+        text: "شلونك اليوم الحمد لله بخير",
+        tokens: [
+          { text: " شلونك", start_ms: 500, end_ms: 1000 },
+          { text: " اليوم", start_ms: 1100, end_ms: 1600 },
+          { text: " الحمد", start_ms: 5000, end_ms: 5400 },
+          { text: " لله", start_ms: 5500, end_ms: 5800 },
+          { text: " بخير", start_ms: 5900, end_ms: 6400 },
+        ],
+      });
+    }
+    return json({ id: "tr_fixture", status: "completed" });
+  };
+  const result = await call({ videoId: VIDEO }, backend({ extra: { "api.soniox.com": soniox } }));
+  const lines = lastPatchWith(result, "transcript_lines")?.transcript_lines as Array<{
+    startMs: number;
+    endMs: number;
+    words: Array<{ surface: string; startMs: number; endMs: number; matched: boolean }>;
+  }>;
+
+  // The pause between the lines survives. Proportional allocation — the old
+  // behaviour — made every line contiguous with the next, so any real silence
+  // became drift for the rest of the clip.
+  assertEquals(lines[0].startMs, 500);
+  assertEquals(lines[0].endMs, 1600);
+  assertEquals(lines[1].startMs, 5000);
+  assertEquals(lines[1].endMs, 6400);
+
+  // Per-word timings persist so the editor and a later re-sync pass can build
+  // on real times instead of re-fabricating uniform ones.
+  assertEquals(lines[0].words.map((w) => w.surface), ["شلونك", "اليوم"]);
+  assertEquals(lines[0].words[0].startMs, 500);
+  assertEquals(lines[0].words[0].endMs, 1000);
+  assert(lines.every((l) => l.words.every((w) => w.matched)), "expected every word matched");
+});
+
 Deno.test("process-approved-video gives every line a place on the audio timeline", async () => {
   const result = await call({ videoId: VIDEO }, backend());
   const lines = lastPatchWith(result, "transcript_lines")?.transcript_lines as
     Array<Record<string, number>>;
 
-  // The merged Arabic no longer matches the ASR token stream word for word, so
-  // timings are allocated proportionally by line length rather than walked.
+  // The default fixtures give the aligner nothing to match ("مرحبا" is not in
+  // any line), so this is the fallback path: timings allocated proportionally
+  // by line length, contiguous by construction.
   assertEquals(lines.length, 2);
   assertEquals(lines[0].startMs, 0);
   assert(lines[0].endMs > lines[0].startMs, "expected the first line to span time");

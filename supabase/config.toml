@@ -146,6 +146,9 @@ verify_jwt = false
 [functions.ai-resegment-transcript]
 verify_jwt = true
 
+[functions.resync-transcript-timing]
+verify_jwt = true
+
 [functions.extract-concepts]
 verify_jwt = true
 

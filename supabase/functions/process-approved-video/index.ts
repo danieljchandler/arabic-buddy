@@ -20,6 +20,7 @@ import {
   planAsrPayloads,
 } from "../_shared/audioChunk.ts";
 import { noArabicSpeechNote } from "../_shared/arabicSpeechGate.ts";
+import { alignLinesToAsrWords } from "../_shared/transcriptTimingAlign.ts";
 import {
   buildVisualContextText,
   segmentsFromLegacyLines,
@@ -58,6 +59,8 @@ interface PipelineLine extends Json {
   tokens?: unknown;
   startMs?: number;
   endMs?: number;
+  /** Per-word timings from the alignment pass — see _shared/transcriptTimingAlign.ts. */
+  words?: unknown;
 }
 
 /** The `discover_videos` row this run is processing. */
@@ -1217,17 +1220,21 @@ async function runPipeline(
 
     // Align merged-Arabic lines to the source audio timeline.
     //
-    // The naive approach (walking Deepgram word indices) breaks badly because:
-    //   - the AI merger rewrites/normalizes Arabic, so word counts no longer
-    //     match the ASR token stream;
-    //   - Deepgram often returns FAR fewer Arabic words than Soniox/Munsit
-    //     (English-tuned segmentation), so later lines end up with
-    //     undefined timestamps.
+    // First choice: real alignment. The merged Arabic no longer matches the
+    // ASR token stream index for index (the LLM merge rewrites text), but the
+    // two streams still share most of their words — so anchor them by text
+    // (arabicMatch normalisation, unique-word anchors, fuzzy gap fill) and take
+    // each line's span from the ASR words that actually matched. This is what
+    // keeps pauses as pauses instead of smearing them across every line.
     //
-    // Instead, take the total speech span from the most reliable timestamped
-    // source available and proportionally allocate to each line by character
-    // length. This keeps line audio in roughly the right place even when the
-    // merged text and the timestamped ASR diverge.
+    // Fallback: proportional allocation. When too few words match — a
+    // wordless engine won the pick, a degenerate token stream, a merge that
+    // rewrote everything — take the total speech span from the timestamped
+    // source and allocate to each line by character length. Wrong in detail
+    // but bounded, which beats a confidently misaligned timeline. (Walking
+    // Deepgram word indices, the original approach, broke on exactly that:
+    // English-tuned segmentation returned far fewer Arabic words, so later
+    // lines ended up with undefined timestamps.)
     const alignLinesToAudio = (rawLines: PipelineLine[]): PipelineLine[] => {
       if (!Array.isArray(rawLines) || rawLines.length === 0) return rawLines;
 
@@ -1236,6 +1243,34 @@ async function runPipeline(
         ((downloadDuration && downloadDuration > 0 ? downloadDuration : 0) * 1000) ||
         ((video.duration_seconds && video.duration_seconds > 0 ? video.duration_seconds : 0) * 1000) ||
         0;
+
+      const aligned = alignLinesToAsrWords(
+        rawLines.map((l) => String(l?.arabic ?? "")),
+        relativeWords,
+        { audioDurationMs },
+      );
+      if (aligned) {
+        const matched = aligned.reduce(
+          (acc, l) => acc + l.words.filter((w) => w.matched).length,
+          0,
+        );
+        const total = aligned.reduce((acc, l) => acc + l.words.length, 0);
+        console.log(
+          `[pipeline] Word alignment: ${matched}/${total} words matched to ${alignmentSource} timestamps`,
+        );
+        return rawLines.map((line, i) => ({
+          ...line,
+          startMs: aligned[i].startMs,
+          endMs: aligned[i].endMs,
+          // Per-word timings persist so the editor and any later re-sync can
+          // work from real times instead of re-fabricating uniform ones.
+          words: aligned[i].words,
+        }));
+      }
+      console.log(
+        `[pipeline] Word alignment rejected (too few matches against ${alignmentSource}); ` +
+          "falling back to proportional allocation",
+      );
 
       // Scan all alignment words for true min start / max end. Some ASRs
       // (notably Soniox) drop end_ms on the final token of a phrase, which

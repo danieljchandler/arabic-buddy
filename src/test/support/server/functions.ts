@@ -218,7 +218,12 @@ function transcriptReview({ db, userId, body }: FunctionContext): FunctionRespon
       }
       const revisions = diffTranscriptRevisions(storedLines, lines);
       writeLines(lines);
-      logRevisions(revisions, payload.source === "ai_resegment" ? "ai_resegment" : "human");
+      logRevisions(
+        revisions,
+        payload.source === "ai_resegment" ? "ai_resegment"
+          : payload.source === "resync" ? "resync"
+          : "human",
+      );
       return ok({ saved: true, revisions: revisions.length, logged: true });
     }
 
@@ -659,6 +664,9 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
   "generate-story-video-full": () => ok({ videoUrl: "https://cdn.test/story-full.mp4" }),
   "edit-story-scene-image": () => ok({ imageUrl: "https://cdn.test/scene.png" }),
   "ai-resegment-transcript": () => ok({ segments: [] }),
+  // Empty proposal: the editor treats "no lines" as a failed re-sync and shows
+  // a toast rather than opening the diff, which is the honest default here.
+  "resync-transcript-timing": () => ok({ lines: [], matched: 0, total: 0 }),
   "classify-tutor-segments": () => ok({ segments: [] }),
   "backfill-literal-translations": () => ok({ updated: 0 }),
   "vet-corpus-sentences": () => ok({ results: [] }),

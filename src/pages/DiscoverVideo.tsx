@@ -60,6 +60,30 @@ declare global {
   }
 }
 
+/**
+ * How long a line stays highlighted past its `endMs`.
+ *
+ * With aligned timings the space between lines is a real silence, and dropping
+ * the caption the instant the last word ends reads as flicker — so the line
+ * lingers briefly. It can never steal from the next line: the scan below runs
+ * newest-first, so once a line's `startMs` has passed, that line wins whatever
+ * grace its predecessor still had.
+ */
+const LINE_END_GRACE_MS = 500;
+
+/** The line under the playhead: the latest started line, within its grace. */
+function lineIdAt(lines: TranscriptLine[], atMs: number): string | null {
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const line = lines[i];
+    if (line.startMs !== undefined && atMs >= line.startMs) {
+      if (line.endMs === undefined || atMs <= line.endMs + LINE_END_GRACE_MS) {
+        return line.id;
+      }
+    }
+  }
+  return null;
+}
+
 /* ── Clickable Word Token ─────────────────────────────────── */
 const ClickableWord = ({
   token,
@@ -1036,40 +1060,14 @@ const DiscoverVideo = ({
   const activeLineId = useMemo(() => {
     if (!lines.length) return null;
     if (isYouTube) {
-      if (currentTimeMs <= 0) return null;
-      for (let i = lines.length - 1; i >= 0; i--) {
-        const line = lines[i];
-        if (line.startMs !== undefined && currentTimeMs >= line.startMs) {
-          if (line.endMs === undefined || currentTimeMs <= line.endMs + 500) {
-            return line.id;
-          }
-        }
-      }
-      return null;
+      return currentTimeMs > 0 ? lineIdAt(lines, currentTimeMs) : null;
     }
     if (isTikTok && tiktokAudioReady) {
-      if (currentTimeMs <= 0) return null;
-      for (let i = lines.length - 1; i >= 0; i--) {
-        const line = lines[i];
-        if (line.startMs !== undefined && currentTimeMs >= line.startMs) {
-          if (line.endMs === undefined || currentTimeMs <= line.endMs + 500) {
-            return line.id;
-          }
-        }
-      }
-      return null;
+      return currentTimeMs > 0 ? lineIdAt(lines, currentTimeMs) : null;
     }
     // Timer-based sync fallback (legacy TikTok without uploaded audio)
     if (timerMs > 0 || timerPlaying) {
-      for (let i = lines.length - 1; i >= 0; i--) {
-        const line = lines[i];
-        if (line.startMs !== undefined && timerMs >= line.startMs) {
-          if (line.endMs === undefined || timerMs <= line.endMs + 500) {
-            return line.id;
-          }
-        }
-      }
-      return null;
+      return lineIdAt(lines, timerMs);
     }
     // Fallback: manual navigation
     const idx = Math.max(0, Math.min(manualLineIndex, lines.length - 1));

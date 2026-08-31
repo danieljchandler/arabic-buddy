@@ -323,6 +323,18 @@ const AdminVideoForm = () => {
     setDetailTab(tab);
   }, []);
 
+  // Wait out one editor debounce window (edits are reported at 800 ms), THEN
+  // persist if anything changed. Every save-shaped action needs both halves:
+  // without the wait, a keystroke made just before the click isn't in
+  // latestLines.current yet — the linesEqual check passes vacuously and the
+  // edit is dropped; the same regression handleSaveTranscript was fixed for.
+  const settleAndPersist = useCallback(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    if (!linesEqual(latestLines.current, publishedLines)) {
+      await persistTranscript(latestLines.current);
+    }
+  }, [persistTranscript, publishedLines]);
+
   const toggleReviewed = useCallback(
     async (lineId: string, reviewed: boolean) => {
       try {
@@ -330,8 +342,8 @@ const AdminVideoForm = () => {
         // what later proves the tick stale — so a line corrected but not yet
         // saved must land first, or the reviewer would be signing off on the
         // version they just replaced.
-        if (reviewed && !linesEqual(latestLines.current, publishedLines)) {
-          await persistTranscript(latestLines.current);
+        if (reviewed) {
+          await settleAndPersist();
         }
         await setReviewed.mutateAsync({ lineId, reviewed });
       } catch (error) {
@@ -340,7 +352,7 @@ const AdminVideoForm = () => {
         });
       }
     },
-    [persistTranscript, publishedLines, setReviewed],
+    [settleAndPersist, setReviewed],
   );
 
   const handleRetranslate = useCallback(
@@ -350,9 +362,7 @@ const AdminVideoForm = () => {
         // The server re-translates the Arabic it has stored, and the correction
         // that prompted this press is usually seconds old — flush it first so
         // the model sees the corrected words rather than the ones they replaced.
-        if (!linesEqual(latestLines.current, publishedLines)) {
-          await persistTranscript(latestLines.current);
-        }
+        await settleAndPersist();
         const data = await retranslateLine.mutateAsync({ lineId });
         handleTranscriptChange(
           latestLines.current.map((line) =>
@@ -370,7 +380,7 @@ const AdminVideoForm = () => {
         setRetranslating(null);
       }
     },
-    [handleTranscriptChange, persistTranscript, publishedLines, retranslateLine],
+    [handleTranscriptChange, settleAndPersist, retranslateLine],
   );
 
   const lineReview = useCallback(
@@ -1338,7 +1348,12 @@ const AdminVideoForm = () => {
         // are deliberately NOT in the record: the notes editor below saves them
         // through the same function, and writing this form's stale copies here
         // would silently undo a save made minutes ago.
-        await persistTranscript(latestLines.current);
+        // settleAndPersist, not a bare persist: a keystroke made <800ms before
+        // pressing Update Video wasn't in latestLines.current yet, and the
+        // navigation away then cleared the pending debounce AND the local
+        // draft — the exact "save dropped my last edit" regression, alive on
+        // this button after being fixed on Save transcript.
+        await settleAndPersist();
         const { error } = await (supabase.from("discover_videos" as any) as any).update(record).eq("id", videoId);
         if (error) throw error;
         toast.success("Video updated!");

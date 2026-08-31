@@ -237,16 +237,20 @@ describe("recording what was watched", () => {
     expect(backend.db.rows("video_views")[0]).toMatchObject({ watched_seconds: 60 });
   });
 
-  it("refreshes the feed so the ranking reflects the watch", async () => {
+  it("marks the feed stale for the next visit without refetching mid-watch", async () => {
     const { result, backend } = render((b) => b.stubFunction("discover-feed", { items: [] }));
     await waitFor(() => expect(result.current.feed.isSuccess).toBe(true));
     const before = backend.callsTo("discover-feed").length;
 
     await result.current.record.mutateAsync({ videoId: videoId(0), watchedSeconds: 60 });
 
-    await waitFor(() =>
-      expect(backend.callsTo("discover-feed").length).toBeGreaterThan(before),
-    );
+    // Progress reports fire every ~10s of playback with the feed page still
+    // mounted under the video overlay; an eager invalidation here re-ran the
+    // discover-feed edge function for the entire watch session. The ranking
+    // still reflects the watch on the next visit: the cached feed is stale
+    // (its staleTime would otherwise hold for 10 minutes).
+    await waitFor(() => expect(result.current.feed.isStale).toBe(true));
+    expect(backend.callsTo("discover-feed").length).toBe(before);
   });
 
   it("writes nothing for a signed-out visitor", async () => {

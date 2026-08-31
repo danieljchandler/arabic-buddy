@@ -36,33 +36,39 @@ export async function blobToWav(blob: Blob): Promise<Blob> {
   const arrayBuffer = await blob.arrayBuffer();
   const audioCtx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
 
-  const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+  // Closed in finally: browsers cap live AudioContexts per tab (~6 in
+  // Chrome), and closing only on the success path meant every failed decode
+  // leaked one — after a few bad recordings all scoring, clipping and TTS
+  // decoding failed until reload.
+  try {
+    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
 
-  // Down-mix to mono
-  const numberOfChannels = 1;
-  const sampleRate = 16000;
+    // Down-mix to mono
+    const numberOfChannels = 1;
+    const sampleRate = 16000;
 
-  // Resample to 16 kHz using an OfflineAudioContext
-  const offlineCtx = new OfflineAudioContext(
-    numberOfChannels,
-    Math.ceil(audioBuffer.duration * sampleRate),
-    sampleRate
-  );
+    // Resample to 16 kHz using an OfflineAudioContext
+    const offlineCtx = new OfflineAudioContext(
+      numberOfChannels,
+      Math.ceil(audioBuffer.duration * sampleRate),
+      sampleRate
+    );
 
-  const source = offlineCtx.createBufferSource();
-  source.buffer = audioBuffer;
-  source.connect(offlineCtx.destination);
-  source.start(0);
+    const source = offlineCtx.createBufferSource();
+    source.buffer = audioBuffer;
+    source.connect(offlineCtx.destination);
+    source.start(0);
 
-  const renderedBuffer = await offlineCtx.startRendering();
-  const pcmData = renderedBuffer.getChannelData(0);
+    const renderedBuffer = await offlineCtx.startRendering();
+    const pcmData = renderedBuffer.getChannelData(0);
 
-  // Encode as 16-bit PCM WAV
-  const wavBuffer = encodeWav(pcmData, sampleRate);
+    // Encode as 16-bit PCM WAV
+    const wavBuffer = encodeWav(pcmData, sampleRate);
 
-  await audioCtx.close();
-
-  return new Blob([wavBuffer], { type: 'audio/wav' });
+    return new Blob([wavBuffer], { type: 'audio/wav' });
+  } finally {
+    await audioCtx.close().catch(() => {});
+  }
 }
 
 function encodeWav(samples: Float32Array, sampleRate: number): ArrayBuffer {

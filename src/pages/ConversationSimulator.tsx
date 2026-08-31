@@ -93,6 +93,30 @@ export default function ConversationSimulator() {
   const abortRef = useRef<AbortController | null>(null);
   const ttsCache = useRef<Map<string, string>>(new Map());
 
+  const revokeTtsCache = useCallback(() => {
+    for (const url of ttsCache.current.values()) {
+      try { URL.revokeObjectURL(url); } catch { /* already revoked */ }
+    }
+    ttsCache.current.clear();
+  }, []);
+
+  // Leaving the page mid-push-to-talk used to keep the mic live indefinitely
+  // (tracks only stop inside onstop, which nothing triggered), the SSE stream
+  // running, playback sounding, and every cached TTS object URL leaked.
+  useEffect(
+    () => () => {
+      const mr = mediaRecorderRef.current;
+      if (mr && mr.state !== "inactive") {
+        try { mr.stop(); } catch { /* already stopped */ }
+      }
+      mr?.stream?.getTracks().forEach((t) => t.stop());
+      abortRef.current?.abort();
+      audioRef.current?.pause();
+      revokeTtsCache();
+    },
+    [revokeTtsCache],
+  );
+
   const cefr = (placementLevel || "A2").toUpperCase();
 
   // What the tutor sees if the learner opens Ask AI mid-roleplay: the whole
@@ -225,12 +249,13 @@ export default function ConversationSimulator() {
   const startConversation = useCallback(
     (topicHint?: string) => {
       audioRef.current?.pause();
-      ttsCache.current.clear();
+      // Revoke, not just clear — cleared object URLs are never GC'd.
+      revokeTtsCache();
       setMessages([]);
       // Send an empty history so the AI opens the conversation.
       streamReply([], topicHint);
     },
-    [streamReply],
+    [streamReply, revokeTtsCache],
   );
 
   // ── Mic (push-to-talk) ───────────────────────────────────────────────────

@@ -46,7 +46,7 @@ const prompt = {
 };
 
 const emitting = (payload: unknown): Record<string, UpstreamHandler> => ({
-  "ai.gateway.lovable.dev": () => chatCompletion("", payload),
+  "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("", payload),
   "openrouter.ai": () => chatCompletion("", payload),
 });
 
@@ -159,7 +159,7 @@ Deno.test("writing-coach refuses a reply with no Arabic in it", async () => {
   assertEquals(result.status, 400);
   assertEquals(result.body.error, "not_arabic");
   // Refused before the model was asked.
-  assertEquals(result.calls.some((url) => url.includes("gateway")), false);
+  assertEquals(result.calls.some((url) => url.includes("/chat/completions")), false);
 });
 
 Deno.test("writing-coach refuses an essay-sized submission", async () => {
@@ -170,7 +170,7 @@ Deno.test("writing-coach refuses an essay-sized submission", async () => {
 
   assertEquals(result.status, 400);
   assertEquals(result.body.error, "too_long");
-  assertEquals(result.calls.some((url) => url.includes("gateway")), false);
+  assertEquals(result.calls.some((url) => url.includes("/chat/completions")), false);
 });
 
 Deno.test("writing-coach refuses an unknown action", async () => {
@@ -237,7 +237,7 @@ Deno.test("writing-coach passes the learner's text and the prompt to the model",
     upstreams(),
   );
 
-  const gateway = result.calls.findIndex((u) => u.includes("gateway") || u.includes("openrouter"));
+  const gateway = result.calls.findIndex((u) => u.includes("/chat/completions"));
   const sent = result.bodies[gateway] ?? "";
   assertStringIncludes(sent, "ماذا رأيك نذهب غدا");
   assertStringIncludes(sent, "وش رايك نروح البر؟");
@@ -247,7 +247,7 @@ Deno.test("writing-coach reports a model failure without leaking a 500", async (
   const result = await call(
     arabicReply,
     upstreams({
-      "ai.gateway.lovable.dev": () => json({ error: "down" }, 503),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "down" }, 503),
       "openrouter.ai": () => json({ error: "down" }, 503),
     }),
   );
@@ -273,7 +273,7 @@ Deno.test("writing-coach hands back a message to reply to", async () => {
 Deno.test("writing-coach asks for a text message, not an essay", async () => {
   const result = await call({ action: "prompt", dialect: "Gulf" }, upstreams(emitting(prompt)));
 
-  const gateway = result.calls.findIndex((u) => u.includes("gateway") || u.includes("openrouter"));
+  const gateway = result.calls.findIndex((u) => u.includes("/chat/completions"));
   const sent = result.bodies[gateway] ?? "";
   assertStringIncludes(sent, "WhatsApp");
   assertStringIncludes(sent, "Gulf");

@@ -13,7 +13,7 @@ interface LogArgs {
   /** The Brain task's purpose or the edge function's name. */
   functionName: string;
   model: string;
-  provider: 'openrouter' | 'lovable' | string;
+  provider: 'google' | 'openai' | 'openrouter' | string;
   usage: NormalizedUsage;
   userId?: string | null;
   /** For non-LLM legs: what was consumed and what `units` counts. */

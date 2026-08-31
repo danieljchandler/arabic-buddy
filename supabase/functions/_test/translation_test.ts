@@ -87,7 +87,7 @@ Deno.test("how-do-i-say wraps its result in a success envelope", async () => {
     "how-do-i-say",
     { phrase: "how are you", dialect: "Gulf" },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         inputMode: "translation",
         detectedContext: "greeting",
         translations: [aTranslation({ isPreferred: true })],
@@ -109,7 +109,7 @@ Deno.test("how-do-i-say drops translations missing their transliteration", async
     "how-do-i-say",
     { phrase: "how are you" },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         translations: [
           aTranslation({ isPreferred: true }),
           { arabic: "كيفك", english: "how are you" },
@@ -130,7 +130,7 @@ Deno.test("how-do-i-say promotes the most natural option when none is preferred"
     "how-do-i-say",
     { phrase: "how are you" },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         translations: [
           aTranslation({ arabic: "كيفك", naturalness: 3 }),
           aTranslation({ arabic: "شلونك", naturalness: 5 }),
@@ -151,7 +151,7 @@ Deno.test("how-do-i-say keeps only the first of several preferred options", asyn
     "how-do-i-say",
     { phrase: "how are you" },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         translations: [
           aTranslation({ arabic: "شلونك", isPreferred: true }),
           aTranslation({ arabic: "كيفك", isPreferred: true }),
@@ -171,7 +171,7 @@ Deno.test("how-do-i-say sorts the rest by naturalness", async () => {
     "how-do-i-say",
     { phrase: "how are you" },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         translations: [
           aTranslation({ arabic: "أ", naturalness: 2 }),
           aTranslation({ arabic: "ب", naturalness: 5, isPreferred: true }),
@@ -190,7 +190,7 @@ Deno.test("how-do-i-say clamps naturalness into its range", async () => {
     "how-do-i-say",
     { phrase: "how are you" },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         translations: [
           aTranslation({ arabic: "أ", naturalness: 99, isPreferred: true }),
           aTranslation({ arabic: "ب", naturalness: -4 }),
@@ -215,7 +215,7 @@ Deno.test("how-do-i-say falls back to translation for an unknown input mode", as
     "how-do-i-say",
     { phrase: "how are you" },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         inputMode: "interpretive-dance",
         translations: [aTranslation({ isPreferred: true })],
       }),
@@ -232,7 +232,7 @@ Deno.test("how-do-i-say fails when the model produced nothing usable", async () 
   const { status, body } = await call(
     "how-do-i-say",
     { phrase: "how are you" },
-    caller({ "ai.gateway.lovable.dev": emitting({ translations: [] }) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ translations: [] }) }),
   );
 
   assertEquals(status, 500);
@@ -246,11 +246,11 @@ Deno.test("how-do-i-say refuses an empty phrase", async () => {
     const { status, calls } = await call(
       "how-do-i-say",
       { phrase },
-      caller({ "ai.gateway.lovable.dev": emitting({ translations: [] }) }),
+      caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ translations: [] }) }),
     );
 
     assertEquals(status, 400, `expected ${JSON.stringify(phrase)} to be refused`);
-    assert(!calls.some((url) => url.includes("ai.gateway")));
+    assert(!calls.some((url) => url.includes("/v1beta/openai")));
   }
 });
 
@@ -259,11 +259,11 @@ Deno.test("how-do-i-say caps the phrase length it forwards", async () => {
     "how-do-i-say",
     { phrase: "a".repeat(5000) },
     caller({
-      "ai.gateway.lovable.dev": emitting({ translations: [aTranslation({ isPreferred: true })] }),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({ translations: [aTranslation({ isPreferred: true })] }),
     }),
   );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   const sent = JSON.parse(bodies[i] ?? "{}") as { messages: Array<{ content: string }> };
   // 2,000 characters. A pasted conversation is a legitimate input here, so the
   // cap is what stops one becoming an unbounded prompt across several drafters.
@@ -282,11 +282,11 @@ Deno.test("how-do-i-say narrows the dialect to the three the app supports", asyn
       "how-do-i-say",
       { phrase: "hello", dialect: requested },
       caller({
-        "ai.gateway.lovable.dev": emitting({ translations: [aTranslation({ isPreferred: true })] }),
+        "generativelanguage.googleapis.com/v1beta/openai": emitting({ translations: [aTranslation({ isPreferred: true })] }),
       }),
     );
 
-    const i = calls.findIndex((u) => u.includes("ai.gateway"));
+    const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
     // Settings offers six Gulf countries as if they were separate modules; only
     // three reach the prompt, and everything else folds to Gulf.
     assertStringIncludes(bodies[i] ?? "", expected, `expected ${requested} → ${expected}`);
@@ -298,7 +298,7 @@ Deno.test("how-do-i-say still answers when the usage log write fails", async () 
     "how-do-i-say",
     { phrase: "hello" },
     caller({
-      "ai.gateway.lovable.dev": emitting({ translations: [aTranslation({ isPreferred: true })] }),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({ translations: [aTranslation({ isPreferred: true })] }),
       "/rest/v1/llm_usage_logs": () => json({ message: "denied" }, 403),
     }),
   );
@@ -313,13 +313,13 @@ Deno.test("how-do-i-say reports exhausted credits as 402", async () => {
   const { status, body } = await call(
     "how-do-i-say",
     { phrase: "hello" },
-    // Both gateways, because the council splits its drafters across them:
-    // models prefixed `anthropic/`, `qwen/`, `deepseek/` and friends route to
-    // OpenRouter and the rest to the Lovable gateway. Stubbing one leaves the
-    // other answering normally, and a council that got *an* answer does not
-    // raise the credit error at all.
+    // Both providers, because the council splits its drafters across them:
+    // `anthropic/`, `qwen/`, `deepseek/` and friends route to OpenRouter,
+    // `google/` to Google. Stubbing one leaves the other answering normally,
+    // and a council that got *an* answer does not raise the credit error at
+    // all.
     caller({
-      "ai.gateway.lovable.dev": () => json({ error: "no credits" }, 402),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "no credits" }, 402),
       "openrouter.ai": () => json({ error: "no credits" }, 402),
     }),
   );
@@ -333,7 +333,7 @@ Deno.test("how-do-i-say survives one gateway being down", async () => {
     "how-do-i-say",
     { phrase: "hello" },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         translations: [aTranslation({ isPreferred: true })],
       }),
       "openrouter.ai": () => json({ error: "down" }, 500),
@@ -351,7 +351,7 @@ Deno.test("how-do-i-say turns an anonymous caller away", async () => {
     "how-do-i-say",
     { phrase: "hello" },
     caller({
-      "ai.gateway.lovable.dev": emitting({ translations: [aTranslation({ isPreferred: true })] }),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({ translations: [aTranslation({ isPreferred: true })] }),
     }),
     { jwt: null },
   );
@@ -373,7 +373,7 @@ Deno.test("translate-text returns a sentence breakdown with the detected dialect
     "translate-text",
     { text: "الجو حلو اليوم", dialect: "auto" },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         detected_dialect: "Egyptian",
         sentences: [aSentence()],
       }),
@@ -393,7 +393,7 @@ Deno.test("translate-text keeps both the literal and the natural reading", async
     "translate-text",
     { text: "الجو حلو اليوم" },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         detected_dialect: "Gulf",
         sentences: [aSentence()],
       }),
@@ -412,7 +412,7 @@ Deno.test("translate-text omits the note when there is nothing to say", async ()
     "translate-text",
     { text: "الجو حلو" },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         detected_dialect: "Gulf",
         sentences: [aSentence(), aSentence({ arabic: "وبعدين", note: "   " })],
       }),
@@ -431,7 +431,7 @@ Deno.test("translate-text drops sentences with no Arabic", async () => {
     "translate-text",
     { text: "الجو حلو" },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         detected_dialect: "Gulf",
         sentences: [aSentence(), { natural: "invented" }, { arabic: "   " }],
       }),
@@ -448,7 +448,7 @@ Deno.test("translate-text falls back to the requested dialect when detection is 
     "translate-text",
     { text: "الجو حلو", dialect: "Yemeni" },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         detected_dialect: "Levantine",
         sentences: [aSentence()],
       }),
@@ -465,14 +465,14 @@ Deno.test("translate-text defaults an auto request's prompt to Gulf", async () =
     "translate-text",
     { text: "الجو حلو", dialect: "auto" },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         detected_dialect: "Gulf",
         sentences: [aSentence()],
       }),
     }),
   );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   const sent = JSON.parse(bodies[i] ?? "{}") as { messages: Array<{ content: string }> };
   // "auto" still needs a dialect for the rulebook prompt; the model reports
   // what it actually detected in the output rather than in the prompt.
@@ -483,19 +483,19 @@ Deno.test("translate-text refuses empty input", async () => {
   const { status, body, calls } = await call(
     "translate-text",
     { text: "   " },
-    caller({ "ai.gateway.lovable.dev": emitting({ sentences: [] }) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ sentences: [] }) }),
   );
 
   assertEquals(status, 400);
   assertEquals(body.error, "missing_text");
-  assert(!calls.some((url) => url.includes("ai.gateway")));
+  assert(!calls.some((url) => url.includes("/v1beta/openai")));
 });
 
 Deno.test("translate-text refuses a passage that is too long", async () => {
   const { status, body, calls } = await call(
     "translate-text",
     { text: "ا".repeat(100_000) },
-    caller({ "ai.gateway.lovable.dev": emitting({ sentences: [] }) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ sentences: [] }) }),
   );
 
   assertEquals(status, 400);
@@ -503,7 +503,7 @@ Deno.test("translate-text refuses a passage that is too long", async () => {
   // The limit is reported so the page can say how much to cut rather than just
   // refusing.
   assert(typeof body.limit === "number");
-  assert(!calls.some((url) => url.includes("ai.gateway")));
+  assert(!calls.some((url) => url.includes("/v1beta/openai")));
 });
 
 Deno.test("translate-text reports an empty translation as 502", async () => {
@@ -511,7 +511,7 @@ Deno.test("translate-text reports an empty translation as 502", async () => {
     "translate-text",
     { text: "الجو حلو" },
     caller({
-      "ai.gateway.lovable.dev": emitting({ detected_dialect: "Gulf", sentences: [] }),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({ detected_dialect: "Gulf", sentences: [] }),
     }),
   );
 
@@ -525,7 +525,7 @@ Deno.test("translate-text reports a gateway failure as ai_failed", async () => {
   const { status, body } = await call(
     "translate-text",
     { text: "الجو حلو" },
-    caller({ "ai.gateway.lovable.dev": () => json({ error: "boom" }, 429) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "boom" }, 429) }),
   );
 
   assertEquals(status, 429);
@@ -537,7 +537,7 @@ Deno.test("translate-text turns an anonymous caller away", async () => {
     "translate-text",
     { text: "الجو حلو" },
     caller({
-      "ai.gateway.lovable.dev": emitting({ detected_dialect: "Gulf", sentences: [aSentence()] }),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({ detected_dialect: "Gulf", sentences: [aSentence()] }),
     }),
     { jwt: null },
   );
@@ -552,7 +552,7 @@ Deno.test("translate-phrase returns the translation, the MSA form and the gloss"
     "translate-phrase",
     { phrase: "شخبارك اليوم", dialect: "Gulf" },
     caller({
-      "ai.gateway.lovable.dev": () => chatCompletion("gemini answer"),
+      "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("gemini answer"),
       "openrouter.ai": () => chatCompletion("claude answer"),
     }),
   );
@@ -569,7 +569,7 @@ Deno.test("translate-phrase asks for no gloss on a single word", async () => {
     "translate-phrase",
     { phrase: "شخبارك" },
     caller({
-      "ai.gateway.lovable.dev": () => chatCompletion("news"),
+      "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("news"),
       "openrouter.ai": () => chatCompletion("news"),
     }),
   );
@@ -585,7 +585,7 @@ Deno.test("translate-phrase falls back to Gemini when Claude is unavailable", as
     "translate-phrase",
     { phrase: "شخبارك" },
     caller({
-      "ai.gateway.lovable.dev": () => chatCompletion("gemini answer"),
+      "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("gemini answer"),
       "openrouter.ai": () => json({ error: "down" }, 500),
     }),
   );
@@ -601,7 +601,7 @@ Deno.test("translate-phrase reports both drafters failing rather than an empty a
     "translate-phrase",
     { phrase: "شخبارك" },
     caller({
-      "ai.gateway.lovable.dev": () => json({ error: "down" }, 500),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "down" }, 500),
       "openrouter.ai": () => json({ error: "down" }, 500),
     }),
   );
@@ -617,8 +617,14 @@ Deno.test("translate-phrase gives an empty MSA rather than failing", async () =>
     "translate-phrase",
     { phrase: "شخبارك" },
     caller({
-      "ai.gateway.lovable.dev": () => json({ error: "down" }, 500),
-      "openrouter.ai": () => chatCompletion("your news"),
+      // Keyed on the leg's own prompt rather than on the provider: every leg
+      // now falls back to OpenRouter when Google is down, so "the MSA leg came
+      // back with nothing" has to be said about the MSA leg specifically.
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "down" }, 500),
+      "openrouter.ai": async (request) => {
+        const sent = await request.text();
+        return chatCompletion(sent.includes("Modern Standard Arabic") ? "" : "your news");
+      },
     }),
   );
 
@@ -638,7 +644,7 @@ Deno.test("translate-phrase disambiguates using the sentence it came from", asyn
       sentenceEnglish: "He washed his eye with water",
     },
     caller({
-      "ai.gateway.lovable.dev": () => chatCompletion("eye"),
+      "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("eye"),
       "openrouter.ai": () => chatCompletion("eye"),
     }),
   );
@@ -657,7 +663,7 @@ Deno.test("translate-phrase answers a phrase that cleans to nothing without call
     "translate-phrase",
     { phrase: "،؟!" },
     caller({
-      "ai.gateway.lovable.dev": () => chatCompletion("x"),
+      "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("x"),
       "openrouter.ai": () => chatCompletion("x"),
     }),
   );
@@ -675,7 +681,7 @@ Deno.test("translate-phrase refuses a request with no phrase", async () => {
     "translate-phrase",
     {},
     caller({
-      "ai.gateway.lovable.dev": () => chatCompletion("x"),
+      "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("x"),
       "openrouter.ai": () => chatCompletion("x"),
     }),
   );

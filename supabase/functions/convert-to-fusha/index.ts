@@ -12,6 +12,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { alignFushaLines, buildFushaSystemPrompt } from "../_shared/fushaBridge.ts";
+import { chatFetch, tryChatRoute } from "../_shared/aiGateway.ts";
 
 /** Kept in step with the analyzer's own batching: long enough to be worth a call, short enough to finish. */
 const MAX_LINES = 40;
@@ -22,32 +23,21 @@ function dialectLabel(dialect: string): string {
   return "Gulf Arabic (Khaliji)";
 }
 
-function routeFor(model: string): { url: string; key: string | undefined } {
-  return /^(anthropic|qwen|meta-llama|mistralai|deepseek|x-ai)\//.test(model)
-    ? { url: "https://openrouter.ai/api/v1/chat/completions", key: Deno.env.get("OPENROUTER_API_KEY") }
-    : { url: "https://ai.gateway.lovable.dev/v1/chat/completions", key: Deno.env.get("LOVABLE_API_KEY") };
-}
-
 async function convert(model: string, systemPrompt: string, numbered: string): Promise<unknown | null> {
-  const { url, key } = routeFor(model);
-  if (!key) return null;
+  // Nothing configured to serve this model is a skip, so the caller moves on to
+  // the next one in its ladder instead of failing the whole request.
+  if (!tryChatRoute(model)) return null;
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 30_000);
   try {
-    const response = await fetch(url, {
-      method: "POST",
-      signal: controller.signal,
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: numbered },
-        ],
-        max_tokens: 8192,
-        temperature: 0.1,
-      }),
-    });
+    const response = await chatFetch(model, {
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: numbered },
+      ],
+      max_tokens: 8192,
+      temperature: 0.1,
+    }, { signal: controller.signal, label: "convert-to-fusha" });
     if (!response.ok) {
       console.warn(`[convert-to-fusha] ${model} ${response.status}`);
       return null;

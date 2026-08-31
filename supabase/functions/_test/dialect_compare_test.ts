@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { jsonRequest, loadFunction } from "./harness.ts";
+import { NO_AI_PROVIDER, jsonRequest, loadFunction } from "./harness.ts";
 import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
 
 /**
@@ -83,7 +83,7 @@ async function call(
 Deno.test("dialect-compare returns the comparison under a singular key", async () => {
   const { status, body } = await call(
     { word: "كيف حالك" },
-    caller({ "ai.gateway.lovable.dev": emitting(aComparison()) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting(aComparison()) }),
   );
 
   assertEquals(status, 200);
@@ -98,7 +98,7 @@ Deno.test("dialect-compare returns the comparison under a singular key", async (
 Deno.test("dialect-compare asks for all five varieties in a fixed order", async () => {
   const { bodies, calls } = await call(
     { word: "كيف حالك" },
-    caller({ "ai.gateway.lovable.dev": emitting(aComparison()) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting(aComparison()) }),
   );
 
   const i = calls.findIndex((u) => u.includes("chat/completions"));
@@ -114,7 +114,7 @@ Deno.test("dialect-compare asks for all five varieties in a fixed order", async 
 Deno.test("dialect-compare tells the model which row matters most", async () => {
   const { bodies, calls } = await call(
     { word: "كيف حالك", source_dialect: "Egyptian" },
-    caller({ "ai.gateway.lovable.dev": emitting(aComparison()) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting(aComparison()) }),
   );
 
   const i = calls.findIndex((u) => u.includes("chat/completions"));
@@ -126,7 +126,7 @@ Deno.test("dialect-compare tells the model which row matters most", async () => 
 Deno.test("dialect-compare warns the model off repeating the MSA form", async () => {
   const { bodies, calls } = await call(
     { word: "كيف حالك" },
-    caller({ "ai.gateway.lovable.dev": emitting(aComparison()) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting(aComparison()) }),
   );
 
   const i = calls.findIndex((u) => u.includes("chat/completions"));
@@ -139,7 +139,7 @@ Deno.test("dialect-compare drops variants with no word in them", async () => {
   const { body } = await call(
     { word: "كيف حالك" },
     caller({
-      "ai.gateway.lovable.dev": emitting(
+      "generativelanguage.googleapis.com/v1beta/openai": emitting(
         aComparison({
           dialects: [
             aVariant(),
@@ -162,7 +162,7 @@ Deno.test("dialect-compare fills the optional fields rather than leaving them un
   const { body } = await call(
     { word: "كيف حالك" },
     caller({
-      "ai.gateway.lovable.dev": emitting(
+      "generativelanguage.googleapis.com/v1beta/openai": emitting(
         aComparison({
           dialects: [{ dialect: "Gulf Arabic", word: "شلونك" }],
         }),
@@ -186,7 +186,7 @@ Deno.test("dialect-compare omits a non-string cultural note", async () => {
   const { body } = await call(
     { word: "كيف حالك" },
     caller({
-      "ai.gateway.lovable.dev": emitting(
+      "generativelanguage.googleapis.com/v1beta/openai": emitting(
         aComparison({ cultural_notes: { text: "wrong shape" }, common_root: 42 }),
       ),
     }),
@@ -201,7 +201,7 @@ Deno.test("dialect-compare salvages JSON the model wrote as prose", async () => 
   const { status, body } = await call(
     { word: "كيف حالك" },
     caller({
-      "ai.gateway.lovable.dev": () =>
+      "generativelanguage.googleapis.com/v1beta/openai": () =>
         chatCompletion("Here you go:\n" + JSON.stringify(aComparison())),
     }),
   );
@@ -224,7 +224,7 @@ Deno.test("dialect-compare refuses an answer with no usable dialects", async () 
   ) {
     const { status, body } = await call(
       { word: "كيف حالك" },
-      caller({ "ai.gateway.lovable.dev": emitting(payload) }),
+      caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting(payload) }),
     );
 
     // 502 rather than a 200 the page would draw as a row of blanks. A learner
@@ -238,7 +238,7 @@ Deno.test("dialect-compare refuses a request with no word", async () => {
   for (const word of [undefined, "", 42, null]) {
     const { status, body, calls } = await call(
       { word },
-      caller({ "ai.gateway.lovable.dev": emitting(aComparison()) }),
+      caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting(aComparison()) }),
     );
 
     assertEquals(status, 400, `expected ${JSON.stringify(word)} to be refused`);
@@ -250,7 +250,7 @@ Deno.test("dialect-compare refuses a request with no word", async () => {
 Deno.test("dialect-compare preserves a rate limit", async () => {
   const { status, body } = await call(
     { word: "كيف حالك" },
-    caller({ "ai.gateway.lovable.dev": () => json({ error: "slow" }, 429) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "slow" }, 429) }),
   );
 
   assertEquals(status, 429);
@@ -260,7 +260,7 @@ Deno.test("dialect-compare preserves a rate limit", async () => {
 Deno.test("dialect-compare preserves exhausted credits", async () => {
   const { status, body } = await call(
     { word: "كيف حالك" },
-    caller({ "ai.gateway.lovable.dev": () => json({ error: "no credits" }, 402) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "no credits" }, 402) }),
   );
 
   assertEquals(status, 402);
@@ -270,28 +270,33 @@ Deno.test("dialect-compare preserves exhausted credits", async () => {
 Deno.test("dialect-compare flattens any other gateway failure to 500", async () => {
   const { status } = await call(
     { word: "كيف حالك" },
-    caller({ "ai.gateway.lovable.dev": () => json({ error: "boom" }, 503) }),
+    // Both routes: a 503 on the first provider is aiGateway's cue to retry on
+    // OpenRouter, so one failing upstream is not a failed call.
+    caller({
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "boom" }, 503),
+      "openrouter.ai": () => json({ error: "boom" }, 503),
+    }),
   );
 
   assertEquals(status, 500);
 });
 
-Deno.test("dialect-compare says so when its key is missing", async () => {
+Deno.test("dialect-compare says so when no provider is configured", async () => {
   const { status, body, calls } = await call(
     { word: "كيف حالك" },
-    caller({ "ai.gateway.lovable.dev": emitting(aComparison()) }),
-    { env: { LOVABLE_API_KEY: undefined } },
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting(aComparison()) }),
+    { env: NO_AI_PROVIDER },
   );
 
   assertEquals(status, 500);
-  assertStringIncludes(String(body.error), "LOVABLE_API_KEY");
+  assertStringIncludes(String(body.error), "No AI provider");
   assert(!calls.some((u) => u.includes("chat/completions")));
 });
 
 Deno.test("dialect-compare turns an anonymous caller away", async () => {
   const { status, calls } = await call(
     { word: "كيف حالك" },
-    caller({ "ai.gateway.lovable.dev": emitting(aComparison()) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting(aComparison()) }),
     { jwt: null },
   );
 

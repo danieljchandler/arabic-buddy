@@ -1,6 +1,6 @@
 // culture-guide — streams a grounded answer from Gemini using Google Search
 // grounding. We call Gemini's native streaming endpoint with GEMINI_API_KEY
-// (this bypasses the Lovable gateway because googleSearch isn't an
+// (this bypasses aiGateway's OpenAI-shaped route because googleSearch isn't an
 // OpenAI-compatible tool), and re-emit each text chunk in OpenAI SSE shape so
 // the existing client parser keeps working. After the model finishes we
 // append a "Sources" markdown block built from groundingMetadata.

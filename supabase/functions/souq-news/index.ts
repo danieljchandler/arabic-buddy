@@ -3,6 +3,7 @@ import { emitMetric } from "../_shared/featureMetrics.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
+import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
 
 const FEATURE = "souq-news";
 
@@ -40,11 +41,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      emitMetric({ feature: FEATURE, event: "config_missing", dialect, status: "error", meta: { missing: "LOVABLE_API_KEY" } });
+    if (!hasAnyProvider()) {
+      emitMetric({ feature: FEATURE, event: "config_missing", dialect, status: "error", meta: { missing: "AI_PROVIDER_KEY" } });
       return new Response(
-        JSON.stringify({ error: "AI gateway not configured" }),
+        JSON.stringify({ error: "No AI provider configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -180,24 +180,16 @@ Return ONLY the JSON object, no markdown fencing. CRITICAL: use ONLY ASCII punct
 
         const aiStart = Date.now();
         try {
-          const aiRes = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${LOVABLE_API_KEY}`,
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              model: MODEL_IDS.GEMINI_FAST,
-              response_format: { type: "json_object" },
-              messages: [
-                { role: "system", content: systemPrompt },
-                {
-                  role: "user",
-                  content: `Rewrite this news article as souq gossip in dialect:\n\nTitle: ${article.title || "No title"}\n\nContent: ${content}`,
-                },
-              ],
-            }),
-          });
+          const aiRes = await chatFetch(MODEL_IDS.GEMINI_FAST, {
+            response_format: { type: "json_object" },
+            messages: [
+              { role: "system", content: systemPrompt },
+              {
+                role: "user",
+                content: `Rewrite this news article as souq gossip in dialect:\n\nTitle: ${article.title || "No title"}\n\nContent: ${content}`,
+              },
+            ],
+          }, { label: FEATURE });
 
           if (!aiRes.ok) {
             const status = aiRes.status;

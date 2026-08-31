@@ -3,6 +3,7 @@ import { getDialectVocabRules, getDialectLabel, getDialectIdentity } from "../_s
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
+import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
 
 // The history array is client-supplied and rides straight into the model
 // request; without these clamps one call can be made arbitrarily expensive.
@@ -31,8 +32,7 @@ serve(async (req) => {
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    if (!hasAnyProvider()) throw new Error("No AI provider configured");
 
     const dialectLabel = getDialectLabel(dialect);
     const dialectRules = getDialectVocabRules(dialect);
@@ -88,22 +88,14 @@ Return JSON in this exact format:
     // Add the current question
     messages.push({ role: "user", content: question.slice(0, MAX_MESSAGE_CHARS) });
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: MODEL_IDS.GEMINI_FAST,
-        messages,
-        temperature: 0.8,
-      }),
-    });
+    const response = await chatFetch(MODEL_IDS.GEMINI_FAST, {
+      messages,
+      temperature: 0.8,
+    }, { label: "reading-qa" });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+      console.error("AI provider error:", response.status, errorText);
       if (response.status === 402) {
         return new Response(JSON.stringify({ error: "Not enough AI credits." }), {
           status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -114,7 +106,7 @@ Return JSON in this exact format:
           status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      throw new Error(`AI gateway error: ${response.status}`);
+      throw new Error(`AI provider error: ${response.status}`);
     }
 
     const data = await response.json();

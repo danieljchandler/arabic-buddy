@@ -14,7 +14,12 @@ dialect, never Modern Standard Arabic (MSA / فصحى).
   MSA-leak detector, a repair pass, and an optional native-speaker validator on
   top of the underlying models. Model IDs are centralized in
   `supabase/functions/_shared/modelRegistry.ts` — do not hardcode them in
-  feature code.
+  feature code — and `supabase/functions/_shared/aiGateway.ts` decides which
+  provider serves each of them: Gemini via Google's API (`GEMINI_API_KEY`), GPT
+  via OpenAI (`OPENAI_API_KEY`), everything else via OpenRouter
+  (`OPENROUTER_API_KEY`), which also stands in for any vendor whose own key is
+  missing or whose API rejects the call. Nothing goes through a hosting
+  provider's gateway.
 - **Learner model:** generated content is conditioned on what each learner
   actually knows. `supabase/functions/_shared/learnerProfile.ts` assembles their
   known / in-progress / weak vocabulary from real SRS state across both decks,

@@ -30,7 +30,7 @@ async function aiBackedFunctions(): Promise<string[]> {
 
     const callsModel =
       source.includes("askBrain") ||
-      source.includes("ai.gateway.lovable.dev") ||
+      source.includes("generativelanguage.googleapis.com/v1beta/openai") ||
       source.includes("openrouter.ai") ||
       source.includes("generativelanguage.googleapis.com");
 
@@ -46,7 +46,7 @@ const names = await aiBackedFunctions();
 function failingGateways(status: number, body: unknown) {
   const fail = () => json(body, status);
   return {
-    "ai.gateway.lovable.dev": fail,
+    "generativelanguage.googleapis.com/v1beta/openai": fail,
     "openrouter.ai": fail,
     "generativelanguage.googleapis.com": fail,
     "api.fanar.qa": fail,
@@ -147,7 +147,7 @@ Deno.test("no AI function falls over when the gateway returns unparseable JSON",
     const fn = await loadFunction(name, {
       upstreams: {
         ...failingGateways(502, {}),
-        "ai.gateway.lovable.dev": html,
+        "generativelanguage.googleapis.com/v1beta/openai": html,
         "openrouter.ai": html,
         "generativelanguage.googleapis.com": html,
       },
@@ -176,7 +176,7 @@ Deno.test("no AI function falls over when the gateway never answers", async () =
     const fn = await loadFunction(name, {
       upstreams: {
         ...failingGateways(500, {}),
-        "ai.gateway.lovable.dev": drop,
+        "generativelanguage.googleapis.com/v1beta/openai": drop,
         "openrouter.ai": drop,
         "generativelanguage.googleapis.com": drop,
       },

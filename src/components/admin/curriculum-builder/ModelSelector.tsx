@@ -28,7 +28,7 @@ const MODEL_OPTIONS: ModelOption[] = [
   {
     id: 'google/gemini-3.5-flash',
     name: 'Gemini 3.5 Flash',
-    provider: 'Lovable',
+    provider: 'Google',
     description: 'Pipeline-aligned drafter. Top dialect quality.',
     badge: 'Recommended',
   },
@@ -69,19 +69,19 @@ const MODEL_OPTIONS: ModelOption[] = [
   {
     id: 'google/gemini-2.5-pro',
     name: 'Gemini 2.5 Pro',
-    provider: 'Lovable',
+    provider: 'Google',
     description: 'Previous-gen strong Gemini.',
   },
   {
     id: 'google/gemini-3-flash-preview',
     name: 'Gemini 3 Flash',
-    provider: 'Lovable',
+    provider: 'Google',
     description: 'Fast preview, lower cost.',
   },
   {
     id: 'google/gemini-2.5-flash',
     name: 'Gemini 2.5 Flash',
-    provider: 'Lovable',
+    provider: 'Google',
     description: 'Fast, reliable.',
   },
   {

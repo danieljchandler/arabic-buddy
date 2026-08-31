@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { jsonRequest, loadFunction } from "./harness.ts";
+import { NO_AI_PROVIDER, jsonRequest, loadFunction } from "./harness.ts";
 import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
 
 /**
@@ -74,7 +74,7 @@ Deno.test("suggest-flashcards carries a root through to the client", async () =>
     "suggest-flashcards",
     { topic: "reading", dialect: "Gulf", count: 1 },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         flashcards: [{ ...aCard("مكتبة", "library"), root: "ك ت ب" }],
       }),
     }),
@@ -91,7 +91,7 @@ Deno.test("suggest-flashcards returns the cards it generated", async () => {
     "suggest-flashcards",
     { topic: "at the airport", dialect: "Gulf", count: 3 },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         flashcards: [aCard("مطار", "airport"), aCard("جواز", "passport")],
       }),
     }),
@@ -106,7 +106,7 @@ Deno.test("suggest-flashcards filters out words the learner already has", async 
     "suggest-flashcards",
     { topic: "at the airport", existingWords: ["مطار"] },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         flashcards: [aCard("مطار", "airport"), aCard("جواز", "passport")],
       }),
     }),
@@ -125,7 +125,7 @@ Deno.test("suggest-flashcards folds Arabic spelling before deduplicating", async
     { topic: "school", existingWords: ["مدرسة"] },
     caller({
       // Same word, ta marbuta written as ha, plus diacritics.
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         flashcards: [aCard("مَدْرَسه", "school"), aCard("جامعة", "university")],
       }),
     }),
@@ -142,7 +142,7 @@ Deno.test("suggest-flashcards drops cards with no Arabic", async () => {
     "suggest-flashcards",
     { topic: "school" },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         flashcards: [aCard("مطار"), { word_english: "orphan" }, {}],
       }),
     }),
@@ -155,7 +155,7 @@ Deno.test("suggest-flashcards tells the model what is already saved", async () =
   const { bodies, calls } = await call(
     "suggest-flashcards",
     { topic: "school", existingWords: ["مدرسة", "جامعة"] },
-    caller({ "ai.gateway.lovable.dev": emitting({ flashcards: [aCard("قلم")] }) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ flashcards: [aCard("قلم")] }) }),
   );
 
   const prompt = promptOf(bodies, calls);
@@ -169,7 +169,7 @@ Deno.test("suggest-flashcards says so when nothing is saved yet", async () => {
   const { bodies, calls } = await call(
     "suggest-flashcards",
     { topic: "school" },
-    caller({ "ai.gateway.lovable.dev": emitting({ flashcards: [aCard("قلم")] }) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ flashcards: [aCard("قلم")] }) }),
   );
 
   // "(none)" rather than an empty line, so the model is not left guessing
@@ -184,7 +184,7 @@ Deno.test("suggest-flashcards caps how much of the deck it sends", async () => {
       topic: "school",
       existingWords: Array.from({ length: 2000 }, (_, i) => `كلمة${i}`),
     },
-    caller({ "ai.gateway.lovable.dev": emitting({ flashcards: [aCard("قلم")] }) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ flashcards: [aCard("قلم")] }) }),
   );
 
   const prompt = promptOf(bodies, calls);
@@ -201,7 +201,7 @@ Deno.test("suggest-flashcards still filters against the words it did not send", 
       topic: "school",
       existingWords: Array.from({ length: 2000 }, (_, i) => `كلمة${i}`),
     },
-    caller({ "ai.gateway.lovable.dev": emitting({ flashcards: [aCard("كلمة3"), aCard("قلم")] }) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ flashcards: [aCard("كلمة3"), aCard("قلم")] }) }),
   );
 
   const cards = body.flashcards as Array<{ word_arabic: string }>;
@@ -215,7 +215,7 @@ Deno.test("suggest-flashcards keeps the dialect out of MSA", async () => {
   const { bodies, calls } = await call(
     "suggest-flashcards",
     { topic: "school", dialect: "Egyptian" },
-    caller({ "ai.gateway.lovable.dev": emitting({ flashcards: [aCard("قلم")] }) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ flashcards: [aCard("قلم")] }) }),
   );
 
   const prompt = promptOf(bodies, calls);
@@ -227,7 +227,7 @@ Deno.test("suggest-flashcards refuses a request with no topic", async () => {
   const { status, body, calls } = await call(
     "suggest-flashcards",
     { dialect: "Gulf" },
-    caller({ "ai.gateway.lovable.dev": emitting({ flashcards: [] }) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ flashcards: [] }) }),
   );
 
   assertEquals(status, 400);
@@ -240,7 +240,7 @@ Deno.test("suggest-flashcards preserves 429 and 402", async () => {
     const { status } = await call(
       "suggest-flashcards",
       { topic: "school" },
-      caller({ "ai.gateway.lovable.dev": () => json({ error: "no" }, upstream) }),
+      caller({ "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "no" }, upstream) }),
     );
 
     assertEquals(status, upstream);
@@ -251,7 +251,7 @@ Deno.test("suggest-flashcards returns an empty list when the model skipped the t
   const { status, body } = await call(
     "suggest-flashcards",
     { topic: "school" },
-    caller({ "ai.gateway.lovable.dev": () => chatCompletion("Here are some words!") }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("Here are some words!") }),
   );
 
   // The page shows "no suggestions" rather than an error — this is an optional
@@ -275,7 +275,7 @@ Deno.test("request-situation-phrases returns phrases for the situation", async (
   const { status, body } = await call(
     "request-situation-phrases",
     { situation: "asking for the bill in a restaurant", dialect: "Gulf" },
-    caller({ "ai.gateway.lovable.dev": emitting({ phrases: [aPhrase()] }) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ phrases: [aPhrase()] }) }),
   );
 
   assertEquals(status, 200);
@@ -293,7 +293,7 @@ Deno.test("request-situation-phrases clamps how many it will generate", async ()
     const { bodies, calls } = await call(
       "request-situation-phrases",
       { situation: "at a café", count },
-      caller({ "ai.gateway.lovable.dev": emitting({ phrases: [aPhrase()] }) }),
+      caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ phrases: [aPhrase()] }) }),
     );
 
     // Between 3 and 10, with a non-number falling to the default rather than
@@ -307,7 +307,7 @@ Deno.test("request-situation-phrases drops phrases missing either half", async (
     "request-situation-phrases",
     { situation: "at a café" },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         phrases: [
           aPhrase(),
           aPhrase({ phrase_arabic: "" }),
@@ -327,7 +327,7 @@ Deno.test("request-situation-phrases defaults the optional fields to empty strin
     "request-situation-phrases",
     { situation: "at a café" },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         phrases: [{ phrase_arabic: "شكراً", phrase_english: "thank you" }],
       }),
     }),
@@ -345,7 +345,7 @@ Deno.test("request-situation-phrases asks for a note only when it matters", asyn
   const { bodies, calls } = await call(
     "request-situation-phrases",
     { situation: "at a café" },
-    caller({ "ai.gateway.lovable.dev": emitting({ phrases: [aPhrase()] }) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ phrases: [aPhrase()] }) }),
   );
 
   // A cultural note on every phrase trains the learner to skip all of them.
@@ -356,7 +356,7 @@ Deno.test("request-situation-phrases asks for real phrases in dialect", async ()
   const { bodies, calls } = await call(
     "request-situation-phrases",
     { situation: "at a café", dialect: "Yemeni" },
-    caller({ "ai.gateway.lovable.dev": emitting({ phrases: [aPhrase()] }) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ phrases: [aPhrase()] }) }),
   );
 
   const prompt = promptOf(bodies, calls);
@@ -371,7 +371,7 @@ Deno.test("request-situation-phrases refuses a request with no situation", async
   const { status, body, calls } = await call(
     "request-situation-phrases",
     { dialect: "Gulf" },
-    caller({ "ai.gateway.lovable.dev": emitting({ phrases: [aPhrase()] }) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ phrases: [aPhrase()] }) }),
   );
 
   assertEquals(status, 400);
@@ -385,7 +385,7 @@ Deno.test("request-situation-phrases turns an anonymous caller away", async () =
     { situation: "at a café" },
     caller({
       "/auth/v1/user": () => json({ message: "no session" }, 401),
-      "ai.gateway.lovable.dev": emitting({ phrases: [aPhrase()] }),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({ phrases: [aPhrase()] }),
     }),
   );
 
@@ -394,12 +394,12 @@ Deno.test("request-situation-phrases turns an anonymous caller away", async () =
   assert(!calls.some((u) => u.includes("chat/completions")));
 });
 
-Deno.test("request-situation-phrases names a missing key as a config problem", async () => {
+Deno.test("request-situation-phrases names a missing provider as a config problem", async () => {
   const { status, body } = await call(
     "request-situation-phrases",
     { situation: "at a café" },
-    caller({ "ai.gateway.lovable.dev": emitting({ phrases: [aPhrase()] }) }),
-    { env: { LOVABLE_API_KEY: undefined } },
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ phrases: [aPhrase()] }) }),
+    { env: NO_AI_PROVIDER },
   );
 
   // A machine-readable code rather than prose, because the page distinguishes
@@ -418,7 +418,7 @@ Deno.test("request-situation-phrases preserves 429 and 402 with their codes", as
     const { status, body } = await call(
       "request-situation-phrases",
       { situation: "at a café" },
-      caller({ "ai.gateway.lovable.dev": () => json({ error: "no" }, upstream) }),
+      caller({ "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "no" }, upstream) }),
     );
 
     assertEquals(status, upstream);
@@ -431,7 +431,7 @@ Deno.test("request-situation-phrases fails when the model skipped the tool", asy
   const { status } = await call(
     "request-situation-phrases",
     { situation: "at a café" },
-    caller({ "ai.gateway.lovable.dev": () => chatCompletion("Here are some phrases!") }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("Here are some phrases!") }),
   );
 
   // Unlike `suggest-flashcards`, this one has nothing to fall back on: the

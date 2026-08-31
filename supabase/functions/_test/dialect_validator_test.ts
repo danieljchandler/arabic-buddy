@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { loadSharedModule, stubUpstreams, type StubbedUpstreams } from "./harness.ts";
+import { NO_AI_PROVIDER, loadSharedModule, stubUpstreams, type StubbedUpstreams } from "./harness.ts";
 import { chatCompletion, json } from "./upstreams.ts";
 
 /**
@@ -19,7 +19,7 @@ import { chatCompletion, json } from "./upstreams.ts";
  * it never ran.
  */
 
-const GATEWAY = "ai.gateway.lovable.dev";
+const GATEWAY = "generativelanguage.googleapis.com/v1beta/openai";
 const OPENROUTER = "openrouter.ai";
 const STRONG = "google/gemini-2.5-pro";
 const ARABIC = "mistralai/mistral-saba";
@@ -198,7 +198,7 @@ Deno.test("a text with nothing in it is not sent to a model", async () => {
   });
 });
 
-Deno.test("a missing API key degrades to unknown rather than to pass", async () => {
+Deno.test("no configured provider degrades to unknown rather than to pass", async () => {
   await withValidator(async (mod, up) => {
     const result = await mod.validateDialect("شخبارك؟", "Gulf");
 
@@ -207,7 +207,7 @@ Deno.test("a missing API key degrades to unknown rather than to pass", async () 
     assertEquals(result.ok, false);
     assertEquals(result.verdict, "unknown");
     assertEquals(up.calls.length, 0);
-  }, { env: { LOVABLE_API_KEY: undefined } });
+  }, { env: NO_AI_PROVIDER });
 });
 
 Deno.test("a gateway error degrades to unknown", async () => {
@@ -267,7 +267,9 @@ Deno.test("the judgment is asked for as a tool call, not as prose", async () => 
     // Forcing the function call is what makes the score parseable at all — the
     // no-tool-call path above is the alternative.
     assertEquals(body.tool_choice.function.name, "emit_authenticity_score");
-    assertEquals(body.model, STRONG);
+    // The id on the wire is Google's own — aiGateway strips the `google/`
+    // prefix that only OpenRouter's namespace uses.
+    assertEquals(body.model, "gemini-2.5-pro");
     // Judging is a classification, not a creative task.
     assertEquals(body.temperature, 0.2);
   });
@@ -305,28 +307,22 @@ Deno.test("an Arabic-native model is billed through OpenRouter instead", async (
 
     assertEquals(up.callsTo(GATEWAY).length, 0);
     const [call] = up.callsTo(OPENROUTER);
-    // Saba is not on the Lovable gateway, and sending it there with the wrong
+    // Saba exists only on OpenRouter, and sending it elsewhere with the wrong
     // key is a 401 that would show up as "validator unavailable".
     assertEquals(call.headers.authorization, "Bearer fixture-openrouter");
   });
 });
 
-Deno.test("an explicit key overrides the gateway secret", async () => {
+Deno.test("each model is authenticated with its own provider's key", async () => {
   await withValidator(async (mod, up) => {
-    await mod.validateDialect("شخبارك؟", "Gulf", { apiKey: "caller-key" });
+    await mod.validateDialect("شخبارك؟", "Gulf");
+    await mod.validateDialect("شخبارك؟", "Gulf", { model: ARABIC });
 
-    assertEquals(up.callsTo(GATEWAY)[0].headers.authorization, "Bearer caller-key");
-  });
-});
-
-Deno.test("an explicit key cannot be used for an OpenRouter model", async () => {
-  await withValidator(async (mod, up) => {
-    await mod.validateDialect("شخبارك؟", "Gulf", { model: ARABIC, apiKey: "caller-key" });
-
-    // Pinned. The OpenRouter branch reads the environment and ignores
-    // `opts.apiKey` entirely, so a caller passing its own key for a Saba call
-    // gets the ambient one — and gets `ok: false` with no explanation when
-    // OPENROUTER_API_KEY is unset.
+    // There is no caller-supplied key any more — the option is gone, and with
+    // it the old pinned bug where a caller could hand its key to the Gemini
+    // branch but was silently ignored on the Saba one. Each route now
+    // authenticates with the secret that route actually belongs to.
+    assertEquals(up.callsTo(GATEWAY)[0].headers.authorization, "Bearer fixture-gemini");
     assertEquals(up.callsTo(OPENROUTER)[0].headers.authorization, "Bearer fixture-openrouter");
   });
 });
@@ -421,7 +417,15 @@ Deno.test("when the strong model fails the Arabic one stands alone", async () =>
     assertEquals(result.model, ARABIC);
   }, {
     upstreams: {
-      [OPENROUTER]: () => chatCompletion("", judgment({ score: 5 })),
+      // Saba answers; Gemini does not — including on the OpenRouter retry its
+      // own 503 triggers, which lands on this same route. Routing on the model
+      // in the body is what keeps "the strong model failed" true end to end.
+      [OPENROUTER]: async (request) => {
+        const { model } = (await request.json()) as { model: string };
+        return model.includes("saba")
+          ? chatCompletion("", judgment({ score: 5 }))
+          : json({ error: "down" }, 503);
+      },
       [GATEWAY]: () => json({ error: "down" }, 503),
     },
   });

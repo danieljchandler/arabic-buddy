@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { generateImageDataUrl, hasAnyProvider } from "../_shared/aiGateway.ts";
 
 
 serve(async (req) => {
@@ -47,8 +48,7 @@ serve(async (req) => {
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    if (!hasAnyProvider()) throw new Error("No AI provider is configured");
 
     let prompt = `A single realistic, professional photograph of: ${word_english}.
 STYLE GUIDE — follow exactly for every image:
@@ -69,75 +69,20 @@ STYLE GUIDE — follow exactly for every image:
 
     console.log(`Generating image for: ${word_english}`);
 
-    // Try Gemini first (chat-completions image shape), then fall back to gpt-image-2
+    // The Gemini-then-OpenAI ladder that used to live here is now
+    // `aiGateway.generateImage`, which walks Google → OpenAI → OpenRouter with
+    // the same model ids for every image caller. The retry stays here because
+    // it is specific to this endpoint: Gemini returns an empty image often
+    // enough on a first pass that one immediate re-ask is cheaper than telling
+    // the learner to press the button again.
     let imageBase64: string | null = null;
-
-    async function tryGemini(): Promise<string | null> {
-      for (let attempt = 0; attempt < 2; attempt++) {
-        const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: "google/gemini-2.5-flash-image",
-            messages: [{ role: "user", content: prompt }],
-            modalities: ["image", "text"],
-          }),
-        });
-        if (response.status === 429) throw new Error("RATE_LIMIT");
-        if (!response.ok) {
-          console.error(`Gemini attempt ${attempt + 1} HTTP ${response.status}`);
-          await new Promise(r => setTimeout(r, 1500));
-          continue;
-        }
-        const data = await response.json();
-        const url = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-        if (url) return url;
-        console.warn(`Gemini attempt ${attempt + 1}: no image (${data.choices?.[0]?.error?.message ?? "empty"})`);
-        await new Promise(r => setTimeout(r, 1500));
-      }
-      return null;
-    }
-
-    async function tryGptImage(): Promise<string | null> {
-      try {
-        const response = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: "openai/gpt-image-2",
-            prompt,
-            size: "1024x1024",
-            quality: "low",
-            n: 1,
-          }),
-        });
-        if (!response.ok) {
-          console.error(`gpt-image-2 fallback HTTP ${response.status}: ${await response.text()}`);
-          return null;
-        }
-        const data = await response.json();
-        const b64 = data.data?.[0]?.b64_json;
-        return b64 ? `data:image/png;base64,${b64}` : null;
-      } catch (err) {
-        console.error("gpt-image-2 fallback error:", err);
-        return null;
-      }
-    }
-
-    try {
-      imageBase64 = await tryGemini();
-    } catch (e) {
-      if (e instanceof Error && e.message === "RATE_LIMIT") {
-        return new Response(JSON.stringify({ error: "Rate limit exceeded" }), {
-          status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      throw e;
-    }
-
-    if (!imageBase64) {
-      console.log("Gemini failed, falling back to gpt-image-2");
-      imageBase64 = await tryGptImage();
+    for (let attempt = 0; attempt < 2 && !imageBase64; attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 1500));
+      imageBase64 = await generateImageDataUrl(prompt, {
+        size: "1024x1024",
+        label: "generate-flashcard-image",
+      });
+      if (!imageBase64) console.warn(`Image attempt ${attempt + 1}: no image returned`);
     }
 
     if (!imageBase64) {

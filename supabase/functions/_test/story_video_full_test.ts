@@ -1,6 +1,6 @@
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { jsonRequest, loadFunction, optionsRequest } from "./harness.ts";
-import { json, type UpstreamHandler } from "./upstreams.ts";
+import { geminiImage, json, type UpstreamHandler } from "./upstreams.ts";
 
 /**
  * `generate-story-video-full` — the expensive follow-up to the preview. Once an
@@ -54,19 +54,26 @@ const planning = (plan: unknown): UpstreamHandler => () =>
   json({ choices: [{ message: { content: JSON.stringify(plan) } }] });
 
 /**
- * The gateway serves two different endpoints for this function — chat
- * completions for the storyboard, images/generations for each frame — so the
- * host route has to dispatch on the path or the planner would answer the image
- * calls with a plan and no `b64_json`.
+ * Two upstreams for this function, on two different APIs: Google's
+ * OpenAI-shaped chat surface for the storyboard, and Gemini's native
+ * `:generateContent` for each frame.
+ *
+ * The single `imageHandler` answers *every* leg of `aiGateway.generateImage`'s
+ * ladder, not just Gemini's. That is the point: a test that says "the image
+ * model failed" now has to mean the whole ladder failed, or the OpenAI fallback
+ * quietly hands back a picture and the failure under test never happens. The
+ * third leg — the same model through OpenRouter — needs no route here: it lands
+ * on the default chat fixture, which carries no image, which is a refusal.
  */
 function gateway(
   plan: unknown,
   imageHandler?: UpstreamHandler,
 ): Record<string, UpstreamHandler> {
+  const image = imageHandler ?? (() => geminiImage(PNG_B64));
   return {
-    "ai.gateway.lovable.dev/v1/chat/completions": planning(plan),
-    "ai.gateway.lovable.dev/v1/images/generations":
-      imageHandler ?? (() => json({ data: [{ b64_json: PNG_B64 }] })),
+    "generativelanguage.googleapis.com/v1beta/openai": planning(plan),
+    "-image:generateContent": image,
+    "api.openai.com/v1/images/generations": image,
   };
 }
 
@@ -166,11 +173,11 @@ async function call(
 /** Every prompt sent to the image model, in the order the scenes were rendered. */
 const imagePrompts = (result: Result): string[] =>
   result.calls
-    .map((url, i) => (url.includes("images/generations") ? result.bodies[i] : null))
+    .map((url, i) => (url.includes("-image:generateContent") ? result.bodies[i] : null))
     .filter((body): body is string => body !== null)
     .map((body) => {
-      const parsed = JSON.parse(body) as { messages?: Array<{ content?: string }> };
-      return parsed.messages?.[0]?.content ?? "";
+      const parsed = JSON.parse(body) as { contents?: Array<{ parts?: Array<{ text?: string }> }> };
+      return parsed.contents?.[0]?.parts?.[0]?.text ?? "";
     });
 
 /** The last set of segments the function persisted. */
@@ -273,16 +280,23 @@ Deno.test("generate-story-video-full will not render before the preview is appro
 
   assertEquals(result.status, 400);
   assertEquals(result.body.error, "preview_not_approved");
-  assertEquals(result.calls.some((u) => u.includes("images/generations")), false);
+  assertEquals(result.calls.some((u) => u.includes("-image:generateContent")), false);
 });
 
-Deno.test("generate-story-video-full refuses to start with no image key configured", async () => {
+Deno.test("generate-story-video-full refuses to start with no provider configured", async () => {
+  // Every provider key unset, not one: the function no longer depends on a
+  // single gateway, so "not configured" means nothing can serve a model.
   const result = await call({ story_id: STORY }, backend(), {
-    env: { LOVABLE_API_KEY: undefined },
+    env: {
+      GEMINI_API_KEY: undefined,
+      GOOGLE_API_KEY: undefined,
+      OPENAI_API_KEY: undefined,
+      OPENROUTER_API_KEY: undefined,
+    },
   });
 
   assertEquals(result.status, 500);
-  assertStringIncludes(String(result.body.error), "LOVABLE_API_KEY");
+  assertStringIncludes(String(result.body.error), "No AI provider");
 });
 
 // ── Planning the storyboard ──────────────────────────────────────────────────
@@ -413,7 +427,7 @@ Deno.test("generate-story-video-full rejects a beat written in English", async (
   // would ship a clip of a bilingual reader mid-story.
   assertEquals(result.status, 500);
   assertStringIncludes(String(result.body.error), "Latin/English characters");
-  assertEquals(result.calls.some((u) => u.includes("images/generations")), false);
+  assertEquals(result.calls.some((u) => u.includes("-image:generateContent")), false);
 });
 
 Deno.test("generate-story-video-full caps the plan at six scenes", async () => {
@@ -466,9 +480,13 @@ Deno.test("generate-story-video-full fills in a missing visual prompt", async ()
 });
 
 Deno.test("generate-story-video-full reports a planner outage as a failure to start", async () => {
+  // Both routes, because a 503 from Google is not an outage any more — it is
+  // the trigger for aiGateway's retry on OpenRouter. A planner outage is only
+  // an outage when the second provider is down too.
   const result = await call({ story_id: STORY }, {
     ...backend(),
-    "ai.gateway.lovable.dev/v1/chat/completions": () => new Response("upstream down", { status: 503 }),
+    "generativelanguage.googleapis.com/v1beta/openai": () => new Response("upstream down", { status: 503 }),
+    "openrouter.ai": () => new Response("upstream down", { status: 503 }),
   });
 
   assertEquals(result.status, 500);
@@ -490,10 +508,10 @@ Deno.test("generate-story-video-full returns before it renders anything", async 
     // not fit inside an edge function's request budget.
     assertEquals(response.status, 200);
     assertEquals(body, { status: "generating", scenes: 3 });
-    assertEquals(fn.callsTo("images/generations").length, 0);
+    assertEquals(fn.callsTo("-image:generateContent").length, 0);
 
     await fn.background();
-    assertEquals(fn.callsTo("images/generations").length, 3);
+    assertEquals(fn.callsTo("-image:generateContent").length, 3);
   } finally {
     fn.restore();
   }
@@ -625,13 +643,15 @@ Deno.test("generate-story-video-full reports a story as ready with scenes missin
   // admin sees a green status and a story that jumps from its opening straight
   // to its ending, with nothing saying a frame is absent — and because the
   // status is terminal, nothing retries.
-  let attempt = 0;
+  // Keyed on the scene's own prompt rather than on call order: the ladder makes
+  // one scene worth up to three requests, so "the second call fails" no longer
+  // means "the second scene fails".
   const result = await call({ story_id: STORY }, backend({
-    image: () => {
-      attempt += 1;
-      return attempt === 2
+    image: async (request) => {
+      const body = await request.text();
+      return body.includes("SCENE 2 of")
         ? new Response("model overloaded", { status: 503 })
-        : json({ data: [{ b64_json: PNG_B64 }] });
+        : geminiImage(PNG_B64);
     },
   }));
 
@@ -659,7 +679,7 @@ Deno.test("generate-story-video-full records a narration outage as a failure", a
 
   // Narration is synthesised before the image, so a TTS outage costs nothing in
   // image credits — no frame is generated at all.
-  assertEquals(result.calls.some((u) => u.includes("images/generations")), false);
+  assertEquals(result.calls.some((u) => u.includes("-image:generateContent")), false);
   assertEquals(result.patches.at(-1)?.story_video_full_status, "failed");
 });
 
@@ -688,7 +708,7 @@ Deno.test("generate-story-video-full truncates a runaway failure message", async
 Deno.test("generate-story-video-full fails the run when the model returns no image", async () => {
   const result = await call({ story_id: STORY }, backend({
     // A 200 with the wrong shape is the failure mode a status check misses.
-    image: () => json({ data: [{}] }),
+    image: () => json({ candidates: [{ content: { parts: [] } }] }),
   }));
 
   assertEquals(result.patches.at(-1)?.story_video_full_status, "failed");
@@ -698,7 +718,7 @@ Deno.test("generate-story-video-full fails the run when the model returns no ima
 Deno.test("generate-story-video-full fails the run on an unparseable plan", async () => {
   const result = await call({ story_id: STORY }, {
     ...backend(),
-    "ai.gateway.lovable.dev/v1/chat/completions": () =>
+    "generativelanguage.googleapis.com/v1beta/openai": () =>
       json({ choices: [{ message: { content: "here is your plan:" } }] }),
   });
 

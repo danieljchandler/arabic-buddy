@@ -38,14 +38,14 @@ function caller(extra: Record<string, UpstreamHandler> = {}): Record<string, Ups
 const emitting = (payload: unknown): UpstreamHandler => () => chatCompletion("", payload);
 
 /**
- * The same tool call from either gateway.
+ * The same tool call from either provider.
  *
- * aiBrain picks between Lovable and OpenRouter by model, and which one it picks
+ * aiBrain picks between Google and OpenRouter by model, and which one it picks
  * is not the subject of these tests — routing only one of them made an
  * assertion about the clamped output silently read the *other* fixture.
  */
 const bothGateways = (payload: unknown): Record<string, UpstreamHandler> => ({
-  "ai.gateway.lovable.dev": emitting(payload),
+  "generativelanguage.googleapis.com/v1beta/openai": emitting(payload),
   "openrouter.ai": emitting(payload),
 });
 
@@ -117,7 +117,7 @@ Deno.test("hf-chat returns the reply with the brain's own telemetry", async () =
     "hf-chat",
     { prompt: "How do I say hello?", strategy: "solo" },
     caller({
-      "ai.gateway.lovable.dev": () => chatCompletion("قل هلا"),
+      "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("قل هلا"),
       "openrouter.ai": () => chatCompletion("قل هلا"),
     }),
   );
@@ -138,13 +138,13 @@ Deno.test("hf-chat passes the caller's dialect to the brain", async () => {
     "hf-chat",
     { prompt: "How do I say hello?", dialect: "Egyptian", strategy: "solo" },
     caller({
-      "ai.gateway.lovable.dev": () => chatCompletion("قول إزيك"),
+      "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("قول إزيك"),
       "openrouter.ai": () => chatCompletion("قول إزيك"),
     }),
   );
 
   assertEquals(result.status, 200);
-  const prompt = result.bodies[result.calls.findIndex((url) => url.includes("gateway"))] ?? "";
+  const prompt = result.bodies[result.calls.findIndex((url) => url.includes("/chat/completions"))] ?? "";
   assertStringIncludes(prompt, "Egyptian");
 });
 
@@ -169,7 +169,7 @@ Deno.test("hf-chat reports an empty reply rather than returning one", async () =
     "hf-chat",
     { prompt: "hello", strategy: "solo" },
     caller({
-      "ai.gateway.lovable.dev": () => chatCompletion(""),
+      "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion(""),
       "openrouter.ai": () => chatCompletion(""),
     }),
   );
@@ -380,7 +380,7 @@ Deno.test("learn-from-metric tells the model which rules already exist", async (
   );
 
   assertEquals(result.status, 200);
-  const prompt = result.bodies[result.calls.findIndex((url) => url.includes("gateway"))] ?? "";
+  const prompt = result.bodies[result.calls.findIndex((url) => url.includes("/chat/completions"))] ?? "";
   assertStringIncludes(prompt, "Prefer هالحين.");
   assertStringIncludes(prompt, "دلوقتي");
 });

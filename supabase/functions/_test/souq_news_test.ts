@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { jsonRequest, loadFunction } from "./harness.ts";
+import { NO_AI_PROVIDER, jsonRequest, loadFunction } from "./harness.ts";
 import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
 
 /**
@@ -102,7 +102,7 @@ Deno.test("souq-news retells the headlines it found", async () => {
     { dialect: "Gulf" },
     caller({
       "api.firecrawl.dev": firecrawl(["Prices rise across the Gulf"]),
-      "ai.gateway.lovable.dev": retelling(aRetelling()),
+      "generativelanguage.googleapis.com/v1beta/openai": retelling(aRetelling()),
     }),
   );
 
@@ -128,7 +128,7 @@ Deno.test("souq-news widens its time window until it finds something", async () 
           ? json({ success: true, data: [] })
           : json({ success: true, data: [{ title: "Older news", url: "https://news.test/0", markdown: "Text." }] });
       },
-      "ai.gateway.lovable.dev": retelling(aRetelling()),
+      "generativelanguage.googleapis.com/v1beta/openai": retelling(aRetelling()),
     }),
   );
 
@@ -150,7 +150,7 @@ Deno.test("souq-news stops searching once it has articles", async () => {
     { dialect: "Gulf" },
     caller({
       "api.firecrawl.dev": firecrawl(["Today's news"]),
-      "ai.gateway.lovable.dev": retelling(aRetelling()),
+      "generativelanguage.googleapis.com/v1beta/openai": retelling(aRetelling()),
     }),
   );
 
@@ -163,7 +163,7 @@ Deno.test("souq-news answers an empty feed rather than an error on a quiet day",
     { dialect: "Gulf" },
     caller({
       "api.firecrawl.dev": () => json({ success: true, data: [] }),
-      "ai.gateway.lovable.dev": retelling(aRetelling()),
+      "generativelanguage.googleapis.com/v1beta/openai": retelling(aRetelling()),
     }),
   );
 
@@ -186,7 +186,7 @@ Deno.test("souq-news reads whichever envelope Firecrawl used", async () => {
       { dialect: "Gulf" },
       caller({
         "api.firecrawl.dev": () => json(payload),
-        "ai.gateway.lovable.dev": retelling(aRetelling()),
+        "generativelanguage.googleapis.com/v1beta/openai": retelling(aRetelling()),
       }),
     );
 
@@ -203,7 +203,7 @@ Deno.test("souq-news rewrites at most four stories", async () => {
     { dialect: "Gulf" },
     caller({
       "api.firecrawl.dev": firecrawl(["A", "B", "C", "D", "E", "F"]),
-      "ai.gateway.lovable.dev": retelling(aRetelling()),
+      "generativelanguage.googleapis.com/v1beta/openai": retelling(aRetelling()),
     }),
   );
 
@@ -220,7 +220,7 @@ Deno.test("souq-news keeps the articles that worked when one fails to parse", as
     { dialect: "Gulf" },
     caller({
       "api.firecrawl.dev": firecrawl(["A", "B"]),
-      "ai.gateway.lovable.dev": () => {
+      "generativelanguage.googleapis.com/v1beta/openai": () => {
         attempt += 1;
         return attempt === 1
           ? chatCompletion("I would rather not.")
@@ -242,7 +242,7 @@ Deno.test("souq-news repairs Arabic punctuation used as JSON separators", async 
     { dialect: "Gulf" },
     caller({
       "api.firecrawl.dev": firecrawl(["A"]),
-      "ai.gateway.lovable.dev": retelling(withArabicCommas),
+      "generativelanguage.googleapis.com/v1beta/openai": retelling(withArabicCommas),
     }),
   );
 
@@ -259,7 +259,7 @@ Deno.test("souq-news strips markdown fences from the rewrite", async () => {
     { dialect: "Gulf" },
     caller({
       "api.firecrawl.dev": firecrawl(["A"]),
-      "ai.gateway.lovable.dev": retelling("```json\n" + JSON.stringify(aRetelling()) + "\n```"),
+      "generativelanguage.googleapis.com/v1beta/openai": retelling("```json\n" + JSON.stringify(aRetelling()) + "\n```"),
     }),
   );
 
@@ -273,7 +273,7 @@ Deno.test("souq-news asks for vocalised Arabic and a per-sentence gloss", async 
     { dialect: "Gulf" },
     caller({
       "api.firecrawl.dev": firecrawl(["A"]),
-      "ai.gateway.lovable.dev": retelling(aRetelling()),
+      "generativelanguage.googleapis.com/v1beta/openai": retelling(aRetelling()),
     }),
   );
 
@@ -292,7 +292,7 @@ Deno.test("souq-news searches the region matching the dialect", async () => {
     { dialect: "Gulf" },
     caller({
       "api.firecrawl.dev": firecrawl(["A"]),
-      "ai.gateway.lovable.dev": retelling(aRetelling()),
+      "generativelanguage.googleapis.com/v1beta/openai": retelling(aRetelling()),
     }),
   );
   const egyptian = await call(
@@ -300,7 +300,7 @@ Deno.test("souq-news searches the region matching the dialect", async () => {
     { dialect: "Egyptian" },
     caller({
       "api.firecrawl.dev": firecrawl(["A"]),
-      "ai.gateway.lovable.dev": retelling(aRetelling()),
+      "generativelanguage.googleapis.com/v1beta/openai": retelling(aRetelling()),
     }),
   );
 
@@ -318,7 +318,7 @@ Deno.test("souq-news reports exhausted credits even when some articles worked", 
     { dialect: "Gulf" },
     caller({
       "api.firecrawl.dev": firecrawl(["A", "B"]),
-      "ai.gateway.lovable.dev": () => {
+      "generativelanguage.googleapis.com/v1beta/openai": () => {
         attempt += 1;
         return attempt === 1
           ? json({ error: "no credits" }, 402)
@@ -341,7 +341,7 @@ Deno.test("souq-news reports a rate limit only when nothing survived", async () 
     { dialect: "Gulf" },
     caller({
       "api.firecrawl.dev": firecrawl(["A", "B"]),
-      "ai.gateway.lovable.dev": () => {
+      "generativelanguage.googleapis.com/v1beta/openai": () => {
         attempt += 1;
         return attempt === 1
           ? json({ error: "slow down" }, 429)
@@ -355,7 +355,7 @@ Deno.test("souq-news reports a rate limit only when nothing survived", async () 
     { dialect: "Gulf" },
     caller({
       "api.firecrawl.dev": firecrawl(["A", "B"]),
-      "ai.gateway.lovable.dev": () => json({ error: "slow down" }, 429),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "slow down" }, 429),
     }),
   );
 
@@ -372,7 +372,7 @@ Deno.test("souq-news passes a failed search's status through", async () => {
     { dialect: "Gulf" },
     caller({
       "api.firecrawl.dev": () => new Response("quota", { status: 429 }),
-      "ai.gateway.lovable.dev": retelling(aRetelling()),
+      "generativelanguage.googleapis.com/v1beta/openai": retelling(aRetelling()),
     }),
   );
 
@@ -385,20 +385,19 @@ Deno.test("souq-news passes a failed search's status through", async () => {
 });
 
 Deno.test("souq-news names each missing key", async () => {
-  for (
-    const [key, message] of [
-      ["FIRECRAWL_API_KEY", "Firecrawl not configured"],
-      ["LOVABLE_API_KEY", "AI gateway not configured"],
-    ] as const
-  ) {
+  const missing: Array<[Record<string, string | undefined>, string]> = [
+    [{ FIRECRAWL_API_KEY: undefined }, "Firecrawl not configured"],
+    [NO_AI_PROVIDER, "No AI provider configured"],
+  ];
+  for (const [env, message] of missing) {
     const { status, body, calls } = await call(
       "souq-news",
       { dialect: "Gulf" },
       caller({
         "api.firecrawl.dev": firecrawl(["A"]),
-        "ai.gateway.lovable.dev": retelling(aRetelling()),
+        "generativelanguage.googleapis.com/v1beta/openai": retelling(aRetelling()),
       }),
-      { [key]: undefined },
+      env,
     );
 
     // Both are checked before anything is fetched, and they are named
@@ -438,7 +437,7 @@ Deno.test("souq-news-quiz builds questions from the article", async () => {
     "souq-news-quiz",
     anArticle,
     caller({
-      "ai.gateway.lovable.dev": () => chatCompletion("", { questions: [aQuestion()] }),
+      "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("", { questions: [aQuestion()] }),
     }),
   );
 
@@ -456,7 +455,7 @@ Deno.test("souq-news-quiz refuses a request with no article body", async () => {
     "souq-news-quiz",
     { ...anArticle, body_dialect: undefined },
     caller({
-      "ai.gateway.lovable.dev": () => chatCompletion("", { questions: [aQuestion()] }),
+      "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("", { questions: [aQuestion()] }),
     }),
   );
 
@@ -472,7 +471,7 @@ Deno.test("souq-news-quiz asks for dialect questions rather than MSA", async () 
     "souq-news-quiz",
     anArticle,
     caller({
-      "ai.gateway.lovable.dev": () => chatCompletion("", { questions: [aQuestion()] }),
+      "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("", { questions: [aQuestion()] }),
     }),
   );
 
@@ -487,7 +486,7 @@ Deno.test("souq-news-quiz preserves a rate limit", async () => {
     "souq-news-quiz",
     anArticle,
     caller({
-      "ai.gateway.lovable.dev": () => json({ error: "slow" }, 429),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "slow" }, 429),
       "openrouter.ai": () => json({ error: "slow" }, 429),
     }),
   );
@@ -501,7 +500,7 @@ Deno.test("souq-news-quiz reports any other failure as a generation failure", as
     "souq-news-quiz",
     anArticle,
     caller({
-      "ai.gateway.lovable.dev": () => json({ error: "boom" }, 503),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "boom" }, 503),
       "openrouter.ai": () => json({ error: "boom" }, 503),
     }),
   );

@@ -20,6 +20,7 @@ import {
   planAsrPayloads,
 } from "../_shared/audioChunk.ts";
 import { noArabicSpeechNote } from "../_shared/arabicSpeechGate.ts";
+import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
 import { alignLinesToAsrWords } from "../_shared/transcriptTimingAlign.ts";
 import {
   buildVisualContextText,
@@ -1410,25 +1411,19 @@ async function runPipeline(
       let titleArabic = video.title_arabic;
       if (!titleArabic && result.titleArabic) titleArabic = result.titleArabic;
 
-      // Auto-generate a concise title via Lovable AI if still missing/placeholder
+      // Auto-generate a concise title if still missing/placeholder
       if (!title || title === "Untitled Video" || !titleArabic) {
         try {
           const sampleLines = sanitizedLines.slice(0, 6).map((l) =>
             `${l.arabic ?? ""}${l.translation ? " — " + l.translation : ""}`
           ).join("\n");
-          const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-          if (lovableKey && sampleLines.trim()) {
-            const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovableKey}` },
-              body: JSON.stringify({
-                model: "google/gemini-2.5-flash-lite",
-                messages: [
-                  { role: "system", content: 'Return ONLY JSON: {"title": string (English, ≤8 words, no quotes), "titleArabic": string (Arabic, ≤8 words)}. Title should describe the video content based on the transcript snippet.' },
-                  { role: "user", content: sampleLines },
-                ],
-              }),
-            });
+          if (hasAnyProvider() && sampleLines.trim()) {
+            const aiResp = await chatFetch("google/gemini-2.5-flash-lite", {
+              messages: [
+                { role: "system", content: 'Return ONLY JSON: {"title": string (English, ≤8 words, no quotes), "titleArabic": string (Arabic, ≤8 words)}. Title should describe the video content based on the transcript snippet.' },
+                { role: "user", content: sampleLines },
+              ],
+            }, { label: "process-approved-video:title" });
             if (aiResp.ok) {
               const j = await aiResp.json();
               const raw = j?.choices?.[0]?.message?.content ?? "";

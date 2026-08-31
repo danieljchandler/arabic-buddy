@@ -101,7 +101,7 @@ async function call(
 Deno.test("extract-visual-context returns the OCR it found", async () => {
   const { status, body } = await call(
     { frames: [aFrame(0), aFrame(3)] },
-    caller({ "ai.gateway.lovable.dev": vision(aResult()) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": vision(aResult()) }),
   );
 
   assertEquals(status, 200);
@@ -114,10 +114,10 @@ Deno.test("extract-visual-context returns the OCR it found", async () => {
 Deno.test("extract-visual-context sends every frame with its timestamp", async () => {
   const { bodies, calls } = await call(
     { frames: [aFrame(0), aFrame(2), aFrame(4)], audioDuration: 6, videoTitle: "Traffic" },
-    caller({ "ai.gateway.lovable.dev": vision(aResult()) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": vision(aResult()) }),
   );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   const sent = bodies[i] ?? "";
   // The timestamps are what let the model place text on the timeline; without
   // them it can only say "this text appears somewhere".
@@ -131,10 +131,10 @@ Deno.test("extract-visual-context sends every frame with its timestamp", async (
 Deno.test("extract-visual-context caps how many frames it sends", async () => {
   const { bodies, calls } = await call(
     { frames: Array.from({ length: 40 }, (_, i) => aFrame(i)) },
-    caller({ "ai.gateway.lovable.dev": vision(aResult()) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": vision(aResult()) }),
   );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   const sent = JSON.parse(bodies[i] ?? "{}") as {
     messages: Array<{ content: Array<{ type: string }> }>;
   };
@@ -147,10 +147,10 @@ Deno.test("extract-visual-context caps how many frames it sends", async () => {
 Deno.test("extract-visual-context wraps bare base64 frames as data URIs", async () => {
   const { bodies, calls } = await call(
     { frames: [aFrame(0)] },
-    caller({ "ai.gateway.lovable.dev": vision(aResult()) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": vision(aResult()) }),
   );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   assertStringIncludes(bodies[i] ?? "", "data:image/jpeg;base64,");
 });
 
@@ -158,7 +158,7 @@ Deno.test("extract-visual-context drops segments with no text", async () => {
   const { body } = await call(
     { frames: [aFrame(0)] },
     caller({
-      "ai.gateway.lovable.dev": vision(
+      "generativelanguage.googleapis.com/v1beta/openai": vision(
         aResult({
           onScreenTextSegments: [
             { text: "الزحمة", translation: "traffic", startSeconds: 0, endSeconds: 1 },
@@ -179,7 +179,7 @@ Deno.test("extract-visual-context defaults a missing confidence to medium", asyn
   const { body } = await call(
     { frames: [aFrame(0)] },
     caller({
-      "ai.gateway.lovable.dev": vision(
+      "generativelanguage.googleapis.com/v1beta/openai": vision(
         aResult({
           onScreenTextSegments: [
             { text: "أ", startSeconds: 0, endSeconds: 1 },
@@ -207,7 +207,7 @@ Deno.test("extract-visual-context ends an untimed segment at the last frame", as
   const { body } = await call(
     { frames: [aFrame(0), aFrame(5), aFrame(12)] },
     caller({
-      "ai.gateway.lovable.dev": vision(
+      "generativelanguage.googleapis.com/v1beta/openai": vision(
         aResult({
           onScreenTextSegments: [{ text: "الزحمة", translation: "traffic" }],
         }),
@@ -225,7 +225,7 @@ Deno.test("extract-visual-context coerces string timestamps to numbers", async (
   const { body } = await call(
     { frames: [aFrame(0)] },
     caller({
-      "ai.gateway.lovable.dev": vision(
+      "generativelanguage.googleapis.com/v1beta/openai": vision(
         aResult({
           onScreenTextSegments: [
             { text: "الزحمة", startSeconds: "1.5", endSeconds: "4", confidence: "high" },
@@ -248,7 +248,7 @@ Deno.test("extract-visual-context defaults the free-text fields to empty strings
   const { body } = await call(
     { frames: [aFrame(0)] },
     caller({
-      "ai.gateway.lovable.dev": vision({ onScreenTextSegments: [] }),
+      "generativelanguage.googleapis.com/v1beta/openai": vision({ onScreenTextSegments: [] }),
     }),
   );
 
@@ -268,7 +268,7 @@ Deno.test("extract-visual-context keeps the timings, not just the prose", async 
   const { bodies } = await call(
     { frames: [aFrame(0), aFrame(3)], videoId: VIDEO_ID },
     caller({
-      "ai.gateway.lovable.dev": vision(aResult()),
+      "generativelanguage.googleapis.com/v1beta/openai": vision(aResult()),
       "/rest/v1/rpc/is_admin": () => json(true),
     }),
   );
@@ -289,7 +289,7 @@ Deno.test("extract-visual-context writes an empty timeline when it read nothing"
   const { bodies } = await call(
     { frames: [aFrame(0)], videoId: VIDEO_ID },
     caller({
-      "ai.gateway.lovable.dev": vision(aResult({ onScreenTextSegments: [] })),
+      "generativelanguage.googleapis.com/v1beta/openai": vision(aResult({ onScreenTextSegments: [] })),
       "/rest/v1/rpc/is_admin": () => json(true),
     }),
   );
@@ -302,7 +302,7 @@ Deno.test("extract-visual-context refuses a request with no frames", async () =>
   for (const frames of [undefined, [], "not an array"]) {
     const { status, body, calls } = await call(
       { frames },
-      caller({ "ai.gateway.lovable.dev": vision(aResult()) }),
+      caller({ "generativelanguage.googleapis.com/v1beta/openai": vision(aResult()) }),
     );
 
     assertEquals(status, 400, `expected ${JSON.stringify(frames)} to be refused`);
@@ -314,7 +314,7 @@ Deno.test("extract-visual-context refuses a request with no frames", async () =>
 Deno.test("extract-visual-context refuses an unauthenticated caller", async () => {
   const { status, calls } = await call(
     { frames: [aFrame(0)] },
-    caller({ "ai.gateway.lovable.dev": vision(aResult()) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": vision(aResult()) }),
     { jwt: null },
   );
 
@@ -325,7 +325,7 @@ Deno.test("extract-visual-context refuses an unauthenticated caller", async () =
 Deno.test("extract-visual-context names an exhausted-credits failure", async () => {
   const { status, body } = await call(
     { frames: [aFrame(0)] },
-    caller({ "ai.gateway.lovable.dev": () => json({ error: "no credits" }, 402) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "no credits" }, 402) }),
   );
 
   // Flattened to 500, but with the reason in the message — an operator reading
@@ -337,7 +337,7 @@ Deno.test("extract-visual-context names an exhausted-credits failure", async () 
 Deno.test("extract-visual-context names a rate limit", async () => {
   const { body } = await call(
     { frames: [aFrame(0)] },
-    caller({ "ai.gateway.lovable.dev": () => json({ error: "slow" }, 429) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "slow" }, 429) }),
   );
 
   assertStringIncludes(String(body.error), "Rate limit exceeded");
@@ -346,7 +346,7 @@ Deno.test("extract-visual-context names a rate limit", async () => {
 Deno.test("extract-visual-context reports unparsable output rather than empty OCR", async () => {
   const { status, body } = await call(
     { frames: [aFrame(0)] },
-    caller({ "ai.gateway.lovable.dev": () => chatCompletion("I cannot read these frames.") }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("I cannot read these frames.") }),
   );
 
   // Unlike `analyze-meme`, this one fails rather than degrading. It feeds a
@@ -362,7 +362,7 @@ Deno.test("extract-visual-context re-checks for admin before writing a video", a
   const { status, body, calls } = await call(
     { frames: [aFrame(0)], videoId: VIDEO_ID },
     caller({
-      "ai.gateway.lovable.dev": vision(aResult()),
+      "generativelanguage.googleapis.com/v1beta/openai": vision(aResult()),
       "/rest/v1/rpc/is_admin": () => json(false),
     }),
   );
@@ -379,7 +379,7 @@ Deno.test("extract-visual-context refuses when the admin check itself fails", as
   const { status, calls } = await call(
     { frames: [aFrame(0)], videoId: VIDEO_ID },
     caller({
-      "ai.gateway.lovable.dev": vision(aResult()),
+      "generativelanguage.googleapis.com/v1beta/openai": vision(aResult()),
       "/rest/v1/rpc/is_admin": () => json({ message: "boom" }, 500),
     }),
   );
@@ -393,7 +393,7 @@ Deno.test("extract-visual-context stores the result and updates the video", asyn
   const { status, calls, bodies } = await call(
     { frames: [aFrame(0)], videoId: VIDEO_ID },
     caller({
-      "ai.gateway.lovable.dev": vision(aResult()),
+      "generativelanguage.googleapis.com/v1beta/openai": vision(aResult()),
       "/rest/v1/rpc/is_admin": () => json(true),
       "/rest/v1/discover_videos": videoRow(true),
     }),
@@ -412,7 +412,7 @@ Deno.test("extract-visual-context leaves an ordinary video's cultural context al
   const { bodies } = await call(
     { frames: [aFrame(0)], videoId: VIDEO_ID },
     caller({
-      "ai.gateway.lovable.dev": vision(aResult()),
+      "generativelanguage.googleapis.com/v1beta/openai": vision(aResult()),
       "/rest/v1/rpc/is_admin": () => json(true),
       "/rest/v1/discover_videos": videoRow(false),
     }),
@@ -432,7 +432,7 @@ Deno.test("extract-visual-context does not flag an ordinary video that has no te
   const { bodies } = await call(
     { frames: [aFrame(0)], videoId: VIDEO_ID },
     caller({
-      "ai.gateway.lovable.dev": vision(aResult({ onScreenTextSegments: [] })),
+      "generativelanguage.googleapis.com/v1beta/openai": vision(aResult({ onScreenTextSegments: [] })),
       "/rest/v1/rpc/is_admin": () => json(true),
       "/rest/v1/discover_videos": videoRow(false),
     }),
@@ -447,7 +447,7 @@ Deno.test("extract-visual-context flags a meme with no readable text", async () 
   const { bodies } = await call(
     { frames: [aFrame(0)], videoId: VIDEO_ID },
     caller({
-      "ai.gateway.lovable.dev": vision(aResult({ onScreenTextSegments: [] })),
+      "generativelanguage.googleapis.com/v1beta/openai": vision(aResult({ onScreenTextSegments: [] })),
       "/rest/v1/rpc/is_admin": () => json(true),
       "/rest/v1/discover_videos": videoRow(true),
     }),
@@ -468,7 +468,7 @@ Deno.test("extract-visual-context asks for manual review when it saw nothing at 
   const { bodies } = await call(
     { frames: [aFrame(0)], videoId: VIDEO_ID },
     caller({
-      "ai.gateway.lovable.dev": vision({
+      "generativelanguage.googleapis.com/v1beta/openai": vision({
         onScreenTextSegments: [],
         sceneContext: "",
         culturalContext: "",
@@ -491,7 +491,7 @@ Deno.test("extract-visual-context clears a previous error when text is found", a
   const { bodies } = await call(
     { frames: [aFrame(0)], videoId: VIDEO_ID },
     caller({
-      "ai.gateway.lovable.dev": vision(aResult()),
+      "generativelanguage.googleapis.com/v1beta/openai": vision(aResult()),
       "/rest/v1/rpc/is_admin": () => json(true),
       "/rest/v1/discover_videos": videoRow(true),
     }),
@@ -507,7 +507,7 @@ Deno.test("extract-visual-context does not kick off processing unless asked", as
   const { body, calls } = await call(
     { frames: [aFrame(0)], videoId: VIDEO_ID },
     caller({
-      "ai.gateway.lovable.dev": vision(aResult()),
+      "generativelanguage.googleapis.com/v1beta/openai": vision(aResult()),
       "/rest/v1/rpc/is_admin": () => json(true),
     }),
   );
@@ -520,7 +520,7 @@ Deno.test("extract-visual-context kicks off processing when asked", async () => 
   const { body } = await call(
     { frames: [aFrame(0)], videoId: VIDEO_ID, kickoffProcessing: true },
     caller({
-      "ai.gateway.lovable.dev": vision(aResult()),
+      "generativelanguage.googleapis.com/v1beta/openai": vision(aResult()),
       "/rest/v1/rpc/is_admin": () => json(true),
     }),
   );
@@ -534,7 +534,7 @@ Deno.test("extract-visual-context does no video write without a videoId", async 
   const { status, calls } = await call(
     { frames: [aFrame(0)] },
     caller({
-      "ai.gateway.lovable.dev": vision(aResult()),
+      "generativelanguage.googleapis.com/v1beta/openai": vision(aResult()),
       "/rest/v1/rpc/is_admin": () => json(true),
     }),
   );

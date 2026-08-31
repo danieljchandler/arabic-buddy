@@ -102,14 +102,74 @@ export const geminiResponse = (text: string): Response =>
     candidates: [{ content: { parts: [{ text }] }, finishReason: "STOP" }],
   });
 
+/**
+ * A 1x1 PNG, base64. Small enough to inline, real enough that a decode of it
+ * succeeds — which is what every image caller does with the bytes it gets back.
+ */
+export const PIXEL_PNG_B64 =
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+
+/**
+ * Gemini's image shape: bytes ride inline on a content part, not in an
+ * OpenAI-style `data[].b64_json`. Reproduced exactly because the whole point of
+ * `aiGateway.generateImage` is reading this and the `images/generations` shape
+ * apart, and a fixture in the wrong vocabulary would let a reader of the wrong
+ * one pass.
+ */
+export const geminiImage = (b64 = PIXEL_PNG_B64): Response =>
+  json({
+    candidates: [
+      { content: { parts: [{ inlineData: { mimeType: "image/png", data: b64 } }] }, finishReason: "STOP" },
+    ],
+  });
+
+/** OpenAI's `images/generations` shape, the fallback leg of the image ladder. */
+export const openaiImage = (b64 = PIXEL_PNG_B64): Response => json({ data: [{ b64_json: b64 }] });
+
+/**
+ * `aiGateway.generateImage` tries Gemini natively, then OpenAI's image model,
+ * then the same Gemini model through OpenRouter — so one handler on one of them
+ * is not "the image model", it is one third of it. `imageLadder` points the
+ * whole ladder at a single handler, which is what a test that wants to describe
+ * the image model as a unit actually means. The OpenRouter leg is deliberately
+ * absent: it shares the chat route, and the default chat fixture carries no
+ * image, which is already a refusal.
+ */
+export const GEMINI_IMAGE_ROUTE = "-image:generateContent";
+export const OPENAI_IMAGE_ROUTE = "api.openai.com/v1/images/generations";
+
+export const imageLadder = (
+  handler: UpstreamHandler = () => geminiImage(),
+): Record<string, UpstreamHandler> => ({
+  [GEMINI_IMAGE_ROUTE]: handler,
+  [OPENAI_IMAGE_ROUTE]: handler,
+});
+
+/**
+ * Gemini's native `:generateContent`, which serves two different jobs on one
+ * host: grounded text (culture-guide) and image generation. The model id is in
+ * the path, so the fixture answers in whichever vocabulary the caller asked in
+ * — a text fixture returned to an image request reads as "the model declined",
+ * which is a real state and would hide a broken request shape behind a
+ * plausible-looking fallback.
+ */
+const geminiNative: UpstreamHandler = (request) =>
+  /image/i.test(new URL(request.url).pathname) ? geminiImage() : geminiResponse("fixture reply");
+
 /** The default route table. Keys are matched as substrings of the URL. */
 export function defaultUpstreams(): Record<string, UpstreamHandler> {
   return {
-    // ── LLM gateways ────────────────────────────────────────────────────────
-    "ai.gateway.lovable.dev": () => chatCompletion("fixture reply"),
+    // ── Model providers ─────────────────────────────────────────────────────
+    // One OpenAI-shaped `/chat/completions` per provider, because that is how
+    // aiGateway routes: Gemini to Google's compatibility surface, GPT to
+    // OpenAI, everything else (and anything whose own key is missing) to
+    // OpenRouter. The keys stay host-specific so a test can assert *which*
+    // provider a function reached, not just that it reached something.
     "openrouter.ai": () => chatCompletion("fixture reply"),
-    "generativelanguage.googleapis.com": () => geminiResponse("fixture reply"),
+    "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("fixture reply"),
+    "generativelanguage.googleapis.com/v1beta/models": geminiNative,
     "api.fanar.qa": () => chatCompletion("fixture reply"),
+    "api.openai.com/v1/images/generations": () => openaiImage(),
     "api.openai.com": () => chatCompletion("fixture reply"),
     "router.huggingface.co": () => chatCompletion("fixture reply"),
     "api-inference.huggingface.co": () => json([{ label: "gulf", score: 0.9 }]),

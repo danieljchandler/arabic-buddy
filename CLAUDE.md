@@ -122,10 +122,25 @@ harness.
   `supabase/functions/_test/harness.ts` intercepts both forms via an
   import-map shim and a `Deno.serve` monkey-patch; `loadFunction(name)` is how
   tests get a callable handler with faked secrets and routed `fetch`.
-- **Model IDs are centralized.** Never hardcode a model ID in feature code —
-  everything goes through `supabase/functions/_shared/modelRegistry.ts`
-  (named lineups: `TRANSLATION`, `CONTENT`, `UTILITY`, `REASONING`). Claude
-  routes via OpenRouter, Gemini via the Lovable AI Gateway.
+- **Model IDs are centralized; providers are chosen, not hardcoded.** Never
+  hardcode a model ID in feature code — everything goes through
+  `supabase/functions/_shared/modelRegistry.ts` (named lineups: `TRANSLATION`,
+  `CONTENT`, `UTILITY`, `REASONING`, plus `IMAGE_MODEL_IDS`). Which *provider*
+  serves a model is `_shared/aiGateway.ts`'s decision, off the vendor prefix:
+  `google/*` → Google (`GEMINI_API_KEY`), `openai/*` → OpenAI
+  (`OPENAI_API_KEY`), everything else → OpenRouter (`OPENROUTER_API_KEY`).
+  Registry ids stay in OpenRouter's `vendor/model` form because that is the one
+  namespace all three can be addressed from; aiGateway strips the prefix for the
+  vendors whose own APIs don't use it. Call models with `chatFetch` /
+  `chatFetchDetailed` / `generateImage` rather than a bare `fetch` to a
+  provider URL, and never reintroduce a hosting provider's AI gateway.
+  **OpenRouter is also the safety net:** when a vendor's key is missing, or its
+  API answers with a status in aiGateway's fallback set (400/401/403/404/408 and
+  5xx — deliberately *not* 429), the same model is retried once through
+  OpenRouter. That is a provider swap, never a model swap. Two consequences for
+  tests: "the upstream is down" means stubbing both routes, and "the AI is not
+  configured" means unsetting every provider key (`NO_AI_PROVIDER` in the edge
+  harness), not one.
 - **`contract/` and `_test/schemaContract.test.ts` check different things.**
   The former replays all migrations against stock Postgres (can the schema be
   rebuilt from scratch); the latter statically checks every `.from()`/`.rpc()`/

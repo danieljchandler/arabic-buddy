@@ -811,7 +811,7 @@ Deno.test("process-approved-video falls back to the first line for a missing tit
     analyze: () => json({ success: true, result: aResult({ title: null, titleArabic: null }) }),
     extra: {
       // The AI namer is tried first and is allowed to fail.
-      "ai.gateway.lovable.dev": () => new Response("rate limited", { status: 429 }),
+      "generativelanguage.googleapis.com/v1beta/openai": () => new Response("rate limited", { status: 429 }),
     },
   }));
   const final = lastPatchWith(result, "title");

@@ -27,6 +27,14 @@ import {
   MODEL_LINEUPS,
   getModelWeight,
 } from './modelRegistry.ts';
+import {
+  chatFetch,
+  chatFetchDetailed,
+  GatewayConfigError,
+  hasAnyProvider,
+  providerForModel,
+  type Provider,
+} from './aiGateway.ts';
 
 // Helper: scan with both hardcoded and rulebook-derived forbidden tokens.
 function scanLeaks(text: string, dialect: Dialect): MsaLeakResult {
@@ -162,15 +170,11 @@ export interface BrainResult<T = unknown> {
   passes: Array<{ pass: string; model: string; ms: number }>;
 }
 
-const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
-const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-
-// Models that aren't on the Lovable AI Gateway catalog and must go through
-// OpenRouter (uses OPENROUTER_API_KEY). Everything else goes through Lovable.
-function routeForModel(model: string): 'openrouter' | 'lovable' {
-  if (/^(anthropic|qwen|meta-llama|mistralai|deepseek|x-ai)\//.test(model)) return 'openrouter';
-  return 'lovable';
-}
+// Which upstream serves which model is `aiGateway.ts`'s decision — Gemini via
+// Google, GPT via OpenAI, everything else (and anything whose own key is
+// missing) via OpenRouter. The brain only cares about the two places the
+// provider still shows through: prompt caching, and OpenRouter's opt-in usage
+// reporting.
 
 class BrainHttpError extends Error {
   constructor(public status: number, message: string) {
@@ -181,8 +185,16 @@ class BrainHttpError extends Error {
 // ----------------- Public entry point -----------------
 
 export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResult<T>> {
-  const apiKey = Deno.env.get('LOVABLE_API_KEY');
-  if (!apiKey) throw new BrainHttpError(500, 'LOVABLE_API_KEY not configured');
+  // One key check for the whole task rather than per model: the per-model
+  // resolution (and its OpenRouter fallback) happens inside aiGateway, but a
+  // deployment with no AI provider at all should fail here with a message that
+  // names all three rather than whichever model the strategy happened to pick.
+  if (!hasAnyProvider()) {
+    throw new BrainHttpError(
+      500,
+      'No AI provider configured — set GEMINI_API_KEY, OPENAI_API_KEY or OPENROUTER_API_KEY',
+    );
+  }
 
   await primeDialectPrompt(task.dialect);
 
@@ -196,16 +208,16 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
   let result: BrainResult<T>;
   switch (strategy) {
     case 'solo':
-      result = await runSolo<T>(task, apiKey, deadline);
+      result = await runSolo<T>(task, deadline);
       break;
     case 'ensemble':
-      result = await runEnsemble<T>(task, apiKey, deadline);
+      result = await runEnsemble<T>(task, deadline);
       break;
     case 'draft_critic':
-      result = await runDraftCritic<T>(task, apiKey, deadline);
+      result = await runDraftCritic<T>(task, deadline);
       break;
     case 'council':
-      result = await runCouncil<T>(task, apiKey, deadline);
+      result = await runCouncil<T>(task, deadline);
       break;
   }
 
@@ -226,7 +238,7 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
     } else {
       try {
         const beforeText = extractScanText(task, result.output, result.raw);
-        const repaired = await runRepair<T>(task, result, apiKey, deadline);
+        const repaired = await runRepair<T>(task, result, deadline);
         const afterText = extractScanText(task, repaired.output, repaired.raw);
         // A repair that actually shifted the leaks is a correction pair worth
         // keeping (bronze — automated, not human): what the model said vs what
@@ -257,7 +269,7 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
   if (task.validateDialect && !result.validator) {
     try {
       const scanText = extractScanText(task, result.output, result.raw);
-      const v = await validateDialectCrossChecked(scanText, task.dialect, { apiKey });
+      const v = await validateDialectCrossChecked(scanText, task.dialect);
       result.validator = v;
       if (v.ok && (v.verdict === 'rewrite' || v.leaks.length > 0)) {
         logValidatorResult({
@@ -389,10 +401,10 @@ function supportsPromptCache(model: string): boolean {
  */
 function systemMessage(
   opts: Pick<CallOptions, 'system' | 'systemParts' | 'model'>,
-  route: 'openrouter' | 'lovable',
+  provider: Provider,
 ): { role: 'system'; content: unknown } {
   const parts = opts.systemParts;
-  if (route === 'openrouter' && supportsPromptCache(opts.model) && parts?.stable) {
+  if (provider === 'openrouter' && supportsPromptCache(opts.model) && parts?.stable) {
     const content: unknown[] = [
       { type: 'text', text: parts.stable, cache_control: { type: 'ephemeral' } },
     ];
@@ -411,7 +423,6 @@ interface CallOptions {
   tool?: BrainTask['tool'];
   maxTokens?: number;
   temperature?: number;
-  apiKey: string;
   /** Hard ceiling for this one call. Defaults to DEFAULT_CALL_TIMEOUT_MS. */
   timeoutMs?: number;
   /** The task's purpose, so cost telemetry can name the feature it served. */
@@ -434,11 +445,11 @@ function isTimeout(err: unknown): boolean {
 
 async function callModel(opts: CallOptions): Promise<{ raw: string; parsed: unknown }> {
   const isGpt5 = /^openai\/gpt-5/.test(opts.model);
-  const route = routeForModel(opts.model);
+  const provider = providerForModel(opts.model);
   const body: Record<string, unknown> = {
     model: opts.model,
     messages: [
-      systemMessage(opts, route),
+      systemMessage(opts, provider),
       { role: 'user', content: opts.user },
     ],
   };
@@ -462,52 +473,40 @@ async function callModel(opts: CallOptions): Promise<{ raw: string; parsed: unkn
     body.tool_choice = { type: 'function', function: { name: opts.tool.name } };
   }
 
-  let url: string;
-  let authKey: string | undefined;
-  if (route === 'openrouter') {
-    url = OPENROUTER_URL;
-    authKey = Deno.env.get('OPENROUTER_API_KEY');
-    if (!authKey) {
-      throw new BrainHttpError(500, `OPENROUTER_API_KEY not configured (required for ${opts.model})`);
-    }
-    // Ask OpenRouter to report spend per call; it lands in `usage.cost` (USD)
-    // alongside the token counts. Cost telemetry stores what the provider
-    // says rather than computing from a price table that would drift.
-    body.usage = { include: true };
-  } else {
-    url = GATEWAY_URL;
-    authKey = opts.apiKey;
-  }
+  // Ask OpenRouter to report spend per call; it lands in `usage.cost` (USD)
+  // alongside the token counts. Cost telemetry stores what the provider says
+  // rather than computing from a price table that would drift. Neither Google
+  // nor OpenAI accepts the field, so it is only sent where it means something.
+  if (provider === 'openrouter') body.usage = { include: true };
 
   const timeoutMs = opts.timeoutMs ?? DEFAULT_CALL_TIMEOUT_MS;
   let res: Response;
+  let served: Provider;
   try {
-    res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${authKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
+    const call = await chatFetchDetailed(opts.model, body, {
       signal: AbortSignal.timeout(timeoutMs),
+      label: opts.purpose ?? 'ai-brain',
     });
+    res = call.response;
+    served = call.provider;
   } catch (err) {
+    if (err instanceof GatewayConfigError) throw new BrainHttpError(500, err.message);
     if (isTimeout(err)) {
-      throw new BrainHttpError(504, `${route} ${opts.model} timed out after ${timeoutMs}ms`);
+      throw new BrainHttpError(504, `${opts.model} timed out after ${timeoutMs}ms`);
     }
     throw err;
   }
 
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    throw new BrainHttpError(res.status, `${route} ${opts.model} ${res.status}: ${text.slice(0, 200)}`);
+    throw new BrainHttpError(res.status, `${served} ${opts.model} ${res.status}: ${text.slice(0, 200)}`);
   }
 
   const data = await res.json();
   logLlmUsage({
     functionName: opts.purpose ?? 'ai-brain',
     model: opts.model,
-    provider: route,
+    provider: served,
     usage: extractUsage(data),
   });
   const msg = data.choices?.[0]?.message;
@@ -627,7 +626,7 @@ async function callModelWithFallback(
 }
 
 
-async function runSolo<T>(task: BrainTask, apiKey: string, deadline: Deadline): Promise<BrainResult<T>> {
+async function runSolo<T>(task: BrainTask, deadline: Deadline): Promise<BrainResult<T>> {
   const model = task.models?.[0] ?? DEFAULT_FAST;
   const passes: PassLog = [];
   const { raw, parsed, model: usedModel } = await timePass(passes, 'solo', model, () => callModelWithFallback({
@@ -638,7 +637,6 @@ async function runSolo<T>(task: BrainTask, apiKey: string, deadline: Deadline): 
     tool: task.tool,
     maxTokens: task.maxTokens,
     temperature: task.temperature,
-    apiKey,
     purpose: task.purpose,
   }, deadline));
   const text = extractScanText(task, parsed, raw);
@@ -656,7 +654,7 @@ async function runSolo<T>(task: BrainTask, apiKey: string, deadline: Deadline): 
 }
 
 
-async function runEnsemble<T>(task: BrainTask, apiKey: string, deadline: Deadline): Promise<BrainResult<T>> {
+async function runEnsemble<T>(task: BrainTask, deadline: Deadline): Promise<BrainResult<T>> {
   const models = (task.models ?? DEFAULT_DRAFTERS).slice(0, 3);
   const sys = buildSystem(task);
   const passes: PassLog = [];
@@ -671,7 +669,6 @@ async function runEnsemble<T>(task: BrainTask, apiKey: string, deadline: Deadlin
         tool: task.tool,
         maxTokens: task.maxTokens,
         temperature: task.temperature,
-        apiKey,
         purpose: task.purpose,
         timeoutMs: callBudget(deadline),
       }),
@@ -721,7 +718,7 @@ async function runEnsemble<T>(task: BrainTask, apiKey: string, deadline: Deadlin
   };
 }
 
-async function runDraftCritic<T>(task: BrainTask, apiKey: string, deadline: Deadline): Promise<BrainResult<T>> {
+async function runDraftCritic<T>(task: BrainTask, deadline: Deadline): Promise<BrainResult<T>> {
   // CONTENT lineup: Gemini drafts, Claude critiques. Source of truth =
   // MODEL_LINEUPS.CONTENT in modelRegistry.ts.
   const [drafter, critic] = task.models && task.models.length >= 2
@@ -738,7 +735,6 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string, deadline: Dead
     tool: task.tool,
     maxTokens: task.maxTokens,
     temperature: task.temperature,
-    apiKey,
     purpose: task.purpose,
   }, deadline));
 
@@ -794,7 +790,6 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string, deadline: Dead
     const vStart = Date.now();
     try {
       validator = await validateDialectCrossChecked(draftText, task.dialect, {
-        apiKey,
         // timeoutMs, not a shared signal: the cross-check runs two calls at once
         // and one AbortSignal between them let a slow leg abort the other.
         timeoutMs: Math.max(
@@ -845,7 +840,6 @@ async function runDraftCritic<T>(task: BrainTask, apiKey: string, deadline: Dead
       tool: task.tool,
       maxTokens: task.maxTokens,
       temperature: 0.3,
-      apiKey,
       purpose: task.purpose,
     }, deadline));
   } catch (err) {
@@ -923,7 +917,7 @@ function safeGate(
   }
 }
 
-async function runCouncil<T>(task: BrainTask, apiKey: string, deadline: Deadline): Promise<BrainResult<T>> {
+async function runCouncil<T>(task: BrainTask, deadline: Deadline): Promise<BrainResult<T>> {
   const drafters = (task.models ?? DEFAULT_DRAFTERS).slice(0, 3);
   const judge = DEFAULT_JUDGE;
   const sys = buildSystem(task);
@@ -940,7 +934,6 @@ async function runCouncil<T>(task: BrainTask, apiKey: string, deadline: Deadline
         tool: task.tool,
         maxTokens: task.maxTokens,
         temperature: task.temperature ?? 0.7,
-        apiKey,
         purpose: task.purpose,
         timeoutMs: callBudget(deadline),
       }),
@@ -976,7 +969,6 @@ async function runCouncil<T>(task: BrainTask, apiKey: string, deadline: Deadline
       tool: task.tool,
       maxTokens: task.maxTokens,
       temperature: 0.3,
-      apiKey,
       purpose: task.purpose,
       timeoutMs: callBudget(deadline),
     });
@@ -1001,7 +993,7 @@ async function runCouncil<T>(task: BrainTask, apiKey: string, deadline: Deadline
   };
 }
 
-async function runRepair<T>(task: BrainTask, prior: BrainResult<T>, apiKey: string, deadline: Deadline): Promise<BrainResult<T>> {
+async function runRepair<T>(task: BrainTask, prior: BrainResult<T>, deadline: Deadline): Promise<BrainResult<T>> {
   const sys = `${buildSystem(task)}\n\nThe previous output leaked MSA. Rewrite it in authentic ${getDialectLabel(task.dialect)} ONLY. The following MSA words MUST be replaced with dialectal equivalents: ${prior.msaLeaks.leaks.join(', ')}. Return ONLY the corrected output in the same format (no commentary).`;
   const user = `Original request:\n${stringifyUserPrompt(task.userPrompt)}\n\nFlawed output to correct:\n${prior.raw}`;
   const repairStart = Date.now();
@@ -1012,7 +1004,6 @@ async function runRepair<T>(task: BrainTask, prior: BrainResult<T>, apiKey: stri
     tool: task.tool,
     maxTokens: task.maxTokens,
     temperature: 0.2,
-    apiKey,
     purpose: task.purpose,
     timeoutMs: callBudget(deadline),
   });
@@ -1076,9 +1067,9 @@ export interface StreamBrainTask {
   signal?: AbortSignal;
 }
 
-/** Stream a single-model dialect-aware chat response. Routed like callModel:
- *  anthropic/qwen/etc. via OpenRouter, everything else via the Lovable gateway
- *  (both speak OpenAI-shaped SSE, so the passthrough and tap are unchanged).
+/** Stream a single-model dialect-aware chat response. Routed like callModel,
+ *  through aiGateway — Google, OpenAI or OpenRouter all speak OpenAI-shaped
+ *  SSE, so the passthrough and the tap over it are unchanged either way.
  *  Returns a Response with text/event-stream body, ready to return from a Deno handler. */
 export async function streamBrain(task: StreamBrainTask): Promise<Response> {
   await primeDialectPrompt(task.dialect);
@@ -1086,16 +1077,7 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
   const model = task.model ?? DEFAULT_DRAFTERS[1] ?? MODEL_IDS.GEMINI_FLASH;
   const isGpt5 = /^openai\/gpt-5/.test(model);
 
-  const route = routeForModel(model);
-  const apiKey = Deno.env.get(route === 'openrouter' ? 'OPENROUTER_API_KEY' : 'LOVABLE_API_KEY');
-  if (!apiKey) {
-    throw new BrainHttpError(
-      500,
-      route === 'openrouter'
-        ? `OPENROUTER_API_KEY not configured (required for ${model})`
-        : 'LOVABLE_API_KEY not configured',
-    );
-  }
+  const provider = providerForModel(model);
 
   const streamTask = {
     purpose: task.purpose,
@@ -1115,7 +1097,7 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
       // Ask AI chat streams through here on an Anthropic model many times per
       // conversation with an identical dialect block — the single best prompt
       // cache in the app.
-      systemMessage({ model, system, systemParts: buildSystemParts(streamTask) }, route),
+      systemMessage({ model, system, systemParts: buildSystemParts(streamTask) }, provider),
       ...userMessages,
     ],
   };
@@ -1123,24 +1105,25 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
   if (isGpt5) body.max_completion_tokens = tokens;
   else body.max_tokens = tokens;
   if (!isGpt5) body.temperature = task.temperature ?? 0.7;
-  // OpenRouter reports tokens and spend in the final SSE chunk when asked;
-  // the tap below picks it up for cost telemetry. Only sent on the OpenRouter
-  // route — the Lovable gateway is not documented to accept the field.
-  if (route === 'openrouter') body.usage = { include: true };
+  // OpenRouter reports tokens and spend in the final SSE chunk when asked; the
+  // tap below picks it up for cost telemetry. Only sent on the OpenRouter route
+  // — neither vendor API accepts the field.
+  if (provider === 'openrouter') body.usage = { include: true };
 
-  const upstream = await fetch(route === 'openrouter' ? OPENROUTER_URL : GATEWAY_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-    signal: task.signal,
-  });
+  let upstream: Response;
+  let served: Provider;
+  try {
+    const call = await chatFetchDetailed(model, body, { signal: task.signal, label: task.purpose });
+    upstream = call.response;
+    served = call.provider;
+  } catch (err) {
+    if (err instanceof GatewayConfigError) throw new BrainHttpError(500, err.message);
+    throw err;
+  }
 
   if (!upstream.ok || !upstream.body) {
     const text = await upstream.text().catch(() => '');
-    throw new BrainHttpError(upstream.status, `${route} stream ${model} ${upstream.status}: ${text.slice(0, 200)}`);
+    throw new BrainHttpError(upstream.status, `${served} stream ${model} ${upstream.status}: ${text.slice(0, 200)}`);
   }
 
   // Tap the stream so we can accumulate the assistant text for MSA leak logging,
@@ -1177,7 +1160,7 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
         logLlmUsage({
           functionName: task.purpose,
           model,
-          provider: route,
+          provider: served,
           usage: extractUsage(streamUsage),
         });
       }
@@ -1197,22 +1180,16 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
             // Fire-and-forget a repair call so callers with onComplete can get
             // the corrected text (e.g., conversation-practice buffers the stream).
             if (task.onComplete) {
-              const apiKey = Deno.env.get('LOVABLE_API_KEY');
-              if (apiKey && leaks.severity !== 'none') {
+              if (leaks.severity !== 'none') {
                 const repairSys = `${buildSystem({ purpose: task.purpose, dialect: task.dialect, userPrompt: '', systemPromptExtra: task.systemPromptExtra } as BrainTask)}\n\nThe previous output leaked MSA. Rewrite it in authentic ${getDialectLabel(task.dialect)} ONLY. The following MSA words MUST be replaced with dialectal equivalents: ${leaks.leaks.join(', ')}. Return ONLY the corrected text (no commentary).`;
-                fetch(GATEWAY_URL, {
-                  method: 'POST',
-                  headers: { 'Authorization': 'Bearer ' + apiKey, 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    model: DEFAULT_FAST,
-                    max_tokens: 600,
-                    temperature: 0.2,
-                    messages: [
-                      { role: 'system', content: repairSys },
-                      { role: 'user', content: full },
-                    ],
-                  }),
-                }).then(async (r) => {
+                chatFetch(DEFAULT_FAST, {
+                  max_tokens: 600,
+                  temperature: 0.2,
+                  messages: [
+                    { role: 'system', content: repairSys },
+                    { role: 'user', content: full },
+                  ],
+                }, { label: `${task.purpose}:leak-repair` }).then(async (r) => {
                   if (!r.ok) return;
                   const d = await r.json();
                   const corrected = d?.choices?.[0]?.message?.content;

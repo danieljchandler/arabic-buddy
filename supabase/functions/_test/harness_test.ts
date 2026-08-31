@@ -160,13 +160,13 @@ Deno.test("stops routing once the test is done", async () => {
 });
 
 Deno.test("restores environment variables afterwards", async () => {
-  const before = Deno.env.get("LOVABLE_API_KEY");
+  const before = Deno.env.get("OPENROUTER_API_KEY");
 
-  const fn = await loadFunction("grammar-drill", { env: { LOVABLE_API_KEY: "scoped-value" } });
-  assertEquals(Deno.env.get("LOVABLE_API_KEY"), "scoped-value");
+  const fn = await loadFunction("grammar-drill", { env: { OPENROUTER_API_KEY: "scoped-value" } });
+  assertEquals(Deno.env.get("OPENROUTER_API_KEY"), "scoped-value");
 
   fn.restore();
-  assertEquals(Deno.env.get("LOVABLE_API_KEY"), before);
+  assertEquals(Deno.env.get("OPENROUTER_API_KEY"), before);
 });
 
 Deno.test("surfaces a bad function name rather than hanging", async () => {

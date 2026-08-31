@@ -14,7 +14,7 @@ import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
  * whole thing rather than a handful of stills.
  *
  * Two paths behind one endpoint: `frames` from a caller that still has the file
- * (the cheap one, through the Lovable gateway), and a download plus a native
+ * (the cheap one, through the OpenAI-shaped chat route), and a download plus a native
  * video read through the Gemini API (the one an admin gets from the video list).
  */
 
@@ -79,7 +79,7 @@ function backend(
     "/storage/v1/object/video-audio": () => json({ Key: "video-audio/x" }),
     "/functions/v1/download-media": download,
     "generativelanguage.googleapis.com": gemini,
-    "ai.gateway.lovable.dev": gateway,
+    "generativelanguage.googleapis.com/v1beta/openai": gateway,
     ...extra,
   };
 }
@@ -170,7 +170,7 @@ Deno.test("reextract-on-screen-text uses supplied frames instead of downloading"
   // A caller that still holds the file has already paid for the frames; making
   // it download its own video back would be slower and less accurate.
   assert(!calls.some((url) => url.includes("download-media")));
-  assert(calls.some((url) => url.includes("ai.gateway.lovable.dev")));
+  assert(calls.some((url) => url.includes("generativelanguage.googleapis.com/v1beta/openai")));
 });
 
 // ── Reading the whole video back ─────────────────────────────────────────────

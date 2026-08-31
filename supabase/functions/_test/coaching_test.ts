@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { jsonRequest, loadFunction } from "./harness.ts";
+import { NO_AI_PROVIDER, jsonRequest, loadFunction } from "./harness.ts";
 import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
 
 /**
@@ -93,7 +93,7 @@ Deno.test("pronunciation-feedback returns the tips it was given", async () => {
       closeness: 68,
       wordDiffs: [{ ref: "حلو", said: "بارد", status: "sub" }],
     },
-    caller({ "ai.gateway.lovable.dev": tips("Round your lips on حلو.", "Slow down.") }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": tips("Round your lips on حلو.", "Slow down.") }),
   );
 
   assertEquals(status, 200);
@@ -114,7 +114,7 @@ Deno.test("pronunciation-feedback names the words the learner got wrong", async 
         { ref: "اليوم", said: "اليم", status: "sub" },
       ],
     },
-    caller({ "ai.gateway.lovable.dev": tips("A tip.") }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": tips("A tip.") }),
   );
 
   const prompt = promptOf(bodies, calls);
@@ -138,7 +138,7 @@ Deno.test("pronunciation-feedback leaves matched words out of the summary", asyn
         { ref: "حلو", said: "حلو", status: "match" },
       ],
     },
-    caller({ "ai.gateway.lovable.dev": tips("Work on rhythm.") }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": tips("Work on rhythm.") }),
   );
 
   const prompt = promptOf(bodies, calls);
@@ -163,7 +163,7 @@ Deno.test("pronunciation-feedback tells the model how badly the take went", asyn
         { ref: "اليوم", status: "missing" },
       ],
     },
-    caller({ "ai.gateway.lovable.dev": tips("Say حلو before اليوم.") }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": tips("Say حلو before اليوم.") }),
   );
 
   const prompt = promptOf(bodies, calls);
@@ -184,7 +184,7 @@ Deno.test("pronunciation-feedback does not talk down a take that went well", asy
       closeness: 93,
       wordDiffs: [{ ref: "الجو", said: "الجو", status: "match" }],
     },
-    caller({ "ai.gateway.lovable.dev": tips("Link the two words.") }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": tips("Link the two words.") }),
   );
 
   const prompt = promptOf(bodies, calls);
@@ -202,7 +202,7 @@ Deno.test("pronunciation-feedback says so when nothing was recognised", async ()
       closeness: 0,
       wordDiffs: [],
     },
-    caller({ "ai.gateway.lovable.dev": tips("Try recording again.") }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": tips("Try recording again.") }),
   );
 
   const prompt = promptOf(bodies, calls);
@@ -221,7 +221,7 @@ Deno.test("pronunciation-feedback rounds the closeness it quotes", async () => {
       closeness: 67.83333,
       wordDiffs: [],
     },
-    caller({ "ai.gateway.lovable.dev": tips("A tip.") }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": tips("A tip.") }),
   );
 
   assertStringIncludes(promptOf(bodies, calls), "68/100");
@@ -230,7 +230,7 @@ Deno.test("pronunciation-feedback rounds the closeness it quotes", async () => {
 Deno.test("pronunciation-feedback treats a missing closeness as zero", async () => {
   const { status, bodies, calls } = await call(
     { mode: "shadow", referenceText: "الجو حلو", recognizedText: "الجو" },
-    caller({ "ai.gateway.lovable.dev": tips("A tip.") }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": tips("A tip.") }),
   );
 
   assertEquals(status, 200);
@@ -242,7 +242,7 @@ Deno.test("pronunciation-feedback treats a missing closeness as zero", async () 
 Deno.test("pronunciation-feedback refuses a shadow request with no reference", async () => {
   const { status, body, calls } = await call(
     { mode: "shadow", recognizedText: "الجو" },
-    caller({ "ai.gateway.lovable.dev": tips("A tip.") }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": tips("A tip.") }),
   );
 
   // There is nothing to coach against. The clip's words *are* the lesson.
@@ -256,7 +256,7 @@ Deno.test("pronunciation-feedback refuses a shadow request with no reference", a
 Deno.test("pronunciation-feedback coaches from the phoneme scores", async () => {
   const { status, bodies, calls } = await call(
     { word_arabic: "مرحبا", word_english: "hello", scores: aScore(), dialect: "Gulf" },
-    caller({ "ai.gateway.lovable.dev": tips("Push the ح from your throat.") }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": tips("Push the ح from your throat.") }),
   );
 
   assertEquals(status, 200);
@@ -268,7 +268,7 @@ Deno.test("pronunciation-feedback coaches from the phoneme scores", async () => 
 Deno.test("pronunciation-feedback surfaces only the weak phonemes", async () => {
   const { bodies, calls } = await call(
     { word_arabic: "مرحبا", scores: aScore() },
-    caller({ "ai.gateway.lovable.dev": tips("A tip.") }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": tips("A tip.") }),
   );
 
   const prompt = promptOf(bodies, calls);
@@ -281,11 +281,11 @@ Deno.test("pronunciation-feedback surfaces only the weak phonemes", async () => 
 Deno.test("pronunciation-feedback asks for phoneme advice on a word and fluency advice on a phrase", async () => {
   const single = await call(
     { word_arabic: "مرحبا", scores: aScore() },
-    caller({ "ai.gateway.lovable.dev": tips("A tip.") }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": tips("A tip.") }),
   );
   const phrase = await call(
     { word_arabic: "مرحبا كيف حالك", scores: aScore() },
-    caller({ "ai.gateway.lovable.dev": tips("A tip.") }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": tips("A tip.") }),
   );
 
   // A single word has no rhythm to critique; a phrase has little else worth
@@ -308,7 +308,7 @@ Deno.test("pronunciation-feedback accepts a dialect in either vocabulary", async
   ) {
     const { bodies, calls } = await call(
       { word_arabic: "مرحبا", scores: aScore(), dialect },
-      caller({ "ai.gateway.lovable.dev": tips("A tip.") }),
+      caller({ "generativelanguage.googleapis.com/v1beta/openai": tips("A tip.") }),
     );
 
     // Callers reach this from two directions: the pronunciation page has an
@@ -326,7 +326,7 @@ Deno.test("pronunciation-feedback accepts a dialect in either vocabulary", async
 Deno.test("pronunciation-feedback copes with a word that has no breakdown", async () => {
   const { status, bodies, calls } = await call(
     { word_arabic: "مرحبا", scores: aScore({ words: [] }) },
-    caller({ "ai.gateway.lovable.dev": tips("A tip.") }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": tips("A tip.") }),
   );
 
   assertEquals(status, 200);
@@ -338,7 +338,7 @@ Deno.test("pronunciation-feedback copes with a word that has no breakdown", asyn
 Deno.test("pronunciation-feedback refuses a scores request with no scores", async () => {
   const { status, body, calls } = await call(
     { word_arabic: "مرحبا" },
-    caller({ "ai.gateway.lovable.dev": tips("A tip.") }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": tips("A tip.") }),
   );
 
   assertEquals(status, 400);
@@ -352,7 +352,7 @@ Deno.test("pronunciation-feedback returns no tips rather than failing on a bad t
   const { status, body } = await call(
     { word_arabic: "مرحبا", scores: aScore() },
     caller({
-      "ai.gateway.lovable.dev": () =>
+      "generativelanguage.googleapis.com/v1beta/openai": () =>
         json({
           choices: [
             {
@@ -376,7 +376,7 @@ Deno.test("pronunciation-feedback returns no tips rather than failing on a bad t
 Deno.test("pronunciation-feedback returns no tips when the model skipped the tool", async () => {
   const { status, body } = await call(
     { word_arabic: "مرحبا", scores: aScore() },
-    caller({ "ai.gateway.lovable.dev": () => chatCompletion("Sure, here are some tips!") }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("Sure, here are some tips!") }),
   );
 
   assertEquals(status, 200);
@@ -387,7 +387,7 @@ Deno.test("pronunciation-feedback preserves 429 and 402", async () => {
   for (const [upstream, expected] of [[429, 429], [402, 402]] as const) {
     const { status } = await call(
       { word_arabic: "مرحبا", scores: aScore() },
-      caller({ "ai.gateway.lovable.dev": () => json({ error: "no" }, upstream) }),
+      caller({ "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "no" }, upstream) }),
     );
 
     assertEquals(status, expected);
@@ -397,17 +397,22 @@ Deno.test("pronunciation-feedback preserves 429 and 402", async () => {
 Deno.test("pronunciation-feedback flattens any other gateway failure to 500", async () => {
   const { status, body } = await call(
     { word_arabic: "مرحبا", scores: aScore() },
-    caller({ "ai.gateway.lovable.dev": () => json({ error: "boom" }, 503) }),
+    // Both routes: a 503 from Google is what makes aiGateway try OpenRouter, so
+    // an upstream is only "down" when the retry finds it down too.
+    caller({
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "boom" }, 503),
+      "openrouter.ai": () => json({ error: "boom" }, 503),
+    }),
   );
 
   assertEquals(status, 500);
   assertEquals(body.error, "AI gateway error");
 });
 
-Deno.test("pronunciation-feedback says so when its key is missing", async () => {
+Deno.test("pronunciation-feedback says so when no provider is configured", async () => {
   const fn = await loadFunction("pronunciation-feedback", {
-    upstreams: caller({ "ai.gateway.lovable.dev": tips("A tip.") }),
-    env: { LOVABLE_API_KEY: undefined },
+    upstreams: caller({ "generativelanguage.googleapis.com/v1beta/openai": tips("A tip.") }),
+    env: NO_AI_PROVIDER,
   });
   try {
     const response = await fn.handler(
@@ -415,7 +420,7 @@ Deno.test("pronunciation-feedback says so when its key is missing", async () => 
     );
 
     assertEquals(response.status, 500);
-    assertStringIncludes((await response.json()).error, "LOVABLE_API_KEY");
+    assertStringIncludes((await response.json()).error, "No AI provider");
   } finally {
     fn.restore();
   }

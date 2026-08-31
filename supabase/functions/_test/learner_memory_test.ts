@@ -51,7 +51,7 @@ function upstreamsFor(extra: Record<string, UpstreamHandler> = {}): Record<strin
   return {
     "/rest/v1/learner_ai_memory": (request) =>
       request.method === "GET" ? json(storedMemory()) : json({}, 201),
-    "ai.gateway.lovable.dev": rewriting({
+    "generativelanguage.googleapis.com/v1beta/openai": rewriting({
       summary: "Prefers examples before rules; now comfortable with بـ.",
       openQuestions: [],
     }),
@@ -154,7 +154,7 @@ Deno.test("learnerMemory leaves the notes alone until the next rewrite is due", 
 
     // Summarizing after every turn would double the cost of a conversation to
     // re-derive something that barely moved.
-    assertEquals(up.calls.filter((c) => c.url.includes("lovable")).length, 0);
+    assertEquals(up.calls.filter((c) => c.url.includes("/chat/completions")).length, 0);
 
     // The turn still counts, though. Recording it only alongside a rewrite
     // pinned the stored total wherever the last rewrite left it, so the gap
@@ -184,7 +184,7 @@ Deno.test("learnerMemory reaches a rewrite for a learner who asks one question a
         current: { summary: "", openQuestions: [], turnsSeen: 0, turnsTotal: total },
       });
     }
-    assertEquals(up.calls.filter((c) => c.url.includes("lovable")).length, 0);
+    assertEquals(up.calls.filter((c) => c.url.includes("/chat/completions")).length, 0);
 
     // The fourth question is the one that pays for a rewrite.
     await mod.updateLearnerMemory({
@@ -194,13 +194,13 @@ Deno.test("learnerMemory reaches a rewrite for a learner who asks one question a
       assistantTurns: 4,
       current: { summary: "", openQuestions: [], turnsSeen: 0, turnsTotal: 3 },
     });
-    assertEquals(up.calls.filter((c) => c.url.includes("lovable")).length, 1);
+    assertEquals(up.calls.filter((c) => c.url.includes("/chat/completions")).length, 1);
   });
 });
 
 Deno.test("learnerMemory keeps the old notes when the rewrite comes back empty", async () => {
   await withMemory(
-    upstreamsFor({ "ai.gateway.lovable.dev": rewriting({ summary: "", openQuestions: [] }) }),
+    upstreamsFor({ "generativelanguage.googleapis.com/v1beta/openai": rewriting({ summary: "", openQuestions: [] }) }),
     async (mod, up) => {
       await mod.updateLearnerMemory({
         userId: USER,
@@ -217,7 +217,7 @@ Deno.test("learnerMemory keeps the old notes when the rewrite comes back empty",
 
 Deno.test("learnerMemory swallows a failed rewrite", async () => {
   for (const upstream of [
-    { "ai.gateway.lovable.dev": () => json({ error: "no" }, 500) },
+    { "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "no" }, 500) },
     { "/rest/v1/learner_ai_memory": () => json({ message: "denied" }, 403) },
   ]) {
     await withMemory(upstreamsFor(upstream as Record<string, UpstreamHandler>), async (mod) => {
@@ -260,7 +260,7 @@ Deno.test("learnerMemory sends the recent exchange, not the whole conversation",
       current: { summary: "s", openQuestions: [], turnsSeen: 4 },
     });
 
-    const sent = up.calls.find((c) => c.url.includes("lovable"))?.body ?? "";
+    const sent = up.calls.find((c) => c.url.includes("/chat/completions"))?.body ?? "";
     // The notes describe how this learner learns, which a couple of exchanges
     // shows as well as forty do.
     assertStringIncludes(sent, "turn 39");

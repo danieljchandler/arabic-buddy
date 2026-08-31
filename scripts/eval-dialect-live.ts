@@ -16,14 +16,18 @@
  *   OPENROUTER_API_KEY=... deno run --allow-env --allow-read --allow-net \
  *     scripts/eval-dialect-live.ts --model anthropic/claude-sonnet-5 [--dialect Gulf] [--limit 10]
  *
- * Models on the Lovable gateway instead of OpenRouter:
- *   LOVABLE_API_KEY=... deno run ... --model google/gemini-3.5-flash --gateway lovable
+ * The provider follows from the model id, exactly as it does in production:
+ * `google/*` needs GEMINI_API_KEY, `openai/*` needs OPENAI_API_KEY, everything
+ * else needs OPENROUTER_API_KEY — which also covers the first two when their
+ * own key is absent. Routing the eval any differently from the pipeline would
+ * measure a model the pipeline never calls.
  *
  * Deliberately does NOT go through askBrain: the Brain adds repair passes and
  * validators, which would measure the pipeline, not the model. This measures
  * the raw model under the same dialect identity prompt the Brain uses.
  */
 import { detectMsaLeaks } from "../supabase/functions/_shared/msaLeakDetector.ts";
+import { chatFetch, hasAnyProvider, providerForModel } from "../supabase/functions/_shared/aiGateway.ts";
 import {
   getDialectIdentity,
   getDialectVocabRules,
@@ -43,23 +47,22 @@ const opt = (name: string): string | null => {
   return i >= 0 && args[i + 1] && !args[i + 1].startsWith("--") ? args[i + 1] : null;
 };
 
-const model = opt("model");
-if (!model) {
-  console.error("Usage: eval-dialect-live.ts --model <id> [--dialect Gulf|Egyptian|Yemeni] [--limit N] [--gateway openrouter|lovable]");
+const modelArg = opt("model");
+if (!modelArg) {
+  console.error("Usage: eval-dialect-live.ts --model <id> [--dialect Gulf|Egyptian|Yemeni] [--limit N]");
   Deno.exit(2);
 }
-const gateway = opt("gateway") ?? "openrouter";
 const dialectFilter = opt("dialect");
 const limit = Number(opt("limit")) || Infinity;
 
-const url = gateway === "lovable"
-  ? "https://ai.gateway.lovable.dev/v1/chat/completions"
-  : "https://openrouter.ai/api/v1/chat/completions";
-const apiKey = Deno.env.get(gateway === "lovable" ? "LOVABLE_API_KEY" : "OPENROUTER_API_KEY");
-if (!apiKey) {
-  console.error(`${gateway === "lovable" ? "LOVABLE_API_KEY" : "OPENROUTER_API_KEY"} is not set.`);
+if (!hasAnyProvider()) {
+  console.error("No provider key set. Export GEMINI_API_KEY, OPENAI_API_KEY or OPENROUTER_API_KEY.");
   Deno.exit(2);
 }
+// Narrowed once, after the usage check above, so the rest of the file has a
+// plain string rather than re-proving it is not null at every use.
+const model: string = modelArg;
+console.error(`Routing ${model} via ${providerForModel(model)}.`);
 
 const GOLDEN: Array<{ file: string; dialect: Dialect }> = [
   { file: "gulf.jsonl", dialect: "Gulf" },
@@ -78,19 +81,14 @@ function loadGolden(file: string): GoldenRow[] {
 async function generate(dialect: Dialect, prompt: string): Promise<string> {
   // The same stable identity + vocabulary block the Brain prepends.
   const system = `${getDialectIdentity(dialect)}\n\n${getDialectVocabRules(dialect)}\n\nReply with ONE natural spoken sentence in the dialect. No commentary, no transliteration.`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model,
-      max_tokens: 200,
-      temperature: 0.7,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: prompt },
-      ],
-    }),
-  });
+  const res = await chatFetch(model, {
+    max_tokens: 200,
+    temperature: 0.7,
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: prompt },
+    ],
+  }, { label: "eval-dialect-live" });
   if (!res.ok) throw new Error(`${model} ${res.status}: ${(await res.text()).slice(0, 200)}`);
   const data = await res.json();
   return String(data.choices?.[0]?.message?.content ?? "");

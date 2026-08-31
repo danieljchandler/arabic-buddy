@@ -76,7 +76,7 @@ Deno.test("screen-shared-content routes Arabic text to translate", async () => {
     "screen-shared-content",
     { text: "شخبارك؟ وين رايح بكره؟", dialect: "Gulf" },
     caller({
-      "ai.gateway.lovable.dev": screening({
+      "generativelanguage.googleapis.com/v1beta/openai": screening({
         destination: "translate",
         extracted_text: "شخبارك؟ وين رايح بكره؟",
         reason: "Gulf Arabic message to understand",
@@ -95,7 +95,7 @@ Deno.test("screen-shared-content routes an English 'how do I say' ask", async ()
     "screen-shared-content",
     { text: "how do I politely decline a coffee invitation?" },
     caller({
-      "ai.gateway.lovable.dev": screening({
+      "generativelanguage.googleapis.com/v1beta/openai": screening({
         destination: "how_do_i_say",
         extracted_text: "politely decline a coffee invitation",
       }),
@@ -131,7 +131,7 @@ Deno.test("a failed screener still lands shared text in translate", async () => 
   const { status, body } = await call(
     "screen-shared-content",
     { text: "مرحبا يا صديقي" },
-    caller({ "ai.gateway.lovable.dev": () => json({ error: "overloaded" }, 500) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "overloaded" }, 500) }),
   );
 
   assertEquals(status, 200);
@@ -147,7 +147,7 @@ Deno.test("a translate verdict with no text from a bare image degrades to meme",
     "screen-shared-content",
     { imageBase64: `data:image/jpeg;base64,${btoa("fake jpeg")}` },
     caller({
-      "ai.gateway.lovable.dev": screening({ destination: "translate", extracted_text: "" }),
+      "generativelanguage.googleapis.com/v1beta/openai": screening({ destination: "translate", extracted_text: "" }),
     }),
   );
 

@@ -4,6 +4,7 @@ import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { buildLearnerProfile } from "../_shared/learnerProfile.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
+import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
 
 
 serve(async (req) => {
@@ -19,8 +20,7 @@ serve(async (req) => {
   try {
     const { userVocab = [], streakDays = 0, dialect = "Gulf", difficulty = "beginner" } = await req.json();
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    if (!hasAnyProvider()) throw new Error("No AI provider configured");
 
     const dialectLabel = getDialectLabel(dialect);
     const dialectRules = getDialectVocabRules(dialect);
@@ -106,25 +106,17 @@ Return JSON: { "type": "translate", "title": "Culture Quiz", "titleArabic": "ا�
 Return JSON: { "type": "translate", "title": "Speed Round", "titleArabic": "جولة سريعة", "questions": [{"prompt": "What does this mean: ${dialectLabel} word", "answer": "Correct English", "options": ["English option 1", "English option 2", "English option 3"]}] }`,
     };
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: MODEL_IDS.GEMINI_FAST,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: prompts[todayType] || prompts.translate },
-        ],
-        temperature: 0.8,
-      }),
-    });
+    const response = await chatFetch(MODEL_IDS.GEMINI_FAST, {
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: prompts[todayType] || prompts.translate },
+      ],
+      temperature: 0.8,
+    }, { label: "daily-challenge" });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+      console.error("AI provider error:", response.status, errorText);
       if (response.status === 402) {
         return new Response(
           JSON.stringify({ error: "Not enough AI credits." }),

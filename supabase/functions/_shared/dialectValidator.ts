@@ -10,9 +10,8 @@ import {
   getDialectLabel,
   type Dialect,
 } from './dialectHelpers.ts';
+import { chatFetch, tryChatRoute } from './aiGateway.ts';
 
-const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
-const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
 const VALIDATOR_MODEL = 'google/gemini-2.5-pro';
 // Arabic-native second opinion. Mistral Saba is a 24B Arabic-focused model on
 // the OpenRouter key the app already uses — roughly an order of magnitude
@@ -40,7 +39,6 @@ export interface ValidatorResult {
 }
 
 export interface ValidateOptions {
-  apiKey?: string;
   passThreshold?: number; // default 4
   maxChars?: number;      // truncate text for cost control; default 4000
   signal?: AbortSignal;
@@ -51,7 +49,7 @@ export interface ValidateOptions {
    * Ignored when `signal` is supplied.
    */
   timeoutMs?: number;
-  /** Override the judging model. Defaults to Gemini 2.5 Pro via the Lovable gateway. */
+  /** Override the judging model. Defaults to Gemini 2.5 Pro. */
   model?: string;
 }
 
@@ -62,13 +60,10 @@ export async function validateDialect(
 ): Promise<ValidatorResult> {
   const start = Date.now();
   const model = opts.model ?? VALIDATOR_MODEL;
-  // OpenRouter-only models (Saba) need their own key + endpoint; everything
-  // else goes through the Lovable gateway. Mirrors routeForModel in aiBrain.
-  const viaOpenRouter = /^(mistralai|anthropic|qwen|meta-llama|deepseek|x-ai)\//.test(model);
-  const apiKey = viaOpenRouter
-    ? Deno.env.get('OPENROUTER_API_KEY')
-    : (opts.apiKey ?? Deno.env.get('LOVABLE_API_KEY'));
-  if (!apiKey || !text || !text.trim()) {
+  // The validator is an optional quality pass, so an unconfigured provider is a
+  // silent "unknown" rather than an error — same as an empty candidate text.
+  // `tryChatRoute` answers that without making a request.
+  if (!tryChatRoute(model) || !text || !text.trim()) {
     return { score: 0, verdict: 'unknown', leaks: [], latencyMs: 0, ok: false, model };
   }
 
@@ -118,28 +113,22 @@ Be harsh. When in doubt between 4 and 3, choose 3.`;
   };
 
   try {
-    const res = await fetch(viaOpenRouter ? OPENROUTER_URL : GATEWAY_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
+    const res = await chatFetch(model, {
+      temperature: 0.2,
+      max_tokens: 600,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: `Candidate text in ${dialect} Arabic to judge:\n\n${snippet}` },
+      ],
+      tools: [{ type: 'function', function: tool }],
+      tool_choice: { type: 'function', function: { name: tool.name } },
+    }, {
       signal: opts.signal ?? (opts.timeoutMs ? AbortSignal.timeout(opts.timeoutMs) : undefined),
-      body: JSON.stringify({
-        model,
-        temperature: 0.2,
-        max_tokens: 600,
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: `Candidate text in ${dialect} Arabic to judge:\n\n${snippet}` },
-        ],
-        tools: [{ type: 'function', function: tool }],
-        tool_choice: { type: 'function', function: { name: tool.name } },
-      }),
+      label: 'dialectValidator',
     });
     if (!res.ok) {
       const msg = await res.text().catch(() => '');
-      console.warn('[dialectValidator] gateway error', model, res.status, msg.slice(0, 200));
+      console.warn('[dialectValidator] provider error', model, res.status, msg.slice(0, 200));
       return { score: 0, verdict: 'unknown', leaks: [], latencyMs: Date.now() - start, ok: false, model };
     }
     const data = await res.json();

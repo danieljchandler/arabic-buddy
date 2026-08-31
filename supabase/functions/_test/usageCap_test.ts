@@ -49,7 +49,7 @@ function backend(options: {
         : json(usageCount),
 
     // The model call, once the cap lets the request through.
-    "ai.gateway.lovable.dev": () =>
+    "generativelanguage.googleapis.com/v1beta/openai": () =>
       json({ choices: [{ message: { role: "assistant", content: "{}" } }] }),
   };
 }
@@ -173,7 +173,7 @@ async function callPhraseJingle(
 /** The two model calls behind the jingle, answering just enough to succeed. */
 function jingleModels() {
   return {
-    "ai.gateway.lovable.dev": () =>
+    "generativelanguage.googleapis.com/v1beta/openai": () =>
       json({
         choices: [
           {

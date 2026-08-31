@@ -117,7 +117,7 @@ Deno.test("convert-to-fusha falls through to the second model when the first ans
     { lines: [DIALECT[0]] },
     caller({
       "openrouter.ai": () => chatCompletion(JSON.stringify({ fusha: ["How are you today?"] })),
-      "ai.gateway.lovable.dev": () => chatCompletion(JSON.stringify({ fusha: [FUSHA[0]] })),
+      "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion(JSON.stringify({ fusha: [FUSHA[0]] })),
     }),
   );
 
@@ -131,7 +131,7 @@ Deno.test("convert-to-fusha reports a failure instead of an empty conversion", a
     { lines: DIALECT },
     caller({
       "openrouter.ai": () => json({ error: "upstream down" }, 500),
-      "ai.gateway.lovable.dev": () => json({ error: "upstream down" }, 500),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "upstream down" }, 500),
     }),
   );
 

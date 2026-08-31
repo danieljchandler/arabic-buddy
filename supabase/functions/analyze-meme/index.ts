@@ -5,6 +5,7 @@ import { askBrain, BrainHttpError } from "../_shared/aiBrain.ts";
 import { getDialectIdentity, getDialectVocabRules, getDialectLabel, type Dialect } from "../_shared/dialectHelpers.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
+import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
 
 
 function generateId(): string {
@@ -146,7 +147,6 @@ async function callQwen(
 async function callAI(
   systemPrompt: string,
   userContent: string | Array<{ type: string; text?: string; image_url?: { url: string } }>,
-  apiKey: string,
   maxTokens = 4096,
 ): Promise<string> {
   const controller = new AbortController();
@@ -158,27 +158,18 @@ async function callAI(
       { role: 'user', content: userContent },
     ];
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      signal: controller.signal,
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: MODEL_IDS.GEMINI_FAST,
-        messages,
-        max_tokens: maxTokens,
-        temperature: 0.3,
-        response_format: { type: 'json_object' },
-      }),
-    });
+    const response = await chatFetch(MODEL_IDS.GEMINI_FAST, {
+      messages,
+      max_tokens: maxTokens,
+      temperature: 0.3,
+      response_format: { type: 'json_object' },
+    }, { signal: controller.signal, label: 'analyze-meme' });
 
     if (!response.ok) {
       const errText = await response.text();
       console.error('AI error:', response.status, errText.slice(0, 500));
       if (response.status === 402) {
-        throw new Error('Not enough AI credits. Please add credits to your workspace at Settings → Workspace → Usage.');
+        throw new Error('Not enough AI credits on the configured provider.');
       }
       if (response.status === 429) {
         throw new Error('Rate limit exceeded. Please wait a moment and try again.');
@@ -328,16 +319,7 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      return new Response(
-        JSON.stringify({ error: 'AI service not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
-    const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY');
-    if (!OPENROUTER_API_KEY) {
+    if (!hasAnyProvider()) {
       return new Response(
         JSON.stringify({ error: 'AI service not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -384,7 +366,7 @@ ${audioTranscript}`,
         });
       }
 
-      const rawResponse = await callAI(buildMemePrompt(dialect), userContent, LOVABLE_API_KEY, 6000);
+      const rawResponse = await callAI(buildMemePrompt(dialect), userContent, 6000);
       onScreenResult = safeJsonParse<any>(rawResponse);
 
       if (!onScreenResult) {
@@ -401,7 +383,7 @@ ${audioTranscript}`,
               } as any,
             ]
           : `${userContent}\n\nIMPORTANT: Respond with ONE valid JSON object matching the schema and nothing else. No prose, no apologies, no markdown fences. If you cannot read the meme, still return the JSON with empty strings/arrays.`;
-        const retryRaw = await callAI(buildMemePrompt(dialect), retryContent, LOVABLE_API_KEY, 6000);
+        const retryRaw = await callAI(buildMemePrompt(dialect), retryContent, 6000);
         onScreenResult = safeJsonParse<any>(retryRaw);
       }
 

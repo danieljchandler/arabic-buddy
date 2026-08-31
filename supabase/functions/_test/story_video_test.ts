@@ -1,6 +1,6 @@
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { jsonRequest, loadFunction, optionsRequest } from "./harness.ts";
-import { json, type UpstreamHandler } from "./upstreams.ts";
+import { geminiImage, imageLadder, json, type UpstreamHandler } from "./upstreams.ts";
 
 /**
  * `generate-story-video` — the cheap slideshow preview: one AI scene image and
@@ -61,7 +61,7 @@ function backend(
         : json(story);
     },
     "/rest/v1/authentic_story_lines": () => json(lines),
-    "ai.gateway.lovable.dev": () => json({ data: [{ b64_json: PNG_B64 }] }),
+    ...imageLadder(() => geminiImage(PNG_B64)),
     "/storage/v1": () => json({ Key: "listen-audio/authentic-stories/file" }),
     ...extra,
   };
@@ -100,7 +100,7 @@ async function call(
 }
 
 const imagePrompt = (result: { calls: string[]; bodies: Array<string | null> }) =>
-  result.bodies[result.calls.findIndex((u) => u.includes("images/generations"))] ?? "";
+  result.bodies[result.calls.findIndex((u) => u.includes("-image:generateContent"))] ?? "";
 
 Deno.test("generate-story-video answers the preflight", async () => {
   const fn = await loadFunction("generate-story-video", { upstreams: backend() });
@@ -355,11 +355,11 @@ Deno.test("generate-story-video leaves a failed run showing a spinner", async ()
   // "generating" — which the admin form renders as a spinner, indefinitely.
   const result = await call(
     { story_id: STORY },
-    backend({ extra: { "ai.gateway.lovable.dev": () => json({ error: "down" }, 503) } }),
+    backend({ extra: imageLadder(() => json({ error: "down" }, 503)) }),
   );
 
   assertEquals(result.status, 500);
-  assertStringIncludes(String(result.body.error), "image gen failed: 503");
+  assertStringIncludes(String(result.body.error), "no configured provider returned an image");
   // The last thing written is still the entry marker.
   assertEquals(result.patches.at(-1)?.story_video_status, "generating");
   assertEquals(
@@ -371,20 +371,27 @@ Deno.test("generate-story-video leaves a failed run showing a spinner", async ()
 Deno.test("generate-story-video reports an image model that returned nothing", async () => {
   const result = await call(
     { story_id: STORY },
-    backend({ extra: { "ai.gateway.lovable.dev": () => json({ data: [] }) } }),
+    backend({ extra: imageLadder(() => json({ candidates: [] })) }),
   );
 
   assertEquals(result.status, 500);
-  assertStringIncludes(String(result.body.error), "no image in response");
+  assertStringIncludes(String(result.body.error), "no configured provider returned an image");
 });
 
-Deno.test("generate-story-video reports a missing gateway key", async () => {
+Deno.test("generate-story-video reports having no provider configured", async () => {
+  // Every provider key, not one: the image model is reachable through three
+  // routes now, so "not configured" only holds when none of them is.
   const result = await call({ story_id: STORY }, backend(), {
-    env: { LOVABLE_API_KEY: undefined },
+    env: {
+      GEMINI_API_KEY: undefined,
+      GOOGLE_API_KEY: undefined,
+      OPENAI_API_KEY: undefined,
+      OPENROUTER_API_KEY: undefined,
+    },
   });
 
   assertEquals(result.status, 500);
-  assertStringIncludes(String(result.body.error), "LOVABLE_API_KEY");
+  assertStringIncludes(String(result.body.error), "No AI provider");
 });
 
 Deno.test("generate-story-video reports a TTS outage", async () => {

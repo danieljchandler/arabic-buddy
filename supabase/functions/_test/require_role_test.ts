@@ -105,7 +105,7 @@ Deno.test("requireRole: a transcriber may re-segment, though not manage content"
       // The gate filters server-side with `.in("role", …)`, so a transcriber row
       // comes back only when the query asked for that role.
       json(request.url.includes("transcriber") ? [{ role: "transcriber" }] : []),
-    "ai.gateway.lovable.dev": () =>
+    "generativelanguage.googleapis.com/v1beta/openai": () =>
       chatCompletion("", {
         lines: [{ start: 0, end: 1, text: "مرحبا", translation: "hello", wordIndices: [0] }],
       }),

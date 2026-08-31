@@ -3,7 +3,7 @@
  *
  * Builds a mixed practice session: due SRS phrases + new phrases. For each picked
  * phrase, randomly assigns a `reply` or `scenario` question type. If a scenario
- * question lacks cached distractors, calls Lovable AI to generate them.
+ * question lacks cached distractors, asks a model to generate them.
  *
  * Body: { dialect: string, occasionId?: string, length?: number }
  * Auth: requires user JWT (uses anon key + auth header).
@@ -13,6 +13,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
+import { chatFetch, tryChatRoute } from "../_shared/aiGateway.ts";
 
 
 const DIALECT_RULES: Record<string, string> = {
@@ -42,8 +43,9 @@ async function generateScenarioAndDistractors(
   phraseEnglish: string | null,
   occasion: string | null,
 ): Promise<{ scenario_english: string; distractors: { arabic: string; english: string }[] } | null> {
-  const apiKey = Deno.env.get("LOVABLE_API_KEY");
-  if (!apiKey) return null;
+  // No provider configured for this model is a "skip the quiz" answer rather
+  // than an error — the caller already copes with a null.
+  if (!tryChatRoute(MODEL_IDS.GEMINI_FAST)) return null;
 
   const sys = `You design culturally authentic Arabic situational-phrase quizzes.
 ${DIALECT_RULES[dialect] ?? DIALECT_RULES.Gulf}
@@ -58,11 +60,7 @@ Occasion: ${occasion ?? "general"}
 Generate the scenario + 3 distractor phrases.`;
 
   try {
-    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: MODEL_IDS.GEMINI_FAST,
+    const resp = await chatFetch(MODEL_IDS.GEMINI_FAST, {
         messages: [
           { role: "system", content: sys },
           { role: "user", content: user },
@@ -97,11 +95,9 @@ Generate the scenario + 3 distractor phrases.`;
           },
         ],
         tool_choice: { type: "function", function: { name: "emit_scenario" } },
-      }),
-      signal: AbortSignal.timeout(30_000),
-    });
+    }, { signal: AbortSignal.timeout(30_000), label: "generate-set-phrase-quiz" });
     if (!resp.ok) {
-      console.error("AI gateway", resp.status, await resp.text().catch(() => ""));
+      console.error("AI provider", resp.status, await resp.text().catch(() => ""));
       return null;
     }
     const data = await resp.json();

@@ -61,7 +61,7 @@ function backend(over: Record<string, UpstreamHandler> = {}): Record<string, Ups
     [CONCEPTS]: (request) => (request.method === "GET" ? json([{ id: CONCEPT }]) : json({}, 201)),
     [LINKS]: () => json({}, 201),
     // The function parses `message.content` as JSON — no tool call.
-    "ai.gateway.lovable.dev": () => chatCompletion(JSON.stringify(extracted)),
+    "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion(JSON.stringify(extracted)),
     ...over,
   };
 }

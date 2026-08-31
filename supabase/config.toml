@@ -35,7 +35,7 @@ verify_jwt = true
 verify_jwt = true
 
 # Admin-driven cover illustration for one interactive story. Generates an
-# image through the Lovable gateway and writes interactive_stories.cover_image_url.
+# image through the configured image provider and writes interactive_stories.cover_image_url.
 # JWT is verified and a content-manager role is checked inside, but the token
 # is read from the Authorization header, so require a valid JWT here too.
 [functions.generate-story-cover]

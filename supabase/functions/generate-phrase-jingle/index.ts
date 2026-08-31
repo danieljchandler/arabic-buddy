@@ -4,6 +4,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { getJingleStyleLine } from "../_shared/jingleStyles.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
+import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
 
 
 serve(async (req) => {
@@ -13,10 +14,11 @@ serve(async (req) => {
   }
 
   // Two models, two keys — a missing one fails here, before the cap's own
-  // round-trips, so a config error costs nothing.
-  const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+  // round-trips, so a config error costs nothing. Lyria (the music leg) is
+  // Google-only and needs GEMINI_API_KEY specifically; the lyric leg takes any
+  // provider aiGateway can route to.
   const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
-  if (!LOVABLE_API_KEY || !GEMINI_API_KEY) {
+  if (!hasAnyProvider() || !GEMINI_API_KEY) {
     return new Response(
       JSON.stringify({ error: "AI keys not configured" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
@@ -45,16 +47,9 @@ serve(async (req) => {
     const dialectRules = getDialectVocabRules(dialect);
     const dialectStyle = getJingleStyleLine(dialect);
 
-    const promptGen = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
+    const promptGen = await chatFetch(
+      MODEL_IDS.GEMINI_FAST,
       {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: MODEL_IDS.GEMINI_FAST,
           messages: [
             {
               role: "system",
@@ -76,8 +71,8 @@ SAFETY: no violence, weapons, politics, religion, romance, alcohol, drugs, body 
             },
           ],
           response_format: { type: "json_object" },
-        }),
       },
+      { label: "generate-phrase-jingle" },
     );
 
     if (!promptGen.ok) {

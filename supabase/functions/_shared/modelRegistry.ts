@@ -10,11 +10,16 @@
 //   - TRANSLATION: Claude Sonnet 4.5 + Gemini 3.5 Flash, ensemble.
 //   - CONTENT:    Claude Sonnet 4.5 + Gemini 3.5 Flash, draft_critic.
 //
-// Claude routes via OpenRouter (OPENROUTER_API_KEY); Gemini routes via the
-// Lovable AI Gateway (LOVABLE_API_KEY). See routeForModel() in aiBrain.ts.
+// This file names the model; `aiGateway.ts` decides whose API serves it —
+// Gemini via Google (GEMINI_API_KEY), GPT via OpenAI (OPENAI_API_KEY), and
+// everything else — plus anything whose own key is missing — via OpenRouter
+// (OPENROUTER_API_KEY). Keep the ids here in OpenRouter's `vendor/model` form:
+// that is the one namespace all three providers can be addressed from, and
+// aiGateway strips the prefix for the vendors that don't want it.
 //
-// Live voice (realtime-session-token) and ASR/TTS/image models are NOT
-// governed by this registry — they have their own provider-specific configs.
+// Live voice (realtime-session-token) and ASR/TTS models are NOT governed by
+// this registry — they have their own provider-specific configs. Image models
+// are, as of the move off Lovable: see IMAGE_MODEL_IDS below.
 // =============================================================================
 
 // ---- Canonical model IDs ----------------------------------------------------
@@ -22,7 +27,7 @@
 export const MODEL_IDS = {
   CLAUDE: 'anthropic/claude-sonnet-4.5',          // one tier below Opus (cheaper)
   CLAUDE_CHAT: 'anthropic/claude-sonnet-5',        // newest Sonnet — Ask AI text chat
-  GEMINI_FLASH: 'google/gemini-3.5-flash',         // via Lovable Gateway
+  GEMINI_FLASH: 'google/gemini-3.5-flash',         // via Google
   GEMINI_PRO: 'google/gemini-2.5-pro',             // heavy reasoning fallback
   GEMINI_FAST: 'google/gemini-3-flash-preview',    // cheapest utility default
   QWEN: 'qwen/qwen3-max',                          // third-leg verifier
@@ -45,8 +50,8 @@ export interface Lineup {
 
 export const MODEL_LINEUPS: Record<LineupName, Lineup> = {
   // Translation: parallel ensemble — Claude and Gemini both translate, brain
-  // picks the lower-MSA-leak result. Both models route via OpenRouter/Lovable
-  // and use weighted Jaccard ranking inside aiBrain.runEnsemble.
+  // picks the lower-MSA-leak result. Claude routes via OpenRouter and Gemini
+  // via Google; both use weighted Jaccard ranking inside aiBrain.runEnsemble.
   TRANSLATION: {
     drafters: [MODEL_IDS.CLAUDE, MODEL_IDS.GEMINI_FLASH],
     judge: MODEL_IDS.CLAUDE,
@@ -88,6 +93,16 @@ export const DEFAULT_DRAFTERS = MODEL_LINEUPS.TRANSLATION.drafters;
 // quality matter more than raw speed here, so it gets the newest Sonnet
 // rather than the cheap utility default. Routes via OpenRouter.
 export const DEFAULT_CHAT = MODEL_IDS.CLAUDE_CHAT;
+
+// ---- Image models -----------------------------------------------------------
+// Same rule as the text models: named here, never in a feature function.
+// `aiGateway.generateImage` walks these in order — Gemini first because the
+// house illustration style was tuned on it, OpenAI's image model as the
+// fallback when Google is unavailable or refuses a prompt.
+export const IMAGE_MODEL_IDS = {
+  GEMINI: 'google/gemini-3.1-flash-image',
+  OPENAI: 'openai/gpt-image-1',
+} as const;
 
 // ---- Voting weights for runEnsemble ranking --------------------------------
 // Both Claude Sonnet 4.5 and Gemini 3.5 Flash are co-equal authoritative

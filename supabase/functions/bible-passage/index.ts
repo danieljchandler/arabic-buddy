@@ -7,6 +7,7 @@ import {
   getDialectExamples,
 } from "../_shared/dialectHelpers.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
 
 function ok(body: unknown, corsHeaders: Record<string, string>) {
   return new Response(JSON.stringify(body), {
@@ -82,14 +83,13 @@ function blankVerses(length: number): string[] {
 }
 
 /**
- * Use Lovable AI to produce a dialect rendering that cross-references both
- * the formal Arabic and the English translation for maximum accuracy.
+ * Ask a model for a dialect rendering that cross-references both the formal
+ * Arabic and the English translation for maximum accuracy.
  */
 async function convertToDialect(
   arabic: { n: number; text: string }[],
   english: { n: number; text: string }[] | null,
   dialect: string,
-  lovableKey: string,
 ): Promise<{ verses: string[]; fallback: boolean }> {
   const dialectLabel = getDialectLabel(dialect);
   const dialectIdentity = getDialectIdentity(dialect);
@@ -170,31 +170,23 @@ ${JSON.stringify(paired, null, 2)}`;
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 55_000);
     try {
-      const response = await fetch(
-        "https://ai.gateway.lovable.dev/v1/chat/completions",
+      const response = await chatFetch(
+        model,
         {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${lovableKey}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model,
-            messages: [
-              { role: "system", content: systemPrompt },
-              { role: "user", content: userPrompt },
-            ],
-            tools,
-            tool_choice: { type: "function", function: { name: "return_dialect_verses" } },
-            temperature: 0.3,
-          }),
-          signal: controller.signal,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          tools,
+          tool_choice: { type: "function", function: { name: "return_dialect_verses" } },
+          temperature: 0.3,
         },
+        { signal: controller.signal, label: "bible-passage" },
       );
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`AI gateway error (${model}):`, response.status, errorText);
+        console.error(`AI provider error (${model}):`, response.status, errorText);
         if (response.status === 402) {
           throw Object.assign(new Error("Not enough AI credits."), { status: 402 });
         }
@@ -320,10 +312,10 @@ serve(async (req) => {
       console.error("English Bible fetch failed:", englishResult.reason);
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-
-    const dialectPayload = LOVABLE_API_KEY
-      ? await convertToDialect(arabicRaw, englishRaw, dialect, LOVABLE_API_KEY)
+    // With no provider at all, the passage still renders — in formal Arabic,
+    // flagged as a fallback — rather than failing the request.
+    const dialectPayload = hasAnyProvider()
+      ? await convertToDialect(arabicRaw, englishRaw, dialect)
       : { verses: withVerseNumbers(arabicRaw), fallback: true };
 
     const arabicVerses = withVerseNumbers(arabicRaw);

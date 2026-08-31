@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { fixtureJwt, jsonRequest, loadFunction, optionsRequest } from "./harness.ts";
+import { NO_AI_PROVIDER, fixtureJwt, jsonRequest, loadFunction, optionsRequest } from "./harness.ts";
 import { json, type UpstreamHandler } from "./upstreams.ts";
 
 /**
@@ -54,11 +54,16 @@ const singing = (
   });
 
 function backend(
-  options: { write?: UpstreamHandler; sing?: UpstreamHandler } = {},
+  options: {
+    write?: UpstreamHandler;
+    sing?: UpstreamHandler;
+    extra?: Record<string, UpstreamHandler>;
+  } = {},
 ): Record<string, UpstreamHandler> {
   return {
-    "ai.gateway.lovable.dev": options.write ?? writing(aJingle()),
-    "generativelanguage.googleapis.com": options.sing ?? singing(),
+    "generativelanguage.googleapis.com/v1beta/openai": options.write ?? writing(aJingle()),
+    "models/lyria": options.sing ?? singing(),
+    ...(options.extra ?? {}),
   };
 }
 
@@ -109,7 +114,7 @@ function writerPrompt(result: Result): { system: string; user: string } {
 
 /** The text handed to Lyria. */
 function musicPrompt(result: Result): string {
-  const index = result.calls.findIndex((u) => u.includes("generativelanguage"));
+  const index = result.calls.findIndex((u) => u.includes("models/lyria"));
   const sent = JSON.parse(result.bodies[index] ?? "{}") as {
     contents?: Array<{ parts?: Array<{ text?: string }> }>;
   };
@@ -140,11 +145,16 @@ Deno.test("generate-phrase-jingle needs both halves of the phrase", async () => 
   }
 });
 
-Deno.test("generate-phrase-jingle refuses to start with a key missing", async () => {
-  // Two models, two keys. Failing up front costs nothing; failing after the
-  // lyrics are written wastes the first call.
-  for (const key of ["LOVABLE_API_KEY", "GEMINI_API_KEY"]) {
-    const result = await call(PHRASE, backend(), { env: { [key]: undefined } });
+Deno.test("generate-phrase-jingle refuses to start with a dependency missing", async () => {
+  // Two models with different needs: the lyric writer takes any provider
+  // aiGateway routes to, Lyria takes Google's key by name. Failing up front
+  // costs nothing; failing after the lyrics are written wastes the first call.
+  const envs: Array<Record<string, string | undefined>> = [
+    NO_AI_PROVIDER,
+    { GEMINI_API_KEY: undefined },
+  ];
+  for (const env of envs) {
+    const result = await call(PHRASE, backend(), { env });
     assertEquals(result.status, 500);
     assertEquals(result.body.error, "AI keys not configured");
     assertEquals(result.calls.length, 0);
@@ -233,13 +243,16 @@ Deno.test("generate-phrase-jingle passes exhausted credits through as such", asy
 });
 
 Deno.test("generate-phrase-jingle reports any other writer failure as a 500", async () => {
+  // A 503 on the first provider is aiGateway's cue to retry on OpenRouter, so
+  // the writer is only down when both are.
   const result = await call(PHRASE, backend({
     write: () => new Response("upstream down", { status: 503 }),
+    extra: { "openrouter.ai": () => new Response("upstream down", { status: 503 }) },
   }));
 
   assertEquals(result.status, 500);
   assertEquals(result.body.error, "Failed to generate music prompt");
-  assertEquals(result.calls.some((u) => u.includes("generativelanguage")), false);
+  assertEquals(result.calls.some((u) => u.includes("models/lyria")), false);
 });
 
 // ── Handing the lyrics to the singer ─────────────────────────────────────────
@@ -257,7 +270,7 @@ Deno.test("generate-phrase-jingle sends the lyrics along with the style", async 
 
 Deno.test("generate-phrase-jingle asks the singer for audio", async () => {
   const result = await call(PHRASE, backend());
-  const index = result.calls.findIndex((u) => u.includes("generativelanguage"));
+  const index = result.calls.findIndex((u) => u.includes("models/lyria"));
   const sent = JSON.parse(result.bodies[index] ?? "{}") as {
     generationConfig?: { responseModalities?: string[] };
   };
@@ -292,7 +305,7 @@ Deno.test("generate-phrase-jingle refuses to sing an empty prompt", async () => 
 
   assertEquals(result.status, 500);
   assertEquals(result.body.error, "Empty music prompt");
-  assertEquals(result.calls.some((u) => u.includes("generativelanguage")), false);
+  assertEquals(result.calls.some((u) => u.includes("models/lyria")), false);
 });
 
 Deno.test("generate-phrase-jingle passes the singer's rate limit through", async () => {

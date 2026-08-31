@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
+import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
 import { enforceAnonymousDailyCap, resolveUserId } from "../_shared/usageCap.ts";
 import { normalizeDialect } from "../_shared/transcriptDiffCore.ts";
 
@@ -122,8 +123,7 @@ serve(async (req) => {
 
   try {
     const { action, current_difficulty, question_number, history, dialect } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    if (!hasAnyProvider()) throw new Error("No AI provider configured");
 
     // Every generate/score action is a model call, and this endpoint is
     // reachable with just the anon key — it was unlimited spend for anyone
@@ -247,14 +247,7 @@ Return a JSON object with this exact structure:
   "suggested_difficulty": "${difficulty}"
 }`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: MODEL_IDS.GEMINI_FAST,
+    const response = await chatFetch(MODEL_IDS.GEMINI_FAST, {
         messages: [
           { role: "system", content: "You are a precise Arabic language assessment tool. Always respond with valid JSON only, no markdown fences." },
           { role: "user", content: prompt },
@@ -301,8 +294,7 @@ Return a JSON object with this exact structure:
           },
         ],
         tool_choice: { type: "function", function: { name: "placement_questions" } },
-      }),
-    });
+    }, { label: "placement-quiz" });
 
     if (!response.ok) {
       if (response.status === 429) {

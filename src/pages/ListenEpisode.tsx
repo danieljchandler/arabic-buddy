@@ -44,10 +44,27 @@ const ListenEpisode = () => {
   const deleteEp = useDeleteListenEpisode();
 
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  // The full-episode element is kept across pause/play so resuming continues
+  // from where it stopped — a fresh `new Audio(...)` per tap restarted a long
+  // episode from 0:00 every time.
+  const fullAudioRef = useRef<HTMLAudioElement | null>(null);
   const [playingLine, setPlayingLine] = useState<number | null>(null);
   const [isPlayingFull, setIsPlayingFull] = useState(false);
   const [addedVocab, setAddedVocab] = useState<Set<string>>(new Set());
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+
+  // Detached Audio elements are not garbage-collected while playing: without
+  // this, leaving the page kept the episode sounding over whatever came next,
+  // with no way to stop it short of a reload.
+  useEffect(
+    () => () => {
+      audioRef.current?.pause();
+      audioRef.current = null;
+      fullAudioRef.current?.pause();
+      fullAudioRef.current = null;
+    },
+    [],
+  );
 
   // Listen first: the Arabic starts blurred, revealed per line on tap, all at
   // once via the header button, or automatically when a full play finishes.
@@ -163,6 +180,13 @@ const ListenEpisode = () => {
     try {
       const url = await lineAudio.mutateAsync({ episodeId: episode.id, lineIndex });
       if (audioRef.current) audioRef.current.pause();
+      // Pausing the full episode must also un-set its play state — leaving
+      // isPlayingFull true made the header button show Pause and cost two
+      // taps to recover. Its position is kept for resume.
+      if (fullAudioRef.current && isPlayingFull) {
+        fullAudioRef.current.pause();
+        setIsPlayingFull(false);
+      }
       const a = new Audio(url);
       audioRef.current = a;
       setPlayingLine(lineIndex);
@@ -177,13 +201,25 @@ const ListenEpisode = () => {
 
   const togglePlayFull = async () => {
     if (!episode.full_audio_url) return;
-    if (isPlayingFull && audioRef.current) {
-      audioRef.current.pause();
+    if (isPlayingFull && fullAudioRef.current) {
+      fullAudioRef.current.pause();
       setIsPlayingFull(false);
       return;
     }
+    // Stop any per-line playback before the full episode takes over.
+    if (audioRef.current) {
+      audioRef.current.pause();
+      setPlayingLine(null);
+    }
+    // Resume the existing element when there is one for this episode.
+    const existing = fullAudioRef.current;
+    if (existing && existing.src === episode.full_audio_url && !existing.ended) {
+      setIsPlayingFull(true);
+      await existing.play();
+      return;
+    }
     const a = new Audio(episode.full_audio_url);
-    audioRef.current = a;
+    fullAudioRef.current = a;
     // Map currentTime to the sounding line for the Ask AI context. Both
     // setters dedupe via state equality (the index changes per line, the
     // seconds are floored), so ~4Hz timeupdate costs ~1 re-render a second.

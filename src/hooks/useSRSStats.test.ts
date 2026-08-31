@@ -237,9 +237,10 @@ describe("the breakdown and the forecast", () => {
     ]);
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    // The lifetime figure blends both; the calibration window forgets the
-    // dormant card, so a rough start stops compressing intervals forever.
-    expect(result.current.data?.retentionRate).toBe(75);
+    // The lifetime figure blends both — 20 successes out of 25 attempts; the
+    // calibration window forgets the dormant card, so a rough start stops
+    // compressing intervals forever.
+    expect(result.current.data?.retentionRate).toBe(80);
     expect(result.current.data?.recentRetentionRate).toBe(100);
     expect(result.current.data?.recentReviewedCount).toBe(10);
   });

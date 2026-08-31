@@ -153,7 +153,19 @@ export async function installSupabaseRoutes(
 export async function seedSession(page: Page, userId: string, email?: string): Promise<void> {
   const session = makeSession(userId, email);
   await page.addInitScript(
-    ({ key, value }) => window.localStorage.setItem(key, value),
+    ({ key, value }) => {
+      // Init scripts run in EVERY document, including the error document a
+      // blocked embed iframe commits (the request guard aborts YouTube et
+      // al.). That document has an opaque origin, where touching
+      // localStorage throws SecurityError — an uncaught pageerror that the
+      // console guard then fails the test for. Those frames don't need the
+      // session; swallow the denial.
+      try {
+        window.localStorage.setItem(key, value);
+      } catch {
+        /* opaque-origin frame — no storage, no session needed */
+      }
+    },
     { key: STORAGE_KEY, value: JSON.stringify(session) },
   );
 }
@@ -172,7 +184,14 @@ export async function seedSession(page: Page, userId: string, email?: string): P
  */
 export async function clearSession(page: Page): Promise<void> {
   await page.addInitScript(
-    ({ key }) => window.localStorage.removeItem(key),
+    ({ key }) => {
+      // Same opaque-origin guard as seedSession above.
+      try {
+        window.localStorage.removeItem(key);
+      } catch {
+        /* opaque-origin frame — nothing to clear */
+      }
+    },
     { key: STORAGE_KEY },
   );
 }

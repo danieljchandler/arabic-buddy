@@ -20,7 +20,7 @@ interface GenerateImageDialogProps {
   word: GenerateImageWord | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onImageSaved?: (wordId: string, imageUrl: string) => void;
+  onImageSaved?: (wordId: string, imageUrl: string) => void | Promise<void>;
 }
 
 export const GenerateImageDialog = ({ word, open, onOpenChange, onImageSaved }: GenerateImageDialogProps) => {
@@ -55,8 +55,10 @@ export const GenerateImageDialog = ({ word, open, onOpenChange, onImageSaved }: 
 
       const urlWithCacheBust = `${data.imageUrl}?t=${Date.now()}`;
 
+      // Awaited so a failed save reaches the catch below — an image that was
+      // generated but not persisted must not toast "Image generated!".
       if (onImageSaved) {
-        onImageSaved(word.id, urlWithCacheBust);
+        await onImageSaved(word.id, urlWithCacheBust);
       }
 
       setPreviewUrl(urlWithCacheBust);

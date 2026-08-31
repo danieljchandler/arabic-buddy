@@ -8,8 +8,8 @@
  * Body: { situation: string, dialect: string, count?: number }
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 
 
@@ -32,19 +32,12 @@ serve(async (req) => {
       });
     }
 
-    const authHeader = req.headers.get("Authorization") ?? "";
-    const userClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } },
-    );
-    const { data: { user } } = await userClient.auth.getUser();
-    if (!user) {
-      return new Response(JSON.stringify({ error: "auth_required", message: "Please sign in to use this feature." }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // Signed-in AND capped: this was the one model-calling generator with no
+    // daily limit — any authenticated account could drive it in a loop.
+    // enforceDailyCap also rejects anonymous callers with 401, matching the
+    // old auth check.
+    const cap = await enforceDailyCap(req, "situation-phrases", 20, corsHeaders);
+    if (cap.limited) return cap.response;
 
     const apiKey = Deno.env.get("LOVABLE_API_KEY");
     if (!apiKey) {

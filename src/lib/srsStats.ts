@@ -99,19 +99,27 @@ export const buildSRSForecast = (
 export const computeSRSRetentionRate = (
   reviews: Array<{ repetitions?: number | null; lapses?: number | null }>,
 ): number => {
+  // `repetitions` counts only successful reviews (an Again never increments
+  // it — see spacedRepetition.ts), and `lapses` counts the failures. So the
+  // retrieval attempts are successes + failures, and retention is
+  // successes / (successes + failures). The old (reps − lapses) / reps
+  // double-penalized every lapse — 10 successes + 5 lapses reported 50%
+  // instead of the true 67% — and, fed into useFsrsCalibration as observed
+  // retention, systematically compressed every calibrated learner's
+  // intervals below what their real recall justified.
+  //
   // Annotated so the accumulator isn't inferred as the (all-optional) element
   // type, which would make every running total possibly null.
-  const totals = reviews.reduce<{ repetitions: number; lapses: number }>(
+  const totals = reviews.reduce<{ successes: number; lapses: number }>(
     (acc, review) => {
-      const repetitions = Math.max(0, review.repetitions ?? 0);
-      const lapses = Math.max(0, Math.min(repetitions, review.lapses ?? 0));
-      acc.repetitions += repetitions;
-      acc.lapses += lapses;
+      acc.successes += Math.max(0, review.repetitions ?? 0);
+      acc.lapses += Math.max(0, review.lapses ?? 0);
       return acc;
     },
-    { repetitions: 0, lapses: 0 },
+    { successes: 0, lapses: 0 },
   );
 
-  if (totals.repetitions === 0) return 0;
-  return Math.max(0, Math.min(100, Math.round(((totals.repetitions - totals.lapses) / totals.repetitions) * 100)));
+  const attempts = totals.successes + totals.lapses;
+  if (attempts === 0) return 0;
+  return Math.max(0, Math.min(100, Math.round((totals.successes / attempts) * 100)));
 };

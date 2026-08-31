@@ -148,7 +148,21 @@ export function useShadowRecorder() {
     [cleanup, stop]
   );
 
-  useEffect(() => cleanup, [cleanup]);
+  // Unmount is not a normal stop: the completion callback must be dropped
+  // FIRST — cleanup() only stops the tracks, after which the recorder stops
+  // itself and its onstop still ran onComplete, firing scoring network calls
+  // for a component that no longer exists.
+  useEffect(
+    () => () => {
+      onCompleteRef.current = null;
+      const rec = recorderRef.current;
+      if (rec && rec.state !== "inactive") {
+        try { rec.stop(); } catch { /* already stopped */ }
+      }
+      cleanup();
+    },
+    [cleanup],
+  );
 
   return { start, stop, isRecording, level, error, permissionDenied };
 }

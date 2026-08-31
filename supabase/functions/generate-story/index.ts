@@ -144,6 +144,10 @@ The story should have ${numScenes} scenes. Make the narrative engaging and educa
         systemPromptExtra: systemExtra,
         strategy: "draft_critic",
         models: ["google/gemini-3-flash-preview", "openai/gpt-5-mini"],
+        // Without this the critic never runs at all — draft_critic's critique
+        // is gated on the dialect validator (or a qualityGate), so learner-
+        // facing stories were shipping as unchecked solo drafts.
+        enforceDialect: true,
         tool: {
           name: "generate_story",
           description: "Generate a complete interactive Arabic story with scenes and choices",

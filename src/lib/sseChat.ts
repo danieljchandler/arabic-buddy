@@ -90,17 +90,28 @@ export async function streamChat({
         done = true;
         break;
       }
+      let frame: { choices?: Array<{ delta?: { content?: string } }>; error?: { message?: string } } | undefined;
       try {
-        const frame = JSON.parse(json);
-        const delta = frame.choices?.[0]?.delta?.content as string | undefined;
-        if (delta) {
-          accumulated += delta;
-          onDelta(delta, accumulated);
-        }
+        frame = JSON.parse(json);
       } catch {
-        // Partial JSON split across chunks — re-buffer and wait for the rest.
-        buffer = line + "\n" + buffer;
-        break;
+        // A malformed frame. Lines are only parsed once their newline has
+        // arrived, so this is never "partial JSON split across chunks" — and
+        // re-buffering it (as this used to) jammed the parser: the bad line
+        // sat at the head of the buffer forever and every later, valid frame
+        // piled up behind it unparsed, silently truncating the reply.
+        console.warn("Skipping malformed SSE frame:", json.slice(0, 200));
+        continue;
+      }
+      // Providers report mid-stream failures as an error frame inside a 200
+      // response. Surface it — swallowing it returned a truncated (often
+      // empty) reply as a successful completion.
+      if (frame?.error) {
+        throw new SseChatError(200, frame, frame.error.message ?? "The reply was interrupted upstream");
+      }
+      const delta = frame?.choices?.[0]?.delta?.content;
+      if (delta) {
+        accumulated += delta;
+        onDelta(delta, accumulated);
       }
     }
   }

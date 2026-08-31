@@ -101,6 +101,14 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
+  // "New chat" (and anything else that empties the conversation) must also
+  // stop an in-flight stream: without this the orphaned stream kept billing
+  // tokens, held `loading` true so the composer stayed locked, and its deltas
+  // wrote into whatever conversation came next.
+  useEffect(() => {
+    if (messages.length === 0) abortRef.current?.abort();
+  }, [messages.length]);
+
   const send = useCallback(
     async (text: string) => {
       const trimmed = text.trim();
@@ -129,6 +137,10 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
           },
           onDelta: (_delta, accumulated) => {
             setMessages((prev) => {
+              // The conversation may have been cleared (New chat) while this
+              // stream was still in flight — writing to the last index of an
+              // empty or re-targeted array corrupts the next conversation.
+              if (!prev.length || prev[prev.length - 1].role !== "assistant") return prev;
               const copy = [...prev];
               copy[copy.length - 1] = { role: "assistant", content: accumulated };
               return copy;
@@ -139,7 +151,15 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
         if ((err as Error)?.name !== "AbortError") {
           if (err instanceof SseChatError) {
             if (err.status === 429) {
-              showCapToast((err.body as Parameters<typeof showCapToast>[0]) ?? {});
+              // Only the daily-cap body gets the upgrade toast; an upstream
+              // provider rate limit (a plain `error` string) is transient and
+              // telling the learner they hit their daily free limit is wrong.
+              const capBody = err.body as { message?: string; limit?: number; error?: string } | null;
+              if (capBody?.message || capBody?.limit) {
+                showCapToast(capBody);
+              } else {
+                toast.error(capBody?.error ?? "The assistant is busy — try again in a moment.");
+              }
             } else if (err.status === 402) {
               toast.error("AI credits exhausted");
             } else if (err.status === 401) {
@@ -151,14 +171,19 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
             console.error(err);
             toast.error("Something went wrong");
           }
-          // Drop the empty assistant placeholder, keep the user's message.
-          setMessages((prev) =>
-            prev.length && prev[prev.length - 1].role === "assistant" && !prev[prev.length - 1].content
-              ? prev.slice(0, -1)
-              : prev,
-          );
         }
       } finally {
+        // Drop an empty assistant placeholder in EVERY exit path — error,
+        // abort (closing the panel or switching to Voice mid-stream), or a
+        // stream that resolved with zero tokens. Left in place, the empty
+        // message rendered as a permanently spinning ThinkingBubble and was
+        // re-sent on every later turn, which Anthropic rejects — 400ing the
+        // whole conversation until "New chat".
+        setMessages((prev) =>
+          prev.length && prev[prev.length - 1].role === "assistant" && !prev[prev.length - 1].content
+            ? prev.slice(0, -1)
+            : prev,
+        );
         setLoading(false);
       }
     },

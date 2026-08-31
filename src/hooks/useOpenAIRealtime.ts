@@ -102,6 +102,10 @@ export function useOpenAIRealtime(opts: Options = {}) {
   // Set when the data channel opens; consumed (and cleared) by reportUsage so
   // a call is billed exactly once, and never billed if it failed to go live.
   const liveSinceRef = useRef<number | null>(null);
+  // Access token cached at mint time so the pagehide usage report can be sent
+  // without awaiting getSession() — during unload only a synchronous keepalive
+  // fetch reliably leaves the page.
+  const accessTokenRef = useRef<string | null>(null);
   // call_id -> tool name, learned from the conversation item that announces
   // the call. The GA arguments-done event names the tool itself; older shapes
   // only name it on the item, and a call we cannot name is a call we cannot
@@ -163,11 +167,13 @@ export function useOpenAIRealtime(opts: Options = {}) {
     const seconds = Math.round((Date.now() - startedAt) / 1000);
     if (seconds < 1) return;
     const mode = modeRef.current;
-    void (async () => {
+    // The token cached at mint time lets this fire the keepalive fetch
+    // synchronously — required on pagehide, where an awaited getSession()
+    // continuation may never run before the page is gone.
+    const cachedToken = accessTokenRef.current;
+    const send = (token: string) => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        const token = session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-        const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/realtime-session-token`, {
+        const p = fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/realtime-session-token`, {
           method: "POST",
           keepalive: true,
           headers: {
@@ -177,17 +183,42 @@ export function useOpenAIRealtime(opts: Options = {}) {
           },
           body: JSON.stringify({ action: "report", mode, seconds }),
         });
-        if (resp.ok) {
+        void p.then(async (resp) => {
+          if (!resp.ok) return;
           const payload = (await resp.json().catch(() => null)) as ClientSecretResponse | null;
           if (payload && typeof payload.voice_remaining_seconds === "number") {
             setRemainingSeconds(payload.voice_remaining_seconds);
           }
-        }
+        }).catch(() => {
+          /* usage reporting must never break teardown */
+        });
+      } catch {
+        /* usage reporting must never break teardown */
+      }
+    };
+    if (cachedToken) {
+      send(cachedToken);
+      return;
+    }
+    void (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        send(session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY);
       } catch {
         /* usage reporting must never break teardown */
       }
     })();
   }, []);
+
+  // Closing the tab or navigating away entirely never runs React cleanup, so
+  // without this the whole session went unmetered — the normal way to end a
+  // call recorded zero seconds. pagehide + keepalive is the reliable pair for
+  // an unload-time send.
+  useEffect(() => {
+    const onPageHide = () => reportUsage();
+    window.addEventListener("pagehide", onPageHide);
+    return () => window.removeEventListener("pagehide", onPageHide);
+  }, [reportUsage]);
 
   const cleanup = useCallback(() => {
     reportUsage();
@@ -525,6 +556,7 @@ export function useOpenAIRealtime(opts: Options = {}) {
       // function. The long-lived OpenAI key stays server-side.
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      accessTokenRef.current = token;
       const tokenResp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/realtime-session-token`, {
         method: "POST",
         headers: {

@@ -47,18 +47,29 @@ $$;
 REVOKE ALL ON FUNCTION public.reap_stuck_video_transcriptions() FROM public;
 GRANT EXECUTE ON FUNCTION public.reap_stuck_video_transcriptions() TO service_role;
 
-CREATE EXTENSION IF NOT EXISTS pg_cron;
-
+-- Guarded like the pgvector migration (20260812160000): pg_cron ships on
+-- Supabase but NOT on the vanilla postgres:16 container the CI contract job
+-- replays against. Without the extension the reaper function still exists,
+-- it just is not scheduled.
 DO $$
 BEGIN
-  PERFORM cron.unschedule('reap-stuck-video-transcriptions');
-EXCEPTION WHEN OTHERS THEN
-  NULL;
+  BEGIN
+    CREATE EXTENSION IF NOT EXISTS pg_cron;
+  EXCEPTION WHEN OTHERS THEN
+    RAISE NOTICE 'pg_cron unavailable - reap_stuck_video_transcriptions not scheduled';
+    RETURN;
+  END;
+
+  BEGIN
+    PERFORM cron.unschedule('reap-stuck-video-transcriptions');
+  EXCEPTION WHEN OTHERS THEN
+    NULL;
+  END;
+
+  PERFORM cron.schedule(
+    'reap-stuck-video-transcriptions',
+    '*/2 * * * *',
+    'SELECT public.reap_stuck_video_transcriptions();'
+  );
 END;
 $$;
-
-SELECT cron.schedule(
-  'reap-stuck-video-transcriptions',
-  '*/2 * * * *',
-  $$SELECT public.reap_stuck_video_transcriptions();$$
-);

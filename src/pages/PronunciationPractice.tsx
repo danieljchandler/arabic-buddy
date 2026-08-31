@@ -122,6 +122,25 @@ const PronunciationPractice = () => {
     setIsRecording(false);
   }, []);
 
+  // Monotonic token identifying the recording in flight. onstop only assesses
+  // when its token is still current, so a recording discarded by navigating
+  // to another word, switching mode, or unmounting stops the mic and is
+  // dropped — it used to fire a paid Azure scoring call whose result rendered
+  // under whatever word was on screen by then.
+  const recordingSessionRef = useRef(0);
+
+  const discardRecording = useCallback(() => {
+    recordingSessionRef.current++;
+    clearTimeout(timerRef.current);
+    const rec = recorderRef.current;
+    if (rec && rec.state !== "inactive") {
+      try { rec.stop(); } catch { /* already stopped */ }
+    }
+    setIsRecording(false);
+  }, []);
+
+  useEffect(() => () => discardRecording(), [discardRecording]);
+
   const startRecording = useCallback(async () => {
     reset();
     chunksRef.current = [];
@@ -138,8 +157,10 @@ const PronunciationPractice = () => {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
 
+      const session = ++recordingSessionRef.current;
       recorder.onstop = async () => {
         stream.getTracks().forEach((t) => t.stop());
+        if (recordingSessionRef.current !== session) return;
         const blob = new Blob(chunksRef.current, { type: mimeType });
         if (blob.size > 0) {
           const res = await assess(blob, referenceText, assessLocale);
@@ -171,11 +192,13 @@ const PronunciationPractice = () => {
   }, [referenceText, assess, reset, assessLocale, toast]);
 
   const goToNext = () => {
+    discardRecording();
     reset();
     setCurrentIndex((prev) => Math.min(prev + 1, words.length - 1));
   };
 
   const goToPrev = () => {
+    discardRecording();
     reset();
     setCurrentIndex((prev) => Math.max(prev - 1, 0));
   };
@@ -290,14 +313,14 @@ const PronunciationPractice = () => {
           <Button
             variant={mode === "word" ? "default" : "outline"}
             size="sm"
-            onClick={() => { setMode("word"); reset(); }}
+            onClick={() => { discardRecording(); setMode("word"); reset(); }}
           >
             Word
           </Button>
           <Button
             variant={mode === "sentence" ? "default" : "outline"}
             size="sm"
-            onClick={() => { setMode("sentence"); reset(); }}
+            onClick={() => { discardRecording(); setMode("sentence"); reset(); }}
             disabled={!currentWord?.sentence_text}
           >
             Sentence
@@ -305,7 +328,7 @@ const PronunciationPractice = () => {
           <Button
             variant={mode === "shadow" ? "default" : "outline"}
             size="sm"
-            onClick={() => { setMode("shadow"); reset(); }}
+            onClick={() => { discardRecording(); setMode("shadow"); reset(); }}
             className="gap-1.5"
           >
             <Headphones className="h-3.5 w-3.5" />

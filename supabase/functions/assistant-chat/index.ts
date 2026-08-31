@@ -89,7 +89,16 @@ Deno.serve(async (req) => {
 
     const messages = body.messages
       .slice(-MAX_MESSAGES)
-      .filter((m) => (m?.role === "user" || m?.role === "assistant") && typeof m?.content === "string")
+      // Empty content is dropped, not just non-strings: an aborted stream
+      // used to leave an empty assistant message in the client conversation,
+      // and Anthropic rejects empty-content messages — one poisoned message
+      // 400'd every subsequent turn of that conversation.
+      .filter(
+        (m) =>
+          (m?.role === "user" || m?.role === "assistant") &&
+          typeof m?.content === "string" &&
+          m.content.trim() !== "",
+      )
       .map((m) => ({ role: m.role, content: m.content.slice(0, MAX_MESSAGE_CHARS) }));
 
     // Which user turn this is — counted on the full history, not the

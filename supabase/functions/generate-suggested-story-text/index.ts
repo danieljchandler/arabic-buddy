@@ -76,6 +76,11 @@ Deno.serve(async (req) => {
       dialect: targetDialect,
       strategy: "solo",
       skipRepair: true,
+      // This task's correct output IS fusha (the classical source text; the
+      // app translates it to dialect afterwards). Without this the prompt
+      // carried both "never MSA" and "write MSA", and every import filed
+      // high-severity MSA violations plus a fake native-review task.
+      targetRegister: "msa",
       models: ["google/gemini-3-flash-preview"],
       systemPromptExtra: `You are an expert in authentic Arabic literature. You faithfully write out the full text of real, well-known Arabic stories, folktales, fables, and cultural narratives (public domain / traditional material) so they can be used for language-learning reading practice.
 

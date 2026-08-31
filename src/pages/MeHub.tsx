@@ -101,12 +101,16 @@ const progress = (signedIn: boolean): Item[] => [
   { label: "Friends", icon: Users, to: "/friends", show: signedIn },
 ];
 
-const account = (signedIn: boolean, admin: boolean): Item[] => [
+const account = (signedIn: boolean, admin: boolean, transcriberOnly: boolean): Item[] => [
   { label: "Profile", icon: User, to: "/profile", show: signedIn },
   { label: "Settings", icon: Settings, to: "/settings", show: signedIn },
   { label: "Pricing & Plans", icon: CreditCard, to: "/pricing" },
   { label: "Admin", icon: GraduationCap, to: "/admin", show: admin },
+  // Transcribers have no /admin access at all, so the dashboard tile would only
+  // bounce them. Their entry point is the review queue itself.
+  { label: "Transcribe Videos", icon: GraduationCap, to: "/admin/videos", show: transcriberOnly },
 ];
+
 
 const visible = (items: Item[]) => items.filter((i) => i.show !== false);
 
@@ -143,7 +147,7 @@ const ACCENTS = {
 
 const MeHub = () => {
   const { isAuthenticated } = useAuth();
-  const { isAdmin } = useAdminAuth();
+  const { isAdmin, role } = useAdminAuth();
   const { hasAccess: hasBible } = useBibleAccess();
   const { data: xp } = useUserXP();
   const { data: srs } = useSRSStats();
@@ -200,7 +204,7 @@ const MeHub = () => {
       </Section>
 
       <Section title="Account">
-        <Grid items={visible(account(isAuthenticated, isAdmin))} />
+        <Grid items={visible(account(isAuthenticated, isAdmin, role === "transcriber"))} />
       </Section>
     </AppShell>
   );

@@ -71,14 +71,19 @@ Deno.serve(async (req) => {
       .from("user_roles")
       .select("role")
       .eq("user_id", userId)
-      .in("role", ["admin", "content_reviewer"]);
+      .in("role", ["admin", "content_reviewer", "transcriber"]);
     const roleSet = new Set(((roles ?? []) as Array<{ role: string }>).map((r) => r.role));
     if (roleSet.size === 0) return json({ error: "forbidden" }, 403, corsHeaders);
-    // A content_reviewer is the native-speaker seat in the RBAC model, so
-    // their edits are gold; an admin's are silver.
-    const isReviewer = roleSet.has("content_reviewer");
+    // A content_reviewer or transcriber is the native-speaker seat in the RBAC
+    // model, so their edits are gold; an admin's are silver.
+    const isReviewer = roleSet.has("content_reviewer") || roleSet.has("transcriber");
     const tier = isReviewer ? "gold" : "silver";
-    const correctorRole = isReviewer ? "content_reviewer" : "admin";
+    const correctorRole = roleSet.has("content_reviewer")
+      ? "content_reviewer"
+      : roleSet.has("transcriber")
+        ? "transcriber"
+        : "admin";
+
 
     // ── What changed? ───────────────────────────────────────────────────────
     const body = await req.json().catch(() => ({}));

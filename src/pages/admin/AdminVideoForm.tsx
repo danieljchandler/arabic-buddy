@@ -298,6 +298,12 @@ const AdminVideoForm = () => {
   const handleSaveTranscript = useCallback(async () => {
     setIsSavingTranscript(true);
     try {
+      // The editor reports its edits on an 800 ms debounce, so a reviewer who
+      // types a correction and immediately clicks Save would otherwise save the
+      // text from before that keystroke. Waiting one debounce window out is the
+      // difference between "saving works" and "saving silently drops my last
+      // edit" — the complaint that sent us here.
+      await new Promise((resolve) => setTimeout(resolve, 900));
       await persistTranscript(latestLines.current);
       toast.success("Transcript saved");
     } catch (err) {
@@ -308,6 +314,7 @@ const AdminVideoForm = () => {
       setIsSavingTranscript(false);
     }
   }, [persistTranscript]);
+
 
   const openDetail = useCallback((lineId: string, tab: "history" | "comments") => {
     setDetailLineId(lineId);
@@ -1435,8 +1442,38 @@ const AdminVideoForm = () => {
               · {existingVideo.difficulty}
               {existingVideo.published ? " · published" : " · not published"}
             </p>
+            {/*
+              The clip itself. A transcriber has no metadata cards and no
+              upload controls, so without this the page was transcript text
+              with nothing to check it against: the staged audio only reaches
+              the per-line buttons, and a video with none left them working
+              blind. The platform player carries its own sound, which is the
+              point — you cannot correct Arabic you have not heard.
+            */}
+            {(existingVideo.embed_url || existingVideo.source_url) && (
+              <div className="mt-3 overflow-hidden rounded-lg border bg-black">
+                <iframe
+                  src={existingVideo.embed_url || existingVideo.source_url}
+                  title={`${existingVideo.title} — source video`}
+                  className="aspect-video w-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                  allowFullScreen
+                />
+              </div>
+            )}
+            {existingVideo.source_url && (
+              <a
+                href={existingVideo.source_url}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1 inline-block text-xs text-muted-foreground underline"
+              >
+                Open the original video in a new tab
+              </a>
+            )}
           </div>
         )}
+
 
         {/* URL Input */}
         {canManage && (
@@ -1857,9 +1894,11 @@ const AdminVideoForm = () => {
               {!stableAudioUrl && !canManage && (
                 <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
                   No audio is staged for this video, so the per-line playback controls have
-                  nothing to play. The transcript can still be corrected.
+                  nothing to play. Use the video player at the top of the page to listen,
+                  then correct the transcript here.
                 </p>
               )}
+
               {!stableAudioUrl && canManage && (
                 <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50 border border-border">
                   <p className="text-sm text-muted-foreground flex-1">
@@ -1906,9 +1945,18 @@ const AdminVideoForm = () => {
               />
               {isEditing && (
                 <div className="flex flex-wrap items-center gap-3">
+                  {/*
+                    Never gated on `draft.dirty`. The editor reports changes on
+                    an 800 ms debounce and the dirty check compares against the
+                    stored lines, so a reviewer who typed a correction and went
+                    straight for Save met a disabled button — which reads as
+                    "saving is broken" and loses the edit on navigation. Saving
+                    an unchanged transcript is harmless: the server diffs it and
+                    records no revision.
+                  */}
                   <Button
                     onClick={handleSaveTranscript}
-                    disabled={isSavingTranscript || !draft.dirty}
+                    disabled={isSavingTranscript}
                     variant={draft.dirty ? "default" : "outline"}
                   >
                     {isSavingTranscript ? (
@@ -1925,6 +1973,7 @@ const AdminVideoForm = () => {
                   </span>
                 </div>
               )}
+
             </CardContent>
           </Card>
         )}

@@ -493,7 +493,7 @@ const AdminVideoForm = () => {
   // (pg_cron down, older database), the re-transcribe controls would stay
   // disabled forever. Re-enable them once the row has been stale longer than
   // the reaper's own windows. Recomputed on every poll-driven render.
-  const serverStatusUpdatedAt = (existingVideo as any)?.updated_at as string | undefined;
+  const serverStatusUpdatedAt = existingVideo?.updated_at;
   const processingIsStuck =
     isProcessing &&
     !!serverStatusUpdatedAt &&

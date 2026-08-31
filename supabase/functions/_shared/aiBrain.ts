@@ -1182,6 +1182,18 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
         });
       }
       const full = accumulator.join('');
+      // onComplete must fire exactly once per stream. It used to fire twice
+      // when a leak repair ran — once from the repair callback with the
+      // corrected text and once, unconditionally, with the raw text — so
+      // assistant-chat's updateLearnerMemory ran twice per leaky answer, two
+      // rewrite jobs racing on learner_ai_memory with the last writer
+      // possibly the uncorrected one.
+      const invokeOnComplete = (text: string) => {
+        if (!task.onComplete) return;
+        try { Promise.resolve(task.onComplete(text)).catch(() => {}); } catch { /* ignore */ }
+      };
+      let repairOwnsCompletion = false;
+
       if (full && task.dialect) {
         try {
           const leaks = scanLeaks(full, task.dialect);
@@ -1195,10 +1207,13 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
               metadata: { streaming: true, model },
             });
             // Fire-and-forget a repair call so callers with onComplete can get
-            // the corrected text (e.g., conversation-practice buffers the stream).
+            // the corrected text (e.g., assistant-chat's memory update). The
+            // repair takes over the single onComplete invocation, falling back
+            // to the raw text if it fails.
             if (task.onComplete) {
               const apiKey = Deno.env.get('LOVABLE_API_KEY');
               if (apiKey && leaks.severity !== 'none') {
+                repairOwnsCompletion = true;
                 const repairSys = `${buildSystem({ purpose: task.purpose, dialect: task.dialect, userPrompt: '', systemPromptExtra: task.systemPromptExtra } as BrainTask)}\n\nThe previous output leaked MSA. Rewrite it in authentic ${getDialectLabel(task.dialect)} ONLY. The following MSA words MUST be replaced with dialectal equivalents: ${leaks.leaks.join(', ')}. Return ONLY the corrected text (no commentary).`;
                 fetch(GATEWAY_URL, {
                   method: 'POST',
@@ -1213,20 +1228,21 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
                     ],
                   }),
                 }).then(async (r) => {
-                  if (!r.ok) return;
-                  const d = await r.json();
-                  const corrected = d?.choices?.[0]?.message?.content;
-                  if (corrected && typeof corrected === 'string') {
-                    try { Promise.resolve(task.onComplete!(corrected)).catch(() => {}); } catch { /* ignore */ }
+                  let corrected: string | null = null;
+                  if (r.ok) {
+                    const d = await r.json();
+                    const c = d?.choices?.[0]?.message?.content;
+                    if (c && typeof c === 'string') corrected = c;
                   }
-                }).catch(() => {});
+                  invokeOnComplete(corrected ?? full);
+                }).catch(() => invokeOnComplete(full));
               }
             }
           }
         } catch { /* ignore */ }
       }
-      if (task.onComplete) {
-        try { Promise.resolve(task.onComplete(full)).catch(() => {}); } catch { /* ignore */ }
+      if (!repairOwnsCompletion) {
+        invokeOnComplete(full);
       }
     },
   });

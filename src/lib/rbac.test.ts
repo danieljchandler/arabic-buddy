@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   canAccessContentReviewerAdminPath,
+  canAccessTranscriberAdminPath,
   hasBibleAccessFromRoles,
   isElevatedRole,
   isManagedRole,
@@ -18,6 +19,14 @@ describe("rbac helpers", () => {
     expect(canAccessContentReviewerAdminPath("/admin/dialect-rules")).toBe(true);
     expect(canAccessContentReviewerAdminPath("/admin/bible-access")).toBe(false);
     expect(canAccessContentReviewerAdminPath("/admin/curriculum-builder")).toBe(false);
+  });
+
+  it("limits transcribers to Manage Videos and transcript edit pages", () => {
+    expect(canAccessTranscriberAdminPath("/admin")).toBe(false);
+    expect(canAccessTranscriberAdminPath("/admin/videos")).toBe(true);
+    expect(canAccessTranscriberAdminPath("/admin/videos/123/edit")).toBe(true);
+    expect(canAccessTranscriberAdminPath("/admin/videos/new")).toBe(false);
+    expect(canAccessTranscriberAdminPath("/admin/bible-access")).toBe(false);
   });
 
   it("denies bible access to content reviewers unless admin", () => {

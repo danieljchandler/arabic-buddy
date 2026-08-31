@@ -241,11 +241,11 @@ test.describe("transcribers reach the review workspace and nothing else", () => 
     test(`is turned away from ${route.path}`, async ({ page, signInAs }) => {
       // The narrowest role in the app. A transcriber is an outside contributor,
       // so every other admin surface — publishing, billing, handing out roles —
-      // has to bounce them back to the dashboard.
+      // has to bounce them back to their only permitted admin surface.
       await signInAs("transcriber");
       await page.goto(concreteUrl(route));
 
-      await expect(page).toHaveURL(/\/admin$/);
+      await expect(page).toHaveURL(/\/admin\/videos$/);
     });
   }
 });

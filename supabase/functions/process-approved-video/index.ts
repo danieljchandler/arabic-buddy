@@ -235,8 +235,24 @@ async function runPipeline(
     `${videoId}.mp3`, `${videoId}.opus`,
   ];
 
+  // How long this run is allowed to take before it must stop waiting and write
+  // a terminal status.
+  //
+  // The pipeline lives inside an edge-function background task, and the platform
+  // ends that task by tearing the isolate down — not by raising something the
+  // `catch` below can see. A run that spends its whole allowance waiting on the
+  // analysis therefore dies without ever writing `failed`, and the row sits in
+  // `processing` forever with no error and nothing to retry. That is the bug
+  // behind every "stuck in queue" report, so the waits below are budgeted
+  // against this deadline and always keep headroom to record the outcome.
+  const pipelineStart = Date.now();
+  const PIPELINE_BUDGET_MS = 6 * 60 * 1000;
+  /** Milliseconds left before the run must stop waiting. */
+  const remainingMs = () => PIPELINE_BUDGET_MS - (Date.now() - pipelineStart);
+
   try {
     console.log(`[pipeline] Starting for video ${videoId}: ${video.source_url}`);
+
 
     // ── Step 1: Get audio ──────────────────────────────────────────
     console.log("[pipeline] Step 1: Getting audio...");
@@ -1199,7 +1215,13 @@ async function runPipeline(
         method: "POST",
         headers: { Authorization: internalAuth, "Content-Type": "application/json" },
         body: JSON.stringify(analyzeBody),
-        signal: AbortSignal.timeout(3 * 60 * 1000),
+        // Never wait past the run's own deadline: leaving a minute of headroom
+        // is what lets the DB polling below (and, failing that, the terminal
+        // `failed` write) actually happen.
+        signal: AbortSignal.timeout(
+          Math.max(30_000, Math.min(3 * 60 * 1000, remainingMs() - 90_000)),
+        ),
+
       });
 
       if (analyzeResp.ok) {
@@ -1451,12 +1473,18 @@ async function runPipeline(
       // of Claude + Qwen + Gemini + Fanar + gloss enrichment + diacritization).
       // The 150s Supabase edge-function idle timeout can drop the HTTP
       // response, but the function keeps running and persists directly.
-      // Poll for up to 4 minutes (24 * 10s) so we catch that late-arriving write.
-      console.log("[pipeline] No HTTP result — polling for late analyze-gulf-arabic persist (up to 4 min)...");
+      // Poll until the run's deadline, keeping 45s in reserve so the outcome is
+      // always recorded. A fixed 4-minute loop was the actual defect: added to
+      // the analyze wait it ran past the background task's allowance, the
+      // isolate was killed mid-loop, and the row was left on `processing` with
+      // no error — the "stuck in queue" state.
+      console.log("[pipeline] No HTTP result — polling for late analyze-gulf-arabic persist...");
       let landed = false;
       let retryFull: RefreshedRow | null = null;
-      for (let attempt = 0; attempt < 24; attempt++) {
+      let waited = 0;
+      while (remainingMs() > 45_000) {
         await new Promise(r => setTimeout(r, 10_000));
+        waited += 10;
         const { data: retry } = await supabase.from("discover_videos")
           .select("transcription_status, transcript_lines, cultural_context, title, title_arabic")
           .eq("id", videoId)
@@ -1464,10 +1492,11 @@ async function runPipeline(
         if (retry?.transcription_status === "analysis_complete") {
           retryFull = retry;
           landed = true;
-          console.log(`[pipeline] analyze results landed after ${(attempt + 1) * 10}s`);
+          console.log(`[pipeline] analyze results landed after ${waited}s`);
           break;
         }
       }
+
 
       if (landed && retryFull) {
         const retryLines = alignLinesToAudio(
@@ -1484,7 +1513,11 @@ async function runPipeline(
           transcription_error: reviewNote(),
         }).eq("id", videoId);
       } else {
-        throw new Error("Analysis did not complete — no HTTP response and no direct-persist results found after 4 min");
+        throw new Error(
+          `Analysis did not complete — no HTTP response and no saved results after ${waited}s. ` +
+            "The transcription engines succeeded, so press Retry to re-run just the analysis.",
+        );
+
       }
     }
 

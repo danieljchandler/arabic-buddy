@@ -148,7 +148,24 @@ const LessonImport = () => {
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="stage">Curriculum stage</Label>
+                <select
+                  id="stage"
+                  value={stageId}
+                  onChange={(e) => setStageId(e.target.value)}
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                >
+                  {(stages ?? []).map((s) => (
+                    <option key={s.id} value={s.id}>
+                      Stage {s.stage_number} — {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div>
+
                 <h4 className="font-semibold mb-2">Vocabulary ({parsed.vocabulary.length} words)</h4>
                 <div className="border rounded-lg overflow-hidden">
                   <table className="w-full text-sm">

@@ -1,5 +1,18 @@
 # Site functionality audit — 2026-08-31
 
+> **Status (end of day):** all 🔴 critical/high findings and most 🟠 medium
+> findings below were fixed on this branch the same day — see the commit
+> history from `7c661c3` through `7c67cc4` for what changed and why. Validated
+> with typecheck, the lint ratchet, the full unit suite, and all four e2e
+> shards green (2,084 tests); the Deno edge checks and migration replay run in
+> CI. Still open, deliberately: the ~30 direct-gateway functions that log no
+> LLM usage and hardcode model IDs (a batch refactor through the brain or
+> registry, not a spot fix), server-side voice session reconciliation (the
+> client-side unload report shipped; a per-session server floor needs schema),
+> the assistant time-to-first-token pre-work, the orphaned `/quiz/:lessonId`
+> route (decide: link it or delete it), the half-dead TranscriptionJobContext,
+> and the remaining 🟡 low items not called out in commit messages.
+
 Nine parallel audit passes over the whole codebase: a live run of the full test/build
 suite, plus static audits of routing/auth, the learner core (SRS/lessons/quizzes),
 the AI assistant, AI-generation edge functions, billing/access/security,

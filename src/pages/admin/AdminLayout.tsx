@@ -26,21 +26,26 @@ const AdminLayout = () => {
   const hasContentReviewerAccess = isContentReviewer && canAccessContentReviewerAdminPath(location.pathname);
   const hasTranscriberAccess = isTranscriber && canAccessTranscriberAdminPath(location.pathname);
   const hasAccess = hasGeneralAdminAccess || hasContentReviewerAccess || hasTranscriberAccess;
+  const isTranscriberOnly = isTranscriber && !isAdmin && !isRecorder && !isContentReviewer;
 
   useEffect(() => {
     if (!loading) {
       if (!user) {
         navigate('/admin/login');
+      } else if (isTranscriberOnly && location.pathname === '/admin') {
+        navigate('/admin/videos', { replace: true });
       } else if (!hasAccess) {
         toast({
           variant: 'destructive',
           title: 'Access Denied',
-          description: 'You do not have permission to access this admin section.',
+          description: isTranscriberOnly
+            ? 'Transcribers can only access Manage Videos.'
+            : 'You do not have permission to access this admin section.',
         });
-        navigate(hasAnyPrivilegedRole ? '/admin' : '/admin/login', { replace: true });
+        navigate(isTranscriberOnly ? '/admin/videos' : hasAnyPrivilegedRole ? '/admin' : '/admin/login', { replace: true });
       }
     }
-  }, [user, hasAccess, hasAnyPrivilegedRole, loading, navigate, toast]);
+  }, [user, hasAccess, hasAnyPrivilegedRole, isTranscriberOnly, loading, location.pathname, navigate, toast]);
 
   if (loading) {
     return (

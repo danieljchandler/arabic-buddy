@@ -83,8 +83,8 @@ test.describe("who may open it", () => {
 
     await page.goto("/admin/bible-access");
 
-    // Back to the dashboard: they hold a privileged role, just not this one.
-    await expect(page).toHaveURL(/\/admin$/);
+    // Back to their only permitted admin surface.
+    await expect(page).toHaveURL(/\/admin\/videos$/);
   });
 
   test("keeps a transcriber away from creating videos", async ({ page, signInAs }) => {
@@ -93,7 +93,7 @@ test.describe("who may open it", () => {
 
     await page.goto("/admin/videos/new");
 
-    await expect(page).toHaveURL(/\/admin$/);
+    await expect(page).toHaveURL(/\/admin\/videos$/);
   });
 
   test("turns a plain learner away", async ({ page, signInAs }) => {

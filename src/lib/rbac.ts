@@ -103,10 +103,6 @@ export function canAccessContentReviewerAdminPath(pathname: string): boolean {
  * treat any addition as a decision about trust rather than about convenience.
  */
 export function canAccessTranscriberAdminPath(pathname: string): boolean {
-  // The dashboard renders a role-appropriate tile set, so it is safe to land on
-  // and is the only way a transcriber finds the workspace in the first place.
-  if (pathname === "/admin") return true;
-
   // The old workspace addresses only redirect to the video pages now, but the
   // redirect has to render to happen.
   if (matchesPrefix(pathname, ["/admin/transcribe"])) return true;

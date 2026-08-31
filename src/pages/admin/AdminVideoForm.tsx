@@ -1571,7 +1571,7 @@ const AdminVideoForm = () => {
                   >
                     {isDownloading ? (
                       <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Downloading...</>
-                    ) : isProcessing ? (
+                    ) : blockWhileProcessing ? (
                       <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Processing on server…</>
                     ) : (
                       <><Download className="h-4 w-4 mr-2" />{isEditing ? "Download & Re-transcribe" : "Download Audio and Transcribe"}</>
@@ -1616,7 +1616,7 @@ const AdminVideoForm = () => {
                   disabled={blockWhileProcessing}
                   className="w-full"
                 >
-                  {isProcessing ? (
+                  {blockWhileProcessing ? (
                     <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Processing on server — you can navigate away</>
                   ) : (
                     <><Sparkles className="h-4 w-4 mr-2" />Transcribe & Analyze (server-side)</>

@@ -1,10 +1,12 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLessonImport } from '@/hooks/useLessonImport';
+import { useStages } from '@/hooks/useStages';
 import type { ParsedLessonPlan } from '@/lib/parseLessonXlsx';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft, Upload, FileSpreadsheet, Check, BookOpen } from 'lucide-react';
 
@@ -13,9 +15,18 @@ const LessonImport = () => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const importMutation = useLessonImport();
+  const { data: stages } = useStages();
 
   const [parsed, setParsed] = useState<ParsedLessonPlan | null>(null);
   const [fileName, setFileName] = useState('');
+  // lessons.stage_id is a uuid FK, so the import needs a real stage: default to
+  // the first one and let the admin pick another.
+  const [stageId, setStageId] = useState('');
+
+  useEffect(() => {
+    if (!stageId && stages?.length) setStageId(stages[0].id);
+  }, [stages, stageId]);
+
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

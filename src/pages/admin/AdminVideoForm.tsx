@@ -1435,8 +1435,38 @@ const AdminVideoForm = () => {
               · {existingVideo.difficulty}
               {existingVideo.published ? " · published" : " · not published"}
             </p>
+            {/*
+              The clip itself. A transcriber has no metadata cards and no
+              upload controls, so without this the page was transcript text
+              with nothing to check it against: the staged audio only reaches
+              the per-line buttons, and a video with none left them working
+              blind. The platform player carries its own sound, which is the
+              point — you cannot correct Arabic you have not heard.
+            */}
+            {(existingVideo.embed_url || existingVideo.source_url) && (
+              <div className="mt-3 overflow-hidden rounded-lg border bg-black">
+                <iframe
+                  src={existingVideo.embed_url || existingVideo.source_url}
+                  title={`${existingVideo.title} — source video`}
+                  className="aspect-video w-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+                  allowFullScreen
+                />
+              </div>
+            )}
+            {existingVideo.source_url && (
+              <a
+                href={existingVideo.source_url}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1 inline-block text-xs text-muted-foreground underline"
+              >
+                Open the original video in a new tab
+              </a>
+            )}
           </div>
         )}
+
 
         {/* URL Input */}
         {canManage && (

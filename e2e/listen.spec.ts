@@ -152,7 +152,9 @@ test.describe("the library", () => {
 
     await page.goto("/listen");
 
-    await expect(page.getByText("No episodes yet in Gulf.")).toBeVisible();
+    // The empty state became an EmptyState heading (no trailing period) in the
+    // Me-hub landing-page rework; the old copy was a plain sentence.
+    await expect(page.getByRole("heading", { name: "No episodes yet in Gulf" })).toBeVisible();
     await expect(page.getByText("Be the first — open the Create tab.")).toBeVisible();
   });
 

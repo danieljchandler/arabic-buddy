@@ -68,14 +68,25 @@ const GrammarDrills = () => {
     } catch { return null; }
   });
 
+  // A restored session resumes at the first UNANSWERED question — outcomes
+  // are appended when a question is answered, before currentIndex advances,
+  // so resuming at currentIndex could re-ask a question whose outcome is
+  // already recorded and double-count it on the mastery ladder. A session
+  // whose every question is answered restores straight to the results screen.
+  const savedQuestionCount: number = savedSession?.questions?.length ?? 0;
+  const savedOutcomeCount: number = savedSession?.outcomes?.length ?? 0;
+  const restoredComplete = savedQuestionCount > 0 && savedOutcomeCount >= savedQuestionCount;
+
   const [category, setCategory] = useState<string | null>(savedSession?.category ?? null);
   const [difficulty, setDifficulty] = useState(savedSession?.difficulty ?? userDifficulty);
   const [questions, setQuestions] = useState<DrillQuestion[]>(savedSession?.questions ?? []);
-  const [currentIndex, setCurrentIndex] = useState(savedSession?.currentIndex ?? 0);
+  const [currentIndex, setCurrentIndex] = useState(
+    savedSession ? Math.min(savedOutcomeCount, Math.max(0, savedQuestionCount - 1)) : 0,
+  );
   const [selectedAnswer, setSelectedAnswer] = useState<number | null>(null);
   const [score, setScore] = useState(savedSession?.score ?? 0);
   const [isLoading, setIsLoading] = useState(false);
-  const [showResult, setShowResult] = useState(false);
+  const [showResult, setShowResult] = useState(restoredComplete);
   const [showEnglish, setShowEnglish] = useState(false);
   // One entry per question answered, in order. The order matters to the mastery
   // ladder — finishing on a miss is treated differently from finishing on a hit
@@ -224,7 +235,20 @@ const GrammarDrills = () => {
       dialect: activeDialect,
       outcomes,
     });
+    // The session is over — a saved copy restored within 4h would re-ask the
+    // last question and post every outcome to the mastery ladder again.
+    try {
+      localStorage.removeItem('session_grammar_drills');
+    } catch {}
   };
+
+  // A restored fully-answered session lands on the results screen with its
+  // outcomes not yet posted (posting happens on the tap that reveals the
+  // results, which is the tap that was never made). Post them exactly once.
+  useEffect(() => {
+    if (restoredComplete) finishDrill();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const resetDrill = () => {
     setCategory(null);
@@ -235,6 +259,11 @@ const GrammarDrills = () => {
     setShowResult(false);
     setOutcomes([]);
     submittedRef.current = false;
+    // The persist effect skips empty sessions, so without this the previous
+    // session's entry would survive the reset and be restored later.
+    try {
+      localStorage.removeItem('session_grammar_drills');
+    } catch {}
   };
 
   if (!isAuthenticated) {

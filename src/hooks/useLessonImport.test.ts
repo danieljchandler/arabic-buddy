@@ -203,24 +203,20 @@ describe("the vocabulary rows", () => {
     expect(backend.db.rows("vocabulary_words")).toEqual([]);
   });
 
-  it("drops the transliteration, category, note and scene the author wrote", async () => {
+  it("keeps the transliteration, category, note and scene the author wrote", async () => {
     const backend = await importPlan(aPlan());
 
-    // Recording current behaviour. parseLessonXlsx reads all four of these off
-    // the vocabulary sheet, and vocabulary_words has a column for each of them
-    // — transliteration, category, teaching_note and image_scene_description,
-    // added by the curriculum restructure. The insert here writes none of them,
-    // so an author's pronunciation guides and teaching notes are parsed,
-    // previewed on the import screen, and then thrown away.
-    //
-    // This is the same class of drop that used to affect the lesson-plan
-    // sections above, which have since been fixed. This test fails once the
-    // words are too.
+    // parseLessonXlsx reads all four of these off the vocabulary sheet, and
+    // vocabulary_words has a column for each — transliteration, category,
+    // teaching_note and image_scene_description. The insert used to write
+    // none of them, so an author's pronunciation guides and teaching notes
+    // were parsed, previewed on the import screen, and then thrown away —
+    // the same class of drop that once affected the lesson-plan sections.
     const word = backend.db.rows("vocabulary_words")[0];
-    expect(word.transliteration).toBeUndefined();
-    expect(word.category).toBeUndefined();
-    expect(word.teaching_note).toBeUndefined();
-    expect(word.image_scene_description).toBeUndefined();
+    expect(word.transliteration).toBe("baab");
+    expect(word.category).toBe("objects");
+    expect(word.teaching_note).toBe("emphatic b");
+    expect(word.image_scene_description).toBe("a wooden door");
   });
 });
 

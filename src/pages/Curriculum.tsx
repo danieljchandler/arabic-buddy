@@ -74,10 +74,16 @@ const Curriculum = () => {
     return map;
   }, [lessons]);
 
-  const pathLessons: PathLesson[] = useMemo(
-    () => (lessons ?? []).map((l) => ({ id: l.id, display_order: l.display_order })),
-    [lessons],
-  );
+  const pathLessons: PathLesson[] = useMemo(() => {
+    // Stage position first: display_order is the per-stage lesson number, so
+    // without it every stage's Lesson 1 ties and "next up" is arbitrary.
+    const stageOrder = new Map((stages ?? []).map((s) => [s.id, s.stage_number]));
+    return (lessons ?? []).map((l) => ({
+      id: l.id,
+      display_order: l.display_order,
+      stage_order: l.stage_id ? stageOrder.get(l.stage_id) ?? Number.MAX_SAFE_INTEGER : Number.MAX_SAFE_INTEGER,
+    }));
+  }, [lessons, stages]);
 
   const nextUpId = useMemo(
     () => findNextUpLessonId(pathLessons, progress),

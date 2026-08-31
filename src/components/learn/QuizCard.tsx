@@ -45,6 +45,7 @@ export const QuizCard = ({ word, otherWords, onAnswer, topicLabel }: QuizCardPro
 
   // Prevent double-click / race-condition from advancing the quiz twice
   const answeredRef = useRef(false);
+  const advancedRef = useRef(false);
 
   // Audio: use shared hooks for TTS generation and playback
   const { ttsUrl, isLoading: isGeneratingAudio } = useAzureTTS({
@@ -72,6 +73,7 @@ export const QuizCard = ({ word, otherWords, onAnswer, topicLabel }: QuizCardPro
   // Auto-play when the card first appears (after a short delay)
   useEffect(() => {
     answeredRef.current = false;
+    advancedRef.current = false;
     const url = word.audio_url; // only auto-play if we already have the URL on mount
     if (!url) return;
     const timer = setTimeout(() => playAudio(url), 300);
@@ -99,13 +101,23 @@ export const QuizCard = ({ word, otherWords, onAnswer, topicLabel }: QuizCardPro
     // which option was right instead of it flashing past in 1.5s.
     if (correct) {
       setTimeout(() => {
-        onAnswer(correct);
+        fireAnswer(correct);
       }, 1500);
     }
   };
 
+  // One answer per card. The parent submits the rating asynchronously (an
+  // awaited mutation plus a 500ms advance delay), so Continue stays live and
+  // pressable for over half a second — each extra tap used to inflate the
+  // session total and fire a duplicate SRS submission from stale state.
+  const fireAnswer = (correct: boolean) => {
+    if (advancedRef.current) return;
+    advancedRef.current = true;
+    onAnswer(correct);
+  };
+
   const handleContinue = () => {
-    onAnswer(isCorrect);
+    fireAnswer(isCorrect);
   };
 
   return (

@@ -195,7 +195,7 @@ const Review = () => {
       const { data: urlData } = supabase.storage.from("flashcard-audio").getPublicUrl(fileName);
       const jingleUrl = urlData.publicUrl;
       const lyrics = (response.data as { lyrics?: string | null })?.lyrics ?? null;
-      const { error: saveError } = await supabase
+      const { data: savedReview, error: saveError } = await supabase
         .from("word_reviews")
         .upsert(
           {
@@ -205,10 +205,15 @@ const Review = () => {
             jingle_lyrics: lyrics,
           } as never,
           { onConflict: "user_id,word_id" },
-        );
+        )
+        .select("*")
+        .single();
       if (saveError) throw saveError;
       // Patch the cached queue in place rather than refetching — a refetch
-      // reorders the deck under the learner mid-card.
+      // reorders the deck under the learner mid-card. Patch with the row the
+      // upsert actually produced: fabricating a review object with no `id`
+      // for a brand-new card sent its first rating down the UPDATE branch as
+      // `.eq("id", undefined)`, a permanent error that dropped the rating.
       queryClient.setQueriesData<DueCurriculumCard[] | undefined>(
         { queryKey: ["due-words"] },
         (prev) =>
@@ -218,8 +223,7 @@ const Review = () => {
                   ...c,
                   review: {
                     ...(c.review ?? ({} as NonNullable<DueCurriculumCard["review"]>)),
-                    jingle_audio_url: jingleUrl,
-                    jingle_lyrics: lyrics,
+                    ...(savedReview as unknown as NonNullable<DueCurriculumCard["review"]>),
                   },
                 }
               : c,

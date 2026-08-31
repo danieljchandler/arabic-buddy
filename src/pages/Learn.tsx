@@ -11,7 +11,8 @@ import {
   type LessonFlowState,
 } from "@/lib/lessonFlow";
 import { useAuth } from "@/hooks/useAuth";
-import { useSubmitReview } from "@/hooks/useReview";
+import { useSubmitReview, type WordReview } from "@/hooks/useReview";
+import { toast } from "@/hooks/use-toast";
 import { IntroCard } from "@/components/learn/IntroCard";
 import { QuizCard } from "@/components/learn/QuizCard";
 import { ProgressDots } from "@/components/ProgressDots";
@@ -102,15 +103,13 @@ const Learn = () => {
   // Resume once per lesson, not on every progress refetch — otherwise saving
   // progress would immediately yank the learner back to the saved index.
   const [hasResumed, setHasResumed] = useState(false);
-  const [userReviews, setUserReviews] = useState<Map<string, {
-    id: string;
-    ease_factor: number;
-    interval_days: number;
-    repetitions: number;
-    last_reviewed_at: string | null;
-    // Non-null in the schema — every review row carries a due date.
-    next_review_at: string;
-  }>>(new Map());
+  // Full review rows, not a narrow snapshot. A narrow select here (no
+  // `lapses`, `difficulty`, `production_next_review_at`) fed buildReviewUpdate
+  // defaults for fields the row really had: a wrong quiz answer overwrote a
+  // real lapse count with 1 (un-flagging leeches), difficulty reset to 5.0,
+  // and every good/easy answer yanked a scheduled production review to "due
+  // now" because the unlock check saw undefined.
+  const [userReviews, setUserReviews] = useState<Map<string, WordReview>>(new Map());
 
   // Fetch existing reviews for SRS integration
   useEffect(() => {
@@ -119,19 +118,11 @@ const Learn = () => {
         const wordIds = words.map(w => w.id);
         const { data: reviews } = await supabase
           .from('word_reviews')
-          .select('id, word_id, ease_factor, interval_days, repetitions, last_reviewed_at, next_review_at')
+          .select('*')
           .eq('user_id', user.id)
           .in('word_id', wordIds);
         if (reviews) {
-          const reviewMap = new Map(reviews.map(r => [r.word_id, {
-            id: r.id,
-            ease_factor: r.ease_factor,
-            interval_days: r.interval_days,
-            repetitions: r.repetitions,
-            last_reviewed_at: r.last_reviewed_at,
-            next_review_at: r.next_review_at,
-          }]));
-          setUserReviews(reviewMap);
+          setUserReviews(new Map(reviews.map(r => [r.word_id, r as unknown as WordReview])));
         }
       };
       fetchReviews();
@@ -231,22 +222,26 @@ const Learn = () => {
     if (isAuthenticated && user) {
       const existingReview = userReviews.get(currentWord.id);
       try {
-        await submitReview.mutateAsync({
+        const { review } = await submitReview.mutateAsync({
           wordId: currentWord.id,
           rating: isCorrect ? "good" : "again",
-          currentReview: existingReview ? {
-            id: existingReview.id,
-            user_id: user.id,
-            word_id: currentWord.id,
-            ease_factor: existingReview.ease_factor,
-            interval_days: existingReview.interval_days,
-            repetitions: existingReview.repetitions,
-            last_reviewed_at: existingReview.last_reviewed_at,
-            next_review_at: existingReview.next_review_at,
-          } : null
+          currentReview: existingReview ?? null,
         });
+        // Keep the session snapshot current. Without this, a word first rated
+        // this session ("Practice Again" replays included) still looked
+        // review-less, took the INSERT branch again, and died on the
+        // (user_id, word_id) unique constraint — every replay rating was
+        // silently discarded into the console.
+        if (review) {
+          setUserReviews(prev => new Map(prev).set(currentWord.id, review));
+        }
       } catch (err) {
         console.error("Failed to submit review:", err);
+        toast({
+          title: "Rating not saved",
+          description: "This answer couldn't be recorded — it won't count toward the word's schedule.",
+          variant: "destructive",
+        });
       }
     }
 

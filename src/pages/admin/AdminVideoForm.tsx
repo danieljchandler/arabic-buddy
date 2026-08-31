@@ -138,10 +138,12 @@ const AdminVideoForm = () => {
   const {
     isAdmin,
     isContentReviewer,
-    isRecorder,
     loading: rolesLoading,
   } = useAdminAuth();
-  const canManage = !rolesLoading && (isAdmin || isContentReviewer || isRecorder);
+  // Not recorders — RLS restricts discover_videos writes to
+  // admin/content_reviewer, so offering them the management surface only
+  // produces writes that match zero rows.
+  const canManage = !rolesLoading && (isAdmin || isContentReviewer);
 
   const isEditing = !!videoId;
   const { data: existingVideo, isLoading: loadingVideo } = useDiscoverVideo(videoId);

@@ -373,13 +373,19 @@ export function useTutorUpload() {
 
       if (batchInsertError) {
         console.error("Batch insert error:", batchInsertError);
-        // If batch fails (e.g. partial duplicates), fall back to individual inserts
+        // If batch fails on partial duplicates, fall back to individual inserts.
+        // Anything else (RLS refusal, network, other constraint) means nothing
+        // was saved — that must surface as a failure, not a success toast.
         if (batchInsertError.code === "23505") {
           console.warn("Batch had duplicates, falling back to individual inserts…");
           for (const row of insertRows) {
             const { error } = await supabase.from("user_vocabulary").insert(row);
-            if (error && error.code !== "23505") console.error("Insert error:", error);
+            if (error && error.code !== "23505") {
+              throw new Error(`Some flashcards could not be saved: ${error.message}`);
+            }
           }
+        } else {
+          throw new Error(batchInsertError.message);
         }
       }
 

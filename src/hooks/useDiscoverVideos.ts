@@ -167,8 +167,16 @@ export function useDeleteDiscoverVideo() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await (supabase.from("discover_videos" as any) as any).delete().eq("id", id);
+      // `.select()` so an RLS-filtered delete (0 rows, no error) fails loudly
+      // instead of toasting success while the row survives.
+      const { data, error } = await (supabase.from("discover_videos" as any) as any)
+        .delete()
+        .eq("id", id)
+        .select("id");
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("Nothing was deleted — you may not have permission to delete this video.");
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-discover-videos"] }),
   });
@@ -216,10 +224,14 @@ export function useTogglePublish() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, published }: { id: string; published: boolean }) => {
-      const { error } = await (supabase.from("discover_videos" as any) as any)
+      const { data, error } = await (supabase.from("discover_videos" as any) as any)
         .update({ published })
-        .eq("id", id);
+        .eq("id", id)
+        .select("id");
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error("Nothing was updated — you may not have permission to publish this video.");
+      }
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["admin-discover-videos"] }),
   });

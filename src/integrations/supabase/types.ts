@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      access_credentials: {
+        Row: {
+          access_id: string
+          created_at: string
+          created_by: string | null
+          disabled_at: string | null
+          id: string
+          label: string | null
+          password_set_at: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          access_id: string
+          created_at?: string
+          created_by?: string | null
+          disabled_at?: string | null
+          id?: string
+          label?: string | null
+          password_set_at?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          access_id?: string
+          created_at?: string
+          created_by?: string | null
+          disabled_at?: string | null
+          id?: string
+          label?: string | null
+          password_set_at?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       achievements: {
         Row: {
           created_at: string
@@ -5626,6 +5662,10 @@ export type Database = {
       increment_usage_counter: {
         Args: { _amount?: number; _key: string; _user_id: string }
         Returns: number
+      }
+      is_access_id_role: {
+        Args: { _role: Database["public"]["Enums"]["app_role"] }
+        Returns: boolean
       }
       is_admin: { Args: never; Returns: boolean }
       is_beta_tester: { Args: never; Returns: boolean }

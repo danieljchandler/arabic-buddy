@@ -41,6 +41,11 @@ verify_jwt = true
 [functions.monologue-prompts]
 verify_jwt = true
 
+# Drills and resolves the caller's own learner_errors rows under the service
+# role; anonymous access would be someone else's error corpus.
+[functions.mistake-drill]
+verify_jwt = true
+
 [functions.generate-story]
 verify_jwt = true
 

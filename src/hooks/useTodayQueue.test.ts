@@ -65,16 +65,17 @@ const visible = (tasks: ReturnType<typeof useTodayQueue>) =>
   tasks.filter((task) => !task.hidden).map((task) => task.id);
 
 describe("the task list", () => {
-  it("offers the seven daily tasks", async () => {
+  it("offers the eight daily tasks", async () => {
     const rendered = renderHookWithProviders(() => useTodayQueue(), { persona: "free" });
     cleanup = rendered.cleanup;
 
-    await waitFor(() => expect(rendered.result.current.length).toBe(7));
+    await waitFor(() => expect(rendered.result.current.length).toBe(8));
     expect(rendered.result.current.map((task) => task.id).sort()).toEqual([
       "daily-challenge",
       "daily-story",
       "flashcards",
       "listening",
+      "mistake-drill",
       "reading",
       "set-phrases",
       "souq",
@@ -85,7 +86,7 @@ describe("the task list", () => {
     const rendered = renderHookWithProviders(() => useTodayQueue(), { persona: "free" });
     cleanup = rendered.cleanup;
 
-    await waitFor(() => expect(rendered.result.current.length).toBe(7));
+    await waitFor(() => expect(rendered.result.current.length).toBe(8));
     for (const task of rendered.result.current) {
       expect(task.route, `${task.id} has no route`).toMatch(/^\//);
     }
@@ -95,7 +96,7 @@ describe("the task list", () => {
     const rendered = renderHookWithProviders(() => useTodayQueue(), { persona: "free" });
     cleanup = rendered.cleanup;
 
-    await waitFor(() => expect(rendered.result.current.length).toBe(7));
+    await waitFor(() => expect(rendered.result.current.length).toBe(8));
     for (const task of rendered.result.current) {
       expect(task.estMinutes).toBeGreaterThan(0);
       expect(task.xpEstimate).toBeGreaterThanOrEqual(0);
@@ -221,6 +222,69 @@ describe("set phrases", () => {
   });
 });
 
+describe("the mistake drill", () => {
+  const seedErrors = (backend: SupabaseBackend, targets: string[]) => {
+    backend.db.seed(
+      "learner_errors",
+      targets.map((target, index) => ({
+        id: `eeeeeeee-4444-4000-8000-00000000000${index}`,
+        user_id: "00000000-0000-4000-8000-000000000001",
+        dialect: "Gulf",
+        source: "pronunciation",
+        error_kind: "mispronunciation",
+        target_arabic: target,
+        produced_arabic: null,
+        detail: {},
+        word_id: null,
+        user_vocabulary_id: null,
+        resolved_at: null,
+        created_at: new Date().toISOString(),
+      })),
+    );
+  };
+
+  it("stays hidden until enough distinct fossils pile up", async () => {
+    // One or two stray mistakes are ordinary practice noise; a queue slot for
+    // them would nag about nothing.
+    const rendered = renderHookWithProviders(() => useTodayQueue(), {
+      persona: "free",
+      seed: (backend) => seedErrors(backend, ["مرحبا", "شلونك"]),
+    });
+    cleanup = rendered.cleanup;
+
+    await waitFor(() => expect(rendered.result.current.length).toBe(8));
+    expect(visible(rendered.result.current)).not.toContain("mistake-drill");
+  });
+
+  it("earns a slot with a count once the threshold is crossed", async () => {
+    const rendered = renderHookWithProviders(() => useTodayQueue(), {
+      persona: "free",
+      seed: (backend) => seedErrors(backend, ["مرحبا", "شلونك", "بكرة"]),
+    });
+    cleanup = rendered.cleanup;
+
+    await waitFor(() => {
+      const task = taskById(rendered.result.current, "mistake-drill");
+      expect(task?.hidden).toBeFalsy();
+      expect(task?.countBadge).toBe("3");
+      expect(task?.route).toBe("/mistakes");
+    });
+  });
+
+  it("stays visible as done after a drill even when the list has shrunk", async () => {
+    const rendered = renderHookWithProviders(() => useTodayQueue(), { persona: "free" });
+    cleanup = rendered.cleanup;
+
+    act(() => markTaskCompletedToday("mistake-drill"));
+
+    await waitFor(() => {
+      const task = taskById(rendered.result.current, "mistake-drill");
+      expect(task?.hidden).toBeFalsy();
+      expect(task?.done).toBe(true);
+    });
+  });
+});
+
 describe("today's video", () => {
   // Still filed under the "listening" id: that is the key completions are
   // stored under in localStorage, and renaming it would un-tick the task for
@@ -277,7 +341,7 @@ describe("today's video", () => {
     });
     cleanup = rendered.cleanup;
 
-    await waitFor(() => expect(rendered.result.current.length).toBe(7));
+    await waitFor(() => expect(rendered.result.current.length).toBe(8));
     expect(visible(rendered.result.current)).not.toContain("listening");
   });
 });
@@ -289,7 +353,7 @@ describe("completion", () => {
     const rendered = renderHookWithProviders(() => useTodayQueue(), { persona: "free" });
     cleanup = rendered.cleanup;
 
-    await waitFor(() => expect(rendered.result.current.length).toBe(7));
+    await waitFor(() => expect(rendered.result.current.length).toBe(8));
     for (const id of alwaysShown) {
       expect(taskById(rendered.result.current, id)?.done).toBe(false);
     }
@@ -342,7 +406,7 @@ describe("when the server cannot be reached", () => {
     });
     cleanup = rendered.cleanup;
 
-    await waitFor(() => expect(rendered.result.current.length).toBe(7));
+    await waitFor(() => expect(rendered.result.current.length).toBe(8));
     expect(visible(rendered.result.current)).toEqual(
       expect.arrayContaining(["daily-challenge", "reading", "souq"]),
     );

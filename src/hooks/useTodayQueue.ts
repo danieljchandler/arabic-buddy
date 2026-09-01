@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { useReviewSession } from "@/hooks/useReviewSession";
 import { useUserSetPhrasesDueCount } from "@/hooks/useSetPhrases";
+import { useMistakes } from "@/hooks/useLearnerErrors";
 import { useTodaysVideo } from "@/hooks/useTodaysVideo";
+import { useDialect } from "@/contexts/DialectContext";
 import { isTaskCompletedToday } from "@/lib/todayCompletion";
-import { BookOpen, Play, Newspaper, MessageCircle, Flame, Brain, Sparkles, type LucideIcon } from "lucide-react";
+import { BookOpen, Play, Newspaper, MessageCircle, Flame, Brain, Sparkles, Target, type LucideIcon } from "lucide-react";
 
 export type TodayTaskId =
   | "flashcards"
@@ -12,7 +14,11 @@ export type TodayTaskId =
   | "reading"
   | "listening"
   | "souq"
-  | "set-phrases";
+  | "set-phrases"
+  | "mistake-drill";
+
+/** Unresolved mistake groups before the drill earns a slot in the queue. */
+const MISTAKE_DRILL_THRESHOLD = 3;
 
 export interface TodayTask {
   id: TodayTaskId;
@@ -38,11 +44,13 @@ const useCompletionTick = () => {
 
 export const useTodayQueue = (): TodayTask[] => {
   useCompletionTick();
+  const { activeDialect } = useDialect();
   // Covers all three SRS decks (curriculum, saved words, saved phrases) — the
   // flashcards task used to count only the personal-vocabulary deck, so cards
   // due elsewhere never showed up in the daily queue.
   const session = useReviewSession();
   const { data: phrasesDue } = useUserSetPhrasesDueCount();
+  const { data: mistakeGroups } = useMistakes(activeDialect);
   // The same pick the home page leads with, so the task and the card at the top
   // of the page can never point at two different clips.
   const { video: todaysVideo } = useTodaysVideo();
@@ -121,6 +129,25 @@ export const useTodayQueue = (): TodayTask[] => {
       route: "/souq-news",
       done: isTaskCompletedToday("souq"),
       xpEstimate: 15,
+    },
+    {
+      // Fossilized errors persist because nothing forces a correction; the
+      // drill earns a queue slot once enough distinct targets have piled up.
+      id: "mistake-drill",
+      title: "Fix a stuck mistake",
+      subtitle: "Your own error list",
+      countBadge:
+        (mistakeGroups?.length ?? 0) >= MISTAKE_DRILL_THRESHOLD
+          ? String(mistakeGroups!.length)
+          : undefined,
+      estMinutes: 4,
+      icon: Target,
+      route: "/mistakes",
+      done: isTaskCompletedToday("mistake-drill"),
+      hidden:
+        (mistakeGroups?.length ?? 0) < MISTAKE_DRILL_THRESHOLD &&
+        !isTaskCompletedToday("mistake-drill"),
+      xpEstimate: 20,
     },
     {
       id: "set-phrases",

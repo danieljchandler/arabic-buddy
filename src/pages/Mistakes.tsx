@@ -1,16 +1,22 @@
 import { useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/layout/AppShell";
 import { HubHeader } from "@/components/layout/HubGrid";
 import { PageCorner } from "@/components/shell/PageCorner";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { useDialect } from "@/contexts/DialectContext";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { useMistakes, useResolveMistake } from "@/hooks/useLearnerErrors";
 import { describeMistake, labelForKind, labelForSource, type MistakeGroup } from "@/lib/mistakes";
-import { Check, CheckCircle2, Loader2, Volume2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { showCapToastIfLimited } from "@/lib/handleCapResponse";
+import { markTaskCompletedToday } from "@/lib/todayCompletion";
+import { Check, CheckCircle2, Loader2, Target, Volume2, X } from "lucide-react";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import { useMemo } from "react";
+import { toast } from "sonner";
 
 /**
  * The learner's own mistakes.
@@ -26,10 +32,51 @@ import { useMemo } from "react";
  * what came out, how often, and how recently, with the correct audio to
  * compare against.
  */
+interface DrillChoice {
+  arabic: string;
+  correct: boolean;
+  /** This wrong answer is the learner's own recorded production. */
+  yours?: boolean;
+}
+
+interface DrillItem {
+  target_arabic: string;
+  target_english: string;
+  scenario_english: string;
+  explanation: string;
+  choices: DrillChoice[];
+  count: number;
+}
+
 const Mistakes = () => {
   const { activeDialect } = useDialect();
   const { data: groups, isLoading } = useMistakes(activeDialect);
   const resolve = useResolveMistake();
+  const queryClient = useQueryClient();
+
+  const [drillLoading, setDrillLoading] = useState(false);
+  const [drill, setDrill] = useState<DrillItem[] | null>(null);
+
+  const startDrill = async () => {
+    setDrillLoading(true);
+    const { data, error } = await supabase.functions.invoke("mistake-drill", {
+      body: { action: "items", dialect: activeDialect },
+    });
+    setDrillLoading(false);
+    if (showCapToastIfLimited(error, data)) return;
+    const items = (data?.items ?? []) as DrillItem[];
+    if (error || items.length === 0) {
+      toast.error("Couldn't build a drill right now — try again.");
+      return;
+    }
+    setDrill(items);
+  };
+
+  const endDrill = () => {
+    setDrill(null);
+    markTaskCompletedToday("mistake-drill");
+    void queryClient.invalidateQueries({ queryKey: ["learner-errors"] });
+  };
 
   usePageAiContext(
     useMemo(
@@ -54,7 +101,13 @@ const Mistakes = () => {
         subtitle={`What keeps tripping you up in ${activeDialect} Arabic.`}
       />
 
-      {isLoading ? (
+      {drill ? (
+        <MistakeDrillPanel
+          items={drill}
+          dialect={activeDialect}
+          onDone={endDrill}
+        />
+      ) : isLoading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
@@ -69,6 +122,16 @@ const Mistakes = () => {
         </div>
       ) : (
         <div className="space-y-3">
+          {/* Fossils persist because they never hurt enough to get corrected —
+              the drill is the deliberate correction the wild never supplies. */}
+          <Button className="w-full" onClick={() => void startDrill()} disabled={drillLoading}>
+            {drillLoading ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            ) : (
+              <Target className="mr-2 h-4 w-4" />
+            )}
+            Drill these
+          </Button>
           {groups.map((group) => (
             <MistakeCard
               key={`${group.dialect}-${group.target}`}
@@ -82,6 +145,151 @@ const Mistakes = () => {
     </AppShell>
   );
 };
+
+interface DrillPanelProps {
+  items: DrillItem[];
+  dialect: string;
+  onDone: () => void;
+}
+
+/**
+ * The drill loop: pick the right form (with the learner's own version among
+ * the choices — the juxtaposition is the point), then type it. Only the typed
+ * production resolves the underlying errors; the choice is just noticing.
+ */
+function MistakeDrillPanel({ items, dialect, onDone }: DrillPanelProps) {
+  const [idx, setIdx] = useState(0);
+  const [picked, setPicked] = useState<DrillChoice | null>(null);
+  const [produced, setProduced] = useState("");
+  const [checking, setChecking] = useState(false);
+  const [produceResult, setProduceResult] = useState<{ accepted: boolean } | null>(null);
+
+  const item = items[idx];
+
+  const submitProduction = async () => {
+    const attempt = produced.trim();
+    if (!attempt) return;
+    setChecking(true);
+    const { data, error } = await supabase.functions.invoke("mistake-drill", {
+      body: { action: "produce", dialect, targetArabic: item.target_arabic, produced: attempt },
+    });
+    setChecking(false);
+    if (showCapToastIfLimited(error, data)) return;
+    if (error || typeof data?.accepted !== "boolean") {
+      toast.error("Couldn't check that — try again.");
+      return;
+    }
+    setProduceResult({ accepted: data.accepted });
+    if (data.accepted) toast.success("Cleared — that one's out of your mistake list.");
+  };
+
+  const next = () => {
+    setPicked(null);
+    setProduced("");
+    setProduceResult(null);
+    if (idx + 1 >= items.length) {
+      onDone();
+      toast.success("Drill complete!");
+    } else {
+      setIdx(idx + 1);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between text-xs text-muted-foreground">
+        <span>
+          {idx + 1} / {items.length}
+        </span>
+        <button type="button" className="underline-offset-2 hover:underline" onClick={onDone}>
+          End drill
+        </button>
+      </div>
+
+      <div className="rounded-xl border border-border bg-card p-4">
+        <p className="text-sm">{item.scenario_english}</p>
+        <p className="mt-1 text-xs text-muted-foreground">What do you say?</p>
+      </div>
+
+      {!picked ? (
+        <div className="space-y-2">
+          {item.choices.map((choice, i) => (
+            <button
+              key={i}
+              type="button"
+              onClick={() => setPicked(choice)}
+              className="w-full rounded-lg border border-border bg-card p-3 text-right transition hover:border-primary/40 active:scale-[0.99]"
+              dir="rtl"
+            >
+              <p className="font-arabic text-lg">{choice.arabic}</p>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+          <div className="flex items-center gap-2">
+            {picked.correct ? (
+              <>
+                <Check className="h-5 w-5 text-emerald-600" />
+                <span className="font-semibold">Right.</span>
+              </>
+            ) : (
+              <>
+                <X className="h-5 w-5 text-destructive" />
+                <span className="font-semibold">
+                  {picked.yours ? "That's the one you keep saying." : "Not that one."}
+                </span>
+              </>
+            )}
+          </div>
+          <div>
+            <p dir="rtl" className="font-arabic text-xl font-semibold">
+              {item.target_arabic}
+            </p>
+            <p className="text-sm text-muted-foreground">{item.target_english}</p>
+          </div>
+          <p className="text-sm text-muted-foreground">{item.explanation}</p>
+
+          {/* Production is what resolves the fossil, so the card is not done
+              at the right answer — noticing is not yet knowing. */}
+          {produceResult?.accepted ? (
+            <p className="flex items-center gap-1.5 text-sm text-emerald-600">
+              <CheckCircle2 className="h-4 w-4" /> Cleared from your mistakes.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                Now type it yourself
+              </p>
+              <Input
+                dir="rtl"
+                lang="ar"
+                value={produced}
+                onChange={(e) => setProduced(e.target.value)}
+                placeholder="اكتبها هنا…"
+                className="font-arabic text-lg"
+                disabled={checking}
+              />
+              {produceResult && !produceResult.accepted && (
+                <p className="text-xs text-destructive">
+                  Not quite — compare against the line above and try again.
+                </p>
+              )}
+              <Button size="sm" onClick={() => void submitProduction()} disabled={checking || !produced.trim()}>
+                {checking && <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" />}
+                Check
+              </Button>
+            </div>
+          )}
+
+          <Button className="w-full" variant={produceResult?.accepted ? "default" : "outline"} onClick={next}>
+            {idx + 1 >= items.length ? "Finish" : "Next"}
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface MistakeCardProps {
   group: MistakeGroup;

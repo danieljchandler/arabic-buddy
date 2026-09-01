@@ -525,6 +525,66 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
     }),
   "score-set-phrase-voice": () => ok({ score: 80 }),
 
+  // The fossilization drill on /mistakes. Items are derived from the seeded
+  // learner_errors rows — the drill's whole premise is that the choices carry
+  // the learner's own recorded production, so a canned fixture that ignored
+  // the seed would test a generic quiz instead. The produce action resolves
+  // matching rows in this database, so the page's refetch shows the card
+  // leaving the list the way it does in production.
+  "mistake-drill": ({ db, userId, body }) => {
+    const b = (body ?? {}) as {
+      action?: string;
+      dialect?: string;
+      targetArabic?: string;
+      produced?: string;
+    };
+    if (b.action === "produce") {
+      const accepted = (b.produced ?? "").trim() === (b.targetArabic ?? "").trim();
+      if (accepted) {
+        for (const row of db.raw("learner_errors")) {
+          if (
+            row.user_id === userId &&
+            row.target_arabic === b.targetArabic &&
+            !row.resolved_at
+          ) {
+            row.resolved_at = new Date().toISOString();
+          }
+        }
+      }
+      return ok({ accepted, similarity: accepted ? 1 : 0.4 });
+    }
+    const seen = new Set<string>();
+    const items = db
+      .rows("learner_errors")
+      .filter(
+        (r) =>
+          r.user_id === userId &&
+          !r.resolved_at &&
+          (!b.dialect || r.dialect === b.dialect),
+      )
+      .filter((r) => {
+        const target = String(r.target_arabic ?? "");
+        if (!target || seen.has(target)) return false;
+        seen.add(target);
+        return true;
+      })
+      .map((r) => ({
+        target_arabic: r.target_arabic,
+        target_english: "the right way to say it",
+        scenario_english: `A moment where you'd say "${r.target_arabic}".`,
+        explanation: "That's the dialect form.",
+        choices: [
+          { arabic: r.target_arabic, correct: true },
+          r.produced_arabic
+            ? { arabic: r.produced_arabic, correct: false, yours: true }
+            : { arabic: "غلط", correct: false },
+        ],
+        kinds: [r.error_kind ?? "other"],
+        count: 1,
+      }));
+    return ok({ items });
+  },
+
   // The monologue page's two calls. Prompts answer the fetch-on-mount; the
   // scorer persists a real attempt row so the page's trend query — which
   // reads monologue_attempts straight from this database — moves the way it

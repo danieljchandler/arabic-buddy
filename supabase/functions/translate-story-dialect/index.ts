@@ -1,7 +1,6 @@
 // translate-story-dialect — Translates Fusha text into a specified dialect with tashkeel
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { askBrain } from "../_shared/aiBrain.ts";
 import { primeDialectPrompt, type Dialect } from "../_shared/dialectHelpers.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";

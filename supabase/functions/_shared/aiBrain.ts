@@ -1264,9 +1264,6 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
                   }
                   invokeOnComplete(corrected ?? full);
                 }).catch(() => invokeOnComplete(full));
-                  }
-                  invokeOnComplete(corrected ?? full);
-                }).catch(() => invokeOnComplete(full));
               }
             }
           }

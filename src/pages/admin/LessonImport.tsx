@@ -4,6 +4,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useLessonImport } from '@/hooks/useLessonImport';
 import { useStages } from '@/hooks/useStages';
 import type { ParsedLessonPlan } from '@/lib/parseLessonXlsx';
+import { multiWordEntries } from '@/lib/transcriptChunks';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -165,6 +166,25 @@ const LessonImport = () => {
               </div>
 
               <div>
+                {/* A multi-word "word" is a chunk being filed as vocabulary:
+                    the flashcard deck will drill it, but only the set-phrase
+                    deck gives it a spoken production schedule. Flagged, not
+                    blocked — the entry still imports as-is. */}
+                {multiWordEntries(parsed.vocabulary).length > 0 && (
+                  <div className="mb-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm">
+                    <p className="font-medium">
+                      {multiWordEntries(parsed.vocabulary).length} multi-word{" "}
+                      {multiWordEntries(parsed.vocabulary).length === 1 ? "entry" : "entries"} —
+                      consider also adding these as set phrases, where they get a spoken
+                      production schedule:
+                    </p>
+                    <p dir="rtl" className="mt-1 text-muted-foreground">
+                      {multiWordEntries(parsed.vocabulary)
+                        .map((e) => e.arabic)
+                        .join("، ")}
+                    </p>
+                  </div>
+                )}
 
                 <h4 className="font-semibold mb-2">Vocabulary ({parsed.vocabulary.length} words)</h4>
                 <div className="border rounded-lg overflow-hidden">

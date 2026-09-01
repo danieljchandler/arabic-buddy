@@ -214,6 +214,9 @@ export const ROUTES: RouteSpec[] = [
     gate: "admin-reviewer-or-transcriber",
   },
   { path: "/admin/set-phrases", gate: "admin-or-reviewer" },
+  // Chunk candidates mined from reviewed-transcript compound marks; promotes
+  // into set_phrases drafts, so it shares the set-phrases gate.
+  { path: "/admin/chunks", gate: "admin-or-reviewer" },
   { path: "/admin/dialect-rules", gate: "admin-or-reviewer" },
 
   { path: "/admin/curriculum", gate: "admin" },

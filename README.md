@@ -245,6 +245,17 @@ safe phrases. The learner profile carries the chunk deck too: matured chunks
 are offered to generators for verbatim reuse, and chunks due for speaking get
 an explicit "open a natural moment for these" instruction.
 
+The deck is *sourced* from the app's own reviewed content — no published
+formulaic-sequence list exists for any Arabic dialect, so the compound marks
+native reviewers leave in transcripts (`WordToken.compoundRef`) are the
+inventory. `/admin/chunks` mines them (`src/lib/transcriptChunks.ts`, pure
+and tested), ranked by how often reviewers marked each phrase, deduplicated
+against the deck across spelling variants, and promotes one to a `set_phrases`
+draft in a click — sourcing, not publishing; the editorial pass on
+`/admin/set-phrases` still decides what ships. The lesson importer flags
+multi-word vocabulary entries the same way, since a phrase filed as a word
+never gets a spoken production schedule.
+
 **Shadowing reps**: the Shadow tab runs ~5 repetitions of the same clip (the
 literature's one dosage finding) with a per-clip score trace, advancing on
 auto-advance at the target rep count or when takes stop improving

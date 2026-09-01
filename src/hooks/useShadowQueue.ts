@@ -59,7 +59,7 @@ export const DIALECT_LOCALE: Record<string, string> = {
   MSA: "ar-SA",
 };
 
-const GULF_DIALECTS = new Set(["Gulf", "Saudi", "Kuwaiti", "UAE", "Bahraini", "Qatari", "Omani"]);
+export const GULF_DIALECTS = new Set(["Gulf", "Saudi", "Kuwaiti", "UAE", "Bahraini", "Qatari", "Omani"]);
 
 function dialectMatches(clipDialect: string, active: DialectModule): boolean {
   if (active === "Gulf") return GULF_DIALECTS.has(clipDialect);

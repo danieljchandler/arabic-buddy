@@ -126,6 +126,11 @@ const AdminSetPhrases = () => {
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <h1 className="text-xl font-bold">Set Phrases ({activeDialect})</h1>
+        {/* The sourcing queue: compounds native reviewers marked in
+            transcripts, ready to promote into drafts here. */}
+        <Button variant="outline" size="sm" className="ml-auto" onClick={() => navigate("/admin/chunks")}>
+          Chunk candidates
+        </Button>
       </div>
 
       <Card className="p-4 mb-4 space-y-3">

@@ -248,6 +248,19 @@ more than the SQL: `src/lib/rbac.ts` (`MANAGED_ROLES` drives the grant UI),
 `useAdminAuth`, the generated types, `src/test/support/personas.ts`,
 `src/test/support/server/rpc.ts`, and the route manifest.
 
+**ID logins** are the way in for a reviewer no email invitation reaches. An
+admin mints an ID number and password on `/admin/id-logins`; the reviewer signs
+in at `/login/id`. It is not a parallel identity system — the ID maps onto an
+address in `ids.hakiya.app` (no MX record) by the shared rule in
+`_shared/accessCodeCore.ts`, imported verbatim by both the browser and the
+`access-credentials` edge function, and `signInWithPassword` does the rest, so
+sessions, RLS and `user_roles` are untouched. Only `transcriber` and
+`content_reviewer` may be minted this way (`ACCESS_ID_ROLES`, mirrored by
+`public.is_access_id_role`), the password is displayed once and stored nowhere
+readable, and switching one off removes the role *and* bans the account. Reads
+of `access_credentials` are admin-only under RLS; every write goes through the
+edge function under the service role. Full writeup in README.
+
 **Transcript review** is where native speakers correct the pipeline's output.
 It lives on the Manage Videos pages: `/admin/videos` doubles as the review
 queue and each video's `/admin/videos/:id/edit` page carries the workspace

@@ -203,6 +203,9 @@ export const ROUTES: RouteSpec[] = [
 
   // ── Admin ──────────────────────────────────────────────────────────────────
   { path: "/admin/login", gate: "public", boundary: "AdminLoginRoute" },
+  // The ID-number door. Public like any sign-in page: the credential is the
+  // check, and the role behind it is what the layout gates on afterwards.
+  { path: "/login/id", gate: "public", boundary: "IdLoginRoute" },
   { path: "/admin", gate: "admin-or-reviewer", boundary: "AdminRoute" },
   // The video list and edit page carry the transcript review workspace now, so
   // a transcriber reaches them; creating a video stays management-only.
@@ -247,6 +250,7 @@ export const ROUTES: RouteSpec[] = [
   { path: "/admin/memes/new", gate: "admin" },
   { path: "/admin/memes/:memeId", params: { memeId: GENERIC_ID }, gate: "admin" },
   { path: "/admin/invite-codes", gate: "admin" },
+  { path: "/admin/id-logins", gate: "admin" },
   { path: "/admin/errors", gate: "admin" },
   { path: "/admin/metrics", gate: "admin" },
   { path: "/admin/feedback", gate: "admin" },

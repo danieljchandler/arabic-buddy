@@ -34,6 +34,7 @@ const NotFound = lazyPage(() => import("./pages/NotFound"));
 const Quiz = lazyPage(() => import("./pages/Quiz"));
 const Auth = lazyPage(() => import("./pages/Auth"));
 const ResetPassword = lazyPage(() => import("./pages/ResetPassword"));
+const IdLogin = lazyPage(() => import("./pages/IdLogin"));
 const Review = lazyPage(() => import("./pages/Review"));
 const Transcribe = lazyPage(() => import("./pages/Transcribe"));
 const Translate = lazyPage(() => import("./pages/Translate"));
@@ -119,6 +120,7 @@ const AdminSetPhrases = lazyPage(() => import("./pages/admin/AdminSetPhrases"));
 const AdminChunkCandidates = lazyPage(() => import("./pages/admin/AdminChunkCandidates"));
 const AdminDialectRules = lazyPage(() => import("./pages/admin/AdminDialectRules"));
 const AdminInviteCodes = lazyPage(() => import("./pages/admin/AdminInviteCodes"));
+const AdminIdLogins = lazyPage(() => import("./pages/admin/AdminIdLogins"));
 const AdminFeedback = lazyPage(() => import("./pages/admin/AdminFeedback"));
 const AdminReadingLibrary = lazyPage(() => import("./pages/admin/AdminReadingLibrary"));
 const AdminReadingLibraryForm = lazyPage(() => import("./pages/admin/AdminReadingLibraryForm"));
@@ -480,6 +482,12 @@ const App = () => {
             {/* Standalone login — must sit OUTSIDE AdminLayout, which redirects
                 unauthenticated visitors here before rendering its Outlet. */}
             <Route path="/admin/login" element={<ErrorBoundary name="AdminLoginRoute"><AdminLogin /></ErrorBoundary>} />
+            {/* Signing in with an ID number instead of an email address, for a
+                reviewer who has no inbox an invitation could reach. Outside
+                AdminLayout for the same reason /admin/login is, and outside
+                /admin entirely so the address is short enough to send in a
+                chat message. */}
+            <Route path="/login/id" element={<ErrorBoundary name="IdLoginRoute"><IdLogin /></ErrorBoundary>} />
 
             <Route path="/admin" element={<ErrorBoundary name="AdminRoute"><AdminLayout /></ErrorBoundary>}>
               <Route index element={<Dashboard />} />
@@ -518,6 +526,7 @@ const App = () => {
               <Route path="chunks" element={<AdminChunkCandidates />} />
               <Route path="dialect-rules" element={<AdminDialectRules />} />
               <Route path="invite-codes" element={<AdminInviteCodes />} />
+              <Route path="id-logins" element={<AdminIdLogins />} />
               <Route path="errors" element={<AdminErrors />} />
               <Route path="metrics" element={<AdminFeatureMetrics />} />
               <Route path="feedback" element={<AdminFeedback />} />

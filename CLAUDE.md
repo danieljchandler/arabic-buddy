@@ -298,4 +298,10 @@ a borrowing or an intonation, not a grammar category. Full writeup in README.
   backend as the unit suite (no network).
 - `scripts/` — repo tooling that isn't part of the app build: the lint
   ratchet, corpus/artifact derivation, illustration generation, training-data
-  export.
+  export, and `eval-dialect-live.ts`, which measures a model against the frozen
+  golden set through the *same* prompt the Brain builds. Two flags carry its
+  reason for existing: `--compare <model>` prints the per-dialect leak-rate
+  delta between two models (run this before a registry bump ships), and
+  `--no-demos` drops the worked examples, so running with and without measures
+  whether they earn their tokens on this golden set rather than on the paper's.
+  It needs real provider keys, so it is a local/manual tool, not a CI gate.

@@ -2645,48 +2645,6 @@ export type Database = {
         }
         Relationships: []
       }
-      monologue_attempts: {
-        Row: {
-          asr_provider: string
-          created_at: string
-          dialect: string
-          duration_ms: number
-          id: string
-          metrics: Json
-          prompt_text: string | null
-          timings_available: boolean
-          transcript: string
-          user_id: string
-          word_count: number
-        }
-        Insert: {
-          asr_provider?: string
-          created_at?: string
-          dialect?: string
-          duration_ms: number
-          id?: string
-          metrics?: Json
-          prompt_text?: string | null
-          timings_available?: boolean
-          transcript?: string
-          user_id: string
-          word_count?: number
-        }
-        Update: {
-          asr_provider?: string
-          created_at?: string
-          dialect?: string
-          duration_ms?: number
-          id?: string
-          metrics?: Json
-          prompt_text?: string | null
-          timings_available?: boolean
-          transcript?: string
-          user_id?: string
-          word_count?: number
-        }
-        Relationships: []
-      }
       msa_transformation_rules: {
         Row: {
           category: string
@@ -3660,42 +3618,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      shadow_attempts: {
-        Row: {
-          clip_ref: string
-          created_at: string
-          dialect: string
-          id: string
-          recognized_text: string
-          reference_text: string
-          rep: number
-          transcript_similarity: number
-          user_id: string
-        }
-        Insert: {
-          clip_ref: string
-          created_at?: string
-          dialect?: string
-          id?: string
-          recognized_text?: string
-          reference_text: string
-          rep?: number
-          transcript_similarity: number
-          user_id: string
-        }
-        Update: {
-          clip_ref?: string
-          created_at?: string
-          dialect?: string
-          id?: string
-          recognized_text?: string
-          reference_text?: string
-          rep?: number
-          transcript_similarity?: number
-          user_id?: string
-        }
-        Relationships: []
       }
       social_content_sources: {
         Row: {
@@ -4744,13 +4666,6 @@ export type Database = {
           last_reviewed_at: string | null
           next_review_at: string
           phrase_id: string
-          production_difficulty: number
-          production_ease_factor: number
-          production_interval_days: number
-          production_lapses: number
-          production_last_reviewed_at: string | null
-          production_next_review_at: string | null
-          production_repetitions: number
           repetitions: number
           source: string
           updated_at: string
@@ -4766,13 +4681,6 @@ export type Database = {
           last_reviewed_at?: string | null
           next_review_at?: string
           phrase_id: string
-          production_difficulty?: number
-          production_ease_factor?: number
-          production_interval_days?: number
-          production_lapses?: number
-          production_last_reviewed_at?: string | null
-          production_next_review_at?: string | null
-          production_repetitions?: number
           repetitions?: number
           source?: string
           updated_at?: string
@@ -4788,13 +4696,6 @@ export type Database = {
           last_reviewed_at?: string | null
           next_review_at?: string
           phrase_id?: string
-          production_difficulty?: number
-          production_ease_factor?: number
-          production_interval_days?: number
-          production_lapses?: number
-          production_last_reviewed_at?: string | null
-          production_next_review_at?: string | null
-          production_repetitions?: number
           repetitions?: number
           source?: string
           updated_at?: string

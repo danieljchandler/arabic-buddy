@@ -113,6 +113,12 @@ verify_jwt = false
 [functions.score-shadow-attempt]
 verify_jwt = false
 
+# Free-form chunk deployment on the public set-phrases page — anonymous
+# callers are IP-capped inside (enforceAnonymousDailyCap), like the scorers
+# beside it; nothing is recorded for them.
+[functions.practice-chunk-coach]
+verify_jwt = false
+
 [functions.pronunciation-feedback]
 verify_jwt = false
 

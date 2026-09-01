@@ -26,7 +26,8 @@ export type LearnerErrorSource =
   | "quiz"
   | "writing"
   | "monologue"
-  | "mistake_drill";
+  | "mistake_drill"
+  | "chunk_coach";
 
 export interface LearnerErrorInput {
   source: LearnerErrorSource;

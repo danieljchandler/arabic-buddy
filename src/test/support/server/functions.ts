@@ -555,6 +555,21 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
       locale: "ar-SA",
     }),
   "score-set-phrase-voice": () => ok({ score: 80 }),
+  // The free-form chunk coach: a passing judgement with a rewrite, so the
+  // answered card's coach view renders. quality 4 → correct + graded onto
+  // the phrase's production track by the page.
+  "practice-chunk-coach": () =>
+    ok({
+      transcript: "تسلم، الله يعطيك العافية على الشغل",
+      used_chunk: true,
+      understandable: true,
+      natural: false,
+      verdict: "Nicely deployed — one small polish.",
+      natural_rewrite: "تسلم، الله يعطيك العافية على شغلك",
+      natural_rewrite_english: "Thanks — may God give you strength for your work",
+      tips: ["Possessive شغلك sounds more natural here."],
+      quality: 4,
+    }),
 
   // The fossilization drill on /mistakes. Items are derived from the seeded
   // learner_errors rows — the drill's whole premise is that the choices carry

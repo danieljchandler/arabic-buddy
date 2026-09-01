@@ -356,6 +356,47 @@ export const useGenerateQuiz = () => {
   });
 };
 
+export interface ChunkCoachResult {
+  transcript: string;
+  empty?: boolean;
+  message?: string;
+  used_chunk: boolean;
+  understandable: boolean;
+  natural: boolean;
+  verdict: string;
+  natural_rewrite: string;
+  natural_rewrite_english: string;
+  tips: string[];
+  /** The FSRS grade for the phrase's production track — same bands as the
+   *  exact-match scorer, so both paths grade one schedule consistently. */
+  quality: number;
+}
+
+/**
+ * Free-form chunk deployment: the learner answers the scenario in their own
+ * words and the coach judges whether the chunk landed naturally — the harder
+ * skill the verbatim scorer can't see.
+ */
+export const useChunkCoach = () => {
+  return useMutation({
+    mutationFn: async ({
+      audioBase64,
+      mimeType,
+      phraseId,
+    }: {
+      audioBase64: string;
+      mimeType: string;
+      phraseId: string;
+    }) => {
+      const { data, error } = await supabase.functions.invoke("practice-chunk-coach", {
+        body: { audioBase64, mimeType, phraseId },
+      });
+      if (error) throw await toInvokeFailureError(error, data, "Coaching didn't work. Please try again.");
+      return data as ChunkCoachResult;
+    },
+  });
+};
+
 export const useScoreVoice = () => {
   return useMutation({
     mutationFn: async ({

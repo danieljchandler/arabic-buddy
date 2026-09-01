@@ -162,11 +162,15 @@ serve(async (req) => {
 
     // 1. Due reviews (up to half)
     const halfLen = Math.floor(length / 2);
+    // Due on either track: recognition (next_review_at) or production
+    // (production_next_review_at). The page's voice-first answer mode is what
+    // drills the production track, so a phrase the learner can spot but not
+    // yet say must keep coming back here.
     const { data: dueRows } = await admin
       .from("user_set_phrases")
       .select("phrase_id, set_phrases!inner(*, set_phrase_occasions(name, icon_name))")
       .eq("user_id", user.id)
-      .lte("next_review_at", now)
+      .or(`next_review_at.lte.${now},production_next_review_at.lte.${now}`)
       .eq("set_phrases.dialect", dialect)
       .eq("set_phrases.status", "published")
       .order("next_review_at", { ascending: true })
@@ -184,8 +188,35 @@ serve(async (req) => {
     if (occasionId) newQuery = newQuery.eq("occasion_id", occasionId);
     const { data: candidates } = await newQuery.limit(60);
 
+    // The phrasal-teddy-bear counterweight (docs/plateau-research-2026-09.md
+    // §3): learners overuse the few phrases they feel safe with and underuse
+    // the rest of the repertoire. New picks therefore prefer occasions the
+    // learner has saved LEAST from — widening the deck instead of deepening
+    // one comfort zone. Shuffle first, then a stable sort by familiarity, so
+    // the order stays random within each familiarity band.
+    const { data: savedRows } = await admin
+      .from("user_set_phrases")
+      .select("set_phrases!inner(occasion_id, dialect)")
+      .eq("user_id", user.id)
+      .eq("set_phrases.dialect", dialect)
+      .limit(400);
+    const occasionFamiliarity = new Map<string, number>();
+    for (const r of (savedRows ?? []) as Array<{ set_phrases?: { occasion_id?: unknown } }>) {
+      const occ = r.set_phrases?.occasion_id;
+      if (typeof occ === "string" && occ) {
+        occasionFamiliarity.set(occ, (occasionFamiliarity.get(occ) ?? 0) + 1);
+      }
+    }
+    const familiarity = (p: { occasion_id?: unknown }) =>
+      typeof p.occasion_id === "string" ? occasionFamiliarity.get(p.occasion_id) ?? 0 : 0;
+
     const filtered = (candidates ?? []).filter((p: any) => !dueIds.has(p.id));
-    const newPicks = shuffle(filtered).slice(0, Math.max(0, remaining));
+    const newPicks = shuffle(filtered)
+      .sort(
+        (a: { occasion_id?: unknown }, b: { occasion_id?: unknown }) =>
+          familiarity(a) - familiarity(b),
+      )
+      .slice(0, Math.max(0, remaining));
 
     const all: { row: any; due: boolean }[] = [
       ...(dueRows ?? []).map((r: any) => ({ row: r.set_phrases, due: true })),

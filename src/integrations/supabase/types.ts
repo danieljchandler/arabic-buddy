@@ -4708,6 +4708,13 @@ export type Database = {
           last_reviewed_at: string | null
           next_review_at: string
           phrase_id: string
+          production_difficulty: number
+          production_ease_factor: number
+          production_interval_days: number
+          production_lapses: number
+          production_last_reviewed_at: string | null
+          production_next_review_at: string | null
+          production_repetitions: number
           repetitions: number
           source: string
           updated_at: string
@@ -4723,6 +4730,13 @@ export type Database = {
           last_reviewed_at?: string | null
           next_review_at?: string
           phrase_id: string
+          production_difficulty?: number
+          production_ease_factor?: number
+          production_interval_days?: number
+          production_lapses?: number
+          production_last_reviewed_at?: string | null
+          production_next_review_at?: string | null
+          production_repetitions?: number
           repetitions?: number
           source?: string
           updated_at?: string
@@ -4738,6 +4752,13 @@ export type Database = {
           last_reviewed_at?: string | null
           next_review_at?: string
           phrase_id?: string
+          production_difficulty?: number
+          production_ease_factor?: number
+          production_interval_days?: number
+          production_lapses?: number
+          production_last_reviewed_at?: string | null
+          production_next_review_at?: string | null
+          production_repetitions?: number
           repetitions?: number
           source?: string
           updated_at?: string

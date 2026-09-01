@@ -295,3 +295,98 @@ describe("onScreenVocabBlock", () => {
     expect((out.match(/كلمة/g) ?? []).length).toBeLessThanOrEqual(10);
   });
 });
+
+// ── Chunks (formulaic sequences) ─────────────────────────────────────────────
+
+import { classifyChunks, type ChunkScheduleRow } from "../../supabase/functions/_shared/learnerProfileCore";
+
+const chunkRow = (over: Partial<ChunkScheduleRow> = {}): ChunkScheduleRow => ({
+  arabic: "الله يعطيك العافية",
+  english: "may God give you strength",
+  intervalDays: 30,
+  repetitions: 5,
+  productionNextReviewAt: null,
+  ...over,
+});
+
+describe("classifyChunks", () => {
+  const NOW = new Date("2026-09-01T12:00:00.000Z");
+
+  it("treats a mature recognition schedule as a known chunk", () => {
+    const { known, due } = classifyChunks([chunkRow()], NOW);
+    expect(known).toHaveLength(1);
+    expect(due).toHaveLength(0);
+  });
+
+  it("keeps an immature, not-due chunk out of both lists", () => {
+    // Half-learned and not yet asked for: telling the model anything about it
+    // would be claiming knowledge the schedule doesn't show.
+    const { known, due } = classifyChunks(
+      [chunkRow({ intervalDays: 2, repetitions: 1 })],
+      NOW,
+    );
+    expect(known).toHaveLength(0);
+    expect(due).toHaveLength(0);
+  });
+
+  it("flags a chunk due on the speaking track", () => {
+    const { due } = classifyChunks(
+      [chunkRow({ productionNextReviewAt: "2026-09-01T11:00:00.000Z" })],
+      NOW,
+    );
+    expect(due).toHaveLength(1);
+  });
+
+  it("puts a mature chunk that is due for speaking in due only", () => {
+    // "Invite this" and "you know this" about the same phrase would be
+    // contradictory instructions; the invitation wins.
+    const { known, due } = classifyChunks(
+      [chunkRow({ productionNextReviewAt: "2026-09-01T11:00:00.000Z" })],
+      NOW,
+    );
+    expect(due).toHaveLength(1);
+    expect(known).toHaveLength(0);
+  });
+
+  it("ignores a speaking date still in the future", () => {
+    const { known, due } = classifyChunks(
+      [chunkRow({ productionNextReviewAt: "2026-09-09T11:00:00.000Z" })],
+      NOW,
+    );
+    expect(due).toHaveLength(0);
+    expect(known).toHaveLength(1);
+  });
+
+  it("dedupes on the Arabic surface form", () => {
+    const { known } = classifyChunks([chunkRow(), chunkRow()], NOW);
+    expect(known).toHaveLength(1);
+  });
+});
+
+describe("rendering chunks into the prompt", () => {
+  it("tells the model to reuse drilled chunks verbatim", () => {
+    const out = renderProfileForPrompt(
+      profile({ chunks: [{ arabic: "شخبارك", english: "how are you" }] }),
+    );
+    expect(out).toContain("شخبارك (how are you)");
+    expect(out).toContain("verbatim");
+  });
+
+  it("asks for openings for chunks due on the speaking track", () => {
+    const out = renderProfileForPrompt(
+      profile({ dueChunks: [{ arabic: "الله يعطيك العافية", english: "may God give you strength" }] }),
+    );
+    // The teddy-bear counterweight: due chunks get a deliberate invitation.
+    expect(out).toContain("الله يعطيك العافية");
+    expect(out).toContain("invites");
+  });
+
+  it("keeps due chunks out of the prompt when includeWeak is off", () => {
+    const p = profile({ dueChunks: [{ arabic: "يلا نروح", english: "let's go" }] });
+    expect(renderProfileForPrompt(p, { includeWeak: false })).not.toContain("يلا نروح");
+  });
+
+  it("stays silent for a learner with no chunk deck", () => {
+    expect(renderProfileForPrompt(profile())).not.toContain("CHUNKS");
+  });
+});

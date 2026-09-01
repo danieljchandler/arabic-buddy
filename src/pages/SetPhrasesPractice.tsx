@@ -137,7 +137,9 @@ const SetPhrasesPractice = ({ reviewMode = false }: Props) => {
                 asr_transcript: res.transcript,
                 asr_similarity: res.similarity,
               });
-              review.mutate({ phraseId: current.phrase_id, quality: res.quality });
+              // A spoken answer grades both tracks — saying the phrase is the
+              // production skill this deck exists for.
+              review.mutate({ phraseId: current.phrase_id, quality: res.quality, mode: "voice" });
               if (!res.accepted && current.expected_audio_url) playAudio(current.expected_audio_url);
             },
             onError: (e: any) => {
@@ -166,7 +168,7 @@ const SetPhrasesPractice = ({ reviewMode = false }: Props) => {
       answer_mode: "choice",
       correct: choice.correct,
     });
-    review.mutate({ phraseId: current.phrase_id, quality: choice.correct ? 4 : 1 });
+    review.mutate({ phraseId: current.phrase_id, quality: choice.correct ? 4 : 1, mode: "choice" });
     if (!choice.correct && current.expected_audio_url) playAudio(current.expected_audio_url);
   };
 

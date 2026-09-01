@@ -1,0 +1,24 @@
+# Netlify deploy config.
+#
+# The three VITE_SUPABASE_* variables must be set in the Netlify site's
+# environment (Site configuration > Environment variables) — vite.config.ts has
+# hardcoded fallbacks that point at the Lovable-era production project, and a
+# deploy that relies on them is a deploy nobody can move. See docs/deployment.md.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+# SPA fallback: every path that isn't a real file is served index.html so
+# client-side routes survive a refresh or a deep link. Status 200, not 301 —
+# a redirect would change the URL the router reads.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Netlify reads public/_headers as well; the microphone Permissions-Policy and
+# the immutable asset caching live there so they are shared with Cloudflare Pages.

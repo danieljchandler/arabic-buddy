@@ -1,0 +1,6 @@
+# SPA fallback for Cloudflare Pages and Netlify.
+#
+# Client-side routes (/review, /admin/videos/:id/edit, ...) have no file on
+# disk, so a refresh or a shared deep link would 404 without this. 200 rather
+# than a redirect keeps the URL intact for react-router to read.
+/*  /index.html  200

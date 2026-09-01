@@ -10,17 +10,8 @@ import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { chatFetch } from "../_shared/aiGateway.ts";
 
 
-const FANAR_ENDPOINT = "https://api.fanar.qa/v1/chat/completions";
-
 interface ModelConfig {
   model: string;
-  /**
-   * Set only for a provider `aiGateway` does not route — Fanar, which is a
-   * direct QCRI endpoint on its own key. Everything else is left blank and the
-   * gateway picks Google / OpenAI / OpenRouter from the model id.
-   */
-  endpoint?: string;
-  keyEnv?: string;
 }
 
 // Model IDs come from _shared/modelRegistry.ts so a registry bump propagates
@@ -32,7 +23,8 @@ interface ModelConfig {
 const routed = (model: string): ModelConfig => ({ model });
 
 const MODEL_REGISTRY: Record<string, ModelConfig> = {
-  [MODEL_IDS.GEMINI_FAST]: routed(MODEL_IDS.GEMINI_FAST),
+  // GEMINI_FAST and GEMINI_FLASH point at the same model today, so one entry
+  // covers both lineup slots; a second key would be a duplicate property.
   [MODEL_IDS.GEMINI_FLASH]: routed(MODEL_IDS.GEMINI_FLASH),
   [MODEL_IDS.GEMINI_PRO]: routed(MODEL_IDS.GEMINI_PRO),
   [MODEL_IDS.CLAUDE]: routed(MODEL_IDS.CLAUDE),
@@ -48,7 +40,9 @@ const MODEL_REGISTRY: Record<string, ModelConfig> = {
   "google/gemini-3-flash-preview": routed(MODEL_IDS.GEMINI_FAST),
   "google/gemini-2.5-flash": routed(MODEL_IDS.GEMINI_FAST),
   "qwen/qwen3-235b-a22b": routed(MODEL_IDS.QWEN),
-  fanar: { endpoint: FANAR_ENDPOINT, model: MODEL_IDS.FANAR, keyEnv: "FANAR_API_KEY" },
+  // Fanar routes through aiGateway like everything else now — it used to need
+  // its own endpoint and key here because the gateway did not know it.
+  fanar: routed(MODEL_IDS.FANAR),
 };
 
 const DIALECT_CONTEXT: Record<string, string> = {
@@ -354,27 +348,11 @@ async function callLLM(
   const timeout = setTimeout(() => controller.abort(), 120_000);
 
   try {
-    const body = { messages, max_tokens: maxTokens, temperature: 0.4 };
-
-    let response: Response;
-    if (config.endpoint) {
-      const apiKey = Deno.env.get(config.keyEnv ?? "")?.trim();
-      if (!apiKey) throw new Error(`API key ${config.keyEnv} not configured`);
-      response = await fetch(config.endpoint, {
-        method: "POST",
-        signal: controller.signal,
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ model: config.model, ...body }),
-      });
-    } else {
-      response = await chatFetch(config.model, body, {
-        signal: controller.signal,
-        label: "curriculum-chat",
-      });
-    }
+    const response = await chatFetch(config.model, {
+      messages,
+      max_tokens: maxTokens,
+      temperature: 0.4,
+    }, { signal: controller.signal, label: "curriculum-chat" });
 
     if (!response.ok) {
       const errText = await response.text();
@@ -530,9 +508,9 @@ serve(async (req) => {
     // Chat and suggest_* modes keep the single-model path to preserve UX.
     const useBrain =
       resolvedMode?.startsWith("generate_") &&
-      // The brain calls through aiGateway, so it covers every routed model.
-      // Fanar is the one exception: its own endpoint, outside the gateway.
-      !config.endpoint;
+      // The brain calls through aiGateway, which now routes every model in the
+      // map — Fanar included.
+      true;
 
     let responseContent: string;
     if (useBrain) {

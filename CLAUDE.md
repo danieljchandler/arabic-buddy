@@ -130,7 +130,9 @@ harness.
   entry left on the allow-list after it was fixed. Which *provider*
   serves a model is `_shared/aiGateway.ts`'s decision, off the vendor prefix:
   `google/*` → Google (`GEMINI_API_KEY`), `openai/*` → OpenAI
-  (`OPENAI_API_KEY`), everything else → OpenRouter (`OPENROUTER_API_KEY`).
+  (`OPENAI_API_KEY`), `Fanar-*` → QCRI (`FANAR_API_KEY`), everything else →
+  OpenRouter (`OPENROUTER_API_KEY`). Fanar is the one vendor with no OpenRouter
+  twin, so it never falls back there — `canFallBack` is what encodes that.
   Registry ids stay in OpenRouter's `vendor/model` form because that is the one
   namespace all three can be addressed from; aiGateway strips the prefix for the
   vendors whose own APIs don't use it. Call models with `chatFetch` /
@@ -165,8 +167,17 @@ harness.
 
 **AI generation** goes through a shared orchestrator, not direct gateway
 calls: `supabase/functions/_shared/aiBrain.ts` (`askBrain()`) layers dialect
-identity, an MSA-leak detector, a repair pass, and an optional native-speaker
-validator over whichever model lineup is requested from `modelRegistry.ts`. A
+identity, worked dialect examples, an MSA-leak detector, a repair pass, and an
+optional native-speaker validator over whichever model lineup is requested from
+`modelRegistry.ts`. The worked examples (`getDialectDemonstrations`) are the
+*front* half of the MSA fight and the cheap one — models under-produce dialect
+out of reluctance rather than inability, and demonstration moves them where
+instruction does not (AL-QASIDA, arXiv:2412.04193). They ride in the prompt's
+stable cached prefix, so they cost tokens once per dialect rather than per call,
+and `dialect_demonstrations_test.ts` asserts they are leak-free under the
+detector's own lists — a leak inside a demonstration is taught, not caught.
+Set `skipDemonstrations` only for tasks that emit no Arabic prose (routing,
+triage); that is a narrower question than `skipRepair`. A
 task picks a `Strategy` — `solo`, `ensemble`, `draft_critic` or `council` — and
 `streamBrain()` is the streaming counterpart for chat-shaped responses. Every
 edge function that generates or judges Arabic content calls through this, not

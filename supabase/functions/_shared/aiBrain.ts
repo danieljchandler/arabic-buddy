@@ -6,6 +6,7 @@
 import {
   getDialectIdentity,
   getDialectVocabRules,
+  getDialectDemonstrations,
   getDialectLabel,
   getDialectForbiddenTokens,
   primeDialectPrompt,
@@ -116,6 +117,20 @@ export interface BrainTask {
   arabicTextPath?: (parsed: unknown) => string;
   /** When true, skip the MSA repair pass (for low-stakes internal calls). */
   skipRepair?: boolean;
+  /**
+   * Leave the worked dialect examples out of the system prompt.
+   *
+   * They are on by default because the expensive mistake is the silent one: a
+   * generator that quietly drifts into MSA costs a repair pass and, when the
+   * repair does not converge, ships MSA to a learner. Their cost is a few
+   * hundred cached tokens.
+   *
+   * Set this only where the task produces no Arabic prose at all — routing,
+   * classification, triage. Not the same question as `skipRepair`: several
+   * callers skip the repair pass on Arabic they are willing to ship unpoliced,
+   * and those still want the examples that stop the drift in the first place.
+   */
+  skipDemonstrations?: boolean;
   /** When true, run a strict native-speaker validator after the repair pass. */
   validateDialect?: boolean;
   /** Wall-clock budget for the whole task. Optional passes are skipped once spent. */
@@ -367,8 +382,9 @@ function pickStrategy(purpose: string): Strategy {
 function buildSystem(task: BrainTask): string {
   const identity = getDialectIdentity(task.dialect);
   const rules = getDialectVocabRules(task.dialect);
+  const shown = task.skipDemonstrations ? '' : `\n\n${getDialectDemonstrations(task.dialect)}`;
   const extra = task.systemPromptExtra ? `\n\n${task.systemPromptExtra}` : '';
-  return `${identity}\n\n${rules}${extra}`;
+  return `${identity}\n\n${rules}${shown}${extra}`;
 }
 
 /**
@@ -382,8 +398,14 @@ function buildSystem(task: BrainTask): string {
 function buildSystemParts(task: BrainTask): { stable: string; volatile: string } {
   const identity = getDialectIdentity(task.dialect);
   const rules = getDialectVocabRules(task.dialect);
+  // The demonstrations belong in the stable half specifically: they are
+  // identical for every call in a dialect, so behind the cache breakpoint they
+  // are paid for once and read at the cached rate forever after. Putting the
+  // single most effective anti-MSA intervention on the free side of that line
+  // is the whole reason it is affordable to send on every request.
+  const shown = task.skipDemonstrations ? '' : `\n\n${getDialectDemonstrations(task.dialect)}`;
   return {
-    stable: `${identity}\n\n${rules}`,
+    stable: `${identity}\n\n${rules}${shown}`,
     volatile: task.systemPromptExtra ?? '',
   };
 }

@@ -175,6 +175,48 @@ Deno.test("chatFetchDetailed names the provider that actually answered", async (
   }, { upstreams: { [GOOGLE]: () => json({ error: "down" }, 503) } });
 });
 
+// ── Fanar ───────────────────────────────────────────────────────────────────
+
+Deno.test("a Fanar model goes to QCRI's endpoint with its id untouched", async () => {
+  await withGateway(async (mod, up) => {
+    await mod.chatFetch("Fanar-C-2-27B", { messages: [] });
+
+    const [call] = up.callsTo("api.fanar.qa");
+    assert(call, "expected the call to reach Fanar");
+    assertEquals(call.headers.authorization, "Bearer fixture-fanar");
+    // No vendor prefix to strip, and nothing to translate: Fanar's own name for
+    // the model is the only name it has.
+    assertEquals(bodyOf(call).model, "Fanar-C-2-27B");
+    assertEquals(mod.providerForModel("Fanar-C-2-27B"), "fanar");
+  });
+});
+
+Deno.test("a Fanar outage is never retried on OpenRouter", async () => {
+  await withGateway(async (mod, up) => {
+    const response = await mod.chatFetch("Fanar-C-2-27B", { messages: [] });
+
+    // The retry exists for vendors OpenRouter actually lists. Fanar is a
+    // sovereign model on QCRI's own endpoint, so a fallback would turn one real
+    // failure into a 404 about a model that was never on that catalogue.
+    assertEquals(response.status, 503);
+    assertEquals(up.callsTo(OPENROUTER).length, 0);
+  }, { upstreams: { "api.fanar.qa": () => json({ error: "down" }, 503) } });
+});
+
+Deno.test("an unconfigured Fanar does not silently become another model", async () => {
+  await withGateway(async (mod, up) => {
+    // Google and OpenAI fall through to OpenRouter when their key is missing,
+    // because the same model is served there. Fanar has no such twin: the
+    // honest answer is that it cannot be called, not a quiet substitution.
+    await assertRejects(
+      () => mod.chatFetch("Fanar-C-2-27B", { messages: [] }),
+      Error,
+      "FANAR_API_KEY",
+    );
+    assertEquals(up.calls.length, 0);
+  }, { env: { FANAR_API_KEY: undefined } });
+});
+
 // ── Images ──────────────────────────────────────────────────────────────────
 
 Deno.test("an image comes back as bytes from Gemini's inline data", async () => {

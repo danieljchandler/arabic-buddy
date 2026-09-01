@@ -87,8 +87,12 @@ export async function planToolCalls(input: RoutePlanInput): Promise<PlannedCall[
       purpose: "assistant_tool_router",
       dialect: input.dialect,
       strategy: "solo",
-      // The router writes no Arabic, so the dialect machinery is pure overhead.
+      // The router writes no Arabic, so the dialect machinery is pure overhead —
+      // neither the repair pass afterwards nor the worked examples in front of
+      // it, which would roughly double a prompt whose whole point is to be
+      // cheaper than the answer it routes.
       skipRepair: true,
+      skipDemonstrations: true,
       models: [DEFAULT_FAST],
       maxTokens: 300,
       temperature: 0,

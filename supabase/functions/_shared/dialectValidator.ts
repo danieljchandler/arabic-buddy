@@ -18,6 +18,24 @@ const VALIDATOR_MODEL = MODEL_IDS.GEMINI_PRO;
 // the OpenRouter key the app already uses — roughly an order of magnitude
 // cheaper than the Pro-tier judge on this single-snippet task.
 const ARABIC_VALIDATOR_MODEL = MODEL_IDS.SABA;
+/**
+ * Arabic-native tie-breaker, consulted only when the other two disagree.
+ *
+ * Fanar is the better Arabic judge of the three — QCRI's sovereign model,
+ * dialect-tuned and validated by native testers — so the obvious move is to
+ * make it the standing Arabic leg in place of Saba. It is not, for one reason:
+ * quota. Fanar's endpoints run on small daily allowances (the STT paths in
+ * `fanar-transcribe` are metered at 18 and 8 calls a day), and the validator
+ * fires on every generation that asks for it. An always-on Fanar leg would
+ * spend the allowance before lunch and then degrade to `ok: false` for the rest
+ * of the day — a quality gate that is off precisely when the app is busiest.
+ *
+ * A disagreement is the one moment the third opinion is worth a call: the two
+ * standing legs have already split, so the merge is about to fall back on
+ * "harsher verdict wins", which is a safe default rather than a judgment. Any
+ * disagreement is a minority of calls, which keeps this inside the allowance.
+ */
+const TIEBREAK_VALIDATOR_MODEL = MODEL_IDS.FANAR;
 
 export interface ValidatorLeak {
   token: string;
@@ -199,10 +217,24 @@ export async function validateDialectCrossChecked(
   if (!arabic.ok) return { ...strong, agreement: 'single' };
 
   const agreement = arabic.verdict === strong.verdict ? 'agree' : 'disagree';
+
+  // On a split, ask the Arabic-native specialist rather than settling it with a
+  // rule. Skipped silently when Fanar is unconfigured, and never reached when
+  // the two agree — see TIEBREAK_VALIDATOR_MODEL for the quota argument.
+  let tiebreak: ValidatorResult | null = null;
+  if (agreement === 'disagree' && tryChatRoute(TIEBREAK_VALIDATOR_MODEL)) {
+    const result = await validateDialect(text, dialect, { ...opts, model: TIEBREAK_VALIDATOR_MODEL });
+    // `unknown` is what this returns when it could not judge, which is not a
+    // casting vote — fall back to the rule rather than let a non-answer decide.
+    if (result.ok && result.verdict !== 'unknown') tiebreak = result;
+  }
+
   // Harsher verdict wins: a rewrite call from either model stands, and the
-  // reported score is the lower of the two.
-  const verdict: 'pass' | 'rewrite' =
-    arabic.verdict === 'rewrite' || strong.verdict === 'rewrite' ? 'rewrite' : 'pass';
+  // reported score is the lower of the two. The tie-breaker, when there is one,
+  // replaces that default — it is an opinion where the rule was only a policy.
+  const verdict: 'pass' | 'rewrite' = tiebreak && tiebreak.verdict !== 'unknown'
+    ? tiebreak.verdict
+    : arabic.verdict === 'rewrite' || strong.verdict === 'rewrite' ? 'rewrite' : 'pass';
   // Merge leak lists, deduplicated by token.
   const seen = new Set<string>();
   const leaks = [...strong.leaks, ...arabic.leaks].filter((l) => {
@@ -214,18 +246,22 @@ export async function validateDialectCrossChecked(
   console.log(
     `[dialectValidator] cross-check ${agreement}: ` +
       `${ARABIC_VALIDATOR_MODEL}=${arabic.score}/${arabic.verdict} ` +
-      `${VALIDATOR_MODEL}=${strong.score}/${strong.verdict} → ${verdict}`,
+      `${VALIDATOR_MODEL}=${strong.score}/${strong.verdict}` +
+      `${tiebreak ? ` ${TIEBREAK_VALIDATOR_MODEL}=${tiebreak.score}/${tiebreak.verdict}` : ''}` +
+      ` → ${verdict}`,
   );
 
   return {
     score: Math.min(arabic.score, strong.score),
     verdict,
     leaks,
-    notes: strong.notes ?? arabic.notes,
-    // Parallel, so the cost to the caller's budget is the slower leg, not the sum.
-    latencyMs: Math.max(arabic.latencyMs, strong.latencyMs),
+    notes: tiebreak?.notes ?? strong.notes ?? arabic.notes,
+    // The two standing legs run in parallel, so their cost to the caller's
+    // budget is the slower one rather than the sum; a tie-break is sequential
+    // after them, so it adds its own latency on the calls that need it.
+    latencyMs: Math.max(arabic.latencyMs, strong.latencyMs) + (tiebreak?.latencyMs ?? 0),
     ok: true,
-    model: `${ARABIC_VALIDATOR_MODEL}+${VALIDATOR_MODEL}`,
+    model: `${ARABIC_VALIDATOR_MODEL}+${VALIDATOR_MODEL}${tiebreak ? `+${TIEBREAK_VALIDATOR_MODEL}` : ''}`,
     agreement,
   };
 }

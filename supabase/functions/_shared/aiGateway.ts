@@ -30,7 +30,7 @@
 
 import { IMAGE_MODEL_IDS } from './modelRegistry.ts';
 
-export type Provider = 'google' | 'openai' | 'openrouter';
+export type Provider = 'google' | 'openai' | 'openrouter' | 'fanar';
 
 // ---- Endpoints --------------------------------------------------------------
 export const OPENROUTER_CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions';
@@ -39,9 +39,18 @@ export const GOOGLE_CHAT_URL = 'https://generativelanguage.googleapis.com/v1beta
 export const OPENAI_CHAT_URL = 'https://api.openai.com/v1/chat/completions';
 export const GOOGLE_NATIVE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 export const OPENAI_IMAGE_URL = 'https://api.openai.com/v1/images/generations';
+/** QCRI's Arabic-native model. OpenAI-shaped, but on nobody else's catalogue. */
+export const FANAR_CHAT_URL = 'https://api.fanar.qa/v1/chat/completions';
 
 /** Vendors with no first-party account here — they only exist behind OpenRouter. */
 const OPENROUTER_ONLY = /^(anthropic|qwen|meta-llama|mistralai|deepseek|x-ai|nousresearch|cohere)\//;
+
+/**
+ * Fanar ids carry no vendor prefix (`Fanar-C-2-27B`), so the family name is the
+ * routing signal. Unlike every other vendor here, Fanar is not on OpenRouter —
+ * see `canFallBack` for why that matters.
+ */
+const FANAR_MODEL = /^Fanar[-/]/i;
 
 /**
  * Model ids whose Google-native name is not just the id minus its `google/`
@@ -84,6 +93,8 @@ function keyFor(provider: Provider): string | undefined {
       return openaiApiKey();
     case 'openrouter':
       return openRouterApiKey();
+    case 'fanar':
+      return Deno.env.get('FANAR_API_KEY')?.trim() || undefined;
   }
 }
 
@@ -96,10 +107,24 @@ export function hasAnyProvider(): boolean {
 
 /** The vendor a model id names, before the configured-keys question is asked. */
 export function vendorForModel(model: string): Provider {
+  if (FANAR_MODEL.test(model)) return 'fanar';
   if (OPENROUTER_ONLY.test(model)) return 'openrouter';
   if (/^google\//.test(model)) return 'google';
   if (/^openai\//.test(model)) return 'openai';
   return 'openrouter';
+}
+
+/**
+ * Whether a vendor's traffic can be rescued by OpenRouter.
+ *
+ * Only true for vendors whose models OpenRouter actually lists. Fanar is the
+ * exception that makes this a function rather than a `!== 'openrouter'` check:
+ * it is a sovereign model on QCRI's own endpoint, so retrying `Fanar-C-2-27B`
+ * against OpenRouter would turn one real failure into a 404 about a model that
+ * was never there.
+ */
+function canFallBack(provider: Provider): boolean {
+  return provider === 'google' || provider === 'openai';
 }
 
 /**
@@ -109,7 +134,7 @@ export function vendorForModel(model: string): Provider {
  */
 export function providerForModel(model: string): Provider {
   const vendor = vendorForModel(model);
-  if (vendor !== 'openrouter' && !keyFor(vendor) && openRouterApiKey()) return 'openrouter';
+  if (canFallBack(vendor) && !keyFor(vendor) && openRouterApiKey()) return 'openrouter';
   return vendor;
 }
 
@@ -117,6 +142,7 @@ export function providerForModel(model: string): Provider {
 export function upstreamModelId(model: string, provider: Provider): string {
   if (provider === 'openrouter') return model;
   if (provider === 'google') return GOOGLE_MODEL_ALIASES[model] ?? model.replace(/^google\//, '');
+  if (provider === 'fanar') return model;
   return model.replace(/^openai\//, '');
 }
 
@@ -132,12 +158,14 @@ const CHAT_URLS: Record<Provider, string> = {
   google: GOOGLE_CHAT_URL,
   openai: OPENAI_CHAT_URL,
   openrouter: OPENROUTER_CHAT_URL,
+  fanar: FANAR_CHAT_URL,
 };
 
 const KEY_ENV: Record<Provider, string> = {
   google: 'GEMINI_API_KEY',
   openai: 'OPENAI_API_KEY',
   openrouter: 'OPENROUTER_API_KEY',
+  fanar: 'FANAR_API_KEY',
 };
 
 /** Resolve a model to a concrete endpoint, or `null` when nothing is configured to serve it. */
@@ -222,7 +250,7 @@ export async function chatFetchDetailed(
     });
 
   const fallbackRoute = (): ChatRoute | null => {
-    if (options.noFallback || primary === 'openrouter') return null;
+    if (options.noFallback || !canFallBack(primary)) return null;
     return tryChatRoute(model, 'openrouter');
   };
 

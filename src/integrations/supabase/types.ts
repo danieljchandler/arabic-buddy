@@ -14,42 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      access_credentials: {
-        Row: {
-          access_id: string
-          created_at: string
-          created_by: string | null
-          disabled_at: string | null
-          id: string
-          label: string | null
-          password_set_at: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Insert: {
-          access_id: string
-          created_at?: string
-          created_by?: string | null
-          disabled_at?: string | null
-          id?: string
-          label?: string | null
-          password_set_at?: string
-          role: Database["public"]["Enums"]["app_role"]
-          user_id: string
-        }
-        Update: {
-          access_id?: string
-          created_at?: string
-          created_by?: string | null
-          disabled_at?: string | null
-          id?: string
-          label?: string | null
-          password_set_at?: string
-          role?: Database["public"]["Enums"]["app_role"]
-          user_id?: string
-        }
-        Relationships: []
-      }
       achievements: {
         Row: {
           created_at: string

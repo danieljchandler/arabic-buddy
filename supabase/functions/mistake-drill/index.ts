@@ -37,6 +37,7 @@ import {
   resolveLearnerErrors,
 } from "../_shared/learnerErrors.ts";
 import { arabicSimilarity, normalizeArabic } from "../_shared/arabicMatch.ts";
+import { emitMetric } from "../_shared/featureMetrics.ts";
 
 const KNOWN_DIALECTS = new Set(["Gulf", "Egyptian", "Yemeni"]);
 const DEFAULT_LENGTH = 6;
@@ -267,6 +268,16 @@ serve(async (req) => {
           detail: { similarity },
         }]);
       }
+      // The resolution rate is the feature's outcome measure: how often a
+      // drilled fossil actually clears.
+      emitMetric({
+        feature: "mistake-drill",
+        event: "production_checked",
+        dialect,
+        status: accepted ? "ok" : "warn",
+        score: Math.round(similarity * 100),
+        userId: cap.userId,
+      });
       return jsonResponse({ accepted, similarity }, 200, cors);
     }
 
@@ -297,6 +308,13 @@ serve(async (req) => {
     }
 
     const items = await generateItems(dialect, groups);
+    emitMetric({
+      feature: "mistake-drill",
+      event: "items_served",
+      dialect,
+      count: items.length,
+      userId: cap.userId,
+    });
     return jsonResponse({ items }, 200, cors);
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

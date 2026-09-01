@@ -50,6 +50,7 @@ import {
   type FluencyMetrics,
   type TimedWord,
 } from "../_shared/fluencyMetricsCore.ts";
+import { emitMetric } from "../_shared/featureMetrics.ts";
 
 const SONIOX_BASE = "https://api.soniox.com/v1";
 const MUNSIT_BASE = "https://api.munsit.com/api/v1";
@@ -283,6 +284,23 @@ serve(async (req) => {
       `score-monologue: provider=${transcription.provider} words=${wordCount} ` +
         `timings=${timingsAvailable} durationSec=${metrics?.totalDurationSec ?? clientDurationSec}`,
     );
+
+    // The calibration story depends on our own usage data — no Arabic fluency
+    // norms exist to borrow. This is the aggregate view of what the stored
+    // attempts are accumulating.
+    emitMetric({
+      feature: "monologue",
+      event: "attempt_scored",
+      dialect,
+      status: timingsAvailable ? "ok" : "warn",
+      count: wordCount,
+      score: metrics?.speechRateSylPerSec ?? null,
+      userId: cap.userId,
+      meta: {
+        provider: transcription.provider,
+        durationSec: metrics?.totalDurationSec ?? clientDurationSec,
+      },
+    });
 
     // The attempt row is the calibration corpus; a failed write must not eat
     // the response the learner is waiting on.

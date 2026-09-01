@@ -123,3 +123,72 @@ export const computeSRSRetentionRate = (
   if (attempts === 0) return 0;
   return Math.max(0, Math.min(100, Math.round((totals.successes / attempts) * 100)));
 };
+
+// ── Receptive/productive gap ─────────────────────────────────────────────────
+
+/**
+ * Stability (days on the recognition/production schedule) at which a card
+ * counts as solidly known in that direction. Same threshold the learner
+ * profile uses (MATURE_INTERVAL_DAYS in learnerProfileCore).
+ */
+export const GAP_MATURE_INTERVAL_DAYS = 7;
+
+/** One card's scheduling snapshot in both directions, deck-agnostic. */
+export interface GapRow {
+  intervalDays: number | null;
+  repetitions: number | null;
+  productionIntervalDays: number | null;
+  productionRepetitions: number | null;
+  /** Null = production never unlocked for this card. */
+  productionNextReviewAt: string | null;
+}
+
+export interface ProductionGap {
+  /** Cards mature on the recognition track — words the learner can spot. */
+  matureRecognition: number;
+  /** Cards mature on the production track — words the learner can produce. */
+  matureProduction: number;
+  /** Cards whose production track has been unlocked at all. */
+  unlockedProduction: number;
+  /**
+   * 0..1 — the share of solidly-recognised words not yet solidly produced.
+   * Null until there is anything recognised to measure against.
+   */
+  gapRatio: number | null;
+}
+
+/**
+ * The intermediate plateau's first feature is a gap between receptive and
+ * productive competence (docs/plateau-research-2026-09.md §1) — and this app
+ * has the data to show it instead of asserting it, because every deck keeps
+ * independent recognition and production schedules. A word counts on each
+ * side by the same maturity rule, so the two numbers are comparable.
+ */
+export const computeProductionGap = (rows: GapRow[]): ProductionGap => {
+  let matureRecognition = 0;
+  let matureProduction = 0;
+  let unlockedProduction = 0;
+
+  for (const row of rows) {
+    const recognised =
+      (row.intervalDays ?? 0) >= GAP_MATURE_INTERVAL_DAYS && (row.repetitions ?? 0) > 0;
+    if (recognised) matureRecognition += 1;
+    if (row.productionNextReviewAt) unlockedProduction += 1;
+    const produced =
+      (row.productionIntervalDays ?? 0) >= GAP_MATURE_INTERVAL_DAYS &&
+      (row.productionRepetitions ?? 0) > 0;
+    // Production maturity only counts under a recognised word: a card whose
+    // recognition lapsed back doesn't belong on either side of the ratio.
+    if (recognised && produced) matureProduction += 1;
+  }
+
+  return {
+    matureRecognition,
+    matureProduction,
+    unlockedProduction,
+    gapRatio:
+      matureRecognition > 0
+        ? Math.round(((matureRecognition - matureProduction) / matureRecognition) * 100) / 100
+        : null,
+  };
+};

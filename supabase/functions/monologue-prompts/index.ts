@@ -22,6 +22,7 @@ import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { askBrain } from "../_shared/aiBrain.ts";
 import { getDialectLabel, getDialectTransliterationRules, type Dialect } from "../_shared/dialectHelpers.ts";
 import { learnerPromptBlock } from "../_shared/learnerProfile.ts";
+import { emitMetric } from "../_shared/featureMetrics.ts";
 
 const KNOWN_DIALECTS = new Set(["Gulf", "Egyptian", "Yemeni"]);
 const MAX_PROMPTS = 3;
@@ -212,6 +213,17 @@ Deno.serve(async (req) => {
       prompts = FALLBACK_PROMPTS[dialect].slice(0, count);
       source = "fallback";
     }
+
+    // A rising fallback share is the bank quietly becoming the product.
+    emitMetric({
+      feature: "monologue",
+      event: "prompts_served",
+      dialect,
+      status: source === "model" ? "ok" : "warn",
+      count: prompts.length,
+      userId: cap.userId,
+      meta: { source },
+    });
 
     return new Response(JSON.stringify({ prompts, source }), {
       headers: { ...cors, "Content-Type": "application/json" },

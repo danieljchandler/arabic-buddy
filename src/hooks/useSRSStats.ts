@@ -5,16 +5,26 @@ import { useAuth } from "@/hooks/useAuth";
 import type { Database } from "@/integrations/supabase/types";
 import {
   buildSRSForecast,
+  computeProductionGap,
   computeSRSRetentionRate,
   createEmptyStageBreakdown,
   getSRSStageByStability,
+  type GapRow,
+  type ProductionGap,
   type SRSForecastPoint,
   type SRSStageBreakdown,
 } from "@/lib/srsStats";
 
 interface WordReviewSRSRow extends Pick<
   Database["public"]["Tables"]["word_reviews"]["Row"],
-  "repetitions" | "next_review_at" | "interval_days" | "ease_factor" | "last_reviewed_at"
+  | "repetitions"
+  | "next_review_at"
+  | "interval_days"
+  | "ease_factor"
+  | "last_reviewed_at"
+  | "production_next_review_at"
+  | "production_repetitions"
+  | "production_interval_days"
 > {
   lapses?: number | null;
 }
@@ -69,6 +79,12 @@ export interface SRSStats {
   totalCards: number;
   curriculumCards: number;
   myWordsCards: number;
+  /**
+   * The receptive/productive gap across both word decks — the intermediate
+   * plateau's first feature, measured from the decks' own dual schedules
+   * rather than asserted.
+   */
+  productionGap: ProductionGap;
 }
 
 const getDefaultStats = (): SRSStats => ({
@@ -84,6 +100,7 @@ const getDefaultStats = (): SRSStats => ({
   totalCards: 0,
   curriculumCards: 0,
   myWordsCards: 0,
+  productionGap: computeProductionGap([]),
 });
 
 export const useSRSStats = () => {
@@ -106,7 +123,7 @@ export const useSRSStats = () => {
         fetchAllRows<WordReviewSRSRow>((from, to) =>
           supabase
             .from("word_reviews")
-            .select("repetitions, next_review_at, interval_days, ease_factor, lapses, last_reviewed_at")
+            .select("repetitions, next_review_at, interval_days, ease_factor, lapses, last_reviewed_at, production_next_review_at, production_repetitions, production_interval_days")
             .eq("user_id", user.id)
             .range(from, to),
         ),
@@ -183,6 +200,26 @@ export const useSRSStats = () => {
 
       const totalDueNow = curriculumDue + myWordsDue;
 
+      // Both decks feed the gap: each keeps independent recognition and
+      // production schedules, and the ratio only means something over the
+      // learner's whole lexicon.
+      const gapRows: GapRow[] = [
+        ...wordReviews.map((r) => ({
+          intervalDays: r.interval_days,
+          repetitions: r.repetitions,
+          productionIntervalDays: r.production_interval_days,
+          productionRepetitions: r.production_repetitions,
+          productionNextReviewAt: r.production_next_review_at,
+        })),
+        ...userVocabulary.map((w) => ({
+          intervalDays: w.interval_days,
+          repetitions: w.repetitions,
+          productionIntervalDays: w.production_interval_days,
+          productionRepetitions: w.production_repetitions,
+          productionNextReviewAt: w.production_next_review_at,
+        })),
+      ];
+
       return {
         totalDueNow,
         curriculumDue,
@@ -202,6 +239,7 @@ export const useSRSStats = () => {
         totalCards: curriculumCards + myWordsCards,
         curriculumCards,
         myWordsCards,
+        productionGap: computeProductionGap(gapRows),
       };
     },
     enabled: !!user,

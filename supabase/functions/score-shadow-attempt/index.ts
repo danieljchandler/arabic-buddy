@@ -41,6 +41,7 @@ import { contributeLearnerAudio } from "../_shared/learnerAudioContribution.ts";
 import { normalizeDialect } from "../_shared/transcriptDiffCore.ts";
 import { resolveUserId } from "../_shared/usageCap.ts";
 import { arabicSimilarity as similarity, normalizeArabic } from "../_shared/arabicMatch.ts";
+import { emitMetric } from "../_shared/featureMetrics.ts";
 
 
 const MUNSIT_BASE = "https://api.munsit.com/api/v1";
@@ -193,6 +194,19 @@ serve(async (req) => {
     console.log(
       `shadow score sim=${transcriptSimilarity.toFixed(2)} ref="${referenceText.slice(0, 40)}" heard="${recognizedText.slice(0, 40)}"`,
     );
+
+    // Rep-shape data: whether the 5-rep default matches where takes actually
+    // plateau is one of the questions only our own usage can answer.
+    emitMetric({
+      feature: "shadowing",
+      event: "attempt_scored",
+      dialect: typeof dialect === "string" ? dialect : null,
+      score: Math.round(transcriptSimilarity * 100),
+      meta: {
+        rep: Number(rep) || 1,
+        hasClipRef: typeof clipRef === "string" && !!clipRef.trim(),
+      },
+    });
 
     // Record the words the learner dropped or substituted. This function has no
     // usage cap, so the user id comes from the bearer token directly; anonymous

@@ -74,3 +74,60 @@ describe("srsStats helpers", () => {
     });
   });
 });
+
+// ── Receptive/productive gap ─────────────────────────────────────────────────
+
+import { computeProductionGap, type GapRow } from "@/lib/srsStats";
+
+const gapRow = (over: Partial<GapRow> = {}): GapRow => ({
+  intervalDays: 30,
+  repetitions: 5,
+  productionIntervalDays: 0,
+  productionRepetitions: 0,
+  productionNextReviewAt: null,
+  ...over,
+});
+
+describe("computeProductionGap", () => {
+  it("counts a recognised word with no production track as pure gap", () => {
+    const gap = computeProductionGap([gapRow()]);
+    expect(gap.matureRecognition).toBe(1);
+    expect(gap.matureProduction).toBe(0);
+    expect(gap.gapRatio).toBe(1);
+  });
+
+  it("closes the gap as production matures", () => {
+    const gap = computeProductionGap([
+      gapRow({ productionNextReviewAt: "2026-09-08T00:00:00Z", productionIntervalDays: 10, productionRepetitions: 3 }),
+      gapRow(),
+    ]);
+    expect(gap.matureRecognition).toBe(2);
+    expect(gap.matureProduction).toBe(1);
+    expect(gap.gapRatio).toBe(0.5);
+  });
+
+  it("does not count an unlocked-but-immature production track as closed", () => {
+    // Unlocking starts the work; only maturity closes the gap.
+    const gap = computeProductionGap([
+      gapRow({ productionNextReviewAt: "2026-09-08T00:00:00Z", productionIntervalDays: 2, productionRepetitions: 1 }),
+    ]);
+    expect(gap.unlockedProduction).toBe(1);
+    expect(gap.matureProduction).toBe(0);
+  });
+
+  it("keeps a lapsed-recognition card off both sides of the ratio", () => {
+    // Recognition collapsed back to a short interval: the word is not
+    // \"known\" in either direction, whatever the production columns say.
+    const gap = computeProductionGap([
+      gapRow({ intervalDays: 1, productionIntervalDays: 30, productionRepetitions: 5 }),
+    ]);
+    expect(gap.matureRecognition).toBe(0);
+    expect(gap.matureProduction).toBe(0);
+    expect(gap.gapRatio).toBeNull();
+  });
+
+  it("stays null with nothing recognised — a ratio of nothing reads as noise", () => {
+    expect(computeProductionGap([]).gapRatio).toBeNull();
+    expect(computeProductionGap([gapRow({ repetitions: 0, intervalDays: 0 })]).gapRatio).toBeNull();
+  });
+});

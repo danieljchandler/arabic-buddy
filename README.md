@@ -198,6 +198,70 @@ its own rows and set `resolved_at`, and nothing else. `20260726140000` revoked
 blanket UPDATE and re-granted it on that one column, because `target_arabic` and
 `detail` feed the learner's own content generation.
 
+The page also carries the **fossilization drill** ("Drill these"): errors
+persist precisely because they rarely impede communication enough to get
+corrected, so `mistake-drill` builds forced-choice items in which the
+learner's *own recorded production* sits next to the correct form, then asks
+for a typed production. Only the production resolves the underlying rows
+(checked by normalised Arabic similarity, server-side); a failed production
+records a fresh `mistake_drill` error. A "Fix a stuck mistake" task joins the
+Today queue once three distinct unresolved targets have accumulated.
+
+## The plateau features
+
+A cluster of features built from a verified research pass on the
+intermediate-plateau literature — what is confirmed, contested, and genuinely
+unresearched for dialectal Arabic is written up in
+`docs/plateau-research-2026-09.md`, and the implementation plan in
+`docs/plateau-plan-2026-09.md`. The short version of the design constraints:
+speed and pause measures carry the fluency signal while repairs must never be
+scored; no Arabic fluency norms exist, so nothing here shows a fluency
+"score" — learners see trends against their own history, and the stored raw
+metrics are the future calibration corpus.
+
+**Monologue** (`/monologue`, Speak skill): the learner talks freely to a
+dialect prompt for a level-scaled stretch — short paired prompts at A-level
+(beginners demonstrably cannot fill long recordings), a couple of minutes at
+B, the 3–5 minute free-form ask only at C (`src/lib/monologueTasks.ts`, the
+policy is tested). Prompts come from `monologue-prompts` (askBrain over the
+learner profile, degrading to a handwritten per-dialect bank);
+`score-monologue` transcribes with Soniox for word-level timings (Munsit as a
+text-only fallback that says plainly the attempt carries no timing metrics),
+computes utterance-fluency measures in the pure
+`_shared/fluencyMetricsCore.ts` (speech rate, articulation rate, mean length
+of run, a pause inventory that keeps every gap's position so better
+Arabic-aware location coding can be re-derived later), and stores the attempt
+in `monologue_attempts` (owner-read RLS, service-role writes).
+
+**Chunks**: `set_phrases` is the app's formulaic-sequence deck, and it now
+schedules recognition and production separately — the same seven
+`production_*` FSRS columns as the word decks, on `user_set_phrases`. Choice
+answers grade recognition (a confident one unlocks the speaking track);
+spoken answers grade both tracks (`buildPhraseReviewRow` in
+`useSetPhrases.ts`, pure and tested). The quiz surfaces phrases due on either
+track, and its new picks prefer occasions the learner has saved least from —
+the counterweight to the "phrasal teddy bear", where learners cling to a few
+safe phrases. The learner profile carries the chunk deck too: matured chunks
+are offered to generators for verbatim reuse, and chunks due for speaking get
+an explicit "open a natural moment for these" instruction.
+
+**Shadowing reps**: the Shadow tab runs ~5 repetitions of the same clip (the
+literature's one dosage finding) with a per-clip score trace, advancing on
+auto-advance at the target rep count or when takes stop improving
+(`repsComplete` in `src/lib/shadowScoring.ts`). Both shadowing surfaces score
+through the clip-anchored Munsit transcript path, and the result presents
+itself as *closeness to the clip* — a transcript is evidence about word
+choice, not pronunciation, so no per-phoneme claims appear there. Takes are
+persisted to `shadow_attempts` (owner-read, service-role writes from
+`score-shadow-attempt`), which is also the history that will let gain
+durability be measured — the literature never has.
+
+**Speaking gap**: `/analytics` shows the receptive/productive gap — words
+mature on recognition vs. mature on production, computed across both word
+decks in `computeProductionGap` (`src/lib/srsStats.ts`) from the dual
+schedules the decks already keep. The intermediate plateau's first feature,
+measured rather than asserted.
+
 ## Assistant context
 
 The Ask AI tutor — text chat and live voice — used to see four strings, the

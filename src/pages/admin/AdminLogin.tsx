@@ -156,6 +156,20 @@ const AdminLogin = () => {
             </Button>
           </div>
 
+          {/* The other door. A reviewer who was sent an ID number instead of an
+              invitation has no email to type here, and would otherwise be stuck
+              on this screen looking for one. */}
+          <div className="mt-2 text-center">
+            <Button
+              variant="link"
+              onClick={() => navigate('/login/id')}
+              disabled={isSubmitting}
+              className="text-muted-foreground"
+            >
+              Given an ID number instead? Sign in with that
+            </Button>
+          </div>
+
           <div className="mt-6 text-center">
             <Button
               variant="outline"

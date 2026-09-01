@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { Link } from "react-router-dom";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -231,6 +232,16 @@ const BibleAccess = () => {
             account yet, the role is saved and applied automatically when that address
             signs up. No email is sent — use the link button on each row to copy an
             access link and send it to them yourself.
+          </p>
+          {/* The escape hatch for the case this page cannot serve. An address
+              that never signs up leaves an invitation waiting forever, and
+              nothing here says so — the reviewer simply never arrives. */}
+          <p className="text-sm text-muted-foreground mt-2">
+            No email address to invite?{" "}
+            <Link to="/admin/id-logins" className="underline">
+              Give them an ID number and password instead
+            </Link>
+            .
           </p>
         </div>
       </div>

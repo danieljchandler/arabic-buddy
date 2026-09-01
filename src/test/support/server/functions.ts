@@ -9,6 +9,11 @@ import {
   resolveSubvariety,
   sanitizeDialectFeatures,
 } from "../../../../supabase/functions/_shared/dialectSubvarieties";
+import {
+  generateAccessId,
+  generatePassword,
+  isAccessIdRole,
+} from "../../../../supabase/functions/_shared/accessCodeCore";
 
 /**
  * Edge-function responses.
@@ -147,6 +152,92 @@ const audio = (contentType: string): FunctionResponse => ({
  * Derived from each function's own response literal. They are intentionally
  * boring — a test that cares about the content overrides them.
  */
+/**
+ * A working `access-credentials`, against the in-memory database.
+ *
+ * A stub returning `{ access_id, password }` would satisfy every assertion
+ * about the panel that displays them while granting no role and creating no
+ * row — and "the credential works" is the only interesting claim this feature
+ * makes. So this mints for real: it writes the registry row and the
+ * `user_roles` row the same way the Deno original does, and refuses the same
+ * two things (a caller who is not an admin, a role that may not be an ID
+ * login).
+ */
+function accessCredentials({ db, userId, body }: FunctionContext): FunctionResponse {
+  const payload = (body ?? {}) as Row;
+  const action = String(payload.action ?? "");
+
+  const isAdmin = db
+    .rows("user_roles")
+    .some((row) => row.user_id === userId && row.role === "admin");
+  if (!userId || !isAdmin) {
+    return { status: 403, body: { error: "forbidden" } };
+  }
+
+  // `raw`, not `rows`: the latter hands back copies, so a mutation through it
+  // would look like it landed and change nothing.
+  const credential = (id: unknown) =>
+    db.raw("access_credentials").find((row) => row.id === id);
+
+  if (action === "create") {
+    const role = String(payload.role ?? "");
+    if (!isAccessIdRole(role)) {
+      return { status: 400, body: { error: `Role ${role} cannot be an ID login.` } };
+    }
+
+    const accessId = generateAccessId();
+    const password = generatePassword();
+    const newUserId = `user-${accessId}`;
+    const label = typeof payload.label === "string" && payload.label.trim().length > 0
+      ? payload.label.trim()
+      : null;
+
+    db.add("access_credentials", {
+      id: `cred-${accessId}`,
+      access_id: accessId,
+      user_id: newUserId,
+      role,
+      label,
+      created_at: new Date().toISOString(),
+      created_by: userId,
+      password_set_at: new Date().toISOString(),
+      disabled_at: null,
+    });
+    db.add("user_roles", { id: `role-${accessId}`, user_id: newUserId, role });
+
+    return ok({ access_id: accessId, password });
+  }
+
+  if (action === "reset_password") {
+    const row = credential(payload.credential_id);
+    if (!row) return { status: 404, body: { error: "No such ID login" } };
+    row.password_set_at = new Date().toISOString();
+    return ok({ access_id: row.access_id, password: generatePassword() });
+  }
+
+  if (action === "set_disabled") {
+    const row = credential(payload.credential_id);
+    if (!row) return { status: 404, body: { error: "No such ID login" } };
+    const disabled = payload.disabled !== false;
+    row.disabled_at = disabled ? new Date().toISOString() : null;
+
+    // Both halves, as the real function does: the role row is what every other
+    // part of the app reads to decide whether this person is a reviewer.
+    const roles = db.raw("user_roles");
+    if (disabled) {
+      for (let i = roles.length - 1; i >= 0; i--) {
+        if (roles[i].user_id === row.user_id && roles[i].role === row.role) roles.splice(i, 1);
+      }
+    } else if (!roles.some((r) => r.user_id === row.user_id && r.role === row.role)) {
+      db.add("user_roles", { id: `role-${row.access_id}`, user_id: row.user_id, role: row.role });
+    }
+
+    return ok({ ok: true, disabled });
+  }
+
+  return { status: 400, body: { error: `Unknown action: ${action || "(none)"}` } };
+}
+
 /** Roles `transcript-review` admits. Mirrors `can_review_transcripts()`. */
 const REVIEWER_ROLES = ["admin", "content_reviewer", "transcriber"];
 
@@ -751,6 +842,10 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
   // role gate that holds. A stub returning `{ saved: true }` would pass all of
   // those tests while doing none of it.
   "transcript-review": (ctx) => transcriptReview(ctx),
+
+  // Same reasoning as transcript-review above: what matters is the row it
+  // writes, not the JSON it answers with.
+  "access-credentials": (ctx) => accessCredentials(ctx),
 
   // Called on page mount, so the route sweep needs them to resolve.
   "generate-daily-story": () => ok({ story: null, scenes: [] }),

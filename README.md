@@ -475,6 +475,54 @@ whoever registers it next. `src/lib/roleGrants.ts` holds the pure half (which
 outcome means what, and how it is worded) and is unit-tested; the page carries
 no branching of its own.
 
+### ID logins (no email address needed)
+
+An email invitation assumes the recipient has an inbox they read and will
+complete a signup in. For the native speakers this app depends on, that
+assumption fails often enough to have cost real reviewers: the role is granted,
+the invitation sits unclaimed in `pending_role_grants`, and nobody arrives.
+`/admin/id-logins` is the second door. An admin mints an **ID number and a
+password**, sends both over whatever channel already works (WhatsApp, in person,
+a phone call), and the reviewer signs in at `/login/id`.
+
+Underneath it is an ordinary Supabase account. The ID maps deterministically
+onto an address in `ids.hakiya.app` — a domain that publishes no MX record — and
+`signInWithPassword` does the rest, so sessions, JWT claims, RLS, `user_roles`
+and the transcript audit trail all keep working with nothing downstream needing
+to know this exists. `supabase/functions/_shared/accessCodeCore.ts` holds that
+mapping plus the ID/password generation and is imported **verbatim by both the
+browser and the edge function**: a second copy of the rule would be a lockout
+waiting to happen.
+
+Four things are deliberate:
+
+- **Only `transcriber` and `content_reviewer`** may be an ID login
+  (`ACCESS_ID_ROLES`, mirrored by `public.is_access_id_role`, which is what
+  actually refuses the write). This is a narrower list than `MANAGED_ROLES` and
+  for a different reason: the credential is minted by someone else and sent over
+  a chat app, so `admin` must never be one — an admin with no inbox cannot be
+  verified as themselves.
+- **The password is shown once and stored nowhere readable.** The account has an
+  ordinary Supabase password hash and `access_credentials` records only when it
+  was last set. Recovery is an admin pressing *New password*, because there is
+  no inbox a reset link could go to. That is also how a credential that leaked
+  into the wrong chat is cut off.
+- **Every write goes through the `access-credentials` edge function** under the
+  service role; the table is admin-readable and client-unwritable, the same
+  asymmetry used for scores, memories and transcript reviews. Creating an
+  account, setting its password and granting it a role are exactly the
+  privileges a browser session must not hold.
+- **Switching one off does both halves** — bans the account *and* deletes the
+  `user_roles` row. A ban alone leaves the person reading as a reviewer
+  everywhere the app counts roles; a role removal alone leaves an account that
+  can still hold a session. The registry row survives either way, because the
+  revisions that ID signed outlive its access.
+
+Failure ordering in `create` matters for the same reason: the auth account is
+rolled back if the registry row or the role grant fails after it, since an
+account whose password has already been sent and which holds no role signs in,
+sees nothing, and reads to its holder as the app being broken.
+
 Making `admin` grantable puts the removal side under the same scrutiny, so
 `guard_admin_role_removal` — a `BEFORE DELETE` trigger on `user_roles`, not a
 check in the page — refuses to let an interactive caller revoke **their own**

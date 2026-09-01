@@ -297,6 +297,13 @@ verify_jwt = true
 [functions.index-channel-captions]
 verify_jwt = true
 
+# Mints the ID-number logins native reviewers sign in with. It creates auth
+# accounts, sets their passwords and writes `user_roles` rows, so the caller
+# being a real, verified admin is the entire safeguard — `requireAdmin` inside
+# reads the role off this JWT.
+[functions.access-credentials]
+verify_jwt = true
+
 # Native-speaker transcript review: the only write path a `transcriber` has.
 # Declared rather than left to inherit the default, because the whole design
 # rests on the caller's identity — `changed_by` on every revision row and

@@ -3,7 +3,7 @@ import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { useLessons } from '@/hooks/useLessons';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, LogOut, BookOpen, Plus, Settings, Mic, PlayCircle, Upload, GraduationCap, Sparkles, BookMarked, TrendingUp, Image as ImageIcon, Laugh, MessageCircle, Languages, Activity, AlertTriangle, Ticket, Clapperboard, Antenna, CheckCheck, ShieldCheck, Rss } from 'lucide-react';
+import { Loader2, LogOut, BookOpen, Plus, Settings, Mic, PlayCircle, Upload, GraduationCap, Sparkles, BookMarked, TrendingUp, Image as ImageIcon, Laugh, MessageCircle, Languages, Activity, AlertTriangle, Ticket, Clapperboard, Antenna, CheckCheck, ShieldCheck, Rss, KeyRound } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useQuery } from '@tanstack/react-query';
 import { SaduMark } from '@/components/brand/SaduMark';
@@ -371,6 +371,20 @@ const Dashboard = () => {
                     <div>
                       <h3 className="font-semibold text-lg">Roles & Access</h3>
                       <p className="text-muted-foreground">Add transcribers, content reviewers, beta testers, Bible readers & complimentary users by email</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="cursor-pointer hover:shadow-elegant transition-shadow border-primary/30" onClick={() => navigate('/admin/id-logins')}>
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="bg-primary/10 rounded-full p-4">
+                      <KeyRound className="h-8 w-8 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-lg">ID Logins</h3>
+                      <p className="text-muted-foreground">Give a reviewer an ID number and password when there's no email address to invite</p>
                     </div>
                   </div>
                 </CardContent>

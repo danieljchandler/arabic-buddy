@@ -10,16 +10,26 @@
  * (matched / substituted / missing / extra vs the clip's words) that the
  * caller feeds to `pronunciation-feedback` for coaching tips.
  *
- * Body: { audioBase64: string, mimeType?: string, referenceText: string, dialect?: string }
+ * Body: {
+ *   audioBase64: string, mimeType?: string, referenceText: string, dialect?: string,
+ *   clipRef?: string,   // stable clip id — enables attempt persistence
+ *   rep?: number        // 1-based take number within this clip's practice
+ * }
  * Response: {
  *   recognizedText: string,
  *   transcriptSimilarity: number,   // 0..1 — how close to the clip's words
  *   wordDiffs: Array<{ ref?: string, said?: string, status: 'match'|'sub'|'missing'|'extra' }>
  * }
  *
+ * Signed-in takes with a clipRef are persisted to shadow_attempts (service
+ * role; owner-read RLS) — the record behind the rep-progression UI, and the
+ * history that will let gain durability be measured, which the shadowing
+ * literature never has (one delayed post-test in 44 studies).
+ *
  * Required env: MUNSIT_API_KEY (already used by score-set-phrase-voice).
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { enforceAnonymousDailyCap } from "../_shared/usageCap.ts";
 import { munsitModel, munsitFallbackModel } from "../_shared/asrConfig.ts";
@@ -165,7 +175,7 @@ serve(async (req) => {
     const cap = await enforceAnonymousDailyCap(req, "score-shadow-attempt", 60, corsHeaders);
     if (cap.limited) return cap.response;
 
-    const { audioBase64, mimeType, referenceText, dialect } = await req.json();
+    const { audioBase64, mimeType, referenceText, dialect, clipRef, rep } = await req.json();
     if (!audioBase64 || !referenceText) {
       return new Response(JSON.stringify({ error: "audioBase64 and referenceText are required" }), {
         status: 400,
@@ -209,6 +219,35 @@ serve(async (req) => {
         .map((d) => d.ref)
         .filter((w): w is string => !!w);
       void resolveLearnerErrorsForRequest(req, matched, dialect);
+    }
+
+    // Persist the take for signed-in learners when the caller says which clip
+    // it was. Fire-and-forget like the error bookkeeping above — the score
+    // response must not wait on history.
+    if (typeof clipRef === "string" && clipRef.trim()) {
+      void (async () => {
+        try {
+          const userId = await resolveUserId(req);
+          if (!userId) return;
+          const admin = createClient(
+            Deno.env.get("SUPABASE_URL")!,
+            Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+            { auth: { persistSession: false, autoRefreshToken: false } },
+          );
+          const { error } = await admin.from("shadow_attempts").insert({
+            user_id: userId,
+            dialect: normalizeDialect(dialect) ?? "Gulf",
+            clip_ref: clipRef.trim().slice(0, 200),
+            rep: Math.max(1, Math.min(50, Number(rep) || 1)),
+            reference_text: String(referenceText).slice(0, 1000),
+            recognized_text: recognizedText.slice(0, 1000),
+            transcript_similarity: transcriptSimilarity,
+          });
+          if (error) console.warn("shadow_attempts insert failed:", error.message);
+        } catch (e) {
+          console.warn("shadow_attempts insert threw:", e);
+        }
+      })();
     }
 
     // Opt-in audio contribution (flywheel W5) — same lane as azure-pronunciation:

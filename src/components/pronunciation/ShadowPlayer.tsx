@@ -1,19 +1,37 @@
 /**
- * ShadowPlayer — orchestrates one shadowing take:
- *   idle → playing-clip → echo-window (recording) → scoring → result
+ * ShadowPlayer — orchestrates the shadowing of one clip, in repetitions:
+ *   idle → playing-clip → echo-window (recording) → scoring → result → again…
  *
  * Pure UI + state. Reference audio is ALWAYS the native clip — never TTS.
+ *
+ * Two research-grounded choices (docs/plateau-research-2026-09.md §4):
+ *
+ * Repetition is the unit of work, not the take. Shadowing improves through
+ * ~5 repetitions of the SAME passage before gains plateau, so one take and
+ * "Next" throws away most of the exercise. The player tracks a rep count and
+ * score trace per clip, offers "Again" as the primary action until the reps
+ * are done, and (on auto-advance) moves on at the target rep count or when
+ * the takes stop improving — whichever comes first.
+ *
+ * The score is closeness, not pronunciation. The Munsit transcript match says
+ * whether you said the clip's words (ASR snaps to real words, so it cannot
+ * see how they sounded — see src/lib/shadowScoring.ts); nothing here claims
+ * per-phoneme diagnosis, which the shadowing evidence doesn't support. That
+ * detail lives in the word/sentence modes, where reference-matched reading
+ * makes it valid.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Mic, MicOff, Loader2, RotateCcw, ArrowRight, Volume2, Gauge, AlertCircle } from "lucide-react";
+import { Mic, Loader2, RotateCcw, ArrowRight, Volume2, Gauge, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ClipSourcePlayer, type ClipSourcePlayerHandle } from "./ClipSourcePlayer";
 import { CountdownRing } from "./CountdownRing";
 import { LevelMeter } from "./LevelMeter";
 import { useShadowRecorder } from "@/hooks/useShadowRecorder";
-import { useAzurePronunciation, scoreBand } from "@/hooks/useAzurePronunciation";
+import { useShadowScore } from "@/hooks/useShadowScore";
+import { scoreBand } from "@/hooks/useAzurePronunciation";
+import { repsComplete, TARGET_REPS } from "@/lib/shadowScoring";
 import type { ShadowClip } from "@/hooks/useShadowQueue";
 
 interface Props {
@@ -30,10 +48,11 @@ type State = "idle" | "playing" | "recording" | "scoring" | "result" | "error";
 export function ShadowPlayer({ clip, threshold, autoAdvance, showEnglish, onResult, onNext }: Props) {
   const playerRef = useRef<ClipSourcePlayerHandle>(null);
   const recorder = useShadowRecorder();
-  const { assess, result, isLoading, error: scoreError, reset } = useAzurePronunciation();
+  const { score, result, isLoading, error: scoreError, reset } = useShadowScore();
   const [state, setState] = useState<State>("idle");
   const [rate, setRate] = useState<1 | 0.75 | 0.5>(1);
   const [playerError, setPlayerError] = useState<string | null>(null);
+  const [repScores, setRepScores] = useState<number[]>([]);
   const autoAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clipDurationMs = Math.max(800, (clip.endSec - clip.startSec) * 1000);
   const recordWindowMs = clipDurationMs + 1500;
@@ -43,6 +62,7 @@ export function ShadowPlayer({ clip, threshold, autoAdvance, showEnglish, onResu
     reset();
     setState("idle");
     setPlayerError(null);
+    setRepScores([]);
     if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
     return () => {
       if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
@@ -64,11 +84,20 @@ export function ShadowPlayer({ clip, threshold, autoAdvance, showEnglish, onResu
           return;
         }
         setState("scoring");
-        const res = await assess(blob, clip.text, clip.locale);
+        const res = await score(blob, {
+          referenceText: clip.text,
+          clipRef: clip.id,
+          rep: repScores.length + 1,
+        });
         if (res) {
           setState("result");
           onResult(res.overall);
-          if (autoAdvance && res.overall >= threshold) {
+          const scores = [...repScores, res.overall];
+          setRepScores(scores);
+          // The clip is done at the target rep count, or when the takes have
+          // stopped improving — more reps past a plateau buy boredom, not
+          // progress.
+          if (autoAdvance && repsComplete(scores)) {
             autoAdvanceTimerRef.current = setTimeout(onNext, 1400);
           }
         } else {
@@ -76,7 +105,7 @@ export function ShadowPlayer({ clip, threshold, autoAdvance, showEnglish, onResu
         }
       },
     });
-  }, [assess, autoAdvance, clip.locale, clip.text, onNext, onResult, recordWindowMs, recorder, threshold]);
+  }, [autoAdvance, clip.id, clip.text, onNext, onResult, recordWindowMs, recorder, repScores, score]);
 
   const playClip = useCallback(async () => {
     setPlayerError(null);
@@ -91,13 +120,19 @@ export function ShadowPlayer({ clip, threshold, autoAdvance, showEnglish, onResu
     startRecording();
   }, [startRecording]);
 
-  const handleLoop = useCallback(() => {
+  const handleAgain = useCallback(() => {
+    // Another rep of the same clip is the point of the exercise — it must
+    // cancel a pending advance rather than racing it.
+    if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current);
     reset();
     playClip();
   }, [playClip, reset]);
 
   const band = result ? scoreBand(result.overall) : null;
-  const passed = result && result.overall >= threshold;
+  const rep = repScores.length;
+  const done = repsComplete(repScores);
+  const matched = result ? result.wordDiffs.filter((d) => d.status === "match").length : 0;
+  const refWords = result ? result.wordDiffs.filter((d) => d.status !== "extra").length : 0;
 
   return (
     <div className="space-y-4">
@@ -118,6 +153,30 @@ export function ShadowPlayer({ clip, threshold, autoAdvance, showEnglish, onResu
         <p className="text-xs text-muted-foreground/70 mt-3 truncate">
           {clip.dialect} · {clip.sourceTitle}
         </p>
+      </div>
+
+      {/* Rep trace: which take you're on, and how the takes have gone. */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5" aria-label="repetitions">
+          {Array.from({ length: TARGET_REPS }, (_, i) => (
+            <span
+              key={i}
+              className={cn(
+                "inline-flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-[10px] font-semibold tabular-nums",
+                i < repScores.length
+                  ? repScores[i] >= threshold
+                    ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                    : "bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                  : "bg-muted text-muted-foreground/50",
+              )}
+            >
+              {i < repScores.length ? Math.round(repScores[i]) : i + 1}
+            </span>
+          ))}
+        </div>
+        <span className="text-xs text-muted-foreground">
+          {rep === 0 ? `${TARGET_REPS} reps of this clip` : `Rep ${rep} of ~${TARGET_REPS}`}
+        </span>
       </div>
 
       {/* Speed + listen controls */}
@@ -215,20 +274,37 @@ export function ShadowPlayer({ clip, threshold, autoAdvance, showEnglish, onResu
             </div>
             <div>
               <p className={cn("text-base font-semibold", band.color)}>{band.label}</p>
+              {/* Closeness to the clip's own words — not a pronunciation
+                  diagnosis, which a transcript cannot support. */}
               <p className="text-xs text-muted-foreground">
-                Acc {Math.round(result.accuracy)} · Flu {Math.round(result.fluency)} · Comp {Math.round(result.completeness)}
+                Closeness to the clip · said {matched} of {refWords} words
               </p>
-              {passed && autoAdvance && (
+              {done && autoAdvance && (
                 <p className="text-xs text-primary mt-1 flex items-center gap-1"><Gauge className="h-3 w-3" /> Advancing…</p>
               )}
             </div>
           </div>
+          {result.tips.length > 0 && (
+            <ul className="mb-4 list-disc space-y-1 pl-5 text-left text-xs text-muted-foreground">
+              {result.tips.slice(0, 3).map((tip, i) => (
+                <li key={i}>{tip}</li>
+              ))}
+            </ul>
+          )}
           <div className="flex gap-2">
-            <Button variant="outline" className="flex-1 gap-1.5" onClick={handleLoop}>
+            <Button
+              variant={done ? "outline" : "default"}
+              className="flex-1 gap-1.5"
+              onClick={handleAgain}
+            >
               <RotateCcw className="h-4 w-4" />
-              Loop
+              Again ({Math.min(rep + 1, TARGET_REPS)}/{TARGET_REPS})
             </Button>
-            <Button className="flex-1 gap-1.5" onClick={() => { if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current); onNext(); }}>
+            <Button
+              variant={done ? "default" : "outline"}
+              className="flex-1 gap-1.5"
+              onClick={() => { if (autoAdvanceTimerRef.current) clearTimeout(autoAdvanceTimerRef.current); onNext(); }}
+            >
               Next
               <ArrowRight className="h-4 w-4" />
             </Button>
@@ -238,7 +314,7 @@ export function ShadowPlayer({ clip, threshold, autoAdvance, showEnglish, onResu
 
       {state === "error" && !result && (
         <div className="flex gap-2">
-          <Button variant="outline" className="flex-1" onClick={handleLoop}>
+          <Button variant="outline" className="flex-1" onClick={handleAgain}>
             <RotateCcw className="h-4 w-4 mr-1.5" /> Try again
           </Button>
           <Button variant="ghost" className="flex-1" onClick={onNext}>

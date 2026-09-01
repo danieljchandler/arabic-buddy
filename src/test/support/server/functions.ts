@@ -506,7 +506,38 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
     ok({ items: [], cold_start: false, seed: 1, active_dialect: "Gulf", cefr: null }),
   "extract-grammar-points": () => ok({ points: [] }),
 
-  "score-shadow-attempt": () => ok({ score: 80, feedback: "" }),
+  // The shape useShadowScore actually reads — the old `{ score }` fixture
+  // matched nothing the hook consumes. Persists a shadow_attempts row when a
+  // clipRef arrives, as the real function does, so rep-progression assertions
+  // see the same database production would.
+  "score-shadow-attempt": ({ db, userId, body }) => {
+    const b = (body ?? {}) as {
+      referenceText?: string;
+      dialect?: string;
+      clipRef?: string;
+      rep?: number;
+    };
+    const reference = String(b.referenceText ?? "");
+    const words = reference.split(/\s+/).filter(Boolean);
+    if (userId && b.clipRef) {
+      db.add("shadow_attempts", {
+        id: `sh-${db.rows("shadow_attempts").length + 1}`,
+        user_id: userId,
+        dialect: String(b.dialect ?? "Gulf"),
+        clip_ref: b.clipRef,
+        rep: Number(b.rep) || 1,
+        reference_text: reference,
+        recognized_text: reference,
+        transcript_similarity: 0.9,
+        created_at: new Date().toISOString(),
+      });
+    }
+    return ok({
+      recognizedText: reference,
+      transcriptSimilarity: 0.9,
+      wordDiffs: words.map((w) => ({ ref: w, said: w, status: "match" })),
+    });
+  },
   "pronunciation-feedback": () => ok({ feedback: "" }),
   // The flat result the function normalises Azure's response into. `words` and
   // `recognizedText` are not optional extras — the page renders the per-word

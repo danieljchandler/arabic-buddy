@@ -437,3 +437,88 @@ Deno.test("score-set-phrase-voice reports a phrase with no text for the target",
   assertEquals(status, 500);
   assertStringIncludes(String(body.error), "no canonical text");
 });
+
+Deno.test("score-shadow-attempt files a signed-in take under its clip", async () => {
+  const fn = await loadFunction("score-shadow-attempt", {
+    upstreams: caller({
+      "api.munsit.com": heard("الجو حلو"),
+      "/rest/v1/shadow_attempts": () => json({}, 201),
+    }),
+  });
+  try {
+    await fn.handler(
+      jsonRequest("score-shadow-attempt", {
+        audioBase64: AUDIO,
+        referenceText: "الجو حلو",
+        mimeType: "audio/wav",
+        dialect: "Gulf",
+        clipRef: "vid-1:l3",
+        rep: 2,
+      }),
+    );
+
+    // The insert is fire-and-forget; poll for it like the learner_errors test.
+    for (let i = 0; i < 50; i++) {
+      const write = fn.calls.find(
+        (c) => c.url.includes("shadow_attempts") && c.method === "POST",
+      );
+      if (write) {
+        const row = JSON.parse(write.body ?? "{}") as Record<string, unknown>;
+        // The row belongs to the bearer of the token, filed under the clip and
+        // rep the page reported — the record behind the rep-progression UI
+        // and the durability analysis the literature has never had data for.
+        assertEquals(row.user_id, USER);
+        assertEquals(row.clip_ref, "vid-1:l3");
+        assertEquals(row.rep, 2);
+        assertEquals(row.reference_text, "الجو حلو");
+        assert(typeof row.transcript_similarity === "number");
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    throw new Error("no shadow_attempts insert was issued");
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("score-shadow-attempt does not persist an anonymous take", async () => {
+  const fn = await loadFunction("score-shadow-attempt", {
+    upstreams: caller({ "api.munsit.com": heard("الجو حلو") }),
+  });
+  try {
+    const response = await fn.handler(
+      jsonRequest(
+        "score-shadow-attempt",
+        {
+          audioBase64: AUDIO,
+          referenceText: "الجو حلو",
+          mimeType: "audio/wav",
+          clipRef: "vid-1:l3",
+        },
+        { jwt: null },
+      ),
+    );
+    assertEquals(response.status, 200);
+    await response.text();
+
+    // Give any stray background write a moment to appear, then assert it
+    // never did: there is no account to store history for.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    assert(!fn.calls.some((c) => c.url.includes("shadow_attempts")));
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("score-shadow-attempt keeps scoring when it was given no clip to file under", async () => {
+  const { status, body, calls } = await call(
+    "score-shadow-attempt",
+    { audioBase64: AUDIO, referenceText: "الجو حلو", mimeType: "audio/wav" },
+    caller({ "api.munsit.com": heard("الجو حلو") }),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(body.transcriptSimilarity, 1);
+  assert(!calls.some((url) => url.includes("shadow_attempts")));
+});

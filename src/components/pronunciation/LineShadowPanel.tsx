@@ -62,7 +62,9 @@ export function LineShadowPanel({ clip, nativeClipWav, externalYouTubeController
           return;
         }
         setState("scoring");
-        const res = await score(blob, { referenceText: clip.text, nativeClipWav });
+        // clipRef files the take under this line in shadow_attempts — same
+        // record the Shadow tab's rep loop writes to.
+        const res = await score(blob, { referenceText: clip.text, nativeClipWav, clipRef: clip.id });
         setState(res ? "result" : "error");
       },
     });

@@ -47,6 +47,10 @@ interface ScoreOptions {
   referenceText: string;
   /** Native clip audio as a WAV Blob — enables the acoustic component. */
   nativeClipWav?: Blob | null;
+  /** Stable clip id — lets the scorer persist this take to shadow_attempts. */
+  clipRef?: string;
+  /** 1-based take number within this clip's practice. */
+  rep?: number;
 }
 
 async function blobToBase64(blob: Blob): Promise<string> {
@@ -69,7 +73,7 @@ export function useShadowScore() {
   const requestIdRef = useRef(0);
 
   const score = useCallback(
-    async (audioBlob: Blob, { referenceText, nativeClipWav }: ScoreOptions): Promise<ShadowScoreResult | null> => {
+    async (audioBlob: Blob, { referenceText, nativeClipWav, clipRef, rep }: ScoreOptions): Promise<ShadowScoreResult | null> => {
       if (!audioBlob || audioBlob.size === 0) {
         setError("No audio recorded");
         return null;
@@ -93,7 +97,13 @@ export function useShadowScore() {
         // 1. Transcript match (server) + 2. acoustic match (client) in parallel.
         const [fnResponse, acoustic] = await Promise.all([
           supabase.functions.invoke("score-shadow-attempt", {
-            body: { audioBase64, mimeType: "audio/wav", referenceText, dialect: activeDialect },
+            body: {
+              audioBase64,
+              mimeType: "audio/wav",
+              referenceText,
+              dialect: activeDialect,
+              ...(clipRef ? { clipRef, rep } : {}),
+            },
           }),
           nativeClipWav
             ? acousticSimilarity(userWav, nativeClipWav).catch(() => null)

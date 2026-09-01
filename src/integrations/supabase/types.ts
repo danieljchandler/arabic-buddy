@@ -3661,6 +3661,42 @@ export type Database = {
           },
         ]
       }
+      shadow_attempts: {
+        Row: {
+          clip_ref: string
+          created_at: string
+          dialect: string
+          id: string
+          recognized_text: string
+          reference_text: string
+          rep: number
+          transcript_similarity: number
+          user_id: string
+        }
+        Insert: {
+          clip_ref: string
+          created_at?: string
+          dialect?: string
+          id?: string
+          recognized_text?: string
+          reference_text: string
+          rep?: number
+          transcript_similarity: number
+          user_id: string
+        }
+        Update: {
+          clip_ref?: string
+          created_at?: string
+          dialect?: string
+          id?: string
+          recognized_text?: string
+          reference_text?: string
+          rep?: number
+          transcript_similarity?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       social_content_sources: {
         Row: {
           country: string | null

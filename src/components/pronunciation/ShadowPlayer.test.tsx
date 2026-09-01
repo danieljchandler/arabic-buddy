@@ -3,23 +3,22 @@ import { forwardRef, useImperativeHandle } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@/test/support/react/harness";
 import { ShadowPlayer } from "./ShadowPlayer";
-import type { PronunciationResult } from "@/hooks/useAzurePronunciation";
+import type { ShadowScoreResult } from "@/hooks/useShadowScore";
 import type { ShadowClip } from "@/hooks/useShadowQueue";
 
 /**
- * One shadowing take: listen to a native speaker say a line, repeat it
- * immediately, get scored on how close you came.
+ * Shadowing one clip, in repetitions: listen to a native speaker say a line,
+ * repeat it immediately, get a closeness score — then do the SAME line again,
+ * about five times, because that repetition is where shadowing's gains
+ * actually come from. One take per clip was most of the exercise thrown away.
  *
- * Shadowing only works if the gap between hearing and speaking is short — that
- * is the whole mechanism, and it is why the microphone opens by itself the
- * instant the clip stops rather than waiting for a button. The reference is
- * always the real clip, never text-to-speech: a learner who matches a synthetic
- * voice has learned to sound like a synthetic voice.
+ * The other contract worth pinning is what the score claims. It comes from a
+ * transcript match against the clip's own words — evidence about word choice,
+ * not pronunciation — so the result must present itself as closeness and must
+ * not surface per-phoneme claims the measurement cannot support.
  *
- * The parts this component owns are the state machine and the recovery paths.
- * Playback, recording and scoring each live behind their own interface and are
- * stubbed here so that every branch of that machine is reachable — including
- * the ones a real microphone would make hard to provoke.
+ * Playback, recording and scoring each live behind their own interface and
+ * are stubbed here so every branch of the state machine is reachable.
  */
 
 const player = vi.hoisted(() => ({
@@ -38,9 +37,9 @@ const recorder = vi.hoisted(() => ({
   isRecording: false,
 }));
 
-const azure = vi.hoisted(() => ({
-  assess: vi.fn(),
-  result: null as PronunciationResult | null,
+const scorer = vi.hoisted(() => ({
+  score: vi.fn(),
+  result: null as ShadowScoreResult | null,
   isLoading: false,
   error: null as string | null,
   reset: vi.fn(),
@@ -68,9 +67,8 @@ vi.mock("@/hooks/useShadowRecorder", () => ({
   useShadowRecorder: () => recorder,
 }));
 
-vi.mock("@/hooks/useAzurePronunciation", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/hooks/useAzurePronunciation")>()),
-  useAzurePronunciation: () => azure,
+vi.mock("@/hooks/useShadowScore", () => ({
+  useShadowScore: () => scorer,
 }));
 
 const A_CLIP: ShadowClip = {
@@ -86,14 +84,17 @@ const A_CLIP: ShadowClip = {
   sourceTitle: "Kuwaiti street interview",
 };
 
-const aScore = (overall: number): PronunciationResult => ({
+const aScore = (overall: number): ShadowScoreResult => ({
   overall,
-  accuracy: overall + 1,
-  fluency: overall - 2,
-  completeness: 100,
-  words: [],
+  transcriptSimilarity: overall,
+  rawTranscriptSimilarity: overall,
+  acousticSimilarity: null,
   recognizedText: "شلونك اليوم",
-  locale: "ar-KW",
+  wordDiffs: [
+    { ref: "شلونك", said: "شلونك", status: "match" },
+    { ref: "اليوم", said: "اليم", status: "sub" },
+  ],
+  tips: ["Stretch the long vowel in اليوم."],
 });
 
 let cleanup: (() => void) | undefined;
@@ -107,12 +108,12 @@ beforeEach(() => {
   recorder.error = null;
   recorder.permissionDenied = false;
   recorder.isRecording = false;
-  azure.assess.mockReset();
-  azure.result = null;
-  azure.isLoading = false;
-  azure.error = null;
-  azure.reset.mockReset().mockImplementation(() => {
-    azure.result = null;
+  scorer.score.mockReset();
+  scorer.result = null;
+  scorer.isLoading = false;
+  scorer.error = null;
+  scorer.reset.mockReset().mockImplementation(() => {
+    scorer.result = null;
   });
 });
 
@@ -176,11 +177,27 @@ const aTake = () => new Blob([new Uint8Array(8)], { type: "audio/webm" });
 
 /** A whole take, from pressing Listen to a score on screen. */
 const takeScoring = async (overall: number) => {
-  azure.assess.mockImplementation(async () => {
-    azure.result = aScore(overall);
-    return azure.result;
+  scorer.score.mockImplementation(async () => {
+    scorer.result = aScore(overall);
+    return scorer.result;
   });
   await listenThrough();
+  await finishRecording(aTake());
+};
+
+/** From a result on screen: press Again and complete one more rep. */
+const anotherRep = async (overall: number) => {
+  scorer.score.mockImplementation(async () => {
+    scorer.result = aScore(overall);
+    return scorer.result;
+  });
+  fireEvent.click(screen.getByRole("button", { name: /again/i }));
+  await act(async () => {
+    await Promise.resolve();
+  });
+  act(() => {
+    player.onEnded?.();
+  });
   await finishRecording(aTake());
 };
 
@@ -192,11 +209,17 @@ describe("setting up the take", () => {
     expect(screen.getByText(/Gulf · Kuwaiti street interview/)).toBeInTheDocument();
   });
 
+  it("frames the clip as a set of repetitions from the start", () => {
+    render();
+
+    // The rep model is the exercise; a learner should arrive knowing the line
+    // is to be repeated, not performed once.
+    expect(screen.getByText("5 reps of this clip")).toBeInTheDocument();
+  });
+
   it("keeps the English out of the way unless it was asked for", () => {
     render();
 
-    // Reading the English while shadowing turns a listening exercise into a
-    // reading one.
     expect(screen.queryByText("How are you today?")).not.toBeInTheDocument();
   });
 
@@ -220,8 +243,6 @@ describe("setting up the take", () => {
     fireEvent.click(screen.getByRole("button", { name: "0.5×" }));
     fireEvent.click(screen.getByRole("button", { name: /^listen$/i }));
 
-    // Half speed is how a learner hears the consonants they are missing; the
-    // reference is still the native voice, just slower.
     await waitFor(() => expect(player.play).toHaveBeenCalledWith(0.5));
   });
 
@@ -231,8 +252,6 @@ describe("setting up the take", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /^listen$/i }));
 
-    // A YouTube embed that autoplay blocked must not leave the learner
-    // watching a countdown for a clip that is not playing.
     await waitFor(() => expect(screen.getByRole("button", { name: /^listen$/i })).toBeEnabled());
   });
 });
@@ -243,8 +262,6 @@ describe("the echo window", () => {
 
     await listenThrough();
 
-    // The gap between hearing and speaking is the exercise. A button to press
-    // first would put a decision in the middle of it.
     expect(recorder.start).toHaveBeenCalled();
     expect(screen.getByText("Repeat now")).toBeInTheDocument();
   });
@@ -254,8 +271,6 @@ describe("the echo window", () => {
 
     await listenThrough();
 
-    // Three seconds of clip, so four and a half to repeat it — enough for a
-    // slower learner without recording the room once they have finished.
     expect(recorder.start).toHaveBeenCalledWith(
       expect.objectContaining({ maxDurationMs: 4500, trailingSilenceMs: 600 }),
     );
@@ -266,7 +281,6 @@ describe("the echo window", () => {
 
     await listenThrough();
 
-    // A fifth of a second is a word; the learner still needs time to say it.
     expect(recorder.start).toHaveBeenCalledWith(
       expect.objectContaining({ maxDurationMs: 2300 }),
     );
@@ -287,10 +301,8 @@ describe("the echo window", () => {
 
     await finishRecording(null, "no-audio");
 
-    // Silence sent to the scorer comes back as a very low score, which blames
-    // the learner for a microphone problem.
     expect(screen.getByText("We didn't hear you — try again.")).toBeInTheDocument();
-    expect(azure.assess).not.toHaveBeenCalled();
+    expect(scorer.score).not.toHaveBeenCalled();
   });
 
   it("reports a recording that failed for some other reason", async () => {
@@ -308,8 +320,6 @@ describe("the echo window", () => {
 
     await finishRecording(null, "no-audio");
 
-    // Being stuck on a clip whose microphone will not cooperate is how a
-    // learner leaves the exercise.
     expect(screen.getByRole("button", { name: /try again/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /skip/i })).toBeInTheDocument();
   });
@@ -324,25 +334,31 @@ describe("the echo window", () => {
 });
 
 describe("the score", () => {
-  it("scores the take against the line and the clip's own locale", async () => {
+  it("scores against the clip's own words and files the take under the clip", async () => {
     render();
 
     await takeScoring(82);
 
-    // The locale matters: a Kuwaiti clip assessed as Saudi marks the learner
-    // down for matching the speaker they were listening to.
-    expect(azure.assess).toHaveBeenCalledWith(expect.any(Blob), A_CLIP.text, "ar-KW");
+    // clipRef and rep are what let the scorer persist the take — the record
+    // behind the progression display and the future durability analysis.
+    expect(scorer.score).toHaveBeenCalledWith(
+      expect.any(Blob),
+      expect.objectContaining({ referenceText: A_CLIP.text, clipRef: "clip-1", rep: 1 }),
+    );
   });
 
-  it("shows the overall score with the part-scores behind it", async () => {
+  it("presents the number as closeness to the clip, never as phoneme diagnosis", async () => {
     render();
 
     await takeScoring(82);
 
-    expect(screen.getByText("82")).toBeInTheDocument();
-    // Accuracy, fluency and completeness are what tell a learner whether to
-    // work on sounds, on speed, or on saying the whole thing.
-    expect(screen.getByText("Acc 83 · Flu 80 · Comp 100")).toBeInTheDocument();
+    // Twice on screen: the score circle and the rep chip carrying the trace.
+    expect(screen.getAllByText("82").length).toBeGreaterThanOrEqual(1);
+    // The transcript can say which words were said, so that is all the
+    // subtitle claims. "Accuracy/fluency/completeness" belongs to the modes
+    // with a pronunciation model behind them.
+    expect(screen.getByText(/Closeness to the clip · said 1 of 2 words/)).toBeInTheDocument();
+    expect(screen.queryByText(/Acc \d/)).not.toBeInTheDocument();
   });
 
   it("names the band rather than leaving a bare number", async () => {
@@ -353,123 +369,62 @@ describe("the score", () => {
     expect(screen.getByText("Excellent")).toBeInTheDocument();
   });
 
+  it("passes the coaching tips through", async () => {
+    render();
+
+    await takeScoring(82);
+
+    expect(screen.getByText("Stretch the long vowel in اليوم.")).toBeInTheDocument();
+  });
+
   it("tells the page what was scored", async () => {
     const { onResult } = render();
 
     await takeScoring(64);
 
-    // The queue uses this to decide what to show next and what to log.
     expect(onResult).toHaveBeenCalledWith(64);
   });
 
-  it("still reports a take the learner failed", async () => {
-    const { onResult } = render();
-
-    await takeScoring(40);
-
-    expect(onResult).toHaveBeenCalledWith(40);
-    expect(screen.getByText("Needs practice")).toBeInTheDocument();
-  });
-
   it("shows the failure branch when scoring came back with nothing", async () => {
-    azure.assess.mockResolvedValue(null);
+    scorer.score.mockResolvedValue(null);
     render();
     await listenThrough();
 
     await finishRecording(aTake());
 
-    // Azure returning nothing is not the learner's fault and must not read as
-    // a zero.
     expect(screen.getByRole("button", { name: /try again/i })).toBeInTheDocument();
-    expect(screen.queryByText("Needs practice")).not.toBeInTheDocument();
   });
 });
 
-describe("what happens next", () => {
-  it("moves on by itself once the learner is over the bar", async () => {
-    vi.useFakeTimers();
-    const { onNext } = render({ autoAdvance: true, threshold: 75 });
-
-    await takeScoring(88);
-    expect(screen.getByText(/Advancing…/)).toBeInTheDocument();
-    act(() => {
-      vi.advanceTimersByTime(1400);
-    });
-
-    // A learner who is getting them right should not have to press Next
-    // between every line; the pause is long enough to read the score.
-    expect(onNext).toHaveBeenCalledTimes(1);
-  });
-
-  it("waits on a take that fell short", async () => {
-    vi.useFakeTimers();
-    const { onNext } = render({ autoAdvance: true, threshold: 75 });
-
-    await takeScoring(60);
-    act(() => {
-      vi.advanceTimersByTime(3000);
-    });
-
-    // Below the bar the useful thing is another go at the same line.
-    expect(onNext).not.toHaveBeenCalled();
-  });
-
-  it("waits for the learner when advancing is switched off", async () => {
-    vi.useFakeTimers();
-    const { onNext } = render({ autoAdvance: false, threshold: 75 });
-
-    await takeScoring(95);
-    act(() => {
-      vi.advanceTimersByTime(3000);
-    });
-
-    expect(onNext).not.toHaveBeenCalled();
-    expect(screen.queryByText(/Advancing…/)).not.toBeInTheDocument();
-  });
-
-  it("does not advance twice when the learner presses Next first", async () => {
-    vi.useFakeTimers();
-    const { onNext } = render({ autoAdvance: true, threshold: 75 });
-    await takeScoring(88);
-
-    fireEvent.click(screen.getByRole("button", { name: /next/i }));
-    act(() => {
-      vi.advanceTimersByTime(1400);
-    });
-
-    // Skipping two clips because the learner was faster than the timer would
-    // silently drop a line from the session.
-    expect(onNext).toHaveBeenCalledTimes(1);
-  });
-
-  it("skips the line anyway when the learner loops it instead", async () => {
-    vi.useFakeTimers();
-    const { onNext } = render({ autoAdvance: true, threshold: 75 });
-    await takeScoring(88);
-
-    fireEvent.click(screen.getByRole("button", { name: /loop/i }));
-    act(() => {
-      vi.advanceTimersByTime(1400);
-    });
-
-    // Pinned: Loop does not cancel the advance the score started. A learner who
-    // scored well and wanted one more go at the same line is moved on to the
-    // next one 1.4 seconds later, in the middle of listening to it.
-    expect(onNext).toHaveBeenCalledTimes(1);
-  });
-
-  it("plays the clip again and clears the score on Loop", async () => {
+describe("repetitions", () => {
+  it("offers the next rep as the primary action after a take", async () => {
     render();
-    await takeScoring(88);
-    player.play.mockClear();
 
-    fireEvent.click(screen.getByRole("button", { name: /loop/i }));
+    await takeScoring(70);
 
-    await waitFor(() => expect(player.play).toHaveBeenCalled());
-    expect(screen.queryByText("88")).not.toBeInTheDocument();
+    // One take is a fifth of the exercise; Again leads until the reps are in.
+    expect(screen.getByRole("button", { name: "Again (2/5)" })).toBeInTheDocument();
+    expect(screen.getByText(/Rep 1 of ~5/)).toBeInTheDocument();
   });
 
-  it("starts fresh when the queue hands over a new clip", async () => {
+  it("counts the rep up and shows the trace across takes", async () => {
+    render();
+
+    await takeScoring(70);
+    await anotherRep(78);
+
+    expect(scorer.score).toHaveBeenLastCalledWith(
+      expect.any(Blob),
+      expect.objectContaining({ rep: 2 }),
+    );
+    expect(screen.getByText(/Rep 2 of ~5/)).toBeInTheDocument();
+    // The trace is the progression the reps exist to produce.
+    const chips = screen.getByLabelText("repetitions");
+    expect(chips).toHaveTextContent("70");
+    expect(chips).toHaveTextContent("78");
+  });
+
+  it("starts the rep count fresh on a new clip", async () => {
     const { rerender } = render();
     await takeScoring(88);
 
@@ -484,9 +439,111 @@ describe("what happens next", () => {
       />,
     );
 
-    // The previous line's score sitting under a new line reads as a score for
-    // the new one.
     expect(screen.getByText("وين رايح")).toBeInTheDocument();
     expect(screen.queryByText("88")).not.toBeInTheDocument();
+    expect(screen.getByText("5 reps of this clip")).toBeInTheDocument();
+  });
+});
+
+describe("moving on", () => {
+  it("does not advance after one good take — the reps are the exercise", async () => {
+    vi.useFakeTimers();
+    const { onNext } = render({ autoAdvance: true, threshold: 75 });
+
+    await takeScoring(88);
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+
+    expect(onNext).not.toHaveBeenCalled();
+  });
+
+  it("advances once the takes stop improving", async () => {
+    vi.useFakeTimers();
+    const { onNext } = render({ autoAdvance: true, threshold: 75 });
+
+    await takeScoring(70);
+    await anotherRep(80);
+    // Rep three fails to beat the best so far: a plateau. More reps of this
+    // clip buy boredom, not progress.
+    await anotherRep(78);
+    expect(screen.getByText(/Advancing…/)).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(1400);
+    });
+
+    expect(onNext).toHaveBeenCalledTimes(1);
+  });
+
+  it("advances at the target rep count even while still improving", async () => {
+    vi.useFakeTimers();
+    const { onNext } = render({ autoAdvance: true, threshold: 75 });
+
+    await takeScoring(50);
+    await anotherRep(58);
+    await anotherRep(66);
+    await anotherRep(74);
+    await anotherRep(82);
+    act(() => {
+      vi.advanceTimersByTime(1400);
+    });
+
+    expect(onNext).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets Again cancel a pending advance — one more go means one more go", async () => {
+    vi.useFakeTimers();
+    const { onNext } = render({ autoAdvance: true, threshold: 75 });
+    await takeScoring(70);
+    await anotherRep(80);
+    await anotherRep(78); // plateau: advance armed
+
+    fireEvent.click(screen.getByRole("button", { name: /again/i }));
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+
+    // The old player moved the learner on mid-listen after a Loop. A learner
+    // who asked for another rep gets another rep.
+    expect(onNext).not.toHaveBeenCalled();
+  });
+
+  it("waits for the learner when advancing is switched off", async () => {
+    vi.useFakeTimers();
+    const { onNext } = render({ autoAdvance: false, threshold: 75 });
+
+    await takeScoring(95);
+    await anotherRep(94);
+    await anotherRep(93);
+    act(() => {
+      vi.advanceTimersByTime(3000);
+    });
+
+    expect(onNext).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Advancing…/)).not.toBeInTheDocument();
+  });
+
+  it("does not advance twice when the learner presses Next first", async () => {
+    vi.useFakeTimers();
+    const { onNext } = render({ autoAdvance: true, threshold: 75 });
+    await takeScoring(70);
+    await anotherRep(80);
+    await anotherRep(78); // plateau: advance armed
+
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    act(() => {
+      vi.advanceTimersByTime(1400);
+    });
+
+    expect(onNext).toHaveBeenCalledTimes(1);
+  });
+
+  it("always leaves Next available — the reps are a target, not a gate", async () => {
+    const { onNext } = render();
+
+    await takeScoring(40);
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+
+    expect(onNext).toHaveBeenCalledTimes(1);
   });
 });

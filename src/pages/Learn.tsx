@@ -29,10 +29,11 @@ import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import { SoundSpotlight } from "@/components/learn/SoundSpotlight";
 import { LessonPlanSection } from "@/components/learn/LessonPlanSection";
 import { useLessonProgressFor, useUpsertLessonProgress } from "@/hooks/useLessonProgress";
-import { ListChecks, Sparkles } from "lucide-react";
+import { ListChecks, Mic, Sparkles } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { SentencePracticeSheet } from "@/components/practice/SentencePracticeSheet";
 
-type Phase = "intro" | "quiz";
+type Phase = "intro" | "quiz" | "produce";
 
 const BATCH_SIZE = 5;
 
@@ -76,6 +77,10 @@ const Learn = () => {
   const completed = wordsCompleted(flow, words.length);
   const [sessionResults, setSessionResults] = useState({ correct: 0, total: 0 });
   const [isComplete, setIsComplete] = useState(false);
+  // The produce step's coaching sheet, and whether a take was actually made —
+  // finishing without one is allowed, it just isn't pretended to be practice.
+  const [produceOpen, setProduceOpen] = useState(false);
+  const [produced, setProduced] = useState(false);
 
   usePageAiContext(
     useMemo(() => {
@@ -268,10 +273,55 @@ const Learn = () => {
     }, 500);
   };
 
+  /**
+   * The coach's verdict on the produce take, graded onto the word's
+   * PRODUCTION schedule — the recognition quiz above already graded the
+   * other track, and this is the one skill it can't see.
+   */
+  const handleProduceFeedback = (feedback: { used_target_word: boolean; understandable: boolean }) => {
+    setProduced(true);
+    const currentWord = words[currentIndex];
+    if (!isAuthenticated || !user || !currentWord) return;
+    const existingReview = userReviews.get(currentWord.id);
+    // Production grading needs the recognition row the quiz just wrote.
+    if (!existingReview) return;
+    submitReview.mutate(
+      {
+        wordId: currentWord.id,
+        rating: feedback.used_target_word && feedback.understandable ? "good" : "again",
+        currentReview: existingReview,
+        direction: "production",
+      },
+      {
+        onError: (err) => console.error("Failed to grade production:", err),
+      },
+    );
+  };
+
+  /** End of the lesson — the produce step behind us, complete and persist. */
+  const handleProduceFinish = () => {
+    setProduceOpen(false);
+    setIsComplete(true);
+    if (!isMixedMode && lessonId && user) {
+      upsertProgress.mutate({
+        lessonId,
+        completed: true,
+        wordsSeen: words.length,
+        wordsTotal: words.length,
+        score:
+          sessionResults.total > 0
+            ? Math.round((sessionResults.correct / sessionResults.total) * 100)
+            : 0,
+      });
+    }
+  };
+
   const handleRestartSession = () => {
     setFlow(startBlock(0, words.length));
     setSessionResults({ correct: 0, total: 0 });
     setIsComplete(false);
+    setProduced(false);
+    setProduceOpen(false);
     // Already resumed once this visit; a deliberate restart starts at the top.
     setHasResumed(true);
   };
@@ -432,11 +482,19 @@ const Learn = () => {
         </div>
         <div className={cn(
           "px-3 py-1 rounded-full text-xs font-medium transition-all",
-          phase === "quiz" 
-            ? "bg-primary/10 text-primary" 
+          phase === "quiz"
+            ? "bg-primary/10 text-primary"
             : "text-muted-foreground"
         )}>
           Quiz
+        </div>
+        <div className={cn(
+          "px-3 py-1 rounded-full text-xs font-medium transition-all",
+          phase === "produce"
+            ? "bg-primary/10 text-primary"
+            : "text-muted-foreground"
+        )}>
+          Use it
         </div>
       </div>
 
@@ -464,20 +522,50 @@ const Learn = () => {
             an already-revealed Arabic, or a spent quiz still showing its
             result with its options disabled. */}
         {phase === "intro" ? (
-          <IntroCard 
+          <IntroCard
             key={currentWord.id}
-            word={currentWord} 
-            gradient={isMixedMode ? undefined : topic?.gradient} 
+            word={currentWord}
+            gradient={isMixedMode ? undefined : topic?.gradient}
             onContinue={handleIntroContinue}
             nextIsQuiz={advance(flow, words.length)?.phase === "quiz"}
             topicLabel={topicLabel}
           />
+        ) : phase === "produce" ? (
+          /* One production step to close the lesson: recognising every word
+             is still not using any of them, and this is where the word's
+             production schedule gets its first real evidence. */
+          <div className="rounded-2xl border-2 border-border bg-card p-6 text-center">
+            <Mic className="mx-auto h-10 w-10 text-primary" />
+            <h2 className="mt-3 text-xl font-bold">Use it before you lose it</h2>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Say one sentence of your own with
+            </p>
+            <p dir="rtl" className="mt-1 font-arabic text-3xl font-bold">
+              {currentWord.word_arabic}
+            </p>
+            <p className="text-sm text-muted-foreground">{currentWord.word_english}</p>
+            <div className="mt-5 flex flex-col gap-2">
+              <Button onClick={() => setProduceOpen(true)}>
+                <Mic className="mr-2 h-4 w-4" /> Say a sentence
+              </Button>
+              <Button variant={produced ? "default" : "ghost"} onClick={handleProduceFinish}>
+                {produced ? "Finish lesson" : "Skip and finish"}
+              </Button>
+            </div>
+            <SentencePracticeSheet
+              open={produceOpen}
+              onOpenChange={setProduceOpen}
+              targetArabic={currentWord.word_arabic}
+              targetEnglish={currentWord.word_english}
+              onFeedback={handleProduceFeedback}
+            />
+          </div>
         ) : (
-          <QuizCard 
+          <QuizCard
             key={currentWord.id}
-            word={currentWord} 
-            otherWords={otherWords} 
-            gradient={isMixedMode ? undefined : topic?.gradient} 
+            word={currentWord}
+            otherWords={otherWords}
+            gradient={isMixedMode ? undefined : topic?.gradient}
             onAnswer={handleQuizAnswer}
             topicLabel={topicLabel}
           />

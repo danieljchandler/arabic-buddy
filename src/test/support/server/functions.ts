@@ -766,7 +766,20 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
   "generate-suggested-story-text": () =>
     ok({ body_arabic: "كان يا ما كان", author: null, author_arabic: null }),
   "request-situation-phrases": () => ok({ phrases: [] }),
-  "practice-sentence-coach": () => ok({ feedback: "" }),
+  // The shape the sheet actually reads (a flat coaching result, not a
+  // `feedback` wrapper): used/understandable drive the lesson produce step's
+  // production grade, and the rewrite is what renders.
+  "practice-sentence-coach": () =>
+    ok({
+      transcript: "انا اروح السوق بكرة",
+      used_target_word: true,
+      understandable: true,
+      verdict: "Nice — that works.",
+      natural_rewrite: "انا بروح السوق بكرة",
+      natural_rewrite_english: "I'm going to the market tomorrow",
+      alternatives: [],
+      tips: [],
+    }),
   // `comparison`, singular, and an object. The page reads `data.comparison`
   // and stores it whole; `{ comparisons: [] }` set it to undefined, so a
   // successful call rendered as if nothing had been asked.

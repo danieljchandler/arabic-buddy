@@ -142,6 +142,16 @@ async function completeBlock(page: Page, size = BLOCK): Promise<number[]> {
   return asked;
 }
 
+/**
+ * Step past the produce card that now closes every lesson (plateau plan
+ * Phase 4c). Skipping is a legitimate path — the step is an invitation, not
+ * a gate — and it is the neutral one for specs whose subject is the quiz.
+ */
+async function skipProduce(page: Page) {
+  await expect(page.getByText("Use it before you lose it")).toBeVisible();
+  await page.getByRole("button", { name: "Skip and finish" }).click();
+}
+
 test.describe("working through a lesson", () => {
   test.beforeEach(async ({ signInAs, db }) => {
     await signInAs("free");
@@ -261,9 +271,68 @@ test.describe("working through a lesson", () => {
     await learned(page, 0, 4);
   });
 
+  test("closes the lesson with one produce step, spoken through the coach", async ({
+    page,
+    db,
+    backend,
+  }) => {
+    await page.goto(`/learn/${LESSON}`);
+    await completeBlock(page);
+
+    // Recognising all four words is still not using any of them — the lesson
+    // ends by asking for one sentence, not another tap.
+    await expect(page.getByText("Use it before you lose it")).toBeVisible();
+    await page.getByRole("button", { name: "Say a sentence" }).click();
+    await page.getByRole("button", { name: "Start recording" }).click();
+    // The fake capture device beeps intermittently; two seconds guarantees
+    // the recorder both hears "speech" and accumulates a non-trivial blob.
+    await page.waitForTimeout(2000);
+    await page.getByRole("button", { name: "Stop", exact: true }).click();
+
+    // The coach's judgement comes back and the rewrite renders.
+    await expect(page.getByText("Nice — that works.")).toBeVisible();
+    expect(backend.lastCallTo("practice-sentence-coach")?.body).toMatchObject({
+      dialect: "Gulf",
+    });
+
+    // used + understandable grades the word's PRODUCTION schedule — the
+    // quiz above graded recognition; this is the track it cannot see.
+    await expect
+      .poll(
+        () =>
+          db
+            .rows("word_reviews")
+            .filter((r) => Number(r.production_repetitions ?? 0) > 0).length,
+        { timeout: 10_000 },
+      )
+      .toBe(1);
+
+    // And the lesson still finishes normally, once the sheet is put away.
+    await page.getByRole("button", { name: "Close" }).click();
+    await page.getByRole("button", { name: "Finish lesson" }).click();
+    await expect(page.getByRole("heading", { name: /excellent work/i })).toBeVisible();
+  });
+
+  test("lets the learner skip the produce step without pretending otherwise", async ({
+    page,
+    db,
+  }) => {
+    await page.goto(`/learn/${LESSON}`);
+    await completeBlock(page);
+    await skipProduce(page);
+
+    await expect(page.getByRole("heading", { name: /excellent work/i })).toBeVisible();
+    // A skipped step grades nothing: no word gets production evidence it
+    // didn't earn.
+    expect(
+      db.rows("word_reviews").filter((r) => Number(r.production_repetitions ?? 0) > 0),
+    ).toHaveLength(0);
+  });
+
   test("finishes with a score once every word is answered", async ({ page }) => {
     await page.goto(`/learn/${LESSON}`);
     await completeBlock(page);
+    await skipProduce(page);
 
     await expect(page.getByRole("heading", { name: /excellent work/i })).toBeVisible();
     await expect(page.getByText("100%")).toBeVisible();
@@ -276,6 +345,7 @@ test.describe("working through a lesson", () => {
     await introduceBlock(page);
     await missShown(page);
     for (let i = 0; i < 3; i++) await answerShown(page);
+    await skipProduce(page);
 
     await expect(page.getByText("75%")).toBeVisible();
     await expect(page.getByRole("heading", { name: /good effort/i })).toBeVisible();
@@ -284,6 +354,7 @@ test.describe("working through a lesson", () => {
   test("restarting clears the score rather than adding to it", async ({ page }) => {
     await page.goto(`/learn/${LESSON}`);
     await completeBlock(page);
+    await skipProduce(page);
     await expect(page.getByText("100%")).toBeVisible();
 
     await page.getByRole("button", { name: /practice again/i }).click();
@@ -410,6 +481,7 @@ test.describe("what a lesson answer records", () => {
 
     await page.goto(`/learn/${LESSON}`);
     await completeBlock(page);
+    await skipProduce(page);
 
     await expect(page.getByRole("link", { name: /login/i })).toBeVisible();
   });
@@ -519,6 +591,7 @@ test.describe("picking up where the learner left off", () => {
   test("marks the lesson completed with its score", async ({ page, db }) => {
     await page.goto(`/learn/${LESSON}`);
     await completeBlock(page);
+    await skipProduce(page);
     await expect(page.getByText("100%")).toBeVisible();
 
     await expect
@@ -543,6 +616,7 @@ test.describe("picking up where the learner left off", () => {
     await introduceBlock(page);
     await missShown(page);
     for (let i = 0; i < 3; i++) await answerShown(page);
+    await skipProduce(page);
     await expect(page.getByText("75%")).toBeVisible();
 
     // "Best score" has to mean best; overwriting it turns practice into a way

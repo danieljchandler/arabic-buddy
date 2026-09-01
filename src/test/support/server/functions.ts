@@ -679,11 +679,30 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
       timings_available: true,
       created_at: new Date().toISOString(),
     });
+    // Fossil callouts mirror production: unresolved seeded errors whose
+    // target appears in the fixed transcript.
+    const transcript = "مرحبا شباب اليوم بروح السوق";
+    const fossils = [
+      ...new Set(
+        db
+          .rows("learner_errors")
+          .filter((r) => r.user_id === userId && !r.resolved_at)
+          .map((r) => String(r.target_arabic ?? ""))
+          .filter((t) => t && transcript.includes(t)),
+      ),
+    ].slice(0, 3);
     return ok({
       attemptId,
-      transcript: "مرحبا شباب اليوم بروح السوق",
+      transcript,
       wordCount: 5,
       metrics,
+      feedback: {
+        verdict: "A clear little story — one phrase to polish.",
+        rewrite_original: "بروح السوق",
+        rewrite_arabic: "بروح للسوق",
+        rewrite_english: "I'm off to the market",
+        fossil_targets: fossils,
+      },
       provider: "soniox",
       timingsAvailable: true,
     });

@@ -48,11 +48,20 @@ interface MonologuePrompt {
   prompt_english: string;
 }
 
+interface MonologueFeedback {
+  verdict: string;
+  rewrite_original: string | null;
+  rewrite_arabic: string | null;
+  rewrite_english: string | null;
+  fossil_targets: string[];
+}
+
 interface ScoreResult {
   attemptId: string | null;
   transcript: string;
   wordCount: number;
   metrics: Record<string, unknown> | null;
+  feedback: MonologueFeedback | null;
   provider: string;
   timingsAvailable: boolean;
 }
@@ -353,6 +362,40 @@ const Monologue = () => {
                   ` · ${result.metrics.longPauseCount} long pause${result.metrics.longPauseCount === 1 ? "" : "s"}`}
               </p>
             ) : null}
+
+            {/* Content feedback — one salient thing, not a red-pen pass. */}
+            {result.feedback && (
+              <div className="space-y-2 border-t border-border/60 pt-3">
+                <p className="text-sm">{result.feedback.verdict}</p>
+                {result.feedback.rewrite_arabic && result.feedback.rewrite_original && (
+                  <div className="rounded-lg bg-emerald-500/10 p-3 text-sm">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">
+                      One thing to polish
+                    </p>
+                    <p dir="rtl" className="mt-1 font-arabic">
+                      <span className="text-muted-foreground line-through decoration-muted-foreground/50">
+                        {result.feedback.rewrite_original}
+                      </span>
+                      <span className="mx-2 text-muted-foreground">←</span>
+                      <span className="font-semibold">{result.feedback.rewrite_arabic}</span>
+                    </p>
+                    {result.feedback.rewrite_english && (
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {result.feedback.rewrite_english}
+                      </p>
+                    )}
+                  </div>
+                )}
+                {result.feedback.fossil_targets.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    From your mistake list, you used:{" "}
+                    <span dir="rtl" className="font-arabic">
+                      {result.feedback.fossil_targets.join("، ")}
+                    </span>
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         )}
 

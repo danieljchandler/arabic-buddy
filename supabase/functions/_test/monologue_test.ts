@@ -319,3 +319,108 @@ Deno.test("monologue-prompts requires a signed-in caller", async () => {
 
   assertEquals(status, 401);
 });
+
+// ── score-monologue content feedback (plan Phase 2d) ────────────────────────
+
+const coached = {
+  verdict: "You told a clear little story.",
+  rewrite_original: "بروح سوق",
+  rewrite_arabic: "بروح للسوق",
+  rewrite_english: "I'm off to the market",
+};
+
+/** Routes for a feedback-bearing call: the gateway emits the coaching tool. */
+function feedbackCaller(extra: Record<string, UpstreamHandler> = {}): Record<string, UpstreamHandler> {
+  return caller({
+    "/rest/v1/learner_errors": (request) =>
+      request.method === "GET" ? json([]) : json({}, 201),
+    "ai.gateway.lovable.dev": () => chatCompletion("", coached),
+    "openrouter.ai": () => chatCompletion("", coached),
+    ...extra,
+  });
+}
+
+Deno.test("score-monologue returns one salience note alongside the metrics", async () => {
+  const { status, body } = await call(takeBody(), feedbackCaller());
+
+  assertEquals(status, 200);
+  const feedback = body.feedback as Record<string, unknown>;
+  assertEquals(feedback.verdict, "You told a clear little story.");
+  // One span of the learner's own words, repaired — the sentence-coach
+  // pattern, not a red-pen pass over the whole transcript.
+  assertEquals(feedback.rewrite_original, "بروح سوق");
+  assertEquals(feedback.rewrite_arabic, "بروح للسوق");
+});
+
+Deno.test("score-monologue names the fossils the learner just used", async () => {
+  const { body } = await call(
+    takeBody(),
+    feedbackCaller({
+      "/rest/v1/learner_errors": (request) =>
+        request.method === "GET"
+          ? json([{ target_arabic: "شباب" }, { target_arabic: "قهوة" }])
+          : json({}, 201),
+    }),
+  );
+
+  const feedback = body.feedback as Record<string, unknown>;
+  // شباب is in the transcript, قهوة is not — the callout is about what was
+  // actually said this take, not the whole mistake list.
+  assertEquals(feedback.fossil_targets, ["شباب"]);
+});
+
+Deno.test("score-monologue records a real correction under the monologue source", async () => {
+  const fn = await loadFunction("score-monologue", { upstreams: feedbackCaller() });
+  try {
+    await fn.handler(jsonRequest("score-monologue", takeBody()));
+
+    for (let i = 0; i < 50; i++) {
+      const write = fn.calls.find(
+        (c) => c.url.includes("learner_errors") && c.method === "POST",
+      );
+      if (write) {
+        assertStringIncludes(write.body ?? "", "monologue");
+        assertStringIncludes(write.body ?? "", "بروح للسوق");
+        return;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+    throw new Error("the correction was never recorded");
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("score-monologue drops a no-op rewrite instead of inventing a correction", async () => {
+  const { body, calls } = await call(
+    takeBody(),
+    feedbackCaller({
+      "ai.gateway.lovable.dev": () =>
+        chatCompletion("", { ...coached, rewrite_original: "بروح السوق", rewrite_arabic: "بِروح السوق" }),
+      "openrouter.ai": () =>
+        chatCompletion("", { ...coached, rewrite_original: "بروح السوق", rewrite_arabic: "بِروح السوق" }),
+    }),
+  );
+
+  const feedback = body.feedback as Record<string, unknown>;
+  // Diacritics apart, the "rewrite" is what the learner said. Showing it
+  // would teach that a correct phrase was wrong; recording it would plant a
+  // fake fossil.
+  assertEquals(feedback.rewrite_arabic, null);
+  assert(!calls.some((c) => c.url.includes("learner_errors") && c.method === "POST"));
+});
+
+Deno.test("score-monologue still delivers metrics when the coaching pass fails", async () => {
+  const { status, body } = await call(
+    takeBody(),
+    feedbackCaller({
+      "ai.gateway.lovable.dev": () => json({ error: "down" }, 500),
+      "openrouter.ai": () => json({ error: "down" }, 500),
+    }),
+  );
+
+  // Coaching is garnish; the measurement is the meal.
+  assertEquals(status, 200);
+  assertEquals(body.feedback, null);
+  assert(body.metrics !== null);
+});

@@ -26,6 +26,7 @@
  *   transcript: string,
  *   wordCount: number,
  *   metrics: FluencyMetrics | null,  // null when no timings were available
+ *   feedback: MonologueFeedback | null,  // salience notes; null when the pass failed or the take was too short
  *   provider: "soniox" | "munsit",
  *   timingsAvailable: boolean
  * }
@@ -51,6 +52,11 @@ import {
   type TimedWord,
 } from "../_shared/fluencyMetricsCore.ts";
 import { emitMetric } from "../_shared/featureMetrics.ts";
+import { askBrain } from "../_shared/aiBrain.ts";
+import { getDialectLabel, getDialectTransliterationRules } from "../_shared/dialectHelpers.ts";
+import { normalizeArabic } from "../_shared/arabicMatch.ts";
+import { recordLearnerErrors } from "../_shared/learnerErrors.ts";
+import type { SupabaseLike } from "../_shared/learnerProfile.ts";
 
 const SONIOX_BASE = "https://api.soniox.com/v1";
 const MUNSIT_BASE = "https://api.munsit.com/api/v1";
@@ -119,6 +125,143 @@ interface Transcription {
   text: string;
   words: TimedWord[] | null;
   provider: "soniox" | "munsit";
+}
+
+/** Feedback needs enough speech to say anything about. */
+const FEEDBACK_MIN_WORDS = 3;
+/** Fossil callouts shown per take. */
+const FEEDBACK_MAX_FOSSILS = 3;
+
+interface MonologueFeedback {
+  /** One short encouraging English sentence about the communication. */
+  verdict: string;
+  /** The learner's own span most worth repairing, or null if nothing was. */
+  rewrite_original: string | null;
+  rewrite_arabic: string | null;
+  rewrite_english: string | null;
+  /** Unresolved learner_errors targets the learner actually said this take. */
+  fossil_targets: string[];
+}
+
+interface FeedbackToolOutput {
+  verdict: string;
+  rewrite_original: string;
+  rewrite_arabic: string;
+  rewrite_english: string;
+}
+
+/**
+ * The content-feedback pass (plan Phase 2d): one salience-focused reading of
+ * the transcript. The Arabic evidence says production alone doesn't cause
+ * noticing — salience and feedback do (Nassif 2019, research doc §2) — so the
+ * pass rewrites ONE of the learner's own spans into natural dialect (the
+ * sentence-coach pattern) and names any of their known fossils they just
+ * used. Best-effort: a coaching hiccup must never eat the metrics the
+ * learner is waiting on, so every failure returns null.
+ */
+async function buildFeedback(
+  admin: SupabaseLike,
+  userId: string,
+  dialect: DialectModule,
+  transcript: string,
+): Promise<MonologueFeedback | null> {
+  try {
+    const { data: errorRows } = await admin
+      .from("learner_errors")
+      .select("target_arabic")
+      .eq("user_id", userId)
+      .eq("dialect", dialect)
+      .is("resolved_at", null)
+      .order("created_at", { ascending: false })
+      .limit(60);
+
+    const normTranscript = normalizeArabic(transcript);
+    const fossils = [
+      ...new Set(
+        ((errorRows ?? []) as Array<{ target_arabic?: unknown }>)
+          .map((r) => (typeof r.target_arabic === "string" ? r.target_arabic.trim() : ""))
+          .filter(Boolean),
+      ),
+    ]
+      .filter((target) => {
+        const normalized = normalizeArabic(target);
+        return normalized.length >= 2 && normTranscript.includes(normalized);
+      })
+      .slice(0, FEEDBACK_MAX_FOSSILS);
+
+    const brain = await askBrain<FeedbackToolOutput>({
+      purpose: "monologue_feedback",
+      dialect,
+      strategy: "solo",
+      temperature: 0.4,
+      maxTokens: 1024,
+      systemPromptExtra:
+        `You are a warm, encouraging tutor for learners of ${getDialectLabel(dialect)}. ` +
+        `The learner just recorded themselves speaking freely; you have the ASR transcript, which may ` +
+        `contain small ASR errors — be lenient. Comment on COMMUNICATION, never on accent, and never ` +
+        `demand Modern Standard Arabic.\n\n${getDialectTransliterationRules(dialect)}`,
+      userPrompt:
+        `Transcript of the learner's monologue:\n"${transcript}"\n\n` +
+        (fossils.length > 0
+          ? `They have a history of getting these wrong: ${fossils.join("، ")}. If the transcript shows one used well, say so in the verdict.\n\n`
+          : "") +
+        `1. verdict: ONE short encouraging English sentence about how the monologue communicated.\n` +
+        `2. Pick the ONE span of their own words most worth polishing and rewrite it naturally in ` +
+        `${getDialectLabel(dialect)} — keep their meaning and voice. If nothing is worth fixing, return ` +
+        `empty strings for the rewrite fields.\n` +
+        `Reply via the tool ONLY.`,
+      arabicTextPath: (p) => (p as FeedbackToolOutput | null)?.rewrite_arabic ?? "",
+      tool: {
+        name: "emit_monologue_feedback",
+        description: "One salience-focused note on the learner's monologue.",
+        parameters: {
+          type: "object",
+          properties: {
+            verdict: { type: "string", description: "One short encouraging English sentence." },
+            rewrite_original: {
+              type: "string",
+              description: "The learner's exact span most worth polishing, Arabic script. Empty string if nothing needs fixing.",
+            },
+            rewrite_arabic: { type: "string", description: "That span rewritten naturally in the dialect. Empty string if nothing needs fixing." },
+            rewrite_english: { type: "string", description: "English gloss of the rewrite. Empty string if nothing needs fixing." },
+          },
+          required: ["verdict", "rewrite_original", "rewrite_arabic", "rewrite_english"],
+        },
+      },
+    });
+
+    const out = brain.output;
+    if (!out?.verdict) return null;
+
+    const original = out.rewrite_original?.trim() || null;
+    const rewrite = out.rewrite_arabic?.trim() || null;
+    const changed =
+      !!original && !!rewrite && normalizeArabic(original) !== normalizeArabic(rewrite);
+
+    // A real correction is a new fossil-in-the-making: file it so the drills
+    // and generators see it. Fire-and-forget, like every error write.
+    if (changed) {
+      void recordLearnerErrors(userId, [{
+        source: "monologue",
+        dialect,
+        targetArabic: rewrite!,
+        producedArabic: original,
+        errorKind: "other",
+        detail: { verdict: out.verdict },
+      }]);
+    }
+
+    return {
+      verdict: out.verdict,
+      rewrite_original: changed ? original : null,
+      rewrite_arabic: changed ? rewrite : null,
+      rewrite_english: changed ? out.rewrite_english?.trim() || null : null,
+      fossil_targets: fossils,
+    };
+  } catch (err) {
+    console.warn("score-monologue: feedback pass failed:", err instanceof Error ? err.message : err);
+    return null;
+  }
 }
 
 async function sonioxTranscribe(
@@ -280,6 +423,19 @@ serve(async (req) => {
       ? metrics!.wordCount
       : transcription.text.split(/\s+/).filter(Boolean).length;
 
+    const admin = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
+      { auth: { persistSession: false, autoRefreshToken: false } },
+    );
+
+    // The content pass — salience notes on what was said, independent of the
+    // timing metrics, so it runs on the Munsit fallback too.
+    const feedback =
+      wordCount >= FEEDBACK_MIN_WORDS
+        ? await buildFeedback(admin as unknown as SupabaseLike, cap.userId, dialect, transcription.text)
+        : null;
+
     console.log(
       `score-monologue: provider=${transcription.provider} words=${wordCount} ` +
         `timings=${timingsAvailable} durationSec=${metrics?.totalDurationSec ?? clientDurationSec}`,
@@ -306,11 +462,6 @@ serve(async (req) => {
     // the response the learner is waiting on.
     let attemptId: string | null = null;
     try {
-      const admin = createClient(
-        Deno.env.get("SUPABASE_URL")!,
-        Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-        { auth: { persistSession: false, autoRefreshToken: false } },
-      );
       const { data, error } = await admin
         .from("monologue_attempts")
         .insert({
@@ -338,6 +489,7 @@ serve(async (req) => {
         transcript: transcription.text,
         wordCount,
         metrics,
+        feedback,
         provider: transcription.provider,
         timingsAvailable,
       }),

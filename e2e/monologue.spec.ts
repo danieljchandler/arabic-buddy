@@ -1,5 +1,5 @@
 import { expect, test } from "./support/fixtures";
-import { aMonologueAttempt } from "../src/test/support/factories";
+import { aMonologueAttempt, TEST_USER_ID } from "../src/test/support/factories";
 import type { Page } from "@playwright/test";
 import type { SupabaseBackend } from "../src/test/support/server/handler";
 
@@ -98,6 +98,42 @@ test.describe("recording", () => {
     // The stub persisted the attempt into the same in-memory database the
     // trend query reads, so the trend section now exists.
     await expect(page.getByText("Your trend")).toBeVisible();
+
+    // The content pass: one encouraging line and ONE repaired span of the
+    // learner's own words — salience, not a red-pen sweep.
+    await expect(page.getByText("A clear little story — one phrase to polish.")).toBeVisible();
+    await expect(page.getByText("One thing to polish")).toBeVisible();
+    await expect(page.getByText("بروح للسوق")).toBeVisible();
+  });
+
+  test("calls out a fossil the learner just used", async ({ page, signInAs, db, backend }) => {
+    await signInAs("free");
+    // شباب is on the learner's unresolved mistake list — and in the take.
+    db.seed("learner_errors", [
+      {
+        id: "eeeeeeee-5555-4000-8000-000000000001",
+        user_id: TEST_USER_ID,
+        dialect: "Gulf",
+        source: "pronunciation",
+        error_kind: "mispronunciation",
+        target_arabic: "شباب",
+        produced_arabic: null,
+        detail: {},
+        word_id: null,
+        user_vocabulary_id: null,
+        resolved_at: null,
+        created_at: new Date().toISOString(),
+      },
+    ]);
+    await page.goto("/monologue");
+    await expect(page.getByText("وش سويت اليوم من الصبح؟ احكي لي عن يومك")).toBeVisible();
+
+    await recordTake(page, backend);
+
+    // Fossils persist because they go unnoticed; naming one the learner just
+    // said is the noticing the wild never supplies.
+    await expect(page.getByText(/From your mistake list, you used:/)).toBeVisible();
+    await expect(page.getByText("شباب").first()).toBeVisible();
   });
 });
 

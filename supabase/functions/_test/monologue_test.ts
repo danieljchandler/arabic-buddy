@@ -4,7 +4,7 @@ import {
   assertStringIncludes,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { jsonRequest, loadFunction } from "./harness.ts";
-import { json, type UpstreamHandler } from "./upstreams.ts";
+import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
 
 /**
  * score-monologue — free speech in, utterance-fluency measures out.
@@ -204,4 +204,118 @@ Deno.test("score-monologue refuses a request with no audio before spending anyth
     assertEquals(status, 400);
     assert(!calls.some((c) => c.url.includes("api.soniox.com") || c.url.includes("api.munsit.com")));
   }
+});
+
+// ── monologue-prompts ───────────────────────────────────────────────────────
+
+const generated = {
+  prompts: [
+    {
+      topic_english: "Football",
+      prompt_arabic: "وش رايك بالدوري هالموسم؟ احكي لي",
+      prompt_transliteration: "wish rayik bid-dawri hal-mawsim? ihki li",
+      prompt_english: "What do you think of the league this season? Tell me.",
+    },
+    {
+      topic_english: "Cooking",
+      prompt_arabic: "وش تطبخ اذا جاك ضيوف؟ احكي لي",
+      prompt_transliteration: "wish tiTbakh idha jaak Duyoof? ihki li",
+      prompt_english: "What do you cook when guests come over? Tell me.",
+    },
+  ],
+};
+
+/** The full route set an askBrain round trip touches, plus the cap's reads. */
+function promptCaller(extra: Record<string, UpstreamHandler> = {}): Record<string, UpstreamHandler> {
+  return {
+    "/auth/v1/user": () => json({ id: USER, aud: "authenticated", role: "authenticated" }),
+    "/rest/v1/subscribers": () => json({ subscribed: true, subscription_end: null }),
+    "/rest/v1/user_roles": () => json(null),
+    "/rest/v1/rpc/increment_usage_counter": () => json(1),
+    "/rest/v1/dialect_prompts": () => json([]),
+    "/rest/v1/dialect_rules": () => json([]),
+    "/rest/v1/llm_usage_logs": () => json({}, 201),
+    "/rest/v1/msa_violations": () => json({}, 201),
+    "/rest/v1/feature_metrics": () => json({}, 201),
+    // learnerPromptBlock's profile reads.
+    "/rest/v1/user_vocabulary": () => json([]),
+    "/rest/v1/word_reviews": () => json([]),
+    "/rest/v1/profiles": () => json(null),
+    "/rest/v1/user_concept_mastery": () => json([]),
+    "/rest/v1/learner_errors": () => json([]),
+    "ai.gateway.lovable.dev": () => chatCompletion("", generated),
+    "openrouter.ai": () => chatCompletion("", generated),
+    ...extra,
+  };
+}
+
+async function callPrompts(
+  body: unknown,
+  upstreams: Record<string, UpstreamHandler>,
+  opts: { jwt?: string | null } = {},
+) {
+  const fn = await loadFunction("monologue-prompts", { upstreams });
+  try {
+    const response = await fn.handler(
+      jsonRequest("monologue-prompts", body, opts.jwt === undefined ? {} : { jwt: opts.jwt }),
+    );
+    const text = await response.text();
+    let parsed: Record<string, unknown> = {};
+    try {
+      parsed = JSON.parse(text) as Record<string, unknown>;
+    } catch {
+      // The status assertion carries the failure.
+    }
+    return { status: response.status, body: parsed, calls: fn.calls.map((c) => c.url) };
+  } finally {
+    fn.restore();
+  }
+}
+
+Deno.test("monologue-prompts returns generated dialect prompts", async () => {
+  const { status, body } = await callPrompts({ dialect: "Gulf", count: 2, level: "B1" }, promptCaller());
+
+  assertEquals(status, 200);
+  assertEquals(body.source, "model");
+  const prompts = body.prompts as Array<Record<string, unknown>>;
+  assertEquals(prompts.length, 2);
+  assertEquals(prompts[0].prompt_arabic, generated.prompts[0].prompt_arabic);
+  assert(typeof prompts[0].prompt_english === "string");
+});
+
+Deno.test("monologue-prompts serves the handwritten bank when generation fails", async () => {
+  const { status, body } = await callPrompts(
+    { dialect: "Egyptian", count: 2 },
+    promptCaller({
+      "ai.gateway.lovable.dev": () => json({ error: "down" }, 500),
+      "openrouter.ai": () => json({ error: "down" }, 500),
+    }),
+  );
+
+  // The learner is standing at the mic; a generation hiccup serves the bank
+  // rather than an error — and the bank must be in the dialect they asked for.
+  assertEquals(status, 200);
+  assertEquals(body.source, "fallback");
+  const prompts = body.prompts as Array<Record<string, unknown>>;
+  assertEquals(prompts.length, 2);
+  assertStringIncludes(String(prompts[0].prompt_arabic), "النهارده");
+});
+
+Deno.test("monologue-prompts clamps the requested count", async () => {
+  const { body } = await callPrompts(
+    { dialect: "Gulf", count: 99 },
+    promptCaller({
+      "ai.gateway.lovable.dev": () => json({ error: "down" }, 500),
+      "openrouter.ai": () => json({ error: "down" }, 500),
+    }),
+  );
+
+  const prompts = body.prompts as Array<Record<string, unknown>>;
+  assert(prompts.length <= 3, `asked for 99, got ${prompts.length}`);
+});
+
+Deno.test("monologue-prompts requires a signed-in caller", async () => {
+  const { status } = await callPrompts({ dialect: "Gulf" }, promptCaller(), { jwt: null });
+
+  assertEquals(status, 401);
 });

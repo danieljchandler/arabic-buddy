@@ -36,6 +36,11 @@ verify_jwt = true
 [functions.score-monologue]
 verify_jwt = true
 
+# Personalised speaking prompts for the monologue page — reads the caller's
+# own profile through learnerPromptBlock, so the caller must be someone.
+[functions.monologue-prompts]
+verify_jwt = true
+
 [functions.generate-story]
 verify_jwt = true
 

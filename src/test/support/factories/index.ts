@@ -406,6 +406,29 @@ export const aLearnerError = (over: Row = {}): Row => ({
   ...over,
 });
 
+export const aMonologueAttempt = (over: Row = {}): Row => ({
+  id: `mono-${Math.random().toString(36).slice(2)}`,
+  user_id: TEST_USER_ID,
+  dialect: "Gulf",
+  prompt_text: "احكي لي عن يومك",
+  duration_ms: 45_000,
+  transcript: "مرحبا شباب اليوم بروح السوق",
+  word_count: 5,
+  // The FluencyMetrics subset the trend view reads by name.
+  metrics: {
+    speechRateSylPerSec: 2.2,
+    articulationRateSylPerSec: 5.4,
+    meanLengthOfRunWords: 1.7,
+    pausesPerMinute: 20,
+    repetitionCount: 1,
+    longPauseCount: 1,
+  },
+  asr_provider: "soniox",
+  timings_available: true,
+  created_at: iso(),
+  ...over,
+});
+
 export const aConceptMastery = (over: Row = {}): Row => ({
   user_id: TEST_USER_ID,
   concept_id: conceptId(0),

@@ -525,6 +525,79 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
     }),
   "score-set-phrase-voice": () => ok({ score: 80 }),
 
+  // The monologue page's two calls. Prompts answer the fetch-on-mount; the
+  // scorer persists a real attempt row so the page's trend query — which
+  // reads monologue_attempts straight from this database — moves the way it
+  // does in production.
+  "monologue-prompts": () =>
+    ok({
+      prompts: [
+        {
+          topic_english: "Your day",
+          prompt_arabic: "وش سويت اليوم من الصبح؟ احكي لي عن يومك",
+          prompt_transliteration: "wish sawwait al-yoom min aS-Subh? ihki li 'an yoomik",
+          prompt_english: "What have you done today since morning? Tell me about your day.",
+        },
+        {
+          topic_english: "Food you love",
+          prompt_arabic: "وش أكثر أكلة تحبها؟ وليش؟",
+          prompt_transliteration: "wish akthar akla thibbha? w laish?",
+          prompt_english: "What food do you love most, and why?",
+        },
+      ],
+      source: "fallback",
+    }),
+  "score-monologue": ({ db, userId, body }) => {
+    const durationMs = Number((body as { durationMs?: unknown } | null)?.durationMs) || 4000;
+    // The full FluencyMetrics shape score-monologue stores and returns —
+    // the page reads speed, run and pause fields off it by name.
+    const metrics = {
+      totalDurationSec: durationMs / 1000,
+      phonationTimeSec: 2.4,
+      wordCount: 5,
+      syllableCount: 13,
+      speechRateSylPerSec: 2.2,
+      articulationRateSylPerSec: 5.4,
+      runCount: 3,
+      meanLengthOfRunWords: 1.7,
+      meanLengthOfRunSyllables: 4.3,
+      pauseCount: 2,
+      pauseTimeSec: 1.6,
+      meanPauseSec: 0.8,
+      pausesPerMinute: 20,
+      longPauseCount: 1,
+      initialSilenceSec: 0.5,
+      trailingSilenceSec: 1.5,
+      repetitionCount: 1,
+      gaps: [
+        { afterWord: 1, durationSec: 0.5 },
+        { afterWord: 3, durationSec: 1.1 },
+      ],
+    };
+    const attemptId = `mono-${db.rows("monologue_attempts").length + 1}`;
+    db.add("monologue_attempts", {
+      id: attemptId,
+      user_id: userId ?? "",
+      dialect: String((body as { dialect?: unknown } | null)?.dialect ?? "Gulf"),
+      prompt_text: String((body as { promptText?: unknown } | null)?.promptText ?? "") || null,
+      duration_ms: durationMs,
+      transcript: "مرحبا شباب اليوم بروح السوق",
+      word_count: 5,
+      metrics,
+      asr_provider: "soniox",
+      timings_available: true,
+      created_at: new Date().toISOString(),
+    });
+    return ok({
+      attemptId,
+      transcript: "مرحبا شباب اليوم بروح السوق",
+      wordCount: 5,
+      metrics,
+      provider: "soniox",
+      timingsAvailable: true,
+    });
+  },
+
   // The four ASR engines Transcribe fires in parallel. Every one of them
   // answers `text` — an earlier `{ transcript, segments }` here was invented,
   // and since the page reads `data.text` it made a silent engine look like a

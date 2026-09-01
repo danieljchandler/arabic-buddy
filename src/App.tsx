@@ -52,6 +52,7 @@ const HowDoISay = lazyPage(() => import("./pages/HowDoISay"));
 const CultureGuide = lazyPage(() => import("./pages/CultureGuide"));
 const Pricing = lazyPage(() => import("./pages/Pricing"));
 const PronunciationPractice = lazyPage(() => import("./pages/PronunciationPractice"));
+const Monologue = lazyPage(() => import("./pages/Monologue"));
 const WordClips = lazyPage(() => import("./pages/WordClips"));
 const NativeFeedback = lazyPage(() => import("./pages/NativeFeedback"));
 const WritingPractice = lazyPage(() => import("./pages/WritingPractice"));
@@ -318,6 +319,11 @@ const App = () => {
             <Route path="/pronunciation" element={
               <ErrorBoundary name="PronunciationRoute">
                 <PronunciationPractice />
+              </ErrorBoundary>
+            } />
+            <Route path="/monologue" element={
+              <ErrorBoundary name="MonologueRoute">
+                <ProtectedRoute><Monologue /></ProtectedRoute>
               </ErrorBoundary>
             } />
             <Route path="/native-feedback" element={

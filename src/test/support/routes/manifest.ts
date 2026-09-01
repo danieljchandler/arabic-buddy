@@ -144,6 +144,9 @@ export const ROUTES: RouteSpec[] = [
 
   // ── Practice tools ─────────────────────────────────────────────────────────
   { path: "/pronunciation", gate: "public", boundary: "PronunciationRoute" },
+  // Fetches speaking prompts on mount; the default monologue-prompts stub in
+  // src/test/support/server/functions.ts answers it.
+  { path: "/monologue", gate: "auth", boundary: "MonologueRoute" },
   { path: "/clips", gate: "auth", boundary: "WordClipsRoute" },
   // Loads its credit balance on mount; the default native-feedback stub in
   // src/test/support/server/functions.ts answers it.

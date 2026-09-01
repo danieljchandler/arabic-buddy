@@ -44,6 +44,11 @@ Verified locally: with the three variables supplied explicitly,
 `npm run build` completes and the built bundle contains those values rather than
 the fallbacks.
 
+One leftover is *not* env-driven — `index.html` hardcodes the current project
+ref in a `preconnect` / `dns-prefetch` hint. It is only a latency hint and
+breaks nothing, but if the Supabase project ever changes, update those two lines
+too or the browser warms a connection to a host it never uses.
+
 ```sh
 VITE_SUPABASE_URL="https://<ref>.supabase.co" \
 VITE_SUPABASE_PROJECT_ID="<ref>" \

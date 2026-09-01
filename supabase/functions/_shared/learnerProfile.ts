@@ -29,10 +29,14 @@ import {
   type MasteryStrength,
 } from "./conceptMasteryCore.ts";
 import {
+  CHUNK_BUDGET,
+  classifyChunks,
   classifyRows,
   DEFAULT_BUDGET,
+  DUE_CHUNK_BUDGET,
   renderProfileForPrompt,
   sample,
+  type ChunkScheduleRow,
   type LearnerProfile,
   type ProfileBudget,
   type ScheduleRow,
@@ -47,6 +51,7 @@ export {
 export type {
   BucketMembership,
   Buckets,
+  LearnerChunk,
   LearnerProfile,
   LearnerWord,
   OnScreenVocabItem,
@@ -164,7 +169,7 @@ export async function buildLearnerProfile(
   // Each query is independently fault-tolerant: a learner with no personal deck,
   // or an environment where learner_errors hasn't been migrated yet, should still
   // get whatever profile the other queries can produce.
-  const [personalRows, curriculumRows, profileRow, errorRows, masteryRows] = await Promise.all([
+  const [personalRows, curriculumRows, profileRow, errorRows, masteryRows, chunkRows] = await Promise.all([
     safeRows(
       supabase
         .from("user_vocabulary")
@@ -239,6 +244,24 @@ export async function buildLearnerProfile(
         .eq("curriculum_concepts.dialect", dialect)
         .limit(MASTERY_LIMIT),
     ),
+
+    // The chunk deck (set phrases): fixed multi-word sequences with their own
+    // recognition and production schedules. Fluent speech is built from these
+    // (docs/plateau-research-2026-09.md §3), and no generator knew which ones
+    // the learner had — content paraphrased away exactly the phrases the
+    // learner had drilled. Most-mature first, same reasoning as the decks.
+    safeRows(
+      supabase
+        .from("user_set_phrases")
+        .select(
+          "interval_days, repetitions, production_next_review_at, " +
+            "set_phrases!inner(phrase_arabic, phrase_english, dialect)",
+        )
+        .eq("user_id", userId)
+        .eq("set_phrases.dialect", dialect)
+        .order("interval_days", { ascending: false })
+        .limit(FETCH_LIMIT),
+    ),
   ]);
 
   const personal: ScheduleRow[] = personalRows.map((row) => ({
@@ -269,6 +292,18 @@ export async function buildLearnerProfile(
   );
 
   const buckets = classifyRows([...personal, ...curriculum], errorTargets);
+
+  const chunkSchedules: ChunkScheduleRow[] = chunkRows.map((row) => {
+    const joined = (row.set_phrases ?? {}) as Row;
+    return {
+      arabic: str(joined.phrase_arabic),
+      english: str(joined.phrase_english),
+      intervalDays: num(row.interval_days),
+      repetitions: num(row.repetitions),
+      productionNextReviewAt: str(row.production_next_review_at),
+    };
+  });
+  const chunkBuckets = classifyChunks(chunkSchedules);
 
   const weakGrammar: ConceptMastery[] = masteryRows.flatMap((row) => {
     const concept = (row.curriculum_concepts ?? {}) as Row;
@@ -309,6 +344,8 @@ export async function buildLearnerProfile(
     learning: sample(buckets.learning, budget.learning),
     weak: sample(buckets.weak, budget.weak),
     knownTotal: buckets.known.length,
+    chunks: sample(chunkBuckets.known, CHUNK_BUDGET),
+    dueChunks: sample(chunkBuckets.due, DUE_CHUNK_BUDGET),
     // Not sampled: there are only six categories, and which grammar point a
     // learner is failing is not something to randomise for variety.
     weakGrammar,

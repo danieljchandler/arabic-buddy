@@ -31,6 +31,21 @@ verify_jwt = true
 [functions.generate-flashcard-image]
 verify_jwt = true
 
+# Transcribes and stores the caller's own monologue attempt; enforceDailyCap
+# inside is the authorization, and anonymous callers have nothing to store.
+[functions.score-monologue]
+verify_jwt = true
+
+# Personalised speaking prompts for the monologue page — reads the caller's
+# own profile through learnerPromptBlock, so the caller must be someone.
+[functions.monologue-prompts]
+verify_jwt = true
+
+# Drills and resolves the caller's own learner_errors rows under the service
+# role; anonymous access would be someone else's error corpus.
+[functions.mistake-drill]
+verify_jwt = true
+
 [functions.generate-story]
 verify_jwt = true
 
@@ -96,6 +111,12 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.score-shadow-attempt]
+verify_jwt = false
+
+# Free-form chunk deployment on the public set-phrases page — anonymous
+# callers are IP-capped inside (enforceAnonymousDailyCap), like the scorers
+# beside it; nothing is recorded for them.
+[functions.practice-chunk-coach]
 verify_jwt = false
 
 [functions.pronunciation-feedback]

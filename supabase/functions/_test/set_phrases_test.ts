@@ -458,9 +458,53 @@ Deno.test("generate-set-phrase-quiz halves the session between review and new", 
 
   assertEquals(result.status, 200);
   const dueQuery = result.calls.find((url) => url.includes("user_set_phrases")) ?? "";
-  // Half the length, and only cards whose next_review_at has passed.
+  // Half the length, and cards due on EITHER track — a phrase the learner can
+  // spot but not yet say (production due) must keep coming back here, since
+  // the quiz's voice answers are what grade the production schedule.
   assertStringIncludes(dueQuery, "limit=4");
-  assertStringIncludes(dueQuery, "next_review_at=lte.");
+  assertStringIncludes(dueQuery, "next_review_at.lte.");
+  assertStringIncludes(dueQuery, "production_next_review_at.lte.");
+});
+
+Deno.test("generate-set-phrase-quiz widens toward occasions the learner has saved least", async () => {
+  const FAMILIAR_OCCASION = "f2f2f2f2-0000-4000-8000-000000000000";
+  const FRESH_PHRASE = "88888888-0000-4000-8000-000000000002";
+
+  const result = await withRandom(0.9, () =>
+    call(
+      "generate-set-phrase-quiz",
+      { dialect: "Gulf", length: 2 },
+      quizUpstreams({
+        // Two queries hit this table: the due lookup (with the or= filter)
+        // finds nothing; the familiarity lookup sees three saved phrases from
+        // the Hospitality occasion.
+        "/rest/v1/user_set_phrases": (request) =>
+          request.url.includes("or=")
+            ? json([])
+            : json([
+                { set_phrases: { occasion_id: FAMILIAR_OCCASION } },
+                { set_phrases: { occasion_id: FAMILIAR_OCCASION } },
+                { set_phrases: { occasion_id: FAMILIAR_OCCASION } },
+              ]),
+        "/rest/v1/set_phrases": () =>
+          json([
+            scenarioPhrase({ occasion_id: FAMILIAR_OCCASION }),
+            scenarioPhrase({
+              id: FRESH_PHRASE,
+              phrase_arabic: "مبروك",
+              occasion_id: OCCASION,
+              set_phrase_occasions: { name: "Celebrations", icon_name: "PartyPopper" },
+            }),
+          ]),
+      }),
+    ));
+
+  assertEquals(result.status, 200);
+  const items = result.body.items as QuizItem[];
+  // The phrasal teddy bear: left to chance, the learner's comfort occasion
+  // soaks up every slot. The occasion they have saved nothing from comes
+  // first, so the repertoire widens instead of deepening.
+  assertEquals(items[0].phrase_id, FRESH_PHRASE);
 });
 
 Deno.test("generate-set-phrase-quiz narrows to one occasion when asked", async () => {

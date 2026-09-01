@@ -167,6 +167,13 @@ export const SKILLS: Skill[] = [
         icon: "MessagesSquare",
       },
       {
+        label: "Monologue",
+        description: "Talk for a stretch, watch your fluency move",
+        to: "/monologue",
+        icon: "AudioWaveform",
+        requires: "auth",
+      },
+      {
         label: "Native Feedback",
         description: "Send a recording to a native speaker",
         to: "/native-feedback",

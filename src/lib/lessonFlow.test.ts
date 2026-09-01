@@ -43,6 +43,10 @@ describe("lesson flow", () => {
       ["quiz", 3],
       ["quiz", 1],
       ["quiz", 0],
+      // One production step to close: recognising all four is still not
+      // using any of them. The target is the word whose quiz carried the
+      // longest delay.
+      ["produce", 2],
     ]);
   });
 
@@ -71,6 +75,9 @@ describe("lesson flow", () => {
       ["intro", 5],
       ["quiz", 4],
       ["quiz", 5],
+      // quizOrder [5,4] rotated off the just-introduced 5 → [4,5]; the word
+      // that opened the final quiz is the produce target.
+      ["produce", 4],
     ]);
   });
 
@@ -80,17 +87,30 @@ describe("lesson flow", () => {
       ["intro", 1],
       ["quiz", 0],
       ["quiz", 1],
+      ["produce", 0],
     ]);
   });
 
-  it("ends after the last block's quiz", () => {
-    // Two words: intro, intro, quiz, quiz — the fourth advance is the end.
+  it("ends after one produce step, which follows the last block's quiz", () => {
+    // Two words: intro, intro, quiz, quiz, produce — the fifth advance ends.
     let state: LessonFlowState | null = startBlock(0, 2, opts);
     for (let i = 0; i < 3; i++) {
       state = advance(state!, 2, opts);
       expect(state).not.toBeNull();
     }
-    expect(advance(state!, 2, opts)).toBeNull();
+    const produce = advance(state!, 2, opts);
+    expect(produce?.phase).toBe("produce");
+    // Every word counts as completed by now — the produce step must not hold
+    // the progress bar at one-short-of-done.
+    expect(wordsCompleted(produce!, 2, 4)).toBe(2);
+    expect(advance(produce!, 2, opts)).toBeNull();
+  });
+
+  it("only ever asks for production once, at the very end", () => {
+    // Not once per block: the lesson stays a lesson, and the production
+    // decks carry the long-term load.
+    const produceSteps = walk(12).filter(([p]) => p === "produce");
+    expect(produceSteps).toHaveLength(1);
   });
 
   it("resumes at the start of the word's own block", () => {

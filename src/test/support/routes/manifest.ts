@@ -144,6 +144,9 @@ export const ROUTES: RouteSpec[] = [
 
   // ── Practice tools ─────────────────────────────────────────────────────────
   { path: "/pronunciation", gate: "public", boundary: "PronunciationRoute" },
+  // Fetches speaking prompts on mount; the default monologue-prompts stub in
+  // src/test/support/server/functions.ts answers it.
+  { path: "/monologue", gate: "auth", boundary: "MonologueRoute" },
   { path: "/clips", gate: "auth", boundary: "WordClipsRoute" },
   // Loads its credit balance on mount; the default native-feedback stub in
   // src/test/support/server/functions.ts answers it.
@@ -211,6 +214,9 @@ export const ROUTES: RouteSpec[] = [
     gate: "admin-reviewer-or-transcriber",
   },
   { path: "/admin/set-phrases", gate: "admin-or-reviewer" },
+  // Chunk candidates mined from reviewed-transcript compound marks; promotes
+  // into set_phrases drafts, so it shares the set-phrases gate.
+  { path: "/admin/chunks", gate: "admin-or-reviewer" },
   { path: "/admin/dialect-rules", gate: "admin-or-reviewer" },
 
   { path: "/admin/curriculum", gate: "admin" },

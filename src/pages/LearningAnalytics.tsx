@@ -236,6 +236,50 @@ const LearningAnalytics = () => {
           </div>
         </div>
 
+        {/* Receptive/productive gap — the intermediate plateau's first
+            feature, measured from the decks' own dual schedules. Shown only
+            once there is a recognised lexicon to measure against. */}
+        {srsStats && srsStats.productionGap.gapRatio !== null && (
+          <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+            <h2 className="font-semibold text-foreground flex items-center gap-2">
+              🗣️ Speaking Gap
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Recognising a word and being able to say it are different skills —
+              this is how far your speaking lags your recognition.
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="rounded-lg bg-muted/50 p-3">
+                <p className="text-xs text-muted-foreground">Words you recognise</p>
+                <p className="text-lg font-bold text-foreground">
+                  {srsStats.productionGap.matureRecognition}
+                </p>
+              </div>
+              <div className="rounded-lg bg-muted/50 p-3">
+                <p className="text-xs text-muted-foreground">…and can produce</p>
+                <p className="text-lg font-bold text-foreground">
+                  {srsStats.productionGap.matureProduction}
+                </p>
+              </div>
+            </div>
+            <Progress
+              value={
+                srsStats.productionGap.matureRecognition > 0
+                  ? (srsStats.productionGap.matureProduction /
+                      srsStats.productionGap.matureRecognition) *
+                    100
+                  : 0
+              }
+              className="h-2"
+            />
+            <p className="text-xs text-muted-foreground">
+              Production cards close this — they unlock as your recognition
+              stabilises, and reviewing them is what turns words you know into
+              words you say.
+            </p>
+          </div>
+        )}
+
         {/* SRS Review Forecast */}
         <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
           <h2 className="font-semibold text-foreground flex items-center gap-2">

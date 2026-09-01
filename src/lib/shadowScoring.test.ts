@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  repsComplete,
   shadowOverall,
   TRANSCRIPT_ONLY_CEILING,
   wordsScore,
@@ -74,5 +75,31 @@ describe("shadowOverall", () => {
 
   it("rewards a take that matched the clip on both signals", () => {
     expect(shadowOverall(96, 92)).toBeGreaterThan(90);
+  });
+});
+
+describe("the repetition policy", () => {
+  it("keeps a clip going through the early reps", () => {
+    expect(repsComplete([])).toBe(false);
+    expect(repsComplete([60])).toBe(false);
+    expect(repsComplete([60, 70])).toBe(false);
+  });
+
+  it("finishes a clip at the target rep count regardless of trend", () => {
+    // Still improving at five — but five is where the literature says gains
+    // plateau, and holding a learner longer trades progress for boredom.
+    expect(repsComplete([50, 55, 60, 65, 70])).toBe(true);
+  });
+
+  it("finishes early once the takes stop improving", () => {
+    // The third take failed to beat the best earlier one: more reps of this
+    // clip are not helping.
+    expect(repsComplete([60, 75, 72])).toBe(true);
+    expect(repsComplete([60, 75, 75])).toBe(true);
+  });
+
+  it("keeps going while every take beats the best before it", () => {
+    expect(repsComplete([60, 68, 74])).toBe(false);
+    expect(repsComplete([60, 68, 74, 80])).toBe(false);
   });
 });

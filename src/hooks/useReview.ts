@@ -494,13 +494,17 @@ export const useSubmitReview = () => {
       wordId,
       rating,
       currentReview,
+      direction = 'recognition',
     }: {
       wordId: string;
       rating: Rating;
       currentReview: WordReview | null;
+      /** Which schedule the grade lands on. The lesson's produce step grades
+       *  production; everything else stays recognition. */
+      direction?: ScheduleDirection;
     }) => {
       if (!user) throw new Error('Must be logged in');
-      return submitRatingToServer(user.id, wordId, rating, currentReview, 'recognition', {
+      return submitRatingToServer(user.id, wordId, rating, currentReview, direction, {
         desiredRetention,
         stabilityMultiplier,
       });

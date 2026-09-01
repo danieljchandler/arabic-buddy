@@ -34,6 +34,12 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   targetArabic: string;
   targetEnglish?: string;
+  /**
+   * Called once per real coaching result (empty takes excluded). The lesson's
+   * produce step uses it to grade the word's production schedule off the
+   * coach's judgement.
+   */
+  onFeedback?: (feedback: { used_target_word: boolean; understandable: boolean }) => void;
 }
 
 async function blobToBase64(blob: Blob): Promise<string> {
@@ -46,7 +52,7 @@ async function blobToBase64(blob: Blob): Promise<string> {
   return btoa(bin);
 }
 
-export function SentencePracticeSheet({ open, onOpenChange, targetArabic, targetEnglish }: Props) {
+export function SentencePracticeSheet({ open, onOpenChange, targetArabic, targetEnglish, onFeedback }: Props) {
   const { activeDialect } = useDialect();
   const { start, stop, isRecording, level, permissionDenied } = useShadowRecorder();
   const [loading, setLoading] = useState(false);
@@ -81,7 +87,14 @@ export function SentencePracticeSheet({ open, onOpenChange, targetArabic, target
         if ((data as { error?: string })?.error) {
           throw new Error((data as { error: string }).error);
         }
-        setFeedback(data as Feedback);
+        const parsed = data as Feedback;
+        setFeedback(parsed);
+        if (!parsed.empty && typeof parsed.used_target_word === "boolean") {
+          onFeedback?.({
+            used_target_word: parsed.used_target_word,
+            understandable: parsed.understandable !== false,
+          });
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         console.error("[SentencePractice] failed:", err);
@@ -91,7 +104,7 @@ export function SentencePracticeSheet({ open, onOpenChange, targetArabic, target
         setLoading(false);
       }
     },
-    [targetArabic, targetEnglish, activeDialect],
+    [targetArabic, targetEnglish, activeDialect, onFeedback],
   );
 
   const beginRecord = useCallback(() => {

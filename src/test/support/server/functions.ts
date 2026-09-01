@@ -506,7 +506,38 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
     ok({ items: [], cold_start: false, seed: 1, active_dialect: "Gulf", cefr: null }),
   "extract-grammar-points": () => ok({ points: [] }),
 
-  "score-shadow-attempt": () => ok({ score: 80, feedback: "" }),
+  // The shape useShadowScore actually reads — the old `{ score }` fixture
+  // matched nothing the hook consumes. Persists a shadow_attempts row when a
+  // clipRef arrives, as the real function does, so rep-progression assertions
+  // see the same database production would.
+  "score-shadow-attempt": ({ db, userId, body }) => {
+    const b = (body ?? {}) as {
+      referenceText?: string;
+      dialect?: string;
+      clipRef?: string;
+      rep?: number;
+    };
+    const reference = String(b.referenceText ?? "");
+    const words = reference.split(/\s+/).filter(Boolean);
+    if (userId && b.clipRef) {
+      db.add("shadow_attempts", {
+        id: `sh-${db.rows("shadow_attempts").length + 1}`,
+        user_id: userId,
+        dialect: String(b.dialect ?? "Gulf"),
+        clip_ref: b.clipRef,
+        rep: Number(b.rep) || 1,
+        reference_text: reference,
+        recognized_text: reference,
+        transcript_similarity: 0.9,
+        created_at: new Date().toISOString(),
+      });
+    }
+    return ok({
+      recognizedText: reference,
+      transcriptSimilarity: 0.9,
+      wordDiffs: words.map((w) => ({ ref: w, said: w, status: "match" })),
+    });
+  },
   "pronunciation-feedback": () => ok({ feedback: "" }),
   // The flat result the function normalises Azure's response into. `words` and
   // `recognizedText` are not optional extras — the page renders the per-word
@@ -524,6 +555,173 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
       locale: "ar-SA",
     }),
   "score-set-phrase-voice": () => ok({ score: 80 }),
+  // The free-form chunk coach: a passing judgement with a rewrite, so the
+  // answered card's coach view renders. quality 4 → correct + graded onto
+  // the phrase's production track by the page.
+  "practice-chunk-coach": () =>
+    ok({
+      transcript: "تسلم، الله يعطيك العافية على الشغل",
+      used_chunk: true,
+      understandable: true,
+      natural: false,
+      verdict: "Nicely deployed — one small polish.",
+      natural_rewrite: "تسلم، الله يعطيك العافية على شغلك",
+      natural_rewrite_english: "Thanks — may God give you strength for your work",
+      tips: ["Possessive شغلك sounds more natural here."],
+      quality: 4,
+    }),
+
+  // The fossilization drill on /mistakes. Items are derived from the seeded
+  // learner_errors rows — the drill's whole premise is that the choices carry
+  // the learner's own recorded production, so a canned fixture that ignored
+  // the seed would test a generic quiz instead. The produce action resolves
+  // matching rows in this database, so the page's refetch shows the card
+  // leaving the list the way it does in production.
+  "mistake-drill": ({ db, userId, body }) => {
+    const b = (body ?? {}) as {
+      action?: string;
+      dialect?: string;
+      targetArabic?: string;
+      produced?: string;
+    };
+    if (b.action === "produce") {
+      const accepted = (b.produced ?? "").trim() === (b.targetArabic ?? "").trim();
+      if (accepted) {
+        for (const row of db.raw("learner_errors")) {
+          if (
+            row.user_id === userId &&
+            row.target_arabic === b.targetArabic &&
+            !row.resolved_at
+          ) {
+            row.resolved_at = new Date().toISOString();
+          }
+        }
+      }
+      return ok({ accepted, similarity: accepted ? 1 : 0.4 });
+    }
+    const seen = new Set<string>();
+    const items = db
+      .rows("learner_errors")
+      .filter(
+        (r) =>
+          r.user_id === userId &&
+          !r.resolved_at &&
+          (!b.dialect || r.dialect === b.dialect),
+      )
+      .filter((r) => {
+        const target = String(r.target_arabic ?? "");
+        if (!target || seen.has(target)) return false;
+        seen.add(target);
+        return true;
+      })
+      .map((r) => ({
+        target_arabic: r.target_arabic,
+        target_english: "the right way to say it",
+        scenario_english: `A moment where you'd say "${r.target_arabic}".`,
+        explanation: "That's the dialect form.",
+        choices: [
+          { arabic: r.target_arabic, correct: true },
+          r.produced_arabic
+            ? { arabic: r.produced_arabic, correct: false, yours: true }
+            : { arabic: "غلط", correct: false },
+        ],
+        kinds: [r.error_kind ?? "other"],
+        count: 1,
+      }));
+    return ok({ items });
+  },
+
+  // The monologue page's two calls. Prompts answer the fetch-on-mount; the
+  // scorer persists a real attempt row so the page's trend query — which
+  // reads monologue_attempts straight from this database — moves the way it
+  // does in production.
+  "monologue-prompts": () =>
+    ok({
+      prompts: [
+        {
+          topic_english: "Your day",
+          prompt_arabic: "وش سويت اليوم من الصبح؟ احكي لي عن يومك",
+          prompt_transliteration: "wish sawwait al-yoom min aS-Subh? ihki li 'an yoomik",
+          prompt_english: "What have you done today since morning? Tell me about your day.",
+        },
+        {
+          topic_english: "Food you love",
+          prompt_arabic: "وش أكثر أكلة تحبها؟ وليش؟",
+          prompt_transliteration: "wish akthar akla thibbha? w laish?",
+          prompt_english: "What food do you love most, and why?",
+        },
+      ],
+      source: "fallback",
+    }),
+  "score-monologue": ({ db, userId, body }) => {
+    const durationMs = Number((body as { durationMs?: unknown } | null)?.durationMs) || 4000;
+    // The full FluencyMetrics shape score-monologue stores and returns —
+    // the page reads speed, run and pause fields off it by name.
+    const metrics = {
+      totalDurationSec: durationMs / 1000,
+      phonationTimeSec: 2.4,
+      wordCount: 5,
+      syllableCount: 13,
+      speechRateSylPerSec: 2.2,
+      articulationRateSylPerSec: 5.4,
+      runCount: 3,
+      meanLengthOfRunWords: 1.7,
+      meanLengthOfRunSyllables: 4.3,
+      pauseCount: 2,
+      pauseTimeSec: 1.6,
+      meanPauseSec: 0.8,
+      pausesPerMinute: 20,
+      longPauseCount: 1,
+      initialSilenceSec: 0.5,
+      trailingSilenceSec: 1.5,
+      repetitionCount: 1,
+      gaps: [
+        { afterWord: 1, durationSec: 0.5 },
+        { afterWord: 3, durationSec: 1.1 },
+      ],
+    };
+    const attemptId = `mono-${db.rows("monologue_attempts").length + 1}`;
+    db.add("monologue_attempts", {
+      id: attemptId,
+      user_id: userId ?? "",
+      dialect: String((body as { dialect?: unknown } | null)?.dialect ?? "Gulf"),
+      prompt_text: String((body as { promptText?: unknown } | null)?.promptText ?? "") || null,
+      duration_ms: durationMs,
+      transcript: "مرحبا شباب اليوم بروح السوق",
+      word_count: 5,
+      metrics,
+      asr_provider: "soniox",
+      timings_available: true,
+      created_at: new Date().toISOString(),
+    });
+    // Fossil callouts mirror production: unresolved seeded errors whose
+    // target appears in the fixed transcript.
+    const transcript = "مرحبا شباب اليوم بروح السوق";
+    const fossils = [
+      ...new Set(
+        db
+          .rows("learner_errors")
+          .filter((r) => r.user_id === userId && !r.resolved_at)
+          .map((r) => String(r.target_arabic ?? ""))
+          .filter((t) => t && transcript.includes(t)),
+      ),
+    ].slice(0, 3);
+    return ok({
+      attemptId,
+      transcript,
+      wordCount: 5,
+      metrics,
+      feedback: {
+        verdict: "A clear little story — one phrase to polish.",
+        rewrite_original: "بروح السوق",
+        rewrite_arabic: "بروح للسوق",
+        rewrite_english: "I'm off to the market",
+        fossil_targets: fossils,
+      },
+      provider: "soniox",
+      timingsAvailable: true,
+    });
+  },
 
   // The four ASR engines Transcribe fires in parallel. Every one of them
   // answers `text` — an earlier `{ transcript, segments }` here was invented,
@@ -568,7 +766,20 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
   "generate-suggested-story-text": () =>
     ok({ body_arabic: "كان يا ما كان", author: null, author_arabic: null }),
   "request-situation-phrases": () => ok({ phrases: [] }),
-  "practice-sentence-coach": () => ok({ feedback: "" }),
+  // The shape the sheet actually reads (a flat coaching result, not a
+  // `feedback` wrapper): used/understandable drive the lesson produce step's
+  // production grade, and the rewrite is what renders.
+  "practice-sentence-coach": () =>
+    ok({
+      transcript: "انا اروح السوق بكرة",
+      used_target_word: true,
+      understandable: true,
+      verdict: "Nice — that works.",
+      natural_rewrite: "انا بروح السوق بكرة",
+      natural_rewrite_english: "I'm going to the market tomorrow",
+      alternatives: [],
+      tips: [],
+    }),
   // `comparison`, singular, and an object. The page reads `data.comparison`
   // and stores it whole; `{ comparisons: [] }` set it to undefined, so a
   // successful call rendered as if nothing had been asked.

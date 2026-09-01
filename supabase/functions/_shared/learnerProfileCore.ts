@@ -18,6 +18,12 @@ export interface LearnerWord {
   english: string;
 }
 
+/** A formulaic sequence (set phrase) the learner has in their chunk deck. */
+export interface LearnerChunk {
+  arabic: string;
+  english: string;
+}
+
 export interface LearnerProfile {
   userId: string;
   dialect: string;
@@ -50,6 +56,22 @@ export interface LearnerProfile {
    * Optional: older call sites and tests never constructed it.
    */
   membership?: BucketMembership;
+  /**
+   * Formulaic sequences the learner has drilled to maturity. Chunks are what
+   * fluent speech is built from (docs/plateau-research-2026-09.md §3), and a
+   * generator that knows them can reuse them verbatim instead of paraphrasing
+   * the learner's own repertoire away. Optional: older call sites never
+   * constructed it.
+   */
+  chunks?: LearnerChunk[];
+  /**
+   * Chunks currently due on the production (speaking) track. The "phrasal
+   * teddy bear" finding: learners cling to a few safe phrases and underuse
+   * the rest of their repertoire — so generators are told to open natural
+   * moments for exactly these, rather than letting the safe favourites soak
+   * up every turn.
+   */
+  dueChunks?: LearnerChunk[];
 }
 
 /** Arabic surface forms per bucket, complete rather than sampled. */
@@ -66,6 +88,10 @@ export interface ProfileBudget {
 }
 
 export const DEFAULT_BUDGET: ProfileBudget = { known: 120, learning: 20, weak: 15 };
+
+/** Chunks sampled into the prompt. Fewer than words — each is a whole phrase. */
+export const CHUNK_BUDGET = 15;
+export const DUE_CHUNK_BUDGET = 5;
 
 /**
  * Stability (days) at which a word counts as genuinely known rather than
@@ -91,6 +117,74 @@ export interface Buckets {
   known: LearnerWord[];
   learning: LearnerWord[];
   weak: LearnerWord[];
+}
+
+/** A scheduling snapshot for one chunk (set phrase), both tracks. */
+export interface ChunkScheduleRow {
+  arabic: string | null;
+  english: string | null;
+  /** Recognition-track schedule — maturity here means "knows the chunk". */
+  intervalDays: number | null;
+  repetitions: number | null;
+  /** Production track. Null = speaking this chunk was never scheduled. */
+  productionNextReviewAt: string | null;
+}
+
+export interface ChunkBuckets {
+  /** Drilled to maturity — safe for a generator to reuse verbatim. */
+  known: LearnerChunk[];
+  /** Due on the speaking track right now — invite these specifically. */
+  due: LearnerChunk[];
+}
+
+/**
+ * Sort chunk rows into known / due-for-speaking.
+ *
+ * Same maturity rule as words (MATURE_INTERVAL_DAYS on the recognition
+ * track). A chunk can be mature AND due for speaking; it lands in `due` only,
+ * because "invite this" is the more useful instruction than "you know this" —
+ * putting it in both would tell the model contradictory things about the
+ * same phrase.
+ */
+export function classifyChunks(
+  rows: ChunkScheduleRow[],
+  now: Date = new Date(),
+): ChunkBuckets {
+  const nowMs = now.getTime();
+  const known: LearnerChunk[] = [];
+  const due: LearnerChunk[] = [];
+
+  for (const row of rows) {
+    const arabic = row.arabic?.trim();
+    const english = row.english?.trim();
+    if (!arabic || !english) continue;
+    const chunk: LearnerChunk = { arabic, english };
+
+    const productionDue =
+      !!row.productionNextReviewAt &&
+      new Date(row.productionNextReviewAt).getTime() <= nowMs;
+    const mature =
+      (row.intervalDays ?? 0) >= MATURE_INTERVAL_DAYS && (row.repetitions ?? 0) > 0;
+
+    if (productionDue) due.push(chunk);
+    else if (mature) known.push(chunk);
+  }
+
+  return {
+    known: dedupeChunks(known),
+    due: dedupeChunks(due),
+  };
+}
+
+function dedupeChunks(chunks: LearnerChunk[]): LearnerChunk[] {
+  const seen = new Set<string>();
+  const out: LearnerChunk[] = [];
+  for (const c of chunks) {
+    if (seen.has(c.arabic)) continue;
+    seen.add(c.arabic);
+    out.push(c);
+  }
+  return out;
 }
 
 /** Deduplicate on the Arabic surface form, preserving order. */
@@ -218,6 +312,21 @@ export function renderProfileForPrompt(
   if (includeWeak && profile.weak.length > 0) {
     lines.push(
       `- STRUGGLING with these (work at least one or two in, in a clear context that makes the meaning inferable): ${list(profile.weak)}`,
+    );
+  }
+  const chunks = profile.chunks ?? [];
+  if (chunks.length > 0) {
+    lines.push(
+      `- CHUNKS they have drilled (fixed multi-word phrases — reuse them verbatim where natural, never paraphrase them into different wording): ${list(chunks)}`,
+    );
+  }
+  const dueChunks = profile.dueChunks ?? [];
+  if (includeWeak && dueChunks.length > 0) {
+    // The teddy-bear counterweight: learners fall back on a few safe phrases
+    // and underuse the rest of their repertoire, so the due ones get a
+    // deliberate opening instead of waiting for one.
+    lines.push(
+      `- CHUNKS due for speaking practice (create a natural moment that invites one or two of these — don't force them): ${list(dueChunks)}`,
     );
   }
   if (includeWeak) {

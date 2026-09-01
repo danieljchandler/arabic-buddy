@@ -266,3 +266,83 @@ test.describe("dismissing a mistake", () => {
     expect(db.rows("learner_errors").filter((r) => r.resolved_at === null)).toHaveLength(1);
   });
 });
+
+test.describe("the fossilization drill", () => {
+  test("puts the learner's own version next to the right one, and only production clears it", async ({
+    page,
+    signInAs,
+    db,
+  }) => {
+    await signInAs("free");
+    // Two rows, one target — the drill must group them into one card.
+    seedMistakes(db, [anError(1), anError(2)]);
+
+    await page.goto("/mistakes");
+    await page.getByRole("button", { name: "Drill these" }).click();
+
+    // One card despite two rows.
+    await expect(page.getByText("1 / 1")).toBeVisible();
+    await expect(page.getByText(/A moment where you'd say/)).toBeVisible();
+
+    // The learner's own recorded production sits among the choices — picking
+    // it is the confrontation the drill exists for.
+    await page.getByRole("button", { name: "مرهبا" }).click();
+    await expect(page.getByText("That's the one you keep saying.")).toBeVisible();
+
+    // The right answer is shown, but noticing is not knowing: the card asks
+    // for production before anything is resolved.
+    await expect(page.getByText("Now type it yourself")).toBeVisible();
+    await page.getByPlaceholder("اكتبها هنا…").fill("مرحبا");
+    await page.getByRole("button", { name: "Check" }).click();
+    await expect(page.getByText("Cleared from your mistakes.")).toBeVisible();
+
+    await page.getByRole("button", { name: "Finish" }).click();
+
+    // The produce call resolved the rows in the backend, so the list the page
+    // refetches no longer carries the target.
+    await expect(page.getByText("Nothing outstanding.")).toBeVisible();
+  });
+
+  test("leaves the fossil on the list when the learner stops at the right answer", async ({
+    page,
+    signInAs,
+    db,
+  }) => {
+    await signInAs("free");
+    seedMistakes(db, [anError(1)]);
+
+    await page.goto("/mistakes");
+    await page.getByRole("button", { name: "Drill these" }).click();
+    await page.getByRole("button", { name: "مرحبا" }).click();
+
+    // Correct choice — but no production. Ending here must not resolve
+    // anything: recognising the right answer is exactly the level of knowing
+    // that let the error fossilize in the first place.
+    await page.getByRole("button", { name: "End drill" }).click();
+
+    await expect(page.getByRole("button", { name: "Drill these" })).toBeVisible();
+    await expect(page.getByText("مرحبا").first()).toBeVisible();
+  });
+
+  test("rejects a wrong production and lets the learner retry", async ({
+    page,
+    signInAs,
+    db,
+  }) => {
+    await signInAs("free");
+    seedMistakes(db, [anError(1)]);
+
+    await page.goto("/mistakes");
+    await page.getByRole("button", { name: "Drill these" }).click();
+    await page.getByRole("button", { name: "مرحبا" }).click();
+
+    await page.getByPlaceholder("اكتبها هنا…").fill("مرهبا");
+    await page.getByRole("button", { name: "Check" }).click();
+
+    await expect(page.getByText(/Not quite — compare against the line above/)).toBeVisible();
+    // The input stays live for another go rather than dead-ending the card.
+    await page.getByPlaceholder("اكتبها هنا…").fill("مرحبا");
+    await page.getByRole("button", { name: "Check" }).click();
+    await expect(page.getByText("Cleared from your mistakes.")).toBeVisible();
+  });
+});

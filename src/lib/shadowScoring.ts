@@ -81,3 +81,33 @@ export function shadowOverall(words: number, acoustic: number | null): number {
   if (acoustic == null) return Math.min(TRANSCRIPT_ONLY_CEILING, Math.round(clamp(words)));
   return Math.round(TRANSCRIPT_WEIGHT * clamp(words) + ACOUSTIC_WEIGHT * clamp(acoustic));
 }
+
+// ── Repetition policy ────────────────────────────────────────────────────────
+
+/**
+ * Reps of one clip before gains typically plateau. The shadowing literature's
+ * one dosage finding with data behind it (Shiki et al. 2010, via the
+ * Whitworth & Rose 2025 review — docs/plateau-research-2026-09.md §4): about
+ * five repetitions of the same passage, after which further takes stop
+ * improving. A target, not a gate — Next is always available.
+ */
+export const TARGET_REPS = 5;
+
+/** Reps before a plateau can be called. Two takes is a warm-up, not a trend. */
+export const MIN_REPS_FOR_PLATEAU = 3;
+
+/**
+ * Is this clip done — enough reps, or a plateau before that?
+ *
+ * Plateau means the latest take no longer beats the best earlier one: more
+ * reps of this clip are not helping, and boredom is the documented failure
+ * mode of shadowing practice. Auto-advance uses this; the learner's own Next
+ * button doesn't ask.
+ */
+export function repsComplete(repScores: number[]): boolean {
+  if (repScores.length >= TARGET_REPS) return true;
+  if (repScores.length < MIN_REPS_FOR_PLATEAU) return false;
+  const latest = repScores[repScores.length - 1];
+  const bestBefore = Math.max(...repScores.slice(0, -1));
+  return latest <= bestBefore;
+}

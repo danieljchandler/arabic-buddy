@@ -64,6 +64,9 @@ export function isManagedRole(role: string): role is ManagedRole {
 const CONTENT_REVIEWER_ALLOWED_ADMIN_PREFIXES = [
   "/admin/videos",
   "/admin/set-phrases",
+  // Chunk candidates promote into set_phrases drafts — same audience, same
+  // editorial pass.
+  "/admin/chunks",
   "/admin/dialect-rules",
   // The clip pipeline's two review surfaces: channel vetting and the clip
   // candidate queue. Same audience as video review.

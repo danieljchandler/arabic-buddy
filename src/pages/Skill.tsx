@@ -1,6 +1,6 @@
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import {
-  Headphones, AudioLines, Video, BookOpen, Library, Newspaper, BookOpenText,
+  Headphones, AudioLines, AudioWaveform, Video, BookOpen, Library, Newspaper, BookOpenText,
   BookMarked, Mic, MessagesSquare, Headset, PenLine, SpellCheck, ChevronRight,
   type LucideIcon,
 } from "lucide-react";
@@ -32,7 +32,7 @@ import { cn } from "@/lib/utils";
  */
 
 const ICONS: Record<string, LucideIcon> = {
-  Headphones, AudioLines, Video, BookOpen, Library, Newspaper, BookOpenText,
+  Headphones, AudioLines, AudioWaveform, Video, BookOpen, Library, Newspaper, BookOpenText,
   BookMarked, Mic, MessagesSquare, Headset, PenLine, SpellCheck,
 };
 

@@ -389,3 +389,86 @@ test.describe("a practice session", () => {
     await expect(page.getByText("الله يبارك فيك")).toBeVisible();
   });
 });
+
+test.describe("answering in your own words (the chunk coach)", () => {
+  // Unlike the exact-match voice path above, this one IS driven for real: the
+  // monologue and pronunciation specs established that the fake capture
+  // device produces a usable recording, and the emulator's chunk-coach stub
+  // answers regardless of the audio's content — so the assertions stay about
+  // the app (the coach card, the grades, the rows), not about MediaRecorder.
+  test.beforeEach(async ({ signInAs, db, backend }) => {
+    await signInAs("free");
+    seedSetPhrases(db);
+    backend.stubFunction("generate-set-phrase-quiz", { items: [aQuizItem()] });
+  });
+
+  const freestyle = async (page: import("@playwright/test").Page) => {
+    await page
+      .getByRole("button", { name: "Answer in your own words" })
+      .dispatchEvent("mousedown");
+    // Recording flips the label, so the release targets the new name.
+    const release = page.getByRole("button", { name: "Release to submit" });
+    await expect(release).toBeVisible();
+    await page.waitForTimeout(500);
+    await release.dispatchEvent("mouseup");
+  };
+
+  test("offers the freestyle path on scenario questions only", async ({ page, backend }) => {
+    await page.goto("/set-phrases/practice");
+    await expect(page.getByRole("button", { name: "Answer in your own words" })).toBeVisible();
+
+    // A reply question has one right reply; freestyle belongs to scenarios,
+    // where the chunk is deployed inside the learner's own sentence.
+    backend.stubFunction("generate-set-phrase-quiz", {
+      items: [
+        aQuizItem({
+          question_type: "reply",
+          prompt: { english: null, arabic: "الله يعطيك العافية", audio_url: null },
+        }),
+      ],
+    });
+    await page.reload();
+    await expect(page.getByText("الله يعطيك العافية")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Answer in your own words" })).toBeHidden();
+  });
+
+  test("shows the coach's judgement and the learner's own sentence repaired", async ({
+    page,
+    backend,
+  }) => {
+    await page.goto("/set-phrases/practice");
+    await expect(page.getByText("You arrive at a friend's wedding")).toBeVisible();
+
+    await freestyle(page);
+
+    await expect(page.getByText("Nicely deployed — one small polish.")).toBeVisible();
+    // The rewrite is the learner's OWN answer minimally repaired — the
+    // salience the exact-match scorer can't provide.
+    await expect(page.getByText("More natural", { exact: true })).toBeVisible();
+    await expect(page.getByText("تسلم، الله يعطيك العافية على شغلك")).toBeVisible();
+    await expect(page.getByText("Possessive شغلك sounds more natural here.")).toBeVisible();
+    const call = backend.lastCallTo("practice-chunk-coach");
+    expect(call?.body).toMatchObject({ phraseId: PHRASE });
+  });
+
+  test("grades the phrase's production track from the coach's quality", async ({ page, db }) => {
+    await page.goto("/set-phrases/practice");
+    await expect(page.getByText("You arrive at a friend's wedding")).toBeVisible();
+
+    await freestyle(page);
+
+    // quality 4, mode voice: BOTH tracks graded — deploying the chunk in free
+    // speech is the production evidence this deck exists to collect.
+    await expect.poll(() => db.rows("user_set_phrases").length).toBe(1);
+    const row = db.rows("user_set_phrases")[0];
+    expect(row).toMatchObject({ phrase_id: PHRASE, last_quality: 4 });
+    expect(row.production_repetitions).toBe(1);
+    expect(row.production_next_review_at).toBeTruthy();
+
+    await expect.poll(() => db.rows("set_phrase_quiz_attempts").length).toBe(1);
+    expect(db.rows("set_phrase_quiz_attempts")[0]).toMatchObject({
+      answer_mode: "voice",
+      correct: true,
+    });
+  });
+});

@@ -7,12 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import {
   useGenerateQuiz,
   useScoreVoice,
+  useChunkCoach,
   useReviewPhrase,
   useSavePhrase,
   useLogQuizAttempt,
+  type ChunkCoachResult,
   type QuizItem,
 } from "@/hooks/useSetPhrases";
-import { Loader2, Mic, MicOff, Star, Volume2, ArrowRight, Check, X } from "lucide-react";
+import { Loader2, Mic, MicOff, Sparkles, Star, Volume2, ArrowRight, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { isCappedError } from "@/lib/invokeError";
 import { AskAISentence } from "@/components/shared/AskAISentence";
@@ -29,14 +31,21 @@ const SetPhrasesPractice = ({ reviewMode = false }: Props) => {
 
   const generate = useGenerateQuiz();
   const scoreVoice = useScoreVoice();
+  const chunkCoach = useChunkCoach();
   const review = useReviewPhrase();
   const save = useSavePhrase();
   const logAttempt = useLogQuizAttempt();
 
   const [items, setItems] = useState<QuizItem[]>([]);
   const [idx, setIdx] = useState(0);
-  const [answered, setAnswered] = useState<{ correct: boolean; transcript?: string; similarity?: number; mode: "voice" | "choice" } | null>(null);
-  const [recording, setRecording] = useState(false);
+  const [answered, setAnswered] = useState<{
+    correct: boolean;
+    transcript?: string;
+    similarity?: number;
+    mode: "voice" | "choice" | "coach";
+    coach?: ChunkCoachResult;
+  } | null>(null);
+  const [recording, setRecording] = useState<false | "exact" | "freestyle">(false);
   const [showChoices, setShowChoices] = useState(false);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -103,7 +112,7 @@ const SetPhrasesPractice = ({ reviewMode = false }: Props) => {
     a.play().catch(() => {});
   };
 
-  const startRecording = async () => {
+  const startRecording = async (kind: "exact" | "freestyle" = "exact") => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mr = new MediaRecorder(stream);
@@ -124,6 +133,41 @@ const SetPhrasesPractice = ({ reviewMode = false }: Props) => {
           binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
         }
         const b64 = btoa(binary);
+
+        if (kind === "freestyle") {
+          // Free-form deployment: the coach judges whether the chunk landed
+          // inside the learner's own answer — the skill the exact-match
+          // scorer can't see.
+          chunkCoach.mutate(
+            { audioBase64: b64, mimeType: blob.type, phraseId: current.phrase_id },
+            {
+              onSuccess: (res) => {
+                if (res.empty) {
+                  toast.error(res.message ?? "We couldn't hear anything — try again.");
+                  return;
+                }
+                const correct = res.quality >= 4;
+                setAnswered({ correct, transcript: res.transcript, mode: "coach", coach: res });
+                logAttempt.mutate({
+                  phrase_id: current.phrase_id,
+                  question_type: current.question_type,
+                  answer_mode: "voice",
+                  correct,
+                  asr_transcript: res.transcript,
+                });
+                // Same production track, same bands as the exact scorer.
+                review.mutate({ phraseId: current.phrase_id, quality: res.quality, mode: "voice" });
+              },
+              onError: (e: unknown) => {
+                if (!isCappedError(e)) {
+                  toast.error(e instanceof Error ? e.message : "Coaching failed");
+                }
+              },
+            },
+          );
+          return;
+        }
+
         scoreVoice.mutate(
           { audioBase64: b64, mimeType: blob.type, phraseId: current.phrase_id, target: current.question_type === "reply" ? "reply" : "phrase" },
           {
@@ -137,7 +181,9 @@ const SetPhrasesPractice = ({ reviewMode = false }: Props) => {
                 asr_transcript: res.transcript,
                 asr_similarity: res.similarity,
               });
-              review.mutate({ phraseId: current.phrase_id, quality: res.quality });
+              // A spoken answer grades both tracks — saying the phrase is the
+              // production skill this deck exists for.
+              review.mutate({ phraseId: current.phrase_id, quality: res.quality, mode: "voice" });
               if (!res.accepted && current.expected_audio_url) playAudio(current.expected_audio_url);
             },
             onError: (e: any) => {
@@ -147,7 +193,7 @@ const SetPhrasesPractice = ({ reviewMode = false }: Props) => {
         );
       };
       mr.start();
-      setRecording(true);
+      setRecording(kind);
     } catch {
       toast.error("Microphone access denied");
     }
@@ -166,7 +212,7 @@ const SetPhrasesPractice = ({ reviewMode = false }: Props) => {
       answer_mode: "choice",
       correct: choice.correct,
     });
-    review.mutate({ phraseId: current.phrase_id, quality: choice.correct ? 4 : 1 });
+    review.mutate({ phraseId: current.phrase_id, quality: choice.correct ? 4 : 1, mode: "choice" });
     if (!choice.correct && current.expected_audio_url) playAudio(current.expected_audio_url);
   };
 
@@ -239,22 +285,44 @@ const SetPhrasesPractice = ({ reviewMode = false }: Props) => {
         {!answered && (
           <div className="space-y-3">
             <Button
-              onMouseDown={startRecording}
+              onMouseDown={() => void startRecording("exact")}
               onMouseUp={stopRecording}
-              onTouchStart={startRecording}
+              onTouchStart={() => void startRecording("exact")}
               onTouchEnd={stopRecording}
-              disabled={scoreVoice.isPending}
+              disabled={scoreVoice.isPending || chunkCoach.isPending}
               className="w-full h-16"
-              variant={recording ? "destructive" : "default"}
+              variant={recording === "exact" ? "destructive" : "default"}
             >
               {scoreVoice.isPending ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
-              ) : recording ? (
+              ) : recording === "exact" ? (
                 <><MicOff className="h-5 w-5 mr-2" /> Release to submit</>
               ) : (
                 <><Mic className="h-5 w-5 mr-2" /> Hold to speak</>
               )}
             </Button>
+            {/* Free-form deployment, scenario questions only: reply questions
+                have one right reply, but a scenario invites the chunk inside
+                the learner's own sentence — the fluency-building skill. */}
+            {current.question_type === "scenario" && (
+              <Button
+                onMouseDown={() => void startRecording("freestyle")}
+                onMouseUp={stopRecording}
+                onTouchStart={() => void startRecording("freestyle")}
+                onTouchEnd={stopRecording}
+                disabled={scoreVoice.isPending || chunkCoach.isPending}
+                variant={recording === "freestyle" ? "destructive" : "secondary"}
+                className="w-full"
+              >
+                {chunkCoach.isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : recording === "freestyle" ? (
+                  <><MicOff className="h-4 w-4 mr-2" /> Release to submit</>
+                ) : (
+                  <><Sparkles className="h-4 w-4 mr-2" /> Answer in your own words</>
+                )}
+              </Button>
+            )}
             <Button variant="outline" className="w-full" onClick={() => setShowChoices((s) => !s)}>
               {showChoices ? "Hide choices" : "Show choices instead"}
             </Button>
@@ -279,8 +347,40 @@ const SetPhrasesPractice = ({ reviewMode = false }: Props) => {
           <Card className={`p-4 space-y-3 ${answered.correct ? "border-emerald-500/40 bg-emerald-500/5" : "border-destructive/40 bg-destructive/5"}`}>
             <div className="flex items-center gap-2">
               {answered.correct ? <Check className="h-5 w-5 text-emerald-600" /> : <X className="h-5 w-5 text-destructive" />}
-              <span className="font-semibold">{answered.correct ? "Correct!" : "Not quite"}</span>
+              <span className="font-semibold">
+                {answered.mode === "coach"
+                  ? answered.coach?.verdict ?? (answered.correct ? "Nicely deployed!" : "Not quite")
+                  : answered.correct
+                    ? "Correct!"
+                    : "Not quite"}
+              </span>
             </div>
+
+            {/* The coach's view of a free-form answer: what you said, and your
+                own sentence repaired — with the chunk in it. */}
+            {answered.mode === "coach" && answered.coach && (
+              <div className="space-y-2 text-sm">
+                <p className="text-xs text-muted-foreground">
+                  You said: <span dir="rtl">{answered.coach.transcript || "(nothing detected)"}</span>
+                </p>
+                {answered.coach.natural_rewrite && !answered.coach.natural && (
+                  <div className="rounded-lg bg-emerald-500/10 p-3">
+                    <p className="text-xs uppercase tracking-wide text-muted-foreground">More natural</p>
+                    <p dir="rtl" className="mt-1 font-arabic text-lg">{answered.coach.natural_rewrite}</p>
+                    {answered.coach.natural_rewrite_english && (
+                      <p className="mt-1 text-xs text-muted-foreground">{answered.coach.natural_rewrite_english}</p>
+                    )}
+                  </div>
+                )}
+                {answered.coach.tips.length > 0 && (
+                  <ul className="list-disc space-y-1 pl-5 text-xs text-muted-foreground">
+                    {answered.coach.tips.slice(0, 2).map((tip, i) => (
+                      <li key={i}>{tip}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
             <div>
               <p className="text-xs text-muted-foreground">Correct answer:</p>
               <div className="flex items-center justify-between gap-2 mt-1">

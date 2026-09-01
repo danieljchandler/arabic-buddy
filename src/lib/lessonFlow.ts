@@ -15,10 +15,16 @@
  * real act of recall rather than an echo, while keeping the block short enough
  * that a learner is never asked about something they met a page ago.
  *
+ * After the last block's quiz comes one "produce" step (plateau plan Phase
+ * 4c): recognising every word in a lesson is not the same skill as using one,
+ * and the receptive/productive gap is the plateau's defining feature. One
+ * step, not one per word — the lesson stays a lesson, and the production
+ * decks carry the long-term load.
+ *
  * Pure and injectable-shuffle so the walk can be tested without a component.
  */
 
-export type LessonPhase = "intro" | "quiz";
+export type LessonPhase = "intro" | "quiz" | "produce";
 
 /** How many words are met before the block is tested. */
 export const LESSON_BLOCK_SIZE = 4;
@@ -106,6 +112,12 @@ export function currentWordIndex(state: LessonFlowState, wordCount: number, size
     const block = blockIndices(state.blockStart, wordCount, size);
     return block[Math.min(state.pos, block.length - 1)] ?? 0;
   }
+  if (state.phase === "produce") {
+    // The word that opened the final quiz: of the block, it is the one whose
+    // test carried the longest delay — the best-encoded candidate to now
+    // produce with.
+    return state.quizOrder[0] ?? 0;
+  }
   return state.quizOrder[Math.min(state.pos, state.quizOrder.length - 1)] ?? 0;
 }
 
@@ -127,10 +139,16 @@ export function advance(
     return { ...state, phase: "quiz", pos: 0 };
   }
 
+  if (state.phase === "produce") return null;
+
   if (state.pos + 1 < state.quizOrder.length) return { ...state, pos: state.pos + 1 };
 
   const nextStart = state.blockStart + block.length;
-  if (nextStart >= wordCount) return null;
+  if (nextStart >= wordCount) {
+    // Every word met and tested — now use one. Recognition of the whole
+    // lesson is still not production of any of it.
+    return { ...state, phase: "produce", pos: 0 };
+  }
   return startBlock(nextStart, wordCount, { size, shuffle });
 }
 
@@ -143,5 +161,7 @@ export function advance(
 export function wordsCompleted(state: LessonFlowState, wordCount: number, size = LESSON_BLOCK_SIZE): number {
   const block = blockIndices(state.blockStart, wordCount, size);
   if (state.phase === "intro") return state.blockStart;
+  // The produce step only exists once every word has been tested.
+  if (state.phase === "produce") return wordCount;
   return state.blockStart + Math.min(state.pos, block.length);
 }

@@ -5663,6 +5663,10 @@ export type Database = {
         Args: { _amount?: number; _key: string; _user_id: string }
         Returns: number
       }
+      is_access_id_role: {
+        Args: { _role: Database["public"]["Enums"]["app_role"] }
+        Returns: boolean
+      }
       is_admin: { Args: never; Returns: boolean }
       is_beta_tester: { Args: never; Returns: boolean }
       is_content_reviewer: { Args: never; Returns: boolean }

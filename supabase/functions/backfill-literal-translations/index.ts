@@ -3,8 +3,9 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { requireContentManager } from "../_shared/requireRole.ts";
+import { chatFetch } from "../_shared/aiGateway.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
@@ -26,22 +27,14 @@ Length MUST equal number of lines.
 Lines:
 ${numbered}`;
 
-  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Lovable-API-Key": LOVABLE_API_KEY,
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-    }),
-  });
+  const resp = await chatFetch(MODEL_IDS.GEMINI_FAST, {
+    messages: [{ role: "user", content: prompt }],
+    response_format: { type: "json_object" },
+  }, { label: "backfill-literal-translations" });
 
   if (!resp.ok) {
     const t = await resp.text();
-    throw new Error(`AI gateway ${resp.status}: ${t.slice(0, 200)}`);
+    throw new Error(`AI provider ${resp.status}: ${t.slice(0, 200)}`);
   }
   const data = await resp.json();
   const content = data?.choices?.[0]?.message?.content ?? "{}";

@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { jsonRequest, loadFunction, optionsRequest } from "./harness.ts";
+import { NO_AI_PROVIDER, jsonRequest, loadFunction, optionsRequest } from "./harness.ts";
 import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
 
 /**
@@ -139,7 +139,7 @@ Deno.test("classify-tutor-segments returns a candidate with its segment timings"
   const result = await call(
     "classify-tutor-segments",
     { segments },
-    caller({ "ai.gateway.lovable.dev": emitting({ candidates: [candidate] }) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ candidates: [candidate] }) }),
   );
 
   assertEquals(result.status, 200);
@@ -159,7 +159,7 @@ Deno.test("classify-tutor-segments prefers word-level timings when it has them",
     "classify-tutor-segments",
     { segments, words },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         candidates: [{ ...candidate, word_start_index: 0, word_end_index: 0 }],
       }),
     }),
@@ -177,7 +177,7 @@ Deno.test("classify-tutor-segments falls back when a word index does not exist",
     "classify-tutor-segments",
     { segments, words },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         candidates: [{ ...candidate, word_start_index: 99, word_end_index: 100 }],
       }),
     }),
@@ -193,7 +193,7 @@ Deno.test("classify-tutor-segments leaves the sentence out when none was paired"
     "classify-tutor-segments",
     { segments },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         candidates: [
           { ...candidate, sentence_segment_index: -1, sentence_text: undefined, sentence_english: undefined },
         ],
@@ -211,7 +211,7 @@ Deno.test("classify-tutor-segments defaults a missing confidence rather than dro
     "classify-tutor-segments",
     { segments },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         candidates: [{ ...candidate, confidence: undefined }],
       }),
     }),
@@ -226,7 +226,7 @@ Deno.test("classify-tutor-segments falls back to ABSTRACT for an invented class"
     "classify-tutor-segments",
     { segments },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         candidates: [{ ...candidate, classification: "PROPER_NOUN" }],
       }),
     }),
@@ -240,7 +240,7 @@ Deno.test("classify-tutor-segments drops a candidate with no word at all", async
     "classify-tutor-segments",
     { segments },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         candidates: [
           { ...candidate, word_text: "", word_segment_index: 99 },
           candidate,
@@ -257,7 +257,7 @@ Deno.test("classify-tutor-segments falls back to the segment text when the model
     "classify-tutor-segments",
     { segments },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         candidates: [{ ...candidate, word_text: "" }],
       }),
     }),
@@ -270,10 +270,10 @@ Deno.test("classify-tutor-segments tells the model which dialect it is hearing",
   const result = await call(
     "classify-tutor-segments",
     { segments, dialectModule: "Yemeni" },
-    caller({ "ai.gateway.lovable.dev": emitting({ candidates: [] }) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ candidates: [] }) }),
   );
 
-  const prompt = result.bodies[result.calls.findIndex((url) => url.includes("gateway"))] ?? "";
+  const prompt = result.bodies[result.calls.findIndex((url) => url.includes("/chat/completions"))] ?? "";
   assertStringIncludes(prompt, "Yemeni Arabic");
   // And the reason the whole classification exists: skip the student's echo.
   assertStringIncludes(prompt, "NOT the student's repetition");
@@ -283,10 +283,10 @@ Deno.test("classify-tutor-segments treats an unknown dialect as Gulf", async () 
   const result = await call(
     "classify-tutor-segments",
     { segments, dialectModule: "Levantine" },
-    caller({ "ai.gateway.lovable.dev": emitting({ candidates: [] }) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ candidates: [] }) }),
   );
 
-  const prompt = result.bodies[result.calls.findIndex((url) => url.includes("gateway"))] ?? "";
+  const prompt = result.bodies[result.calls.findIndex((url) => url.includes("/chat/completions"))] ?? "";
   assertStringIncludes(prompt, "Khaliji");
 });
 
@@ -294,10 +294,10 @@ Deno.test("classify-tutor-segments only puts word indices in the schema when it 
   const without = await call(
     "classify-tutor-segments",
     { segments },
-    caller({ "ai.gateway.lovable.dev": emitting({ candidates: [] }) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ candidates: [] }) }),
   );
   const withoutBody = JSON.parse(
-    without.bodies[without.calls.findIndex((u) => u.includes("gateway"))] ?? "{}",
+    without.bodies[without.calls.findIndex((u) => u.includes("/chat/completions"))] ?? "{}",
   ) as { tools: Array<{ function: { parameters: { properties: { candidates: { items: { properties: Record<string, unknown> } } } } } }> };
   const withoutProps =
     withoutBody.tools[0].function.parameters.properties.candidates.items.properties;
@@ -307,9 +307,9 @@ Deno.test("classify-tutor-segments only puts word indices in the schema when it 
   const withWords = await call(
     "classify-tutor-segments",
     { segments, words },
-    caller({ "ai.gateway.lovable.dev": emitting({ candidates: [] }) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ candidates: [] }) }),
   );
-  const withBody = withWords.bodies[withWords.calls.findIndex((u) => u.includes("gateway"))] ?? "";
+  const withBody = withWords.bodies[withWords.calls.findIndex((u) => u.includes("/chat/completions"))] ?? "";
   assertStringIncludes(withBody, "word_start_index");
   assertStringIncludes(withBody, "Word-level timestamps");
 });
@@ -324,10 +324,10 @@ Deno.test("classify-tutor-segments asks for word indices it did not offer a plac
   const result = await call(
     "classify-tutor-segments",
     { segments },
-    caller({ "ai.gateway.lovable.dev": emitting({ candidates: [] }) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ candidates: [] }) }),
   );
 
-  const sent = result.bodies[result.calls.findIndex((u) => u.includes("gateway"))] ?? "";
+  const sent = result.bodies[result.calls.findIndex((u) => u.includes("/chat/completions"))] ?? "";
   assertStringIncludes(sent, "word_start_index and word_end_index");
 });
 
@@ -335,7 +335,7 @@ Deno.test("classify-tutor-segments passes a rate limit through", async () => {
   const result = await call(
     "classify-tutor-segments",
     { segments },
-    caller({ "ai.gateway.lovable.dev": () => json({ error: "slow down" }, 429) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "slow down" }, 429) }),
   );
 
   assertEquals(result.status, 429);
@@ -346,7 +346,7 @@ Deno.test("classify-tutor-segments passes a payment failure through", async () =
   const result = await call(
     "classify-tutor-segments",
     { segments },
-    caller({ "ai.gateway.lovable.dev": () => json({ error: "no credits" }, 402) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "no credits" }, 402) }),
   );
 
   assertEquals(result.status, 402);
@@ -356,23 +356,23 @@ Deno.test("classify-tutor-segments reports a reply with no tool call", async () 
   const result = await call(
     "classify-tutor-segments",
     { segments },
-    caller({ "ai.gateway.lovable.dev": () => chatCompletion("prose, not a tool call") }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("prose, not a tool call") }),
   );
 
   assertEquals(result.status, 500);
   assertStringIncludes(String(result.body.error), "No tool call");
 });
 
-Deno.test("classify-tutor-segments reports a missing gateway key", async () => {
+Deno.test("classify-tutor-segments reports having no provider configured", async () => {
   const result = await call(
     "classify-tutor-segments",
     { segments },
     caller(),
-    { env: { LOVABLE_API_KEY: undefined } },
+    { env: NO_AI_PROVIDER },
   );
 
   assertEquals(result.status, 500);
-  assertStringIncludes(String(result.body.error), "LOVABLE_API_KEY");
+  assertStringIncludes(String(result.body.error), "No AI provider");
 });
 
 // ── backfill-literal-translations ────────────────────────────────────────────
@@ -396,7 +396,7 @@ function backfillUpstreams(
     "/rest/v1/user_roles": () => json([{ role: "content_reviewer" }]),
     "/rest/v1/discover_videos": (request: Request) =>
       request.method === "GET" ? json(videos) : json([], 204),
-    "ai.gateway.lovable.dev": literals("the market"),
+    "generativelanguage.googleapis.com/v1beta/openai": literals("the market"),
     ...extra,
   };
 }
@@ -450,7 +450,7 @@ Deno.test("backfill-literal-translations writes the gloss onto each line", async
     {},
     backfillUpstreams([
       { id: VIDEO, dialect: "Gulf", transcript_lines: [line("السوق"), line("أبغى")] },
-    ], { "ai.gateway.lovable.dev": literals("the-market", "want-I") }),
+    ], { "generativelanguage.googleapis.com/v1beta/openai": literals("the-market", "want-I") }),
   );
 
   assertEquals(result.status, 200);
@@ -478,7 +478,7 @@ Deno.test("backfill-literal-translations skips a video that already has glosses"
 
   assertEquals(result.status, 200);
   assertEquals((result.body.results as Array<Record<string, string>>)[0].skipped, "already has literals");
-  assertEquals(result.calls.some((url) => url.includes("gateway")), false);
+  assertEquals(result.calls.some((url) => url.includes("/chat/completions")), false);
 });
 
 Deno.test("backfill-literal-translations redoes a done video when forced", async () => {
@@ -487,7 +487,7 @@ Deno.test("backfill-literal-translations redoes a done video when forced", async
     { force: true },
     backfillUpstreams([
       { id: VIDEO, dialect: "Gulf", transcript_lines: [line("السوق", { literal: "stale" })] },
-    ], { "ai.gateway.lovable.dev": literals("fresh") }),
+    ], { "generativelanguage.googleapis.com/v1beta/openai": literals("fresh") }),
   );
 
   const patch = result.calls
@@ -503,11 +503,11 @@ Deno.test("backfill-literal-translations treats a blank gloss as missing", async
     {},
     backfillUpstreams([
       { id: VIDEO, dialect: "Gulf", transcript_lines: [line("السوق", { literal: "   " })] },
-    ], { "ai.gateway.lovable.dev": literals("the-market") }),
+    ], { "generativelanguage.googleapis.com/v1beta/openai": literals("the-market") }),
   );
 
   assertEquals(result.status, 200);
-  assert(result.calls.some((url) => url.includes("gateway")));
+  assert(result.calls.some((url) => url.includes("/chat/completions")));
 });
 
 Deno.test("backfill-literal-translations skips a video with no lines", async () => {
@@ -529,7 +529,7 @@ Deno.test("backfill-literal-translations pads a short answer rather than misalig
     {},
     backfillUpstreams([
       { id: VIDEO, dialect: "Gulf", transcript_lines: [line("السوق"), line("أبغى")] },
-    ], { "ai.gateway.lovable.dev": literals("the-market") }),
+    ], { "generativelanguage.googleapis.com/v1beta/openai": literals("the-market") }),
   );
 
   const patch = result.calls
@@ -546,7 +546,7 @@ Deno.test("backfill-literal-translations trims an over-long answer", async () =>
     {},
     backfillUpstreams([
       { id: VIDEO, dialect: "Gulf", transcript_lines: [line("السوق")] },
-    ], { "ai.gateway.lovable.dev": literals("the-market", "extra", "more") }),
+    ], { "generativelanguage.googleapis.com/v1beta/openai": literals("the-market", "extra", "more") }),
   );
 
   const patch = result.calls
@@ -584,12 +584,17 @@ Deno.test("backfill-literal-translations reports a per-video failure and carries
     {},
     backfillUpstreams([
       { id: VIDEO, dialect: "Gulf", transcript_lines: [line("السوق")] },
-    ], { "ai.gateway.lovable.dev": () => json({ error: "down" }, 503) }),
+    ], {
+      // Both routes, since a 503 on Google is aiGateway's cue to retry on
+      // OpenRouter rather than a failure.
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "down" }, 503),
+      "openrouter.ai": () => json({ error: "down" }, 503),
+    }),
   );
 
   assertEquals(result.status, 200);
   const first = (result.body.results as Array<Record<string, string>>)[0];
-  assertStringIncludes(first.error, "AI gateway 503");
+  assertStringIncludes(first.error, "AI provider 503");
 });
 
 Deno.test("backfill-literal-translations reports a failed read as a server error", async () => {

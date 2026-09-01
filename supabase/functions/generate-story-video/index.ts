@@ -9,13 +9,14 @@ import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supa
 import { estimateSeconds, planProvider, synthesizeLine } from "../_shared/listenTts.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { requireContentManager } from "../_shared/requireRole.ts";
+import { generateImage, hasAnyProvider } from "../_shared/aiGateway.ts";
+import { IMAGE_MODEL_IDS } from "../_shared/modelRegistry.ts";
 
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
 
-const IMAGE_MODEL = "google/gemini-3.1-flash-image";
+const IMAGE_MODEL = IMAGE_MODEL_IDS.GEMINI;
 const BUCKET = "listen-audio";
 
 type Story = {
@@ -85,28 +86,9 @@ function buildImagePrompt(story: Story, arabicScript: string): string {
 type Admin = SupabaseClient;
 
 async function generateSceneImage(prompt: string): Promise<Uint8Array> {
-  const resp = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
-      "Lovable-API-Key": LOVABLE_API_KEY,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: IMAGE_MODEL,
-      messages: [{ role: "user", content: prompt }],
-      modalities: ["image", "text"],
-    }),
-    signal: AbortSignal.timeout(90_000),
-  });
-  if (!resp.ok) throw new Error(`image gen failed: ${resp.status} ${await resp.text()}`);
-  const json = await resp.json();
-  const b64: string | undefined = json?.data?.[0]?.b64_json;
-  if (!b64) throw new Error(`no image in response: ${JSON.stringify(json).slice(0, 300)}`);
-  const bin = atob(b64);
-  const bytes = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-  return bytes;
+  const image = await generateImage(prompt, { model: IMAGE_MODEL, label: "generate-story-video" });
+  if (!image) throw new Error("image gen failed: no configured provider returned an image");
+  return image.bytes;
 }
 
 async function synthesizePreviewNarration(
@@ -148,7 +130,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    if (!LOVABLE_API_KEY) throw new Error("Missing LOVABLE_API_KEY");
+    if (!hasAnyProvider()) throw new Error("No AI provider configured");
 
     // Every write below lands on `authentic_stories` / `authentic_story_lines`
     // — shared editorial content keyed by a `story_id` from the request body,

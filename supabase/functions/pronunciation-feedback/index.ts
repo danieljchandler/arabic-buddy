@@ -3,6 +3,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { logEdgeError } from "../_shared/logError.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
+import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -33,9 +34,8 @@ serve(async (req) => {
       return "This missed the target badly. Be direct about what went wrong and give one concrete thing to fix first. Do not open with praise.";
     };
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    if (!hasAnyProvider()) {
+      throw new Error("No AI provider is configured");
     }
 
     // ── Shadow mode: coach on the gap between what the learner said and the
@@ -128,14 +128,7 @@ ${verdict(Math.round(isSingleWord ? scores.accuracy : scores.overall))}
 Give exactly 2-3 short, actionable tips (one sentence each) to improve their pronunciation. Reference the actual Arabic words/sounds, and name the specific letter they missed (e.g. ح said as ه, ق said as k, ع dropped) rather than saying "work on your pronunciation". Be warm but honest — never call an attempt good when the scores say it was not. Do not repeat the scores.`;
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: MODEL_IDS.GEMINI_FAST,
+    const response = await chatFetch(MODEL_IDS.GEMINI_FAST, {
         messages: [
           { role: "system", content: "You are a concise Arabic pronunciation coach. Return ONLY a JSON array of tip strings, no markdown, no explanation." },
           { role: "user", content: prompt },
@@ -162,8 +155,7 @@ Give exactly 2-3 short, actionable tips (one sentence each) to improve their pro
           },
         ],
         tool_choice: { type: "function", function: { name: "return_tips" } },
-      }),
-    });
+    }, { label: "pronunciation-feedback" });
 
     if (!response.ok) {
       if (response.status === 429) {

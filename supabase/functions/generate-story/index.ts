@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { askBrain, BrainHttpError } from "../_shared/aiBrain.ts";
 import { getTashkeelMandate, getDialectTransliterationRules, type Dialect } from "../_shared/dialectHelpers.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
@@ -143,7 +144,7 @@ The story should have ${numScenes} scenes. Make the narrative engaging and educa
         userPrompt,
         systemPromptExtra: systemExtra,
         strategy: "draft_critic",
-        models: ["google/gemini-3-flash-preview", "openai/gpt-5-mini"],
+        models: [MODEL_IDS.GEMINI_FAST, MODEL_IDS.GPT_MINI],
         // Without this the critic never runs at all — draft_critic's critique
         // is gated on the dialect validator (or a qualityGate), so learner-
         // facing stories were shipping as unchecked solo drafts.

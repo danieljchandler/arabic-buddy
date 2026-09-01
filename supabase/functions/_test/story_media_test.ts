@@ -1,6 +1,6 @@
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { jsonRequest, loadFunction, optionsRequest } from "./harness.ts";
-import { json, type UpstreamHandler } from "./upstreams.ts";
+import { geminiImage, imageLadder, json, type UpstreamHandler } from "./upstreams.ts";
 
 /**
  * `generate-story-preview-audio` and `edit-story-scene-image` — the two
@@ -362,7 +362,7 @@ function sceneBackend(
   return caller({
     "/rest/v1/authentic_stories": (request) =>
       request.method === "GET" ? json(story) : json([], 200),
-    "ai.gateway.lovable.dev": () => json({ data: [{ b64_json: PNG_B64 }] }),
+    ...imageLadder(() => geminiImage(PNG_B64)),
     ...extra,
   });
 }
@@ -447,7 +447,7 @@ Deno.test("edit-story-scene-image regenerates from the scene's own prompt", asyn
   assertEquals(result.body.ok, true);
   assertEquals(result.body.scene_index, 1);
 
-  const sent = result.bodies[result.calls.findIndex((u) => u.includes("images/generations"))] ?? "";
+  const sent = result.bodies[result.calls.findIndex((u) => u.includes("-image:generateContent"))] ?? "";
   assertStringIncludes(sent, "a desert at dusk, scene 1");
 });
 
@@ -459,7 +459,7 @@ Deno.test("edit-story-scene-image prefers a prompt the admin edited", async () =
   );
 
   assertEquals(result.status, 200);
-  const sent = result.bodies[result.calls.findIndex((u) => u.includes("images/generations"))] ?? "";
+  const sent = result.bodies[result.calls.findIndex((u) => u.includes("-image:generateContent"))] ?? "";
   assertStringIncludes(sent, "a souq at night");
 
   // The edited prompt is stored, so regenerating again reuses it.
@@ -493,7 +493,7 @@ Deno.test("edit-story-scene-image uploads a supplied image instead of generating
   );
 
   assertEquals(result.status, 200);
-  assertEquals(result.calls.some((url) => url.includes("images/generations")), false);
+  assertEquals(result.calls.some((url) => url.includes("-image:generateContent")), false);
   // The extension follows the declared type, so the stored file is servable.
   const upload = result.calls.find((url) => url.includes("/storage/v1/object")) ?? "";
   assertStringIncludes(upload, ".jpg");
@@ -547,22 +547,22 @@ Deno.test("edit-story-scene-image reports an image model that returned nothing",
   const result = await call(
     "edit-story-scene-image",
     { story_id: STORY, scene_index: 0 },
-    sceneBackend({ extra: { "ai.gateway.lovable.dev": () => json({ data: [] }) } }),
+    sceneBackend({ extra: imageLadder(() => json({ candidates: [] })) }),
   );
 
   assertEquals(result.status, 500);
-  assertStringIncludes(String(result.body.error), "no image in response");
+  assertStringIncludes(String(result.body.error), "no configured provider returned an image");
 });
 
 Deno.test("edit-story-scene-image reports a failed image call", async () => {
   const result = await call(
     "edit-story-scene-image",
     { story_id: STORY, scene_index: 0 },
-    sceneBackend({ extra: { "ai.gateway.lovable.dev": () => json({ error: "down" }, 503) } }),
+    sceneBackend({ extra: imageLadder(() => json({ error: "down" }, 503)) }),
   );
 
   assertEquals(result.status, 500);
-  assertStringIncludes(String(result.body.error), "image gen failed: 503");
+  assertStringIncludes(String(result.body.error), "no configured provider returned an image");
 });
 
 Deno.test("edit-story-scene-image reports a rejected save", async () => {

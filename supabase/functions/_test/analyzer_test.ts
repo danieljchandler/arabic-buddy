@@ -1,5 +1,5 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { jsonRequest, loadFunction } from "./harness.ts";
+import { NO_AI_PROVIDER, jsonRequest, loadFunction } from "./harness.ts";
 import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
 
 /**
@@ -91,9 +91,12 @@ Deno.test("accepts on-screen text alone when analysing a meme", async () => {
   assert(status !== 400, `expected the meme path to be accepted, got ${status}`);
 });
 
-Deno.test("reports a missing model key rather than pretending to analyse", async () => {
+Deno.test("reports having no provider rather than pretending to analyse", async () => {
   const fn = await loadFunction("analyze-gulf-arabic", {
-    env: { OPENROUTER_API_KEY: undefined },
+    // Every provider key: the pipeline's models are spread across OpenRouter
+    // and Google now, so one missing key is a route it does not take, not a
+    // configuration failure.
+    env: NO_AI_PROVIDER,
     upstreams: allowed(),
   });
   try {
@@ -170,9 +173,9 @@ Deno.test("reports a phrase translation that came back empty as null", async () 
   assertEquals(body.translation, null);
 });
 
-Deno.test("needs a model key for the phrase shortcut too", async () => {
+Deno.test("needs a provider for the phrase shortcut too", async () => {
   const fn = await loadFunction("analyze-gulf-arabic", {
-    env: { OPENROUTER_API_KEY: undefined },
+    env: NO_AI_PROVIDER,
     upstreams: allowed(),
   });
   try {

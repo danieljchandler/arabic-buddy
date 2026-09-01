@@ -10,14 +10,32 @@ import {
   getDialectLabel,
   type Dialect,
 } from './dialectHelpers.ts';
+import { chatFetch, tryChatRoute } from './aiGateway.ts';
+import { MODEL_IDS } from './modelRegistry.ts';
 
-const GATEWAY_URL = 'https://ai.gateway.lovable.dev/v1/chat/completions';
-const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const VALIDATOR_MODEL = 'google/gemini-2.5-pro';
+const VALIDATOR_MODEL = MODEL_IDS.GEMINI_PRO;
 // Arabic-native second opinion. Mistral Saba is a 24B Arabic-focused model on
 // the OpenRouter key the app already uses — roughly an order of magnitude
-// cheaper than Gemini 2.5 Pro on this single-snippet task.
-const ARABIC_VALIDATOR_MODEL = 'mistralai/mistral-saba';
+// cheaper than the Pro-tier judge on this single-snippet task.
+const ARABIC_VALIDATOR_MODEL = MODEL_IDS.SABA;
+/**
+ * Arabic-native tie-breaker, consulted only when the other two disagree.
+ *
+ * Fanar is the better Arabic judge of the three — QCRI's sovereign model,
+ * dialect-tuned and validated by native testers — so the obvious move is to
+ * make it the standing Arabic leg in place of Saba. It is not, for one reason:
+ * quota. Fanar's endpoints run on small daily allowances (the STT paths in
+ * `fanar-transcribe` are metered at 18 and 8 calls a day), and the validator
+ * fires on every generation that asks for it. An always-on Fanar leg would
+ * spend the allowance before lunch and then degrade to `ok: false` for the rest
+ * of the day — a quality gate that is off precisely when the app is busiest.
+ *
+ * A disagreement is the one moment the third opinion is worth a call: the two
+ * standing legs have already split, so the merge is about to fall back on
+ * "harsher verdict wins", which is a safe default rather than a judgment. Any
+ * disagreement is a minority of calls, which keeps this inside the allowance.
+ */
+const TIEBREAK_VALIDATOR_MODEL = MODEL_IDS.FANAR;
 
 export interface ValidatorLeak {
   token: string;
@@ -40,7 +58,6 @@ export interface ValidatorResult {
 }
 
 export interface ValidateOptions {
-  apiKey?: string;
   passThreshold?: number; // default 4
   maxChars?: number;      // truncate text for cost control; default 4000
   signal?: AbortSignal;
@@ -51,7 +68,7 @@ export interface ValidateOptions {
    * Ignored when `signal` is supplied.
    */
   timeoutMs?: number;
-  /** Override the judging model. Defaults to Gemini 2.5 Pro via the Lovable gateway. */
+  /** Override the judging model. Defaults to the registry's Pro-tier judge. */
   model?: string;
 }
 
@@ -62,13 +79,10 @@ export async function validateDialect(
 ): Promise<ValidatorResult> {
   const start = Date.now();
   const model = opts.model ?? VALIDATOR_MODEL;
-  // OpenRouter-only models (Saba) need their own key + endpoint; everything
-  // else goes through the Lovable gateway. Mirrors routeForModel in aiBrain.
-  const viaOpenRouter = /^(mistralai|anthropic|qwen|meta-llama|deepseek|x-ai)\//.test(model);
-  const apiKey = viaOpenRouter
-    ? Deno.env.get('OPENROUTER_API_KEY')
-    : (opts.apiKey ?? Deno.env.get('LOVABLE_API_KEY'));
-  if (!apiKey || !text || !text.trim()) {
+  // The validator is an optional quality pass, so an unconfigured provider is a
+  // silent "unknown" rather than an error — same as an empty candidate text.
+  // `tryChatRoute` answers that without making a request.
+  if (!tryChatRoute(model) || !text || !text.trim()) {
     return { score: 0, verdict: 'unknown', leaks: [], latencyMs: 0, ok: false, model };
   }
 
@@ -118,28 +132,22 @@ Be harsh. When in doubt between 4 and 3, choose 3.`;
   };
 
   try {
-    const res = await fetch(viaOpenRouter ? OPENROUTER_URL : GATEWAY_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
+    const res = await chatFetch(model, {
+      temperature: 0.2,
+      max_tokens: 600,
+      messages: [
+        { role: 'system', content: system },
+        { role: 'user', content: `Candidate text in ${dialect} Arabic to judge:\n\n${snippet}` },
+      ],
+      tools: [{ type: 'function', function: tool }],
+      tool_choice: { type: 'function', function: { name: tool.name } },
+    }, {
       signal: opts.signal ?? (opts.timeoutMs ? AbortSignal.timeout(opts.timeoutMs) : undefined),
-      body: JSON.stringify({
-        model,
-        temperature: 0.2,
-        max_tokens: 600,
-        messages: [
-          { role: 'system', content: system },
-          { role: 'user', content: `Candidate text in ${dialect} Arabic to judge:\n\n${snippet}` },
-        ],
-        tools: [{ type: 'function', function: tool }],
-        tool_choice: { type: 'function', function: { name: tool.name } },
-      }),
+      label: 'dialectValidator',
     });
     if (!res.ok) {
       const msg = await res.text().catch(() => '');
-      console.warn('[dialectValidator] gateway error', model, res.status, msg.slice(0, 200));
+      console.warn('[dialectValidator] provider error', model, res.status, msg.slice(0, 200));
       return { score: 0, verdict: 'unknown', leaks: [], latencyMs: Date.now() - start, ok: false, model };
     }
     const data = await res.json();
@@ -173,7 +181,7 @@ Be harsh. When in doubt between 4 and 3, choose 3.`;
  *
  * The two run CONCURRENTLY and both always run. An earlier version asked the
  * cheap Arabic-native validator (Mistral Saba) first and returned its answer
- * without paying for the strong generalist (Gemini 2.5 Pro) whenever Saba said
+ * without paying for the strong generalist (the Pro-tier judge) whenever Saba said
  * `pass` at 5/5. That is the one shortcut this gate cannot afford: Saba is a
  * general Arabic model, so on Yemeni it reads fusha-inflected prose as fine and
  * scores it 5, and the strict reviewer that would have caught it never ran.
@@ -209,10 +217,24 @@ export async function validateDialectCrossChecked(
   if (!arabic.ok) return { ...strong, agreement: 'single' };
 
   const agreement = arabic.verdict === strong.verdict ? 'agree' : 'disagree';
+
+  // On a split, ask the Arabic-native specialist rather than settling it with a
+  // rule. Skipped silently when Fanar is unconfigured, and never reached when
+  // the two agree — see TIEBREAK_VALIDATOR_MODEL for the quota argument.
+  let tiebreak: ValidatorResult | null = null;
+  if (agreement === 'disagree' && tryChatRoute(TIEBREAK_VALIDATOR_MODEL)) {
+    const result = await validateDialect(text, dialect, { ...opts, model: TIEBREAK_VALIDATOR_MODEL });
+    // `unknown` is what this returns when it could not judge, which is not a
+    // casting vote — fall back to the rule rather than let a non-answer decide.
+    if (result.ok && result.verdict !== 'unknown') tiebreak = result;
+  }
+
   // Harsher verdict wins: a rewrite call from either model stands, and the
-  // reported score is the lower of the two.
-  const verdict: 'pass' | 'rewrite' =
-    arabic.verdict === 'rewrite' || strong.verdict === 'rewrite' ? 'rewrite' : 'pass';
+  // reported score is the lower of the two. The tie-breaker, when there is one,
+  // replaces that default — it is an opinion where the rule was only a policy.
+  const verdict: 'pass' | 'rewrite' = tiebreak && tiebreak.verdict !== 'unknown'
+    ? tiebreak.verdict
+    : arabic.verdict === 'rewrite' || strong.verdict === 'rewrite' ? 'rewrite' : 'pass';
   // Merge leak lists, deduplicated by token.
   const seen = new Set<string>();
   const leaks = [...strong.leaks, ...arabic.leaks].filter((l) => {
@@ -224,18 +246,22 @@ export async function validateDialectCrossChecked(
   console.log(
     `[dialectValidator] cross-check ${agreement}: ` +
       `${ARABIC_VALIDATOR_MODEL}=${arabic.score}/${arabic.verdict} ` +
-      `${VALIDATOR_MODEL}=${strong.score}/${strong.verdict} → ${verdict}`,
+      `${VALIDATOR_MODEL}=${strong.score}/${strong.verdict}` +
+      `${tiebreak ? ` ${TIEBREAK_VALIDATOR_MODEL}=${tiebreak.score}/${tiebreak.verdict}` : ''}` +
+      ` → ${verdict}`,
   );
 
   return {
     score: Math.min(arabic.score, strong.score),
     verdict,
     leaks,
-    notes: strong.notes ?? arabic.notes,
-    // Parallel, so the cost to the caller's budget is the slower leg, not the sum.
-    latencyMs: Math.max(arabic.latencyMs, strong.latencyMs),
+    notes: tiebreak?.notes ?? strong.notes ?? arabic.notes,
+    // The two standing legs run in parallel, so their cost to the caller's
+    // budget is the slower one rather than the sum; a tie-break is sequential
+    // after them, so it adds its own latency on the calls that need it.
+    latencyMs: Math.max(arabic.latencyMs, strong.latencyMs) + (tiebreak?.latencyMs ?? 0),
     ok: true,
-    model: `${ARABIC_VALIDATOR_MODEL}+${VALIDATOR_MODEL}`,
+    model: `${ARABIC_VALIDATOR_MODEL}+${VALIDATOR_MODEL}${tiebreak ? `+${TIEBREAK_VALIDATOR_MODEL}` : ''}`,
     agreement,
   };
 }

@@ -45,7 +45,7 @@ function allowed(): Record<string, () => Response> {
 function modelReturns(payload: unknown): Record<string, () => Response> {
   const reply = () => chatCompletion(JSON.stringify(payload), payload);
   return {
-    "ai.gateway.lovable.dev": reply,
+    "generativelanguage.googleapis.com/v1beta/openai": reply,
     "openrouter.ai": reply,
     "api.openai.com": reply,
     "api.fanar.qa": reply,
@@ -153,7 +153,7 @@ Deno.test("translate-text refuses an empty passage without calling the model", a
     assertEquals(response.status, 400);
     assertEquals((await response.json()).error, "missing_text");
     // Each model call costs money and quota; validation has to come first.
-    assertEquals(fn.callsTo("ai.gateway.lovable.dev").length, 0);
+    assertEquals(fn.callsTo("generativelanguage.googleapis.com/v1beta/openai").length, 0);
   } finally {
     fn.restore();
   }
@@ -427,7 +427,7 @@ Deno.test("placement-quiz scores without calling a model", async () => {
       jsonRequest("placement-quiz", { action: "score", history: answers(20, true) }),
     );
     assertEquals(response.status, 200);
-    assertEquals(fn.callsTo("ai.gateway.lovable.dev").length, 0);
+    assertEquals(fn.callsTo("generativelanguage.googleapis.com/v1beta/openai").length, 0);
     assertEquals(fn.callsTo("openrouter.ai").length, 0);
   } finally {
     fn.restore();

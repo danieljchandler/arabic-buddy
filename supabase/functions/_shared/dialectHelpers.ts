@@ -272,6 +272,78 @@ export function getDialectLabel(dialect: Dialect): string {
   return 'Gulf Arabic (Khaliji)';
 }
 
+/**
+ * Worked demonstrations: a handful of question→answer pairs written the way a
+ * native speaker would actually answer them.
+ *
+ * This is a different thing from the rulebook's few-shot block, which renders
+ * `❌ MSA token → ✅ dialect token` contrasts. Those teach *vocabulary*. These
+ * teach *behaviour* — that the reply itself comes back in dialect, at length,
+ * without drifting into MSA halfway through a sentence.
+ *
+ * The distinction is the finding in AL-QASIDA (arXiv:2412.04193): models
+ * under-produce dialectal Arabic not because their dialect fluency is poor but
+ * because they are *reluctant* to leave MSA, and the intervention that fixes it
+ * is few-shot demonstration rather than more instruction. This app already
+ * spends an MSA detector, a repair pass and a native-speaker validator fighting
+ * that reluctance after the fact; demonstrating the behaviour up front is the
+ * cheaper half of the same fight.
+ *
+ * Hard-coded on purpose. The rulebook's few-shot block is strictly better when
+ * it exists — it is reviewed by native speakers and it evolves — but it is only
+ * there when `dialect_rules` has rules carrying examples AND the cache is warm.
+ * On a cold isolate, an empty rulebook, or a Postgres outage the whole prompt
+ * degrades to `fallbackVocab`, which is instruction with no demonstration at
+ * all. That is exactly the state in which the model is most likely to answer in
+ * MSA, so the demonstrations must not themselves depend on the database.
+ *
+ * Every line here is asserted leak-free against the detector's own hardcoded
+ * lists in `dialect_demonstrations_test.ts` — a demonstration containing a leak
+ * would be teaching the failure it exists to prevent.
+ */
+const DIALECT_DEMONSTRATIONS: Record<Dialect, string> = {
+  Gulf: `WORKED EXAMPLES — answer like this every time, in dialect, never in فصحى:
+
+Q: شخبارك اليوم؟
+A: بخير الحمد لله، توني راجع من السوق. شريت عيش وقهوة، وبعدين قعدت شوي بالمجلس مع الربع.
+
+Q: وين رحت أمس؟
+A: رحت بيت خالي، وكانت عندهم عزيمة واجد حلوة. رجعت متأخر شوي بس استانست.
+
+Q: ليش ما جيت؟
+A: ما قدرت، كان عندي دوام لين المغرب. هالحين فاضي، تبي نروح نشرب قهوة؟`,
+
+  Egyptian: `WORKED EXAMPLES — answer like this every time, in dialect, never in فصحى:
+
+Q: إزيك النهاردة؟
+A: الحمد لله كويس، لسه راجع من الشغل. عملت قهوة وقعدت شوية على البلكونة.
+
+Q: رحت فين إمبارح؟
+A: رحت بيت صاحبي في المعادي، وقعدنا نتكلم كتير. رجعت بالليل ومكنتش تعبان أوي.
+
+Q: ليه متأخر كده؟
+A: معلش، المواصلات كانت زحمة خالص. دلوقتي أنا فاضي، تحب ناخد أهوة؟`,
+
+  Yemeni: `WORKED EXAMPLES — answer like this every time, in dialect, never in فصحى:
+
+Q: كيفك اليوم؟
+A: الحمد لله زين، توني جاي من السوق. جبت خبز وعسل، وبعدين قعدت شوي بالمفرج.
+
+Q: وين كنت أمس؟
+A: كنت عند صاحبي في صنعاء القديمة، وتغدينا سلتة. رجعت متأخر بس كنت مبسوط.
+
+Q: ليش ما جيت؟
+A: ما قدرت، كان عندي شغل لين العصر. ذحين فاضي، بغيت نطلع نشرب شاهي؟`,
+};
+
+/**
+ * The worked-example block for a dialect. Always available — unlike
+ * `getDialectFewShot`, which is empty until the rulebook cache is warm.
+ */
+export function getDialectDemonstrations(dialect: Dialect): string {
+  return DIALECT_DEMONSTRATIONS[dialect] ?? DIALECT_DEMONSTRATIONS.Gulf;
+}
+
 export function getDialectExamples(dialect: Dialect): string {
   if (dialect === 'Egyptian') {
     return 'إزيك (hello), شكراً (thanks), كويس (good), مية (water), بيت (house)';

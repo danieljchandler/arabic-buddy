@@ -38,7 +38,7 @@ function caller(extra: Record<string, UpstreamHandler> = {}): Record<string, Ups
 }
 
 const emitting = (payload: unknown): Record<string, UpstreamHandler> => ({
-  "ai.gateway.lovable.dev": () => chatCompletion("", payload),
+  "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("", payload),
   "openrouter.ai": () => chatCompletion("", payload),
 });
 
@@ -73,7 +73,7 @@ async function call(
 }
 
 function gatewayPrompt(result: { calls: string[]; bodies: Array<string | null> }): string {
-  const index = result.calls.findIndex((u) => u.includes("gateway") || u.includes("openrouter"));
+  const index = result.calls.findIndex((u) => u.includes("/chat/completions"));
   return result.bodies[index] ?? "";
 }
 
@@ -255,7 +255,7 @@ Deno.test("generate-story passes a paywall answer straight through", async () =>
     "generate-story",
     { prompt: "a lost camel" },
     caller({
-      "ai.gateway.lovable.dev": () => json({ error: "payment required" }, 402),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "payment required" }, 402),
       "openrouter.ai": () => json({ error: "payment required" }, 402),
     }),
   );
@@ -269,7 +269,7 @@ Deno.test("generate-story passes a rate limit straight through", async () => {
     "generate-story",
     { prompt: "a lost camel" },
     caller({
-      "ai.gateway.lovable.dev": () => json({ error: "slow down" }, 429),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "slow down" }, 429),
       "openrouter.ai": () => json({ error: "slow down" }, 429),
     }),
   );
@@ -283,7 +283,7 @@ Deno.test("generate-story flattens any other model failure to a 500", async () =
     "generate-story",
     { prompt: "a lost camel" },
     caller({
-      "ai.gateway.lovable.dev": () => json({ error: "boom" }, 503),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "boom" }, 503),
       "openrouter.ai": () => json({ error: "boom" }, 503),
     }),
   );

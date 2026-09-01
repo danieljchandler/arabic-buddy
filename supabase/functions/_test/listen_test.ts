@@ -63,7 +63,7 @@ function allowed(extra: Record<string, UpstreamHandler> = {}): Record<string, Up
 function modelReturns(payload: unknown): Record<string, UpstreamHandler> {
   const reply = () => chatCompletion(JSON.stringify(payload), payload);
   return {
-    "ai.gateway.lovable.dev": reply,
+    "generativelanguage.googleapis.com/v1beta/openai": reply,
     "openrouter.ai": reply,
     "api.openai.com": reply,
     "api.fanar.qa": reply,
@@ -98,7 +98,7 @@ Deno.test("refuses a request with no topic before calling a model", async () => 
   assertEquals(body.error, "topic_required");
   // An episode about nothing is not something a model can be asked for; the
   // guard is in front of the spend.
-  assertEquals(calls.filter((url) => url.includes("gateway")).length, 0);
+  assertEquals(calls.filter((url) => url.includes("/chat/completions")).length, 0);
 });
 
 Deno.test("treats a whitespace topic as no topic", async () => {

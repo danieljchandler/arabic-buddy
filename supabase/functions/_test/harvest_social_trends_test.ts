@@ -103,7 +103,7 @@ function caller(
     "www.reddit.com/api/v1/access_token": () =>
       json({ access_token: "fixture-token", expires_in: 3600 }),
     "oauth.reddit.com": () => json(REDDIT_LISTING),
-    "ai.gateway.lovable.dev": () => chatCompletion("", aVerdict()),
+    "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("", aVerdict()),
     ...extra,
   };
 }
@@ -216,7 +216,7 @@ Deno.test("harvest-social-trends rejects MSA without queueing it for review", as
   const { body, calls } = await call(
     { platform: "x", targetPerDialect: 1 },
     caller(pending, {
-      "ai.gateway.lovable.dev": () =>
+      "generativelanguage.googleapis.com/v1beta/openai": () =>
         chatCompletion("", aVerdict({ register: "msa", reason: "Formal news register." })),
     }),
   );
@@ -233,7 +233,7 @@ Deno.test("harvest-social-trends leaves posts pending when the screen is down", 
   const { status, body, calls } = await call(
     { platform: "x", targetPerDialect: 1 },
     caller(pending, {
-      "ai.gateway.lovable.dev": () => json({ error: "boom" }, 503),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "boom" }, 503),
       "openrouter.ai": () => json({ error: "boom" }, 503),
     }),
   );

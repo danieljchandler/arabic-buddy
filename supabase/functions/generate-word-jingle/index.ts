@@ -4,6 +4,7 @@ import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getJingleStyleLine } from "../_shared/jingleStyles.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
+import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
 
 
 serve(async (req) => {
@@ -32,12 +33,13 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    // Two legs, two keys: the lyric/prompt model routes through aiGateway,
+    // while Lyria (the music model) has no route but Google's own API.
     const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY");
 
-    if (!LOVABLE_API_KEY) {
+    if (!hasAnyProvider()) {
       return new Response(
-        JSON.stringify({ error: "LOVABLE_API_KEY not configured" }),
+        JSON.stringify({ error: "No AI provider configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -48,21 +50,14 @@ serve(async (req) => {
       );
     }
 
-    // Step 1: Generate a dialect-specific music prompt using Lovable AI
+    // Step 1: Generate a dialect-specific music prompt
     const dialectLabel = getDialectLabel(dialect);
     const dialectRules = getDialectVocabRules(dialect);
     const dialectStyle = getJingleStyleLine(dialect);
 
-    const promptGenResponse = await fetch(
-      "https://ai.gateway.lovable.dev/v1/chat/completions",
+    const promptGenResponse = await chatFetch(
+      MODEL_IDS.GEMINI_FAST,
       {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: MODEL_IDS.GEMINI_FAST,
           messages: [
             {
               role: "system",
@@ -88,8 +83,8 @@ STRICT SAFETY RULES (the music model has a strict safety filter — violations c
             },
           ],
           response_format: { type: "json_object" },
-        }),
-      }
+      },
+      { label: "generate-word-jingle" },
     );
 
     if (!promptGenResponse.ok) {

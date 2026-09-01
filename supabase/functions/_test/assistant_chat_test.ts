@@ -105,7 +105,7 @@ Deno.test("assistant-chat refuses a body with no messages", async () => {
   const { response, calls } = await call("assistant-chat", { dialect: "Gulf" }, subscriber());
 
   assertEquals(response.status, 400);
-  assert(!calls.some((url) => url.includes("ai.gateway") || url.includes("openrouter.ai")));
+  assert(!calls.some((url) => url.includes("/v1beta/openai") || url.includes("openrouter.ai")));
 });
 
 Deno.test("assistant-chat turns an anonymous caller away", async () => {
@@ -331,7 +331,7 @@ Deno.test("assistant-chat reads the source article when the router asks for it",
     subscriber({
       "openrouter.ai": gateway,
       // The router, answering with a forced plan_lookups call.
-      "ai.gateway.lovable.dev": () => chatCompletion("", { lookups: [{ tool: "read_source", url: ARTICLE }] }),
+      "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("", { lookups: [{ tool: "read_source", url: ARTICLE }] }),
       "api.firecrawl.dev": () =>
         json({ data: { markdown: "The harvest in Najd rose thirty percent.", metadata: { title: "Harvest" } } }),
     }),
@@ -360,7 +360,7 @@ Deno.test("assistant-chat will not read a URL the learner's screen never showed"
       "openrouter.ai": gateway,
       // A router that names a URL anyway — which is exactly the case the
       // allow-list exists for, since its own input contains scraped text.
-      "ai.gateway.lovable.dev": () =>
+      "generativelanguage.googleapis.com/v1beta/openai": () =>
         chatCompletion("", { lookups: [{ tool: "read_source", url: "https://evil.example/x" }] }),
       "api.firecrawl.dev": () => json({ data: { markdown: "should never be read" } }),
     }),
@@ -377,7 +377,7 @@ Deno.test("assistant-chat answers normally when no lookup is needed", async () =
     { messages: [{ role: "user", content: "why is this word feminine here?" }] },
     subscriber({
       "openrouter.ai": gateway,
-      "ai.gateway.lovable.dev": () => chatCompletion("", { lookups: [] }),
+      "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("", { lookups: [] }),
     }),
   );
 

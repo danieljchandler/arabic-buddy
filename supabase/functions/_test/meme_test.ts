@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { jsonRequest, loadFunction } from "./harness.ts";
+import { NO_AI_PROVIDER, jsonRequest, loadFunction } from "./harness.ts";
 import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
 
 /**
@@ -82,7 +82,7 @@ async function call(
 Deno.test("analyze-meme wraps its result in a success envelope", async () => {
   const { status, body } = await call(
     { imageBase64: IMAGE, dialect: "Gulf" },
-    caller({ "ai.gateway.lovable.dev": vision(anAnalysis()) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": vision(anAnalysis()) }),
   );
 
   assertEquals(status, 200);
@@ -101,10 +101,10 @@ Deno.test("analyze-meme wraps its result in a success envelope", async () => {
 Deno.test("analyze-meme wraps a bare base64 string as a data URI", async () => {
   const { bodies, calls } = await call(
     { imageBase64: IMAGE },
-    caller({ "ai.gateway.lovable.dev": vision(anAnalysis()) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": vision(anAnalysis()) }),
   );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   // The vision API takes a URL. Callers send raw base64, so the prefix has to
   // be added here or the model receives an unreadable string and describes
   // nothing.
@@ -114,10 +114,10 @@ Deno.test("analyze-meme wraps a bare base64 string as a data URI", async () => {
 Deno.test("analyze-meme leaves an existing data URI alone", async () => {
   const { bodies, calls } = await call(
     { imageBase64: `data:image/png;base64,${IMAGE}` },
-    caller({ "ai.gateway.lovable.dev": vision(anAnalysis()) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": vision(anAnalysis()) }),
   );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   const sent = bodies[i] ?? "";
   // Double-prefixing would corrupt it, and PNG must not be relabelled as JPEG.
   assertStringIncludes(sent, "data:image/png;base64,");
@@ -127,10 +127,10 @@ Deno.test("analyze-meme leaves an existing data URI alone", async () => {
 Deno.test("analyze-meme sends every frame of a video", async () => {
   const { bodies, calls } = await call(
     { imageBase64: [IMAGE, IMAGE, IMAGE], isVideo: true },
-    caller({ "ai.gateway.lovable.dev": vision(anAnalysis()) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": vision(anAnalysis()) }),
   );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   const sent = JSON.parse(bodies[i] ?? "{}") as {
     messages: Array<{ content: Array<{ type: string }> }>;
   };
@@ -143,20 +143,20 @@ Deno.test("analyze-meme sends every frame of a video", async () => {
 Deno.test("analyze-meme tells the model the frames are frames", async () => {
   const { bodies, calls } = await call(
     { imageBase64: [IMAGE, IMAGE] },
-    caller({ "ai.gateway.lovable.dev": vision(anAnalysis()) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": vision(anAnalysis()) }),
   );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   assertStringIncludes(bodies[i] ?? "", "video frames");
 });
 
 Deno.test("analyze-meme keeps the audio transcript out of the on-screen panel", async () => {
   const { bodies, calls } = await call(
     { imageBase64: IMAGE, audioTranscript: "شوف الزحمة هذي" },
-    caller({ "ai.gateway.lovable.dev": vision(anAnalysis()) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": vision(anAnalysis()) }),
   );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   const sent = bodies[i] ?? "";
   // The transcript is context so the humour can be explained, not content for
   // the "text visible in the image" panel — a learner reading that panel is
@@ -170,7 +170,7 @@ Deno.test("analyze-meme retries once when the model will not answer in JSON", as
   const { status, body, calls } = await call(
     { imageBase64: IMAGE },
     caller({
-      "ai.gateway.lovable.dev": () => {
+      "generativelanguage.googleapis.com/v1beta/openai": () => {
         attempt += 1;
         // An Arabic refusal is the characteristic failure — meme content trips
         // safety filters and the model apologises instead of answering.
@@ -191,7 +191,7 @@ Deno.test("analyze-meme adds a stricter instruction to the retry", async () => {
   const { bodies, calls } = await call(
     { imageBase64: IMAGE },
     caller({
-      "ai.gateway.lovable.dev": () => {
+      "generativelanguage.googleapis.com/v1beta/openai": () => {
         attempt += 1;
         return attempt === 1
           ? chatCompletion("أعتذر")
@@ -212,7 +212,7 @@ Deno.test("analyze-meme adds a stricter instruction to the retry", async () => {
 Deno.test("analyze-meme degrades to an empty structure rather than failing", async () => {
   const { status, body } = await call(
     { imageBase64: IMAGE },
-    caller({ "ai.gateway.lovable.dev": () => chatCompletion("أعتذر، لا أستطيع.") }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("أعتذر، لا أستطيع.") }),
   );
 
   // The learner has already waited for an upload. A 500 here throws that away;
@@ -232,7 +232,7 @@ Deno.test("analyze-meme recovers JSON wrapped in markdown fences", async () => {
   const { status, body } = await call(
     { imageBase64: IMAGE },
     caller({
-      "ai.gateway.lovable.dev": () =>
+      "generativelanguage.googleapis.com/v1beta/openai": () =>
         chatCompletion("```json\n" + JSON.stringify(anAnalysis()) + "\n```"),
     }),
   );
@@ -248,7 +248,7 @@ Deno.test("analyze-meme drops vocabulary entries with no Arabic", async () => {
   const { body } = await call(
     { imageBase64: IMAGE },
     caller({
-      "ai.gateway.lovable.dev": vision(
+      "generativelanguage.googleapis.com/v1beta/openai": vision(
         anAnalysis({
           onScreenText: {
             rawTranscriptArabic: "الزحمة",
@@ -275,7 +275,7 @@ Deno.test("analyze-meme drops grammar points with no title", async () => {
   const { body } = await call(
     { imageBase64: IMAGE },
     caller({
-      "ai.gateway.lovable.dev": vision(
+      "generativelanguage.googleapis.com/v1beta/openai": vision(
         anAnalysis({
           onScreenText: {
             rawTranscriptArabic: "الزحمة",
@@ -303,27 +303,25 @@ Deno.test("analyze-meme refuses a request with neither image nor transcript", as
   assert(!calls.some((url) => url.includes("chat/completions")));
 });
 
-Deno.test("analyze-meme says so when a key is missing", async () => {
-  for (const key of ["LOVABLE_API_KEY", "OPENROUTER_API_KEY"]) {
-    const { status, body, calls } = await call(
-      { imageBase64: IMAGE },
-      caller({ "ai.gateway.lovable.dev": vision(anAnalysis()) }),
-      { env: { [key]: undefined } },
-    );
+Deno.test("analyze-meme says so when no provider is configured", async () => {
+  // Checked up front, with the upload not yet spent. It is one check now rather
+  // than two: the vision half and the audio half both go through aiGateway, so
+  // either can be served by whichever provider is present.
+  const { status, body, calls } = await call(
+    { imageBase64: IMAGE },
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": vision(anAnalysis()) }),
+    { env: NO_AI_PROVIDER },
+  );
 
-    // Both are checked up front. The vision half and the audio half use
-    // different providers, so a half-configured deployment would otherwise fail
-    // partway through with the upload already spent.
-    assertEquals(status, 500, `expected a missing ${key} to be reported`);
-    assertEquals(body.error, "AI service not configured");
-    assert(!calls.some((url) => url.includes("chat/completions")));
-  }
+  assertEquals(status, 500);
+  assertEquals(body.error, "AI service not configured");
+  assert(!calls.some((url) => url.includes("chat/completions")));
 });
 
 Deno.test("analyze-meme turns an anonymous caller away", async () => {
   const { status, calls } = await call(
     { imageBase64: IMAGE },
-    caller({ "ai.gateway.lovable.dev": vision(anAnalysis()) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": vision(anAnalysis()) }),
     { jwt: null },
   );
 

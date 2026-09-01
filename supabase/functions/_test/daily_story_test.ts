@@ -56,7 +56,7 @@ const story = {
 };
 
 const emitting = (payload: unknown): Record<string, UpstreamHandler> => ({
-  "ai.gateway.lovable.dev": () => chatCompletion("", payload),
+  "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("", payload),
   "openrouter.ai": () => chatCompletion("", payload),
 });
 
@@ -127,7 +127,7 @@ async function call(
 }
 
 function gatewayPrompt(result: { calls: string[]; bodies: Array<string | null> }): string {
-  const index = result.calls.findIndex((u) => u.includes("gateway") || u.includes("openrouter"));
+  const index = result.calls.findIndex((u) => u.includes("/chat/completions"));
   return result.bodies[index] ?? "";
 }
 
@@ -186,7 +186,7 @@ Deno.test("generate-daily-story returns today's story without regenerating it", 
   assertEquals((result.body.story as Record<string, unknown>).title, "قصة الأمس");
   // Neither the deck nor the model is touched on a hit.
   assertEquals(result.calls.some((url) => url.includes("user_vocabulary")), false);
-  assertEquals(result.calls.some((url) => url.includes("gateway")), false);
+  assertEquals(result.calls.some((url) => url.includes("/chat/completions")), false);
 });
 
 Deno.test("generate-daily-story caches per user, day and dialect", async () => {
@@ -409,7 +409,7 @@ Deno.test("generate-daily-story reports a model failure as a gateway error", asy
     {},
     backend({
       extra: {
-        "ai.gateway.lovable.dev": () => json({ error: "down" }, 503),
+        "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "down" }, 503),
         "openrouter.ai": () => json({ error: "down" }, 503),
       },
     }),

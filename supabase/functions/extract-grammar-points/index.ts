@@ -17,6 +17,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { canonicalGrammarKey } from "../_shared/grammarTaxonomy.ts";
+import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
 
 
 type Cefr = "A1" | "A2" | "B1" | "B2" | "C1" | "C2";
@@ -184,9 +185,8 @@ serve(async (req) => {
     ).join("\n");
 
     const dialect = video.dialect || "Gulf";
-    const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!lovableKey) {
-      return new Response(JSON.stringify({ error: "Missing LOVABLE_API_KEY" }), {
+    if (!hasAnyProvider()) {
+      return new Response(JSON.stringify({ error: "No AI provider configured" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -211,18 +211,13 @@ ${transcriptSnippet}
 Return ONLY JSON of the form:
 {"points":[{"title":"...","explanation":"...","examples":["...","..."],"cefr_level":"${target_level}"}]}`;
 
-    const aiResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovableKey}` },
-      body: JSON.stringify({
-        model: MODEL_IDS.GEMINI_FAST,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        response_format: { type: "json_object" },
-      }),
-    });
+    const aiResp = await chatFetch(MODEL_IDS.GEMINI_FAST, {
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+      response_format: { type: "json_object" },
+    }, { label: "extract-grammar-points" });
 
     if (!aiResp.ok) {
       const errText = await aiResp.text().catch(() => "");
@@ -236,7 +231,7 @@ Return ONLY JSON of the form:
           status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      return new Response(JSON.stringify({ error: `AI gateway error: ${aiResp.status}`, detail: errText.slice(0, 300) }), {
+      return new Response(JSON.stringify({ error: `AI provider error: ${aiResp.status}`, detail: errText.slice(0, 300) }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

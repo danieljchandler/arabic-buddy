@@ -1,5 +1,7 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { requireRole, TRANSCRIPT_EDITOR_ROLES } from "../_shared/requireRole.ts";
+import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
 // AI Re-segment Transcript
 // Takes existing word-level segments and asks an LLM to restructure them into
 // thought-by-thought lines, starting a new line on speaker changes. Word
@@ -175,7 +177,6 @@ function flattenWords(segments: Segment[]) {
 
 async function callGateway(
   flat: ReturnType<typeof flattenWords>,
-  apiKey: string,
   dialect: string | undefined,
   signal: AbortSignal,
 ): Promise<AILine[]> {
@@ -191,14 +192,7 @@ async function callGateway(
   };
 
   const tryModel = async (model: string) => {
-    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model,
+    const resp = await chatFetch(model, {
         messages: [
           { role: "system", content: buildSystemPrompt(dialect) },
           {
@@ -212,13 +206,11 @@ async function callGateway(
         ],
         tools: [TOOL_SCHEMA],
         tool_choice: { type: "function", function: { name: "resegment_transcript" } },
-      }),
-      signal,
-    });
+    }, { signal, label: "ai-resegment-transcript" });
 
     if (!resp.ok) {
       const body = await resp.text();
-      const err: any = new Error(`AI gateway ${resp.status}: ${body}`);
+      const err: any = new Error(`AI provider ${resp.status}: ${body}`);
       err.status = resp.status;
       throw err;
     }
@@ -234,8 +226,8 @@ async function callGateway(
 
   // Flash is fast enough for re-segmentation and stays well under the 150s
   // edge-function idle timeout. Pro was timing out on long transcripts.
-  const primary = "google/gemini-3-flash-preview";
-  const fallback = "google/gemini-2.5-flash";
+  const primary = MODEL_IDS.GEMINI_FAST;
+  const fallback = MODEL_IDS.GEMINI_FLASH;
 
   try {
     return await tryModel(primary);
@@ -339,10 +331,9 @@ Deno.serve(async (req) => {
   if (gate.denied) return gate.response;
 
   try {
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) {
+    if (!hasAnyProvider()) {
       return new Response(
-        JSON.stringify({ error: "LOVABLE_API_KEY is not configured" }),
+        JSON.stringify({ error: "No AI provider is configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
       );
     }
@@ -377,7 +368,7 @@ Deno.serve(async (req) => {
 
     try {
       if (flat.length <= CHUNK_SIZE) {
-        const lines = await callGateway(flat, apiKey, dialect, controller.signal);
+        const lines = await callGateway(flat, dialect, controller.signal);
         allLines.push(...lines);
       } else {
         const offsets: number[] = [];
@@ -387,7 +378,7 @@ Deno.serve(async (req) => {
           offsets.map(async (offset) => {
             const slice = flat.slice(offset, offset + CHUNK_SIZE);
             const reindexed = slice.map((w, i) => ({ ...w, idx: i }));
-            const lines = await callGateway(reindexed, apiKey, dialect, controller.signal);
+            const lines = await callGateway(reindexed, dialect, controller.signal);
             return lines.map((line) => ({
               ...line,
               wordIndices: (line.wordIndices ?? []).map((i) => i + offset),
@@ -412,7 +403,7 @@ Deno.serve(async (req) => {
       status === 429
         ? "Rate limits exceeded, please try again later."
         : status === 402
-          ? "Payment required — please add Lovable AI credits."
+          ? "Payment required — the AI provider is out of credit."
           : (e?.message ?? "Unknown error");
     return new Response(JSON.stringify({ error: msg }), {
       status,

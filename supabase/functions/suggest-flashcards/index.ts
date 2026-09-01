@@ -1,5 +1,7 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
+import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 
 
 const DIALECT_GUIDE: Record<string, string> = {
@@ -25,8 +27,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
+    if (!hasAnyProvider()) throw new Error("No AI provider configured");
 
     const dialectGuide = DIALECT_GUIDE[dialect] ?? DIALECT_GUIDE.Gulf;
     const existingList = (existingWords as string[]).slice(0, 500);
@@ -49,14 +50,7 @@ ${existingList.length ? existingList.join(", ") : "(none)"}
 
 Generate ${count} new flashcards.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+    const response = await chatFetch(MODEL_IDS.GEMINI_FAST, {
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -99,8 +93,7 @@ Generate ${count} new flashcards.`;
           },
         ],
         tool_choice: { type: "function", function: { name: "return_flashcards" } },
-      }),
-    });
+    }, { label: "suggest-flashcards" });
 
     if (!response.ok) {
       const text = await response.text();

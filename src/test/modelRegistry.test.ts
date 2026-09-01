@@ -181,23 +181,11 @@ describe("the no-hardcoding rule", () => {
    * test, and so does fixing one, which is the prompt to strike it off.
    */
   const KNOWN_HARDCODES = new Set([
-    "suggest-stories/index.ts → google/gemini-3-flash-preview",
-    "generate-suggested-story-text/index.ts → google/gemini-3-flash-preview",
-    "generate-story/index.ts → google/gemini-3-flash-preview",
-    "free-chat/index.ts → google/gemini-2.5-pro",
-    "curriculum-chat/index.ts → google/gemini-2.5-pro",
-    "curriculum-chat/index.ts → google/gemini-3-flash-preview",
-    "bible-passage/index.ts → google/gemini-2.5-pro",
-    "bible-passage/index.ts → google/gemini-3-flash-preview",
-    "analyze-gulf-arabic/index.ts → anthropic/claude-sonnet-4.5",
-    "analyze-gulf-arabic/index.ts → google/gemini-3.5-flash",
-    "analyze-gulf-arabic/index.ts → qwen/qwen3-max",
+    // Emptied when the lineup moved off the Lovable-era models: every entry
+    // that used to sit here now reads its id from MODEL_IDS, so a registry bump
+    // reaches all of them. Keep it that way — the assertion below fails in both
+    // directions, so an id added back here has to be argued for.
     "analyze-gulf-arabic/index.ts → Fanar-C-2-27B",
-    "ai-resegment-transcript/index.ts → google/gemini-3-flash-preview",
-    "_shared/dialectValidator.ts → google/gemini-2.5-pro",
-    "_shared/dialectValidator.ts → mistralai/mistral-saba",
-    "_shared/aiBrain.ts → google/gemini-2.5-pro",
-    "_shared/aiBrain.ts → google/gemini-3-flash-preview",
   ]);
 
   it("finds the sources it is scanning", async () => {

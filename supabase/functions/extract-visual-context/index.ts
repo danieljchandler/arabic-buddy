@@ -1,6 +1,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import {
   ON_SCREEN_TEXT_PROMPT,
   buildVisualContextText,
@@ -93,8 +95,7 @@ serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
+    if (!hasAnyProvider()) {
       return new Response(
         JSON.stringify({ error: 'AI service not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -135,23 +136,14 @@ serve(async (req) => {
 
     let rawResponse: string;
     try {
-      const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-        method: 'POST',
-        signal: controller.signal,
-        headers: {
-          'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model: 'google/gemini-2.5-flash',
-          messages: [
-            { role: 'system', content: VISUAL_CONTEXT_PROMPT },
-            { role: 'user', content: userContent },
-          ],
-          max_tokens: 4096,
-          temperature: 0.2,
-        }),
-      });
+      const response = await chatFetch(MODEL_IDS.GEMINI_FLASH, {
+        messages: [
+          { role: 'system', content: VISUAL_CONTEXT_PROMPT },
+          { role: 'user', content: userContent },
+        ],
+        max_tokens: 4096,
+        temperature: 0.2,
+      }, { signal: controller.signal, label: 'extract-visual-context' });
 
       if (!response.ok) {
         const errText = await response.text();

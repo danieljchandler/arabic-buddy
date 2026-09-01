@@ -70,7 +70,7 @@ async function call(
 
 /** The prompt sent to whichever gateway the brain picked. */
 function promptOf(bodies: Array<string | null>, calls: string[]): string {
-  const index = calls.findIndex((url) => url.includes("gateway") || url.includes("openrouter"));
+  const index = calls.findIndex((url) => url.includes("/chat/completions"));
   return bodies[index] ?? "";
 }
 
@@ -123,7 +123,7 @@ Deno.test("suggest-stories returns what the model proposed", async () => {
     admin({
       "/rest/v1/authentic_stories": () => json([]),
       "/rest/v1/interactive_stories": () => json([]),
-      "ai.gateway.lovable.dev": emitting({ suggestions: [suggestion] }),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({ suggestions: [suggestion] }),
       "openrouter.ai": emitting({ suggestions: [suggestion] }),
     }),
   );
@@ -141,7 +141,7 @@ Deno.test("suggest-stories tells the model what the library already has", async 
       "/rest/v1/authentic_stories": () =>
         json([{ title: "Kalila and Dimna", title_arabic: "كليلة ودمنة" }]),
       "/rest/v1/interactive_stories": () => json([{ title: "The Lost Camel" }]),
-      "ai.gateway.lovable.dev": emitting({ suggestions: [] }),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({ suggestions: [] }),
       "openrouter.ai": emitting({ suggestions: [] }),
     }),
   );
@@ -161,7 +161,7 @@ Deno.test("suggest-stories answers an empty proposal with an empty list", async 
     admin({
       "/rest/v1/authentic_stories": () => json([]),
       "/rest/v1/interactive_stories": () => json([]),
-      "ai.gateway.lovable.dev": emitting({ suggestions: [] }),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({ suggestions: [] }),
       "openrouter.ai": emitting({ suggestions: [] }),
     }),
   );
@@ -201,7 +201,7 @@ Deno.test("generate-suggested-story-text returns the body and any author", async
     "generate-suggested-story-text",
     { title: "The Generous Host", title_arabic: "المضيف الكريم", estimated_length: "short" },
     admin({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         body_arabic: "كان يا ما كان",
         author: "Traditional",
         author_arabic: "تراثي",
@@ -221,7 +221,7 @@ Deno.test("generate-suggested-story-text nulls an author the model did not know"
     "generate-suggested-story-text",
     { title: "T", title_arabic: "ت" },
     admin({
-      "ai.gateway.lovable.dev": emitting({ body_arabic: "نص" }),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({ body_arabic: "نص" }),
       "openrouter.ai": emitting({ body_arabic: "نص" }),
     }),
   );
@@ -242,7 +242,7 @@ Deno.test("generate-suggested-story-text asks for the requested length and level
       themes: ["generosity"],
     },
     admin({
-      "ai.gateway.lovable.dev": emitting({ body_arabic: "نص" }),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({ body_arabic: "نص" }),
       "openrouter.ai": emitting({ body_arabic: "نص" }),
     }),
   );
@@ -261,7 +261,7 @@ Deno.test("generate-suggested-story-text reports a model that wrote nothing", as
       // A tool call that carried an author but no text. A reply with no tool
       // call at all is a different failure — askBrain throws, and the function
       // answers 500 `internal` rather than 500 `generation_failed`.
-      "ai.gateway.lovable.dev": emitting({ author: "Traditional" }),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({ author: "Traditional" }),
       "openrouter.ai": emitting({ author: "Traditional" }),
     }),
   );
@@ -291,7 +291,7 @@ const processed = {
 
 function importUpstreams(extra: Record<string, UpstreamHandler> = {}) {
   return admin({
-    "ai.gateway.lovable.dev": emitting(processed),
+    "generativelanguage.googleapis.com/v1beta/openai": emitting(processed),
     "openrouter.ai": emitting(processed),
     "/rest/v1/authentic_stories": () => json({ id: STORY, title: "The Generous Host" }),
     "/rest/v1/authentic_story_lines": () => json([], 201),
@@ -393,7 +393,7 @@ Deno.test("import-authentic-story reports a model that segmented nothing", async
     "import-authentic-story",
     { title: "T", title_arabic: "ت", body_arabic: "نص" },
     importUpstreams({
-      "ai.gateway.lovable.dev": emitting({ lines: [], vocabulary: [] }),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({ lines: [], vocabulary: [] }),
       "openrouter.ai": emitting({ lines: [], vocabulary: [] }),
     }),
   );
@@ -447,7 +447,7 @@ const storyLines = [
 
 function translateUpstreams(extra: Record<string, UpstreamHandler> = {}) {
   return admin({
-    "ai.gateway.lovable.dev": emitting(translated),
+    "generativelanguage.googleapis.com/v1beta/openai": emitting(translated),
     "openrouter.ai": emitting(translated),
     "/rest/v1/authentic_story_lines": () => json(storyLines),
     "/rest/v1/authentic_stories": () => json([]),
@@ -481,7 +481,7 @@ Deno.test("translate-story-dialect refuses a plain signed-in user", async () => 
     "translate-story-dialect",
     { story_id: STORY, dialect: "Gulf" },
     plainUser({
-      "ai.gateway.lovable.dev": emitting(translated),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting(translated),
       "openrouter.ai": emitting(translated),
       "/rest/v1/authentic_story_lines": () => json(storyLines),
       "/rest/v1/authentic_stories": () => json([]),
@@ -497,7 +497,7 @@ Deno.test("translate-story-dialect runs for a content manager", async () => {
     "translate-story-dialect",
     { story_id: STORY, dialect: "Gulf" },
     admin({
-      "ai.gateway.lovable.dev": emitting(translated),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting(translated),
       "openrouter.ai": emitting(translated),
       "/rest/v1/authentic_story_lines": () => json(storyLines),
       "/rest/v1/authentic_stories": () => json([]),
@@ -562,7 +562,7 @@ Deno.test("translate-story-dialect stops at the shorter of the two lists", async
     "translate-story-dialect",
     { story_id: STORY, dialect: "Gulf" },
     translateUpstreams({
-      "ai.gateway.lovable.dev": emitting({ lines: [translated.lines[0]] }),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({ lines: [translated.lines[0]] }),
       "openrouter.ai": emitting({ lines: [translated.lines[0]] }),
     }),
   );
@@ -585,7 +585,7 @@ Deno.test("translate-story-dialect reports success even when nothing was transla
     "translate-story-dialect",
     { story_id: STORY, dialect: "Gulf" },
     translateUpstreams({
-      "ai.gateway.lovable.dev": emitting({ lines: [] }),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({ lines: [] }),
       "openrouter.ai": emitting({ lines: [] }),
     }),
   );

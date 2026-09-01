@@ -2,7 +2,7 @@
  * request-situation-phrases
  *
  * User-facing. Given a free-form situation/context the learner needs phrases for,
- * generate 5-8 authentic dialect phrases via Lovable AI. Returns the phrases for
+ * generate 5-8 authentic dialect phrases. Returns the phrases for
  * the client to display + selectively save into user_phrases.
  *
  * Body: { situation: string, dialect: string, count?: number }
@@ -11,6 +11,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
+import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
 
 
 const DIALECT_RULES: Record<string, string> = {
@@ -39,8 +40,7 @@ serve(async (req) => {
     const cap = await enforceDailyCap(req, "situation-phrases", 20, corsHeaders);
     if (cap.limited) return cap.response;
 
-    const apiKey = Deno.env.get("LOVABLE_API_KEY");
-    if (!apiKey) {
+    if (!hasAnyProvider()) {
       return new Response(JSON.stringify({ error: "config_missing" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -58,11 +58,7 @@ Rules:
 - Add a short note ONLY if cultural/usage context matters; otherwise leave empty.
 - NEVER invent unnatural phrases. NEVER use MSA when a dialect form exists.`;
 
-    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: MODEL_IDS.GEMINI_FAST,
+    const resp = await chatFetch(MODEL_IDS.GEMINI_FAST, {
         messages: [
           { role: "system", content: sys },
           { role: "user", content: `Dialect: ${dialect}\nSituation: ${situation.trim()}\nGenerate ${n} phrases.` },
@@ -95,9 +91,7 @@ Rules:
           },
         }],
         tool_choice: { type: "function", function: { name: "emit_phrases" } },
-      }),
-      signal: AbortSignal.timeout(60_000),
-    });
+    }, { signal: AbortSignal.timeout(60_000), label: "request-situation-phrases" });
 
     if (resp.status === 429) {
       return new Response(JSON.stringify({ error: "rate_limit", message: "Too many requests, try again shortly." }), {

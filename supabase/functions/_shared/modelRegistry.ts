@@ -7,26 +7,62 @@
 // in individual edge functions. Only swap models HERE, in one place.
 //
 // Two named lineups power everything translation- or content-related:
-//   - TRANSLATION: Claude Sonnet 4.5 + Gemini 3.5 Flash, ensemble.
-//   - CONTENT:    Claude Sonnet 4.5 + Gemini 3.5 Flash, draft_critic.
+//   - TRANSLATION: Claude Sonnet 5 + Gemini 3.7 Flash, ensemble.
+//   - CONTENT:    Claude Sonnet 5 + Gemini 3.7 Flash, draft_critic.
 //
-// Claude routes via OpenRouter (OPENROUTER_API_KEY); Gemini routes via the
-// Lovable AI Gateway (LOVABLE_API_KEY). See routeForModel() in aiBrain.ts.
+// This file names the model; `aiGateway.ts` decides whose API serves it —
+// Gemini via Google (GEMINI_API_KEY), GPT via OpenAI (OPENAI_API_KEY), and
+// everything else — plus anything whose own key is missing — via OpenRouter
+// (OPENROUTER_API_KEY). Keep the ids here in OpenRouter's `vendor/model` form:
+// that is the one namespace all three providers can be addressed from, and
+// aiGateway strips the prefix for the vendors that don't want it.
 //
-// Live voice (realtime-session-token) and ASR/TTS/image models are NOT
-// governed by this registry — they have their own provider-specific configs.
+// Live voice (realtime-session-token) and ASR/TTS models are NOT governed by
+// this registry — they have their own provider-specific configs. Image models
+// are, as of the move off Lovable: see IMAGE_MODEL_IDS below.
 // =============================================================================
 
 // ---- Canonical model IDs ----------------------------------------------------
 // Bump these when upgrading; everything downstream picks it up automatically.
 export const MODEL_IDS = {
-  CLAUDE: 'anthropic/claude-sonnet-4.5',          // one tier below Opus (cheaper)
-  CLAUDE_CHAT: 'anthropic/claude-sonnet-5',        // newest Sonnet — Ask AI text chat
-  GEMINI_FLASH: 'google/gemini-3.5-flash',         // via Lovable Gateway
-  GEMINI_PRO: 'google/gemini-2.5-pro',             // heavy reasoning fallback
-  GEMINI_FAST: 'google/gemini-3-flash-preview',    // cheapest utility default
-  QWEN: 'qwen/qwen3-max',                          // third-leg verifier
+  // One Sonnet for everything, not two. Sonnet 5 superseded Sonnet 4.5 and is
+  // *cheaper* than the model it replaces ($2/$10 vs $3/$15 per Mtok), so the
+  // old split — 4.5 for the pipeline, 5 for chat — cost more and reasoned worse.
+  CLAUDE: 'anthropic/claude-sonnet-5',
+  CLAUDE_CHAT: 'anthropic/claude-sonnet-5',        // same model; kept as a separate name for the chat route
+  GEMINI_FLASH: 'google/gemini-3.7-flash',         // via Google; half the price of the 3.5 it replaces
+  // Heavy reasoning fallback and the native-speaker validator's judge — the
+  // dialect quality ceiling, so it takes the newest Pro even though that one is
+  // still preview-tier. Tolerable here specifically because the validator is
+  // optional by design: `validateDialect` returns `unknown`/`ok:false` when its
+  // provider is unavailable, so a deprecated id degrades the gate rather than
+  // failing the request behind it.
+  GEMINI_PRO: 'google/gemini-3.1-pro-preview',
+  // The UTILITY lineup's model — and, despite the name, the one most of the
+  // app's learner-facing Arabic is generated with: set phrases, situational
+  // phrases, souq retellings, jingle lyrics, mnemonics, reading Q&A and the
+  // daily challenge all run through it.
+  //
+  // It is deliberately a full Flash tier and NOT the cheaper `-flash-lite`.
+  // Lite saves ~$0.45/Mtok output, and on classification or extraction that
+  // would be free money — but the dialect literature is that models under-
+  // produce dialect because they are *reluctant* to, a post-training bias that
+  // gets worse as models get smaller and more aligned (AL-QASIDA,
+  // arXiv:2412.04193). Spending the app's highest-volume dialect path to save a
+  // few cents per million tokens is the wrong side of that trade. Flash Lite
+  // also has no published Arabic score; Gemini 3 Flash is measured at 92 on
+  // Artificial Analysis's Arabic index, second only to Gemini 3.1 Pro.
+  //
+  // If a cheap tier is wanted later, split it by *output*: `-flash-lite` for
+  // the calls whose answer is English or a label (CEFR scoring, clip
+  // verification, trend triage), never for the ones that write Arabic.
+  GEMINI_FAST: 'google/gemini-3.7-flash',
+  QWEN: 'qwen/qwen3.8-max',                        // third-leg verifier (weight 0.6)
   SABA: 'mistralai/mistral-saba',                  // Arabic-native 24B, via OpenRouter
+  // Second drafter in generate-story: a non-Google, non-Anthropic voice so the
+  // ensemble is not two models with one house style. Luna is the current small
+  // GPT-5 tier and undercuts the gpt-5-mini it replaces.
+  GPT_MINI: 'openai/gpt-5.6-luna',
   // All general Fanar work (merge fallback, meta enrichment, dialect
   // validation, curriculum chat) uses the pinned gen-2 model. Never use the
   // bare 'Fanar' alias (silently tracks gen 1, 4k ctx) and never use
@@ -45,8 +81,8 @@ export interface Lineup {
 
 export const MODEL_LINEUPS: Record<LineupName, Lineup> = {
   // Translation: parallel ensemble — Claude and Gemini both translate, brain
-  // picks the lower-MSA-leak result. Both models route via OpenRouter/Lovable
-  // and use weighted Jaccard ranking inside aiBrain.runEnsemble.
+  // picks the lower-MSA-leak result. Claude routes via OpenRouter and Gemini
+  // via Google; both use weighted Jaccard ranking inside aiBrain.runEnsemble.
   TRANSLATION: {
     drafters: [MODEL_IDS.CLAUDE, MODEL_IDS.GEMINI_FLASH],
     judge: MODEL_IDS.CLAUDE,
@@ -59,7 +95,9 @@ export const MODEL_LINEUPS: Record<LineupName, Lineup> = {
     judge: MODEL_IDS.CLAUDE,
     strategy: 'draft_critic',
   },
-  // Utility: cheap classification, extraction, scoring — single fast model.
+  // Utility: single fast model, one shot. Named for the call shape, not for a
+  // price tier — see GEMINI_FAST above for why this is not the cheapest model
+  // available.
   UTILITY: {
     drafters: [MODEL_IDS.GEMINI_FAST],
     judge: MODEL_IDS.GEMINI_FAST,
@@ -89,17 +127,33 @@ export const DEFAULT_DRAFTERS = MODEL_LINEUPS.TRANSLATION.drafters;
 // rather than the cheap utility default. Routes via OpenRouter.
 export const DEFAULT_CHAT = MODEL_IDS.CLAUDE_CHAT;
 
+// ---- Image models -----------------------------------------------------------
+// Same rule as the text models: named here, never in a feature function.
+// `aiGateway.generateImage` walks these in order — Gemini first because the
+// house illustration style was tuned on it, OpenAI's image model as the
+// fallback when Google is unavailable or refuses a prompt.
+export const IMAGE_MODEL_IDS = {
+  GEMINI: 'google/gemini-3.1-flash-image',
+  // OpenAI's current image model. Note the id is deliberately not an
+  // OpenRouter-namespaced one: this model is only ever called on OpenAI's own
+  // Images API, where it is `gpt-image-2` (OpenRouter lists the same model as
+  // `openai/gpt-5.4-image-2`, which that API would not recognise).
+  OPENAI: 'openai/gpt-image-2',
+} as const;
+
 // ---- Voting weights for runEnsemble ranking --------------------------------
-// Both Claude Sonnet 4.5 and Gemini 3.5 Flash are co-equal authoritative
-// drafters. Qwen and other legacy models stay at lower weights.
+// Claude Sonnet 5 and Gemini 3.7 Flash are co-equal authoritative drafters.
+// Qwen and the second GPT drafter stay at lower weights.
 export const MODEL_WEIGHTS: Record<string, number> = {
   [MODEL_IDS.CLAUDE]: 1.0,
+  // GEMINI_FLASH and GEMINI_FAST are the same model today, so there is one
+  // entry rather than two — a second key would be a duplicate-property error,
+  // and the weight belongs to the model, not to the lineup slot.
   [MODEL_IDS.GEMINI_FLASH]: 1.0,
   [MODEL_IDS.GEMINI_PRO]: 0.9,
-  [MODEL_IDS.GEMINI_FAST]: 0.7,
   [MODEL_IDS.QWEN]: 0.6,
   [MODEL_IDS.SABA]: 0.7,
-  'openai/gpt-5-mini': 0.6,   // second drafter in generate-story
+  [MODEL_IDS.GPT_MINI]: 0.6,  // second drafter in generate-story
 };
 
 export function getModelWeight(id: string): number {

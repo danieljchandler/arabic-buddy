@@ -205,7 +205,7 @@ Deno.test("transcript-review will not sign off a line that is not there", async 
 
 Deno.test("transcript-review re-translates a line and logs it as machine-made", async () => {
   const routes = upstreams("transcriber", {
-    "ai.gateway.lovable.dev": () =>
+    "generativelanguage.googleapis.com/v1beta/openai": () =>
       chatCompletion("", { translation: "How's it going today?", literal: "what-news-your today" }),
     "openrouter.ai": () =>
       chatCompletion("", { translation: "How's it going today?", literal: "what-news-your today" }),
@@ -419,7 +419,7 @@ Deno.test("transcript-review tells the translator which variety it is looking at
         request.method === "GET"
           ? json(classifiedVideo())
           : new Response(null, { status: 204 }),
-      "ai.gateway.lovable.dev": capture,
+      "generativelanguage.googleapis.com/v1beta/openai": capture,
       "openrouter.ai": capture,
     }),
   );

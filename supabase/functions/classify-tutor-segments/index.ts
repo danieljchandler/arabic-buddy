@@ -2,6 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
+import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
 
 
 interface TimestampedSegment {
@@ -71,8 +72,7 @@ serve(async (req) => {
     const dialectLabel = dialect === 'Egyptian' ? 'Egyptian Arabic (مصري)' : dialect === 'Yemeni' ? 'Yemeni Arabic (يمني)' : 'Gulf Arabic (Khaliji)';
     console.log('classify-tutor-segments dialect module:', dialect);
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY is not configured");
+    if (!hasAnyProvider()) throw new Error("No AI provider is configured");
 
     // Build segment list
     const segmentList = segments.map((s, i) => 
@@ -148,17 +148,11 @@ Return the results using the extract_candidates tool.`;
 
     const userMessage = `Here are the transcript segments:\n\n${segmentList}${wordList}`;
 
-    // Use Gemini via Lovable AI gateway
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${LOVABLE_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: MODEL_IDS.GEMINI_FAST,
-        messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }],
-        tools: requestTools,
-        tool_choice: { type: "function", function: { name: "extract_candidates" } },
-      }),
-    });
+    const response = await chatFetch(MODEL_IDS.GEMINI_FAST, {
+      messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userMessage }],
+      tools: requestTools,
+      tool_choice: { type: "function", function: { name: "extract_candidates" } },
+    }, { label: "classify-tutor-segments" });
 
     if (!response.ok) {
       if (response.status === 429) {
@@ -172,8 +166,8 @@ Return the results using the extract_candidates tool.`;
         });
       }
       const errText = await response.text();
-      console.error("AI gateway error:", response.status, errText);
-      throw new Error(`AI gateway error: ${response.status}`);
+      console.error("AI provider error:", response.status, errText);
+      throw new Error(`AI provider error: ${response.status}`);
     }
 
     const data = await response.json();

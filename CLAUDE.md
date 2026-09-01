@@ -122,10 +122,29 @@ harness.
   `supabase/functions/_test/harness.ts` intercepts both forms via an
   import-map shim and a `Deno.serve` monkey-patch; `loadFunction(name)` is how
   tests get a callable handler with faked secrets and routed `fetch`.
-- **Model IDs are centralized.** Never hardcode a model ID in feature code —
-  everything goes through `supabase/functions/_shared/modelRegistry.ts`
-  (named lineups: `TRANSLATION`, `CONTENT`, `UTILITY`, `REASONING`). Claude
-  routes via OpenRouter, Gemini via the Lovable AI Gateway.
+- **Model IDs are centralized; providers are chosen, not hardcoded.** Never
+  hardcode a model ID in feature code — everything goes through
+  `supabase/functions/_shared/modelRegistry.ts` (named lineups: `TRANSLATION`,
+  `CONTENT`, `UTILITY`, `REASONING`, plus `IMAGE_MODEL_IDS`). `src/test/modelRegistry.test.ts`
+  enforces this in both directions: a new hardcoded id fails, and so does an
+  entry left on the allow-list after it was fixed. Which *provider*
+  serves a model is `_shared/aiGateway.ts`'s decision, off the vendor prefix:
+  `google/*` → Google (`GEMINI_API_KEY`), `openai/*` → OpenAI
+  (`OPENAI_API_KEY`), `Fanar-*` → QCRI (`FANAR_API_KEY`), everything else →
+  OpenRouter (`OPENROUTER_API_KEY`). Fanar is the one vendor with no OpenRouter
+  twin, so it never falls back there — `canFallBack` is what encodes that.
+  Registry ids stay in OpenRouter's `vendor/model` form because that is the one
+  namespace all three can be addressed from; aiGateway strips the prefix for the
+  vendors whose own APIs don't use it. Call models with `chatFetch` /
+  `chatFetchDetailed` / `generateImage` rather than a bare `fetch` to a
+  provider URL, and never reintroduce a hosting provider's AI gateway.
+  **OpenRouter is also the safety net:** when a vendor's key is missing, or its
+  API answers with a status in aiGateway's fallback set (400/401/403/404/408 and
+  5xx — deliberately *not* 429), the same model is retried once through
+  OpenRouter. That is a provider swap, never a model swap. Two consequences for
+  tests: "the upstream is down" means stubbing both routes, and "the AI is not
+  configured" means unsetting every provider key (`NO_AI_PROVIDER` in the edge
+  harness), not one.
 - **`contract/` and `_test/schemaContract.test.ts` check different things.**
   The former replays all migrations against stock Postgres (can the schema be
   rebuilt from scratch); the latter statically checks every `.from()`/`.rpc()`/
@@ -148,8 +167,17 @@ harness.
 
 **AI generation** goes through a shared orchestrator, not direct gateway
 calls: `supabase/functions/_shared/aiBrain.ts` (`askBrain()`) layers dialect
-identity, an MSA-leak detector, a repair pass, and an optional native-speaker
-validator over whichever model lineup is requested from `modelRegistry.ts`. A
+identity, worked dialect examples, an MSA-leak detector, a repair pass, and an
+optional native-speaker validator over whichever model lineup is requested from
+`modelRegistry.ts`. The worked examples (`getDialectDemonstrations`) are the
+*front* half of the MSA fight and the cheap one — models under-produce dialect
+out of reluctance rather than inability, and demonstration moves them where
+instruction does not (AL-QASIDA, arXiv:2412.04193). They ride in the prompt's
+stable cached prefix, so they cost tokens once per dialect rather than per call,
+and `dialect_demonstrations_test.ts` asserts they are leak-free under the
+detector's own lists — a leak inside a demonstration is taught, not caught.
+Set `skipDemonstrations` only for tasks that emit no Arabic prose (routing,
+triage); that is a narrower question than `skipRepair`. A
 task picks a `Strategy` — `solo`, `ensemble`, `draft_critic` or `council` — and
 `streamBrain()` is the streaming counterpart for chat-shaped responses. Every
 edge function that generates or judges Arabic content calls through this, not
@@ -270,4 +298,10 @@ a borrowing or an intonation, not a grammar category. Full writeup in README.
   backend as the unit suite (no network).
 - `scripts/` — repo tooling that isn't part of the app build: the lint
   ratchet, corpus/artifact derivation, illustration generation, training-data
-  export.
+  export, and `eval-dialect-live.ts`, which measures a model against the frozen
+  golden set through the *same* prompt the Brain builds. Two flags carry its
+  reason for existing: `--compare <model>` prints the per-dialect leak-rate
+  delta between two models (run this before a registry bump ships), and
+  `--no-demos` drops the worked examples, so running with and without measures
+  whether they earn their tokens on this golden set rather than on the paper's.
+  It needs real provider keys, so it is a local/manual tool, not a CI gate.

@@ -55,7 +55,7 @@ function upstreams(extra: Record<string, UpstreamHandler> = {}): Record<string, 
     "/rest/v1/llm_usage_logs": () => json({}, 201),
     "/rest/v1/msa_violations": () => json({}, 201),
     "/rest/v1/feature_metrics": () => json({}, 201),
-    "ai.gateway.lovable.dev": () => chatCompletion("", story),
+    "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("", story),
     "openrouter.ai": () => chatCompletion("", story),
     ...extra,
   };
@@ -138,7 +138,7 @@ Deno.test("pregenerate-daily refuses an ordinary learner", async () => {
   assertEquals(result.status, 403);
   assertEquals(result.body.error, "forbidden");
   // Refused before touching anything that costs money.
-  assertEquals(result.calls.some((url) => url.includes("gateway")), false);
+  assertEquals(result.calls.some((url) => url.includes("/chat/completions")), false);
 });
 
 Deno.test("pregenerate-daily refuses an anonymous caller", async () => {
@@ -199,7 +199,7 @@ Deno.test("pregenerate-daily skips a learner whose story is already built", asyn
   assertEquals(result.body.skipped, 1);
   assertEquals(result.body.generated, 0);
   // A skip costs one cache read and nothing else.
-  assertEquals(result.calls.some((url) => url.includes("gateway")), false);
+  assertEquals(result.calls.some((url) => url.includes("/chat/completions")), false);
 });
 
 Deno.test("pregenerate-daily reports an empty night as zeros", async () => {
@@ -244,7 +244,7 @@ Deno.test("pregenerate-daily counts a dry run without spending anything", async 
   assertEquals(result.body.dryRun, true);
   // The cache read happens (a dry run still reports real skips); the model
   // and the save do not.
-  assertEquals(result.calls.some((url) => url.includes("gateway")), false);
+  assertEquals(result.calls.some((url) => url.includes("/chat/completions")), false);
   assertEquals(savedRows(result).length, 0);
 });
 

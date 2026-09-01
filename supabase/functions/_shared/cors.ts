@@ -19,6 +19,19 @@ function getAllowedOrigins(): string[] {
 }
 
 /**
+ * The canonical origin for this deployment: the first entry of the allow-list.
+ *
+ * For anything that has to name a URL without a request to read it from — a
+ * Stripe return URL, an email link — this is the answer. Deriving it from
+ * `ALLOWED_ORIGINS` rather than hardcoding it means a staging or self-hosted
+ * deployment sends people back to itself instead of to production, and it is
+ * one domain list to update at the next rebrand rather than several.
+ */
+export function getProductionOrigin(): string {
+  return getAllowedOrigins()[0] ?? 'https://hakiya.app';
+}
+
+/**
  * Return CORS headers that mirror the request's Origin header only when it
  * matches the allow-list.  For unknown origins the Access-Control-Allow-Origin
  * header is omitted so browsers will block the response.

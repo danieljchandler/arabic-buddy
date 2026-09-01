@@ -3,6 +3,7 @@ import {
   assertEquals,
   assertStringIncludes,
 } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { jsonRequest, loadFunction, loadSharedModule, optionsRequest } from "./harness.ts";
 import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
 
@@ -117,13 +118,13 @@ Deno.test("convert-to-fusha falls through to the second model when the first ans
     { lines: [DIALECT[0]] },
     caller({
       "openrouter.ai": () => chatCompletion(JSON.stringify({ fusha: ["How are you today?"] })),
-      "ai.gateway.lovable.dev": () => chatCompletion(JSON.stringify({ fusha: [FUSHA[0]] })),
+      "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion(JSON.stringify({ fusha: [FUSHA[0]] })),
     }),
   );
 
   assertEquals(status, 200);
   assertEquals(body.fusha, [FUSHA[0]]);
-  assertEquals(body.model, "google/gemini-3.5-flash");
+  assertEquals(body.model, MODEL_IDS.GEMINI_FLASH);
 });
 
 Deno.test("convert-to-fusha reports a failure instead of an empty conversion", async () => {
@@ -131,7 +132,7 @@ Deno.test("convert-to-fusha reports a failure instead of an empty conversion", a
     { lines: DIALECT },
     caller({
       "openrouter.ai": () => json({ error: "upstream down" }, 500),
-      "ai.gateway.lovable.dev": () => json({ error: "upstream down" }, 500),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "upstream down" }, 500),
     }),
   );
 

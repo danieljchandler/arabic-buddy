@@ -32,7 +32,7 @@ function admin(extra: Record<string, UpstreamHandler> = {}): Record<string, Upst
 }
 
 const emitting = (payload: unknown): Record<string, UpstreamHandler> => ({
-  "ai.gateway.lovable.dev": () => chatCompletion("", payload),
+  "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("", payload),
   "openrouter.ai": () => chatCompletion("", payload),
 });
 
@@ -251,7 +251,7 @@ Deno.test("vet-corpus-sentences leaves a failed batch pending for a later run", 
     {},
     admin({
       "/rest/v1/dialect_corpus_sentences": corpus([sentence(0), sentence(1)]),
-      "ai.gateway.lovable.dev": () => json({ error: "down" }, 503),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "down" }, 503),
       "openrouter.ai": () => json({ error: "down" }, 503),
     }),
   );
@@ -342,7 +342,7 @@ Deno.test("vet-corpus-sentences numbers the sentences it sends", async () => {
     }),
   );
 
-  const prompt = result.bodies[result.calls.findIndex((u) => u.includes("gateway"))] ?? "";
+  const prompt = result.bodies[result.calls.findIndex((u) => u.includes("/chat/completions"))] ?? "";
   assertStringIncludes(prompt, "0. جملة رقم 0");
   assertStringIncludes(prompt, "1. جملة رقم 1");
   assertStringIncludes(prompt, "2 in total");
@@ -360,7 +360,7 @@ Deno.test("vet-corpus-sentences tells the model qat is not a drug reference", as
     }),
   );
 
-  const prompt = result.bodies[result.calls.findIndex((u) => u.includes("gateway"))] ?? "";
+  const prompt = result.bodies[result.calls.findIndex((u) => u.includes("/chat/completions"))] ?? "";
   assertStringIncludes(prompt, "قات");
   assertStringIncludes(prompt, "When uncertain, mark ok=false");
 });
@@ -442,7 +442,7 @@ Deno.test("auto_reject condemns the flagged rows without calling a model", async
   assertEquals(result.status, 200);
   assertEquals(result.body.mode, "auto_reject");
   assertEquals(result.body.rejected, 2);
-  assertEquals(result.calls.some((url) => url.includes("gateway")), false);
+  assertEquals(result.calls.some((url) => url.includes("/chat/completions")), false);
 });
 
 Deno.test("auto_reject only touches unjudged rows the pre-pass flagged", async () => {

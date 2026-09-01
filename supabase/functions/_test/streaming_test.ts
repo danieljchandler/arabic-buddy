@@ -99,7 +99,7 @@ Deno.test("free-chat streams the gateway's frames through untouched", async () =
     "free-chat",
     { messages: [{ role: "user", content: "مرحبا" }], dialect: "Gulf" },
     subscriber({
-      "ai.gateway.lovable.dev": () => sseCompletion("أهلاً ", "وسهلاً"),
+      "generativelanguage.googleapis.com/v1beta/openai": () => sseCompletion("أهلاً ", "وسهلاً"),
     }),
   );
 
@@ -123,14 +123,14 @@ Deno.test("free-chat refuses a body with no messages array", async () => {
   assertEquals((await response.json()).error, "messages array required");
   // The guard sits in front of the model call, so a malformed body costs
   // nothing.
-  assert(!calls.some((url) => url.includes("ai.gateway")));
+  assert(!calls.some((url) => url.includes("/v1beta/openai")));
 });
 
 Deno.test("free-chat defaults to Gulf when no dialect is sent", async () => {
   const { bodies } = await call(
     "free-chat",
     { messages: [{ role: "user", content: "hi" }] },
-    subscriber({ "ai.gateway.lovable.dev": () => sseCompletion("أهلاً") }),
+    subscriber({ "generativelanguage.googleapis.com/v1beta/openai": () => sseCompletion("أهلاً") }),
   );
 
   // The dialect reaches the model only through the system prompt, so a missing
@@ -143,7 +143,7 @@ Deno.test("free-chat carries the CEFR level into the system prompt", async () =>
   const { bodies } = await call(
     "free-chat",
     { messages: [{ role: "user", content: "hi" }], dialect: "Gulf", cefrLevel: "C1" },
-    subscriber({ "ai.gateway.lovable.dev": () => sseCompletion("أهلاً") }),
+    subscriber({ "generativelanguage.googleapis.com/v1beta/openai": () => sseCompletion("أهلاً") }),
   );
 
   const sent = bodies.find((b) => b?.includes("system")) ?? "";
@@ -156,7 +156,7 @@ Deno.test("free-chat falls back to A2 for an unknown level", async () => {
   const { bodies } = await call(
     "free-chat",
     { messages: [{ role: "user", content: "hi" }], cefrLevel: "Z9" },
-    subscriber({ "ai.gateway.lovable.dev": () => sseCompletion("أهلاً") }),
+    subscriber({ "generativelanguage.googleapis.com/v1beta/openai": () => sseCompletion("أهلاً") }),
   );
 
   const sent = bodies.find((b) => b?.includes("system")) ?? "";
@@ -168,7 +168,7 @@ Deno.test("free-chat passes the topic hint into the opening instruction", async 
   const { bodies } = await call(
     "free-chat",
     { messages: [], dialect: "Gulf", topicHint: "ordering at a café" },
-    subscriber({ "ai.gateway.lovable.dev": () => sseCompletion("أهلاً") }),
+    subscriber({ "generativelanguage.googleapis.com/v1beta/openai": () => sseCompletion("أهلاً") }),
   );
 
   const sent = bodies.find((b) => b?.includes("system")) ?? "";
@@ -179,7 +179,7 @@ Deno.test("free-chat asks for a warm opener when there is no topic", async () =>
   const { bodies } = await call(
     "free-chat",
     { messages: [], dialect: "Gulf" },
-    subscriber({ "ai.gateway.lovable.dev": () => sseCompletion("أهلاً") }),
+    subscriber({ "generativelanguage.googleapis.com/v1beta/openai": () => sseCompletion("أهلاً") }),
   );
 
   const sent = bodies.find((b) => b?.includes("system")) ?? "";
@@ -197,7 +197,7 @@ Deno.test("free-chat nudges itself when its own recent turns leaked MSA", async 
         { role: "user", content: "ولا شي" },
       ],
     },
-    subscriber({ "ai.gateway.lovable.dev": () => sseCompletion("زين") }),
+    subscriber({ "generativelanguage.googleapis.com/v1beta/openai": () => sseCompletion("زين") }),
   );
 
   const sent = bodies.find((b) => b?.includes("system")) ?? "";
@@ -217,7 +217,7 @@ Deno.test("free-chat adds no nudge to a clean conversation", async () => {
         { role: "user", content: "زين" },
       ],
     },
-    subscriber({ "ai.gateway.lovable.dev": () => sseCompletion("تمام") }),
+    subscriber({ "generativelanguage.googleapis.com/v1beta/openai": () => sseCompletion("تمام") }),
   );
 
   const sent = bodies.find((b) => b?.includes("system")) ?? "";
@@ -229,7 +229,7 @@ Deno.test("free-chat reports a rate-limited gateway as 429", async () => {
     "free-chat",
     { messages: [{ role: "user", content: "hi" }] },
     subscriber({
-      "ai.gateway.lovable.dev": () => json({ error: "slow down" }, 429),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "slow down" }, 429),
     }),
   );
 
@@ -244,7 +244,7 @@ Deno.test("free-chat reports exhausted credits as 402", async () => {
     "free-chat",
     { messages: [{ role: "user", content: "hi" }] },
     subscriber({
-      "ai.gateway.lovable.dev": () => json({ error: "no credits" }, 402),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "no credits" }, 402),
     }),
   );
 
@@ -252,12 +252,15 @@ Deno.test("free-chat reports exhausted credits as 402", async () => {
   assertStringIncludes((await response.json()).error, "AI credits exhausted");
 });
 
-Deno.test("free-chat flattens any other gateway failure to 500", async () => {
+Deno.test("free-chat flattens any other provider failure to 500", async () => {
   const { response } = await call(
     "free-chat",
     { messages: [{ role: "user", content: "hi" }] },
     subscriber({
-      "ai.gateway.lovable.dev": () => json({ error: "boom" }, 503),
+      // Both routes: aiGateway answers a 503 by retrying on OpenRouter, so one
+      // failing provider is not yet a failed call.
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "boom" }, 503),
+      "openrouter.ai": () => json({ error: "boom" }, 503),
     }),
   );
 
@@ -291,7 +294,7 @@ Deno.test("ask-translation streams an answer about the sentence", async () => {
       english: "How are you today",
       messages: [{ role: "user", content: "Why شلونك and not كيف حالك?" }],
     },
-    subscriber({ "ai.gateway.lovable.dev": () => sseCompletion("Because ", "شلونك is Gulf.") }),
+    subscriber({ "generativelanguage.googleapis.com/v1beta/openai": () => sseCompletion("Because ", "شلونك is Gulf.") }),
   );
 
   assertEquals(response.status, 200);
@@ -306,7 +309,7 @@ Deno.test("ask-translation puts the sentence in the system prompt", async () => 
       english: "How are you today",
       messages: [{ role: "user", content: "explain" }],
     },
-    subscriber({ "ai.gateway.lovable.dev": () => sseCompletion("ok") }),
+    subscriber({ "generativelanguage.googleapis.com/v1beta/openai": () => sseCompletion("ok") }),
   );
 
   const sent = bodies.find((b) => b?.includes("system")) ?? "";
@@ -320,7 +323,7 @@ Deno.test("ask-translation says so when no English was provided", async () => {
   const { bodies } = await call(
     "ask-translation",
     { arabic: "شلونك اليوم", messages: [{ role: "user", content: "explain" }] },
-    subscriber({ "ai.gateway.lovable.dev": () => sseCompletion("ok") }),
+    subscriber({ "generativelanguage.googleapis.com/v1beta/openai": () => sseCompletion("ok") }),
   );
 
   const sent = bodies.find((b) => b?.includes("system")) ?? "";
@@ -337,7 +340,7 @@ Deno.test("ask-translation refuses a request with no sentence", async () => {
   );
 
   assertEquals(response.status, 400);
-  assert(!calls.some((url) => url.includes("ai.gateway")));
+  assert(!calls.some((url) => url.includes("/v1beta/openai")));
 });
 
 Deno.test("ask-translation refuses a request with no question", async () => {
@@ -350,7 +353,7 @@ Deno.test("ask-translation refuses a request with no question", async () => {
   // An empty `messages` is not a question, and streaming an answer to nothing
   // spends a model call to produce a greeting.
   assertEquals(response.status, 400);
-  assert(!calls.some((url) => url.includes("ai.gateway")));
+  assert(!calls.some((url) => url.includes("/v1beta/openai")));
 });
 
 Deno.test("ask-translation turns an anonymous caller away", async () => {

@@ -4,6 +4,7 @@
 // suggestion can be turned into a real, importable story with a single tap.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { askBrain } from "../_shared/aiBrain.ts";
 import { type Dialect } from "../_shared/dialectHelpers.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -81,7 +82,7 @@ Deno.serve(async (req) => {
       // carried both "never MSA" and "write MSA", and every import filed
       // high-severity MSA violations plus a fake native-review task.
       targetRegister: "msa",
-      models: ["google/gemini-3-flash-preview"],
+      models: [MODEL_IDS.GEMINI_FAST],
       systemPromptExtra: `You are an expert in authentic Arabic literature. You faithfully write out the full text of real, well-known Arabic stories, folktales, fables, and cultural narratives (public domain / traditional material) so they can be used for language-learning reading practice.
 
 Requirements:

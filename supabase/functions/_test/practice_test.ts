@@ -1,6 +1,6 @@
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { FakeTime } from "https://deno.land/std@0.224.0/testing/time.ts";
-import { jsonRequest, loadFunction } from "./harness.ts";
+import { NO_AI_PROVIDER, jsonRequest, loadFunction } from "./harness.ts";
 import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
 import { GRAMMAR_CATEGORY_IDS } from "../_shared/grammarTaxonomy.ts";
 
@@ -234,7 +234,7 @@ Deno.test("listening-quiz returns the generated items", async () => {
   const { status, body } = await call(
     "listening-quiz",
     { mode: "dictation", words: [], count: 3, dialect: "Gulf" },
-    caller({ "ai.gateway.lovable.dev": emitting({ questions: [aQuizItem(), aQuizItem()] }) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ questions: [aQuizItem(), aQuizItem()] }) }),
   );
 
   assertEquals(status, 200);
@@ -250,10 +250,10 @@ Deno.test("listening-quiz builds each mode's prompt differently", async () => {
     const { bodies, calls } = await call(
       "listening-quiz",
       { mode, words: [] },
-      caller({ "ai.gateway.lovable.dev": emitting({ questions: [aQuizItem({ type: mode })] }) }),
+      caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ questions: [aQuizItem({ type: mode })] }) }),
     );
 
-    const i = calls.findIndex((u) => u.includes("ai.gateway"));
+    const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
     assertStringIncludes(bodies[i] ?? "", marker);
   }
 });
@@ -262,10 +262,10 @@ Deno.test("listening-quiz falls through to speed for an unknown mode", async () 
   const { bodies, calls } = await call(
     "listening-quiz",
     { mode: "telepathy", words: [] },
-    caller({ "ai.gateway.lovable.dev": emitting({ questions: [aQuizItem()] }) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ questions: [aQuizItem()] }) }),
   );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   assertStringIncludes(bodies[i] ?? "", "speed listening practice");
 });
 
@@ -280,7 +280,7 @@ Deno.test("listening-quiz seeds the prompt from the learner's real deck, not the
       words: [{ word_arabic: "ولد", word_english: "boy" }],
     },
     caller({
-      "ai.gateway.lovable.dev": emitting({ questions: [aQuizItem()] }),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({ questions: [aQuizItem()] }),
       "/rest/v1/user_vocabulary": () =>
         json([
           {
@@ -294,7 +294,7 @@ Deno.test("listening-quiz seeds the prompt from the learner's real deck, not the
     }),
   );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   // A listening exercise is only useful if the learner can decode the rest of
   // the sentence — the words they actually know (server-side SRS state) are
   // what the sentence is built from.
@@ -312,10 +312,10 @@ Deno.test("listening-quiz ignores however many words the client sends", async ()
         word_english: `word ${i}`,
       })),
     },
-    caller({ "ai.gateway.lovable.dev": emitting({ questions: [aQuizItem()] }) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ questions: [aQuizItem()] }) }),
   );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   // None of the client-built list reaches the model; vocabulary comes from
   // learnerPromptBlock (whose own budget caps it) or nothing at all.
   const sent = bodies[i] ?? "";
@@ -327,10 +327,10 @@ Deno.test("listening-quiz demands vocalised audio text", async () => {
   const { bodies, calls } = await call(
     "listening-quiz",
     { mode: "dictation", words: [] },
-    caller({ "ai.gateway.lovable.dev": emitting({ questions: [aQuizItem()] }) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ questions: [aQuizItem()] }) }),
   );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   // Every `audioText` is read aloud by TTS, and unvocalised Arabic is
   // mispronounced — which in a *listening* exercise teaches the wrong sound.
   assertStringIncludes(bodies[i] ?? "", "fully vocalized");
@@ -340,10 +340,10 @@ Deno.test("listening-quiz scales its guidance to the difficulty", async () => {
   const { bodies, calls } = await call(
     "listening-quiz",
     { mode: "dictation", words: [], difficulty: "advanced" },
-    caller({ "ai.gateway.lovable.dev": emitting({ questions: [aQuizItem()] }) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ questions: [aQuizItem()] }) }),
   );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   assertStringIncludes(bodies[i] ?? "", "natural-speed sentences");
 });
 
@@ -353,7 +353,7 @@ Deno.test("listening-quiz preserves 402 and 429", async () => {
       "listening-quiz",
       { mode: "dictation", words: [] },
       caller({
-        "ai.gateway.lovable.dev": () => json({ error: "no" }, upstream),
+        "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "no" }, upstream),
         "openrouter.ai": () => json({ error: "no" }, upstream),
       }),
     );
@@ -367,7 +367,7 @@ Deno.test("listening-quiz answers a generation failure with a single greeting", 
     "listening-quiz",
     { mode: "dictation", words: [], dialect: "Egyptian" },
     caller({
-      "ai.gateway.lovable.dev": () => json({ error: "boom" }, 500),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "boom" }, 500),
       "openrouter.ai": () => json({ error: "boom" }, 500),
     }),
   );
@@ -387,7 +387,7 @@ Deno.test("listening-quiz no longer requires a words array at all", async () => 
   const { status } = await call(
     "listening-quiz",
     { mode: "dictation" },
-    caller({ "ai.gateway.lovable.dev": emitting({ questions: [aQuizItem()] }) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ questions: [aQuizItem()] }) }),
   );
 
   // `words` went from required (a missing one 500'd, then 400'd) to ignored:
@@ -400,7 +400,7 @@ Deno.test("listening-quiz turns an anonymous caller away", async () => {
   const { status } = await call(
     "listening-quiz",
     { mode: "dictation", words: [] },
-    caller({ "ai.gateway.lovable.dev": emitting({ questions: [aQuizItem()] }) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({ questions: [aQuizItem()] }) }),
     { jwt: null },
   );
 
@@ -420,7 +420,7 @@ Deno.test("daily-challenge returns a challenge", async () => {
   const { status, body } = await call(
     "daily-challenge",
     { dialect: "Gulf" },
-    caller({ "ai.gateway.lovable.dev": speaking(aChallenge) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": speaking(aChallenge) }),
   );
 
   assertEquals(status, 200);
@@ -440,7 +440,7 @@ Deno.test("daily-challenge sources its words from the learner's deck", async () 
       "daily-challenge",
       { dialect: "Gulf", userVocab: [{ word_arabic: "كتاب", word_english: "book" }] },
       caller({
-        "ai.gateway.lovable.dev": speaking(aChallenge),
+        "generativelanguage.googleapis.com/v1beta/openai": speaking(aChallenge),
         "/rest/v1/user_vocabulary": () =>
           json([
             {
@@ -454,7 +454,7 @@ Deno.test("daily-challenge sources its words from the learner's deck", async () 
       }),
     );
 
-    const i = calls.findIndex((u) => u.includes("ai.gateway"));
+    const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
     // The client used to send `userVocab` as the whole curriculum shuffled, so
     // the "daily challenge" routinely quizzed words the learner had never
     // studied. The learner's own deck wins over whatever the client supplies.
@@ -470,10 +470,10 @@ Deno.test("daily-challenge ignores the client's words when the deck is empty", a
     const { bodies, calls } = await call(
       "daily-challenge",
       { dialect: "Gulf", userVocab: [{ word_arabic: "كتاب", word_english: "book" }] },
-      caller({ "ai.gateway.lovable.dev": speaking(aChallenge) }),
+      caller({ "generativelanguage.googleapis.com/v1beta/openai": speaking(aChallenge) }),
     );
 
-    const i = calls.findIndex((u) => u.includes("ai.gateway"));
+    const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
     // The old "cold-start fallback" used the client's list — which the page
     // filled with 20 shuffled curriculum words, so exactly the learner with no
     // real history got a challenge built around words labelled as theirs. An
@@ -489,11 +489,11 @@ Deno.test("daily-challenge uses the dialect's own examples when there is nothing
   const { status, bodies, calls } = await call(
     "daily-challenge",
     { dialect: "Yemeni" },
-    caller({ "ai.gateway.lovable.dev": speaking(aChallenge) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": speaking(aChallenge) }),
   );
 
   assertEquals(status, 200);
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   // Third fallback in the chain. Without it the prompt interpolates an empty
   // string and the model invents words from any dialect it likes.
   assert((bodies[i] ?? "").length > 0);
@@ -503,10 +503,10 @@ Deno.test("daily-challenge asks about the right culture per dialect", async () =
   const { bodies, calls } = await call(
     "daily-challenge",
     { dialect: "Yemeni", difficulty: "beginner" },
-    caller({ "ai.gateway.lovable.dev": speaking({ ...aChallenge, type: "culture" }) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": speaking({ ...aChallenge, type: "culture" }) }),
   );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   const sent = bodies[i] ?? "";
   // Only reaches the prompt on the culture day, but the whole prompt map is
   // built every time — so this is checkable regardless of what day it is.
@@ -518,7 +518,7 @@ Deno.test("daily-challenge survives an unreadable learner profile", async () => 
     "daily-challenge",
     { dialect: "Gulf", userVocab: [{ word_arabic: "كتاب", word_english: "book" }] },
     caller({
-      "ai.gateway.lovable.dev": speaking(aChallenge),
+      "generativelanguage.googleapis.com/v1beta/openai": speaking(aChallenge),
       "/rest/v1/user_vocabulary": () => json({ message: "denied" }, 403),
       "/rest/v1/word_reviews": () => json({ message: "denied" }, 403),
     }),
@@ -529,12 +529,12 @@ Deno.test("daily-challenge survives an unreadable learner profile", async () => 
   assertEquals(status, 200);
 });
 
-Deno.test("daily-challenge says so when its key is missing", async () => {
+Deno.test("daily-challenge says so when no provider is configured", async () => {
   const { status } = await call(
     "daily-challenge",
     { dialect: "Gulf" },
-    caller({ "ai.gateway.lovable.dev": speaking(aChallenge) }),
-    { env: { LOVABLE_API_KEY: undefined } },
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": speaking(aChallenge) }),
+    { env: NO_AI_PROVIDER },
   );
 
   assertEquals(status, 500);
@@ -544,7 +544,7 @@ Deno.test("daily-challenge turns an anonymous caller away", async () => {
   const { status } = await call(
     "daily-challenge",
     { dialect: "Gulf" },
-    caller({ "ai.gateway.lovable.dev": speaking(aChallenge) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": speaking(aChallenge) }),
     { jwt: null },
   );
 
@@ -563,7 +563,7 @@ Deno.test("reading-qa answers a question in the learner's dialect", async () => 
   const { status, body } = await call(
     "reading-qa",
     { question: "What is the weather like?", dialect: "Gulf", difficulty: "beginner" },
-    caller({ "ai.gateway.lovable.dev": speaking(anAnswer) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": speaking(anAnswer) }),
   );
 
   assertEquals(status, 200);
@@ -582,10 +582,10 @@ Deno.test("reading-qa keeps the conversation history", async () => {
         { role: "assistant", content: "الجو حلو" },
       ],
     },
-    caller({ "ai.gateway.lovable.dev": speaking(anAnswer) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": speaking(anAnswer) }),
   );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   const sent = JSON.parse(bodies[i] ?? "{}") as { messages: Array<{ role: string }> };
   // System, two history turns, then the new question. A follow-up like "and in
   // winter?" is meaningless without the turn before it.
@@ -598,7 +598,7 @@ Deno.test("reading-qa recovers a JSON body wrapped in prose", async () => {
     "reading-qa",
     { question: "What is the weather like?" },
     caller({
-      "ai.gateway.lovable.dev": () =>
+      "generativelanguage.googleapis.com/v1beta/openai": () =>
         chatCompletion("Here you go!\n```json\n" + JSON.stringify(anAnswer) + "\n```\nHope that helps."),
     }),
   );
@@ -614,7 +614,7 @@ Deno.test("reading-qa apologises in Arabic rather than crashing on unparsable ou
   const { status, body } = await call(
     "reading-qa",
     { question: "What is the weather like?" },
-    caller({ "ai.gateway.lovable.dev": () => chatCompletion("I refuse to answer that.") }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("I refuse to answer that.") }),
   );
 
   // Pinned as-is. The fallback is a normal-looking answer in Arabic saying it
@@ -631,18 +631,23 @@ Deno.test("reading-qa preserves 402 and 429", async () => {
     const { status } = await call(
       "reading-qa",
       { question: "What is the weather like?" },
-      caller({ "ai.gateway.lovable.dev": () => json({ error: "no" }, upstream) }),
+      caller({ "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "no" }, upstream) }),
     );
 
     assertEquals(status, upstream);
   }
 });
 
-Deno.test("reading-qa flattens any other gateway failure to 500", async () => {
+Deno.test("reading-qa flattens any other provider failure to 500", async () => {
+  // Both routes: a 503 on the first provider is what sends aiGateway to
+  // OpenRouter, so the call has only failed once the retry fails too.
   const { status } = await call(
     "reading-qa",
     { question: "What is the weather like?" },
-    caller({ "ai.gateway.lovable.dev": () => json({ error: "boom" }, 503) }),
+    caller({
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "boom" }, 503),
+      "openrouter.ai": () => json({ error: "boom" }, 503),
+    }),
   );
 
   assertEquals(status, 500);

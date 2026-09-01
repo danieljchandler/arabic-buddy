@@ -8,6 +8,7 @@
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
+import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
 
 interface DialectVariant {
   dialect: string;
@@ -121,9 +122,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY not configured");
+    if (!hasAnyProvider()) {
+      throw new Error("No AI provider configured");
     }
 
     const systemPrompt = `You are an expert in Arabic dialects. Your task is to show how a single word or phrase differs across the major Arabic varieties.
@@ -143,33 +143,25 @@ Be precise and authentic. Return the result ONLY by calling the emit_comparison 
 
     const userPrompt = `Compare how "${word}" is expressed across Gulf, Egyptian, Levantine, Yemeni Arabic, and MSA. The learner's own dialect is ${source_dialect}, so make the ${source_dialect} row especially accurate.`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: MODEL_IDS.GEMINI_FLASH,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt }
-        ],
-        temperature: 0.2,
-        max_tokens: 2000,
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "emit_comparison",
-              description: "Return the cross-dialect comparison.",
-              parameters: TOOL_PARAMETERS,
-            },
+    const response = await chatFetch(MODEL_IDS.GEMINI_FLASH, {
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+      ],
+      temperature: 0.2,
+      max_tokens: 2000,
+      tools: [
+        {
+          type: "function",
+          function: {
+            name: "emit_comparison",
+            description: "Return the cross-dialect comparison.",
+            parameters: TOOL_PARAMETERS,
           },
-        ],
-        tool_choice: { type: "function", function: { name: "emit_comparison" } },
-      }),
-    });
+        },
+      ],
+      tool_choice: { type: "function", function: { name: "emit_comparison" } },
+    }, { label: "dialect-compare" });
 
     if (!response.ok) {
       const errText = await response.text();

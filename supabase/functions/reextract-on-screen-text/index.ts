@@ -14,6 +14,8 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import {
   ON_SCREEN_TEXT_PROMPT,
   buildVisualContextText,
@@ -67,10 +69,9 @@ function safeJsonParse<T>(content: string): T | null {
   }
 }
 
-/** Read the overlays off sampled frames, through the Lovable gateway. */
+/** Read the overlays off sampled frames, through whichever provider serves the vision model. */
 async function readFromFrames(
   frames: VideoFrame[],
-  apiKey: string,
   durationSeconds?: number,
 ): Promise<VisionReply> {
   const capped = frames.slice(0, 16);
@@ -88,26 +89,20 @@ async function readFromFrames(
       + `A previous pass may have missed text or read it wrongly. Capture every overlay you can see.`,
   });
 
-  const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        { role: "system", content: ON_SCREEN_TEXT_PROMPT },
-        { role: "user", content },
-      ],
-      max_tokens: 4096,
-      temperature: 0.2,
-    }),
-    signal: AbortSignal.timeout(90_000),
-  });
+  const response = await chatFetch(MODEL_IDS.GEMINI_FLASH, {
+    messages: [
+      { role: "system", content: ON_SCREEN_TEXT_PROMPT },
+      { role: "user", content },
+    ],
+    max_tokens: 4096,
+    temperature: 0.2,
+  }, { signal: AbortSignal.timeout(90_000), label: "reextract-on-screen-text" });
 
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
     if (response.status === 402) throw new Error("AI credits exhausted");
     if (response.status === 429) throw new Error("Rate limit exceeded");
-    throw new Error(`Vision gateway error (${response.status}): ${detail.slice(0, 200)}`);
+    throw new Error(`Vision provider error (${response.status}): ${detail.slice(0, 200)}`);
   }
   const data = await response.json();
   const raw = data?.choices?.[0]?.message?.content ?? "";
@@ -245,10 +240,9 @@ serve(async (req) => {
     let reply: VisionReply;
     let readFrom: "frames" | "video";
     if (frames.length > 0) {
-      const lovableKey = Deno.env.get("LOVABLE_API_KEY");
-      if (!lovableKey) return json({ error: "AI service not configured" }, 500, corsHeaders);
+      if (!hasAnyProvider()) return json({ error: "AI service not configured" }, 500, corsHeaders);
       readFrom = "frames";
-      reply = await readFromFrames(frames, lovableKey, durationSeconds);
+      reply = await readFromFrames(frames, durationSeconds);
     } else {
       const geminiKey = Deno.env.get("GEMINI_API_KEY");
       if (!geminiKey) {

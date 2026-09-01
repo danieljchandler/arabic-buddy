@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { jsonRequest, loadFunction } from "./harness.ts";
+import { NO_AI_PROVIDER, jsonRequest, loadFunction } from "./harness.ts";
 import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
 
 /**
@@ -83,7 +83,7 @@ Deno.test("bible-passage returns Arabic, English and dialect side by side", asyn
     aChapter,
     caller({
       "bolls.life": bolls(["في البدء خلق الله", "وكانت الأرض خربة"]),
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         verses: ["أول شي الله خلق", "والأرض كانت فاضية"],
       }),
     }),
@@ -104,7 +104,7 @@ Deno.test("bible-passage numbers each verse", async () => {
     aChapter,
     caller({
       "bolls.life": bolls(["في البدء", "وكانت الأرض"]),
-      "ai.gateway.lovable.dev": emitting({ verses: ["أول شي", "والأرض"] }),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({ verses: ["أول شي", "والأرض"] }),
     }),
   );
 
@@ -128,7 +128,7 @@ Deno.test("bible-passage keeps going when the English fetch fails", async () => 
           ? json([{ verse: 1, text: "في البدء خلق الله" }])
           : new Response("gone", { status: 500 });
       },
-      "ai.gateway.lovable.dev": emitting({ verses: ["أول شي الله خلق"] }),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({ verses: ["أول شي الله خلق"] }),
     }),
   );
 
@@ -144,7 +144,7 @@ Deno.test("bible-passage falls back to the formal Arabic when conversion is unav
     "bible-passage",
     aChapter,
     caller({ "bolls.life": bolls(["في البدء خلق الله"]) }),
-    { env: { LOVABLE_API_KEY: undefined } },
+    { env: NO_AI_PROVIDER },
   );
 
   assertEquals(status, 200);
@@ -161,7 +161,7 @@ Deno.test("bible-passage pads a short conversion with the formal verses", async 
     caller({
       "bolls.life": bolls(["الأولى", "الثانية", "الثالثة"]),
       // The model returned two verses for a three-verse chapter.
-      "ai.gateway.lovable.dev": emitting({ verses: ["واحد", "اثنين"] }),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({ verses: ["واحد", "اثنين"] }),
     }),
   );
 
@@ -179,7 +179,7 @@ Deno.test("bible-passage answers an unreachable Arabic source with a CORS-safe f
     aChapter,
     caller({
       "bolls.life": () => new Response("down", { status: 503 }),
-      "ai.gateway.lovable.dev": emitting({ verses: [] }),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({ verses: [] }),
     }),
   );
 
@@ -275,7 +275,7 @@ Deno.test("bible-passage defaults the English translation", async () => {
     { arabicVersion: "SVD", bookNumber: 1, chapter: 1 },
     caller({
       "bolls.life": bolls(["في البدء"]),
-      "ai.gateway.lovable.dev": emitting({ verses: ["أول شي"] }),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({ verses: ["أول شي"] }),
     }),
   );
 
@@ -297,7 +297,7 @@ Deno.test("phrase-of-the-day returns a phrase with its date and category", async
   const { status, body } = await call(
     "phrase-of-the-day",
     { dialect: "Gulf", seed: "2025-06-01" },
-    caller({ "ai.gateway.lovable.dev": emitting(aPhrase) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting(aPhrase) }),
   );
 
   assertEquals(status, 200);
@@ -310,12 +310,12 @@ Deno.test("phrase-of-the-day gives the same phrase for the same day", async () =
   const first = await call(
     "phrase-of-the-day",
     { dialect: "Gulf", seed: "2025-06-01" },
-    caller({ "ai.gateway.lovable.dev": emitting(aPhrase) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting(aPhrase) }),
   );
   const second = await call(
     "phrase-of-the-day",
     { dialect: "Gulf", seed: "2025-06-01" },
-    caller({ "ai.gateway.lovable.dev": emitting(aPhrase) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting(aPhrase) }),
   );
 
   // The category is chosen by hashing the seed, so "phrase of the *day*" means
@@ -329,7 +329,7 @@ Deno.test("phrase-of-the-day gives different days different categories", async (
     const { body } = await call(
       "phrase-of-the-day",
       { dialect: "Gulf", seed },
-      caller({ "ai.gateway.lovable.dev": emitting(aPhrase) }),
+      caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting(aPhrase) }),
     );
     categories.add(body.category);
   }
@@ -342,12 +342,12 @@ Deno.test("phrase-of-the-day skips categories the learner already saw", async ()
   const first = await call(
     "phrase-of-the-day",
     { dialect: "Gulf", seed: "2025-06-01" },
-    caller({ "ai.gateway.lovable.dev": emitting(aPhrase) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting(aPhrase) }),
   );
   const second = await call(
     "phrase-of-the-day",
     { dialect: "Gulf", seed: "2025-06-01", avoidCategories: [first.body.category] },
-    caller({ "ai.gateway.lovable.dev": emitting(aPhrase) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting(aPhrase) }),
   );
 
   // Refresh is meant to give something new; without this it would re-roll the
@@ -364,10 +364,10 @@ Deno.test("phrase-of-the-day honours an explicit category", async () => {
       category: "food_praise",
       avoidCategories: ["food_praise"],
     },
-    caller({ "ai.gateway.lovable.dev": emitting(aPhrase) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting(aPhrase) }),
   );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   // An explicit request wins over the avoid list — the caller asked for it —
   // and the category's own prompt reaches the model rather than just its key.
   assertEquals(body.category, "food_praise");
@@ -378,7 +378,7 @@ Deno.test("phrase-of-the-day ignores a category it does not have", async () => {
   const { status, body } = await call(
     "phrase-of-the-day",
     { dialect: "Gulf", seed: "2025-06-01", category: "underwater-basket-weaving" },
-    caller({ "ai.gateway.lovable.dev": emitting(aPhrase) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting(aPhrase) }),
   );
 
   // Falls back to the day's hash rather than interpolating an unknown key into
@@ -392,7 +392,7 @@ Deno.test("phrase-of-the-day tells the model what not to repeat", async () => {
     "phrase-of-the-day",
     { dialect: "Gulf" },
     caller({
-      "ai.gateway.lovable.dev": emitting(aPhrase),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting(aPhrase),
       "/rest/v1/user_phrases": () =>
         json([
           { phrase_arabic: "شخبارك", phrase_english: "how are you" },
@@ -401,7 +401,7 @@ Deno.test("phrase-of-the-day tells the model what not to repeat", async () => {
     }),
   );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   const sent = bodies[i] ?? "";
   // A daily phrase that repeats last week's is worse than no phrase, and the
   // model has no memory of its own output.
@@ -414,7 +414,7 @@ Deno.test("phrase-of-the-day still answers when the avoid list cannot be read", 
     "phrase-of-the-day",
     { dialect: "Gulf" },
     caller({
-      "ai.gateway.lovable.dev": emitting(aPhrase),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting(aPhrase),
       "/rest/v1/user_phrases": () => json({ message: "denied" }, 403),
     }),
   );
@@ -429,7 +429,7 @@ Deno.test("phrase-of-the-day answers exhausted credits with 200 and a flag", asy
     "phrase-of-the-day",
     { dialect: "Gulf" },
     caller({
-      "ai.gateway.lovable.dev": () => json({ error: "no credits" }, 402),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "no credits" }, 402),
       "openrouter.ai": () => json({ error: "no credits" }, 402),
     }),
   );
@@ -448,7 +448,7 @@ Deno.test("phrase-of-the-day answers a rate limit the same way", async () => {
     "phrase-of-the-day",
     { dialect: "Gulf" },
     caller({
-      "ai.gateway.lovable.dev": () => json({ error: "slow down" }, 429),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "slow down" }, 429),
       "openrouter.ai": () => json({ error: "slow down" }, 429),
     }),
   );
@@ -463,7 +463,7 @@ Deno.test("phrase-of-the-day reports anything else as a real failure", async () 
     "phrase-of-the-day",
     { dialect: "Gulf" },
     caller({
-      "ai.gateway.lovable.dev": () => json({ error: "boom" }, 503),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "boom" }, 503),
       "openrouter.ai": () => json({ error: "boom" }, 503),
     }),
   );
@@ -474,7 +474,7 @@ Deno.test("phrase-of-the-day reports anything else as a real failure", async () 
 
 Deno.test("phrase-of-the-day works with no body at all", async () => {
   const fn = await loadFunction("phrase-of-the-day", {
-    upstreams: caller({ "ai.gateway.lovable.dev": emitting(aPhrase) }),
+    upstreams: caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting(aPhrase) }),
   });
   try {
     const response = await fn.handler(
@@ -497,7 +497,7 @@ Deno.test("phrase-of-the-day asks an anonymous caller to sign in", async () => {
   const { status, body } = await call(
     "phrase-of-the-day",
     { dialect: "Gulf" },
-    caller({ "ai.gateway.lovable.dev": emitting(aPhrase) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting(aPhrase) }),
     { jwt: null },
   );
 

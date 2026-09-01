@@ -7,16 +7,11 @@ import { detectMsaLeaks } from "../_shared/msaLeakDetector.ts";
 import type { Dialect } from "../_shared/dialectHelpers.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
+import { chatFetch } from "../_shared/aiGateway.ts";
 
-
-const LOVABLE_GATEWAY = "https://ai.gateway.lovable.dev/v1/chat/completions";
-const OPENROUTER_ENDPOINT = "https://openrouter.ai/api/v1/chat/completions";
-const FANAR_ENDPOINT = "https://api.fanar.qa/v1/chat/completions";
 
 interface ModelConfig {
-  endpoint: string;
   model: string;
-  keyEnv: string;
 }
 
 // Model IDs come from _shared/modelRegistry.ts so a registry bump propagates
@@ -25,25 +20,29 @@ interface ModelConfig {
 // wire. Keep this in sync with MODEL_OPTIONS in
 // src/components/admin/curriculum-builder/ModelSelector.tsx — an option the
 // selector offers but this map lacks fails with "Unknown model".
-const openRouter = (model: string): ModelConfig =>
-  ({ endpoint: OPENROUTER_ENDPOINT, model, keyEnv: "OPENROUTER_API_KEY" });
-const lovable = (model: string): ModelConfig =>
-  ({ endpoint: LOVABLE_GATEWAY, model, keyEnv: "LOVABLE_API_KEY" });
+const routed = (model: string): ModelConfig => ({ model });
 
 const MODEL_REGISTRY: Record<string, ModelConfig> = {
-  [MODEL_IDS.GEMINI_FAST]: lovable(MODEL_IDS.GEMINI_FAST),
-  [MODEL_IDS.GEMINI_FLASH]: lovable(MODEL_IDS.GEMINI_FLASH),
-  [MODEL_IDS.GEMINI_PRO]: lovable(MODEL_IDS.GEMINI_PRO),
-  "google/gemini-2.5-flash": lovable("google/gemini-2.5-flash"),
-  // Selector sends the hyphenated id; OpenRouter resolves the dotted one —
-  // the hyphen form 404s on that route.
-  "anthropic/claude-sonnet-4-5": openRouter(MODEL_IDS.CLAUDE),
-  [MODEL_IDS.CLAUDE]: openRouter(MODEL_IDS.CLAUDE),
-  [MODEL_IDS.QWEN]: openRouter(MODEL_IDS.QWEN),
-  "qwen/qwen3-235b-a22b": openRouter("qwen/qwen3-235b-a22b"),
-  [MODEL_IDS.SABA]: openRouter(MODEL_IDS.SABA),
-  "google/gemma-3-12b-it": openRouter("google/gemma-3-12b-it"),
-  fanar: { endpoint: FANAR_ENDPOINT, model: MODEL_IDS.FANAR, keyEnv: "FANAR_API_KEY" },
+  // GEMINI_FAST and GEMINI_FLASH point at the same model today, so one entry
+  // covers both lineup slots; a second key would be a duplicate property.
+  [MODEL_IDS.GEMINI_FLASH]: routed(MODEL_IDS.GEMINI_FLASH),
+  [MODEL_IDS.GEMINI_PRO]: routed(MODEL_IDS.GEMINI_PRO),
+  [MODEL_IDS.CLAUDE]: routed(MODEL_IDS.CLAUDE),
+  [MODEL_IDS.QWEN]: routed(MODEL_IDS.QWEN),
+  [MODEL_IDS.SABA]: routed(MODEL_IDS.SABA),
+  "google/gemma-3-12b-it": routed("google/gemma-3-12b-it"),
+  // Retired ids kept as aliases onto their current equivalents. An admin whose
+  // saved preference predates a registry bump gets the current model rather
+  // than "Unknown model" — the selector no longer offers these.
+  "anthropic/claude-sonnet-4-5": routed(MODEL_IDS.CLAUDE),
+  "anthropic/claude-sonnet-4.5": routed(MODEL_IDS.CLAUDE),
+  "google/gemini-3.5-flash": routed(MODEL_IDS.GEMINI_FLASH),
+  "google/gemini-3-flash-preview": routed(MODEL_IDS.GEMINI_FAST),
+  "google/gemini-2.5-flash": routed(MODEL_IDS.GEMINI_FAST),
+  "qwen/qwen3-235b-a22b": routed(MODEL_IDS.QWEN),
+  // Fanar routes through aiGateway like everything else now — it used to need
+  // its own endpoint and key here because the gateway did not know it.
+  fanar: routed(MODEL_IDS.FANAR),
 };
 
 const DIALECT_CONTEXT: Record<string, string> = {
@@ -345,36 +344,20 @@ async function callLLM(
   messages: Array<{ role: string; content: string }>,
   maxTokens = 4096,
 ): Promise<string> {
-  const apiKey = Deno.env.get(config.keyEnv)?.trim();
-  if (!apiKey) {
-    throw new Error(`API key ${config.keyEnv} not configured`);
-  }
-
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 120_000);
 
   try {
-    const body = JSON.stringify({
-      model: config.model,
+    const response = await chatFetch(config.model, {
       messages,
       max_tokens: maxTokens,
       temperature: 0.4,
-    });
-
-    const response = await fetch(config.endpoint, {
-      method: "POST",
-      signal: controller.signal,
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body,
-    });
+    }, { signal: controller.signal, label: "curriculum-chat" });
 
     if (!response.ok) {
       const errText = await response.text();
       if (response.status === 402) {
-        throw new Error("Not enough AI credits. Please add credits to your workspace.");
+        throw new Error("Not enough AI credits on the configured provider.");
       }
       if (response.status === 429) {
         throw new Error("Rate limit exceeded. Please wait a moment and try again.");
@@ -525,8 +508,9 @@ serve(async (req) => {
     // Chat and suggest_* modes keep the single-model path to preserve UX.
     const useBrain =
       resolvedMode?.startsWith("generate_") &&
-      // Brain only works for Lovable-gateway-compatible models. Skip native/Fanar/OpenRouter-only.
-      config.endpoint === LOVABLE_GATEWAY;
+      // The brain calls through aiGateway, which now routes every model in the
+      // map — Fanar included.
+      true;
 
     let responseContent: string;
     if (useBrain) {
@@ -546,8 +530,8 @@ serve(async (req) => {
           models: Array.from(
             new Set([
               modelId,
-              "google/gemini-3-flash-preview",
-              "google/gemini-2.5-pro",
+              MODEL_IDS.GEMINI_FAST,
+              MODEL_IDS.GEMINI_PRO,
             ]),
           ).slice(0, 3),
           maxTokens: 4096,
@@ -585,35 +569,24 @@ serve(async (req) => {
           `curriculum-chat MSA leaks detected (non-brain path): dialect=${dialect} leaks=${leakResult.leaks.join(",")} severity=${leakResult.severity}`,
         );
         try {
-          const repairKey = Deno.env.get("LOVABLE_API_KEY")?.trim();
-          if (repairKey) {
-            const repairSys = `You are a ${dialect} Arabic editor. The text below leaked MSA tokens: ${leakResult.leaks.join(", ")}. Rewrite it in authentic ${dialect} dialect ONLY, preserving any \`\`\`json code blocks and all field values' structure EXACTLY (only rewrite Arabic strings inside). Return ONLY the corrected text — no commentary.`;
-            const repairResp = await fetch(LOVABLE_GATEWAY, {
-              method: "POST",
-              headers: {
-                Authorization: `Bearer ${repairKey}`,
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                model: "google/gemini-2.5-flash",
-                messages: [
-                  { role: "system", content: repairSys },
-                  { role: "user", content: responseContent },
-                ],
-                temperature: 0.2,
-                max_tokens: 4096,
-              }),
-            });
-            if (repairResp.ok) {
-              const repairData = await repairResp.json();
-              const repaired = repairData?.choices?.[0]?.message?.content;
-              if (typeof repaired === "string" && repaired.trim().length > 0) {
-                console.log("curriculum-chat: applied MSA repair pass");
-                responseContent = repaired;
-              }
-            } else {
-              console.warn("curriculum-chat repair pass HTTP error", repairResp.status);
+          const repairSys = `You are a ${dialect} Arabic editor. The text below leaked MSA tokens: ${leakResult.leaks.join(", ")}. Rewrite it in authentic ${dialect} dialect ONLY, preserving any \`\`\`json code blocks and all field values' structure EXACTLY (only rewrite Arabic strings inside). Return ONLY the corrected text — no commentary.`;
+          const repairResp = await chatFetch(MODEL_IDS.GEMINI_FAST, {
+            messages: [
+              { role: "system", content: repairSys },
+              { role: "user", content: responseContent },
+            ],
+            temperature: 0.2,
+            max_tokens: 4096,
+          }, { label: "curriculum-chat:msa-repair" });
+          if (repairResp.ok) {
+            const repairData = await repairResp.json();
+            const repaired = repairData?.choices?.[0]?.message?.content;
+            if (typeof repaired === "string" && repaired.trim().length > 0) {
+              console.log("curriculum-chat: applied MSA repair pass");
+              responseContent = repaired;
             }
+          } else {
+            console.warn("curriculum-chat repair pass HTTP error", repairResp.status);
           }
         } catch (repairErr) {
           console.warn("curriculum-chat repair pass failed:", repairErr);

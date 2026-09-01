@@ -3,7 +3,7 @@
 // Vitest suite covers it (src/test/llmUsageCore.test.ts); the insert lives in
 // llmUsageLogger.ts.
 //
-// Shapes handled: OpenAI/Lovable `usage.{prompt_tokens,completion_tokens}`,
+// Shapes handled: OpenAI-shaped `usage.{prompt_tokens,completion_tokens}`,
 // OpenRouter's `usage.cost` (USD, present when the request asked with
 // `usage: {include: true}`), and cached-token counts under either
 // `prompt_tokens_details.cached_tokens` (OpenAI style) or

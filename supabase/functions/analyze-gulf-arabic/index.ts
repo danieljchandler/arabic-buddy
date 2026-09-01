@@ -31,6 +31,7 @@ import {
   buildFushaSystemPrompt,
 } from "../_shared/fushaBridge.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
+import { chatFetch, hasAnyProvider, providerForModel, type Provider } from "../_shared/aiGateway.ts";
 import {
   decideAudio,
   dropNonArabicLines,
@@ -635,35 +636,35 @@ function mergeTranslationEnsemble(
 
 async function callTranslationModel(opts: {
   name: string;
-  via: 'lovable' | 'openrouter';
   weight: number;
   model: string;
   systemPrompt: string;
   userContent: string;
-  apiKey: string;
   maxTokens: number;
 }): Promise<EnsembleCandidate> {
   const t0 = Date.now();
+  // Which provider serves the model is aiGateway's call, not this function's;
+  // it is recorded on the candidate purely so the agreement log says where each
+  // translation came from.
+  const via = providerForModel(opts.model);
   try {
     const resp = await callAI({
       model: opts.model,
       systemPrompt: opts.systemPrompt,
       userContent: opts.userContent,
-      apiKey: opts.apiKey,
-      gateway: opts.via,
       maxTokens: opts.maxTokens,
     });
     const latencyMs = Date.now() - t0;
     if (!resp.content) {
-      return { name: opts.name, via: opts.via, weight: opts.weight, translations: [], literals: [], status: 'failed', latencyMs, chars: 0, error: resp.error };
+      return { name: opts.name, via, weight: opts.weight, translations: [], literals: [], status: 'failed', latencyMs, chars: 0, error: resp.error };
     }
     const parsed = safeJsonParse<TranslationAI>(resp.content);
     if (!parsed?.translations?.length) {
-      return { name: opts.name, via: opts.via, weight: opts.weight, translations: [], literals: [], status: 'parse_failed', latencyMs, chars: resp.content.length };
+      return { name: opts.name, via, weight: opts.weight, translations: [], literals: [], status: 'parse_failed', latencyMs, chars: resp.content.length };
     }
     return {
       name: opts.name,
-      via: opts.via,
+      via,
       weight: opts.weight,
       translations: parsed.translations.map((t) => (typeof t === 'string' ? t : '')),
       literals: Array.isArray(parsed.literals)
@@ -676,7 +677,7 @@ async function callTranslationModel(opts: {
   } catch (e) {
     return {
       name: opts.name,
-      via: opts.via,
+      via,
       weight: opts.weight,
       translations: [],
       literals: [],
@@ -718,14 +719,13 @@ async function runFushaPass(opts: {
   numberedLines: string;
   lineCount: number;
   dialectLabel: string;
-  apiKey: string;
 }): Promise<FushaOutcome> {
   const t0 = Date.now();
   const systemPrompt = buildFushaSystemPrompt(opts.dialectLabel);
   // Claude first (strongest Arabic morphology of the pair), Gemini as fallback.
-  const attempts: Array<{ model: string; gateway: 'openrouter' | 'lovable' }> = [
-    { model: MODEL_IDS.CLAUDE, gateway: 'openrouter' },
-    { model: MODEL_IDS.GEMINI_FLASH, gateway: 'lovable' },
+  const attempts: Array<{ model: string }> = [
+    { model: MODEL_IDS.CLAUDE },
+    { model: MODEL_IDS.GEMINI_FLASH },
   ];
 
   let lastStatus: FushaOutcome['status'] = 'failed';
@@ -733,10 +733,8 @@ async function runFushaPass(opts: {
     try {
       const resp = await callAI({
         model: attempt.model,
-        gateway: attempt.gateway,
         systemPrompt,
         userContent: opts.numberedLines,
-        apiKey: opts.apiKey,
         maxTokens: 16384,
       });
       if (!resp.content) {
@@ -780,28 +778,18 @@ type MergeOnlyAI = {
 type CallAIArgs = {
   systemPrompt: string;
   userContent: string;
-  apiKey: string;
   isRetry?: boolean;
   maxTokens?: number;
-  model?: string; // defaults to 'qwen/qwen3-235b-a22b'
-  gateway?: 'openrouter' | 'lovable'; // defaults to 'openrouter'
+  model?: string; // defaults to the registry's third-leg verifier
 };
 
 async function callAI({
   systemPrompt,
   userContent,
-  apiKey,
   isRetry = false,
   maxTokens = 4096,
-  model = 'qwen/qwen3-235b-a22b',
-  gateway = 'openrouter',
+  model = MODEL_IDS.QWEN,
 }: CallAIArgs): Promise<{ content: string | null; error?: string; status?: number }> {
-    const isLovable = gateway === 'lovable';
-    const gatewayUrl = isLovable
-      ? 'https://ai.gateway.lovable.dev/v1/chat/completions'
-      : 'https://openrouter.ai/api/v1/chat/completions';
-    const gatewayKey = isLovable ? (Deno.env.get('LOVABLE_API_KEY') ?? '') : apiKey;
-
     const controller = new AbortController();
     // Tightened from 55s → 40s so the full multi-stage pipeline (Call 1 + parallel
     // Call 2 stage + possible retries) fits within the edge runtime's 150s idle
@@ -812,23 +800,14 @@ async function callAI({
     const startedAt = Date.now();
     let response: Response;
     try {
-      response = await fetch(gatewayUrl, {
-        method: 'POST',
-        signal: controller.signal,
-        headers: {
-          'Authorization': `Bearer ${gatewayKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            { role: 'user', content: userContent },
-          ],
-          max_tokens: maxTokens,
-          temperature: 0.2,
-        }),
-      });
+      response = await chatFetch(model, {
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent },
+        ],
+        max_tokens: maxTokens,
+        temperature: 0.2,
+      }, { signal: controller.signal, label: 'analyze-gulf-arabic' });
     } catch (e) {
       const elapsedMs = Date.now() - startedAt;
       const isAbort = e instanceof DOMException && e.name === 'AbortError';
@@ -843,11 +822,11 @@ async function callAI({
     }
 
     const elapsedMs = Date.now() - startedAt;
-    console.log('AI gateway response:', { status: response.status, ok: response.ok, isRetry, elapsedMs });
+    console.log('AI provider response:', { status: response.status, ok: response.ok, isRetry, elapsedMs });
  
    if (!response.ok) {
      const errorText = await response.text();
-     console.error('AI gateway error body (first 800 chars):', errorText?.slice?.(0, 800) ?? errorText);
+     console.error('AI provider error body (first 800 chars):', errorText?.slice?.(0, 800) ?? errorText);
      return { content: null, error: errorText, status: response.status };
    }
  
@@ -861,7 +840,7 @@ async function callAI({
    }
    
    if (!responseText || responseText.trim().length === 0) {
-     console.error('AI gateway returned empty response body');
+     console.error('AI provider returned empty response body');
      return { content: null, error: 'AI returned empty response', status: 500 };
    }
    
@@ -1562,8 +1541,10 @@ async function callFarasaDiacritize(lines: string[]) {
   return await callFarasaDiacritizeLines(lines, { timeoutMs: 15_000 });
 }
 
-// Fallback: use Qwen + Gemini via OpenRouter for translation when needed
-async function lovableAITranslate(arabicLines: string[], apiKey: string, dialect?: string): Promise<string[]> {
+// Fallback: race Qwen and Gemini for a numbered line-by-line translation.
+// Named for the gateway it once used; it has routed through OpenRouter for a
+// while and now goes wherever aiGateway sends each model.
+async function fallbackLineTranslate(arabicLines: string[], dialect?: string): Promise<string[]> {
   const numberedLines = arabicLines.map((line, i) => `${i + 1}. ${line}`).join('\n');
   const dialectNote = dialect ? getDialectNote(dialect, ' ') : '';
   const messages = [
@@ -1581,14 +1562,9 @@ async function lovableAITranslate(arabicLines: string[], apiKey: string, dialect
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 45_000);
     try {
-      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-        method: 'POST',
+      const response = await chatFetch(model, { messages }, {
         signal: controller.signal,
-        headers: {
-          'Authorization': `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ model, messages }),
+        label: 'analyze-gulf-arabic:fallback-translate',
       });
       clearTimeout(timeout);
       if (!response.ok) {
@@ -1606,8 +1582,8 @@ async function lovableAITranslate(arabicLines: string[], apiKey: string, dialect
 
   try {
     const [qwenText, geminiText] = await Promise.all([
-      callModel('qwen/qwen3-235b-a22b'),
-      callModel('google/gemini-2.5-flash'),
+      callModel(MODEL_IDS.QWEN),
+      callModel(MODEL_IDS.GEMINI_FAST),
     ]);
 
     const generatedText = qwenText ?? geminiText ?? '';
@@ -1626,10 +1602,10 @@ async function lovableAITranslate(arabicLines: string[], apiKey: string, dialect
         translations.push('');
       }
     }
-    console.log(`lovableAITranslate: produced ${translations.filter(t => t.length > 0).length}/${arabicLines.length} translations (qwen=${!!qwenText}, gemini=${!!geminiText})`);
+    console.log(`fallbackLineTranslate: produced ${translations.filter(t => t.length > 0).length}/${arabicLines.length} translations (qwen=${!!qwenText}, gemini=${!!geminiText})`);
     return translations;
   } catch (e) {
-    console.warn('lovableAITranslate failed:', e instanceof Error ? e.message : String(e));
+    console.warn('fallbackLineTranslate failed:', e instanceof Error ? e.message : String(e));
     return [];
   }
 }
@@ -1692,8 +1668,7 @@ serve(async (req) => {
     // When called with { phrase } (no transcript), translate a short Arabic
     // word or phrase and return { translation } immediately.
     if (body.phrase && typeof body.phrase === 'string') {
-      const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY');
-      if (!OPENROUTER_API_KEY) {
+      if (!hasAnyProvider()) {
         return new Response(JSON.stringify({ error: 'AI service not configured' }), {
           status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
@@ -1702,7 +1677,6 @@ serve(async (req) => {
       const resp = await callAI({
         systemPrompt: 'You are a Gulf Arabic translator. Translate the given Arabic word or phrase to English. Return ONLY the English translation — 1 to 5 words, no punctuation, no explanation.',
         userContent: body.phrase,
-        apiKey: OPENROUTER_API_KEY,
         maxTokens: 30,
       });
       const translation = (resp.content ?? '').trim().replace(/^["'.]+|["'.]+$/g, '');
@@ -1724,9 +1698,8 @@ serve(async (req) => {
       );
     }
 
-    const OPENROUTER_API_KEY = Deno.env.get('OPENROUTER_API_KEY');
-    if (!OPENROUTER_API_KEY) {
-      console.error('OPENROUTER_API_KEY is not configured');
+    if (!hasAnyProvider()) {
+      console.error('No AI provider is configured');
       return new Response(
         JSON.stringify({ error: 'AI service not configured' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -1826,7 +1799,6 @@ serve(async (req) => {
              const metaResp = await callAI({
                systemPrompt: getMetaSystemPrompt(),
                userContent: `Text shown on screen in this video (not spoken aloud):\n${onScreenBody}`,
-               apiKey: OPENROUTER_API_KEY,
                maxTokens: 2048,
              });
              const meta = metaResp.content ? safeJsonParse<MetaAI>(metaResp.content) : null;
@@ -1895,7 +1867,6 @@ serve(async (req) => {
        callAI({
          systemPrompt: getMergeOnlySystemPrompt(false, hasDualOrTriple, hasTriple),
          userContent: linesUserContent,
-         apiKey: OPENROUTER_API_KEY,
          isRetry: false,
          maxTokens: 8192,
        }),
@@ -1959,7 +1930,6 @@ serve(async (req) => {
        const mergeRetry = await callAI({
          systemPrompt: getMergeOnlySystemPrompt(true, hasDualOrTriple, hasTriple),
          userContent: linesUserContent,
-         apiKey: OPENROUTER_API_KEY,
          isRetry: true,
          maxTokens: 8192,
        });
@@ -2035,44 +2005,38 @@ serve(async (req) => {
         // so upgrades happen in one place. Do NOT hardcode IDs here.
         (async () => {
           const sys = getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation);
-          const CLAUDE = 'anthropic/claude-sonnet-4.5';
-          const GEMINI = 'google/gemini-3.5-flash';
-          const QWEN = 'qwen/qwen3-max';
+          const CLAUDE = MODEL_IDS.CLAUDE;
+          const GEMINI = MODEL_IDS.GEMINI_FLASH;
+          const QWEN = MODEL_IDS.QWEN;
           const settled = await Promise.allSettled([
             callTranslationModel({
               name: CLAUDE,
-              via: 'openrouter',
               weight: 1.0,
               model: CLAUDE,
               systemPrompt: sys,
               userContent: mergedTranscriptText,
-              apiKey: OPENROUTER_API_KEY,
               maxTokens: 16384,
             }),
             callTranslationModel({
               name: GEMINI,
-              via: 'lovable',
               weight: 1.0,
               model: GEMINI,
               systemPrompt: sys,
               userContent: mergedTranscriptText,
-              apiKey: '',
               maxTokens: 16384,
             }),
             callTranslationModel({
               name: QWEN,
-              via: 'openrouter',
               weight: 0.5,
               model: QWEN,
               systemPrompt: sys,
               userContent: mergedTranscriptText,
-              apiKey: OPENROUTER_API_KEY,
               maxTokens: 8192,
             }),
           ]);
           const candidates: EnsembleCandidate[] = settled.map((s, i) => {
             const names = [CLAUDE, GEMINI, QWEN];
-            const vias: Array<'lovable' | 'openrouter'> = ['openrouter', 'lovable', 'openrouter'];
+            const vias: Provider[] = names.map(providerForModel);
             const weights = [1.0, 1.0, 0.5];
             if (s.status === 'fulfilled') return s.value;
             return {
@@ -2096,13 +2060,11 @@ serve(async (req) => {
          numberedLines: mergedTranscriptText,
          lineCount: mergedLines.length,
          dialectLabel: dialectFamilyLabel(),
-         apiKey: OPENROUTER_API_KEY,
        }),
        // Call 2: vocabulary + grammar (Qwen, unchanged from Step 2)
        callAI({
          systemPrompt: getAnalysisSystemPrompt(false, detectedDialect, visualContext, memeMode),
          userContent: mergedTranscriptText,
-         apiKey: OPENROUTER_API_KEY,
          isRetry: false,
          maxTokens: 8192,
        }),
@@ -2437,7 +2399,6 @@ serve(async (req) => {
        const analysisRetry = await callAI({
           systemPrompt: getAnalysisSystemPrompt(true, detectedDialect, visualContext, memeMode),
          userContent: mergedTranscriptText,
-         apiKey: OPENROUTER_API_KEY,
          isRetry: true,
          maxTokens: 8192,
        });
@@ -2627,22 +2588,18 @@ serve(async (req) => {
 
       const claudeEnrichPromise = (vocab.length > 0)
         ? callAI({
-            // OpenRouter uses the dotted ID; the hyphen form 404s on this route.
-            model: 'anthropic/claude-sonnet-4.5',
+            model: MODEL_IDS.CLAUDE,
             systemPrompt: getVocabEnrichmentSystemPrompt(),
             userContent: `Vocabulary list to enrich:\n${JSON.stringify(vocab.map(v => ({ arabic: v.arabic, english: v.english, root: v.root })))}`,
-            apiKey: OPENROUTER_API_KEY,
             maxTokens: 4096,
           }).catch((e) => { console.warn('Claude vocab enrichment failed (non-blocking):', e); return { content: null }; })
         : Promise.resolve({ content: null } as { content: string | null });
 
       const glossPromise = (unknownWords.length > 0)
         ? callAI({
-            model: 'google/gemini-2.5-flash',
+            model: MODEL_IDS.GEMINI_FAST,
             systemPrompt: getGlossEnrichmentPrompt(detectedDialect),
             userContent: `Translate each of these Arabic words to English:\n\n${unknownWords.join('\n')}`,
-            apiKey: '',
-            gateway: 'lovable',
             maxTokens: 4096,
           }).catch((e) => { console.warn('Gloss enrichment failed (non-blocking):', e); return { content: null }; })
         : Promise.resolve({ content: null } as { content: string | null });

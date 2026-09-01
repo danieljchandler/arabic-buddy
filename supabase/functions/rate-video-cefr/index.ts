@@ -11,11 +11,12 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { isAdminUser, resolveUserId } from "../_shared/usageCap.ts";
+import { chatFetch } from "../_shared/aiGateway.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY")!;
 
 // ============================================================
 // 1. Pan-dialect A1/A2 baseline (Gulf + Egyptian + Yemeni + MSA).
@@ -278,22 +279,14 @@ ${transcript.slice(0, 6000)}
 Respond ONLY with valid JSON:
 {"cefr_level":"A1|A2|B1|B2|C1|C2","rationale":"1-2 sentences referencing concrete evidence from the transcript and metrics"}`;
 
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [{ role: "user", content: prompt }],
-      response_format: { type: "json_object" },
-    }),
-  });
+  const res = await chatFetch(MODEL_IDS.GEMINI_FAST, {
+    messages: [{ role: "user", content: prompt }],
+    response_format: { type: "json_object" },
+  }, { label: "rate-video-cefr" });
 
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Gateway ${res.status}: ${text.slice(0, 200)}`);
+    throw new Error(`Model provider ${res.status}: ${text.slice(0, 200)}`);
   }
   const j = await res.json();
   const content = j?.choices?.[0]?.message?.content ?? "{}";

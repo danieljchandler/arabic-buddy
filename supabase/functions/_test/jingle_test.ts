@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { jsonRequest, loadFunction } from "./harness.ts";
+import { NO_AI_PROVIDER, jsonRequest, loadFunction } from "./harness.ts";
 import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
 
 /**
@@ -85,8 +85,8 @@ Deno.test("generate-word-jingle returns base64 audio with its type and extension
   const { status, body } = await call(
     aWord,
     caller({
-      "ai.gateway.lovable.dev": promptWriter({ lyrics: "كتاب كتاب", prompt: "Khaliji pop" }),
-      "generativelanguage.googleapis.com": lyria(new Uint8Array([1, 2, 3, 4]), "audio/mpeg"),
+      "generativelanguage.googleapis.com/v1beta/openai": promptWriter({ lyrics: "كتاب كتاب", prompt: "Khaliji pop" }),
+      "models/lyria": lyria(new Uint8Array([1, 2, 3, 4]), "audio/mpeg"),
     }),
   );
 
@@ -103,8 +103,8 @@ Deno.test("generate-word-jingle wraps raw PCM in a WAV header", async () => {
   const { body } = await call(
     aWord,
     caller({
-      "ai.gateway.lovable.dev": promptWriter({ lyrics: "كتاب", prompt: "pop" }),
-      "generativelanguage.googleapis.com": lyria(PCM, "audio/L16;rate=24000"),
+      "generativelanguage.googleapis.com/v1beta/openai": promptWriter({ lyrics: "كتاب", prompt: "pop" }),
+      "models/lyria": lyria(PCM, "audio/L16;rate=24000"),
     }),
   );
 
@@ -122,8 +122,8 @@ Deno.test("generate-word-jingle takes the sample rate from the mime type", async
   const { body } = await call(
     aWord,
     caller({
-      "ai.gateway.lovable.dev": promptWriter({ lyrics: "كتاب", prompt: "pop" }),
-      "generativelanguage.googleapis.com": lyria(PCM, "audio/L16;rate=24000"),
+      "generativelanguage.googleapis.com/v1beta/openai": promptWriter({ lyrics: "كتاب", prompt: "pop" }),
+      "models/lyria": lyria(PCM, "audio/L16;rate=24000"),
     }),
   );
 
@@ -140,8 +140,8 @@ Deno.test("generate-word-jingle assumes 48kHz when the rate is not stated", asyn
   const { body } = await call(
     aWord,
     caller({
-      "ai.gateway.lovable.dev": promptWriter({ lyrics: "كتاب", prompt: "pop" }),
-      "generativelanguage.googleapis.com": lyria(PCM, "audio/L16"),
+      "generativelanguage.googleapis.com/v1beta/openai": promptWriter({ lyrics: "كتاب", prompt: "pop" }),
+      "models/lyria": lyria(PCM, "audio/L16"),
     }),
   );
 
@@ -154,8 +154,8 @@ Deno.test("generate-word-jingle trims an odd trailing byte off the PCM", async (
   const { body } = await call(
     aWord,
     caller({
-      "ai.gateway.lovable.dev": promptWriter({ lyrics: "كتاب", prompt: "pop" }),
-      "generativelanguage.googleapis.com": lyria(new Uint8Array(15).fill(7), "audio/L16;rate=48000"),
+      "generativelanguage.googleapis.com/v1beta/openai": promptWriter({ lyrics: "كتاب", prompt: "pop" }),
+      "models/lyria": lyria(new Uint8Array(15).fill(7), "audio/L16;rate=48000"),
     }),
   );
 
@@ -171,8 +171,8 @@ Deno.test("generate-word-jingle leaves MP3 alone", async () => {
   const { body } = await call(
     aWord,
     caller({
-      "ai.gateway.lovable.dev": promptWriter({ lyrics: "كتاب", prompt: "pop" }),
-      "generativelanguage.googleapis.com": lyria(new Uint8Array([0xff, 0xfb, 1, 2]), "audio/mpeg"),
+      "generativelanguage.googleapis.com/v1beta/openai": promptWriter({ lyrics: "كتاب", prompt: "pop" }),
+      "models/lyria": lyria(new Uint8Array([0xff, 0xfb, 1, 2]), "audio/mpeg"),
     }),
   );
 
@@ -185,15 +185,15 @@ Deno.test("generate-word-jingle sings the lyrics it wrote", async () => {
   const { bodies, calls } = await call(
     aWord,
     caller({
-      "ai.gateway.lovable.dev": promptWriter({
+      "generativelanguage.googleapis.com/v1beta/openai": promptWriter({
         lyrics: "كِتاب كِتاب، بَين إيديّ",
         prompt: "Khaliji pop, upbeat",
       }),
-      "generativelanguage.googleapis.com": lyria(new Uint8Array([1]), "audio/mpeg"),
+      "models/lyria": lyria(new Uint8Array([1]), "audio/mpeg"),
     }),
   );
 
-  const i = calls.findIndex((u) => u.includes("generativelanguage"));
+  const i = calls.findIndex((u) => u.includes("models/lyria"));
   const sent = bodies[i] ?? "";
   // Two calls in series: the first writes lyrics and a style, the second sings
   // them. Sending only the style produces a tune with no word in it, which is
@@ -206,8 +206,8 @@ Deno.test("generate-word-jingle falls back to the raw text when the plan is unpa
   const { status, body, bodies, calls } = await call(
     aWord,
     caller({
-      "ai.gateway.lovable.dev": promptWriter("Just make it sound Khaliji and cheerful."),
-      "generativelanguage.googleapis.com": lyria(new Uint8Array([1]), "audio/mpeg"),
+      "generativelanguage.googleapis.com/v1beta/openai": promptWriter("Just make it sound Khaliji and cheerful."),
+      "models/lyria": lyria(new Uint8Array([1]), "audio/mpeg"),
     }),
   );
 
@@ -215,7 +215,7 @@ Deno.test("generate-word-jingle falls back to the raw text when the plan is unpa
   // written lyrics than no jingle.
   assertEquals(status, 200);
   assertEquals(body.lyrics, null);
-  const i = calls.findIndex((u) => u.includes("generativelanguage"));
+  const i = calls.findIndex((u) => u.includes("models/lyria"));
   assertStringIncludes(bodies[i] ?? "", "Khaliji and cheerful");
 });
 
@@ -223,10 +223,10 @@ Deno.test("generate-word-jingle strips markdown fences from the plan", async () 
   const { body } = await call(
     aWord,
     caller({
-      "ai.gateway.lovable.dev": promptWriter(
+      "generativelanguage.googleapis.com/v1beta/openai": promptWriter(
         '```json\n{"lyrics":"كتاب","prompt":"pop"}\n```',
       ),
-      "generativelanguage.googleapis.com": lyria(new Uint8Array([1]), "audio/mpeg"),
+      "models/lyria": lyria(new Uint8Array([1]), "audio/mpeg"),
     }),
   );
 
@@ -244,8 +244,8 @@ Deno.test("generate-word-jingle picks a style per dialect", async () => {
     const { bodies, calls } = await call(
       { ...aWord, dialect },
       caller({
-        "ai.gateway.lovable.dev": promptWriter({ lyrics: "x", prompt: "p" }),
-        "generativelanguage.googleapis.com": lyria(new Uint8Array([1]), "audio/mpeg"),
+        "generativelanguage.googleapis.com/v1beta/openai": promptWriter({ lyrics: "x", prompt: "p" }),
+        "models/lyria": lyria(new Uint8Array([1]), "audio/mpeg"),
       }),
     );
 
@@ -260,8 +260,8 @@ Deno.test("generate-word-jingle refuses a request missing either half", async ()
     const { status, calls } = await call(
       body,
       caller({
-        "ai.gateway.lovable.dev": promptWriter({ lyrics: "x", prompt: "p" }),
-        "generativelanguage.googleapis.com": lyria(new Uint8Array([1]), "audio/mpeg"),
+        "generativelanguage.googleapis.com/v1beta/openai": promptWriter({ lyrics: "x", prompt: "p" }),
+        "models/lyria": lyria(new Uint8Array([1]), "audio/mpeg"),
       }),
     );
 
@@ -274,8 +274,8 @@ Deno.test("generate-word-jingle refuses an empty music prompt", async () => {
   const { status, body, calls } = await call(
     aWord,
     caller({
-      "ai.gateway.lovable.dev": promptWriter(""),
-      "generativelanguage.googleapis.com": lyria(new Uint8Array([1]), "audio/mpeg"),
+      "generativelanguage.googleapis.com/v1beta/openai": promptWriter(""),
+      "models/lyria": lyria(new Uint8Array([1]), "audio/mpeg"),
     }),
   );
 
@@ -283,25 +283,31 @@ Deno.test("generate-word-jingle refuses an empty music prompt", async () => {
   // arbitrary, so the check is in front of it rather than after.
   assertEquals(status, 500);
   assertStringIncludes(String(body.error), "Empty music prompt");
-  assert(!calls.some((u) => u.includes("generativelanguage")));
+  assert(!calls.some((u) => u.includes("models/lyria")));
 });
 
-Deno.test("generate-word-jingle names each missing key", async () => {
-  for (const key of ["LOVABLE_API_KEY", "GEMINI_API_KEY"]) {
+Deno.test("generate-word-jingle names each missing dependency", async () => {
+  // Two legs with different needs. The lyric writer takes any provider
+  // aiGateway can route to, so it is only unconfigured when all of them are
+  // missing; Lyria is Google's alone and needs GEMINI_API_KEY by name. Both are
+  // checked before either is called — a half-configured deployment otherwise
+  // fails after paying for the first call.
+  const missing: Array<[Record<string, string | undefined>, string]> = [
+    [NO_AI_PROVIDER, "No AI provider"],
+    [{ GEMINI_API_KEY: undefined }, "GEMINI_API_KEY"],
+  ];
+  for (const [env, message] of missing) {
     const { status, body, calls } = await call(
       aWord,
       caller({
-        "ai.gateway.lovable.dev": promptWriter({ lyrics: "x", prompt: "p" }),
-        "generativelanguage.googleapis.com": lyria(new Uint8Array([1]), "audio/mpeg"),
+        "generativelanguage.googleapis.com/v1beta/openai": promptWriter({ lyrics: "x", prompt: "p" }),
+        "models/lyria": lyria(new Uint8Array([1]), "audio/mpeg"),
       }),
-      { [key]: undefined },
+      env,
     );
 
-    // Two providers, two keys, checked before either is called and named
-    // separately — a half-configured deployment otherwise fails after paying
-    // for the first call.
     assertEquals(status, 500);
-    assertStringIncludes(String(body.error), key);
+    assertStringIncludes(String(body.error), message);
     assert(!calls.some((u) => u.includes("chat/completions")));
   }
 });
@@ -310,8 +316,8 @@ Deno.test("generate-word-jingle reports a safety-filtered generation", async () 
   const { status, body } = await call(
     aWord,
     caller({
-      "ai.gateway.lovable.dev": promptWriter({ lyrics: "x", prompt: "p" }),
-      "generativelanguage.googleapis.com": () =>
+      "generativelanguage.googleapis.com/v1beta/openai": promptWriter({ lyrics: "x", prompt: "p" }),
+      "models/lyria": () =>
         json({ candidates: [{ finishReason: "SAFETY", content: { parts: [] } }] }),
     }),
   );

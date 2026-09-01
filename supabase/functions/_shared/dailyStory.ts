@@ -237,7 +237,7 @@ Return ONLY the structured fields via the provided tool.`;
       purpose: "story",
       dialect: dialect as Dialect,
       strategy: "draft_critic",
-      // Uses MODEL_LINEUPS.CONTENT (Gemini 3.5 Flash drafts, Claude Sonnet 4.5 critiques)
+      // Uses MODEL_LINEUPS.CONTENT (Gemini drafts, Claude critiques)
       // from _shared/modelRegistry.ts. Do not hardcode model IDs here.
       // The critic only actually runs when the dialect validator (or a
       // qualityGate) asks for it — without enforceDialect this was solo

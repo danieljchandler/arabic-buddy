@@ -419,7 +419,7 @@ function drafterUpstreams(extra: Record<string, UpstreamHandler> = {}): Record<s
       json([{ id: CONCEPT, key: "dog", english_gloss: "dog", category: "animals" }]),
     "/rest/v1/concept_realizations": (request) =>
       request.method === "GET" ? json([]) : json(null, 201),
-    "ai.gateway.lovable.dev": () =>
+    "generativelanguage.googleapis.com/v1beta/openai": () =>
       chatCompletion("", {
         realizations: [
           {
@@ -543,7 +543,7 @@ function verifierUpstreams(extra: Record<string, UpstreamHandler> = {}): Record<
       if (request.method === "GET") return json([pendingCandidate]);
       return new Response(null, { status: 204 });
     },
-    "ai.gateway.lovable.dev": verdict(),
+    "generativelanguage.googleapis.com/v1beta/openai": verdict(),
     ...extra,
   };
 }
@@ -587,7 +587,7 @@ Deno.test("verify-clip-candidate hard-rejects on a safety fail", async () => {
   const { patches } = await callVerifier(
     { candidateId: CANDIDATE },
     verifierUpstreams({
-      "ai.gateway.lovable.dev": verdict({ family_friendly: false, reason: "Profanity." }),
+      "generativelanguage.googleapis.com/v1beta/openai": verdict({ family_friendly: false, reason: "Profanity." }),
     }),
   );
   assertEquals(patches[0].status, "rejected");
@@ -597,7 +597,7 @@ Deno.test("verify-clip-candidate holds for review when the judge dissents on dia
   const { patches } = await callVerifier(
     { candidateId: CANDIDATE },
     verifierUpstreams({
-      "ai.gateway.lovable.dev": verdict({ is_target_dialect: false, reason: "Sounds Egyptian." }),
+      "generativelanguage.googleapis.com/v1beta/openai": verdict({ is_target_dialect: false, reason: "Sounds Egyptian." }),
     }),
   );
   assertEquals(patches[0].status, "needs_review");
@@ -607,7 +607,7 @@ Deno.test("verify-clip-candidate never auto-verifies through a judge outage", as
   const { patches } = await callVerifier(
     { candidateId: CANDIDATE },
     verifierUpstreams({
-      "ai.gateway.lovable.dev": () => new Response("upstream down", { status: 500 }),
+      "generativelanguage.googleapis.com/v1beta/openai": () => new Response("upstream down", { status: 500 }),
     }),
   );
   // Every deterministic check passes, but unjudged content parks in the
@@ -660,7 +660,7 @@ function publisherUpstreams(extra: Record<string, UpstreamHandler> = {}): Record
       return new Response(null, { status: 204 });
     },
     "/rest/v1/published_clips": () => json(null, 201),
-    "ai.gateway.lovable.dev": () =>
+    "generativelanguage.googleapis.com/v1beta/openai": () =>
       chatCompletion("", { translation: "This dog is really big", transliteration: "hatha kalb wayid kabeer" }),
     ...extra,
   };
@@ -713,7 +713,7 @@ Deno.test("publish-verified-clips never ships a clip without a translation", asy
   const { body, inserts, patches } = await callPublisher(
     {},
     publisherUpstreams({
-      "ai.gateway.lovable.dev": () => new Response("down", { status: 500 }),
+      "generativelanguage.googleapis.com/v1beta/openai": () => new Response("down", { status: 500 }),
     }),
   );
 

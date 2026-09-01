@@ -142,7 +142,7 @@ Deno.test("seed-set-phrases writes the generated phrases as drafts", async () =>
     caller({
       "/rest/v1/set_phrase_occasions": () => json([{ id: OCCASION, name: "Greetings" }]),
       "/rest/v1/set_phrases": () => json([], 201),
-      "ai.gateway.lovable.dev": emitting(generated),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting(generated),
     }),
   );
 
@@ -171,7 +171,7 @@ Deno.test("seed-set-phrases fills in the defaults the model omitted", async () =
     caller({
       "/rest/v1/set_phrase_occasions": () => json([{ id: OCCASION, name: "Greetings" }]),
       "/rest/v1/set_phrases": () => json([], 201),
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         phrases: [{ phrase_arabic: "هلا", phrase_english: "hi" }],
       }),
     }),
@@ -193,7 +193,7 @@ Deno.test("seed-set-phrases seeds only the occasions asked for", async () => {
     caller({
       "/rest/v1/set_phrase_occasions": () => json([{ id: OCCASION, name: "Greetings" }]),
       "/rest/v1/set_phrases": () => json([], 201),
-      "ai.gateway.lovable.dev": emitting(generated),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting(generated),
     }),
   );
 
@@ -209,11 +209,11 @@ Deno.test("seed-set-phrases carries the dialect rules into the prompt", async ()
     caller({
       "/rest/v1/set_phrase_occasions": () => json([{ id: OCCASION, name: "Greetings" }]),
       "/rest/v1/set_phrases": () => json([], 201),
-      "ai.gateway.lovable.dev": emitting(generated),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting(generated),
     }),
   );
 
-  const prompt = result.bodies[result.calls.findIndex((url) => url.includes("gateway"))] ?? "";
+  const prompt = result.bodies[result.calls.findIndex((url) => url.includes("/chat/completions"))] ?? "";
   assertStringIncludes(prompt, "Authentic Yemeni Arabic only");
   assertStringIncludes(prompt, "Occasion: Greetings");
 });
@@ -225,7 +225,7 @@ Deno.test("seed-set-phrases reports a failed occasion without abandoning the run
     caller({
       "/rest/v1/set_phrase_occasions": () => json([{ id: OCCASION, name: "Greetings" }]),
       "/rest/v1/set_phrases": () => json({ message: "permission denied" }, 403),
-      "ai.gateway.lovable.dev": emitting(generated),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting(generated),
     }),
   );
 
@@ -241,7 +241,10 @@ Deno.test("seed-set-phrases records a model outage per occasion", async () => {
     { dialect: "Gulf" },
     caller({
       "/rest/v1/set_phrase_occasions": () => json([{ id: OCCASION, name: "Greetings" }]),
-      "ai.gateway.lovable.dev": () => json({ error: "upstream down" }, 503),
+      // Both routes: a 503 on Google is aiGateway's cue to retry on OpenRouter,
+      // so the model is only out when the retry is out too.
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "upstream down" }, 503),
+      "openrouter.ai": () => json({ error: "upstream down" }, 503),
     }),
   );
 
@@ -340,7 +343,7 @@ Deno.test("generate-set-phrase-quiz does not call the model when distractors are
     call("generate-set-phrase-quiz", { dialect: "Gulf" }, quizUpstreams()));
 
   assertEquals(result.status, 200);
-  assertEquals(result.calls.filter((url) => url.includes("gateway")).length, 0);
+  assertEquals(result.calls.filter((url) => url.includes("/chat/completions")).length, 0);
 });
 
 Deno.test("generate-set-phrase-quiz generates and caches missing distractors", async () => {
@@ -353,7 +356,7 @@ Deno.test("generate-set-phrase-quiz generates and caches missing distractors", a
           request.method === "PATCH"
             ? json([], 204)
             : json([scenarioPhrase({ scenario_english: null, cached_distractors: [] })]),
-        "ai.gateway.lovable.dev": emitting({
+        "generativelanguage.googleapis.com/v1beta/openai": emitting({
           scenario_english: "Someone just finished a long shift.",
           distractors: [
             { arabic: "مبروك", english: "congratulations" },
@@ -394,7 +397,7 @@ Deno.test("generate-set-phrase-quiz falls back to other phrases when generation 
             }),
           ]),
         // No tool call, so the generator gives up and returns null.
-        "ai.gateway.lovable.dev": () => chatCompletion("prose"),
+        "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("prose"),
       }),
     ));
 

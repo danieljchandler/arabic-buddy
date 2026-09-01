@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable/index";
 import { Button } from "@/components/design-system";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -344,8 +343,20 @@ const Auth = () => {
             onClick={async () => {
               setIsSubmitting(true);
               try {
-                const { error } = await lovable.auth.signInWithOAuth("google", {
-                  redirect_uri: window.location.origin,
+                // Supabase's own OAuth, not a third party's broker. This used
+                // to go through @lovable.dev/cloud-auth-js, which did the
+                // Google dance itself and then handed the tokens back for
+                // `supabase.auth.setSession` — meaning the hosting provider sat
+                // in the middle of every Google login on the production site.
+                //
+                // REQUIRES the Google provider to be enabled in the Supabase
+                // dashboard (Authentication → Providers → Google) with the
+                // OAuth client id/secret and this site's URL in the redirect
+                // allow-list. Without that, this button returns
+                // "Unsupported provider".
+                const { error } = await supabase.auth.signInWithOAuth({
+                  provider: "google",
+                  options: { redirectTo: window.location.origin },
                 });
                 if (error) {
                   toast({

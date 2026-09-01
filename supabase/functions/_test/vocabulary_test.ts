@@ -81,7 +81,7 @@ Deno.test("word-enrichment returns one word's detail, not a list", async () => {
     "word-enrichment",
     { word: "كتاب", dialect: "Gulf" },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         definition: "book",
         root: "ك-ت-ب",
         transliteration: "kitaab",
@@ -103,7 +103,7 @@ Deno.test("word-enrichment asks for a literal gloss only for a phrase", async ()
     "word-enrichment",
     { word: "شخبارك اليوم" },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         definition: "how are you today",
         literal: "what news-your today",
         root: "خ-ب-ر",
@@ -116,7 +116,7 @@ Deno.test("word-enrichment asks for a literal gloss only for a phrase", async ()
     "word-enrichment",
     { word: "كتاب" },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         definition: "book",
         root: "ك-ت-ب",
         transliteration: "kitaab",
@@ -130,7 +130,7 @@ Deno.test("word-enrichment asks for a literal gloss only for a phrase", async ()
   // word-for-word gloss of one word is the definition again.
   assertEquals(phrase.body.literal, "what news-your today");
   assertEquals(single.body.literal, null);
-  const i = single.calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = single.calls.findIndex((u) => u.includes("/v1beta/openai"));
   assert(!(single.bodies[i] ?? "").includes("preserving Arabic word order"));
 });
 
@@ -139,7 +139,7 @@ Deno.test("word-enrichment treats a whitespace-separated input as a phrase", asy
     "word-enrichment",
     { word: "بيت كبير" },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         definition: "a big house",
         literal: "house big",
         root: "ب-ي-ت",
@@ -149,7 +149,7 @@ Deno.test("word-enrichment treats a whitespace-separated input as a phrase", asy
     }),
   );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   // Detected from the input rather than requiring the caller to say so — most
   // callers tap a word and never set the flag.
   assertStringIncludes(bodies[i] ?? "", "PHRASE");
@@ -160,7 +160,7 @@ Deno.test("word-enrichment honours an explicit phrase flag for a single token", 
     "word-enrichment",
     { word: "شخبارك", isPhrase: true },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         definition: "how are you",
         literal: "what news-your",
         root: "خ-ب-ر",
@@ -170,7 +170,7 @@ Deno.test("word-enrichment honours an explicit phrase flag for a single token", 
     }),
   );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   // Arabic writes some multi-word expressions as one token, so the caller can
   // override the whitespace heuristic.
   assertStringIncludes(bodies[i] ?? "", "PHRASE");
@@ -185,7 +185,7 @@ Deno.test("word-enrichment disambiguates using the sentence it came from", async
       sentenceEnglish: "He drank from the spring",
     },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         definition: "spring, water source",
         root: "ع-ي-ن",
         transliteration: "'ayn",
@@ -194,7 +194,7 @@ Deno.test("word-enrichment disambiguates using the sentence it came from", async
     }),
   );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   const sent = bodies[i] ?? "";
   // Without the sentence the model returns the dictionary's first sense, which
   // for عين is "eye" — and the learner is reading about a spring.
@@ -208,7 +208,7 @@ Deno.test("word-enrichment caps the related expressions it returns", async () =>
     "word-enrichment",
     { word: "كتاب" },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         definition: "book",
         root: "ك-ت-ب",
         transliteration: "kitaab",
@@ -225,7 +225,7 @@ Deno.test("word-enrichment normalises empty strings to null", async () => {
     "word-enrichment",
     { word: "كتاب" },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         definition: "book",
         root: "",
         transliteration: "",
@@ -245,7 +245,7 @@ Deno.test("word-enrichment caps the word length it forwards", async () => {
     "word-enrichment",
     { word: "ا".repeat(1000) },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         definition: "x",
         literal: "x",
         root: "",
@@ -255,7 +255,7 @@ Deno.test("word-enrichment caps the word length it forwards", async () => {
     }),
   );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   const sent = JSON.parse(bodies[i] ?? "{}") as { messages: Array<{ content: string }> };
   // A tap on a transcript can select a very long run; 200 characters is the
   // ceiling on what becomes a prompt.
@@ -267,11 +267,11 @@ Deno.test("word-enrichment refuses a request with no word", async () => {
     const { status, calls } = await call(
       "word-enrichment",
       { word },
-      caller({ "ai.gateway.lovable.dev": emitting({}) }),
+      caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({}) }),
     );
 
     assertEquals(status, 400, `expected ${JSON.stringify(word)} to be refused`);
-    assert(!calls.some((url) => url.includes("ai.gateway")));
+    assert(!calls.some((url) => url.includes("/v1beta/openai")));
   }
 });
 
@@ -280,7 +280,7 @@ Deno.test("word-enrichment degrades to an empty shape on failure", async () => {
     "word-enrichment",
     { word: "كتاب" },
     caller({
-      "ai.gateway.lovable.dev": () => json({ error: "boom" }, 500),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "boom" }, 500),
       "openrouter.ai": () => json({ error: "boom" }, 500),
     }),
   );
@@ -297,7 +297,7 @@ Deno.test("word-enrichment turns an anonymous caller away", async () => {
   const { status } = await call(
     "word-enrichment",
     { word: "كتاب" },
-    caller({ "ai.gateway.lovable.dev": emitting({}) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({}) }),
     { jwt: null },
   );
 
@@ -318,7 +318,7 @@ Deno.test("generate-sample-sentences returns the sentences with both glosses", a
   const { status, body } = await call(
     "generate-sample-sentences",
     { word: "كتاب", dialect: "Gulf" },
-    caller({ "ai.gateway.lovable.dev": emitting(threeSentences) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting(threeSentences) }),
   );
 
   assertEquals(status, 200);
@@ -334,10 +334,10 @@ Deno.test("generate-sample-sentences pins the sense when one is supplied", async
   const { bodies, calls } = await call(
     "generate-sample-sentences",
     { word: "عين", definition: "spring, water source" },
-    caller({ "ai.gateway.lovable.dev": emitting(threeSentences) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting(threeSentences) }),
   );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   // The word was saved with a particular meaning. Examples in another sense
   // teach the wrong thing about a word the learner already recorded.
   assertStringIncludes(bodies[i] ?? "", "spring, water source");
@@ -348,7 +348,7 @@ Deno.test("generate-sample-sentences keeps the surrounding words inside the lear
     "generate-sample-sentences",
     { word: "كتاب" },
     caller({
-      "ai.gateway.lovable.dev": emitting(threeSentences),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting(threeSentences),
       "/rest/v1/user_vocabulary": () =>
         json([
           { word_arabic: "بيت", word_english: "house" },
@@ -357,7 +357,7 @@ Deno.test("generate-sample-sentences keeps the surrounding words inside the lear
     }),
   );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   // The target word is meant to be the one new thing in the sentence. An
   // example built from words the learner cannot read teaches nothing.
   assertStringIncludes(bodies[i] ?? "", "بيت");
@@ -368,7 +368,7 @@ Deno.test("generate-sample-sentences caps how many it returns", async () => {
     "generate-sample-sentences",
     { word: "كتاب" },
     caller({
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         sentences: Array.from({ length: 9 }, (_, i) => ({
           arabic: `جملة${i}`,
           english: `sentence ${i}`,
@@ -385,11 +385,11 @@ Deno.test("generate-sample-sentences refuses a request with no word", async () =
   const { status, calls } = await call(
     "generate-sample-sentences",
     {},
-    caller({ "ai.gateway.lovable.dev": emitting(threeSentences) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting(threeSentences) }),
   );
 
   assertEquals(status, 400);
-  assert(!calls.some((url) => url.includes("ai.gateway")));
+  assert(!calls.some((url) => url.includes("/v1beta/openai")));
 });
 
 Deno.test("generate-sample-sentences degrades to an empty list on failure", async () => {
@@ -397,7 +397,7 @@ Deno.test("generate-sample-sentences degrades to an empty list on failure", asyn
     "generate-sample-sentences",
     { word: "كتاب" },
     caller({
-      "ai.gateway.lovable.dev": () => json({ error: "boom" }, 500),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "boom" }, 500),
       "openrouter.ai": () => json({ error: "boom" }, 500),
     }),
   );
@@ -410,7 +410,7 @@ Deno.test("generate-sample-sentences turns an anonymous caller away", async () =
   const { status } = await call(
     "generate-sample-sentences",
     { word: "كتاب" },
-    caller({ "ai.gateway.lovable.dev": emitting(threeSentences) }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting(threeSentences) }),
     { jwt: null },
   );
 
@@ -424,7 +424,7 @@ Deno.test("generate-mnemonic returns the model's text and nothing else", async (
     "generate-mnemonic",
     { arabic: "كتاب", english: "book", transliteration: "kitaab" },
     caller({
-      "ai.gateway.lovable.dev": () => chatCompletion("  A kitten reading a book.  "),
+      "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("  A kitten reading a book.  "),
     }),
   );
 
@@ -438,10 +438,10 @@ Deno.test("generate-mnemonic anchors on the pronunciation when it has one", asyn
   const { bodies, calls } = await call(
     "generate-mnemonic",
     { arabic: "كتاب", english: "book", transliteration: "kitaab" },
-    caller({ "ai.gateway.lovable.dev": () => chatCompletion("mnemonic") }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("mnemonic") }),
   );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   // The technique is sound-alike, so the transliteration is the useful input —
   // the Arabic script tells an English speaker nothing about how it sounds.
   assertStringIncludes(bodies[i] ?? "", "kitaab");
@@ -452,10 +452,10 @@ Deno.test("generate-mnemonic omits the pronunciation line when there is none", a
   const { bodies, calls } = await call(
     "generate-mnemonic",
     { arabic: "كتاب", english: "book" },
-    caller({ "ai.gateway.lovable.dev": () => chatCompletion("mnemonic") }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("mnemonic") }),
   );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   assert(!(bodies[i] ?? "").includes("Pronounced roughly"));
 });
 
@@ -463,10 +463,10 @@ Deno.test("generate-mnemonic says whether it is a word or a phrase", async () =>
   const { bodies, calls } = await call(
     "generate-mnemonic",
     { arabic: "شخبارك", english: "how are you", kind: "phrase" },
-    caller({ "ai.gateway.lovable.dev": () => chatCompletion("mnemonic") }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("mnemonic") }),
   );
 
-  const i = calls.findIndex((u) => u.includes("ai.gateway"));
+  const i = calls.findIndex((u) => u.includes("/v1beta/openai"));
   assertStringIncludes(bodies[i] ?? "", "Arabic phrase:");
 });
 
@@ -475,13 +475,13 @@ Deno.test("generate-mnemonic refuses a request missing either half", async () =>
     const { status, calls } = await call(
       "generate-mnemonic",
       body,
-      caller({ "ai.gateway.lovable.dev": () => chatCompletion("mnemonic") }),
+      caller({ "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("mnemonic") }),
     );
 
     // A mnemonic links a sound to a meaning; without both there is nothing to
     // link.
     assertEquals(status, 400);
-    assert(!calls.some((url) => url.includes("ai.gateway")));
+    assert(!calls.some((url) => url.includes("/v1beta/openai")));
   }
 });
 
@@ -489,7 +489,7 @@ Deno.test("generate-mnemonic rejects an empty answer rather than saving it", asy
   const { status, body } = await call(
     "generate-mnemonic",
     { arabic: "كتاب", english: "book" },
-    caller({ "ai.gateway.lovable.dev": () => chatCompletion("   ") }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("   ") }),
   );
 
   // The caller writes whatever comes back onto the word. A blank mnemonic
@@ -504,7 +504,7 @@ Deno.test("generate-mnemonic preserves 429 and 402 from the gateway", async () =
     const { status } = await call(
       "generate-mnemonic",
       { arabic: "كتاب", english: "book" },
-      caller({ "ai.gateway.lovable.dev": () => json({ error: "no" }, upstreamStatus) }),
+      caller({ "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "no" }, upstreamStatus) }),
     );
 
     assertEquals(status, upstreamStatus);
@@ -515,7 +515,7 @@ Deno.test("generate-mnemonic asks an anonymous caller to sign in", async () => {
   const { status, body } = await call(
     "generate-mnemonic",
     { arabic: "كتاب", english: "book" },
-    caller({ "ai.gateway.lovable.dev": () => chatCompletion("mnemonic") }),
+    caller({ "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("mnemonic") }),
     { jwt: null },
   );
 
@@ -792,13 +792,13 @@ Deno.test("enrich-word-roots asks about forty words at a time", async () => {
   const { status, body, calls } = await call(
     "enrich-word-roots",
     { limit: 120 },
-    caller({ ...vocabulary(someWords(120)), "ai.gateway.lovable.dev": rootsFor(40) }),
+    caller({ ...vocabulary(someWords(120)), "generativelanguage.googleapis.com/v1beta/openai": rootsFor(40) }),
   );
 
   assertEquals(status, 200);
   // Three calls, not 120. Paying the system prompt once per word is the
   // difference between this being affordable and not.
-  assertEquals(calls.filter((url) => url.includes("ai.gateway.lovable.dev")).length, 3);
+  assertEquals(calls.filter((url) => url.includes("generativelanguage.googleapis.com/v1beta/openai")).length, 3);
   assertEquals(body.examined, 120);
 });
 
@@ -813,7 +813,7 @@ Deno.test("enrich-word-roots resolves the hopeless cases without asking anyone",
   const { status, body, calls, bodies } = await call(
     "enrich-word-roots",
     {},
-    caller({ ...vocabulary(rows), "ai.gateway.lovable.dev": rootsFor(1) }),
+    caller({ ...vocabulary(rows), "generativelanguage.googleapis.com/v1beta/openai": rootsFor(1) }),
   );
 
   assertEquals(status, 200);
@@ -822,7 +822,7 @@ Deno.test("enrich-word-roots resolves the hopeless cases without asking anyone",
   // Deciding what *not* to send is where the savings are, so it matters that
   // these never reach a prompt rather than merely being discarded afterwards.
   const prompts = bodies
-    .filter((_, i) => calls[i].includes("ai.gateway.lovable.dev"))
+    .filter((_, i) => calls[i].includes("generativelanguage.googleapis.com/v1beta/openai"))
     .join("\n");
   assertStringIncludes(prompts, "كتاب");
   assert(!prompts.includes("من فضلك"));
@@ -836,7 +836,7 @@ Deno.test("enrich-word-roots stores a word with no root as '' so it is never ask
     {},
     caller({
       ...vocabulary([{ id: "voc-0", word_arabic: "كمبيوتر" }], writes),
-      "ai.gateway.lovable.dev": emitting({ roots: [{ index: 1, root: "" }] }),
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({ roots: [{ index: 1, root: "" }] }),
     }),
   );
 
@@ -853,7 +853,7 @@ Deno.test("enrich-word-roots refuses an answer that is not radicals", async () =
       {},
       caller({
         ...vocabulary([{ id: "voc-0", word_arabic: "كتاب" }]),
-        "ai.gateway.lovable.dev": emitting({ roots: [{ index: 1, root: notARoot }] }),
+        "generativelanguage.googleapis.com/v1beta/openai": emitting({ roots: [{ index: 1, root: notARoot }] }),
       }),
     );
 
@@ -870,7 +870,7 @@ Deno.test("enrich-word-roots skips an index it cannot place rather than shifting
     {},
     caller({
       ...vocabulary(someWords(3)),
-      "ai.gateway.lovable.dev": emitting({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
         roots: [
           { index: 1, root: "ك ت ب" },
           { index: 99, root: "د ر س" },
@@ -889,7 +889,7 @@ Deno.test("enrich-word-roots caps how much one call can chew through", async () 
   const { status, body } = await call(
     "enrich-word-roots",
     { limit: 100000 },
-    caller({ ...vocabulary(someWords(5)), "ai.gateway.lovable.dev": rootsFor(5) }),
+    caller({ ...vocabulary(someWords(5)), "generativelanguage.googleapis.com/v1beta/openai": rootsFor(5) }),
   );
 
   assertEquals(status, 200);
@@ -945,7 +945,7 @@ Deno.test("enrich-word-roots will not touch shared curriculum words for a non-ad
     caller({
       ...vocabulary(someWords(3)),
       "/rest/v1/vocabulary_words": () => json(someWords(3)),
-      "ai.gateway.lovable.dev": rootsFor(3),
+      "generativelanguage.googleapis.com/v1beta/openai": rootsFor(3),
     }),
   );
 
@@ -953,7 +953,7 @@ Deno.test("enrich-word-roots will not touch shared curriculum words for a non-ad
   // wrong root written here is wrong for all of them — the paid-tier cap that
   // guards the personal deck is not the right gate.
   assertEquals(status, 403);
-  assert(!calls.some((url) => url.includes("ai.gateway.lovable.dev")));
+  assert(!calls.some((url) => url.includes("generativelanguage.googleapis.com/v1beta/openai")));
 });
 
 Deno.test("enrich-word-roots backfills a lesson's words for an admin", async () => {
@@ -968,7 +968,7 @@ Deno.test("enrich-word-roots backfills a lesson's words for an admin", async () 
         reads.push(new URL(request.url).search);
         return json(someWords(2));
       },
-      "ai.gateway.lovable.dev": rootsFor(2),
+      "generativelanguage.googleapis.com/v1beta/openai": rootsFor(2),
     }),
   );
 
@@ -986,10 +986,10 @@ Deno.test("enrich-word-roots turns an anonymous caller away", async () => {
   const { status, calls } = await call(
     "enrich-word-roots",
     {},
-    caller({ ...vocabulary(someWords(3)), "ai.gateway.lovable.dev": rootsFor(3) }),
+    caller({ ...vocabulary(someWords(3)), "generativelanguage.googleapis.com/v1beta/openai": rootsFor(3) }),
     { jwt: null },
   );
 
   assertEquals(status, 401);
-  assert(!calls.some((url) => url.includes("ai.gateway.lovable.dev")));
+  assert(!calls.some((url) => url.includes("generativelanguage.googleapis.com/v1beta/openai")));
 });

@@ -1,8 +1,8 @@
 /**
  * seed-set-phrases
  *
- * Admin tool. Generates 10 draft phrases per occasion for the given dialect via
- * Lovable AI. Phrases are inserted as status='draft' for admin review.
+ * Admin tool. Generates 10 draft phrases per occasion for the given dialect.
+ * Phrases are inserted as status='draft' for admin review.
  *
  * Body: { dialect: string, occasionIds?: string[] }
  * Requires admin user JWT.
@@ -11,6 +11,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
+import { chatFetch } from "../_shared/aiGateway.ts";
 
 
 const DIALECT_RULES: Record<string, string> = {
@@ -20,7 +21,6 @@ const DIALECT_RULES: Record<string, string> = {
 };
 
 async function generatePhrases(dialect: string, occasionName: string): Promise<any[]> {
-  const apiKey = Deno.env.get("LOVABLE_API_KEY")!;
   const sys = `You curate authentic Arabic situational-phrase libraries for language learners.
 ${DIALECT_RULES[dialect] ?? DIALECT_RULES.Gulf}
 Rules:
@@ -32,11 +32,7 @@ Rules:
 - For BOTH the phrase and its reply, also provide a "literal" word-for-word English gloss (phrase_literal, reply_literal) that preserves the Arabic word order (e.g. "what news-your?" for "شخبارك؟"). It may sound stiff — it shows learners how the phrase is built.
 - Cultural sensitivity: respectful tone for funerals/religious.`;
 
-  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: MODEL_IDS.GEMINI_FAST,
+  const resp = await chatFetch(MODEL_IDS.GEMINI_FAST, {
       messages: [
         { role: "system", content: sys },
         { role: "user", content: `Occasion: ${occasionName}\nDialect: ${dialect}\nGenerate 10 phrases.` },
@@ -76,9 +72,7 @@ Rules:
         },
       }],
       tool_choice: { type: "function", function: { name: "emit_phrases" } },
-    }),
-    signal: AbortSignal.timeout(60_000),
-  });
+  }, { signal: AbortSignal.timeout(60_000), label: "seed-set-phrases" });
   if (!resp.ok) throw new Error(`AI ${resp.status}: ${await resp.text().then((t) => t.slice(0, 200))}`);
   const data = await resp.json();
   const args = data?.choices?.[0]?.message?.tool_calls?.[0]?.function?.arguments;

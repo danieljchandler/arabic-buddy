@@ -12,12 +12,26 @@ import { defaultUpstreams, json, type UpstreamHandler } from "./upstreams.ts";
  */
 
 /** Every secret the functions read, set to something obviously fake. */
+/**
+ * Every model-provider key unset.
+ *
+ * "The AI is not configured" used to be one missing secret. It now means no
+ * provider at all can serve a model: `aiGateway` routes each model to whichever
+ * of Google / OpenAI / OpenRouter is present, so unsetting one only proves
+ * which one a test happened to pick.
+ */
+export const NO_AI_PROVIDER: Record<string, string | undefined> = {
+  GEMINI_API_KEY: undefined,
+  GOOGLE_API_KEY: undefined,
+  OPENAI_API_KEY: undefined,
+  OPENROUTER_API_KEY: undefined,
+};
+
 export const FIXTURE_ENV: Record<string, string> = {
   SUPABASE_URL: "https://e2e.supabase.co",
   SUPABASE_ANON_KEY: "e2e-anon-key-not-a-real-secret",
   SUPABASE_SERVICE_ROLE_KEY: "e2e-service-role-not-a-real-secret",
 
-  LOVABLE_API_KEY: "fixture-lovable",
   OPENROUTER_API_KEY: "fixture-openrouter",
   GEMINI_API_KEY: "fixture-gemini",
   OPENAI_API_KEY: "fixture-openai",
@@ -71,6 +85,15 @@ export interface UpstreamCall {
 }
 
 /** Environment and outbound `fetch` under a test's control, with no function loaded. */
+/**
+ * The route table, split so a test's own routes always outrank the defaults.
+ * See the resolution comment in `installRoutingFetch`.
+ */
+interface RouteTable {
+  defaults: Record<string, UpstreamHandler>;
+  overrides: Record<string, UpstreamHandler>;
+}
+
 export interface StubbedUpstreams {
   /** Every outbound fetch made while this stub was installed, in order. */
   calls: UpstreamCall[];
@@ -142,7 +165,7 @@ let loadCounter = 0;
  * captured reference stays valid, and `restore()` only has to swap the table
  * underneath it.
  */
-let currentRoutes: Record<string, UpstreamHandler> | null = null;
+let currentRoutes: RouteTable | null = null;
 let currentCalls: UpstreamCall[] | null = null;
 let fetchInstalled = false;
 
@@ -168,12 +191,24 @@ function installRoutingFetch(): void {
           : await request.clone().text().catch(() => null),
     });
 
-    // Longest match wins, so a specific route ("/rest/v1/subscribers") beats
-    // the catch-all it sits inside ("/rest/v1/"). Matching in insertion order
-    // instead would let the defaults shadow every override a test supplies.
-    const match = Object.keys(currentRoutes)
-      .filter((key) => url.includes(key))
-      .sort((a, b) => b.length - a.length)[0];
+    // A test's own routes are consulted first, and only then the defaults.
+    // Within each tier the longest match wins, so a specific route
+    // ("/rest/v1/subscribers") beats the catch-all it sits inside ("/rest/v1/").
+    //
+    // The tiers matter because a default can be *longer* than the override a
+    // test wrote. Google serves two unrelated APIs on one host — the
+    // OpenAI-shaped `/v1beta/openai` chat surface and native `/v1beta/models`
+    // — so both are routed by default, and a test stubbing its own
+    // `models/lyria` would lose to `…/v1beta/models` on length alone and get
+    // an image fixture where it asked for a song. Ranking overrides above
+    // defaults says what a test means: this route, for this test.
+    const pick = (table: Record<string, UpstreamHandler>): string | undefined =>
+      Object.keys(table)
+        .filter((key) => url.includes(key))
+        .sort((a, b) => b.length - a.length)[0];
+
+    const overrideMatch = pick(currentRoutes.overrides);
+    const match = overrideMatch ?? pick(currentRoutes.defaults);
 
     if (!match) {
       // Loud rather than silent: an unrouted call means the test is not in
@@ -186,7 +221,8 @@ function installRoutingFetch(): void {
       );
     }
 
-    return currentRoutes[match](request);
+    const table = overrideMatch ? currentRoutes.overrides : currentRoutes.defaults;
+    return table[match](request);
   }) as typeof fetch;
 }
 
@@ -242,7 +278,10 @@ export function stubUpstreams(options: LoadOptions = {}): StubbedUpstreams {
   for (const [key, value] of Object.entries(FIXTURE_ENV)) applyEnv(key, value);
   for (const [key, value] of Object.entries(options.env ?? {})) applyEnv(key, value);
 
-  const routes = { ...defaultUpstreams(), ...(options.upstreams ?? {}) };
+  const routes: RouteTable = {
+    defaults: defaultUpstreams(),
+    overrides: { ...(options.upstreams ?? {}) },
+  };
   const calls: UpstreamCall[] = [];
   const tasks: Promise<unknown>[] = [];
 
@@ -256,7 +295,7 @@ export function stubUpstreams(options: LoadOptions = {}): StubbedUpstreams {
     calls,
     tasks,
     stub: (match, upstream) => {
-      routes[match] = upstream;
+      routes.overrides[match] = upstream;
     },
     callsTo: (match) => calls.filter((call) => call.url.includes(match)),
     restore: () => {

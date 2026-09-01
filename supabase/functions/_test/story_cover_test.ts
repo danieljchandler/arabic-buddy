@@ -1,6 +1,6 @@
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { jsonRequest, loadFunction, optionsRequest } from "./harness.ts";
-import { json, type UpstreamHandler } from "./upstreams.ts";
+import { geminiImage, imageLadder, json, type UpstreamHandler } from "./upstreams.ts";
 
 /**
  * `generate-story-cover` — the admin-driven cover illustration for one
@@ -44,7 +44,7 @@ function coverBackend(
     "/storage/v1": () => json({ Key: `listen-audio/interactive-stories/${STORY}/cover` }),
     "/rest/v1/interactive_stories": (request: Request) =>
       request.method === "GET" ? json(story) : json([], 200),
-    "ai.gateway.lovable.dev": () => json({ data: [{ b64_json: PNG_B64 }] }),
+    ...imageLadder(() => geminiImage(PNG_B64)),
     ...extra,
   };
 }
@@ -137,9 +137,9 @@ Deno.test("generate-story-cover conditions the prompt on the story itself", asyn
   const result = await call({ story_id: STORY }, coverBackend());
 
   assertEquals(result.status, 200);
-  const gen = lastBody(result, "ai.gateway.lovable.dev");
+  const gen = lastBody(result, "-image:generateContent");
   assert(gen, "expected an image generation call");
-  const prompt = String((gen.messages as Array<{ content: string }>)[0].content);
+  const prompt = String((gen.contents as Array<{ parts: Array<{ text: string }> }>)[0].parts[0].text);
   // The cover must be this story's, in this story's world: title and the
   // dialect's own setting, not the Gulf default.
   assertStringIncludes(prompt, "The Lost Falcon");
@@ -153,10 +153,10 @@ Deno.test("generate-story-cover appends the admin's steering note", async () => 
   );
 
   assertEquals(result.status, 200);
-  const gen = lastBody(result, "ai.gateway.lovable.dev");
+  const gen = lastBody(result, "-image:generateContent");
   assert(gen, "expected an image generation call");
   assertStringIncludes(
-    String((gen.messages as Array<{ content: string }>)[0].content),
+    String((gen.contents as Array<{ parts: Array<{ text: string }> }>)[0].parts[0].text),
     "make it a night scene",
   );
 });

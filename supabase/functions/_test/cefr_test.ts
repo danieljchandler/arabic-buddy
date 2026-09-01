@@ -28,7 +28,7 @@ function upstreams(extra: Record<string, UpstreamHandler> = {}): Record<string, 
     "/auth/v1/user": () => json({ id: USER, aud: "authenticated", role: "authenticated" }),
     "/rest/v1/user_roles": () => json({ role: "admin" }),
     "/rest/v1/discover_videos": () => json(null),
-    "ai.gateway.lovable.dev": () => chatCompletion(JSON.stringify({ cefr_level: "B1", rationale: "Routine." })),
+    "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion(JSON.stringify({ cefr_level: "B1", rationale: "Routine." })),
     ...extra,
   };
 }
@@ -72,7 +72,7 @@ const rating = (cefr_level: string, rationale = "Because."): UpstreamHandler => 
 Deno.test("rate-video-cefr returns a level, a difficulty and its evidence", async () => {
   const { status, body } = await call(
     { transcript_lines: lines("الجو حلو اليوم", "شفت الأسعار") },
-    upstreams({ "ai.gateway.lovable.dev": rating("A2", "Short concrete sentences.") }),
+    upstreams({ "generativelanguage.googleapis.com/v1beta/openai": rating("A2", "Short concrete sentences.") }),
   );
 
   assertEquals(status, 200);
@@ -95,7 +95,7 @@ Deno.test("rate-video-cefr maps each level to its coarse bucket", async () => {
   ) {
     const { body } = await call(
       { transcript_lines: lines("الجو حلو اليوم") },
-      upstreams({ "ai.gateway.lovable.dev": rating(level) }),
+      upstreams({ "generativelanguage.googleapis.com/v1beta/openai": rating(level) }),
     );
 
     // Two learners at A1 and A2 both see "Beginner"; the fine level is what
@@ -107,7 +107,7 @@ Deno.test("rate-video-cefr maps each level to its coarse bucket", async () => {
 Deno.test("rate-video-cefr rates a short, simple clip at the bottom", async () => {
   const { body } = await call(
     { transcript_lines: lines(easyLine(10)) },
-    upstreams({ "ai.gateway.lovable.dev": rating("A1") }),
+    upstreams({ "generativelanguage.googleapis.com/v1beta/openai": rating("A1") }),
   );
 
   // Under 25 tokens with almost no rare words is A1 outright, ahead of the
@@ -122,7 +122,7 @@ Deno.test("rate-video-cefr rates dense, rare, long-worded speech higher", async 
       transcript_lines: lines(hardLine(14), hardLine(14), hardLine(14)),
       duration_seconds: 12,
     },
-    upstreams({ "ai.gateway.lovable.dev": rating("C1") }),
+    upstreams({ "generativelanguage.googleapis.com/v1beta/openai": rating("C1") }),
   );
 
   const floor = String(body.metric_floor);
@@ -135,11 +135,11 @@ Deno.test("rate-video-cefr rates dense, rare, long-worded speech higher", async 
 Deno.test("rate-video-cefr separates two clips of different difficulty", async () => {
   const easy = await call(
     { transcript_lines: lines(easyLine(15), easyLine(15)) },
-    upstreams({ "ai.gateway.lovable.dev": rating("A1") }),
+    upstreams({ "generativelanguage.googleapis.com/v1beta/openai": rating("A1") }),
   );
   const hard = await call(
     { transcript_lines: lines(hardLine(14), hardLine(14), hardLine(14)), duration_seconds: 12 },
-    upstreams({ "ai.gateway.lovable.dev": rating("C1") }),
+    upstreams({ "generativelanguage.googleapis.com/v1beta/openai": rating("C1") }),
   );
 
   const order = ["A1", "A2", "B1", "B2", "C1", "C2"];
@@ -155,11 +155,11 @@ Deno.test("rate-video-cefr separates two clips of different difficulty", async (
 Deno.test("rate-video-cefr counts speech rate only when the duration is known", async () => {
   const timed = await call(
     { transcript_lines: lines(hardLine(20)), duration_seconds: 5 },
-    upstreams({ "ai.gateway.lovable.dev": rating("B2") }),
+    upstreams({ "generativelanguage.googleapis.com/v1beta/openai": rating("B2") }),
   );
   const untimed = await call(
     { transcript_lines: lines(hardLine(20)) },
-    upstreams({ "ai.gateway.lovable.dev": rating("B2") }),
+    upstreams({ "generativelanguage.googleapis.com/v1beta/openai": rating("B2") }),
   );
 
   const timedMetrics = timed.body.metrics as Record<string, unknown>;
@@ -182,7 +182,7 @@ Deno.test("rate-video-cefr counts idiomatic vocabulary from either field", async
         { arabic: "ه" },
       ],
     },
-    upstreams({ "ai.gateway.lovable.dev": rating("B1") }),
+    upstreams({ "generativelanguage.googleapis.com/v1beta/openai": rating("B1") }),
   );
 
   const metrics = body.metrics as Record<string, unknown>;
@@ -196,7 +196,7 @@ Deno.test("rate-video-cefr counts idiomatic vocabulary from either field", async
 Deno.test("rate-video-cefr reads a line from either text field", async () => {
   const { body } = await call(
     { transcript_lines: [{ arabic: "الجو حلو" }, { text: "شفت الأسعار" }] },
-    upstreams({ "ai.gateway.lovable.dev": rating("A2") }),
+    upstreams({ "generativelanguage.googleapis.com/v1beta/openai": rating("A2") }),
   );
 
   const metrics = body.metrics as Record<string, unknown>;
@@ -209,7 +209,7 @@ Deno.test("rate-video-cefr reads a line from either text field", async () => {
 Deno.test("rate-video-cefr ignores blank lines", async () => {
   const { body } = await call(
     { transcript_lines: [{ arabic: "الجو حلو" }, { arabic: "   " }, { text: "" }, {}] },
-    upstreams({ "ai.gateway.lovable.dev": rating("A2") }),
+    upstreams({ "generativelanguage.googleapis.com/v1beta/openai": rating("A2") }),
   );
 
   const metrics = body.metrics as Record<string, unknown>;
@@ -221,7 +221,7 @@ Deno.test("rate-video-cefr ignores blank lines", async () => {
 Deno.test("rate-video-cefr gives the model the metrics and the floor", async () => {
   const { bodies, calls } = await call(
     { transcript_lines: lines("الجو حلو اليوم"), dialect: "Egyptian" },
-    upstreams({ "ai.gateway.lovable.dev": rating("A2") }),
+    upstreams({ "generativelanguage.googleapis.com/v1beta/openai": rating("A2") }),
   );
 
   const prompt = bodies[calls.findIndex((u) => u.includes("chat/completions"))] ?? "";
@@ -236,7 +236,7 @@ Deno.test("rate-video-cefr gives the model the metrics and the floor", async () 
 Deno.test("rate-video-cefr tells the model not to default to the middle", async () => {
   const { bodies, calls } = await call(
     { transcript_lines: lines("الجو حلو اليوم") },
-    upstreams({ "ai.gateway.lovable.dev": rating("A2") }),
+    upstreams({ "generativelanguage.googleapis.com/v1beta/openai": rating("A2") }),
   );
 
   const prompt = bodies[calls.findIndex((u) => u.includes("chat/completions"))] ?? "";
@@ -248,7 +248,7 @@ Deno.test("rate-video-cefr tells the model not to default to the middle", async 
 Deno.test("rate-video-cefr falls back to the floor when the model is unavailable", async () => {
   const { status, body } = await call(
     { transcript_lines: lines("الجو حلو اليوم") },
-    upstreams({ "ai.gateway.lovable.dev": () => json({ error: "down" }, 503) }),
+    upstreams({ "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "down" }, 503) }),
   );
 
   // A video with no level at all would be unrankable. The metrics alone are a
@@ -262,7 +262,7 @@ Deno.test("rate-video-cefr falls back to the floor for an invalid level", async 
   for (const level of ["Intermediate", "", "Z9", "b1 maybe"]) {
     const { body } = await call(
       { transcript_lines: lines("الجو حلو اليوم") },
-      upstreams({ "ai.gateway.lovable.dev": rating(level) }),
+      upstreams({ "generativelanguage.googleapis.com/v1beta/openai": rating(level) }),
     );
 
     // The value is written to a column the feed compares against a fixed
@@ -276,7 +276,7 @@ Deno.test("rate-video-cefr falls back to the floor for an invalid level", async 
 Deno.test("rate-video-cefr accepts a lower-case level from the model", async () => {
   const { body } = await call(
     { transcript_lines: lines("الجو حلو اليوم") },
-    upstreams({ "ai.gateway.lovable.dev": rating("b2") }),
+    upstreams({ "generativelanguage.googleapis.com/v1beta/openai": rating("b2") }),
   );
 
   assertEquals(body.cefr_level, "B2");
@@ -285,7 +285,7 @@ Deno.test("rate-video-cefr accepts a lower-case level from the model", async () 
 Deno.test("rate-video-cefr caps the rationale it stores", async () => {
   const { body } = await call(
     { transcript_lines: lines("الجو حلو اليوم") },
-    upstreams({ "ai.gateway.lovable.dev": rating("B1", "x".repeat(2000)) }),
+    upstreams({ "generativelanguage.googleapis.com/v1beta/openai": rating("B1", "x".repeat(2000)) }),
   );
 
   // Shown to an admin in a table cell; an unbounded essay from the model would
@@ -304,7 +304,7 @@ Deno.test("rate-video-cefr rates a stored video and writes the result back", asy
           vocabulary: [],
           dialect: "Gulf",
         }),
-      "ai.gateway.lovable.dev": rating("A2", "Concrete topics."),
+      "generativelanguage.googleapis.com/v1beta/openai": rating("A2", "Concrete topics."),
     }),
   );
 
@@ -325,7 +325,7 @@ Deno.test("rate-video-cefr rates a stored video and writes the result back", asy
 Deno.test("rate-video-cefr rates an inline transcript without writing anything", async () => {
   const { status, calls } = await call(
     { transcript_lines: lines("الجو حلو اليوم") },
-    upstreams({ "ai.gateway.lovable.dev": rating("A2") }),
+    upstreams({ "generativelanguage.googleapis.com/v1beta/openai": rating("A2") }),
   );
 
   // The pipeline calls this with a videoId; the admin form calls it with a
@@ -337,7 +337,7 @@ Deno.test("rate-video-cefr rates an inline transcript without writing anything",
 Deno.test("rate-video-cefr refuses a video with no transcript", async () => {
   const { status, body, calls } = await call(
     { transcript_lines: [] },
-    upstreams({ "ai.gateway.lovable.dev": rating("A2") }),
+    upstreams({ "generativelanguage.googleapis.com/v1beta/openai": rating("A2") }),
   );
 
   // There is nothing to measure. Rating it anyway would produce a confident
@@ -381,7 +381,7 @@ Deno.test("rate-video-cefr refuses a caller who is neither pipeline nor admin", 
 Deno.test("rate-video-cefr admits the pipeline's service-role bearer", async () => {
   // The service-role caller never touches auth or roles — remove the stubs so
   // any lookup would fail loudly rather than pass by fixture coincidence.
-  const routes = upstreams({ "ai.gateway.lovable.dev": rating("A2") });
+  const routes = upstreams({ "generativelanguage.googleapis.com/v1beta/openai": rating("A2") });
   delete routes["/auth/v1/user"];
   delete routes["/rest/v1/user_roles"];
   const fn = await loadFunction("rate-video-cefr", { upstreams: routes });

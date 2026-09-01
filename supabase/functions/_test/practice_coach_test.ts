@@ -40,12 +40,12 @@ function caller(extra: Record<string, UpstreamHandler> = {}): Record<string, Ups
 }
 
 const streaming = (...pieces: string[]): Record<string, UpstreamHandler> => ({
-  "ai.gateway.lovable.dev": () => sseCompletion(...pieces),
+  "generativelanguage.googleapis.com/v1beta/openai": () => sseCompletion(...pieces),
   "openrouter.ai": () => sseCompletion(...pieces),
 });
 
 const emitting = (payload: unknown): Record<string, UpstreamHandler> => ({
-  "ai.gateway.lovable.dev": () => chatCompletion("", payload),
+  "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("", payload),
   "openrouter.ai": () => chatCompletion("", payload),
 });
 
@@ -101,7 +101,7 @@ async function call(
 }
 
 function gatewayPrompt(bodies: Array<string | null>, calls: string[]): string {
-  const index = calls.findIndex((url) => url.includes("gateway") || url.includes("openrouter"));
+  const index = calls.findIndex((url) => url.includes("/chat/completions"));
   return bodies[index] ?? "";
 }
 
@@ -251,7 +251,7 @@ Deno.test("conversation-practice passes a paywall answer straight through", asyn
     "conversation-practice",
     { messages: [turn("مرحبا")] },
     caller({
-      "ai.gateway.lovable.dev": () => json({ error: "payment required" }, 402),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "payment required" }, 402),
       "openrouter.ai": () => json({ error: "payment required" }, 402),
     }),
   );
@@ -265,7 +265,7 @@ Deno.test("conversation-practice passes a rate limit straight through", async ()
     "conversation-practice",
     { messages: [turn("مرحبا")] },
     caller({
-      "ai.gateway.lovable.dev": () => json({ error: "slow down" }, 429),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "slow down" }, 429),
       "openrouter.ai": () => json({ error: "slow down" }, 429),
     }),
   );
@@ -279,7 +279,7 @@ Deno.test("conversation-practice flattens any other model failure to a 500", asy
     "conversation-practice",
     { messages: [turn("مرحبا")] },
     caller({
-      "ai.gateway.lovable.dev": () => json({ error: "boom" }, 503),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "boom" }, 503),
       "openrouter.ai": () => json({ error: "boom" }, 503),
     }),
   );
@@ -400,7 +400,7 @@ Deno.test("practice-sentence-coach never reaches the model on a silent clip", as
     coachUpstreams({ "api.munsit.com": munsit("") }),
   );
 
-  assertEquals(result.calls.filter((url) => url.includes("gateway")).length, 0);
+  assertEquals(result.calls.filter((url) => url.includes("/chat/completions")).length, 0);
 });
 
 Deno.test("practice-sentence-coach retries the other ASR model on an empty answer", async () => {
@@ -494,7 +494,7 @@ Deno.test("practice-sentence-coach passes a rate limit through", async () => {
     "practice-sentence-coach",
     { audioBase64: AUDIO, targetArabic: "سوق" },
     coachUpstreams({
-      "ai.gateway.lovable.dev": () => json({ error: "slow down" }, 429),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "slow down" }, 429),
       "openrouter.ai": () => json({ error: "slow down" }, 429),
     }),
   );
@@ -508,7 +508,7 @@ Deno.test("practice-sentence-coach passes a credit failure through", async () =>
     "practice-sentence-coach",
     { audioBase64: AUDIO, targetArabic: "سوق" },
     coachUpstreams({
-      "ai.gateway.lovable.dev": () => json({ error: "no credits" }, 402),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "no credits" }, 402),
       "openrouter.ai": () => json({ error: "no credits" }, 402),
     }),
   );

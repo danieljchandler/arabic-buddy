@@ -52,7 +52,7 @@ const input = (over: Partial<Parameters<RouterModule["planToolCalls"]>[0]> = {})
 
 Deno.test("the router returns the lookups the model asked for", async () => {
   await withRouter(
-    { "ai.gateway.lovable.dev": planning([{ tool: "read_source", url: ARTICLE }]) },
+    { "generativelanguage.googleapis.com/v1beta/openai": planning([{ tool: "read_source", url: ARTICLE }]) },
     async (mod) => {
       const plan = await mod.planToolCalls(input());
       assertEquals(plan, [{ name: "read_source", args: { url: ARTICLE } }]);
@@ -61,7 +61,7 @@ Deno.test("the router returns the lookups the model asked for", async () => {
 });
 
 Deno.test("an empty plan is a normal answer, not a failure", async () => {
-  await withRouter({ "ai.gateway.lovable.dev": planning([]) }, async (mod) => {
+  await withRouter({ "generativelanguage.googleapis.com/v1beta/openai": planning([]) }, async (mod) => {
     assertEquals(await mod.planToolCalls(input()), []);
   });
 });
@@ -69,7 +69,7 @@ Deno.test("an empty plan is a normal answer, not a failure", async () => {
 Deno.test("the router never plans more lookups than the executor will run", async () => {
   await withRouter(
     {
-      "ai.gateway.lovable.dev": planning([
+      "generativelanguage.googleapis.com/v1beta/openai": planning([
         { tool: "search_library", query: "a" },
         { tool: "search_library", query: "b" },
         { tool: "search_library", query: "c" },
@@ -84,20 +84,20 @@ Deno.test("the router never plans more lookups than the executor will run", asyn
 });
 
 Deno.test("the router is told which URLs exist, and that there are none", async () => {
-  await withRouter({ "ai.gateway.lovable.dev": planning([]) }, async (mod, up) => {
+  await withRouter({ "generativelanguage.googleapis.com/v1beta/openai": planning([]) }, async (mod, up) => {
     await mod.planToolCalls(input({ availableUrls: [] }));
-    const sent = up.calls.find((c) => c.url.includes("lovable"))?.body ?? "";
+    const sent = up.calls.find((c) => c.url.includes("/chat/completions"))?.body ?? "";
     // Left to guess, a model will happily invent a plausible-looking URL.
     assertStringIncludes(sent, "read_source is unavailable for this question");
   });
 });
 
 Deno.test("the router is not handed the document it is only routing", async () => {
-  await withRouter({ "ai.gateway.lovable.dev": planning([]) }, async (mod, up) => {
+  await withRouter({ "generativelanguage.googleapis.com/v1beta/openai": planning([]) }, async (mod, up) => {
     await mod.planToolCalls(
       input({ pageSummary: "Souq tour — a Gulf video about a market" }),
     );
-    const sent = up.calls.find((c) => c.url.includes("lovable"))?.body ?? "";
+    const sent = up.calls.find((c) => c.url.includes("/chat/completions"))?.body ?? "";
     // A router prompt carrying the whole transcript would cost as much as the
     // answer it exists to route.
     assert(sent.length < 4000, `router prompt was ${sent.length} chars`);
@@ -105,9 +105,9 @@ Deno.test("the router is not handed the document it is only routing", async () =
 });
 
 Deno.test("a one-word follow-up is not worth a routing call", async () => {
-  await withRouter({ "ai.gateway.lovable.dev": planning([]) }, async (mod, up) => {
+  await withRouter({ "generativelanguage.googleapis.com/v1beta/openai": planning([]) }, async (mod, up) => {
     assertEquals(await mod.planToolCalls(input({ question: "again?" })), []);
-    assertEquals(up.calls.filter((c) => c.url.includes("lovable")).length, 0);
+    assertEquals(up.calls.filter((c) => c.url.includes("/chat/completions")).length, 0);
   });
 });
 
@@ -116,7 +116,7 @@ Deno.test("the answer still goes out when the router is unavailable", async () =
   // for the learner to get no answer.
   for (const status of [402, 429, 500]) {
     await withRouter(
-      { "ai.gateway.lovable.dev": () => json({ error: "nope" }, status) },
+      { "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "nope" }, status) },
       async (mod) => {
         assertEquals(await mod.planToolCalls(input()), []);
       },
@@ -126,7 +126,7 @@ Deno.test("the answer still goes out when the router is unavailable", async () =
 
 Deno.test("a malformed plan degrades to no lookups", async () => {
   await withRouter(
-    { "ai.gateway.lovable.dev": planning([{ nonsense: true }, null]) },
+    { "generativelanguage.googleapis.com/v1beta/openai": planning([{ nonsense: true }, null]) },
     async (mod) => {
       assertEquals(await mod.planToolCalls(input()), []);
     },

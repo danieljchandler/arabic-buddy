@@ -57,7 +57,7 @@ const CurriculumBuilder = () => {
 
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [newDialect, setNewDialect] = useState<GulfDialect>(activeDialect as GulfDialect);
-  const [newModel, setNewModel] = useState<LLMModelId>('google/gemini-3-flash-preview');
+  const [newModel, setNewModel] = useState<LLMModelId>('google/gemini-3.5-flash-lite');
   const [newStageId, setNewStageId] = useState<string>('');
   const [newCefr, setNewCefr] = useState<string>('');
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);

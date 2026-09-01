@@ -2645,6 +2645,48 @@ export type Database = {
         }
         Relationships: []
       }
+      monologue_attempts: {
+        Row: {
+          asr_provider: string
+          created_at: string
+          dialect: string
+          duration_ms: number
+          id: string
+          metrics: Json
+          prompt_text: string | null
+          timings_available: boolean
+          transcript: string
+          user_id: string
+          word_count: number
+        }
+        Insert: {
+          asr_provider?: string
+          created_at?: string
+          dialect?: string
+          duration_ms: number
+          id?: string
+          metrics?: Json
+          prompt_text?: string | null
+          timings_available?: boolean
+          transcript?: string
+          user_id: string
+          word_count?: number
+        }
+        Update: {
+          asr_provider?: string
+          created_at?: string
+          dialect?: string
+          duration_ms?: number
+          id?: string
+          metrics?: Json
+          prompt_text?: string | null
+          timings_available?: boolean
+          transcript?: string
+          user_id?: string
+          word_count?: number
+        }
+        Relationships: []
+      }
       msa_transformation_rules: {
         Row: {
           category: string

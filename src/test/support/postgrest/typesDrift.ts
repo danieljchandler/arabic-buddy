@@ -26,37 +26,12 @@ export interface DriftedColumn {
   migration: string;
 }
 
-/** Everything the curriculum restructure added, in one migration. */
-const CURRICULUM_RESTRUCTURE = "20260224000000_curriculum_restructure";
-
 export const COLUMNS_MISSING_FROM_TYPES: DriftedColumn[] = [
-  // The lesson-content columns the curriculum builder writes.
-  ...[
-    "unlock_condition",
-    "sound_spotlight",
-    "lesson_sequence",
-    "real_world_prompts",
-    "design_rationale",
-    "flashcard_spec",
-    "image_scenes",
-  ].map((column) => ({ table: "lessons", column, migration: CURRICULUM_RESTRUCTURE })),
-
-  ...["transliteration", "category", "teaching_note", "image_scene_description"].map((column) => ({
-    table: "vocabulary_words",
-    column,
-    migration: CURRICULUM_RESTRUCTURE,
-  })),
-
-  {
-    table: "saved_transcriptions",
-    column: "dialect_validation",
-    migration: "20260228000000_dialect_validation",
-  },
-  {
-    table: "curriculum_chat_approvals",
-    column: "approved_at",
-    migration: "20260304100000_curriculum_chat",
-  },
+  // The lesson-content / authoring-metadata drift this list used to pin
+  // (lessons, vocabulary_words, saved_transcriptions, curriculum_chat_approvals)
+  // is resolved: 20260831100000_reconcile_lessons_shapes.sql converges both
+  // table shapes and types.ts now lists those columns, so those entries are
+  // deleted per the staleness check in typesDrift.test.ts.
 
   // Service-role-only telemetry tables, absent from the types entirely because
   // they carry no anon or authenticated grants.

@@ -263,11 +263,28 @@ test.describe("editing an existing video", () => {
   });
 
   test("says a transcription is queued", async ({ page, db }) => {
-    seedVideo(db, { transcription_status: "pending" });
+    // Freshly queued — the stalled-pending detection keys off updated_at, and
+    // the factory's default timestamp is old enough to read as stalled.
+    seedVideo(db, { transcription_status: "pending", updated_at: new Date().toISOString() });
 
     await page.goto(`/admin/videos/${VIDEO}/edit`);
 
     await expect(page.getByText(/Transcription is queued/)).toBeVisible();
+  });
+
+  test("re-enables re-transcribing when a queued run has stalled", async ({ page, db }) => {
+    // Queued long ago with no progress: the kickoff was lost. The banner says
+    // so and the controls stop disabling their own escape hatch — a stuck
+    // 'pending' video used to have no UI path to retry at all.
+    seedVideo(db, {
+      transcription_status: "pending",
+      updated_at: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
+    });
+
+    await page.goto(`/admin/videos/${VIDEO}/edit`);
+
+    await expect(page.getByText(/without starting/)).toBeVisible();
+    await expect(page.getByRole("button", { name: /Download & Re-transcribe/ })).toBeEnabled();
   });
 
   test("surfaces why a transcription failed", async ({ page, db }) => {

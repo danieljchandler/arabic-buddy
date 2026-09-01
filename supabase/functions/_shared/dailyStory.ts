@@ -239,6 +239,10 @@ Return ONLY the structured fields via the provided tool.`;
       strategy: "draft_critic",
       // Uses MODEL_LINEUPS.CONTENT (Gemini drafts, Claude critiques)
       // from _shared/modelRegistry.ts. Do not hardcode model IDs here.
+      // The critic only actually runs when the dialect validator (or a
+      // qualityGate) asks for it — without enforceDialect this was solo
+      // drafting with a comment claiming otherwise.
+      enforceDialect: true,
       systemPromptExtra: systemExtra,
       userPrompt,
       maxTokens: 3072,

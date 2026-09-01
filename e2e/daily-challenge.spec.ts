@@ -250,7 +250,7 @@ test.describe("where the challenge comes from", () => {
     });
   });
 
-  test("sends the learner's own words as a cold-start hint", async ({ page, db, backend }) => {
+  test("sends no client-built vocabulary list", async ({ page, db, backend }) => {
     db.seed("daily_challenges", []);
     db.seed("vocabulary_words", [
       aVocabularyWord({ id: wordId(0), word_arabic: "باب", word_english: "door", display_order: 0 }),
@@ -262,13 +262,14 @@ test.describe("where the challenge comes from", () => {
     await startButton(page).click();
     await expect(page.getByText("Freshly generated")).toBeVisible();
 
-    const sent = backend.lastCallTo("daily-challenge")?.body as {
-      userVocab: Array<Record<string, string>>;
-    };
-    // Order is the hook's business, not this page's — what matters is that the
-    // learner's own curriculum words are what the generator is given to work
-    // from, rather than a generic list.
-    expect(sent.userVocab.map((w) => w.word_arabic).sort()).toEqual(["باب", "كتاب"].sort());
+    const sent = backend.lastCallTo("daily-challenge")?.body as Record<string, unknown>;
+    // The challenge words come from the server-side learner profile (real SRS
+    // state). The client used to send 20 shuffled curriculum words labelled
+    // as the learner's own — a "cold-start hint" that quizzed brand-new
+    // learners on words they had never studied. The server ignores the field;
+    // the client must not send it.
+    expect(sent.userVocab).toBeUndefined();
+    expect(sent).toMatchObject({ dialect: "Gulf" });
   });
 
   test("ignores an unpublished challenge", async ({ page, db, backend }) => {

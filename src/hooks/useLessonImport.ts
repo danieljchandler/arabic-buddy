@@ -41,7 +41,7 @@ export const useLessonImport = () => {
     mutationFn: async (plan: ParsedLessonPlan) => {
       // Create a lesson in the lessons table
       const { data: lesson, error: lessonErr } = await supabase
-        .from('lessons' as never)
+        .from('lessons')
         .insert({
           stage_id: plan.stageId,
           lesson_number: plan.lessonNumber,
@@ -69,7 +69,7 @@ export const useLessonImport = () => {
           real_world_prompts: plan.realWorldPrompts ?? [],
           design_rationale: plan.designRationale ?? [],
           sound_spotlight: plan.soundSpotlight ?? [],
-        } as never)
+        })
         .select()
         .single();
 
@@ -84,6 +84,10 @@ export const useLessonImport = () => {
           word_english: v.english,
           display_order: idx,
           dialect_module: plan.dialectModule || 'Gulf',
+          transliteration: v.transliteration || null,
+          category: v.category || null,
+          image_scene_description: v.imageScene || null,
+          teaching_note: v.teachingNote || null,
         }));
 
         const { error: wordsError } = await supabase

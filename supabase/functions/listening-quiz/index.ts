@@ -3,6 +3,7 @@ import { getDialectLabel, getTashkeelMandate, getDialectTransliterationRules, ty
 import { askBrain } from "../_shared/aiBrain.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { learnerPromptBlock } from "../_shared/learnerProfile.ts";
 
 
 interface QuizQuestion {
@@ -25,24 +26,16 @@ serve(async (req) => {
   if (cap.limited) return cap.response;
 
   try {
-    const { mode, words, count = 5, dialect = "Gulf", difficulty = "beginner" } = await req.json();
-
-    if (!Array.isArray(words)) {
-      // An empty list is a real request — the quiz generates fine with no
-      // personal vocabulary — but a missing/mistyped one used to 500 with
-      // "Cannot read properties of undefined (reading 'slice')".
-      return new Response(
-        JSON.stringify({ error: "words must be a list — send [] when the learner has none saved." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
-    }
+    const { mode, count = 5, dialect = "Gulf", difficulty = "beginner" } = await req.json();
 
     const dialectLabel = getDialectLabel(dialect);
 
-    const vocabContext = words
-      .slice(0, 20)
-      .map((w: any) => `${w.word_arabic} (${w.word_english})`)
-      .join(", ");
+    // The learner's vocabulary is assembled server-side from real SRS state.
+    // Callers used to send a client-built `words` list that the page filled
+    // with the entire shuffled curriculum — the model was told the student
+    // "knows" 30 random words they had often never seen. That body field is
+    // now deliberately ignored, like reading-passage's `userVocab`.
+    const learnerBlock = await learnerPromptBlock({ userId: cap.userId, dialect });
 
     const levelGuidance = difficulty === "advanced"
       ? "Use complex, natural-speed sentences with advanced vocabulary and idioms."
@@ -51,8 +44,7 @@ serve(async (req) => {
       : "Use simple, slow, clearly pronounced sentences with basic vocabulary.";
 
     const systemExtra = `You are a ${dialectLabel} language tutor creating listening comprehension exercises.
-- Generate exercises using these vocabulary words the student knows: ${vocabContext}
-- Student level: ${difficulty}. ${levelGuidance}
+${learnerBlock ? `${learnerBlock}\n` : ""}- Student level: ${difficulty}. ${levelGuidance}
 - All audioText fields MUST be authentic ${dialectLabel}, never MSA.
 
 ${getTashkeelMandate()}

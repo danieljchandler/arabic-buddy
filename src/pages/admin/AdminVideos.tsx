@@ -103,8 +103,12 @@ const AdminVideos = () => {
    * delete and pipeline controls stops the page offering buttons that would
    * only ever error. False until roles load, so nothing flashes.
    */
-  const { isAdmin, isContentReviewer, isRecorder, loading: rolesLoading } = useAdminAuth();
-  const canManage = !rolesLoading && (isAdmin || isContentReviewer || isRecorder);
+  const { isAdmin, isContentReviewer, loading: rolesLoading } = useAdminAuth();
+  // Not recorders: RLS grants discover_videos writes to can_manage_content()
+  // (admin | content_reviewer) only, and hides unpublished rows from them.
+  // Including them here offered publish/delete buttons whose writes matched
+  // zero rows and "succeeded".
+  const canManage = !rolesLoading && (isAdmin || isContentReviewer);
 
   /**
    * Re-read one video's on-screen text.
@@ -358,6 +362,12 @@ const AdminVideos = () => {
                             Transcribing
                           </Badge>
                         )}
+                        {video.transcription_status === 'analysis_complete' && (
+                          <Badge variant="outline" className="text-xs text-blue-600 border-blue-300">
+                            <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            Finalizing
+                          </Badge>
+                        )}
                         {video.transcription_status === 'failed' && (
                           <Badge variant="destructive" className="text-xs">
                             Failed
@@ -418,6 +428,12 @@ const AdminVideos = () => {
                                   onSuccess: () =>
                                     toast({
                                       title: video.published ? "Unpublished" : "Published",
+                                    }),
+                                  onError: (err: Error) =>
+                                    toast({
+                                      variant: "destructive",
+                                      title: "Error",
+                                      description: err.message,
                                     }),
                                 }
                               )

@@ -129,8 +129,21 @@ export interface BrainTask {
    * classification, triage. Not the same question as `skipRepair`: several
    * callers skip the repair pass on Arabic they are willing to ship unpoliced,
    * and those still want the examples that stop the drift in the first place.
+   *
+   * A `targetRegister: 'msa'` task needs no such flag — the whole dialect
+   * block, examples included, is already dropped for it.
    */
   skipDemonstrations?: boolean;
+  /**
+   * Which register the output is SUPPOSED to be in. Defaults to 'dialect' —
+   * the whole point of the brain. 'msa' is for the rare task whose correct
+   * output is deliberately fusha (e.g. importing a classical story the app
+   * then translates): it drops the dialect identity block from the prompt
+   * (which flatly contradicts an instruction to write MSA) and disables the
+   * leak scan's repair/violation logging — otherwise every such run filed
+   * high-severity "violations" and fake native-review tasks.
+   */
+  targetRegister?: 'dialect' | 'msa';
   /** When true, run a strict native-speaker validator after the repair pass. */
   validateDialect?: boolean;
   /** Wall-clock budget for the whole task. Optional passes are skipped once spent. */
@@ -240,7 +253,7 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
   // Callers may opt out with skipRepair for truly low-stakes internal calls.
   // Skipped when the budget is spent: shipping output with a few leaks beats
   // burning another full generation and timing the caller out entirely.
-  if (!task.skipRepair && result.msaLeaks.leaks.length > 0) {
+  if (!task.skipRepair && task.targetRegister !== 'msa' && result.msaLeaks.leaks.length > 0) {
     if (result.leakRewriteStalled) {
       // A rewrite already ran against these exact tokens and they came back
       // unchanged. Another one costs a full generation to produce the same text.
@@ -311,7 +324,7 @@ export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResul
       `${result.validator?.ok ? ` dialect=${result.validator.score}/5` : ''}`,
   );
 
-  if (result.msaLeaks?.leaks?.length) {
+  if (result.msaLeaks?.leaks?.length && task.targetRegister !== 'msa') {
     logMsaViolations({
       dialect: task.dialect,
       leaks: result.msaLeaks,
@@ -380,6 +393,12 @@ function pickStrategy(purpose: string): Strategy {
 // ----------------- Prompt builder -----------------
 
 function buildSystem(task: BrainTask): string {
+  if (task.targetRegister === 'msa') {
+    // No dialect identity for a deliberately-fusha task: "always respond in
+    // dialect, NOT MSA" and "write this in MSA" in one prompt made the output
+    // register a coin toss.
+    return task.systemPromptExtra ?? '';
+  }
   const identity = getDialectIdentity(task.dialect);
   const rules = getDialectVocabRules(task.dialect);
   const shown = task.skipDemonstrations ? '' : `\n\n${getDialectDemonstrations(task.dialect)}`;
@@ -396,6 +415,9 @@ function buildSystem(task: BrainTask): string {
  * everything behind it on every call.
  */
 function buildSystemParts(task: BrainTask): { stable: string; volatile: string } {
+  if (task.targetRegister === 'msa') {
+    return { stable: '', volatile: task.systemPromptExtra ?? '' };
+  }
   const identity = getDialectIdentity(task.dialect);
   const rules = getDialectVocabRules(task.dialect);
   // The demonstrations belong in the stable half specifically: they are
@@ -742,9 +764,13 @@ async function runEnsemble<T>(task: BrainTask, deadline: Deadline): Promise<Brai
 
 async function runDraftCritic<T>(task: BrainTask, deadline: Deadline): Promise<BrainResult<T>> {
   // CONTENT lineup: Gemini drafts, Claude critiques. Source of truth =
-  // MODEL_LINEUPS.CONTENT in modelRegistry.ts.
+  // MODEL_LINEUPS.CONTENT in modelRegistry.ts. A single-model override keeps
+  // its drafter and takes the default critic — it used to be silently
+  // discarded, so the function ran a different model than its caller named.
   const [drafter, critic] = task.models && task.models.length >= 2
     ? task.models
+    : task.models && task.models.length === 1
+    ? [task.models[0], MODEL_LINEUPS.CONTENT.judge]
     : [MODEL_LINEUPS.CONTENT.drafters[0], MODEL_LINEUPS.CONTENT.judge];
 
   const passes: PassLog = [];
@@ -1187,6 +1213,18 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
         });
       }
       const full = accumulator.join('');
+      // onComplete must fire exactly once per stream. It used to fire twice
+      // when a leak repair ran — once from the repair callback with the
+      // corrected text and once, unconditionally, with the raw text — so
+      // assistant-chat's updateLearnerMemory ran twice per leaky answer, two
+      // rewrite jobs racing on learner_ai_memory with the last writer
+      // possibly the uncorrected one.
+      const invokeOnComplete = (text: string) => {
+        if (!task.onComplete) return;
+        try { Promise.resolve(task.onComplete(text)).catch(() => {}); } catch { /* ignore */ }
+      };
+      let repairOwnsCompletion = false;
+
       if (full && task.dialect) {
         try {
           const leaks = scanLeaks(full, task.dialect);
@@ -1200,9 +1238,15 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
               metadata: { streaming: true, model },
             });
             // Fire-and-forget a repair call so callers with onComplete can get
-            // the corrected text (e.g., conversation-practice buffers the stream).
+            // the corrected text (e.g., assistant-chat's memory update). The
+            // repair takes over the single onComplete invocation, falling back
+            // to the raw text if it fails.
             if (task.onComplete) {
+              // No key check: which provider serves the repair is aiGateway's
+              // problem now, and a missing one rejects, which the catch below
+              // already turns back into "ship the raw text".
               if (leaks.severity !== 'none') {
+                repairOwnsCompletion = true;
                 const repairSys = `${buildSystem({ purpose: task.purpose, dialect: task.dialect, userPrompt: '', systemPromptExtra: task.systemPromptExtra } as BrainTask)}\n\nThe previous output leaked MSA. Rewrite it in authentic ${getDialectLabel(task.dialect)} ONLY. The following MSA words MUST be replaced with dialectal equivalents: ${leaks.leaks.join(', ')}. Return ONLY the corrected text (no commentary).`;
                 chatFetch(DEFAULT_FAST, {
                   max_tokens: 600,
@@ -1212,20 +1256,24 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
                     { role: 'user', content: full },
                   ],
                 }, { label: `${task.purpose}:leak-repair` }).then(async (r) => {
-                  if (!r.ok) return;
-                  const d = await r.json();
-                  const corrected = d?.choices?.[0]?.message?.content;
-                  if (corrected && typeof corrected === 'string') {
-                    try { Promise.resolve(task.onComplete!(corrected)).catch(() => {}); } catch { /* ignore */ }
+                  let corrected: string | null = null;
+                  if (r.ok) {
+                    const d = await r.json();
+                    const c = d?.choices?.[0]?.message?.content;
+                    if (c && typeof c === 'string') corrected = c;
                   }
-                }).catch(() => {});
+                  invokeOnComplete(corrected ?? full);
+                }).catch(() => invokeOnComplete(full));
+                  }
+                  invokeOnComplete(corrected ?? full);
+                }).catch(() => invokeOnComplete(full));
               }
             }
           }
         } catch { /* ignore */ }
       }
-      if (task.onComplete) {
-        try { Promise.resolve(task.onComplete(full)).catch(() => {}); } catch { /* ignore */ }
+      if (!repairOwnsCompletion) {
+        invokeOnComplete(full);
       }
     },
   });

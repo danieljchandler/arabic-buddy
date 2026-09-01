@@ -18,7 +18,8 @@ serve(async (req) => {
   if (cap.limited) return cap.response;
 
   try {
-    const { userVocab = [], streakDays = 0, dialect = "Gulf", difficulty = "beginner" } = await req.json();
+    // `userVocab` in the body is deliberately ignored — see vocabContext below.
+    const { streakDays = 0, dialect = "Gulf", difficulty = "beginner" } = await req.json();
 
     if (!hasAnyProvider()) throw new Error("No AI provider configured");
 
@@ -54,10 +55,13 @@ serve(async (req) => {
       console.warn("daily-challenge: learner profile unavailable, using defaults:", e);
     }
 
+    // No client fallback: `userVocab` was filled by the page from the
+    // shuffled curriculum, so exactly the learner with no real history — the
+    // one whose challenge should be gentlest — got a challenge built around
+    // 15 random words labelled as theirs. The curated defaults are the honest
+    // fallback.
     const vocabContext = learnerWords.length > 0
       ? learnerWords.slice(0, 15).join(", ")
-      : userVocab.length > 0
-      ? userVocab.slice(0, 15).map((w: any) => `${w.word_arabic} (${w.word_english})`).join(", ")
       : defaultExamples;
 
     const streakMultiplier = streakDays >= 7 ? 2.0 : streakDays >= 3 ? 1.5 : 1.0;

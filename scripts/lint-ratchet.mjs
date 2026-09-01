@@ -23,7 +23,7 @@ import { execFileSync } from "node:child_process";
  * Last lowered: 546 → 545, when OnboardingTour's empty catch blocks got their
  * reasons written in.
  */
-const BASELINE = 533;
+const BASELINE = 530;
 
 function runEslint() {
   try {

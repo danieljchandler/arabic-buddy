@@ -9,7 +9,6 @@ import { Badge } from "@/components/ui/badge";
 import { Slider } from "@/components/ui/slider";
 import { PageCorner } from "@/components/shell/PageCorner";
 import { useAuth } from "@/hooks/useAuth";
-import { useAllWords } from "@/hooks/useAllWords";
 import { gradeDictation, type DictationWord } from "@/lib/dictation";
 import { useAddXP } from "@/hooks/useGamification";
 import { supabase } from "@/integrations/supabase/client";
@@ -62,7 +61,6 @@ const ListeningPractice = () => {
   const { user, isAuthenticated } = useAuth();
   const { activeDialect } = useDialect();
   const { difficulty: userDifficulty } = useUserLevel();
-  const { data: allWords } = useAllWords();
   const addXP = useAddXP();
 
   // Restore persisted session
@@ -175,16 +173,13 @@ const ListeningPractice = () => {
         return;
       }
 
-      // Fallback to live AI generation
-      const wordsToUse = allWords?.slice(0, 30) || [];
-      
+      // Fallback to live AI generation. The learner's vocabulary is assembled
+      // server-side from real SRS state — the client used to send 30 shuffled
+      // curriculum words labelled "words the student knows", which was
+      // misinformation, not personalisation.
       const { data, error } = await supabase.functions.invoke("listening-quiz", {
         body: {
           mode: selectedMode,
-          words: wordsToUse.map((w) => ({
-            word_arabic: w.word_arabic,
-            word_english: w.word_english,
-          })),
           count: 5,
           dialect: activeDialect,
           difficulty: userDifficulty,

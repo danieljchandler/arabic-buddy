@@ -1511,7 +1511,7 @@ async function runPipeline(
       } else {
         throw new Error(
           `Analysis did not complete — no HTTP response and no saved results after ${waited}s. ` +
-            "The transcription engines succeeded, so press Retry to re-run just the analysis.",
+            "The transcription engines succeeded, so use Download & Re-transcribe on the video's edit page to run it again.",
         );
 
       }

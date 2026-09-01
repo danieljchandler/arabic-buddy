@@ -42,6 +42,20 @@ const SetPhrasesPractice = ({ reviewMode = false }: Props) => {
   const chunksRef = useRef<Blob[]>([]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  // Leaving the page mid-recording must release the mic and stop playback —
+  // tracks only stop inside onstop, which nothing else triggers.
+  useEffect(
+    () => () => {
+      const mr = recorderRef.current;
+      if (mr && mr.state !== "inactive") {
+        try { mr.stop(); } catch { /* already stopped */ }
+      }
+      mr?.stream?.getTracks().forEach((t) => t.stop());
+      audioRef.current?.pause();
+    },
+    [],
+  );
+
   useEffect(() => {
     generate.mutate({ occasionId, length: 8 }, {
       onSuccess: (data) => {
@@ -100,7 +114,16 @@ const SetPhrasesPractice = ({ reviewMode = false }: Props) => {
         stream.getTracks().forEach((t) => t.stop());
         const blob = new Blob(chunksRef.current, { type: "audio/webm" });
         const buf = await blob.arrayBuffer();
-        const b64 = btoa(String.fromCharCode(...new Uint8Array(buf)));
+        // Chunked, like every other call site: spreading the whole recording
+        // as arguments throws RangeError past ~64KB, so longer answers
+        // crashed scoring.
+        const bytes = new Uint8Array(buf);
+        let binary = "";
+        const CHUNK = 0x8000;
+        for (let i = 0; i < bytes.length; i += CHUNK) {
+          binary += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+        }
+        const b64 = btoa(binary);
         scoreVoice.mutate(
           { audioBase64: b64, mimeType: blob.type, phraseId: current.phrase_id, target: current.question_type === "reply" ? "reply" : "phrase" },
           {

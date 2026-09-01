@@ -815,7 +815,13 @@ const DiscoverVideo = ({
       cancelled = true;
       if (intervalRef.current) clearInterval(intervalRef.current);
     };
-  }, [video]);
+    // Keyed on the video's identity, not the row object: a mid-playback
+    // refetch (progress invalidation, transcription polling) returns a new
+    // object for the same video, and re-running this effect cleared the
+    // 100ms clock interval while initPlayer early-returned on the existing
+    // player — the transcript highlight froze until the next pause/play.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [video?.id, video?.platform, video?.embed_url]);
 
   // Apply speed changes to YouTube player
   useEffect(() => {

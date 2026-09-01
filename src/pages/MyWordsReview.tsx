@@ -38,6 +38,7 @@ import { useReviewSession } from "@/hooks/useReviewSession";
 import { SessionHandoff } from "@/components/review/SessionHandoff";
 import { SessionProgress } from "@/components/review/SessionProgress";
 import { createPlayableJingleAudio, createPlayableJingleAudioFromUrl } from "@/lib/jingleAudio";
+import { sentenceHasWord } from "@/lib/arabicWord";
 import {
   Select,
   SelectContent,
@@ -136,7 +137,7 @@ const MyWordsReview = () => {
   const { enabled: leechTrackingEnabled } = useLeechPrefs();
   const updateReview = useUpdateUserVocabularyReview();
   const { cap: newCap, setCap: setNewCap } = useNewCardCap();
-  const { remaining: remainingNewBudget } = useRemainingNewCardBudget(newCap);
+  const { remaining: remainingNewBudget, isLoading: budgetLoading } = useRemainingNewCardBudget(newCap);
   const claimNewCard = useClaimNewCard();
   const session = useReviewSession();
   const queryClient = useQueryClient();
@@ -215,12 +216,17 @@ const MyWordsReview = () => {
   }, []);
 
   const { data: dueWords, isLoading, refetch } = useQuery({
+    // The remaining new-card budget is deliberately NOT part of the key:
+    // rating a new card claims budget and invalidates the daily count, and
+    // with the budget in the key that flipped the key mid-session — a full
+    // loading swap plus a freshly reshuffled, differently-capped deck while
+    // currentIndex still pointed into the old ordering. The queryFn reads the
+    // live budget whenever the deck is genuinely (re)built.
     queryKey: [
       "user-vocabulary-due-words",
       user?.id,
       mixAll ? "all" : activeDialect,
       newCap,
-      remainingNewBudget,
     ],
     queryFn: async (): Promise<DueCard[]> => {
       if (!user) return [];
@@ -352,7 +358,13 @@ const MyWordsReview = () => {
         newCardCap: Math.min(newCap, remainingNewBudget),
       });
     },
-    enabled: !!user,
+    // Wait for the budget so the first deck is built against the real daily
+    // limit, and keep the session stable once built: a focus-driven refetch
+    // replaces the array the session is indexing into, skipping or repeating
+    // cards. Rebuilds happen through the explicit invalidations on this key.
+    enabled: !!user && !budgetLoading,
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000,
   });
 
   // In-session relearn: cards rated Again/Hard come back a few cards later
@@ -432,10 +444,14 @@ const MyWordsReview = () => {
   const distractorPool = (dueWords || [])
     .map((d) => pickArabic(d.word_arabic, d.word_english))
     .filter((w): w is string => !!w && w !== currentArabic);
+  // Whole-token match, same normalization ReviewClozeCard's blanking uses.
+  // A raw `includes()` said yes for بيت inside بيتي/البيت while findWordSpan
+  // said no — useCloze then rendered a cloze card with no body and rating
+  // buttons locked behind "Pick an answer first".
   const sentenceHasOwnWord =
     !!currentWord?.sentence_text &&
     !!currentArabic &&
-    currentWord.sentence_text.includes(currentArabic);
+    sentenceHasWord(currentWord.sentence_text, currentArabic);
   // Look up a transcript-sourced cloze sentence only when the card lacks one.
   const { data: transcriptCloze } = useTranscriptCloze({
     wordArabic: currentArabic ?? undefined,

@@ -95,7 +95,11 @@ export function useRecordVideoView() {
       if (error) throw error;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["discover-feed"] });
+      // Mark stale WITHOUT refetching now: this fires every ~10s of watching,
+      // and with the feed page mounted underneath the video overlay an active
+      // invalidation re-ran the discover-feed edge function for the whole
+      // watch session. The next visit to the feed still gets fresh data.
+      qc.invalidateQueries({ queryKey: ["discover-feed"], refetchType: "none" });
     },
   });
 }

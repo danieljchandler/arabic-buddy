@@ -21,6 +21,13 @@ export interface LessonProgressRow {
 export interface PathLesson {
   id: string;
   display_order: number;
+  /**
+   * The containing stage's position. display_order alone is a per-stage lesson
+   * number ("Lesson 1 of 20"), so across the whole curriculum Stage 1 Lesson 1
+   * and Stage 3 Lesson 1 tie and "next up" lands on whichever row the DB
+   * returned first. Optional so single-stage callers need not supply it.
+   */
+  stage_order?: number;
 }
 
 export interface LessonPathState {
@@ -65,7 +72,9 @@ export function findNextUpLessonId(
   lessons: PathLesson[],
   progress: Map<string, LessonProgressRow>,
 ): string | null {
-  const ordered = [...lessons].sort((a, b) => a.display_order - b.display_order);
+  const ordered = [...lessons].sort(
+    (a, b) => (a.stage_order ?? 0) - (b.stage_order ?? 0) || a.display_order - b.display_order,
+  );
   // Prefer resuming something already started over opening something new.
   const started = ordered.find((l) => progress.get(l.id)?.status === "in_progress");
   if (started) return started.id;

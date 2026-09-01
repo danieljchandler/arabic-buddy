@@ -90,59 +90,89 @@ export interface DueCurriculumCard extends WordWithReview {
   repetitions: number;
 }
 
+/**
+ * PostgREST silently caps unbounded selects at 1000 rows. Past 1000 review
+ * rows that truncation made reviewed words look brand-new — their rating then
+ * took the insert branch, hit the (user_id, word_id) unique constraint, and
+ * was dropped. Page through with a stable order instead.
+ */
+const PAGE_SIZE = 1000;
+async function fetchAllRows<T>(
+  build: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>,
+): Promise<T[]> {
+  const all: T[] = [];
+  for (let from = 0; ; from += PAGE_SIZE) {
+    const { data, error } = await build(from, from + PAGE_SIZE - 1);
+    if (error) throw error;
+    const rows = data ?? [];
+    all.push(...rows);
+    if (rows.length < PAGE_SIZE) break;
+  }
+  return all;
+}
+
 export const useDueWords = (mixAll = false) => {
   const { user } = useAuth();
   const { activeDialect } = useDialect();
   const { cap: newCap } = useNewCardCap();
-  const { remaining: remainingNewBudget } = useRemainingNewCardBudget(newCap);
+  const { remaining: remainingNewBudget, isLoading: budgetLoading } = useRemainingNewCardBudget(newCap);
 
   return useQuery({
-    queryKey: ['due-words', user?.id, mixAll ? 'all' : activeDialect, remainingNewBudget],
+    // The remaining new-card budget is deliberately NOT part of the key:
+    // rating a new card claims budget and invalidates the daily count, and
+    // when the budget sat in the key that flipped the key mid-session — a full
+    // loading swap and a freshly reshuffled deck under the learner's feet,
+    // once per new card. The queryFn reads the current budget whenever the
+    // deck is genuinely (re)built instead.
+    queryKey: ['due-words', user?.id, mixAll ? 'all' : activeDialect],
     queryFn: async (): Promise<DueCurriculumCard[]> => {
       if (!user) return [];
 
       const now = new Date().toISOString();
 
-      let query = supabase
-        .from('vocabulary_words')
-        .select(`
-          id,
-          word_arabic,
-          word_english,
-          image_url,
-          audio_url,
-          topic_id,
-          lesson_id,
-          image_position,
-          root,
-          dialect_module,
-          lessons (
-            title,
-            title_arabic,
-            gradient,
-            icon
-          ),
-          topics (
-            name,
-            name_arabic,
-            gradient,
-            icon
-          )
-        `);
+      const words = await fetchAllRows((from, to) => {
+        let query = supabase
+          .from('vocabulary_words')
+          .select(`
+            id,
+            word_arabic,
+            word_english,
+            image_url,
+            audio_url,
+            topic_id,
+            lesson_id,
+            image_position,
+            root,
+            dialect_module,
+            lessons (
+              title,
+              title_arabic,
+              gradient,
+              icon
+            ),
+            topics (
+              name,
+              name_arabic,
+              gradient,
+              icon
+            )
+          `)
+          .order('id')
+          .range(from, to);
+        if (!mixAll) {
+          query = query.eq('dialect_module', activeDialect);
+        }
+        return query;
+      });
 
-      if (!mixAll) {
-        query = query.eq('dialect_module', activeDialect);
-      }
-
-      const { data: words, error: wordsError } = await query;
-      if (wordsError) throw wordsError;
-
-      const { data: reviews, error: reviewsError } = await supabase
-        .from('word_reviews')
-        .select('*')
-        .eq('user_id', user.id);
-
-      if (reviewsError) throw reviewsError;
+      const reviews = await fetchAllRows((from, to) =>
+        supabase
+          .from('word_reviews')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('id')
+          .range(from, to),
+      );
 
       const reviewMap = new Map((reviews ?? []).map(r => [r.word_id, r as unknown as WordReview]));
 
@@ -209,7 +239,14 @@ export const useDueWords = (mixAll = false) => {
       // per-page-load one.
       return buildReviewOrder(cards, { newCardCap: remainingNewBudget });
     },
-    enabled: !!user,
+    // Wait for the budget so the first deck is built against the real daily
+    // limit, not a default.
+    enabled: !!user && !budgetLoading,
+    // A review session must be stable while it runs: a focus-driven refetch
+    // replaces the array Review.tsx is indexing into, skipping or repeating
+    // cards. The pages invalidate this key explicitly when a rebuild is wanted.
+    refetchOnWindowFocus: false,
+    staleTime: 5 * 60 * 1000,
   });
 };
 
@@ -229,23 +266,30 @@ export const useReviewStats = (mixAll = false) => {
 
       const now = new Date().toISOString();
 
-      let wordsQuery = supabase
-        .from('vocabulary_words')
-        .select('id', { count: 'exact' });
+      const wordIds = await fetchAllRows<{ id: string }>((from, to) => {
+        let wordsQuery = supabase
+          .from('vocabulary_words')
+          .select('id')
+          .order('id')
+          .range(from, to);
+        if (!mixAll) {
+          wordsQuery = wordsQuery.eq('dialect_module', activeDialect);
+        }
+        return wordsQuery;
+      });
+      const totalWords = wordIds.length;
 
-      if (!mixAll) {
-        wordsQuery = wordsQuery.eq('dialect_module', activeDialect);
-      }
-
-      const { data: wordIds, count: totalWords } = await wordsQuery;
-
-      const { data: reviews } = await supabase
-        .from('word_reviews')
-        .select('*')
-        .eq('user_id', user.id);
+      const reviews = await fetchAllRows((from, to) =>
+        supabase
+          .from('word_reviews')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('id')
+          .range(from, to),
+      );
 
       // If filtering by dialect, only count reviews for words in this dialect
-      const wordIdSet = !mixAll && wordIds ? new Set(wordIds.map((w: any) => w.id)) : null;
+      const wordIdSet = !mixAll && wordIds ? new Set(wordIds.map((w) => w.id)) : null;
       const filteredReviews = wordIdSet
         ? reviews?.filter(r => wordIdSet.has(r.word_id))
         : reviews;
@@ -387,19 +431,31 @@ export async function submitRatingToServer(
     ...options,
   });
 
+  // Returned so callers that hold a local snapshot (the lesson quiz keeps a
+  // map of reviews for the session) can update it: without the row that an
+  // insert created, a replayed rating takes the insert branch again and dies
+  // on the (user_id, word_id) unique constraint.
+  let savedReview: WordReview | null = null;
+
   if (currentReview) {
-    const { error } = await supabase
+    const { data: updated, error } = await supabase
       .from('word_reviews')
       .update(update as never)
-      .eq('id', currentReview.id);
+      .eq('id', currentReview.id)
+      .select('*')
+      .single();
     if (error) throw error;
+    savedReview = updated as unknown as WordReview;
   } else {
     // A word with no row can only be rated in recognition — production is
     // unlocked from an existing recognition row, never created cold.
-    const { error } = await supabase
+    const { data: inserted, error } = await supabase
       .from('word_reviews')
-      .insert({ user_id: userId, word_id: wordId, ...update } as never);
+      .insert({ user_id: userId, word_id: wordId, ...update } as never)
+      .select('*')
+      .single();
     if (error) throw error;
+    savedReview = inserted as unknown as WordReview;
 
     // First-ever rating of this word: claim daily new-card budget (shared
     // with the personal-vocab review path). Best-effort — never blocks the
@@ -421,7 +477,7 @@ export async function submitRatingToServer(
     }
   }
 
-  return { result, rating };
+  return { result, rating, review: savedReview };
 }
 
 export const useSubmitReview = () => {

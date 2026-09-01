@@ -8,7 +8,6 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { PageCorner } from "@/components/shell/PageCorner";
 import { useAuth } from "@/hooks/useAuth";
-import { useAllWords } from "@/hooks/useAllWords";
 import { useAddXP } from "@/hooks/useGamification";
 import { supabase } from "@/integrations/supabase/client";
 import { useUserLevel } from "@/hooks/useUserLevel";
@@ -57,7 +56,6 @@ const DailyChallenge = () => {
   const { user, isAuthenticated } = useAuth();
   const { activeDialect } = useDialect();
   const { difficulty: userDifficulty } = useUserLevel();
-  const { data: allWords } = useAllWords();
   const addXP = useAddXP();
 
   // Restore persisted session
@@ -222,15 +220,11 @@ const DailyChallenge = () => {
       }
 
       // Fallback to live AI generation. The challenge words come from the
-      // server-side learner profile (real SRS state, weak words first); this
-      // list is only a cold-start fallback for a learner with no deck yet.
-      const wordsToUse = allWords?.slice(0, 20) || [];
+      // server-side learner profile (real SRS state, weak words first) — the
+      // client no longer sends a vocab list: the old "fallback" was 20
+      // shuffled curriculum words presented to the model as the learner's own.
       const { data, error } = await supabase.functions.invoke("daily-challenge", {
         body: {
-          userVocab: wordsToUse.map((w) => ({
-            word_arabic: w.word_arabic,
-            word_english: w.word_english,
-          })),
           streakDays: streakData || 0,
           dialect: activeDialect,
           difficulty: userDifficulty,

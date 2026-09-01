@@ -1,6 +1,7 @@
 import { expect, test } from "./support/fixtures";
 import * as XLSX from "xlsx";
 import type { Page } from "@playwright/test";
+import { aStage, stageId } from "../src/test/support/factories";
 
 /**
  * Importing a lesson plan from a spreadsheet.
@@ -247,6 +248,14 @@ test.describe("a partly readable file", () => {
 });
 
 test.describe("importing", () => {
+  // The import needs a real curriculum stage: lessons.stage_id is a uuid FK,
+  // and the page's stage picker (which replaced a hardcoded, non-uuid
+  // 'default') refuses to import until one is selected. Seeding one stage
+  // makes it the picker's pre-selected default.
+  test.beforeEach(async ({ db }) => {
+    db.seed("curriculum_stages", [aStage({ id: stageId(0), name: "Foundations", stage_number: 1 })]);
+  });
+
   test("writes the lesson with what the overview said", async ({ page, db }) => {
     await page.goto("/admin/lessons/import");
     await pickFile(page, aLessonPlan());
@@ -263,6 +272,8 @@ test.describe("importing", () => {
       duration_minutes: 15,
       status: "draft",
       dialect_module: "Gulf",
+      // The seeded stage, pre-selected by the picker — not a placeholder.
+      stage_id: stageId(0),
     });
   });
 

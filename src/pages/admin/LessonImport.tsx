@@ -1,10 +1,12 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLessonImport } from '@/hooks/useLessonImport';
+import { useStages } from '@/hooks/useStages';
 import type { ParsedLessonPlan } from '@/lib/parseLessonXlsx';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft, Upload, FileSpreadsheet, Check, BookOpen } from 'lucide-react';
 
@@ -13,9 +15,18 @@ const LessonImport = () => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const importMutation = useLessonImport();
+  const { data: stages } = useStages();
 
   const [parsed, setParsed] = useState<ParsedLessonPlan | null>(null);
   const [fileName, setFileName] = useState('');
+  // lessons.stage_id is a uuid FK, so the import needs a real stage: default to
+  // the first one and let the admin pick another.
+  const [stageId, setStageId] = useState('');
+
+  useEffect(() => {
+    if (!stageId && stages?.length) setStageId(stages[0].id);
+  }, [stages, stageId]);
+
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -42,10 +53,15 @@ const LessonImport = () => {
 
   const handleImport = async () => {
     if (!parsed) return;
+    if (!stageId) {
+      toast({ variant: 'destructive', title: 'Pick a stage', description: 'Choose which curriculum stage this lesson belongs to.' });
+      return;
+    }
 
     try {
       await importMutation.mutateAsync({
-        stageId: 'default',
+        stageId,
+
         lessonNumber: parsed.overview.lessonNumber,
         title: parsed.overview.title || `Lesson ${parsed.overview.lessonNumber}`,
         titleArabic: undefined,
@@ -132,7 +148,24 @@ const LessonImport = () => {
                 </div>
               </div>
 
+              <div className="space-y-2">
+                <Label htmlFor="stage">Curriculum stage</Label>
+                <select
+                  id="stage"
+                  value={stageId}
+                  onChange={(e) => setStageId(e.target.value)}
+                  className="w-full rounded-md border bg-background px-3 py-2 text-sm"
+                >
+                  {(stages ?? []).map((s) => (
+                    <option key={s.id} value={s.id}>
+                      Stage {s.stage_number} — {s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div>
+
                 <h4 className="font-semibold mb-2">Vocabulary ({parsed.vocabulary.length} words)</h4>
                 <div className="border rounded-lg overflow-hidden">
                   <table className="w-full text-sm">

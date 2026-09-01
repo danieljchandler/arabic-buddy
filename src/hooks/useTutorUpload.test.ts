@@ -553,7 +553,7 @@ describe("finding images for the cards", () => {
 });
 
 describe("when saving fails", () => {
-  it("reports success even though nothing was written", async () => {
+  it("reports the failure and returns to review instead of claiming success", async () => {
     const harness = render();
     await process(harness);
     approveAll(harness);
@@ -563,14 +563,12 @@ describe("when saving fails", () => {
       await harness.result.current.createFlashcards();
     });
 
-    // Pinned. The batch insert's error is logged and only retried when the code
-    // is 23505 (a duplicate). Any other failure — a permissions error, an
-    // outage, a constraint violation — falls straight through to the success
-    // path: the learner is told "Created 1 flashcards!", moved to the confirm
-    // step, and has nothing in their deck. The one thing this screen exists to
-    // do is the one thing it does not check.
+    // A non-duplicate batch failure — a permissions error, an outage, a
+    // constraint violation — used to fall straight through to the success
+    // path: "Created 1 flashcards!", the confirm step, and nothing in the
+    // deck. Now it throws, lands in the catch, and puts the learner back on
+    // the review step with their work intact so they can retry.
     expect(harness.backend.db.rows("user_vocabulary")).toEqual([]);
-    await waitFor(() => expect(harness.result.current.step).toBe("confirm"));
-    expect(harness.result.current.progress).toBe(100);
+    await waitFor(() => expect(harness.result.current.step).toBe("review"));
   });
 });

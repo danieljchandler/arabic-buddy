@@ -122,13 +122,21 @@ export function useShadowQueue(maxClips = 20) {
     try {
       const collected: ShadowClip[] = [];
 
-      // 1. Discover YouTube videos
-      const { data: videos } = await supabase
+      // 1. Discover YouTube videos. The dialect filter belongs in the query,
+      // before the row limit: filtering the 40 newest rows client-side meant a
+      // Yemeni or Egyptian learner whose clips were older than the 40 newest
+      // uploads saw "No native clips available yet" while eligible clips
+      // existed. Errors are surfaced, not destructured away.
+      const wantedDialects =
+        activeDialect === "Gulf" ? [...GULF_DIALECTS] : [activeDialect];
+      const { data: videos, error: videosError } = await supabase
         .from("discover_videos")
         .select("id, title, dialect, platform, embed_url, source_url, transcript_lines")
         .eq("published", true)
         .eq("platform", "youtube")
+        .in("dialect", wantedDialects)
         .limit(40);
+      if (videosError) throw videosError;
 
       for (const v of videos ?? []) {
         if (!dialectMatches(v.dialect, activeDialect)) continue;
@@ -153,11 +161,12 @@ export function useShadowQueue(maxClips = 20) {
       }
 
       // 2. Saved transcriptions (user's own audio uploads)
-      const { data: saved } = await supabase
+      const { data: saved, error: savedError } = await supabase
         .from("saved_transcriptions")
         .select("id, title, dialect, audio_url, lines")
         .not("audio_url", "is", null)
         .limit(20);
+      if (savedError) throw savedError;
 
       for (const s of saved ?? []) {
         if (!s.audio_url) continue;

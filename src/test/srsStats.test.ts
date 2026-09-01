@@ -51,13 +51,16 @@ describe("srsStats helpers", () => {
     expect(forecast[6].count).toBe(1);
   });
 
-  it("computes retention as non-again review percentage", () => {
+  it("computes retention as successes over attempts", () => {
+    // 15 successful reviews and 3 lapses is 15 recalls out of 18 attempts —
+    // 83%, not the 80% the old (reps − lapses) / reps formula reported by
+    // counting each lapse against the successes as well as the attempts.
     const retention = computeSRSRetentionRate([
       { repetitions: 10, lapses: 2 },
       { repetitions: 5, lapses: 1 },
       { repetitions: 0, lapses: 0 },
     ]);
-    expect(retention).toBe(80);
+    expect(retention).toBe(83);
   });
 
   it("creates a zeroed stage breakdown", () => {

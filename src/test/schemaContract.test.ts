@@ -36,7 +36,16 @@ const schema = loadSchema();
  * separating paid from free on every AI endpoint. It is not even in the
  * generated types.
  */
-const UNTRACKED_TABLES = new Set(["processed_videos", "review_streaks"]);
+const UNTRACKED_TABLES = new Set([
+  "processed_videos",
+  "review_streaks",
+  // In the generated types (so the browser client can see them) but created by
+  // no migration: the skill radar (useAnalytics), the weekly coach
+  // (useSmartNotifications), and learning_paths, which nothing queries yet.
+  "user_difficulty",
+  "weekly_recommendations",
+  "learning_paths",
+]);
 
 /**
  * Tables that migrations create but the generated types omit.
@@ -118,7 +127,13 @@ describe("tables", () => {
       (table) => inventory.tables.has(table) || schema.tables.has(table),
     );
 
-    expect(referenced.sort()).toEqual(["processed_videos", "review_streaks"]);
+    expect(referenced.sort()).toEqual([
+      "learning_paths",
+      "processed_videos",
+      "review_streaks",
+      "user_difficulty",
+      "weekly_recommendations",
+    ]);
   });
 });
 

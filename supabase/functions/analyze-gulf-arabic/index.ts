@@ -1819,13 +1819,20 @@ serve(async (req) => {
              Deno.env.get('SUPABASE_URL')!,
              Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
            );
-           await svc.from('discover_videos').update({
+           const { error: emptySaveErr } = await svc.from('discover_videos').update({
              transcript_lines: [],
              vocabulary: result.vocabulary,
              grammar_points: result.grammarPoints,
              ...(result.culturalContext ? { cultural_context: result.culturalContext } : {}),
              transcription_status: 'analysis_complete',
            }).eq('id', pipelineVideoId);
+           if (emptySaveErr) {
+             console.error('[analyze] Failed to persist empty-audio result:', emptySaveErr.message);
+             await svc.from('discover_videos').update({
+               transcription_status: 'failed',
+               transcription_error: `Analysis finished but saving the results failed: ${emptySaveErr.message}`,
+             }).eq('id', pipelineVideoId);
+           }
          } catch (persistErr) {
            console.error('[analyze] Failed to persist empty-audio result:', persistErr);
          }
@@ -2834,12 +2841,33 @@ serve(async (req) => {
           }).eq('id', pipelineVideoId);
 
           if (saveErr) {
+            // A swallowed persist failure used to leave the row on
+            // 'processing' with no error — the "stuck video" state. Record the
+            // failure on the row so the pipeline and the admin UI can see it.
             console.error(`[analyze] Failed to persist results for video ${pipelineVideoId}:`, saveErr.message);
+            await svc.from('discover_videos').update({
+              transcription_status: 'failed',
+              transcription_error: `Analysis finished but saving the results failed: ${saveErr.message}`,
+            }).eq('id', pipelineVideoId);
           } else {
             console.log(`[analyze] Persisted results directly for video ${pipelineVideoId}`);
           }
         } catch (persistErr) {
           console.error('[analyze] Direct DB persist failed:', persistErr);
+          try {
+            const svc = createClient(
+              Deno.env.get('SUPABASE_URL')!,
+              Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+            );
+            await svc.from('discover_videos').update({
+              transcription_status: 'failed',
+              transcription_error: `Analysis finished but saving the results failed: ${
+                persistErr instanceof Error ? persistErr.message : String(persistErr)
+              }`,
+            }).eq('id', pipelineVideoId);
+          } catch (_) {
+            // Nothing left to record the failure on.
+          }
         }
       }
 

@@ -399,7 +399,7 @@ test.describe("granting roles", () => {
     await page
       .getByRole("row")
       .filter({ hasText: "learner@example.com" })
-      .getByRole("button")
+      .getByRole("button", { name: /revoke/i })
       .click();
 
     await expect(page.getByText(/role revoked/i)).toBeVisible();
@@ -421,7 +421,11 @@ test.describe("granting roles", () => {
     await expect(page.getByText("learner@example.com")).toBeVisible();
 
     db.failWrites("user_roles", 403);
-    await page.getByRole("row").filter({ hasText: "learner@example.com" }).getByRole("button").click();
+    await page
+      .getByRole("row")
+      .filter({ hasText: "learner@example.com" })
+      .getByRole("button", { name: /revoke/i })
+      .click();
 
     await expect(page.getByText(/failed to revoke/i)).toBeVisible();
     // The row is dropped from local state on success only; dropping it on

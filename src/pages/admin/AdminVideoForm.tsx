@@ -138,10 +138,12 @@ const AdminVideoForm = () => {
   const {
     isAdmin,
     isContentReviewer,
-    isRecorder,
     loading: rolesLoading,
   } = useAdminAuth();
-  const canManage = !rolesLoading && (isAdmin || isContentReviewer || isRecorder);
+  // Not recorders — RLS restricts discover_videos writes to
+  // admin/content_reviewer, so offering them the management surface only
+  // produces writes that match zero rows.
+  const canManage = !rolesLoading && (isAdmin || isContentReviewer);
 
   const isEditing = !!videoId;
   const { data: existingVideo, isLoading: loadingVideo } = useDiscoverVideo(videoId);
@@ -321,6 +323,18 @@ const AdminVideoForm = () => {
     setDetailTab(tab);
   }, []);
 
+  // Wait out one editor debounce window (edits are reported at 800 ms), THEN
+  // persist if anything changed. Every save-shaped action needs both halves:
+  // without the wait, a keystroke made just before the click isn't in
+  // latestLines.current yet — the linesEqual check passes vacuously and the
+  // edit is dropped; the same regression handleSaveTranscript was fixed for.
+  const settleAndPersist = useCallback(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 900));
+    if (!linesEqual(latestLines.current, publishedLines)) {
+      await persistTranscript(latestLines.current);
+    }
+  }, [persistTranscript, publishedLines]);
+
   const toggleReviewed = useCallback(
     async (lineId: string, reviewed: boolean) => {
       try {
@@ -328,8 +342,8 @@ const AdminVideoForm = () => {
         // what later proves the tick stale — so a line corrected but not yet
         // saved must land first, or the reviewer would be signing off on the
         // version they just replaced.
-        if (reviewed && !linesEqual(latestLines.current, publishedLines)) {
-          await persistTranscript(latestLines.current);
+        if (reviewed) {
+          await settleAndPersist();
         }
         await setReviewed.mutateAsync({ lineId, reviewed });
       } catch (error) {
@@ -338,7 +352,7 @@ const AdminVideoForm = () => {
         });
       }
     },
-    [persistTranscript, publishedLines, setReviewed],
+    [settleAndPersist, setReviewed],
   );
 
   const handleRetranslate = useCallback(
@@ -348,9 +362,7 @@ const AdminVideoForm = () => {
         // The server re-translates the Arabic it has stored, and the correction
         // that prompted this press is usually seconds old — flush it first so
         // the model sees the corrected words rather than the ones they replaced.
-        if (!linesEqual(latestLines.current, publishedLines)) {
-          await persistTranscript(latestLines.current);
-        }
+        await settleAndPersist();
         const data = await retranslateLine.mutateAsync({ lineId });
         handleTranscriptChange(
           latestLines.current.map((line) =>
@@ -368,7 +380,7 @@ const AdminVideoForm = () => {
         setRetranslating(null);
       }
     },
-    [handleTranscriptChange, persistTranscript, publishedLines, retranslateLine],
+    [handleTranscriptChange, settleAndPersist, retranslateLine],
   );
 
   const lineReview = useCallback(
@@ -479,12 +491,24 @@ const AdminVideoForm = () => {
   // Track server-side processing status from polling
   const serverStatus = existingVideo?.transcription_status;
   useEffect(() => {
-    if (serverStatus === 'processing' || serverStatus === 'pending') {
+    if (serverStatus === 'processing' || serverStatus === 'pending' || serverStatus === 'analysis_complete') {
       setIsProcessing(true);
     } else if (serverStatus === 'completed' || serverStatus === 'failed') {
       setIsProcessing(false);
     }
   }, [serverStatus]);
+
+  // A pipeline row that has stopped moving must not disable its own escape
+  // hatch: the server-side reaper normally fails these out, but if it can't
+  // (pg_cron down, older database), the re-transcribe controls would stay
+  // disabled forever. Re-enable them once the row has been stale longer than
+  // the reaper's own windows. Recomputed on every poll-driven render.
+  const serverStatusUpdatedAt = existingVideo?.updated_at;
+  const processingIsStuck =
+    isProcessing &&
+    !!serverStatusUpdatedAt &&
+    Date.now() - new Date(serverStatusUpdatedAt).getTime() > 20 * 60 * 1000;
+  const blockWhileProcessing = isProcessing && !processingIsStuck;
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -1324,7 +1348,12 @@ const AdminVideoForm = () => {
         // are deliberately NOT in the record: the notes editor below saves them
         // through the same function, and writing this form's stale copies here
         // would silently undo a save made minutes ago.
-        await persistTranscript(latestLines.current);
+        // settleAndPersist, not a bare persist: a keystroke made <800ms before
+        // pressing Update Video wasn't in latestLines.current yet, and the
+        // navigation away then cleared the pending debounce AND the local
+        // draft — the exact "save dropped my last edit" regression, alive on
+        // this button after being fixed on Save transcript.
+        await settleAndPersist();
         const { error } = await (supabase.from("discover_videos" as any) as any).update(record).eq("id", videoId);
         if (error) throw error;
         toast.success("Video updated!");
@@ -1416,8 +1445,9 @@ const AdminVideoForm = () => {
             <CardContent className="py-3 flex items-center gap-2 text-amber-700 dark:text-amber-300">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span className="text-sm font-medium">
-                Transcription is queued and will start shortly. You can safely leave this page —
-                but don&apos;t correct lines yet, the pipeline will overwrite them when it finishes.
+                {processingIsStuck
+                  ? "Transcription has been queued for a while without starting — the kickoff was probably lost. The re-transcribe controls below are enabled so you can run it again."
+                  : "Transcription is queued and will start shortly. You can safely leave this page — but don't correct lines yet, the pipeline will overwrite them when it finishes."}
               </span>
             </CardContent>
           </Card>
@@ -1536,12 +1566,12 @@ const AdminVideoForm = () => {
                 <div className="flex gap-2">
                   <Button
                     onClick={handleDownloadAndProcess}
-                    disabled={!sourceUrl || isDownloading || isProcessing}
+                    disabled={!sourceUrl || isDownloading || blockWhileProcessing}
                     className="flex-1"
                   >
                     {isDownloading ? (
                       <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Downloading...</>
-                    ) : isProcessing ? (
+                    ) : blockWhileProcessing ? (
                       <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Processing on server…</>
                     ) : (
                       <><Download className="h-4 w-4 mr-2" />{isEditing ? "Download & Re-transcribe" : "Download Audio and Transcribe"}</>
@@ -1550,7 +1580,7 @@ const AdminVideoForm = () => {
                   <Button
                     variant="outline"
                     onClick={handleDownloadAudio}
-                    disabled={!sourceUrl || isDownloading || isProcessing}
+                    disabled={!sourceUrl || isDownloading || blockWhileProcessing}
                   >
                     {isDownloading ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
@@ -1561,7 +1591,7 @@ const AdminVideoForm = () => {
                   <Button
                     variant="outline"
                     onClick={() => document.getElementById("audio-upload")?.click()}
-                    disabled={isDownloading || isProcessing}
+                    disabled={isDownloading || blockWhileProcessing}
                   >
                     <Upload className="h-4 w-4 mr-2" />
                     Upload File
@@ -1583,10 +1613,10 @@ const AdminVideoForm = () => {
                     if (!audioFile) return;
                     kickOffServerPipeline(audioFile);
                   }}
-                  disabled={isProcessing}
+                  disabled={blockWhileProcessing}
                   className="w-full"
                 >
-                  {isProcessing ? (
+                  {blockWhileProcessing ? (
                     <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Processing on server — you can navigate away</>
                   ) : (
                     <><Sparkles className="h-4 w-4 mr-2" />Transcribe & Analyze (server-side)</>

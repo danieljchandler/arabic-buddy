@@ -30,6 +30,7 @@ import { LeechHelperPanel } from "@/components/review/LeechHelperPanel";
 import { useLeechPrefs } from "@/hooks/useLeechPrefs";
 import { Trophy, Brain, Sparkles, LogIn, Shuffle, Eye, Volume2, ImagePlus, WifiOff, CloudUpload, PenLine, BookOpen, Music, Play, Loader2, RefreshCw } from "lucide-react";
 import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useReviewKeyboard } from "@/hooks/useKeyboardShortcuts";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { usePageAiContext } from "@/contexts/AiAssistantContext";
@@ -65,6 +66,12 @@ const Review = () => {
   const [sessionCount, setSessionCount] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
   const [imageDialogOpen, setImageDialogOpen] = useState(false);
+  // Curriculum cards live in vocabulary_words, whose UPDATE policy admits only
+  // admin/recorder — for anyone else the image save matches zero rows with no
+  // error, so the generation cost is spent and nothing persists. Only offer
+  // the button to roles whose save actually works.
+  const { isAdmin, isRecorder } = useAdminAuth();
+  const canEditCurriculumImages = isAdmin || isRecorder;
   const [jingleLoading, setJingleLoading] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -188,7 +195,7 @@ const Review = () => {
       const { data: urlData } = supabase.storage.from("flashcard-audio").getPublicUrl(fileName);
       const jingleUrl = urlData.publicUrl;
       const lyrics = (response.data as { lyrics?: string | null })?.lyrics ?? null;
-      const { error: saveError } = await supabase
+      const { data: savedReview, error: saveError } = await supabase
         .from("word_reviews")
         .upsert(
           {
@@ -198,10 +205,15 @@ const Review = () => {
             jingle_lyrics: lyrics,
           } as never,
           { onConflict: "user_id,word_id" },
-        );
+        )
+        .select("*")
+        .single();
       if (saveError) throw saveError;
       // Patch the cached queue in place rather than refetching — a refetch
-      // reorders the deck under the learner mid-card.
+      // reorders the deck under the learner mid-card. Patch with the row the
+      // upsert actually produced: fabricating a review object with no `id`
+      // for a brand-new card sent its first rating down the UPDATE branch as
+      // `.eq("id", undefined)`, a permanent error that dropped the rating.
       queryClient.setQueriesData<DueCurriculumCard[] | undefined>(
         { queryKey: ["due-words"] },
         (prev) =>
@@ -211,8 +223,7 @@ const Review = () => {
                   ...c,
                   review: {
                     ...(c.review ?? ({} as NonNullable<DueCurriculumCard["review"]>)),
-                    jingle_audio_url: jingleUrl,
-                    jingle_lyrics: lyrics,
+                    ...(savedReview as unknown as NonNullable<DueCurriculumCard["review"]>),
                   },
                 }
               : c,
@@ -623,7 +634,7 @@ const Review = () => {
             )}
             {/* Generate image button. Production cards don't show an image, so
                 there's nothing to generate from here. */}
-            {!isProduction && (
+            {!isProduction && canEditCurriculumImages && (
               <div className="mb-6 flex justify-center">
                 <Button
                   variant="ghost"
@@ -852,10 +863,15 @@ const Review = () => {
         open={imageDialogOpen}
         onOpenChange={setImageDialogOpen}
         onImageSaved={async (wordId, imageUrl) => {
-          await supabase
+          const { data, error } = await supabase
             .from("vocabulary_words")
             .update({ image_url: imageUrl })
-            .eq("id", wordId);
+            .eq("id", wordId)
+            .select("id");
+          if (error) throw error;
+          if (!data || data.length === 0) {
+            throw new Error("The image was generated but could not be saved to this word.");
+          }
           refetch();
         }}
       />

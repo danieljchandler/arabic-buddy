@@ -62,12 +62,22 @@ Deno.serve(async (req) => {
       purpose: "utility",
       dialect: targetDialect,
       strategy: "draft_critic",
-      models: [MODEL_IDS.GEMINI_FAST],
+      // No models override: the old single-entry list named a model that is
+      // not in the registry and was silently discarded anyway. The CONTENT
+      // lineup drafts and critiques; enforceDialect makes the critique real
+      // for this fusha→dialect conversion.
+      enforceDialect: true,
       systemPromptExtra: `You are a native ${targetDialect} Arabic speaker and translator. Convert the given Modern Standard Arabic (Fusha) text into natural, authentic ${targetDialect} dialect Arabic. For each line:
 1. Provide the dialect version in natural Arabic script
 2. Provide the dialect version with full tashkeel (diacritics)
 Keep the meaning faithful but make it sound natural in the dialect. Use authentic dialect vocabulary, grammar patterns, and expressions.`,
       userPrompt: `Translate these ${lines.length} Fusha Arabic lines into ${targetDialect} dialect:\n${lines.map((l: { arabic?: string }, i: number) => `${i + 1}. ${l.arabic}`).join("\n")}`,
+      // Point the validator at the unvocalized dialect lines only — the
+      // fallback walk would also feed it the tashkeel duplicates.
+      arabicTextPath: (p) =>
+        ((p as { lines?: Array<{ dialect?: string }> } | null)?.lines ?? [])
+          .map((l) => l.dialect ?? "")
+          .join("\n"),
       maxTokens: 6000,
       temperature: 0.3,
       tool: {

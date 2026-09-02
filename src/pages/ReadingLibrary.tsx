@@ -51,7 +51,9 @@ const ReadingLibrary = () => {
   const [dialect, setDialect] = useState('all');
 
   const { data: stories, isLoading } = usePublishedStories({ difficulty, dialect });
-  const comprehensionMap = useComprehensionMap(stories);
+  // Silent prose: nothing but the words carries meaning, so the reading
+  // floors apply — the strictest of the three modes (95% minimal).
+  const comprehensionMap = useComprehensionMap(stories, "reading");
   const [justRightOnly, setJustRightOnly] = useState(false);
   const shelfStories = useMemo(() => {
     if (!stories) return stories;
@@ -60,7 +62,7 @@ const ReadingLibrary = () => {
     // unmeasured stories excluded rather than guessed at.
     return stories.filter((s) => {
       const c = comprehensionMap.get(s.id);
-      return c !== undefined && c.band !== "challenge";
+      return c !== undefined && c.band !== "too-hard";
     });
   }, [stories, justRightOnly, comprehensionMap]);
 

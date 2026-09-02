@@ -46,7 +46,10 @@ const Listen = () => {
   // are already in the cache — the list query selects them — so this is free.
   const [justRightOnly, setJustRightOnly] = useState(false);
   const { data: episodes, isLoading } = useListenEpisodes();
-  const comprehensionMap = useComprehensionMap(episodes);
+  // Audio-led episodes: the listening floors (90% minimal). The script is
+  // shown alongside, but the evidence for a lower reading-while-listening
+  // floor is not there, so the audio-only figure is the conservative one.
+  const comprehensionMap = useComprehensionMap(episodes, "listening");
   const shelfEpisodes = useMemo(() => {
     if (!episodes) return episodes;
     if (!justRightOnly || comprehensionMap.size === 0) return episodes;
@@ -54,7 +57,7 @@ const Listen = () => {
     // Unmeasured episodes are excluded rather than guessed at.
     return episodes.filter((ep) => {
       const c = comprehensionMap.get(ep.id);
-      return c !== undefined && c.band !== "challenge";
+      return c !== undefined && c.band !== "too-hard";
     });
   }, [episodes, justRightOnly, comprehensionMap]);
   const generate = useGenerateListenEpisode();

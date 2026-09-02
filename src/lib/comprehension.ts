@@ -25,12 +25,45 @@ import {
   normalizeArabic,
 } from "../../supabase/functions/_shared/msaLeakDetector";
 
-export type ComprehensionBand = "comfortable" | "stretch" | "challenge";
+export type ComprehensionBand = "comfortable" | "stretch" | "too-hard";
+
+/**
+ * How the learner meets the content. The coverage a learner needs to follow a
+ * text depends on the channel, not just the words — imagery does real
+ * comprehension work in video, and nothing does in silent prose.
+ */
+export type ComprehensionMode = "reading" | "listening" | "viewing";
+
+/**
+ * Coverage floors by mode, from the lexical-coverage literature
+ * (docs/language-learning-research-2026-09.md §3):
+ *
+ * - reading: 98% for optimal, ~95% for minimal adequate comprehension
+ *   (Hu & Nation 2000; Laufer & Ravenhorst-Kalovski 2010).
+ * - listening: 95% adequate; 90% gave similar scores but less consistently
+ *   (van Zeeland & Schmitt 2013).
+ * - viewing: 95% optimal, 80% minimal — the shallowest gradient of the three,
+ *   because the picture carries meaning the words don't have to.
+ *
+ * These used to be one pair (0.9 / 0.7) for every surface. That was wrong for
+ * every mode at once: far too lax for reading, and 0.7 sits below the most
+ * permissive floor measured anywhere.
+ */
+export const COMPREHENSION_THRESHOLDS: Record<
+  ComprehensionMode,
+  { comfortable: number; stretch: number }
+> = {
+  reading: { comfortable: 0.98, stretch: 0.95 },
+  listening: { comfortable: 0.95, stretch: 0.9 },
+  viewing: { comfortable: 0.95, stretch: 0.8 },
+};
 
 export interface Comprehension {
   /** 0..1 — fraction of transcript tokens the learner knows. */
   coverage: number;
   band: ComprehensionBand;
+  /** The channel the band was judged for; the same coverage bands differently by mode. */
+  mode: ComprehensionMode;
   totalTokens: number;
   unknownTokens: number;
 }
@@ -99,12 +132,16 @@ function tally(
   }
 }
 
-function summarize(counts: { total: number; unknown: number }): Comprehension | null {
+function summarize(
+  counts: { total: number; unknown: number },
+  mode: ComprehensionMode,
+): Comprehension | null {
   if (counts.total < MIN_TOKENS) return null;
   const coverage = (counts.total - counts.unknown) / counts.total;
   return {
     coverage,
-    band: comprehensionBand(coverage),
+    band: comprehensionBand(coverage, mode),
+    mode,
     totalTokens: counts.total,
     unknownTokens: counts.unknown,
   };
@@ -119,6 +156,7 @@ export function transcriptComprehension(
   lines: unknown,
   known: Set<string>,
   dialect: string | null | undefined,
+  mode: ComprehensionMode,
 ): Comprehension | null {
   if (!Array.isArray(lines) || lines.length === 0) return null;
   const functionWords: Set<string> =
@@ -130,7 +168,7 @@ export function transcriptComprehension(
     if (typeof arabic !== "string") continue;
     tally(arabic, known, functionWords, counts);
   }
-  return summarize(counts);
+  return summarize(counts, mode);
 }
 
 /**
@@ -141,6 +179,7 @@ export function textComprehension(
   text: unknown,
   known: Set<string>,
   dialect: string | null | undefined,
+  mode: ComprehensionMode,
 ): Comprehension | null {
   if (typeof text !== "string" || !text.trim()) return null;
   const functionWords: Set<string> =
@@ -148,7 +187,7 @@ export function textComprehension(
 
   const counts = { total: 0, unknown: 0 };
   tally(text, known, functionWords, counts);
-  return summarize(counts);
+  return summarize(counts, mode);
 }
 
 /**
@@ -161,20 +200,23 @@ export function contentComprehension(
   source: unknown,
   known: Set<string>,
   dialect: string | null | undefined,
+  mode: ComprehensionMode,
 ): Comprehension | null {
-  if (typeof source === "string") return textComprehension(source, known, dialect);
-  return transcriptComprehension(source, known, dialect);
+  if (typeof source === "string") return textComprehension(source, known, dialect, mode);
+  return transcriptComprehension(source, known, dialect, mode);
 }
 
 /**
- * The i+1 bands: ≥90% known reads comfortably, 70–90% is the productive
- * stretch zone where new words have enough context to stick, under 70% is a
- * wall.
+ * The i+1 bands for one channel: at or above the mode's comfortable floor
+ * reads easily, between the two floors is the stretch zone where new words
+ * have enough context to stick, and below the stretch floor is too hard to
+ * be productive — a wall, not a challenge.
  */
-export function comprehensionBand(coverage: number): ComprehensionBand {
-  if (coverage >= 0.9) return "comfortable";
-  if (coverage >= 0.7) return "stretch";
-  return "challenge";
+export function comprehensionBand(coverage: number, mode: ComprehensionMode): ComprehensionBand {
+  const t = COMPREHENSION_THRESHOLDS[mode];
+  if (coverage >= t.comfortable) return "comfortable";
+  if (coverage >= t.stretch) return "stretch";
+  return "too-hard";
 }
 
 /** Tailwind classes for the coverage bar, one tone per band. */
@@ -184,7 +226,7 @@ export function comprehensionBarClass(band: ComprehensionBand): string {
       return "bg-emerald-500";
     case "stretch":
       return "bg-amber-500";
-    case "challenge":
+    case "too-hard":
       return "bg-rose-500";
   }
 }
@@ -196,7 +238,7 @@ export function comprehensionLabel(band: ComprehensionBand): string {
       return "Comfortable";
     case "stretch":
       return "Just right";
-    case "challenge":
-      return "Challenging";
+    case "too-hard":
+      return "Too hard for now";
   }
 }

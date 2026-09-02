@@ -11,6 +11,13 @@ verify_jwt = true
 [functions.customer-portal]
 verify_jwt = true
 
+# extract-learner-errors writes the caller's own mistake-drill rows from a
+# conversation turn; it resolves the learner from their JWT and is only ever
+# called fire-and-forget by a signed-in client. Declared rather than left to
+# the platform default so the choice is visible.
+[functions.extract-learner-errors]
+verify_jwt = true
+
 # Admin / pipeline functions — MUST verify JWT.
 # Called from authed admin flows (user JWT) and server-to-server from
 # extract-visual-context (service-role key — a valid JWT), so requiring a

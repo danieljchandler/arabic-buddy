@@ -18,7 +18,7 @@ import {
   wordId,
 } from "@/test/support/factories";
 import { markTaskCompletedToday } from "@/lib/todayCompletion";
-import { useTodayQueue, type TodayTaskId } from "./useTodayQueue";
+import { useTodayQueue, speakingSurfaceFor, type TodayTaskId } from "./useTodayQueue";
 import type { SupabaseBackend } from "@/test/support/server/handler";
 
 /**
@@ -65,11 +65,11 @@ const visible = (tasks: ReturnType<typeof useTodayQueue>) =>
   tasks.filter((task) => !task.hidden).map((task) => task.id);
 
 describe("the task list", () => {
-  it("offers the eight daily tasks", async () => {
+  it("offers the nine daily tasks", async () => {
     const rendered = renderHookWithProviders(() => useTodayQueue(), { persona: "free" });
     cleanup = rendered.cleanup;
 
-    await waitFor(() => expect(rendered.result.current.length).toBe(8));
+    await waitFor(() => expect(rendered.result.current.length).toBe(9));
     expect(rendered.result.current.map((task) => task.id).sort()).toEqual([
       "daily-challenge",
       "daily-story",
@@ -79,6 +79,7 @@ describe("the task list", () => {
       "reading",
       "set-phrases",
       "souq",
+      "speaking",
     ]);
   });
 
@@ -86,7 +87,7 @@ describe("the task list", () => {
     const rendered = renderHookWithProviders(() => useTodayQueue(), { persona: "free" });
     cleanup = rendered.cleanup;
 
-    await waitFor(() => expect(rendered.result.current.length).toBe(8));
+    await waitFor(() => expect(rendered.result.current.length).toBe(9));
     for (const task of rendered.result.current) {
       expect(task.route, `${task.id} has no route`).toMatch(/^\//);
     }
@@ -96,7 +97,7 @@ describe("the task list", () => {
     const rendered = renderHookWithProviders(() => useTodayQueue(), { persona: "free" });
     cleanup = rendered.cleanup;
 
-    await waitFor(() => expect(rendered.result.current.length).toBe(8));
+    await waitFor(() => expect(rendered.result.current.length).toBe(9));
     for (const task of rendered.result.current) {
       expect(task.estMinutes).toBeGreaterThan(0);
       expect(task.xpEstimate).toBeGreaterThanOrEqual(0);
@@ -252,7 +253,7 @@ describe("the mistake drill", () => {
     });
     cleanup = rendered.cleanup;
 
-    await waitFor(() => expect(rendered.result.current.length).toBe(8));
+    await waitFor(() => expect(rendered.result.current.length).toBe(9));
     expect(visible(rendered.result.current)).not.toContain("mistake-drill");
   });
 
@@ -341,8 +342,43 @@ describe("today's video", () => {
     });
     cleanup = rendered.cleanup;
 
-    await waitFor(() => expect(rendered.result.current.length).toBe(8));
+    await waitFor(() => expect(rendered.result.current.length).toBe(9));
     expect(visible(rendered.result.current)).not.toContain("listening");
+  });
+});
+
+describe("speaking", () => {
+  it("is always offered — the queue used to have no production task at all", async () => {
+    const rendered = renderHookWithProviders(() => useTodayQueue(), { persona: "free" });
+    cleanup = rendered.cleanup;
+    await waitFor(() => expect(taskById(rendered.result.current, "speaking")).toBeDefined());
+    expect(visible(rendered.result.current)).toContain("speaking");
+  });
+
+  it("rotates the three production surfaces across consecutive days", () => {
+    const routes = [0, 1, 2, 3].map((offset) =>
+      speakingSurfaceFor(new Date(Date.UTC(2026, 2, 11 + offset, 12))).route,
+    );
+    expect(new Set(routes.slice(0, 3)).size).toBe(3);
+    expect(routes[3]).toBe(routes[0]);
+    for (const route of routes) {
+      expect(["/monologue", "/set-phrases/practice", "/pronunciation"]).toContain(route);
+    }
+  });
+
+  it("promises practice, never speed", () => {
+    for (const offset of [0, 1, 2]) {
+      const { title, subtitle } = speakingSurfaceFor(new Date(Date.UTC(2026, 2, 11 + offset, 12)));
+      expect(`${title} ${subtitle}`).not.toMatch(/faster|fluent in|quick/i);
+    }
+  });
+
+  it("reads as done once a speaking surface reports an attempt", async () => {
+    const rendered = renderHookWithProviders(() => useTodayQueue(), { persona: "free" });
+    cleanup = rendered.cleanup;
+    await waitFor(() => expect(taskById(rendered.result.current, "speaking")?.done).toBe(false));
+    act(() => markTaskCompletedToday("speaking"));
+    await waitFor(() => expect(taskById(rendered.result.current, "speaking")?.done).toBe(true));
   });
 });
 
@@ -353,7 +389,7 @@ describe("completion", () => {
     const rendered = renderHookWithProviders(() => useTodayQueue(), { persona: "free" });
     cleanup = rendered.cleanup;
 
-    await waitFor(() => expect(rendered.result.current.length).toBe(8));
+    await waitFor(() => expect(rendered.result.current.length).toBe(9));
     for (const id of alwaysShown) {
       expect(taskById(rendered.result.current, id)?.done).toBe(false);
     }
@@ -406,7 +442,7 @@ describe("when the server cannot be reached", () => {
     });
     cleanup = rendered.cleanup;
 
-    await waitFor(() => expect(rendered.result.current.length).toBe(8));
+    await waitFor(() => expect(rendered.result.current.length).toBe(9));
     expect(visible(rendered.result.current)).toEqual(
       expect.arrayContaining(["daily-challenge", "reading", "souq"]),
     );

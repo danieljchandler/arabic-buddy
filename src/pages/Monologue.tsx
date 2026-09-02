@@ -28,6 +28,7 @@ import {
   Square,
 } from "lucide-react";
 import { toast } from "sonner";
+import { markTaskCompletedToday } from "@/lib/todayCompletion";
 
 /**
  * Monologue — spoken production, measured over time.
@@ -162,6 +163,9 @@ const Monologue = () => {
           return;
         }
         setResult(data as ScoreResult);
+        // A scored attempt is the day's speaking task done, whichever surface
+        // the queue pointed at.
+        markTaskCompletedToday("speaking");
         void queryClient.invalidateQueries({ queryKey: ["monologue-attempts"] });
       } finally {
         setScoring(false);

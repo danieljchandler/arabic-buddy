@@ -23,6 +23,7 @@ import { useRef } from "react";
 import { ShadowPlayer } from "@/components/pronunciation/ShadowPlayer";
 import { useShadowQueue } from "@/hooks/useShadowQueue";
 import { useDialect } from "@/contexts/DialectContext";
+import { markTaskCompletedToday } from "@/lib/todayCompletion";
 
 const MAX_DURATION_MS = 5000;
 
@@ -166,6 +167,7 @@ const PronunciationPractice = () => {
           const res = await assess(blob, referenceText, assessLocale);
           if (res) {
             setSessionScores((prev) => [...prev, res.overall]);
+            markTaskCompletedToday("speaking");
           }
         }
       };

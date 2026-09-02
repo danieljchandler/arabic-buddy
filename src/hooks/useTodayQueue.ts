@@ -5,7 +5,7 @@ import { useMistakes } from "@/hooks/useLearnerErrors";
 import { useTodaysVideo } from "@/hooks/useTodaysVideo";
 import { useDialect } from "@/contexts/DialectContext";
 import { isTaskCompletedToday } from "@/lib/todayCompletion";
-import { BookOpen, Play, Newspaper, MessageCircle, Flame, Brain, Sparkles, Target, type LucideIcon } from "lucide-react";
+import { BookOpen, Play, Newspaper, MessageCircle, Flame, Brain, Sparkles, Target, Mic, type LucideIcon } from "lucide-react";
 
 export type TodayTaskId =
   | "flashcards"
@@ -15,10 +15,39 @@ export type TodayTaskId =
   | "listening"
   | "souq"
   | "set-phrases"
-  | "mistake-drill";
+  | "mistake-drill"
+  | "speaking";
 
 /** Unresolved mistake groups before the drill earns a slot in the queue. */
 const MISTAKE_DRILL_THRESHOLD = 3;
+
+/**
+ * Which speaking surface today's task points at.
+ *
+ * Until now the queue was entirely receptive plus flashcards and drills; the
+ * speaking surfaces existed but were never scheduled. The effect of AI
+ * speaking practice that actually replicates is a drop in speaking anxiety
+ * (d = 0.39–0.76 across two designs); the evidence for a skill gain over
+ * alternatives is weak-to-null (docs/language-learning-research-2026-09.md
+ * §6). So the copy promises practice, never speed.
+ *
+ * Rotates by calendar day so the three production surfaces each get a turn
+ * without the learner choosing: a monologue, a chunk used in a situation, a
+ * line said and scored. The daily goal is a fixed *count* of tasks, so this
+ * competes for the same slots rather than adding to them — the evidence is
+ * for speaking that substitutes for other study, not stacks on it.
+ */
+export function speakingSurfaceFor(date: Date): Pick<TodayTask, "title" | "subtitle" | "route"> {
+  const day = Math.floor(date.getTime() / 86_400_000);
+  switch (day % 3) {
+    case 0:
+      return { title: "Talk for a minute", subtitle: "Monologue", route: "/monologue" };
+    case 1:
+      return { title: "Use a phrase in a situation", subtitle: "Set phrases", route: "/set-phrases/practice" };
+    default:
+      return { title: "Say a line out loud", subtitle: "Pronunciation", route: "/pronunciation" };
+  }
+}
 
 export interface TodayTask {
   id: TodayTaskId;
@@ -147,6 +176,14 @@ export const useTodayQueue = (): TodayTask[] => {
       hidden:
         (mistakeGroups?.length ?? 0) < MISTAKE_DRILL_THRESHOLD &&
         !isTaskCompletedToday("mistake-drill"),
+      xpEstimate: 20,
+    },
+    {
+      id: "speaking",
+      ...speakingSurfaceFor(new Date()),
+      estMinutes: 10,
+      icon: Mic,
+      done: isTaskCompletedToday("speaking"),
       xpEstimate: 20,
     },
     {

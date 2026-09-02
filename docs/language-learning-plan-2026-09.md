@@ -104,12 +104,16 @@ used by `Discover.tsx` (viewing), `ReadingLibrary.tsx` (reading) and
 
 ### 0c. A speaking task in the daily queue (P2, R5)
 
-`useTodayQueue.ts` gains a `"speaking"` `TodayTaskId` rotating by weekday
-between `/speak` (monologue), shadow reps, and chunk-in-situation, with
-`estMinutes` ~10 and `done` from `isTaskCompletedToday("speaking")`. The three
-target pages call `markTaskCompletedToday("speaking")` on a completed attempt.
-It **displaces** rather than stacks: when it is present, the queue's total
-target minutes stay flat (the evidence is for substitution, R5).
+`useTodayQueue.ts` gains a `"speaking"` `TodayTaskId` rotating by calendar
+day between `/monologue`, `/set-phrases/practice` (chunk-in-situation via the
+chunk coach) and `/pronunciation`, with `estMinutes` ~10 and `done` from
+`isTaskCompletedToday("speaking")`. Shadow reps have no standalone route —
+they live inside the video player — so they are not in the rotation. The
+three target pages call `markTaskCompletedToday("speaking")` on a scored
+attempt. It **displaces** rather than stacks, and that needed no code: the
+daily goal is a fixed *count* of tasks the learner chooses, so a ninth task
+competes for the same slots instead of adding to them (the evidence is for
+substitution, R5).
 
 Copy: the task subtitle says nothing about learning faster. Onboarding copy for
 anxious learners waits for Phase 6 measurement (R5).

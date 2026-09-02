@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { isCappedError } from "@/lib/invokeError";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { usePageAiContext } from "@/contexts/AiAssistantContext";
+import { markTaskCompletedToday } from "@/lib/todayCompletion";
 
 interface Props {
   reviewMode?: boolean;
@@ -148,6 +149,7 @@ const SetPhrasesPractice = ({ reviewMode = false }: Props) => {
                 }
                 const correct = res.quality >= 4;
                 setAnswered({ correct, transcript: res.transcript, mode: "coach", coach: res });
+                markTaskCompletedToday("speaking");
                 logAttempt.mutate({
                   phrase_id: current.phrase_id,
                   question_type: current.question_type,
@@ -173,6 +175,9 @@ const SetPhrasesPractice = ({ reviewMode = false }: Props) => {
           {
             onSuccess: (res) => {
               setAnswered({ correct: res.accepted, transcript: res.transcript, similarity: res.similarity, mode: "voice" });
+              // Any spoken answer counts as the day's speaking task — it is the
+              // speaking, not the grade, that the task exists for.
+              markTaskCompletedToday("speaking");
               logAttempt.mutate({
                 phrase_id: current.phrase_id,
                 question_type: current.question_type,

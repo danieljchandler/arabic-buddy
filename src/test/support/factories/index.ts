@@ -412,6 +412,25 @@ export const aLearnerError = (over: Row = {}): Row => ({
  * (20260902000000_review_log.sql). Clients never insert these — the emulator
  * has no triggers, so a test that needs history seeds it with this directly.
  */
+/** One contrast's perception-training row, part-way through its share. */
+export const aPerceptionProgress = (over: Row = {}): Row => ({
+  id: "cafe0000-0000-4000-8000-000000000001",
+  user_id: TEST_USER_ID,
+  dialect: "Gulf",
+  contrast_id: "sad-sin",
+  attempts: 20,
+  correct: 15,
+  seconds: 600,
+  completed_at: null,
+  resurfaced_at: null,
+  resurface_attempts: 0,
+  resurface_correct: 0,
+  last_practiced_at: daysAgo(1),
+  created_at: daysAgo(3),
+  updated_at: daysAgo(1),
+  ...over,
+});
+
 export const aReviewLog = (over: Row = {}): Row => ({
   id: reviewLogId(0),
   user_id: TEST_USER_ID,

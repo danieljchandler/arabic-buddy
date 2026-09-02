@@ -89,6 +89,12 @@ export const SKILLS: Skill[] = [
         icon: "Headphones",
       },
       {
+        label: "Sound Pairs",
+        description: "Train your ear on ص/س, ق/ك, ح/ه — a finite programme",
+        to: "/alphabet/sounds",
+        icon: "AudioLines",
+      },
+      {
         label: "Episodes",
         description: "Graded audio, taken a sentence at a time",
         to: "/listen",

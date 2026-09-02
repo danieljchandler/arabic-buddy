@@ -54,6 +54,7 @@ const CultureGuide = lazyPage(() => import("./pages/CultureGuide"));
 const Pricing = lazyPage(() => import("./pages/Pricing"));
 const PronunciationPractice = lazyPage(() => import("./pages/PronunciationPractice"));
 const Monologue = lazyPage(() => import("./pages/Monologue"));
+const PerceptionSounds = lazyPage(() => import("./pages/PerceptionSounds"));
 const WordClips = lazyPage(() => import("./pages/WordClips"));
 const NativeFeedback = lazyPage(() => import("./pages/NativeFeedback"));
 const WritingPractice = lazyPage(() => import("./pages/WritingPractice"));
@@ -472,6 +473,9 @@ const App = () => {
               <ErrorBoundary name="PrivacyRoute"><Privacy /></ErrorBoundary>
             } />
 
+            <Route path="/alphabet/sounds" element={
+              <ErrorBoundary name="PerceptionSoundsRoute"><PerceptionSounds /></ErrorBoundary>
+            } />
             <Route path="/alphabet/checkpoint/:index" element={
               <ErrorBoundary name="AlphabetCheckpointRoute"><ProtectedRoute><AlphabetCheckpoint /></ProtectedRoute></ErrorBoundary>
             } />

@@ -194,9 +194,12 @@ for pictures — do not reuse the flashcard-image pipeline). Never "same or
 different?" (g = 0.57 vs 0.95). Feedback is immediate and names the contrast
 ("that was ح, not ه"), which is what the ASR literature also says works (R7).
 
-**2c. Audio sourcing — few voices first.** `vocabulary_words.audio_url` and
-`published_clips` (real speech, `start_ms`/`end_ms`, per dialect) cover
-beginners. More talkers only helped higher-proficiency learners, so talker
+**2c. Audio sourcing — few voices first.** Shipped on
+`vocabulary_words.audio_url`, with the dialect TTS voice as the fallback for a
+word that has no recording; `published_clips` (real speech, `start_ms`/
+`end_ms`) are a later addition because playing a clip segment means the
+YouTube iframe API, which is too heavy for a ten-second identification item.
+One voice per word covers beginners. More talkers only helped higher-proficiency learners, so talker
 variety is a *later* addition gated on level, not a launch requirement. Munsit
 and Azure voices already routed per dialect by `ttsVoiceRoutingCore.ts` give
 two or three talkers for free when needed.

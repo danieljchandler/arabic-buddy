@@ -4689,6 +4689,57 @@ export type Database = {
         }
         Relationships: []
       }
+      user_perception_progress: {
+        Row: {
+          attempts: number
+          completed_at: string | null
+          contrast_id: string
+          correct: number
+          created_at: string
+          dialect: string
+          id: string
+          last_practiced_at: string
+          resurface_attempts: number
+          resurface_correct: number
+          resurfaced_at: string | null
+          seconds: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          completed_at?: string | null
+          contrast_id: string
+          correct?: number
+          created_at?: string
+          dialect?: string
+          id?: string
+          last_practiced_at?: string
+          resurface_attempts?: number
+          resurface_correct?: number
+          resurfaced_at?: string | null
+          seconds?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          completed_at?: string | null
+          contrast_id?: string
+          correct?: number
+          created_at?: string
+          dialect?: string
+          id?: string
+          last_practiced_at?: string
+          resurface_attempts?: number
+          resurface_correct?: number
+          resurfaced_at?: string | null
+          seconds?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_phrases: {
         Row: {
           created_at: string

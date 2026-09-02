@@ -70,6 +70,7 @@ const FACTORY_TABLES: Record<string, string> = {
   anInteractiveStory: "interactive_stories",
   anInviteCode: "invite_codes",
   aReviewLog: "review_log",
+  aPerceptionProgress: "user_perception_progress",
 };
 
 /**

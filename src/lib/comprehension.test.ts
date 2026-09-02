@@ -4,6 +4,7 @@ import {
   contentComprehension,
   textComprehension,
   comprehensionBand,
+  COMPREHENSION_THRESHOLDS,
   comprehensionBarClass,
   comprehensionLabel,
   MIN_TOKENS,
@@ -59,7 +60,7 @@ describe("transcriptComprehension", () => {
     // not, وش is not — انا/في are. Build a line that isolates the cases.
     const known = buildKnownTokenSet(["كبسه"]);
     const lines = filler("كبسه", MIN_TOKENS).concat([line("مطعم")]); // 20 known + 1 unknown
-    const result = transcriptComprehension(lines, known, "Gulf")!;
+    const result = transcriptComprehension(lines, known, "Gulf", "viewing")!;
 
     expect(result.totalTokens).toBe(MIN_TOKENS + 1);
     expect(result.unknownTokens).toBe(1);
@@ -68,7 +69,7 @@ describe("transcriptComprehension", () => {
 
   it("treats function words as known so beginners aren't shown 5% everywhere", () => {
     const lines = filler("انا في البيت", 10); // all Gulf function words / allowed
-    const result = transcriptComprehension(lines, new Set(), "Gulf")!;
+    const result = transcriptComprehension(lines, new Set(), "Gulf", "viewing")!;
     expect(result.coverage).toBe(1);
   });
 
@@ -76,46 +77,89 @@ describe("transcriptComprehension", () => {
     const known = buildKnownTokenSet(["بيت", "قال"]);
     // البيت → بيت, وقال → قال: the two clitics that most often hide a known word.
     const lines = filler("البيت وقال", MIN_TOKENS / 2);
-    const result = transcriptComprehension(lines, known, "Gulf")!;
+    const result = transcriptComprehension(lines, known, "Gulf", "viewing")!;
     expect(result.unknownTokens).toBe(0);
   });
 
   it("refuses to score a transcript below the token floor", () => {
-    expect(transcriptComprehension([line("كلمه وحده")], new Set(), "Gulf")).toBeNull();
+    expect(transcriptComprehension([line("كلمه وحده")], new Set(), "Gulf", "viewing")).toBeNull();
   });
 
   it("returns null for a missing or empty transcript", () => {
-    expect(transcriptComprehension(null, new Set(), "Gulf")).toBeNull();
-    expect(transcriptComprehension([], new Set(), "Gulf")).toBeNull();
-    expect(transcriptComprehension("not lines", new Set(), "Gulf")).toBeNull();
+    expect(transcriptComprehension(null, new Set(), "Gulf", "viewing")).toBeNull();
+    expect(transcriptComprehension([], new Set(), "Gulf", "viewing")).toBeNull();
+    expect(transcriptComprehension("not lines", new Set(), "Gulf", "viewing")).toBeNull();
   });
 
   it("skips malformed lines rather than crashing on them", () => {
     const lines = [null, { arabic: 42 }, ...filler("انا في البيت", 10)];
-    expect(transcriptComprehension(lines, new Set(), "Gulf")).not.toBeNull();
+    expect(transcriptComprehension(lines, new Set(), "Gulf", "viewing")).not.toBeNull();
   });
 
   it("falls back to the Gulf function-word list for a regional dialect label", () => {
     const lines = filler("انا في البيت", 10);
-    const result = transcriptComprehension(lines, new Set(), "Saudi")!;
+    const result = transcriptComprehension(lines, new Set(), "Saudi", "viewing")!;
     expect(result.coverage).toBe(1);
   });
 });
 
 describe("the bands", () => {
-  it("splits at the i+1 boundaries", () => {
-    expect(comprehensionBand(0.95)).toBe("comfortable");
-    expect(comprehensionBand(0.9)).toBe("comfortable");
-    expect(comprehensionBand(0.89)).toBe("stretch");
-    expect(comprehensionBand(0.7)).toBe("stretch");
-    expect(comprehensionBand(0.69)).toBe("challenge");
+  // One coverage number lands in a different band depending on the channel.
+  // 0.9 known: comfortable for nothing, stretch for listening and viewing,
+  // too hard for silent reading.
+  it("bands the same coverage differently by mode", () => {
+    expect(comprehensionBand(0.9, "reading")).toBe("too-hard");
+    expect(comprehensionBand(0.9, "listening")).toBe("stretch");
+    expect(comprehensionBand(0.9, "viewing")).toBe("stretch");
+  });
+
+  it("uses the reading floors: 98% comfortable, 95% stretch", () => {
+    expect(comprehensionBand(0.98, "reading")).toBe("comfortable");
+    expect(comprehensionBand(0.979, "reading")).toBe("stretch");
+    expect(comprehensionBand(0.95, "reading")).toBe("stretch");
+    expect(comprehensionBand(0.949, "reading")).toBe("too-hard");
+  });
+
+  it("uses the listening floors: 95% comfortable, 90% stretch", () => {
+    expect(comprehensionBand(0.95, "listening")).toBe("comfortable");
+    expect(comprehensionBand(0.949, "listening")).toBe("stretch");
+    expect(comprehensionBand(0.9, "listening")).toBe("stretch");
+    expect(comprehensionBand(0.899, "listening")).toBe("too-hard");
+  });
+
+  it("uses the viewing floors: 95% comfortable, 80% stretch", () => {
+    expect(comprehensionBand(0.95, "viewing")).toBe("comfortable");
+    expect(comprehensionBand(0.949, "viewing")).toBe("stretch");
+    expect(comprehensionBand(0.8, "viewing")).toBe("stretch");
+    expect(comprehensionBand(0.799, "viewing")).toBe("too-hard");
+  });
+
+  it("never treats the old 70% floor as productive in any mode", () => {
+    // The previous single pair banded 0.7 as "stretch" everywhere. 0.7 is
+    // below the most permissive floor measured in any mode.
+    for (const mode of ["reading", "listening", "viewing"] as const) {
+      expect(comprehensionBand(0.7, mode)).toBe("too-hard");
+    }
+  });
+
+  it("keeps every mode's stretch floor below its comfortable floor", () => {
+    for (const t of Object.values(COMPREHENSION_THRESHOLDS)) {
+      expect(t.stretch).toBeLessThan(t.comfortable);
+      expect(t.stretch).toBeGreaterThanOrEqual(0.8);
+    }
   });
 
   it("gives every band a bar class and a label", () => {
-    for (const band of ["comfortable", "stretch", "challenge"] as const) {
+    for (const band of ["comfortable", "stretch", "too-hard"] as const) {
       expect(comprehensionBarClass(band)).toMatch(/^bg-/);
       expect(comprehensionLabel(band).length).toBeGreaterThan(0);
     }
+  });
+
+  it("records the mode it banded for on the result", () => {
+    const known = buildKnownTokenSet(Array.from({ length: 30 }, (_, i) => `كلمه${i}`));
+    const lines = Array.from({ length: 25 }, (_, i) => ({ arabic: `كلمه${i}` }));
+    expect(transcriptComprehension(lines, known, "Gulf", "viewing")?.mode).toBe("viewing");
   });
 });
 
@@ -128,8 +172,8 @@ describe("prose bodies", () => {
     const body = "كبسه مطعم قهوه ".repeat(10);
     const lines = Array.from({ length: 10 }, () => ({ arabic: "كبسه مطعم قهوه" }));
 
-    const fromText = textComprehension(body, known, "Gulf");
-    const fromLines = transcriptComprehension(lines, known, "Gulf");
+    const fromText = textComprehension(body, known, "Gulf", "reading");
+    const fromLines = transcriptComprehension(lines, known, "Gulf", "viewing");
 
     expect(fromText).not.toBeNull();
     expect(fromText!.coverage).toBe(fromLines!.coverage);
@@ -138,17 +182,17 @@ describe("prose bodies", () => {
 
   it("counts the unknown words in a body", () => {
     const body = "كبسه مطعم قهوه غامض ".repeat(10);
-    const result = textComprehension(body, known, "Gulf");
+    const result = textComprehension(body, known, "Gulf", "reading");
     expect(result!.unknownTokens).toBe(10);
     expect(result!.coverage).toBeCloseTo(0.75, 5);
   });
 
   it("declines to score a body with nothing usable in it", () => {
-    expect(textComprehension(null, known, "Gulf")).toBeNull();
-    expect(textComprehension("", known, "Gulf")).toBeNull();
-    expect(textComprehension("   ", known, "Gulf")).toBeNull();
+    expect(textComprehension(null, known, "Gulf", "reading")).toBeNull();
+    expect(textComprehension("", known, "Gulf", "reading")).toBeNull();
+    expect(textComprehension("   ", known, "Gulf", "reading")).toBeNull();
     // Under MIN_TOKENS a percentage is noise, not signal.
-    expect(textComprehension("كبسه مطعم", known, "Gulf")).toBeNull();
+    expect(textComprehension("كبسه مطعم", known, "Gulf", "reading")).toBeNull();
   });
 });
 
@@ -159,16 +203,16 @@ describe("contentComprehension dispatch", () => {
     const body = "كبسه مطعم قهوه ".repeat(10);
     const lines = Array.from({ length: 10 }, () => ({ arabic: "كبسه مطعم قهوه" }));
 
-    expect(contentComprehension(body, known, "Gulf")).toEqual(
-      textComprehension(body, known, "Gulf"),
+    expect(contentComprehension(body, known, "Gulf", "reading")).toEqual(
+      textComprehension(body, known, "Gulf", "reading"),
     );
-    expect(contentComprehension(lines, known, "Gulf")).toEqual(
-      transcriptComprehension(lines, known, "Gulf"),
+    expect(contentComprehension(lines, known, "Gulf", "viewing")).toEqual(
+      transcriptComprehension(lines, known, "Gulf", "viewing"),
     );
   });
 
   it("returns null for anything it cannot read", () => {
-    expect(contentComprehension(undefined, known, "Gulf")).toBeNull();
-    expect(contentComprehension(42, known, "Gulf")).toBeNull();
+    expect(contentComprehension(undefined, known, "Gulf", "viewing")).toBeNull();
+    expect(contentComprehension(42, known, "Gulf", "viewing")).toBeNull();
   });
 });

@@ -95,6 +95,20 @@ const AlphabetJourney = () => {
 
         <MilestoneBanner masteredCount={masteredCount} />
 
+        {/* Perception training sits with the alphabet on purpose: the evidence
+            says it pays most early (research §5b), before habits set. */}
+        <Link
+          to="/alphabet/sounds"
+          className="flex items-center gap-3 rounded-2xl border border-border bg-card px-4 py-3 text-sm transition-transform active:scale-[0.99]"
+        >
+          <span dir="rtl" lang="ar" aria-hidden className="w-10 shrink-0 text-center font-arabic text-xl leading-none">ص س</span>
+          <span className="min-w-0 flex-1">
+            <span className="block font-semibold">Sound pairs</span>
+            <span className="block text-xs text-muted-foreground">Train your ear on the sounds English merges</span>
+          </span>
+          <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+        </Link>
+
         {/* One call to action, leading with the letter itself. "Continue" on its
             own is not a reason to tap; the glyph you are three steps into is. */}
         {current ? (

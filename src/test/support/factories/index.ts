@@ -37,6 +37,7 @@ export const topicId = makeId("77777777");
 export const setPhraseId = makeId("88888888");
 export const occasionId = makeId("f1f1f1f1");
 export const userSetPhraseId = makeId("99999999");
+export const reviewLogId = (index = 0): number => 1000 + index;
 export const videoId = makeId("aaaaaaaa");
 export const storyId = makeId("bbbbbbbb");
 export const episodeId = makeId("cccccccc");
@@ -223,6 +224,7 @@ export const aVocabularyWord = (over: Row = {}): Row => ({
   // un-backfilled word is the normal state of curriculum vocabulary.
   root: null,
   display_order: 1,
+  frequency_rank: null,
   dialect_module: "Gulf",
   created_at: daysAgo(30),
   updated_at: daysAgo(30),
@@ -355,6 +357,7 @@ export const aSetPhrase = (over: Row = {}): Row => ({
   status: "published",
   created_at: daysAgo(30),
   updated_at: daysAgo(30),
+  frequency_rank: null,
   ...over,
 });
 
@@ -403,6 +406,77 @@ export const aLearnerError = (over: Row = {}): Row => ({
   error_kind: "mispronunciation",
   resolved_at: null,
   created_at: iso(),
+  ...over,
+});
+
+/**
+ * One review event as the database trigger writes it
+ * (20260902000000_review_log.sql). Clients never insert these — the emulator
+ * has no triggers, so a test that needs history seeds it with this directly.
+ */
+/** One contrast's perception-training row, part-way through its share. */
+export const aPerceptionProgress = (over: Row = {}): Row => ({
+  id: "cafe0000-0000-4000-8000-000000000001",
+  user_id: TEST_USER_ID,
+  dialect: "Gulf",
+  contrast_id: "sad-sin",
+  attempts: 20,
+  correct: 15,
+  seconds: 600,
+  completed_at: null,
+  resurfaced_at: null,
+  resurface_attempts: 0,
+  resurface_correct: 0,
+  last_practiced_at: daysAgo(1),
+  created_at: daysAgo(3),
+  updated_at: daysAgo(1),
+  ...over,
+});
+
+/** One dialect's word-frequency row, as derive-word-frequency writes it. */
+export const aWordFrequency = (over: Row = {}): Row => ({
+  dialect: "Gulf",
+  token: "زين",
+  count: 42,
+  doc_count: 7,
+  zipf: 6.1,
+  updated_at: daysAgo(1),
+  ...over,
+});
+
+/** One placement, as the quiz records it. */
+export const aPlacementResult = (over: Row = {}): Row => ({
+  id: "beef0000-0000-4000-8000-000000000001",
+  user_id: TEST_USER_ID,
+  dialect: "Gulf",
+  cefr_level: "A2",
+  confidence: 0.8,
+  strengths: ["listening"],
+  weaknesses: ["grammar"],
+  reviews_at_time: 120,
+  taken_at: daysAgo(100),
+  created_at: daysAgo(100),
+  ...over,
+});
+
+export const aReviewLog = (over: Row = {}): Row => ({
+  id: reviewLogId(0),
+  user_id: TEST_USER_ID,
+  deck: "word",
+  card_id: reviewId(0),
+  item_id: wordId(0),
+  direction: "recognition",
+  rating: "good",
+  stability_before: 3.17,
+  stability_after: 8.2,
+  difficulty_before: 5,
+  difficulty_after: 4.9,
+  elapsed_days: 3,
+  scheduled_days: 3,
+  repetitions_after: 2,
+  reviewed_at: daysAgo(1),
+  duration_ms: null,
+  created_at: daysAgo(1),
   ...over,
 });
 

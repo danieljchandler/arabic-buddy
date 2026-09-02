@@ -36,6 +36,8 @@ export interface PhonemeResult {
   phoneme: string;
   /** 0–100 accuracy score for this phoneme */
   accuracy: number;
+  /** Top alternative phonemes Azure heard (IPA) — what was said instead of the target. */
+  nbest?: Array<{ phoneme: string; accuracy: number }>;
 }
 
 export interface WordResult {

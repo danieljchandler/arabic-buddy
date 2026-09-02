@@ -110,6 +110,7 @@ export const ROUTES: RouteSpec[] = [
 
   // ── Alphabet ───────────────────────────────────────────────────────────────
   { path: "/alphabet", gate: "public", boundary: "AlphabetJourneyRoute" },
+  { path: "/alphabet/sounds", gate: "public", boundary: "PerceptionSoundsRoute" },
   { path: "/alphabet/:letterCode", params: { letterCode: "alif" }, gate: "public", boundary: "AlphabetLetterRoute" },
   { path: "/alphabet/checkpoint/:index", params: { index: "0" }, gate: "auth", boundary: "AlphabetCheckpointRoute" },
 

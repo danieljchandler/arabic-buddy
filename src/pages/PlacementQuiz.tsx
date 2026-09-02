@@ -284,6 +284,27 @@ export default function PlacementQuiz() {
         .update(updates as any)
         .eq("user_id", user.id);
       if (error) throw error;
+
+      // Keep the history too. The profile columns overwrite, so this row is
+      // the only record of a level over time — the first proficiency measure
+      // the analytics page can show (plan Phase 6a). Best-effort: a failed
+      // history write must not undo a saved level.
+      const { count: reviewsAtTime } = await supabase
+        .from("review_log")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .not("rating", "is", null);
+      const { error: historyError } = await supabase.from("placement_results").insert({
+        user_id: user.id,
+        dialect: activeDialect,
+        cefr_level: results.cefr_level,
+        confidence: results.confidence,
+        strengths: results.strengths,
+        weaknesses: results.weaknesses,
+        reviews_at_time: reviewsAtTime ?? null,
+        taken_at: nowIso,
+      });
+      if (historyError) console.warn("placement_results insert failed:", historyError.message);
       toast.success(`${DIALECT_LABELS[activeDialect]} level set to ${results.cefr_level}!`);
       navigate(fromOnboarding ? "/onboarding" : "/");
     } catch (e) {

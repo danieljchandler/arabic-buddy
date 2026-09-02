@@ -6,6 +6,7 @@ import {
   contentComprehension,
   MIN_KNOWN_WORDS,
   type Comprehension,
+  type ComprehensionMode,
 } from "@/lib/comprehension";
 
 /**
@@ -33,6 +34,12 @@ interface ContentLike {
  */
 export function useComprehensionMap(
   items: ContentLike[] | undefined,
+  /**
+   * How the surface presents its content. Required, not defaulted: the
+   * coverage a learner needs differs by channel (COMPREHENSION_THRESHOLDS),
+   * and a surface that doesn't say is a surface banding by the wrong floor.
+   */
+  mode: ComprehensionMode,
 ): Map<string, Comprehension> {
   const { data: words } = useUserVocabulary();
   const { data: phrases } = useUserPhrases();
@@ -50,9 +57,9 @@ export function useComprehensionMap(
       // First field that actually carries text wins; an item with none simply
       // gets no bar.
       const source = item.transcript_lines ?? item.script ?? item.body_dialect;
-      const result = contentComprehension(source, known, item.dialect);
+      const result = contentComprehension(source, known, item.dialect, mode);
       if (result) map.set(item.id, result);
     }
     return map;
-  }, [items, words, phrases]);
+  }, [items, words, phrases, mode]);
 }

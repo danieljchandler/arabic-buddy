@@ -14,6 +14,12 @@ export interface VocabularyWord {
   transliteration?: string | null;
   /** Arabic root. Null until looked up; '' means the word has none. */
   root?: string | null;
+  /**
+   * 1 = most frequent in the dialect's own transcript corpus; null = never
+   * seen there. Set nightly by derive-word-frequency; read by reviewOrder.ts
+   * to admit common words first.
+   */
+  frequency_rank?: number | null;
 }
 
 interface VocabularyCardProps {

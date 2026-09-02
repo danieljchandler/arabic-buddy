@@ -17,6 +17,7 @@ const state = vi.hoisted(() => ({
     | { recentRetentionRate: number; recentReviewedCount: number }
     | undefined,
   retention: 0.9,
+  weights: null as readonly number[] | null,
 }));
 
 vi.mock("@/hooks/useSRSStats", () => ({
@@ -25,10 +26,23 @@ vi.mock("@/hooks/useSRSStats", () => ({
 vi.mock("@/hooks/useDesiredRetention", () => ({
   useDesiredRetention: () => state.retention,
 }));
+vi.mock("@/hooks/useFsrsWeights", () => ({
+  useFsrsWeights: () => ({ weights: state.weights, fittedAt: null, reviews: null, isLoading: false }),
+}));
 
 const calibration = () => renderHook(() => useFsrsCalibration()).result.current;
 
 describe("useFsrsCalibration", () => {
+  it("steps aside entirely once the learner has fitted weights", () => {
+    // A fitted vector already encodes how this memory differs from the
+    // defaults; correcting for it again would double-count.
+    state.stats = { recentRetentionRate: 96, recentReviewedCount: 2000 };
+    state.retention = 0.9;
+    state.weights = new Array(21).fill(0.5);
+    expect(calibration()).toBe(1);
+    state.weights = null;
+  });
+
   it("leaves the schedule alone before the stats have loaded", () => {
     state.stats = undefined;
     expect(calibration()).toBe(1);

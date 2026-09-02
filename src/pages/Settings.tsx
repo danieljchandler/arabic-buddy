@@ -32,6 +32,9 @@ import { getTopicCategories } from '@/data/listenTopics';
 import { useTheme, type ThemePref } from '@/hooks/useTheme';
 import { useSRSStats } from '@/hooks/useSRSStats';
 import { useFsrsCalibration } from '@/hooks/useFsrsCalibration';
+import { useFsrsWeights } from '@/hooks/useFsrsWeights';
+import { useFsrsFit } from '@/hooks/useFsrsFit';
+import { MIN_REVIEWS_TO_FIT } from '@/lib/fsrsFit';
 import { LEARNING_REASONS, reasonLabel, reasonIdFromLabel } from '@/data/learningReasons';
 
 /**
@@ -118,6 +121,8 @@ const Settings = () => {
   const { pref: themePref, setPref: setThemePref } = useTheme();
   const { data: srsStats } = useSRSStats();
   const stabilityMultiplier = useFsrsCalibration();
+  const fittedWeights = useFsrsWeights();
+  const fsrsFit = useFsrsFit();
   /**
    * Plain-language read-out of the measured FSRS calibration. Absent until
    * there is enough review history for a correction to exist at all, so it
@@ -733,6 +738,50 @@ const Settings = () => {
                       learner notices their intervals moved. */}
                   {calibrationNote && (
                     <p className="text-xs text-muted-foreground mt-2">{calibrationNote}</p>
+                  )}
+                </div>
+                {/* Per-learner FSRS weights. On the maintainers' benchmark this is
+                    worth more than an algorithm version, and it only ever
+                    replaces the defaults when it beats them on history it was
+                    not trained on — so the copy says what happened, not that
+                    it helped. */}
+                <div className="p-3 rounded-xl bg-card border border-border">
+                  <p className="font-medium text-foreground text-sm">Personalised scheduling</p>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    {fittedWeights.weights
+                      ? `Your intervals use weights fitted to ${fittedWeights.reviews ?? 'your'} of your own reviews`
+                        + (fittedWeights.fittedAt ? ` on ${new Date(fittedWeights.fittedAt).toLocaleDateString()}` : '')
+                        + '. Refit any time to include newer history.'
+                      : `Once you have ${MIN_REVIEWS_TO_FIT.toLocaleString()} reviews, the scheduler can be fitted to how `
+                        + `your memory actually behaves. It only replaces the defaults if it predicts your recall `
+                        + `better on reviews it was not trained on.`}
+                  </p>
+                  <div className="flex items-center gap-3">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={!fsrsFit.eligible || fsrsFit.isFitting}
+                      onClick={() => { void fsrsFit.fit(); }}
+                    >
+                      {fsrsFit.isFitting ? 'Fitting…' : fittedWeights.weights ? 'Refit to my reviews' : 'Fit to my reviews'}
+                    </Button>
+                    <span className="text-xs text-muted-foreground tabular-nums">
+                      {fsrsFit.reviewCount != null
+                        ? `${fsrsFit.reviewCount.toLocaleString()} / ${MIN_REVIEWS_TO_FIT.toLocaleString()} reviews`
+                        : ''}
+                    </span>
+                  </div>
+                  {fsrsFit.result && (
+                    <p className="text-xs text-muted-foreground mt-2" role="status">
+                      {fsrsFit.result.status === 'fitted'
+                        ? `Adopted: predicts your recall ${Math.round((fsrsFit.result.improvement ?? 0) * 100)}% better than the defaults on your most recent reviews.`
+                        : fsrsFit.result.status === 'kept-defaults'
+                          ? 'Kept the defaults — a fit did not predict your recent reviews better than they do. Try again with more history.'
+                          : `Not enough history yet (${fsrsFit.result.reviews.toLocaleString()} reviews).`}
+                    </p>
+                  )}
+                  {fsrsFit.error && (
+                    <p className="text-xs text-destructive mt-2" role="alert">{fsrsFit.error}</p>
                   )}
                 </div>
                 <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">

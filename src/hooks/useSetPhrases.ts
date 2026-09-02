@@ -6,6 +6,7 @@ import { useDialect } from "@/contexts/DialectContext";
 import { calculateNextReview, elapsedDaysSince, type Rating } from "@/lib/spacedRepetition";
 import { useDesiredRetention } from "./useDesiredRetention";
 import { useFsrsCalibration } from "./useFsrsCalibration";
+import { useFsrsWeights } from "@/hooks/useFsrsWeights";
 
 const sb = supabase as any;
 
@@ -270,6 +271,7 @@ export const useReviewPhrase = () => {
   const qc = useQueryClient();
   const desiredRetention = useDesiredRetention();
   const stabilityMultiplier = useFsrsCalibration();
+  const { weights } = useFsrsWeights();
   return useMutation({
     mutationFn: async ({
       phraseId,
@@ -295,6 +297,7 @@ export const useReviewPhrase = () => {
         ...buildPhraseReviewRow(quality, mode, existing, new Date(), {
           desiredRetention,
           stabilityMultiplier,
+          weights,
           fuzzSeed: phraseId,
         }),
       };

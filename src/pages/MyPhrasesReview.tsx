@@ -24,6 +24,7 @@ import {
 import { Rating, calculateNextReview, elapsedDaysSince } from "@/lib/spacedRepetition";
 import { useDesiredRetention } from "@/hooks/useDesiredRetention";
 import { useFsrsCalibration } from "@/hooks/useFsrsCalibration";
+import { useFsrsWeights } from "@/hooks/useFsrsWeights";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { Loader2, Trophy, LogIn, Eye, Volume2, Trash2, MessageCircleQuestion, Music, Play, RefreshCw, Undo2, MessageSquarePlus } from "lucide-react";
 import { SentencePracticeSheet } from "@/components/practice/SentencePracticeSheet";
@@ -41,6 +42,7 @@ const MyPhrasesReview = () => {
   const { isAuthenticated, loading: authLoading, user } = useAuth();
   const desiredRetention = useDesiredRetention();
   const stabilityMultiplier = useFsrsCalibration();
+  const { weights } = useFsrsWeights();
   const { activeDialect } = useDialect();
   const { enabled: leechTrackingEnabled } = useLeechPrefs();
   const { data: duePhrases, isLoading, refetch } = useDueUserPhrases();
@@ -213,7 +215,7 @@ const MyPhrasesReview = () => {
       current.interval_days,
       current.repetitions,
       elapsedDaysSince(current.last_reviewed_at),
-      { desiredRetention, stabilityMultiplier, fuzzSeed: current.id },
+      { desiredRetention, stabilityMultiplier, weights, fuzzSeed: current.id },
     );
 
     await updateReview.mutateAsync({

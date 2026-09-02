@@ -159,17 +159,19 @@ const Discover = () => {
 
   // Transcript-level coverage per video, from the decks already in cache.
   // Empty until the learner has saved enough words for it to mean anything.
-  const comprehensionMap = useComprehensionMap(browseVideos);
+  // Video: the picture carries meaning, so the viewing floors apply — the
+  // most forgiving of the three modes (80% minimal), not the reading ones.
+  const comprehensionMap = useComprehensionMap(browseVideos, "viewing");
   const [justRightOnly, setJustRightOnly] = useState(false);
   const shelfVideos = useMemo(() => {
     if (!browseVideos) return browseVideos;
     if (!justRightOnly || comprehensionMap.size === 0) return browseVideos;
-    // "Just right" = the comprehensible-input sweet spot and above: ≥70% of
-    // the transcript's words already known. Unmeasured videos (no transcript
-    // yet) are excluded rather than guessed at.
+    // "Just right" = the comprehensible-input sweet spot and above — at or
+    // over the viewing stretch floor (COMPREHENSION_THRESHOLDS). Unmeasured
+    // videos (no transcript yet) are excluded rather than guessed at.
     return browseVideos.filter((v) => {
       const c = comprehensionMap.get(v.id);
-      return c !== undefined && c.band !== "challenge";
+      return c !== undefined && c.band !== "too-hard";
     });
   }, [browseVideos, justRightOnly, comprehensionMap]);
 

@@ -2,6 +2,7 @@ import { cn } from "@/lib/utils";
 import { Rating, estimateNextInterval } from "@/lib/spacedRepetition";
 import { useDesiredRetention } from "@/hooks/useDesiredRetention";
 import { useFsrsCalibration } from "@/hooks/useFsrsCalibration";
+import { useFsrsWeights } from "@/hooks/useFsrsWeights";
 import { RotateCcw, ThumbsDown, ThumbsUp, Sparkles } from "lucide-react";
 
 interface RatingButtonsProps {
@@ -52,6 +53,7 @@ export const RatingButtons = ({
   // and the ±5% load balancing lands silently on the stored schedule.
   const desiredRetention = useDesiredRetention();
   const stabilityMultiplier = useFsrsCalibration();
+  const { weights } = useFsrsWeights();
   const buttons: { rating: Rating; label: string; icon: React.ReactNode; color: string }[] = [
     {
       rating: 'again',
@@ -89,6 +91,7 @@ export const RatingButtons = ({
           const nextInterval = estimateNextInterval(rating, stability, difficulty, intervalDays, repetitions, elapsedDays, {
             desiredRetention,
             stabilityMultiplier,
+            weights,
           });
 
           const overCap =

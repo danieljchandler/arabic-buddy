@@ -6,6 +6,11 @@ import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/hooks/useAuth";
 import { useLearningAnalytics } from "@/hooks/useAnalytics";
 import { useSRSStats } from "@/hooks/useSRSStats";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useDialect } from "@/contexts/DialectContext";
+import { CEFR_ORDER, cefrOrdinal, usePlacementHistory } from "@/hooks/usePlacementHistory";
+import { summarize as summarizeProductive } from "@/lib/productiveVocabulary";
 import { cn } from "@/lib/utils";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
@@ -86,6 +91,34 @@ const LearningAnalytics = () => {
   const { isAuthenticated } = useAuth();
   const { data: analytics, isLoading } = useLearningAnalytics();
   const { data: srsStats } = useSRSStats();
+  // Proficiency, not activity: the page reported XP, streaks and minutes and
+  // no level. Placement history and what the learner actually says in
+  // monologues are the two measures the app can already compute
+  // (docs/language-learning-plan-2026-09.md, Phase 6).
+  const placement = usePlacementHistory();
+  const { activeDialect } = useDialect();
+  const { user: authUser } = useAuth();
+  const monologues = useQuery({
+    queryKey: ["monologue-transcripts", authUser?.id, activeDialect],
+    enabled: !!authUser,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("monologue_attempts")
+        .select("created_at, transcript, dialect")
+        .eq("user_id", authUser!.id)
+        .eq("dialect", activeDialect)
+        .order("created_at", { ascending: true })
+        .limit(60);
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const productive = summarizeProductive(monologues.data ?? []);
+  const levelSeries = placement.history.map((p) => ({
+    at: new Date(p.taken_at).toLocaleDateString(undefined, { month: "short", year: "2-digit" }),
+    level: cefrOrdinal(p.cefr_level),
+    label: p.cefr_level,
+  }));
 
   if (!isAuthenticated) {
     return (
@@ -186,6 +219,71 @@ const LearningAnalytics = () => {
               </RadarChart>
             </ResponsiveContainer>
           </div>
+        </div>
+
+        {/* Level over time — the first proficiency measure on this page. */}
+        <div className="bg-card border border-border rounded-2xl p-4 space-y-3">
+          <h2 className="font-semibold text-foreground flex items-center gap-2">
+            <TrendingUp className="h-4 w-4 text-primary" /> Level over time
+          </h2>
+          {levelSeries.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Take the placement quiz to set a starting level; retake it after a stretch of practice and the line appears here.
+            </p>
+          ) : levelSeries.length === 1 ? (
+            <p className="text-sm text-muted-foreground">
+              Placed <span className="font-semibold text-foreground">{levelSeries[0].label}</span> on {levelSeries[0].at}.
+              {placement.replacementDue ? " It's time to re-check." : ` Re-check after ${placement.reviewsSinceLatest} more reviews and a few months.`}
+            </p>
+          ) : (
+            <div className="h-40">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={levelSeries} margin={{ left: 0, right: 12, top: 8, bottom: 0 }}>
+                  <XAxis dataKey="at" tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                  <YAxis
+                    domain={[0, CEFR_ORDER.length - 1]}
+                    ticks={CEFR_ORDER.map((_, i) => i)}
+                    tickFormatter={(v: number) => CEFR_ORDER[v] ?? ""}
+                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                    width={28}
+                  />
+                  <Tooltip formatter={(v: number) => CEFR_ORDER[v] ?? v} />
+                  <Line type="monotone" dataKey="level" stroke="hsl(var(--primary))" strokeWidth={2} dot />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+
+        {/* Productive vocabulary — distinct words the learner actually said. */}
+        <div className="bg-card border border-border rounded-2xl p-4 space-y-2">
+          <h2 className="font-semibold text-foreground flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-primary" /> Words you've said
+          </h2>
+          {productive.points.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Record a monologue and the distinct words you use out loud are counted here — a measure of what you can produce, not just recognise.
+            </p>
+          ) : (
+            <div className="flex items-center gap-6 text-sm">
+              <div>
+                <span className="text-2xl font-bold text-primary">{productive.cumulativeTypes}</span>
+                <span className="text-muted-foreground ml-1">distinct words spoken</span>
+              </div>
+              {productive.recentMeanTypes != null && (
+                <div>
+                  <span className="text-2xl font-bold text-foreground">{Math.round(productive.recentMeanTypes)}</span>
+                  <span className="text-muted-foreground ml-1">per monologue lately</span>
+                  {productive.previousMeanTypes != null && (
+                    <span className={cn("ml-1 text-xs", productive.recentMeanTypes >= productive.previousMeanTypes ? "text-emerald-600" : "text-muted-foreground")}>
+                      ({productive.recentMeanTypes >= productive.previousMeanTypes ? "+" : ""}
+                      {Math.round(productive.recentMeanTypes - productive.previousMeanTypes)} vs before)
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Word Mastery Breakdown */}

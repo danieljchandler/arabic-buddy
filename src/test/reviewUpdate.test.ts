@@ -88,6 +88,29 @@ describe("buildReviewUpdate — column routing", () => {
   });
 });
 
+describe("buildReviewUpdate — rating record", () => {
+  // The review_log trigger (20260902000000_review_log.sql) takes the rating of
+  // a review from word_reviews.last_result. The column had always existed and
+  // had never been written, so a log built from it would have had no ratings —
+  // and a history without ratings cannot fit anything.
+  const RATINGS = ["again", "hard", "good", "easy"] as const;
+
+  it.each(RATINGS)("records %s on a recognition review", (rating) => {
+    const { update } = buildReviewUpdate(rating, "recognition", review(), NOW);
+    expect(update.last_result).toBe(rating);
+  });
+
+  it.each(RATINGS)("records %s on a production review", (rating) => {
+    const { update } = buildReviewUpdate(rating, "production", review(), NOW);
+    expect(update.last_result).toBe(rating);
+  });
+
+  it("records the rating on a card's first-ever review too", () => {
+    const { update } = buildReviewUpdate("good", "recognition", null, NOW);
+    expect(update.last_result).toBe("good");
+  });
+});
+
 describe("buildReviewUpdate — production unlock", () => {
   it("unlocks production on a confident recognition rating", () => {
     const { update } = buildReviewUpdate(

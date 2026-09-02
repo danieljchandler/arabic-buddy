@@ -69,6 +69,12 @@ const TASK_HINTS: Record<string, { title: string; body: string }> = {
     title: "Set phrases",
     body: "Greetings, weddings, Eid wishes — the go-to expressions natives use on autopilot. Voice-quiz yourself.",
   },
+  // Practice, never speed: the effect of speaking practice that replicates is
+  // that it stops being frightening, not that it makes you faster.
+  speaking: {
+    title: "Speak out loud",
+    body: "A short turn at speaking each day — a minute of talking, a phrase used in a situation, or a line said and heard back. No one is listening but you.",
+  },
 };
 
 const DIALECT_MODULES: { id: DialectModule; label: string; flag: string }[] = [

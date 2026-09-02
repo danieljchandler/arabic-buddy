@@ -211,6 +211,24 @@ export default function ConversationSimulator() {
           return next;
         });
 
+        // A correction line is the tutor saying something was wrong — the one
+        // admissible signal in open conversation, where there is no reference
+        // the learner was matching. Only then is the turn worth a model call to
+        // file the mistake for the drill. Fire-and-forget: the reply is already
+        // on screen and a failure here costs nothing but a missing drill row.
+        const lastUser = [...history].reverse().find((m) => m.role === "user");
+        if (correction && lastUser?.content.trim()) {
+          void supabase.functions.invoke("extract-learner-errors", {
+            body: {
+              source: "conversation",
+              dialect: activeDialect,
+              userText: lastUser.content,
+              assistantText: acc,
+              correction,
+            },
+          }).catch(() => { /* best-effort */ });
+        }
+
         // Note: do NOT auto-play TTS here — browsers block audio without a
         // user gesture. The user taps the 🔊 button on the bubble to hear it.
       } catch (err: any) {

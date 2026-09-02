@@ -224,7 +224,9 @@ test.describe("the daily queue", () => {
     db.seed("user_vocabulary", []);
     db.seed("user_set_phrases", []);
     db.seed("discover_videos", []);
-    await completeTasks(page, "daily-challenge", "daily-story", "reading", "souq");
+    // The speaking task is offered every day (plan Phase 0c), so a cleared
+    // queue includes it.
+    await completeTasks(page, "daily-challenge", "daily-story", "reading", "souq", "speaking");
 
     await page.goto("/today");
 

@@ -2,7 +2,9 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   isSoundEnabled,
+  isVoiceErrorCaptureEnabled,
   prefersReducedMotion,
+  setVoiceErrorCaptureEnabled,
   setSoundEnabled,
   useReducedMotion,
   useSoundPref,
@@ -195,5 +197,32 @@ describe("reduced motion", () => {
     // Turning the setting on is something a user does *because* the animation
     // bothered them, so waiting for a reload is waiting too long.
     expect(result.current).toBe(true);
+  });
+});
+
+describe("voice error capture", () => {
+  // The opposite default from sound: this lane is opt-in, because a dialect
+  // ASR transcript is an unreliable witness to what the learner said.
+  it("is off until the learner turns it on", () => {
+    expect(isVoiceErrorCaptureEnabled()).toBe(false);
+  });
+
+  it("remembers being turned on, and off again", () => {
+    setVoiceErrorCaptureEnabled(true);
+    expect(isVoiceErrorCaptureEnabled()).toBe(true);
+    setVoiceErrorCaptureEnabled(false);
+    expect(isVoiceErrorCaptureEnabled()).toBe(false);
+  });
+
+  it("treats a corrupt value as off", () => {
+    window.localStorage.setItem("hakiya:ui:voice-error-capture", "yes");
+    expect(isVoiceErrorCaptureEnabled()).toBe(false);
+  });
+
+  it("treats a storage read that throws as off", () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("blocked");
+    });
+    expect(isVoiceErrorCaptureEnabled()).toBe(false);
   });
 });

@@ -11,6 +11,7 @@ import {
 import { nextRelearn, pushRelearn, type RelearnEntry } from "@/lib/relearn";
 import { useDesiredRetention } from "@/hooks/useDesiredRetention";
 import { useFsrsCalibration } from "@/hooks/useFsrsCalibration";
+import { useFsrsWeights } from "@/hooks/useFsrsWeights";
 import { useReviewQueue } from "@/hooks/useReviewQueue";
 import { useReviewSession } from "@/hooks/useReviewSession";
 import { RootChip } from "@/components/vocab/RootChip";
@@ -87,6 +88,7 @@ const Review = () => {
   const [mainDone, setMainDone] = useState(false);
   const desiredRetention = useDesiredRetention();
   const stabilityMultiplier = useFsrsCalibration();
+  const { weights } = useFsrsWeights();
 
   // The card on screen: a due relearn card takes precedence over the list.
   const relearnPick = nextRelearn(relearn, sessionCount, mainDone);
@@ -321,6 +323,7 @@ const Review = () => {
         fuzzSeed: word.id,
         desiredRetention,
         stabilityMultiplier,
+        weights,
       });
       const requeued = { ...word, review: { ...word.review, ...update } };
       nextQueue = pushRelearn(nextQueue, requeued, sessionCount + 1);

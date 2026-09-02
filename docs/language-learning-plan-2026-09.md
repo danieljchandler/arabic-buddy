@@ -285,21 +285,27 @@ stock weights with intervals within rounding of today's; add tests for the
 decay parameter's effect. Update the `CLAUDE.md` note, which currently
 explains why v5.
 
-**4b. Fit per learner, on the learner's device.** `fsrs-rs` ships a WASM
-build (`fsrs-browser`) with the optimizer; the review log (0a) is
-owner-readable, so fitting can run client-side over the learner's own history
-with no server compute and no data movement. Trigger it from Settings and
-opportunistically after a review session when `review_log` count ≥ 1,000 and
-the last fit is > 30 days old. Store in a new `profiles.fsrs_weights jsonb`;
-**clamp every weight on read** to the optimizer's own bounds so a hand-edited
-row cannot produce a degenerate schedule. `useFsrsCalibration`'s multiplier
-stays as the cold-start path — it is what it is good at — and is bypassed
-when fitted weights exist.
+**4b. Fit per learner, on the learner's device — as shipped.** The fit runs
+in the browser over the learner's own `review_log` (owner-readable,
+trigger-written), so no server compute and nothing leaves the device but the
+21 numbers that won. Stored in `profiles.fsrs_weights` with `fitted_at` and
+the review count it rested on; **rejected whole on read** by
+`resolveWeights` if the vector is the wrong length or has a bad entry, so a
+hand-edited row schedules on the defaults. `useFsrsCalibration` steps aside
+when fitted weights exist. Triggered from Settings once the log holds 1,000
+rated reviews. The optimiser is a deterministic bounded coordinate descent
+in TypeScript (`src/lib/fsrsFit.ts`) rather than `fsrs-browser`'s WASM
+trainer: it is dependency-free, testable against synthetic learners, and
+fast enough for a learner's history on the main thread; the WASM trainer can
+replace the descent step later without touching the gate or the bounds,
+which are the parts that matter.
 
-**4c. Prove it before trusting it.** Before fitted weights schedule anything,
-compute log loss of stock-vs-fitted on the learner's held-out most-recent 20%
-of `review_log` and only adopt the fit if it wins. This is the benchmark's own
-criterion and it is cheap.
+**4c. Prove it before trusting it — as shipped.** `fitFromLog` trains on
+the older 80% of scorable reviews (time-split, so the judge never sees a
+card's future), scores stock and fitted weights on the newest 20%, and adopts
+the fit only if it beats the defaults there by at least 0.5% relative log
+loss. Same-day reviews advance the state but are not scored, as in fsrs-rs.
+Anything else keeps the defaults, and the Settings copy says which happened.
 
 Guards: `spacedRepetition.ts` is the most heavily commented file in `src/lib`
 for a reason — keep the FSRS-5 rationale in the history and the FSRS-6

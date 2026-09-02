@@ -338,6 +338,44 @@ function shortTermStability(w: readonly number[], s: number, rating: number): nu
   return s * (rating >= 2 ? Math.max(sinc, 1) : sinc);
 }
 
+// ── Pure memory-state step (used by the fitter) ───────────────────────────────
+
+export interface MemoryState {
+  stability: number;
+  difficulty: number;
+}
+
+/**
+ * The memory state after one review, with no scheduling attached — what a
+ * fit replays a card's history with. `state` null means the card's first
+ * exposure; `elapsedDays` under 1 takes the same-day path. Mirrors the
+ * branches in calculateNextReview exactly; the two must not drift.
+ */
+export function nextMemoryState(
+  w: readonly number[],
+  state: MemoryState | null,
+  rating: Rating,
+  elapsedDays: number,
+): MemoryState {
+  const r = RATING_NUM[rating];
+  if (!state || !(state.stability > 0)) {
+    return { stability: initStability(w, r), difficulty: initDifficulty(w, r) };
+  }
+  const s = clampS(state.stability);
+  const d = state.difficulty > 0 ? state.difficulty : 5.0;
+  const elapsed = Math.max(elapsedDays, 0);
+  const difficulty = nextDifficulty(w, d, r);
+  let stability: number;
+  if (elapsed < 1) {
+    stability = clampS(shortTermStability(w, s, r));
+  } else if (rating === 'again') {
+    stability = clampS(nextForgetStability(w, d, s, retrievability(elapsed, s, w)));
+  } else {
+    stability = clampS(nextRecallStability(w, d, s, retrievability(elapsed, s, w), r));
+  }
+  return { stability, difficulty };
+}
+
 // ── Learning steps ────────────────────────────────────────────────────────────
 // Anki-style intra-day steps. FSRS best practice is few, short steps (the
 // short-term formula models same-day memory itself): a failed or shaky card
@@ -421,19 +459,11 @@ export function calculateNextReview(
     const elapsed = elapsedDays != null
       ? Math.max(elapsedDays, 0)
       : Math.max(intervalDays, 1);
-    // The same-day boundary: reviews under a day apart carry short-term
-    // memory the forgetting curve can't see.
-    const sameDay = elapsed < 1;
-
-    newDifficulty = nextDifficulty(w, d, r);
-
-    if (sameDay) {
-      newStability = clampS(shortTermStability(w, s, r));
-    } else if (rating === 'again') {
-      newStability = clampS(nextForgetStability(w, d, s, retrievability(elapsed, s, w)));
-    } else {
-      newStability = clampS(nextRecallStability(w, d, s, retrievability(elapsed, s, w), r));
-    }
+    // The same-day boundary (elapsed < 1) is inside nextMemoryState: reviews
+    // under a day apart carry short-term memory the forgetting curve can't see.
+    const next = nextMemoryState(w, { stability: s, difficulty: d }, rating, elapsed);
+    newStability = next.stability;
+    newDifficulty = next.difficulty;
 
     const stillLearning = repetitions === 0;
     if (rating === 'again') {

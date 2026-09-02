@@ -4,6 +4,7 @@ import { useAuth } from './useAuth';
 import { calculateNextReview, elapsedDaysSince, Rating, type ScheduleOptions } from '@/lib/spacedRepetition';
 import { useDesiredRetention } from './useDesiredRetention';
 import { useFsrsCalibration } from './useFsrsCalibration';
+import { useFsrsWeights } from '@/hooks/useFsrsWeights';
 import { useSRSStats } from './useSRSStats';
 import {
   buildReviewOrder,
@@ -499,6 +500,7 @@ export const useSubmitReview = () => {
   const { user } = useAuth();
   const desiredRetention = useDesiredRetention();
   const stabilityMultiplier = useFsrsCalibration();
+  const { weights } = useFsrsWeights();
   const queryClient = useQueryClient();
   const addXP = useAddXP();
   const incrementReviews = useIncrementReviews();
@@ -522,6 +524,7 @@ export const useSubmitReview = () => {
       return submitRatingToServer(user.id, wordId, rating, currentReview, direction, {
         desiredRetention,
         stabilityMultiplier,
+        weights,
       });
     },
     onSuccess: () => {

@@ -11,6 +11,7 @@ import {
 import { submitRatingToServer } from "@/hooks/useReview";
 import { useDesiredRetention } from "@/hooks/useDesiredRetention";
 import { useFsrsCalibration } from "@/hooks/useFsrsCalibration";
+import { useFsrsWeights } from "@/hooks/useFsrsWeights";
 import type { Rating } from "@/lib/spacedRepetition";
 import type { ScheduleDirection } from "@/lib/reviewOrder";
 import {
@@ -48,6 +49,7 @@ export function useReviewQueue() {
   const addXP = useAddXP();
   const desiredRetention = useDesiredRetention();
   const stabilityMultiplier = useFsrsCalibration();
+  const { weights } = useFsrsWeights();
   const incrementReviews = useIncrementReviews();
   const checkAchievements = useCheckAchievements();
 
@@ -89,7 +91,7 @@ export function useReviewQueue() {
             // that survived the deploy flushing correctly instead of writing
             // them into the wrong column set.
             item.direction ?? "recognition",
-            { desiredRetention, stabilityMultiplier }
+            { desiredRetention, stabilityMultiplier, weights }
           );
           remove(user.id, item.id);
           setPendingCount(count(user.id));
@@ -127,7 +129,7 @@ export function useReviewQueue() {
       flushingRef.current = false;
       setIsFlushing(false);
     }
-  }, [user, addXP, incrementReviews, checkAchievements, queryClient, desiredRetention, stabilityMultiplier]);
+  }, [user, addXP, incrementReviews, checkAchievements, queryClient, desiredRetention, stabilityMultiplier, weights]);
 
   const enqueue = useCallback(
     (args: EnqueueArgs) => {

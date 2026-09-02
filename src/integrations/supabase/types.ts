@@ -3091,6 +3091,9 @@ export type Database = {
           custom_institution: string | null
           desired_retention: number | null
           display_name: string | null
+          fsrs_weights: Json | null
+          fsrs_weights_fitted_at: string | null
+          fsrs_weights_reviews: number | null
           id: string
           institution_id: string | null
           interests: string[]
@@ -3122,6 +3125,9 @@ export type Database = {
           custom_institution?: string | null
           desired_retention?: number | null
           display_name?: string | null
+          fsrs_weights?: Json | null
+          fsrs_weights_fitted_at?: string | null
+          fsrs_weights_reviews?: number | null
           id?: string
           institution_id?: string | null
           interests?: string[]
@@ -3153,6 +3159,9 @@ export type Database = {
           custom_institution?: string | null
           desired_retention?: number | null
           display_name?: string | null
+          fsrs_weights?: Json | null
+          fsrs_weights_fitted_at?: string | null
+          fsrs_weights_reviews?: number | null
           id?: string
           institution_id?: string | null
           interests?: string[]

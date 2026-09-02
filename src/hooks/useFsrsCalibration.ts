@@ -1,6 +1,7 @@
 import { useSRSStats } from "@/hooks/useSRSStats";
 import { useDesiredRetention } from "@/hooks/useDesiredRetention";
 import { calibrationMultiplier } from "@/lib/spacedRepetition";
+import { useFsrsWeights } from "@/hooks/useFsrsWeights";
 
 /**
  * The learner's own FSRS interval correction.
@@ -14,6 +15,12 @@ import { calibrationMultiplier } from "@/lib/spacedRepetition";
 export function useFsrsCalibration(): number {
   const { data: stats } = useSRSStats();
   const desiredRetention = useDesiredRetention();
+  const { weights } = useFsrsWeights();
+
+  // A fitted weight vector already encodes how this learner's memory differs
+  // from the defaults — the multiplier would correct for it twice. It stays
+  // the cold-start path only.
+  if (weights) return 1;
 
   // The windowed measure, not the lifetime one: all-time retention never
   // forgets, so a learner who lapsed heavily as a beginner kept compressed

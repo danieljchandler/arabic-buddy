@@ -24,6 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Rating, calculateNextReview, elapsedDaysSince } from "@/lib/spacedRepetition";
 import { useDesiredRetention } from "@/hooks/useDesiredRetention";
 import { useFsrsCalibration } from "@/hooks/useFsrsCalibration";
+import { useFsrsWeights } from "@/hooks/useFsrsWeights";
 import { useSRSStats } from "@/hooks/useSRSStats";
 import { buildReviewOrder, scheduleDirectionFor, type CardDirection, BEGINNER_REVIEW_THRESHOLD } from "@/lib/reviewOrder";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -124,6 +125,7 @@ const MyWordsReview = () => {
   const [searchParams] = useSearchParams();
   const desiredRetention = useDesiredRetention();
   const stabilityMultiplier = useFsrsCalibration();
+  const { weights } = useFsrsWeights();
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const { activeDialect } = useDialect();
   /**
@@ -620,7 +622,7 @@ const MyWordsReview = () => {
         card.interval_days,
         card.repetitions,
         elapsedDaysSince(card.last_reviewed_at),
-        { desiredRetention, stabilityMultiplier, fuzzSeed: card.id },
+        { desiredRetention, stabilityMultiplier, weights, fuzzSeed: card.id },
       );
 
       const wasNew = card.repetitions === 0;

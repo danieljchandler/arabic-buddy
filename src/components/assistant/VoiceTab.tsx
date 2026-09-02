@@ -16,7 +16,7 @@ import { LiveOrb } from "@/components/assistant/LiveOrb";
 /**
  * Live voice mode of the Ask AI assistant — subscribers only (the server
  * enforces it; the gate here is the honest UI for everyone else). Unlike the
- * conversation-practice panel this does NOT auto-start: a voice call costs
+ * text conversation panel this does NOT auto-start: a voice call costs
  * real money per minute, so it waits for an explicit tap.
  */
 export function VoiceTab() {

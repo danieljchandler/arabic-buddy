@@ -1,4 +1,12 @@
-CREATE TABLE public.monologue_attempts (
+-- Dashboard-generated duplicate of the five hand-written 20260901 plateau
+-- migrations (monologue_attempts, set-phrase production schedule, learner
+-- error sources, shadow_attempts, chunk-coach source). Every statement here
+-- had already been applied by the files that sort before it, so on a fresh
+-- replay it used to fail on its first CREATE TABLE and skip the rest. Kept —
+-- production's migration history records it as applied — but made idempotent
+-- so a rebuilt database replays it cleanly (src/test/migrationReplay.test.ts).
+
+CREATE TABLE IF NOT EXISTS public.monologue_attempts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
   dialect text NOT NULL DEFAULT 'Gulf',
@@ -12,7 +20,7 @@ CREATE TABLE public.monologue_attempts (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_monologue_attempts_user_recent
+CREATE INDEX IF NOT EXISTS idx_monologue_attempts_user_recent
   ON public.monologue_attempts (user_id, dialect, created_at DESC);
 
 GRANT SELECT ON public.monologue_attempts TO authenticated;
@@ -20,6 +28,7 @@ GRANT ALL ON public.monologue_attempts TO service_role;
 
 ALTER TABLE public.monologue_attempts ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own monologue attempts" ON public.monologue_attempts;
 CREATE POLICY "Users can view their own monologue attempts"
   ON public.monologue_attempts
   FOR SELECT
@@ -39,7 +48,7 @@ CREATE INDEX IF NOT EXISTS idx_user_set_phrases_production_due
   ON public.user_set_phrases (user_id, production_next_review_at)
   WHERE production_next_review_at IS NOT NULL;
 
-CREATE TABLE public.shadow_attempts (
+CREATE TABLE IF NOT EXISTS public.shadow_attempts (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id uuid NOT NULL,
   dialect text NOT NULL DEFAULT 'Gulf',
@@ -51,7 +60,7 @@ CREATE TABLE public.shadow_attempts (
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
-CREATE INDEX idx_shadow_attempts_user_clip
+CREATE INDEX IF NOT EXISTS idx_shadow_attempts_user_clip
   ON public.shadow_attempts (user_id, clip_ref, created_at DESC);
 
 GRANT SELECT ON public.shadow_attempts TO authenticated;
@@ -59,6 +68,7 @@ GRANT ALL ON public.shadow_attempts TO service_role;
 
 ALTER TABLE public.shadow_attempts ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own shadow attempts" ON public.shadow_attempts;
 CREATE POLICY "Users can view their own shadow attempts"
   ON public.shadow_attempts
   FOR SELECT

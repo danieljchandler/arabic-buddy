@@ -224,6 +224,7 @@ export const aVocabularyWord = (over: Row = {}): Row => ({
   // un-backfilled word is the normal state of curriculum vocabulary.
   root: null,
   display_order: 1,
+  frequency_rank: null,
   dialect_module: "Gulf",
   created_at: daysAgo(30),
   updated_at: daysAgo(30),
@@ -356,6 +357,7 @@ export const aSetPhrase = (over: Row = {}): Row => ({
   status: "published",
   created_at: daysAgo(30),
   updated_at: daysAgo(30),
+  frequency_rank: null,
   ...over,
 });
 
@@ -427,6 +429,17 @@ export const aPerceptionProgress = (over: Row = {}): Row => ({
   resurface_correct: 0,
   last_practiced_at: daysAgo(1),
   created_at: daysAgo(3),
+  updated_at: daysAgo(1),
+  ...over,
+});
+
+/** One dialect's word-frequency row, as derive-word-frequency writes it. */
+export const aWordFrequency = (over: Row = {}): Row => ({
+  dialect: "Gulf",
+  token: "زين",
+  count: 42,
+  doc_count: 7,
+  zipf: 6.1,
   updated_at: daysAgo(1),
   ...over,
 });

@@ -149,6 +149,7 @@ export const useDueWords = (mixAll = false) => {
             image_position,
             root,
             dialect_module,
+            frequency_rank,
             lessons (
               title,
               title_arabic,

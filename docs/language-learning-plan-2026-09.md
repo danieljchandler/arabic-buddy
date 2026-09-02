@@ -244,9 +244,23 @@ already does this shape offline for Yemeni and is the reference.
 their normalised forms against the table for their dialect.
 
 **3c. Admit new cards by rank.** `buildReviewOrder` sorts the new-card set by
-`frequency_rank` (nulls last) before applying `newCardCap`. Pure; one test.
-This is where R9 compounds: the retrieval-practice gain was driven by
+`frequency_rank` (nulls last, due date breaking ties) before applying
+`newCardCap`, in both the interleaved and the beginner-blocked shapes. Pure;
+tested. This is where R9 compounds: the retrieval-practice gain was driven by
 high-frequency words, and this makes those the ones a learner meets first.
+Shipped for the curriculum deck (`vocabulary_words`), whose words the app
+chooses; the personal deck is the learner's own picks, where a frequency
+order would second-guess them. `set_phrases` receive ranks from the same job
+but their practice order is not yet driven by it.
+
+**3a, as shipped.** The caption source joins `caption_lines` →
+`channel_videos` → `content_channels.dialect`, keeps lines whose own
+`dialect_score` clears a threshold (default 0.05, a parameter on the request
+so it can be tightened once the table exists to compare against), and adds
+published `discover_videos.transcript_lines` at three times the weight. The
+job is secret-guarded (`x-frequency-secret`), replaces the dialect's rows
+each run, and rewrites only the ranks that changed. A word the corpus never
+says gets `NULL`, not a guess.
 
 **3d. Validation set, not source.** Email Soliman & Familiar for the AVP A1–A2
 list (human action). When it arrives, a script compares our A1/A2-ranked words

@@ -1592,6 +1592,33 @@ export type Database = {
         }
         Relationships: []
       }
+      dialect_word_frequency: {
+        Row: {
+          count: number
+          dialect: string
+          doc_count: number
+          token: string
+          updated_at: string
+          zipf: number
+        }
+        Insert: {
+          count?: number
+          dialect: string
+          doc_count?: number
+          token: string
+          updated_at?: string
+          zipf?: number
+        }
+        Update: {
+          count?: number
+          dialect?: string
+          doc_count?: number
+          token?: string
+          updated_at?: string
+          zipf?: number
+        }
+        Relationships: []
+      }
       discover_videos: {
         Row: {
           cefr_level: string | null
@@ -3678,6 +3705,7 @@ export type Database = {
           dialect: string
           difficulty: string
           formality: string
+          frequency_rank: number | null
           id: string
           occasion_id: string | null
           phrase_arabic: string
@@ -3704,6 +3732,7 @@ export type Database = {
           dialect?: string
           difficulty?: string
           formality?: string
+          frequency_rank?: number | null
           id?: string
           occasion_id?: string | null
           phrase_arabic: string
@@ -3730,6 +3759,7 @@ export type Database = {
           dialect?: string
           difficulty?: string
           formality?: string
+          frequency_rank?: number | null
           id?: string
           occasion_id?: string | null
           phrase_arabic?: string
@@ -5376,6 +5406,7 @@ export type Database = {
           created_at: string
           dialect_module: string
           display_order: number
+          frequency_rank: number | null
           id: string
           image_position: string | null
           image_scene_description: string | null
@@ -5397,6 +5428,7 @@ export type Database = {
           created_at?: string
           dialect_module?: string
           display_order?: number
+          frequency_rank?: number | null
           id?: string
           image_position?: string | null
           image_scene_description?: string | null
@@ -5418,6 +5450,7 @@ export type Database = {
           created_at?: string
           dialect_module?: string
           display_order?: number
+          frequency_rank?: number | null
           id?: string
           image_position?: string | null
           image_scene_description?: string | null

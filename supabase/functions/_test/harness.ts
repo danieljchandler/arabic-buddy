@@ -60,6 +60,7 @@ export const FIXTURE_ENV: Record<string, string> = {
   FIRECRAWL_API_KEY: "fixture-firecrawl",
   JINA_API_KEY: "fixture-jina",
   SOCIAL_HARVEST_SECRET: "fixture-harvest-secret",
+  FREQUENCY_DERIVE_SECRET: "fixture-frequency-secret",
   REDDIT_CLIENT_ID: "fixture-reddit-id",
   REDDIT_CLIENT_SECRET: "fixture-reddit-secret",
 

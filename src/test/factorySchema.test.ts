@@ -71,6 +71,7 @@ const FACTORY_TABLES: Record<string, string> = {
   anInviteCode: "invite_codes",
   aReviewLog: "review_log",
   aPerceptionProgress: "user_perception_progress",
+  aWordFrequency: "dialect_word_frequency",
 };
 
 /**

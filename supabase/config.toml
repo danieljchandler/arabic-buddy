@@ -337,3 +337,9 @@ verify_jwt = false
 # human callers are content-manager-role checked inside.
 [functions.harvest-social-trends]
 verify_jwt = false
+
+# Nightly word-frequency derivation for the decks (docs/language-learning-
+# plan-2026-09.md, Phase 3). The scheduler calls it with the
+# FREQUENCY_DERIVE_SECRET header; there is no human caller, so no JWT.
+[functions.derive-word-frequency]
+verify_jwt = false

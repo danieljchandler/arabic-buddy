@@ -44,6 +44,28 @@ export interface SchedulableCard {
   repetitions: number;
   /** ISO timestamp the card came due, used to prioritise the most overdue. */
   due_at: string;
+  /**
+   * 1 = most frequent word in the dialect's own corpus (derive-word-frequency);
+   * null or absent = never seen there. Decides which *new* cards are admitted
+   * first; review cards are owed regardless of how common they are.
+   */
+  frequency_rank?: number | null;
+}
+
+/**
+ * New cards in the order they should be met: most frequent first, unranked
+ * last, due date breaking ties. The retrieval-practice gain the SRS rests on
+ * was driven by high-frequency words (docs/language-learning-research-2026-09.md
+ * §1), and no dialect frequency list exists to import — the rank comes from the
+ * app's own transcripts.
+ */
+export function orderNewByFrequency<T extends SchedulableCard>(cards: T[]): T[] {
+  return [...cards].sort((a, b) => {
+    const ra = a.frequency_rank ?? Number.POSITIVE_INFINITY;
+    const rb = b.frequency_rank ?? Number.POSITIVE_INFINITY;
+    if (ra !== rb) return ra - rb;
+    return Date.parse(a.due_at) - Date.parse(b.due_at);
+  });
 }
 
 export interface OrderOptions {
@@ -138,7 +160,7 @@ export function buildReviewOrder<T extends SchedulableCard>(
     // Same cap, same due-date priority within the block — only the shape
     // changes. Recognition leads because production is unlocked *by* a
     // confident recognition and is the harder direction.
-    const fresh = sorted.filter(isNewCard).slice(0, cap);
+    const fresh = orderNewByFrequency(sorted.filter(isNewCard)).slice(0, cap);
     const blocked = [
       ...fresh.filter((c) => c.card_type !== "production"),
       ...fresh.filter((c) => c.card_type === "production"),
@@ -146,7 +168,7 @@ export function buildReviewOrder<T extends SchedulableCard>(
     return [...reviewCards, ...blocked];
   }
 
-  const newCards = interleaveDirections(sorted.filter(isNewCard)).slice(0, cap);
+  const newCards = interleaveDirections(orderNewByFrequency(sorted.filter(isNewCard))).slice(0, cap);
 
   const out: T[] = [];
   const longest = Math.max(newCards.length, reviewCards.length);

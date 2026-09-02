@@ -3,9 +3,10 @@ import { useReviewSession } from "@/hooks/useReviewSession";
 import { useUserSetPhrasesDueCount } from "@/hooks/useSetPhrases";
 import { useMistakes } from "@/hooks/useLearnerErrors";
 import { useTodaysVideo } from "@/hooks/useTodaysVideo";
+import { usePlacementHistory } from "@/hooks/usePlacementHistory";
 import { useDialect } from "@/contexts/DialectContext";
 import { isTaskCompletedToday } from "@/lib/todayCompletion";
-import { BookOpen, Play, Newspaper, MessageCircle, Flame, Brain, Sparkles, Target, Mic, type LucideIcon } from "lucide-react";
+import { BookOpen, Play, Newspaper, MessageCircle, Flame, Brain, Sparkles, Target, Mic, Gauge, type LucideIcon } from "lucide-react";
 
 export type TodayTaskId =
   | "flashcards"
@@ -16,7 +17,8 @@ export type TodayTaskId =
   | "souq"
   | "set-phrases"
   | "mistake-drill"
-  | "speaking";
+  | "speaking"
+  | "placement";
 
 /** Unresolved mistake groups before the drill earns a slot in the queue. */
 const MISTAKE_DRILL_THRESHOLD = 3;
@@ -83,6 +85,9 @@ export const useTodayQueue = (): TodayTask[] => {
   // The same pick the home page leads with, so the task and the card at the top
   // of the page can never point at two different clips.
   const { video: todaysVideo } = useTodaysVideo();
+  // Placement used to happen once. A re-check earns a slot only when the last
+  // one is old AND enough practice has happened since (usePlacementHistory).
+  const placement = usePlacementHistory();
 
   const vocabDueCount = session.totalDue;
 
@@ -185,6 +190,17 @@ export const useTodayQueue = (): TodayTask[] => {
       icon: Mic,
       done: isTaskCompletedToday("speaking"),
       xpEstimate: 20,
+    },
+    {
+      id: "placement",
+      title: "Re-check your level",
+      subtitle: placement.latest ? `Last placed ${placement.latest.cefr_level}` : "Placement",
+      estMinutes: 8,
+      icon: Gauge,
+      route: "/placement",
+      done: isTaskCompletedToday("placement"),
+      hidden: !placement.replacementDue && !isTaskCompletedToday("placement"),
+      xpEstimate: 30,
     },
     {
       id: "set-phrases",

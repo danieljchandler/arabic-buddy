@@ -342,36 +342,44 @@ and can trail the rest.
 
 ## Phase 6 — Measure proficiency; second dialect signal (P9, P10)
 
-**6a. Recurring placement.** `profiles` already stores
-`placement_level_{gulf,egyptian,yemeni}` and `placement_taken_at_*`, but
-overwrites them. New `placement_results` table (append-only, owner-read,
-written where `PlacementQuiz.tsx:272` writes today) and a `TodayTask`
-"re-check your level" when the last placement is > 90 days old *and* ≥ 300
-reviews have happened since. `LearningAnalytics` gets a level-over-time line —
-the first proficiency measure the page will have shown.
+**6a. Recurring placement — as shipped.** `placement_results` keeps every
+placement (append-only from the client; owner-read; with the rated-review
+count at the time), written beside the profile update. `usePlacementHistory`
+offers a re-check only when the last placement is ≥ 90 days old *and* ≥ 300
+rated reviews have been logged since — either alone measures the wrong
+thing — and the daily queue carries it as "Re-check your level" when due.
+`LearningAnalytics` draws level over time from the history: the first
+proficiency measure the page has shown.
 
-**6b. Two instruments from the Duolingo battery.** A dialect **C-test**
-generator (`askBrain`, `CONTENT`, cloze over a passage at the learner's level)
-and **productive vocabulary** from monologue transcripts (types and tokens —
-`fluencyMetricsCore` already tokenises them). Both are stored against
-`placement_results` so level and productive-vocabulary trends can be read
-together. This is what turns "is it working?" from unanswerable to a chart, and
-it is the precondition for any efficacy or anxiety claim in copy (R5).
+**6b. Instruments from the Duolingo battery — as shipped, half of it.**
+**Productive vocabulary** is live: `src/lib/productiveVocabulary.ts` counts
+distinct words (types) and words (tokens) per monologue transcript with the
+app's own tokeniser, keeps a cumulative spoken vocabulary, and compares the
+latest five monologues with the five before; LearningAnalytics shows it as
+"Words you've said". It is computed on read from `monologue_attempts`, not
+stored — the transcripts are the record. The **C-test** generator is deferred:
+it is a new model-calling surface (generator, edge function, scoring, UI)
+and the plan's remaining budget went to the measures that needed no new
+generation. It stays the next item here.
 
-**6c. ADI2 as a second dialect signal — a spike.** ALDi is a hosted model, not
-a provider API; the app already has an HF integration (`src/lib/huggingface.ts`,
-`hf-chat`). Spike: call Sentence-ALDi through it inside `msaViolationLogger`,
-**log only** alongside the existing detector's verdict for a month, then
-compare against native-review outcomes from the flywheel. Check the model
-licence first. Adopt as a gate only if it beats the word lists on that data.
-Also: note in `docs/testing.md` that Yemeni is absent from AL-QASIDA and our
-golden set is the only Yemeni instrument.
+**6c. ADI2 as a second dialect signal — plumbed, inert.**
+`_shared/aldiSignal.ts` scores text with the Sentence-ALDi model through the
+same HuggingFace inference route `camelDialect.ts` uses, and
+`msaViolationLogger` records the score in each violation's metadata beside
+the word-list verdict. It runs only when `ALDI_HF_MODEL` is set — no model,
+no call — so switching it on is a config change after the licence check
+(human action). Log-only until a month of rows can be compared against
+native-review outcomes. `docs/testing.md` now records that Yemeni is absent
+from AL-QASIDA and the golden set is the only Yemeni instrument.
 
-**6d. Audit MSA-sourced elicitation.** `convert-to-fusha`,
-`translate-story-dialect` and `fushaBridge`: confirm which direction each
-elicits in. Where dialect is generated *from* MSA input, add the MSA-priming
-caution to the prompt and measure the leak rate before and after with
-`scripts/eval-dialect-live.ts --compare`.
+**6d. Audit MSA-sourced elicitation — done.** `convert-to-fusha` and
+`fushaBridge` go dialect → Fusha (the safe direction: the Fusha row is a
+conversion of dialect that already exists). `translate-story-dialect` is the
+one that elicits dialect *from* Fusha, exactly the priming case MADAR's
+authors measured; its prompt now names the trap and demands restructuring
+and lexeme swaps rather than word-for-word rendering, with examples. Leak
+rate before/after is a `scripts/eval-dialect-live.ts --compare` run once real
+keys are in hand — a local/manual tool, not a CI gate.
 
 ---
 

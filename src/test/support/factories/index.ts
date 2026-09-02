@@ -444,6 +444,21 @@ export const aWordFrequency = (over: Row = {}): Row => ({
   ...over,
 });
 
+/** One placement, as the quiz records it. */
+export const aPlacementResult = (over: Row = {}): Row => ({
+  id: "beef0000-0000-4000-8000-000000000001",
+  user_id: TEST_USER_ID,
+  dialect: "Gulf",
+  cefr_level: "A2",
+  confidence: 0.8,
+  strengths: ["listening"],
+  weaknesses: ["grammar"],
+  reviews_at_time: 120,
+  taken_at: daysAgo(100),
+  created_at: daysAgo(100),
+  ...over,
+});
+
 export const aReviewLog = (over: Row = {}): Row => ({
   id: reviewLogId(0),
   user_id: TEST_USER_ID,

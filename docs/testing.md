@@ -156,3 +156,24 @@ streaks and `xp_today_date` all branch on wall-clock time. Freeze it —
 `vi.setSystemTime` in Vitest, `page.clock.install()` in Playwright — at a fixed
 instant that is neither midnight nor a DST boundary. A suite that only fails at
 23:59 UTC is a suite nobody trusts.
+
+## Dialect fidelity and the Yemeni gap
+
+`scripts/eval-dialect-live.ts` measures a model against the repo's frozen
+golden set through the same prompt the Brain builds. Two things about the
+outside benchmarks it might be compared with (see
+`docs/language-learning-research-2026-09.md` §8):
+
+- **AL-QASIDA** (arXiv:2412.04193), the published dialect-fidelity suite,
+  covers Kuwaiti, Saudi (Najdi), Syrian, Palestinian, Sudanese, Egyptian,
+  Algerian and Moroccan. Gulf appears only as Kuwaiti and Najdi; **Yemeni is
+  absent entirely.** Two of Hakiya's three dialects cannot be benchmarked
+  against it, and for Yemeni the golden set here is the only instrument that
+  exists. Treat a Yemeni regression in `eval-dialect-live` as the whole
+  evidence, not a hint.
+- AL-QASIDA's **ADI2** score multiplies **ALDi** (a continuous 0–1 level of
+  dialectness from the Sentence-ALDi model) by dialect-identification
+  confidence. `_shared/aldiSignal.ts` can log ALDi beside
+  `msaLeakDetector`'s word-list verdict when `ALDI_HF_MODEL` (and a
+  HuggingFace key) is set; it is log-only and inert otherwise. Compare the
+  two signals against native-review outcomes before making either a gate.

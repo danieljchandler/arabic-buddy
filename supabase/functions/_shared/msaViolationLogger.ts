@@ -6,6 +6,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 import type { Dialect } from './dialectHelpers.ts';
 import type { MsaLeakResult } from './msaLeakDetector.ts';
 import type { ValidatorResult } from './dialectValidator.ts';
+import { aldiModel, scoreAldi } from './aldiSignal.ts';
 
 interface LogArgs {
   dialect: Dialect;
@@ -63,7 +64,7 @@ export function logMsaViolations(args: LogArgs): void {
 
     const snippet = (args.offendingText ?? '').slice(0, 2000);
     const ruleHits = args.leaks.ruleHits ?? {};
-    const rows = args.leaks.leaks.slice(0, 20).map((token) => ({
+    const rowsWith = (aldiScore: number | null) => args.leaks.leaks.slice(0, 20).map((token) => ({
       dialect: args.dialect,
       offending_text: snippet,
       msa_token: token,
@@ -75,11 +76,18 @@ export function logMsaViolations(args: LogArgs): void {
         original_severity: args.leaks.severity,
         validator_passed: validatorPassed,
         validator_score: args.validator?.score ?? null,
+        // ALDi (0 = fully MSA, 1 = fully dialect) beside the word-list
+        // verdict — log-only, so the two can be compared before either is a
+        // gate. null when the signal is off or the call failed.
+        aldi_score: aldiScore,
         ...(args.metadata ?? {}),
       },
     }));
 
-    sb.from('dialect_rule_violations').insert(rows as any).then(
+    // When ALDi is configured the insert waits for its score; when it is not
+    // (the default), the path is exactly what it was — synchronous issue,
+    // nothing awaited.
+    const insertRows = (aldiScore: number | null) => sb.from('dialect_rule_violations').insert(rowsWith(aldiScore) as any).then(
       ({ data, error }) => {
         if (error) console.warn('[msaViolationLogger] insert failed:', error.message);
         // Enqueue native review when medium/high severity (or explicit flag),
@@ -114,6 +122,15 @@ export function logMsaViolations(args: LogArgs): void {
       },
       (err) => console.warn('[msaViolationLogger] insert threw:', err),
     );
+
+    if (aldiModel()) {
+      scoreAldi(snippet).then(
+        (outcome) => insertRows(outcome.ok ? outcome.score : null),
+        () => insertRows(null),
+      );
+    } else {
+      insertRows(null);
+    }
   } catch (err) {
     console.warn('[msaViolationLogger] unexpected error:', err);
   }

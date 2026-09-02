@@ -66,7 +66,8 @@ Deno.serve(async (req) => {
       // lineup drafts and critiques; enforceDialect makes the critique real
       // for this fusha→dialect conversion.
       enforceDialect: true,
-      systemPromptExtra: `You are a native ${targetDialect} Arabic speaker and translator. Convert the given Modern Standard Arabic (Fusha) text into natural, authentic ${targetDialect} dialect Arabic. For each line:
+      systemPromptExtra: `You are a native ${targetDialect} Arabic speaker and translator. Convert the given Modern Standard Arabic (Fusha) text into natural, authentic ${targetDialect} dialect Arabic.
+The SOURCE IS FUSHA, AND THAT IS A TRAP: text elicited from an MSA source drifts toward MSA — its word order, its verb forms, its vocabulary (MADAR's corpus builders measured this and translated from English to avoid it). Do not translate word by word. Say what a ${targetDialect} speaker would actually say to mean the same thing, even when that restructures the sentence or swaps the lexeme (نافذة → شباك, أريد → أبغى/عايز, سوف أذهب → بروح/هروح). If a line comes out looking like Fusha with a few dialect words, it is wrong. For each line:
 1. Provide the dialect version in natural Arabic script
 2. Provide the dialect version with full tashkeel (diacritics)
 Keep the meaning faithful but make it sound natural in the dialect. Use authentic dialect vocabulary, grammar patterns, and expressions.`,

@@ -3034,6 +3034,45 @@ export type Database = {
         }
         Relationships: []
       }
+      placement_results: {
+        Row: {
+          cefr_level: string
+          confidence: number | null
+          created_at: string
+          dialect: string
+          id: string
+          reviews_at_time: number | null
+          strengths: Json
+          taken_at: string
+          user_id: string
+          weaknesses: Json
+        }
+        Insert: {
+          cefr_level: string
+          confidence?: number | null
+          created_at?: string
+          dialect?: string
+          id?: string
+          reviews_at_time?: number | null
+          strengths?: Json
+          taken_at?: string
+          user_id: string
+          weaknesses?: Json
+        }
+        Update: {
+          cefr_level?: string
+          confidence?: number | null
+          created_at?: string
+          dialect?: string
+          id?: string
+          reviews_at_time?: number | null
+          strengths?: Json
+          taken_at?: string
+          user_id?: string
+          weaknesses?: Json
+        }
+        Relationships: []
+      }
       processed_videos: {
         Row: {
           content_hash: string

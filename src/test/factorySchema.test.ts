@@ -72,6 +72,7 @@ const FACTORY_TABLES: Record<string, string> = {
   aReviewLog: "review_log",
   aPerceptionProgress: "user_perception_progress",
   aWordFrequency: "dialect_word_frequency",
+  aPlacementResult: "placement_results",
 };
 
 /**

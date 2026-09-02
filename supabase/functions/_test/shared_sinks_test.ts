@@ -654,6 +654,41 @@ Deno.test("a detected MSA leak is recorded per offending token", async () => {
   });
 });
 
+Deno.test("a leak carries no ALDi score while the signal is switched off", async () => {
+  await withMsaLogger(async (mod, up) => {
+    mod.logMsaViolations({
+      dialect: "Gulf",
+      leaks: { leaks: ["ماذا"], severity: "low" },
+      offendingText: "ماذا تفعل؟",
+      sourceFunction: "generate-story",
+    });
+    const rows = bodyOf((await waitForCall(up, VIOLATIONS))[0]);
+    assertEquals(rows[0].metadata.aldi_score, null);
+    // No model configured means no call to HuggingFace at all.
+    assertEquals(up.calls.filter((c) => c.url.includes("huggingface.co")).length, 0);
+  });
+});
+
+Deno.test("a leak records ALDi beside the word-list verdict once a model is configured", async () => {
+  await withMsaLogger(
+    async (mod, up) => {
+      up.stub("router.huggingface.co/hf-inference/models/AMR-KELEG/Sentence-ALDi", () =>
+        json([{ label: "ALDi", score: 0.83 }]),
+      );
+      mod.logMsaViolations({
+        dialect: "Gulf",
+        leaks: { leaks: ["ماذا"], severity: "low" },
+        offendingText: "ماذا تفعل؟",
+        sourceFunction: "generate-story",
+      });
+      const rows = bodyOf((await waitForCall(up, VIOLATIONS))[0]);
+      assertEquals(rows[0].metadata.aldi_score, 0.83);
+      assertEquals(rows[0].msa_token, "ماذا", "the word-list verdict is untouched");
+    },
+    { ALDI_HF_MODEL: "AMR-KELEG/Sentence-ALDi", HUGGINGFACE_API_KEY: "fixture-hf-key" },
+  );
+});
+
 Deno.test("a clean text writes nothing", async () => {
   await withMsaLogger(async (mod, up) => {
     mod.logMsaViolations({

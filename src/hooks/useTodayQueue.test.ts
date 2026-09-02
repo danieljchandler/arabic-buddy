@@ -3,11 +3,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHookWithProviders } from "@/test/support/react/harness";
 import {
   aDiscoverVideo,
+  aPlacementResult,
   aProfile,
   aSetPhrase,
   aUserSetPhrase,
   aUserVocabulary,
   aVocabularyWord,
+  aReviewLog,
   aWordReview,
   many,
   reviewId,
@@ -65,17 +67,18 @@ const visible = (tasks: ReturnType<typeof useTodayQueue>) =>
   tasks.filter((task) => !task.hidden).map((task) => task.id);
 
 describe("the task list", () => {
-  it("offers the nine daily tasks", async () => {
+  it("offers the ten daily tasks", async () => {
     const rendered = renderHookWithProviders(() => useTodayQueue(), { persona: "free" });
     cleanup = rendered.cleanup;
 
-    await waitFor(() => expect(rendered.result.current.length).toBe(9));
+    await waitFor(() => expect(rendered.result.current.length).toBe(10));
     expect(rendered.result.current.map((task) => task.id).sort()).toEqual([
       "daily-challenge",
       "daily-story",
       "flashcards",
       "listening",
       "mistake-drill",
+      "placement",
       "reading",
       "set-phrases",
       "souq",
@@ -87,7 +90,7 @@ describe("the task list", () => {
     const rendered = renderHookWithProviders(() => useTodayQueue(), { persona: "free" });
     cleanup = rendered.cleanup;
 
-    await waitFor(() => expect(rendered.result.current.length).toBe(9));
+    await waitFor(() => expect(rendered.result.current.length).toBe(10));
     for (const task of rendered.result.current) {
       expect(task.route, `${task.id} has no route`).toMatch(/^\//);
     }
@@ -97,7 +100,7 @@ describe("the task list", () => {
     const rendered = renderHookWithProviders(() => useTodayQueue(), { persona: "free" });
     cleanup = rendered.cleanup;
 
-    await waitFor(() => expect(rendered.result.current.length).toBe(9));
+    await waitFor(() => expect(rendered.result.current.length).toBe(10));
     for (const task of rendered.result.current) {
       expect(task.estMinutes).toBeGreaterThan(0);
       expect(task.xpEstimate).toBeGreaterThanOrEqual(0);
@@ -253,7 +256,7 @@ describe("the mistake drill", () => {
     });
     cleanup = rendered.cleanup;
 
-    await waitFor(() => expect(rendered.result.current.length).toBe(9));
+    await waitFor(() => expect(rendered.result.current.length).toBe(10));
     expect(visible(rendered.result.current)).not.toContain("mistake-drill");
   });
 
@@ -342,7 +345,7 @@ describe("today's video", () => {
     });
     cleanup = rendered.cleanup;
 
-    await waitFor(() => expect(rendered.result.current.length).toBe(9));
+    await waitFor(() => expect(rendered.result.current.length).toBe(10));
     expect(visible(rendered.result.current)).not.toContain("listening");
   });
 });
@@ -382,6 +385,33 @@ describe("speaking", () => {
   });
 });
 
+describe("re-checking the level", () => {
+  const old = new Date(Date.parse("2026-03-11T12:00:00") - 120 * 86_400_000).toISOString();
+  const reviewsAfter = (n: number) =>
+    many(aReviewLog, n, (i) => ({ id: 7000 + i, reviewed_at: new Date(Date.parse(old) + (i + 1) * 3_600_000).toISOString() }));
+
+  it("stays hidden while the last placement is recent or unpractised", async () => {
+    const rendered = renderHookWithProviders(() => useTodayQueue(), {
+      persona: "free",
+      seed: (b) => { b.db.seed("placement_results", [aPlacementResult({ taken_at: old })]); b.db.seed("review_log", reviewsAfter(5)); },
+    });
+    cleanup = rendered.cleanup;
+    await waitFor(() => expect(taskById(rendered.result.current, "placement")).toBeDefined());
+    await waitFor(() => expect(visible(rendered.result.current)).not.toContain("placement"));
+  });
+
+  it("earns a slot once the placement is old and practice has happened since", async () => {
+    const rendered = renderHookWithProviders(() => useTodayQueue(), {
+      persona: "free",
+      seed: (b) => { b.db.seed("placement_results", [aPlacementResult({ taken_at: old, cefr_level: "A2" })]); b.db.seed("review_log", reviewsAfter(300)); },
+    });
+    cleanup = rendered.cleanup;
+    await waitFor(() => expect(visible(rendered.result.current)).toContain("placement"));
+    expect(taskById(rendered.result.current, "placement")?.subtitle).toBe("Last placed A2");
+    expect(taskById(rendered.result.current, "placement")?.route).toBe("/placement");
+  });
+});
+
 describe("completion", () => {
   const alwaysShown: TodayTaskId[] = ["daily-challenge", "daily-story", "reading", "souq"];
 
@@ -389,7 +419,7 @@ describe("completion", () => {
     const rendered = renderHookWithProviders(() => useTodayQueue(), { persona: "free" });
     cleanup = rendered.cleanup;
 
-    await waitFor(() => expect(rendered.result.current.length).toBe(9));
+    await waitFor(() => expect(rendered.result.current.length).toBe(10));
     for (const id of alwaysShown) {
       expect(taskById(rendered.result.current, id)?.done).toBe(false);
     }
@@ -442,7 +472,7 @@ describe("when the server cannot be reached", () => {
     });
     cleanup = rendered.cleanup;
 
-    await waitFor(() => expect(rendered.result.current.length).toBe(9));
+    await waitFor(() => expect(rendered.result.current.length).toBe(10));
     expect(visible(rendered.result.current)).toEqual(
       expect.arrayContaining(["daily-challenge", "reading", "souq"]),
     );

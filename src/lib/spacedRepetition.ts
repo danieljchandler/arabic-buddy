@@ -1,22 +1,31 @@
 /**
- * FSRS-5 Spaced Repetition Algorithm
+ * FSRS-6 Spaced Repetition Algorithm
  *
- * Free Spaced Repetition Scheduler v5 — the algorithm Anki ships (24.11+).
- * Substantially outperforms SM-2, and improves on FSRS-4.5 by modelling
- * same-day (short-term) reviews, which 4.5 could not represent at all.
+ * Free Spaced Repetition Scheduler v6 — the current release of the algorithm
+ * Anki ships. On the maintainers' benchmark (9,999 collections, 350M reviews)
+ * it beats FSRS-5 on every metric (log loss 0.3460 vs 0.3561), and the gap to
+ * the next version is smaller than the gap between stock and per-learner
+ * weights — which is why this module takes a `weights` option and why
+ * review_log exists (docs/language-learning-research-2026-09.md §1).
  *
  * Key ideas:
  *   - Uses stability (S) instead of an ease factor: S = days until 90% retention
  *   - Uses difficulty (D, 1–10) to modulate stability growth
- *   - Forgetting curve: R(t,S) = (1 + FACTOR × t/S)^DECAY
+ *   - Forgetting curve: R(t,S) = (1 + factor × t/S)^(−w20). FSRS-6's one
+ *     structural change: the curve's flatness is a *trained* parameter, so a
+ *     learner whose memories fade steeply and one whose fade slowly get
+ *     different curves rather than the same shape rescaled.
  *   - Stability after recall grows from current difficulty + retrievability
- *   - Stability after forgetting uses a separate formula, capped at the
+ *   - Stability after forgetting uses a separate formula, capped below the
  *     pre-lapse stability (forgetting can only ever lower the estimate)
  *   - A review on the *same day* as the last one uses the dedicated
- *     short-term formula S′ = S · e^(w17 · (G − 3 + w18)). Without it, a
- *     re-rated card has retrievability ≈ 1, the growth term collapses to
+ *     short-term formula S′ = S · e^(w17 · (G − 3 + w18)) · S^(−w19) — the
+ *     S^(−w19) term is FSRS-6's revision, so a small stability grows faster
+ *     and a large one slower. Without a same-day formula at all (FSRS-4.5),
+ *     a re-rated card has retrievability ≈ 1, the growth term collapses to
  *     zero, and Hard/Good/Easy all produce the *identical* interval — the
- *     "every button says 13d" bug.
+ *     "every button says 13d" bug. FSRS-6 also floors a same-day success at
+ *     ×1: Hard minutes after Good no longer *shrinks* the estimate.
  *
  * State stored per card:
  *   ease_factor  → stability S (days to 90% retention)
@@ -24,7 +33,8 @@
  *   interval_days → last scheduled interval (rounded stability)
  *   repetitions  → number of completed (graduated) reviews
  *
- * Reference: https://github.com/open-spaced-repetition/fsrs4anki/wiki/The-Algorithm
+ * Reference: https://github.com/open-spaced-repetition/awesome-fsrs/wiki/The-Algorithm
+ * and fsrs-rs src/model.rs, which the formulas below follow line for line.
  */
 
 export type Rating = 'again' | 'hard' | 'good' | 'easy';
@@ -39,34 +49,58 @@ export interface ReviewResult {
   nextReviewAt: Date;
 }
 
-// ── FSRS-5 default parameters ─────────────────────────────────────────────────
-// The stock 19-weight parameter set shipped with Anki/py-fsrs, trained on
-// ~10k Anki collections. Can be personalised per-user with the optimizer;
-// these defaults work well for most learners.
-const W = [
-  0.40255,  // w0:  S₀ for Again
-  1.18385,  // w1:  S₀ for Hard
-  3.173,    // w2:  S₀ for Good
-  15.69105, // w3:  S₀ for Easy
-  7.1949,   // w4:  D₀ base
-  0.5345,   // w5:  D₀ exponent
-  1.4604,   // w6:  difficulty delta weight
-  0.0046,   // w7:  difficulty mean-reversion weight
-  1.54575,  // w8:  recall stability: base exponent
-  0.1192,   // w9:  recall stability: S^(-w9)
-  1.01925,  // w10: recall stability: R factor
-  1.9395,   // w11: forget stability: multiplier
-  0.11,     // w12: forget stability: D^(-w12)
-  0.29605,  // w13: forget stability: (S+1)^w13
-  2.2698,   // w14: forget stability: R factor
-  0.2315,   // w15: Hard penalty
-  2.9898,   // w16: Easy bonus
-  0.51655,  // w17: short-term (same-day) stability: rating weight
-  0.6621,   // w18: short-term (same-day) stability: rating offset
-];
+// ── FSRS-6 default parameters ─────────────────────────────────────────────────
+// The stock 21-weight set (fsrs-rs DEFAULT_PARAMETERS), trained on ~10k Anki
+// collections. Per-learner weights fitted from review_log replace these
+// through ScheduleOptions.weights; these are what everyone starts on.
+export const FSRS6_DEFAULT_WEIGHTS: readonly number[] = Object.freeze([
+  0.212,   // w0:  S₀ for Again
+  1.2931,  // w1:  S₀ for Hard
+  2.3065,  // w2:  S₀ for Good
+  8.2956,  // w3:  S₀ for Easy
+  6.4133,  // w4:  D₀ base
+  0.8334,  // w5:  D₀ exponent
+  3.0194,  // w6:  difficulty delta weight
+  0.001,   // w7:  difficulty mean-reversion weight
+  1.8722,  // w8:  recall stability: base exponent
+  0.1666,  // w9:  recall stability: S^(-w9)
+  0.796,   // w10: recall stability: R factor
+  1.4835,  // w11: forget stability: multiplier
+  0.0614,  // w12: forget stability: D^(-w12)
+  0.2629,  // w13: forget stability: (S+1)^w13
+  1.6483,  // w14: forget stability: R factor
+  0.6014,  // w15: Hard penalty
+  1.8729,  // w16: Easy bonus
+  0.5425,  // w17: short-term (same-day) stability: rating weight
+  0.0912,  // w18: short-term (same-day) stability: rating offset
+  0.0658,  // w19: short-term (same-day) stability: S^(-w19)
+  0.1542,  // w20: forgetting-curve decay (the curve's flatness)
+]);
 
-const DECAY  = -0.5;
-const FACTOR = 19 / 81; // ≈ 0.2346 — derived from DECAY and 90% retention target
+export const WEIGHT_COUNT = 21;
+export const FSRS_VERSION = 6;
+
+/**
+ * A usable weight vector, or the defaults. A stored vector of the wrong
+ * length or with a non-finite entry is ignored whole rather than patched —
+ * a half-trusted parameter set schedules worse than none.
+ */
+export function resolveWeights(weights: readonly number[] | null | undefined): readonly number[] {
+  if (!weights || weights.length !== WEIGHT_COUNT) return FSRS6_DEFAULT_WEIGHTS;
+  for (const w of weights) if (!Number.isFinite(w)) return FSRS6_DEFAULT_WEIGHTS;
+  if (!(weights[20] > 0)) return FSRS6_DEFAULT_WEIGHTS;
+  return weights;
+}
+
+/** The curve's exponent for a weight set: negative, −w20. */
+export function decayOf(w: readonly number[]): number {
+  return -w[20];
+}
+
+/** The curve's scale for a weight set, chosen so that R(S, S) = 0.9. */
+export function factorOf(w: readonly number[]): number {
+  return Math.exp(Math.log(0.9) / decayOf(w)) - 1;
+}
 
 /** Stability bounds — the model's estimate, not the schedule. */
 const MIN_STABILITY = 0.1;
@@ -98,12 +132,20 @@ export interface ScheduleOptions {
    * same number. Absent = no fuzz, which keeps historical behaviour.
    */
   fuzzSeed?: string;
+  /**
+   * This learner's fitted FSRS-6 weights (21 numbers), from
+   * profiles.fsrs_weights. Absent or unusable = the stock defaults. Fitting
+   * beats the version bump: FSRS-7 on stock weights scores worse than
+   * per-learner FSRS-5 on the maintainers' benchmark.
+   */
+  weights?: readonly number[] | null;
 }
 
 /** Interval multiplier for a desired retention; 1.0 at the 90% default. */
-export function retentionFactor(desiredRetention: number | undefined): number {
+export function retentionFactor(desiredRetention: number | undefined, weights?: readonly number[] | null): number {
+  const w = resolveWeights(weights);
   const r = Math.min(0.97, Math.max(0.7, desiredRetention ?? 0.9));
-  return (Math.pow(r, 1 / DECAY) - 1) / FACTOR;
+  return (Math.pow(r, 1 / decayOf(w)) - 1) / factorOf(w);
 }
 
 // ── Per-learner calibration ───────────────────────────────────────────────────
@@ -131,10 +173,10 @@ const CALIBRATION_MAX = 1.5;
  * FSRS parameters, as a multiplier on stability at scheduling time.
  *
  * The FSRS weights are trained on thousands of Anki users and are the same
- * for everyone here. Fitting all nineteen per learner is the full optimiser
- * and needs a per-review event log this app does not keep. But one number —
- * is this learner's memory stronger or weaker than the defaults assume? — is
- * recoverable from state already stored, and carries most of the benefit.
+ * for everyone until a learner has enough review_log history to fit their
+ * own (ScheduleOptions.weights). Until then, one number — is this learner's
+ * memory stronger or weaker than the defaults assume? — is recoverable from
+ * state already stored, and it is the cold-start path.
  *
  * FSRS schedules every review to land at the learner's target recall
  * probability, so across many reviews their observed success rate *should*
@@ -160,7 +202,9 @@ export function calibrationMultiplier(
   observedRetention: number | undefined,
   targetRetention: number | undefined,
   reviewCount: number,
+  weights?: readonly number[] | null,
 ): number {
+  const decay = decayOf(resolveWeights(weights));
   if (!Number.isFinite(reviewCount) || reviewCount < MIN_REVIEWS_TO_CALIBRATE) return 1;
   if (observedRetention == null || !Number.isFinite(observedRetention)) return 1;
 
@@ -171,7 +215,7 @@ export function calibrationMultiplier(
   const target = Math.min(0.97, Math.max(0.7, targetRetention ?? 0.9));
 
   const raw =
-    (Math.pow(target, 1 / DECAY) - 1) / (Math.pow(observed, 1 / DECAY) - 1);
+    (Math.pow(target, 1 / decay) - 1) / (Math.pow(observed, 1 / decay) - 1);
   if (!Number.isFinite(raw) || raw <= 0) return 1;
 
   const weight = reviewCount / (reviewCount + CALIBRATION_SHRINKAGE);
@@ -213,18 +257,18 @@ const RATING_NUM: Record<Rating, number> = { again: 1, hard: 2, good: 3, easy: 4
 // ── Core formulas ─────────────────────────────────────────────────────────────
 
 /** Probability of recall after `elapsed` days given stability `s`. */
-function retrievability(elapsed: number, s: number): number {
-  return Math.pow(1 + FACTOR * Math.max(elapsed, 0) / s, DECAY);
+export function retrievability(elapsed: number, s: number, w: readonly number[] = FSRS6_DEFAULT_WEIGHTS): number {
+  return Math.pow(1 + factorOf(w) * Math.max(elapsed, 0) / s, decayOf(w));
 }
 
 /** Initial stability for a brand-new card. */
-function initStability(r: number): number {
-  return clampS(W[r - 1]);
+function initStability(w: readonly number[], r: number): number {
+  return clampS(w[r - 1]);
 }
 
 /** Initial difficulty (1–10) for a brand-new card. */
-function initDifficulty(r: number): number {
-  return clampD(W[4] - Math.exp(W[5] * (r - 1)) + 1);
+function initDifficulty(w: readonly number[], r: number): number {
+  return clampD(w[4] - Math.exp(w[5] * (r - 1)) + 1);
 }
 
 function clampD(d: number): number {
@@ -236,26 +280,26 @@ function clampS(s: number): number {
 }
 
 /**
- * Next difficulty after a review. FSRS-5: the delta is linearly damped as
- * difficulty approaches 10 (so a hard card can't saturate in a handful of
- * lapses), then mean-reverted toward the "Easy" baseline D₀(4) so difficulty
- * can't drift and stick at an extreme.
+ * Next difficulty after a review: the delta is linearly damped as difficulty
+ * approaches 10 (so a hard card can't saturate in a handful of lapses), then
+ * mean-reverted toward the "Easy" baseline D₀(4) so difficulty can't drift
+ * and stick at an extreme.
  */
-function nextDifficulty(d: number, r: number): number {
-  const delta = -W[6] * (r - 3);
+function nextDifficulty(w: readonly number[], d: number, r: number): number {
+  const delta = -w[6] * (r - 3);
   const damped = d + delta * ((10 - d) / 9);
-  return clampD(W[7] * initDifficulty(4) + (1 - W[7]) * damped);
+  return clampD(w[7] * initDifficulty(w, 4) + (1 - w[7]) * damped);
 }
 
 /** Stability after a successful recall (Hard/Good/Easy) on a later day. */
-function nextRecallStability(d: number, s: number, r: number, rating: number): number {
-  const hardPenalty = rating === 2 ? W[15] : 1;
-  const easyBonus   = rating === 4 ? W[16] : 1;
+function nextRecallStability(w: readonly number[], d: number, s: number, r: number, rating: number): number {
+  const hardPenalty = rating === 2 ? w[15] : 1;
+  const easyBonus   = rating === 4 ? w[16] : 1;
   return s * (
-    Math.exp(W[8]) *
+    Math.exp(w[8]) *
     (11 - d) *
-    Math.pow(s, -W[9]) *
-    (Math.exp(W[10] * (1 - r)) - 1) *
+    Math.pow(s, -w[9]) *
+    (Math.exp(w[10] * (1 - r)) - 1) *
     hardPenalty *
     easyBonus
     + 1
@@ -264,29 +308,34 @@ function nextRecallStability(d: number, s: number, r: number, rating: number): n
 
 /**
  * Stability after forgetting (Again) on a later day. Lower than before but
- * not zero; capped at the pre-lapse stability because a lapse is evidence the
- * estimate was too high, never too low.
+ * not zero. FSRS-6 caps it at S / e^(w17·w18) — strictly below the pre-lapse
+ * stability — because a lapse is evidence the estimate was too high, never
+ * too low.
  */
-function nextForgetStability(d: number, s: number, r: number): number {
+function nextForgetStability(w: readonly number[], d: number, s: number, r: number): number {
   const forget =
-    W[11] *
-    Math.pow(d, -W[12]) *
-    (Math.pow(s + 1, W[13]) - 1) *
-    Math.exp(W[14] * (1 - r));
-  return Math.min(forget, s);
+    w[11] *
+    Math.pow(d, -w[12]) *
+    (Math.pow(s + 1, w[13]) - 1) *
+    Math.exp(w[14] * (1 - r));
+  const cap = s / Math.exp(w[17] * w[18]);
+  return Math.min(forget, cap);
 }
 
 /**
- * Stability after a review on the *same day* as the previous one (FSRS-5).
+ * Stability after a review on the *same day* as the previous one.
  *
  * The forgetting-curve formulas above are undefined for this case: minutes
  * after a review, retrievability ≈ 1, the growth term (e^(w10·(1−R)) − 1)
  * is ≈ 0, and every success rating returns S′ ≈ S — identical intervals on
- * Hard, Good and Easy. This dedicated formula keeps the ratings meaningful:
- * with stock weights, Again ≈ ×0.55, Hard ≈ ×0.84, Good ≈ ×1.41, Easy ≈ ×2.36.
+ * Hard, Good and Easy. This dedicated formula keeps the ratings meaningful.
+ * FSRS-6's S^(−w19) term grows a small stability faster than a large one,
+ * and a success (Hard/Good/Easy) is floored at ×1 — re-rating Hard minutes
+ * after Good is not evidence the memory got weaker.
  */
-function shortTermStability(s: number, rating: number): number {
-  return s * Math.exp(W[17] * (rating - 3 + W[18]));
+function shortTermStability(w: readonly number[], s: number, rating: number): number {
+  const sinc = Math.exp(w[17] * (rating - 3 + w[18])) * Math.pow(s, -w[19]);
+  return s * (rating >= 2 ? Math.max(sinc, 1) : sinc);
 }
 
 // ── Learning steps ────────────────────────────────────────────────────────────
@@ -302,7 +351,7 @@ const RELEARNING_STEP     = 10 / 1440;
 // ── Main scheduling function ──────────────────────────────────────────────────
 
 /**
- * Calculate the next review schedule using FSRS-5.
+ * Calculate the next review schedule using FSRS-6.
  *
  * @param rating     User's recall rating
  * @param stability  Current stability S (stored in ease_factor column). 0 for new cards.
@@ -326,11 +375,12 @@ export function calculateNextReview(
   options?: ScheduleOptions,
 ): ReviewResult {
   const r = RATING_NUM[rating];
+  const w = resolveWeights(options?.weights);
   // Retention target and per-learner calibration both scale stability into an
   // interval, so they compose as one factor. Stored stability stays the
   // model's own estimate — see calibrationMultiplier.
   const calibration = clampCalibration(options?.stabilityMultiplier);
-  const intervalFactor = retentionFactor(options?.desiredRetention) * calibration;
+  const intervalFactor = retentionFactor(options?.desiredRetention, w) * calibration;
 
   // A card has a memory state once any rating has been recorded for it.
   // `repetitions` stays 0 through the learning steps (Again/Hard), so it alone
@@ -349,8 +399,8 @@ export function calculateNextReview(
 
   if (!hasMemoryState) {
     // ── First exposure ──────────────────────────────────────────────────────
-    newStability  = initStability(r);
-    newDifficulty = initDifficulty(r);
+    newStability  = initStability(w, r);
+    newDifficulty = initDifficulty(w, r);
 
     if (rating === 'again' || rating === 'hard') {
       newInterval = rating === 'again' ? LEARNING_STEP_AGAIN : LEARNING_STEP_HARD;
@@ -371,18 +421,18 @@ export function calculateNextReview(
     const elapsed = elapsedDays != null
       ? Math.max(elapsedDays, 0)
       : Math.max(intervalDays, 1);
-    // FSRS-5's same-day boundary: reviews under a day apart carry short-term
+    // The same-day boundary: reviews under a day apart carry short-term
     // memory the forgetting curve can't see.
     const sameDay = elapsed < 1;
 
-    newDifficulty = nextDifficulty(d, r);
+    newDifficulty = nextDifficulty(w, d, r);
 
     if (sameDay) {
-      newStability = clampS(shortTermStability(s, r));
+      newStability = clampS(shortTermStability(w, s, r));
     } else if (rating === 'again') {
-      newStability = clampS(nextForgetStability(d, s, retrievability(elapsed, s)));
+      newStability = clampS(nextForgetStability(w, d, s, retrievability(elapsed, s, w)));
     } else {
-      newStability = clampS(nextRecallStability(d, s, retrievability(elapsed, s), r));
+      newStability = clampS(nextRecallStability(w, d, s, retrievability(elapsed, s, w), r));
     }
 
     const stillLearning = repetitions === 0;

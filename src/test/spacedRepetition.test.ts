@@ -6,10 +6,15 @@ import {
   estimateNextInterval,
   elapsedDaysSince,
   MIN_REVIEWS_TO_CALIBRATE,
+  FSRS6_DEFAULT_WEIGHTS,
+  WEIGHT_COUNT,
+  resolveWeights,
+  retrievability,
+  decayOf,
 } from "@/lib/spacedRepetition";
 import type { Rating } from "@/lib/spacedRepetition";
 
-describe("FSRS-5 spacedRepetition", () => {
+describe("FSRS-6 spacedRepetition", () => {
   describe("calculateNextReview - new cards", () => {
     it("returns short interval for 'again' on new card", () => {
       const result = calculateNextReview("again", 0, 5, 0, 0);
@@ -53,28 +58,49 @@ describe("FSRS-5 spacedRepetition", () => {
     });
   });
 
-  describe("same-day re-reviews (FSRS-5 short-term memory)", () => {
+  describe("same-day re-reviews (short-term memory)", () => {
     // The regression this guards: a card re-rated minutes after its last
     // review (relearn queue, lesson quiz, impatient learner) had
     // retrievability ≈ 1, so the FSRS-4.5 growth term collapsed to zero and
     // Hard, Good and Easy all produced the *identical* interval — the
-    // "every button says 13d" bug. FSRS-5's short-term formula keeps the
-    // ratings meaningful.
+    // "every button says 13d" bug. The short-term formula keeps the ratings
+    // meaningful.
     const MINUTES_AGO = 5 / 1440;
 
-    it("differentiates hard/good/easy re-rated minutes after a review", () => {
+    it("keeps the ratings ordered minutes after a review: hard ≤ good < easy, again below all", () => {
+      // FSRS-6 floors a same-day *success* at ×1, so on a mature card Hard
+      // and Good can tie (neither is evidence the memory changed); Easy still
+      // grows it and Again still shrinks it. What must never come back is the
+      // FSRS-4.5 collapse where all three successes and the failure were one
+      // number.
+      const again = calculateNextReview("again", 15, 5, 15, 1, MINUTES_AGO);
       const hard = calculateNextReview("hard", 15, 5, 15, 1, MINUTES_AGO);
       const good = calculateNextReview("good", 15, 5, 15, 1, MINUTES_AGO);
       const easy = calculateNextReview("easy", 15, 5, 15, 1, MINUTES_AGO);
-      expect(hard.intervalDays).toBeLessThan(good.intervalDays);
+      expect(again.stability).toBeLessThan(hard.stability);
+      expect(hard.stability).toBeLessThanOrEqual(good.stability);
+      expect(good.stability).toBeLessThan(easy.stability);
       expect(good.intervalDays).toBeLessThan(easy.intervalDays);
     });
 
-    it("hard shrinks stability and easy grows it on a same-day review", () => {
+    it("never shrinks stability on a same-day success, and grows it on easy", () => {
+      // FSRS-6 floors a same-day Hard/Good/Easy at ×1: re-rating Hard minutes
+      // after Good is not evidence the memory got weaker. (FSRS-5 shrank it.)
       const hard = calculateNextReview("hard", 15, 5, 15, 1, MINUTES_AGO);
       const easy = calculateNextReview("easy", 15, 5, 15, 1, MINUTES_AGO);
-      expect(hard.stability).toBeLessThan(15);
+      expect(hard.stability).toBeGreaterThanOrEqual(15);
       expect(easy.stability).toBeGreaterThan(15);
+    });
+
+    it("still shrinks stability on a same-day again", () => {
+      const again = calculateNextReview("again", 15, 5, 15, 1, MINUTES_AGO);
+      expect(again.stability).toBeLessThan(15);
+    });
+
+    it("grows a small stability proportionally more than a large one (the S^-w19 term)", () => {
+      const small = calculateNextReview("good", 2, 5, 2, 1, MINUTES_AGO);
+      const large = calculateNextReview("good", 60, 5, 60, 1, MINUTES_AGO);
+      expect(small.stability / 2).toBeGreaterThan(large.stability / 60);
     });
 
     it("grows stability far less same-day than across a full interval", () => {
@@ -239,6 +265,49 @@ describe("FSRS-5 spacedRepetition", () => {
     it("never returns a negative value for a future timestamp", () => {
       const future = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
       expect(elapsedDaysSince(future)).toBe(0);
+    });
+  });
+
+  describe("FSRS-6 weights", () => {
+    it("ships the stock 21-weight set", () => {
+      expect(FSRS6_DEFAULT_WEIGHTS).toHaveLength(WEIGHT_COUNT);
+      expect(FSRS6_DEFAULT_WEIGHTS[20]).toBeCloseTo(0.1542, 4);
+    });
+
+    it("keeps R(S, S) = 0.9 for any decay — the curve is rescaled, not redefined", () => {
+      for (const w20 of [0.05, 0.1542, 0.5, 0.9]) {
+        const w = [...FSRS6_DEFAULT_WEIGHTS]; w[20] = w20;
+        expect(retrievability(10, 10, w)).toBeCloseTo(0.9, 6);
+      }
+      expect(decayOf(FSRS6_DEFAULT_WEIGHTS)).toBeLessThan(0);
+    });
+
+    it("ignores a weight vector of the wrong length or with a bad entry, whole", () => {
+      expect(resolveWeights(null)).toBe(FSRS6_DEFAULT_WEIGHTS);
+      expect(resolveWeights([1, 2, 3])).toBe(FSRS6_DEFAULT_WEIGHTS);
+      const nan = [...FSRS6_DEFAULT_WEIGHTS]; nan[8] = Number.NaN;
+      expect(resolveWeights(nan)).toBe(FSRS6_DEFAULT_WEIGHTS);
+      const zeroDecay = [...FSRS6_DEFAULT_WEIGHTS]; zeroDecay[20] = 0;
+      expect(resolveWeights(zeroDecay)).toBe(FSRS6_DEFAULT_WEIGHTS);
+      const fine = [...FSRS6_DEFAULT_WEIGHTS];
+      expect(resolveWeights(fine)).toBe(fine);
+    });
+
+    it("schedules differently on a learner's own weights", () => {
+      const stock = calculateNextReview("good", 40, 5, 40, 6, 40);
+      const strongerMemory = [...FSRS6_DEFAULT_WEIGHTS]; strongerMemory[8] += 0.5;
+      const fitted = calculateNextReview("good", 40, 5, 40, 6, 40, { weights: strongerMemory });
+      expect(fitted.stability).toBeGreaterThan(stock.stability);
+      expect(fitted.intervalDays).toBeGreaterThan(stock.intervalDays);
+    });
+
+    it("caps post-lapse stability strictly below the pre-lapse value", () => {
+      const w = FSRS6_DEFAULT_WEIGHTS;
+      const cap = 50 / Math.exp(w[17] * w[18]);
+      // An absurdly overdue lapse would otherwise compute a large S′.
+      const lapse = calculateNextReview("again", 50, 1, 50, 8, 1000);
+      expect(lapse.stability).toBeLessThanOrEqual(cap + 1e-4);
+      expect(lapse.stability).toBeLessThan(50);
     });
   });
 

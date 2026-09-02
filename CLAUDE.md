@@ -96,18 +96,22 @@ harness.
 - **The lint ratchet has a hard-coded baseline.** `scripts/lint-ratchet.mjs`
   pins `BASELINE` (currently 530 errors). If you legitimately reduce the count,
   lower `BASELINE` in the same commit — the script prints the new number.
-- **Flashcard scheduling is FSRS-5, not FSRS-4.5 or SM-2.** `src/lib/spacedRepetition.ts`
-  implements the stock FSRS-5 parameters and formulas (Anki ships this since
-  24.11). The reason it has to be v5: FSRS-4.5 has no model for a review on
-  the *same day* as the card's last one (relearn queue, a lesson quiz, a
-  same-day re-review) — retrievability is ~1, the stability growth term
-  collapses to zero, and Hard/Good/Easy all produce the identical interval.
-  FSRS-5's short-term formula `S' = S · e^(w17·(G−3+w18))` is what makes those
-  ratings actually differentiate. Post-lapse stability is capped at the
-  pre-lapse value (forgetting only ever lowers the estimate, never raises it),
-  and a card still in learning keeps its memory state instead of
-  re-initialising as brand-new. Don't "simplify" this back toward 4.5 or SM-2 —
-  that's exactly the bug it fixes.
+- **Flashcard scheduling is FSRS-6, not FSRS-4.5 or SM-2, and the weights are
+  meant to be fitted.** `src/lib/spacedRepetition.ts` implements the FSRS-6
+  formulas line for line from fsrs-rs (21 weights). Two things it must keep:
+  a same-day review uses the dedicated short-term formula
+  `S' = S · e^(w17·(G−3+w18)) · S^(−w19)` (FSRS-4.5 had no same-day model, so
+  Hard/Good/Easy minutes after a review all produced the identical interval),
+  and post-lapse stability is capped at `S / e^(w17·w18)`, strictly below the
+  pre-lapse value (forgetting only ever lowers the estimate). FSRS-6's own
+  additions are the trained forgetting-curve decay `w20` and the `S^(−w19)`
+  term; a same-day *success* is floored at ×1. Don't "simplify" any of this
+  back toward 4.5 or SM-2. `ScheduleOptions.weights` takes a learner's fitted
+  vector from `profiles.fsrs_weights` — on the maintainers' benchmark
+  per-learner fitting is worth more than an algorithm version, which is what
+  `review_log` (trigger-populated, never client-written) exists for; the
+  `calibrationMultiplier` scalar is the cold-start path until a learner has
+  enough history.
 - **Vitest and Playwright share one in-memory Supabase backend.**
   `src/test/support/` is a real PostgREST emulator — it parses the query,
   applies filters/ordering/limits/counts, persists writes, and implements RPCs

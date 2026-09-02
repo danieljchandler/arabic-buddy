@@ -20,6 +20,14 @@ second reader has not confirmed the number. Where a claim would change a build
 decision, its label says how much weight it can carry. Four claims were voted
 down and are recorded in §9 rather than quietly dropped.
 
+**Second pass (same date).** A targeted follow-up verified the four claims that
+were load-bearing but unverified: lexical coverage thresholds, high-variability
+phonetic training, the AI-speaking-anxiety result, and the practical
+availability of the AVP and the speech corpora. All four are now settled and
+marked `confirmed`. Three of them **changed a recommendation**, and one
+**blocked one outright** — the Casablanca corpus is licensed non-commercially
+(§8), so the fine-tuning proposal in P10 cannot proceed as written.
+
 ---
 
 ## 1. Spaced repetition: the scheduler is not where the wins are left
@@ -146,6 +154,43 @@ with transcripts, and that pairing *is* reading-while-listening. The finding
 argues for making the transcript the primary object and the video the carrier —
 not for dropping video, which does motivational work this meta-analysis does not
 measure.
+
+**`confirmed` (second pass) — coverage thresholds are mode-dependent, and this
+is the finding that corrects our bands.** The first draft of this document
+asserted that "nothing in the coverage literature supports 70%" on the strength
+of background knowledge rather than a checked source. Verified, the picture is
+more interesting than a single floor:
+
+| Mode | Minimal adequate | Optimal |
+|---|---|---|
+| Reading | ~95% (Laufer & Ravenhorst-Kalovski 2010) | **98%** (Hu & Nation 2000) |
+| Listening | — | **95%** (van Zeeland & Schmitt 2013 — 90% and 95% gave similar comprehension, but 95% was more consistent) |
+| **Viewing (audiovisual)** | **80%** | **95%** |
+
+The viewing row comes from a direct test (76 L2 + 40 L1 participants, four
+2-minute *Planet Earth* clips at 100/95/90/80% coverage). L2 mean scores out of
+14 were 11.50 / 11.20 / 10.56 / 10.14 — a shallow gradient. The authors conclude:
+"We suggest an optimal lexical coverage of 95% to achieve an optimal adequate
+viewing comprehension score of at least 85.7%, and a minimal lexical coverage of
+80% to achieve a minimal adequate viewing comprehension score of 71.4% or more,"
+and note that "imagery aids comprehension causing viewing to differ from reading
+and listening."
+Source: https://www.cambridge.org/core/journals/studies-in-second-language-acquisition/article/lexical-coverage-in-l1-and-l2-viewing-comprehension/DFCA6605076705D5762C98F286D16B27
+
+**So `comprehension.ts` is wrong in a more specific way than first stated.** Its
+single pair of bands (≥0.9 / ≥0.7) is applied to every surface regardless of
+mode. Video with strong imagery genuinely tolerates ~80%; a transcript read
+without audio needs ~95%. And 70% sits below even the most permissive threshold
+measured anywhere in this literature.
+
+**This also resolves the apparent tension with the input-mode finding above.**
+Video is the *most* forgiving mode for comprehension (lowest coverage
+requirement — imagery does real work) and the *least* productive mode for
+vocabulary pickup (7% immediate, 5% delayed). Both are true and they do not
+conflict; they describe different outcomes. The design consequence is precise:
+**video is the better on-ramp and the worse acquisition channel.** Use it to
+build comprehension and motivation at low vocabulary; do not expect words to
+stick from it.
 
 **`unverified` — extensive reading works and constrained beats free.** A 2025
 meta-analysis (73 studies, 82 interventions) reports d = 0.41 overall, positive
@@ -285,6 +330,44 @@ it.** From Arab Voices (https://arxiv.org/pdf/2601.13319) and Casablanca
 PESQ / SI-SDR (TorchAudio-SQUIM) do not track human quality judgments on Arabic
 speech and penalize expressive or religious recordings listeners rate highly.
 
+### 5b. Perception training (HVPT) — confirmed, with a design spec
+
+The first draft flagged this as a reasoned inference. It is now `confirmed`
+(second pass) from the meta-analysis by **Uchihara, Karas & Thomson (2025),
+*Studies in Second Language Acquisition*** — 79 reports, 99 unique experimental
+groups:
+https://www.cambridge.org/core/journals/studies-in-second-language-acquisition/article/high-variability-phonetic-training-hvpt-a-metaanalysis-of-l2-perceptual-training-studies/6ABB8C1F32D88D53EA8D05A4565E76F6
+
+- **Perception gains: g = 0.92** [0.83, 1.00], k = 96 (pretest–posttest);
+  **g = 0.67** [0.55, 0.79], k = 32 against controls. Publication-bias adjusted:
+  g = 0.71. Untrained control groups gained only g = 0.19.
+- **Gains are durable** — the one place the shadowing evidence base is silent.
+  Pretest→delayed g = 0.98 at a mean 2.3-month interval, and posttest→delayed
+  **g = −0.08**, i.e. essentially no decay.
+- **Gains generalize**, with a small cost: novel item + novel talker g = −0.25.
+- **Transfer to production is real but smaller**: g = 0.49–0.66.
+
+The moderators are unusually prescriptive, and four of them cut against the
+obvious way to build this:
+
+1. **Identification beats discrimination** (g = 0.95 vs 0.57). Build "which sound
+   is this?", not "same or different?".
+2. **Word/orthographic labels beat pictures** (g = 0.90–1.03 vs **0.47**). Label
+   the response options with text, not illustrations — which cuts directly
+   against reusing the app's flashcard-image machinery here.
+3. **~400 minutes total is the dose.** Gains rise linearly with training time
+   below 400 minutes and plateau beyond. That is ~6–7 hours total: a finite
+   programme with an end, not an endless drill.
+4. **"High variability" only pays for higher-proficiency learners.** More talkers
+   helped advanced learners (b = 0.22, p = .032; g = 1.44 with six talkers) but
+   did nothing for lower-level ones (b = −0.06, p = .446). **Beginners do not
+   need many voices** — a real saving on audio sourcing.
+
+One further moderator is a scheduling argument: **longer L2 experience predicted
+smaller gains** (b = −0.036, p = .029). Perception training is worth most early,
+which argues for siting it near the Alphabet Journey rather than as an advanced
+add-on.
+
 ## 6. AI tutors: real, moderate, and thinly evidenced
 
 Four independent syntheses agree on the direction and roughly on the size:
@@ -308,14 +391,39 @@ All `unverified`. Three caveats matter more than the point estimates:
   were *larger* for target languages other than English, which is mildly good
   news for Arabic.
 
-**`unverified`, and the most product-relevant result in this section — the
-anxiety effect is bigger than the skill effect.** In the Mondly study, the AI
+**`confirmed` (second pass), and the most product-relevant result in this
+section — the anxiety effect replicates; the skill effect does not.** In the Mondly study, the AI
 group's speaking-anxiety reduction was d = 0.76 (control d = 0.22), between-group
 η² = 0.17, p = 0.007 — versus η² = 0.11 for speaking skill. The benefit was
 strongly moderated by baseline anxiety: high-anxiety learners dropped 6.12 points
 on the 19-item scale vs 3.21 (moderate) and 2.14 (low). Dosage was 540 minutes
 over 6 weeks (three 30-minute sessions/week), *substituting for* self-study
 rather than adding to it.
+
+That study alone was thin (quasi-experiment, n = 60, convenience-allocated
+intact classes), so the second pass looked for independent evidence. A 2025
+crossover study of 48 Turkish ELT undergraduates (AI-facilitated vs
+human-facilitated speaking assessment, counterbalanced, two-week washout,
+*not* randomized) replicates the direction at a **smaller magnitude and with no
+performance gain at all**:
+
+- Anxiety: M = 98.48 (AI) vs 102.94 (human), t(47) = 2.67, p = 0.01,
+  **d = 0.39** — a 4.3% reduction on a 165-point scale.
+- Speaking achievement: 9.17 (AI) vs 9.36 (human) — "achievement scores did not
+  significantly differ between test conditions."
+- **The mechanism finding is the interesting one.** Under human facilitation,
+  anxiety correlated **r = −0.500** (p < .01) with performance. Under AI, that
+  correlation collapsed to **r = −0.042**, non-significant. Anxiety stopped
+  impairing performance rather than performance improving.
+
+Source: https://pmc.ncbi.nlm.nih.gov/articles/PMC12832806/
+
+**Synthesis across the two designs:** AI speaking practice reliably lowers
+speaking anxiety (d = 0.39–0.76 across two different designs) and decouples
+anxiety from performance. The evidence that it produces *more speaking skill*
+than the alternative is weak-to-null — the crossover study found none, and the
+Mondly skill effect (η² = 0.11) was the smaller of its two effects. Neither
+study is randomized. **Claim the on-ramp, not the accelerator.**
 
 **`unverified` — an app can match a classroom for beginners.** In a 16-week
 quasi-experiment (183 beginner French learners), Duolingo-only was statistically
@@ -379,11 +487,25 @@ only by Kuwaiti and Najdi Saudi; Yemeni is absent entirely.** Most models score
 below a 20% ADI2 threshold even on well-served dialects. We cannot benchmark our
 third dialect against it.
 
-**Resource inventory for the three target dialects** (all `unverified`):
+**`confirmed` (second pass) — Casablanca cannot be used in a commercial
+product.** Its Hugging Face distribution (`UBC-NLP/Casablanca`) is licensed
+**CC-BY-NC-ND-4.0**, and the project page states the dataset is "intended for
+academic research and non-commercial use only," with commercial use,
+redistribution or integration into products prohibited without prior written
+permission. Hakiya is a paid product, so the NC clause alone is disqualifying;
+the **ND clause independently rules out fine-tuning**, since a fine-tuned model
+is a derivative. On top of that, **only the validation and test splits are
+currently released**, so it is not a training corpus today even setting licence
+aside. Internal *evaluation* may be defensible, but that is a question for
+counsel rather than for this document. If the data is wanted, the remedy is to
+ask UBC-NLP for written permission — not to proceed and hope.
+
+**Resource inventory for the three target dialects** (`unverified` unless
+marked):
 
 | Resource | What it gives Hakiya |
 |---|---|
-| **Casablanca** (48h, human-transcribed, 8 dialects incl. **Emirati** and **Yemeni**) | First annotated speech for previously zero-resource Emirati and Yemeni. Per-segment transcription, gender, dialect, code-switching. https://www.dlnlp.ai/speech/casablanca |
+| **Casablanca** (48h, human-transcribed, 8 dialects incl. **Emirati** and **Yemeni**) | **Licence blocks our use — see below.** First annotated speech for previously zero-resource Emirati and Yemeni. https://www.dlnlp.ai/speech/casablanca |
 | **Arab Voices** | Unified access to 31 datasets / 14 dialects — Gulf (afb), Egyptian (arz), Yemeni Sanaani (ayn) and Ta'izzi-Adeni (acq) — with harmonized metadata |
 | **MADAR** | 25-city parallel corpus incl. Doha/Riyadh/Muscat/Jeddah/Cairo/**Sana'a**; lexicon with CAPHI phonetic transcriptions |
 | **AVP** | The only CEFR-aligned, dialect-aware Arabic word list (A1–A2) |
@@ -416,10 +538,15 @@ have acted on:
    authors hit the same wall. Presence/absence via MDD and MADAR is the ceiling.
 2. **Any dialectal-Arabic pronunciation-assessment benchmark.** QuranMB is MSA.
 3. **Yemeni in any dialect-fidelity benchmark.** Absent from AL-QASIDA.
-4. **CEFR-aligned dialect vocabulary above A2.** The AVP stops there.
-5. **Long-run (multi-month) evidence for AI conversational tutors.** The
+4. **CEFR-aligned dialect vocabulary above A2.** The AVP stops there — and even
+   within A1–A2 it is only ~1,200 items, with the list itself not confirmed to
+   be published as machine-readable data.
+5. **An openly licensed dialectal-Arabic speech corpus usable commercially.**
+   Casablanca is CC-BY-NC-ND; Arab Voices indexes 31 datasets whose licences
+   vary and must be checked one by one. Confirmed in the second pass.
+6. **Long-run (multi-month) evidence for AI conversational tutors.** The
    strongest effects are 1–7 day interventions.
-6. Everything already listed in `docs/plateau-research-2026-09.md` §7 — dialect-only
+7. Everything already listed in `docs/plateau-research-2026-09.md` §7 — dialect-only
    acquisition, Gulf/Yemeni as L2 targets, dialect chunk inventories, dialectal
    shadowing, Arabic utterance-fluency norms — remains a gap.
 
@@ -436,25 +563,26 @@ Verified by inspection of the codebase at `656283f`.
 | DR 0.99 costs 2.9× time for +4.9% cards (§1) | `DEFAULT_RETENTION = 0.9`, clamped [0.7, 0.97] | Well-chosen. Surface the trade-off in Settings |
 | Don't build a cleverer scheduler (§1) | Doesn't | Correct call, now evidenced |
 | Pure interleaving harms low achievers (§2) | `reviewOrder.ts` interleaves both decks from first exposure | **Gap** — beginners' first exposures should block |
-| Viewing is the weakest input mode, 7%/5% (§3) | Video-first: Discover, Feed, WordClips, clip pipeline | **Reframe needed** — transcript-primary, video-as-carrier |
+| Viewing is the weakest input mode for pickup, 7%/5% — but the most forgiving for comprehension, 80% floor (§3) | Video-first: Discover, Feed, WordClips, clip pipeline | **Reframe** — video as on-ramp, transcript as acquisition channel |
 | Reading-while-listening is the only mode that improves on delay (§3) | Exists (transcripts + audio) but isn't the default vocabulary surface | Promote it |
 | Narrative ≫ expository; beginners gain half as much (§3) | Stories, DailyStory, ReadingLibrary all narrative | Already right |
-| Constrained text choice + accountability beat free reading (§3) | `comprehension.ts` bands at **≥0.9 comfortable / ≥0.7 stretch** | **Recalibrate** — 70% is below any comprehension threshold in the literature |
+| Coverage thresholds differ by mode: reading 98/95, listening 95, viewing 95/80 (§3) | `comprehension.ts:174-178` returns ≥0.9 / ≥0.7 for **every** surface | **Make mode-dependent** — today's numbers are right for no mode, and 0.7 is below every measured floor |
 | Listening *strategy* instruction d = 0.69 (§3) | ListeningPractice = dictation \| comprehension \| speed. No strategy layer | Gap |
 | MSA frequency ≠ dialect usefulness (§4) | **No frequency data anywhere** (zero hits for `frequency_rank`/zipf) | **Gap** |
 | Retrieval gains driven by high-frequency words (§1) | New-card order is not frequency-ranked | Compounds the above |
 | Don't elicit dialect from MSA (§4) | `convert-to-fusha`, `translate-story-dialect`, `fushaBridge` | **Audit needed** — check direction of elicitation |
 | Explicit ASR feedback g = 0.86 vs indirect 0.50 (§5) | Azure per-phoneme detail exists in word/sentence modes | Make the feedback *name* the error |
 | Segmental 0.82 ≫ suprasegmental 0.37 for ASR (§5) | Shadow mode deliberately avoids phoneme claims | Correct for shadowing; keep segmental in Azure modes |
+| HVPT perception g = 0.92, durable at 2.3 months with no decay (§5b) | No perception/minimal-pair training anywhere | **Gap** — best-evidenced new feature available |
 | Nothing happens under 5 weeks (§5) | No retention mechanic tied to pronunciation streaks | Framing/retention issue |
 | Arabic MDD precision 18.7% (§5) | `pronunciationScoringCore.ts` recalibrates and never exposes raw Azure | **Already right**, now strongly vindicated |
-| Anxiety effect > skill effect for AI speaking (§6) | ConversationSimulator, free-chat, realtime voice all exist | Positioning opportunity, and an onboarding argument |
+| AI speaking lowers anxiety (d = 0.39–0.76, two designs); skill gain weak-to-null (§6) | ConversationSimulator, free-chat, realtime voice all exist | Onboarding argument — claim the on-ramp, not the accelerator |
 | Chatbot design moderates the effect, not use per se (§6) | `askBrain` + learner profile + dialect validation | Ahead of the field |
 | Salience, not production, is the active ingredient (§6) | Coaches give `natural_rewrite` + salience notes | Already right |
 | — | **`conversation-practice`, `free-chat` and realtime voice record zero `learner_errors`** | **Gap** — richest production source feeds nothing |
 | ADI2/ALDi as a reproducible dialect metric (§8) | Hand-rolled `msaLeakDetector.ts` word lists | Worth adopting as a second signal |
 | Few-shot demonstrations raise dialect adherence (§8) | `getDialectDemonstrations` in the cached prefix | **Already right** |
-| Yemeni/Emirati speech resources now exist (§8) | Soniox/Munsit/Deepgram/Fanar, no in-domain fine-tune | Opportunity |
+| Casablanca's Emirati/Yemeni speech is **CC-BY-NC-ND**, non-commercial, test/val splits only (§8) | Soniox/Munsit/Deepgram/Fanar, no in-domain fine-tune | **Blocked** — cannot be used in a paid product; our own audio is the licensable path |
 | Fine-tuning on 16h in-domain beat 1,200h MSA-blend (§5) | — | Strong argument for the training-data flywheel |
 | Reusable outcome battery exists (§6) | LearningAnalytics shows XP, streak, accuracy, study minutes | **No proficiency measurement at all** |
 | — | Placement runs once, never revisited | Gap (already known as product-audit C4) |
@@ -505,17 +633,22 @@ extends exactly the reasoning that put this repo on FSRS-5.
 
 `useTodayQueue` is entirely receptive plus flashcards and drills. Monologue,
 shadowing and conversation are reachable only through the "speak" surface.
-Meanwhile the largest measured effect of AI speaking practice is **anxiety
-reduction (η² = 0.17), larger than the skill effect (η² = 0.11)**, concentrated
-in the most anxious learners (§6).
+Meanwhile the effect of AI speaking practice that actually replicates is
+**anxiety reduction** — d = 0.39–0.76 across two independent designs, versus a
+skill effect that was the smaller one in the first study (η² = 0.11) and
+**absent entirely** in the second (§6).
 
 - Add a `speaking` TodayTask rotating monologue / shadow reps / chunk-in-situation.
 - Dose it from the evidence: **~30 minutes, 3×/week** is what produced the
   measured effects — and it *substituted for* other study rather than adding to
   it, so it should displace a receptive task, not stack on one.
-- Position it in onboarding for anxious learners specifically. This is the
-  clearest, best-evidenced product claim available: not "you'll learn faster"
-  but "you'll stop dreading speaking".
+- Position it in onboarding for anxious learners specifically — **"you'll stop
+  dreading speaking", never "you'll learn faster".** The second study found
+  identical achievement scores and no skill gain at all; what it found was that
+  anxiety *stopped predicting* performance (r = −0.50 with a human, −0.04 with
+  AI). That is a real and defensible benefit, and it is not a proficiency claim.
+  Neither study was randomized, so this is a positioning claim to instrument
+  once P9 exists — not marketing copy to run today.
 
 Guards: `TodayTask` + route reachability; the surfaces already exist.
 
@@ -535,28 +668,63 @@ CHECK migration (`conversation`, `voice`) — batch with any other source additi
 
 There is no frequency signal anywhere in the app, and retrieval-practice gains
 are moderated by frequency (§1). MSA frequency is the wrong ranking (§4), and
-dialect frequency lists don't exist (§10, gap 1) — so this has to be built, in
-descending order of cost-effectiveness:
+dialect frequency lists don't exist (§10, gap 1) — so this has to be built.
 
-1. **Import the AVP** for A1–A2 ordering — it is free, CEFR-aligned, and already
-   applies dialect-commonality and morphological-family criteria.
-2. **Derive our own frequency counts** from what we already hold — `caption_lines`
+**The second pass reordered these steps.** The plan had been "import the AVP,
+then fall back to our own data". Checking availability inverted it:
+
+- The **AVP** (Soliman & Familiar 2024, *Critical Multilingualism Studies*
+  11(1):266–286) is real and open-access, but it is **~400 items at A1 and ~800
+  at A2 — about 1,200 words total**, and repeated attempts to reach a
+  machine-readable list were blocked. The article describes the methodology and
+  sample entries; the list itself may only be obtainable by asking the authors.
+  Worth an email, not worth blocking on.
+- The obvious alternative is **worse, not better**: Nouran Khallaf's
+  `Arabic_CEFR_Classified-List` is a downloadable 8,834-lemma A1–C2 spreadsheet,
+  but it is **MSA-only — dialectal words were explicitly removed** — and carries
+  no licence. It is precisely the kind of list §4 says not to rank a dialect
+  learner's vocabulary with.
+
+So the order is:
+
+1. **Derive our own frequency counts** from what we already hold. `caption_lines`
    and reviewed `discover_videos.transcript_lines` are a real dialect corpus and
-   the only source of genuine *dialect* frequency anywhere in this project.
-3. **Cross-check commonality against MADAR** for multi-dialect usefulness.
+   the only source of genuine *dialect* frequency anywhere in this project. This
+   is now the primary path, not the fallback.
+2. **Cross-check commonality against MADAR** for multi-dialect usefulness.
+3. **Ask Soliman & Familiar for the AVP list** to validate our A1–A2 ordering
+   against an independent CEFR-aligned source. Useful as a check on ~1,200 words;
+   too small to be the ranking itself.
 
 Then rank new-card admission by it in `reviewOrder.ts`. This also feeds the
 chunk-mining work the plateau plan deferred.
 
-## P5 — Recalibrate comprehension bands and don't interleave beginners
+## P5 — Make comprehension bands mode-dependent, and don't interleave beginners
 
-Two small, evidence-driven corrections:
+**The second pass changed this recommendation.** The first draft said "raise the
+70% floor". Verified, the defect is different and more tractable: the bands are
+**mode-blind**, and the thresholds genuinely differ by mode (§3).
 
-- `comprehension.ts:175-177` bands at ≥0.9 comfortable / ≥0.7 stretch. Nothing in
-  the coverage literature supports 70% as a productive zone. Raise the stretch
-  floor substantially and rename the bottom band so it reads as "too hard" rather
-  than as a recommended challenge. Constrained, level-matched text choice
-  outperforms free choice (§3) — the bands are the mechanism, so they should bind.
+`comprehensionBand()` in `comprehension.ts:174-178` returns ≥0.9 comfortable /
+≥0.7 stretch for every surface — the same numbers for a captioned video and for
+a silent transcript read. The literature says:
+
+| Surface | Comfortable | Stretch floor |
+|---|---|---|
+| Reading (passages, transcript-only) | **0.98** | 0.95 |
+| Listening (audio-only) | **0.95** | ~0.90 |
+| Viewing (video with imagery) | **0.95** | **0.80** |
+
+So the change is to take a mode argument rather than to shift one number.
+Today's 0.9/0.7 is roughly right for *nothing*: too lax for reading by a wide
+margin, and 0.7 is below even the most permissive figure measured anywhere (the
+0.80 viewing minimum). Rename the bottom band so it reads as "too hard" rather
+than as a recommended challenge. Constrained, level-matched text choice
+outperforms free choice (§3) — the bands are the mechanism, so they should bind.
+
+This is a pure change to a tested module (`comprehension.test.ts` exists), and
+its call sites — the Discover feed's comprehension score and the browse tab —
+already know which surface they are.
 - `reviewOrder.ts` interleaves from first exposure. Block a card's first
   exposures, then interleave (§2). Only the negative finding is evidenced, so
   keep the change minimal: don't interleave *new* cards, leave mature scheduling
@@ -572,8 +740,16 @@ architecture.
 This is a reframing, not a teardown — the app already pairs video with
 transcripts, and that pairing *is* reading-while-listening. Make it the default:
 transcript visible and central during playback rather than opt-in, with word
-focus, and count transcript-read time rather than watch time. Keep video for
-motivation and authenticity, which this literature doesn't measure.
+focus, and count transcript-read time rather than watch time.
+
+**The second pass sharpened why video still earns its place.** Viewing has the
+*lowest* coverage requirement of any mode — 80% minimal, against 95% for reading
+(§3) — because imagery does real comprehension work. So video is the better
+**on-ramp** and the worse **acquisition channel**, simultaneously. Keep it as the
+way a learner with small vocabulary can engage with authentic material at all;
+just don't let it be the main road by which words are supposed to stick. That
+also gives the two surfaces different jobs, which the mode-dependent bands in P5
+can then express directly.
 
 Also worth noting for expectation-setting: **incidental input yields meaning
 *recall* at only 9%** (§3). Input alone will not produce production. That is the
@@ -601,10 +777,31 @@ drills the contrasts that actually gate Arabic listening for L2 learners —
 `WordClips`, native audio, per-dialect word lists, and MADAR's CAPHI phonetic
 transcriptions as a source of contrast pairs (§4).
 
-Evidence label, stated honestly: the ASR meta-analysis supports *segmental*
-training generally (§5), but I did not verify a high-variability-phonetic-training
-meta-analysis in this pass, so treat the specific HVPT design as a reasoned
-inference rather than a verified prescription.
+**This is now the best-evidenced new feature in this document** (§5b, verified
+in the second pass): perception gains g = 0.92 pre/post and g = 0.67 against
+controls, and — unusually — **durable**, with essentially no decay at 2.3 months
+(g = −0.08 posttest→delayed). Nothing else recommended here has retention
+evidence that strong.
+
+Build it to the spec the moderators dictate, which is not the obvious build:
+
+- **Identification, not discrimination** — "which sound is this?" (g = 0.95), not
+  "same or different?" (g = 0.57).
+- **Text labels, not pictures** — orthographic/keyword response options score
+  g = 0.90–1.03 against **g = 0.47** for images. Do *not* reuse the flashcard
+  illustration pipeline here; it is the worse design.
+- **Ship it as a finite programme of ~400 minutes.** Gains are linear in training
+  time up to ~400 minutes and plateau after. A completable ~6–7 hour course with
+  an end state, not an infinite drill queue.
+- **Don't over-source audio for beginners.** More talkers helped only
+  higher-proficiency learners (b = 0.22, p = .032); for lower-level learners the
+  effect was null (b = −0.06). Start with few voices and add variability as
+  learners advance.
+- **Site it early.** Longer L2 experience predicted *smaller* gains
+  (b = −0.036, p = .029), so this belongs near the Alphabet Journey.
+
+Expect transfer to production, but discount it: g = 0.49–0.66, smaller than the
+perception gains.
 
 ## P9 — Measure proficiency, not just activity
 
@@ -629,10 +826,21 @@ for any efficacy claim in marketing.
   and Najdi. We cannot benchmark two of our three dialects against the standard
   suite. Our own golden set stays the only instrument for Yemeni — worth saying
   out loud in `docs/testing.md`.
-- **Casablanca and Arab Voices** now provide annotated Emirati and Yemeni speech
-  where there was none. Given that a 16-hour in-domain fine-tune beat a 1,200-hour
-  MSA-heavy one (§5), this is the strongest available argument for the
-  training-data flywheel in `docs/improvement-plan-2026-08.md`.
+- **Do not plan on Casablanca. Its licence forbids this use** (§8, confirmed in
+  the second pass): CC-BY-NC-ND-4.0 on Hugging Face, "academic research and
+  non-commercial use only" on the project page, with integration into products
+  prohibited without written permission. The NC clause rules out a paid product
+  and the ND clause independently rules out fine-tuning; only validation/test
+  splits are released anyway. **This was going to be a wasted sprint.** If the
+  data is wanted, write to UBC-NLP for permission first. Arab Voices is an index
+  of 31 datasets whose licences vary — each needs checking individually, and none
+  should be assumed permissive.
+- **The underlying argument survives the blocker, and points inward.** A 16-hour
+  in-domain fine-tune beat a 1,200-hour MSA-heavy one (§5), which means the
+  dialect audio that matters most is the audio we can actually license: our own.
+  That is now the strongest available argument for the training-data flywheel in
+  `docs/improvement-plan-2026-08.md` — the transcript-review pipeline produces
+  exactly this asset, with clean provenance.
 - **Audit MSA-sourced elicitation.** MADAR's authors found that translating from
   MSA measurably biases output toward MSA (§4). `convert-to-fusha`,
   `translate-story-dialect` and `fushaBridge` should be checked for which
@@ -643,7 +851,7 @@ for any efficacy claim in marketing.
 ```
 P0 (review log) ──► P1 (per-user FSRS fitting) ──► FSRS-6 bump
 P2 (speaking in daily loop) ──► P3 (error capture from conversation)
-P4 (frequency ranking) ──► P5 (bands + beginner blocking) ──► chunk mining
+P4 (frequency ranking) ──► P5 (mode-dependent bands + beginner blocking) ──► chunk mining
 P6, P7, P8 — independent
 P9 (outcome measurement) — gates any efficacy claim
 P10 — independent, cheap
@@ -652,3 +860,12 @@ P10 — independent, cheap
 **If only one thing ships: P0.** It is a single migration, it unblocks the
 highest-value SRS work, and it needs months of accumulated data before it pays —
 so every week it is not shipped is a week added to when P1 can happen.
+
+**After the second pass, two items moved.** **P8 (perception training) is now the
+best-evidenced new feature in this document** — g = 0.92, and the only
+recommendation here with demonstrated durability (no decay at 2.3 months). It was
+the weakest-supported item in the first draft and is now the strongest; if
+appetite exists for one new learner-facing surface, it should be this one, built
+to the spec in §5b. And **P5 got cheaper**: it is a mode argument on one pure,
+already-tested function rather than a judgment call about where to move a
+threshold.

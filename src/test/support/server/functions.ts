@@ -888,6 +888,10 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
     }),
   "culture-guide": () => ok({ answer: "" }),
   "free-chat": () => ok({ reply: "" }),
+  // The mistake-drill feed from open conversation. Fire-and-forget from the
+  // client, so a scenario only needs it to answer; what it would record is
+  // covered by the function's own Deno tests.
+  "extract-learner-errors": () => ok({ recorded: 0 }),
   "ask-translation": () => ok({ answer: "" }),
   "assistant-chat": () => streaming(""),
   "analyze-meme": () => ok({ analysis: "" }),

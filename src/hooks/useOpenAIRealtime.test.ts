@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useOpenAIRealtime } from "./useOpenAIRealtime";
+import { setVoiceErrorCaptureEnabled } from "@/lib/uiPrefs";
 
 /**
  * The live voice conversation — a learner talking to a model in real time.
@@ -28,7 +29,20 @@ const getSession = vi.fn(async () => ({
 }));
 
 vi.mock("@/integrations/supabase/client", () => ({
-  supabase: { auth: { getSession: () => getSession() } },
+  supabase: {
+    auth: { getSession: () => getSession() },
+    // The mistake-drill feed posts through functions.invoke; route it to the
+    // same fetch double as everything else so the test can see the request.
+    functions: {
+      invoke: async (name: string, options?: { body?: unknown }) => {
+        await fetchImpl(`https://e2e.supabase.co/functions/v1/${name}`, {
+          method: "POST",
+          body: JSON.stringify(options?.body ?? {}),
+        });
+        return { data: null, error: null };
+      },
+    },
+  },
 }));
 
 // ── WebRTC doubles ──────────────────────────────────────────────────────────
@@ -158,6 +172,7 @@ class FakeAudioContext {
 
 const TOKEN_URL = "/functions/v1/realtime-session-token";
 const TOOLS_URL = "/functions/v1/assistant-tools";
+const EXTRACT_URL = "/functions/v1/extract-learner-errors";
 const OPENAI_URL = "https://api.openai.com/v1/realtime/calls";
 
 let tokenReply: { status: number; body: string } = {
@@ -169,6 +184,7 @@ let toolsReply: { status: number; body: string } = {
   status: 200,
   body: JSON.stringify({ ok: true, text: "The harvest rose thirty percent." }),
 };
+const extractReply: { status: number; body: string } = { status: 200, body: JSON.stringify({ recorded: 0 }) };
 
 const calls: Array<{ url: string; init?: RequestInit }> = [];
 
@@ -177,6 +193,8 @@ const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => 
   calls.push({ url, init });
   const reply = url.includes(TOKEN_URL)
     ? tokenReply
+    : url.includes(EXTRACT_URL)
+    ? extractReply
     : url.includes(TOOLS_URL)
     ? toolsReply
     : url === OPENAI_URL
@@ -437,6 +455,63 @@ describe("when it cannot start", () => {
     // connection and the audio element were already created.
     expect(FakePeerConnection.last?.close).toHaveBeenCalled();
     expect(document.querySelectorAll("audio")).toHaveLength(0);
+  });
+});
+
+describe("the mistake-drill feed from voice", () => {
+  // Off by default: a dialect ASR transcript is an unreliable witness, so the
+  // learner opts in. When on, one completed exchange is posted, tagged with
+  // the engine that heard it, after the assistant's turn settles.
+  const exchange = (pc: FakePeerConnection) => {
+    act(() => {
+      pc.deliver({ type: "conversation.item.input_audio_transcription.delta", item_id: "u1", delta: "أريد ماء" });
+      pc.deliver({ type: "conversation.item.input_audio_transcription.completed", item_id: "u1", transcript: "أريد ماء" });
+      pc.deliver({ type: "response.output_audio_transcript.delta", item_id: "a1", delta: "قول أبغى" });
+      pc.deliver({ type: "response.output_audio_transcript.done", item_id: "a1", transcript: "قول أبغى" });
+    });
+  };
+  const extractCalls = () => calls.filter((c) => c.url.includes(EXTRACT_URL));
+
+  afterEach(() => {
+    window.localStorage.removeItem("hakiya:ui:voice-error-capture");
+  });
+
+  it("posts nothing unless the learner has opted in", async () => {
+    const { result } = renderHook(() => useOpenAIRealtime());
+    const pc = await startSession(result);
+    goLive(pc);
+    exchange(pc);
+    await act(async () => {});
+    expect(extractCalls()).toEqual([]);
+  });
+
+  it("posts the exchange, tagged with the engine that heard it, once opted in", async () => {
+    setVoiceErrorCaptureEnabled(true);
+    const { result } = renderHook(() => useOpenAIRealtime());
+    const pc = await startSession(result);
+    goLive(pc);
+    exchange(pc);
+    await act(async () => {});
+    const posted = extractCalls();
+    expect(posted).toHaveLength(1);
+    const body = JSON.parse(String(posted[0].init?.body));
+    expect(body).toMatchObject({
+      source: "voice",
+      dialect: "Gulf",
+      userText: "أريد ماء",
+      assistantText: "قول أبغى",
+      asrProvider: "openai-realtime",
+    });
+  });
+
+  it("does not post from the study-aid assistant mode, only from practice", async () => {
+    setVoiceErrorCaptureEnabled(true);
+    const { result } = renderHook(() => useOpenAIRealtime());
+    const pc = await startSession(result, { ...START, mode: "assistant" });
+    goLive(pc);
+    exchange(pc);
+    await act(async () => {});
+    expect(extractCalls()).toEqual([]);
   });
 });
 

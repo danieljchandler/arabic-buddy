@@ -137,25 +137,32 @@ exposures. `reviewOrder.test.ts` gains the blocked path.
 `recordLearnerErrorsForRequest` is called from six scoring functions and none of
 the three conversation surfaces. The three differ in shape:
 
-- **`conversation-practice`** buffers the stream server-side and returns
-  `{ reply }` — it *has* the full exchange. Add a fire-and-forget post-turn
-  extraction there: `askBrain` (`UTILITY`, `targetRegister: 'dialect'`, keep
-  demonstrations — the output contains Arabic) over the last user turn plus the
-  reply, returning ≤ 5 `{target_arabic, produced_arabic, error_kind}` items
-  filtered to what the assistant actually corrected or would correct.
-  `recordLearnerErrors` already caps at 12 rows per call.
-- **`free-chat`** streams via `streamBrain` and never holds the reply. Add a new
-  edge function **`extract-learner-errors`** taking
-  `{dialect, source, userText, assistantText}`; the client calls it once per
-  completed turn (debounced). Same extraction prompt; service-role write.
+- **`conversation-practice`** turned out to have **no client caller** — the
+  Conversation Simulator drives `free-chat`, and nothing else references the
+  function. It is left untouched rather than given an extraction path nobody
+  would exercise; it is a candidate for removal in a later cleanup.
+- **`free-chat`** streams via `streamBrain` and never holds the reply, but its
+  tutor prompt already makes the model prepend a `[[CORRECTION]]` line when the
+  learner's message had a genuine mistake, and the client splits that line out.
+  That is the trigger: **only a turn carrying a correction** is posted to the
+  new edge function **`extract-learner-errors`**
+  (`{dialect, source, userText, assistantText, correction}`), which asks a
+  `UTILITY` model to list what the tutor corrected and drops every item it
+  does not mark `corrected_by_assistant` (pure core in
+  `_shared/learnerErrorExtractionCore.ts`). Bounded cost, and the
+  "only what the tutor itself corrected" rule is exact rather than aspirational.
+  Service-role write; `recordLearnerErrors` already caps rows per call.
 - **Realtime voice** never touches our server — the client gets Whisper
   transcripts of the learner's speech at
-  `useOpenAIRealtime.ts:373` (`input_audio_transcription.completed`). It can
-  post them to `extract-learner-errors` with `source: 'voice'`. **Gate this
-  behind a flag and record `detail.asr_provider`**: dialect ASR runs at 60%+
-  WER (research §5), so a "voice error" is as likely to be Whisper's as the
-  learner's. Only errors the *assistant's own reply* corrected should be
-  recorded from voice, which keeps ASR noise out of the drill.
+  `useOpenAIRealtime.ts` (`input_audio_transcription.completed`). When the
+  assistant's next turn finalizes, the pair is posted to
+  `extract-learner-errors` with `source: 'voice'` and
+  `asrProvider: 'openai-realtime'`. **Gated off by default** behind
+  `isVoiceErrorCaptureEnabled()` in `uiPrefs.ts` (localStorage, opt-in):
+  dialect ASR runs at 60%+ WER (research §5), so a "voice error" is as likely
+  to be the transcriber's as the learner's. The same `corrected_by_assistant`
+  filter applies, and the prompt tells the model the transcript's spelling is
+  the transcriber's, not the learner's.
 
 Migration: extend the `learner_errors.source` CHECK (last touched in
 `20260901040000_chunk_coach_source.sql`) with `conversation` and `voice`, one

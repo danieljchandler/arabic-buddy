@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { isVoiceErrorCaptureEnabled } from "@/lib/uiPrefs";
 import type { PageContextPayload } from "../../supabase/functions/_shared/pageContextCore";
 
 export type LiveStatus = "idle" | "connecting" | "live" | "ending" | "error";
@@ -94,6 +95,9 @@ export function useOpenAIRealtime(opts: Options = {}) {
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const dialectRef = useRef<string>("Gulf");
   const endingRef = useRef(false);
+  // The learner's most recent finished utterance, as Whisper heard it. Paired
+  // with the assistant's next turn for the mistake-drill feed (below).
+  const lastUserTextRef = useRef<string>("");
   const modeRef = useRef<"practice" | "assistant">("practice");
   // The context the call was started with, kept so a tool call can be resolved
   // against it server-side. The browser relays tool requests; it never decides
@@ -153,6 +157,33 @@ export function useOpenAIRealtime(opts: Options = {}) {
     );
     if (finalText.trim()) {
       opts.onTurnFinalized?.({ role, text: finalText, hasDialectDrift: drift });
+    }
+
+    // Feed the mistake drill from voice — opt-in only. A dialect transcript
+    // is an unreliable witness (60%+ word error rate, research §5), so the
+    // lane is off by default and, when on, the server keeps only what the
+    // tutor itself corrected. Fire-and-forget: nothing here can delay or fail
+    // the call. Practice mode only — the assistant mode is a study aid, not a
+    // conversation the learner is being corrected in.
+    if (role === "user") {
+      lastUserTextRef.current = finalText.trim();
+    } else if (
+      finalText.trim() &&
+      lastUserTextRef.current &&
+      modeRef.current === "practice" &&
+      isVoiceErrorCaptureEnabled()
+    ) {
+      const userText = lastUserTextRef.current;
+      lastUserTextRef.current = "";
+      void supabase.functions.invoke("extract-learner-errors", {
+        body: {
+          source: "voice",
+          dialect: dialectRef.current,
+          userText,
+          assistantText: finalText,
+          asrProvider: "openai-realtime",
+        },
+      }).catch(() => { /* best-effort */ });
     }
   }, [opts]);
 

@@ -52,7 +52,30 @@ export interface OrderOptions {
    * capped — they're already owed.
    */
   newCardCap: number;
+  /**
+   * Present new cards as one contiguous block after the reviews, grouped by
+   * direction (recognition first), instead of round-robining them into the
+   * reviews and alternating their directions.
+   *
+   * For a beginner, interleaving is the wrong difficulty: in the one
+   * randomized L2 test, pure interleaved practice was *harmful* for
+   * low-achieving learners acquiring new vocabulary
+   * (docs/language-learning-research-2026-09.md §2). Only that negative
+   * finding is evidenced, so this changes nothing about how *review* cards
+   * are ordered — a card's first exposures are blocked, its later ones are
+   * scheduled exactly as before. Callers turn it on below a review-count
+   * threshold (BEGINNER_REVIEW_THRESHOLD).
+   */
+  blockNewCards?: boolean;
 }
+
+/**
+ * Completed reviews below which a learner's new cards are blocked rather than
+ * interleaved. A starting point, not a measured cut: the study that motivates
+ * it worked with low-achieving beginners and did not vary the threshold.
+ * Revisit once review_log has data to fit it against.
+ */
+export const BEGINNER_REVIEW_THRESHOLD = 200;
 
 /** A card with no completed reviews in its direction. */
 export const isNewCard = (card: SchedulableCard): boolean => card.repetitions === 0;
@@ -100,7 +123,7 @@ export function interleaveDirections<T extends SchedulableCard>(cards: T[]): T[]
  */
 export function buildReviewOrder<T extends SchedulableCard>(
   cards: T[],
-  { newCardCap }: OrderOptions,
+  { newCardCap, blockNewCards = false }: OrderOptions,
 ): T[] {
   // Compare instants, not strings. due_at arrives from two sources with
   // different serialisations — Postgres timestamptz ("…+00:00") and JS
@@ -109,8 +132,21 @@ export function buildReviewOrder<T extends SchedulableCard>(
   const sorted = [...cards].sort((a, b) => Date.parse(a.due_at) - Date.parse(b.due_at));
 
   const cap = Math.max(0, newCardCap);
-  const newCards = interleaveDirections(sorted.filter(isNewCard)).slice(0, cap);
   const reviewCards = interleaveDirections(sorted.filter((c) => !isNewCard(c)));
+
+  if (blockNewCards) {
+    // Same cap, same due-date priority within the block — only the shape
+    // changes. Recognition leads because production is unlocked *by* a
+    // confident recognition and is the harder direction.
+    const fresh = sorted.filter(isNewCard).slice(0, cap);
+    const blocked = [
+      ...fresh.filter((c) => c.card_type !== "production"),
+      ...fresh.filter((c) => c.card_type === "production"),
+    ];
+    return [...reviewCards, ...blocked];
+  }
+
+  const newCards = interleaveDirections(sorted.filter(isNewCard)).slice(0, cap);
 
   const out: T[] = [];
   const longest = Math.max(newCards.length, reviewCards.length);

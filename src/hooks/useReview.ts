@@ -4,13 +4,13 @@ import { useAuth } from './useAuth';
 import { calculateNextReview, elapsedDaysSince, Rating, type ScheduleOptions } from '@/lib/spacedRepetition';
 import { useDesiredRetention } from './useDesiredRetention';
 import { useFsrsCalibration } from './useFsrsCalibration';
+import { useSRSStats } from './useSRSStats';
 import {
   buildReviewOrder,
   recognitionChannel,
   scheduleDirectionFor,
   type CardDirection,
-  type ScheduleDirection,
-} from '@/lib/reviewOrder';
+  type ScheduleDirection, BEGINNER_REVIEW_THRESHOLD } from '@/lib/reviewOrder';
 import { useAddXP, useIncrementReviews, useCheckAchievements, REVIEW_XP } from './useGamification';
 import { useDialect } from '@/contexts/DialectContext';
 import { useNewCardCap } from './useNewCardCap';
@@ -116,6 +116,11 @@ export const useDueWords = (mixAll = false) => {
   const { activeDialect } = useDialect();
   const { cap: newCap } = useNewCardCap();
   const { remaining: remainingNewBudget, isLoading: budgetLoading } = useRemainingNewCardBudget(newCap);
+  // Whether this learner is still a beginner decides the *shape* of the deck
+  // (blocked vs interleaved new cards — see OrderOptions.blockNewCards). Read
+  // live in the queryFn like the budget, for the same reason: it changes as
+  // cards are rated, and it must not flip the key mid-session.
+  const { data: srsStats, isLoading: statsLoading } = useSRSStats();
 
   return useQuery({
     // The remaining new-card budget is deliberately NOT part of the key:
@@ -237,11 +242,14 @@ export const useDueWords = (mixAll = false) => {
       // the personal deck. The new-card budget is server-persisted via
       // daily_new_card_counts, so it's a real daily limit rather than a
       // per-page-load one.
-      return buildReviewOrder(cards, { newCardCap: remainingNewBudget });
+      return buildReviewOrder(cards, {
+        newCardCap: remainingNewBudget,
+        blockNewCards: (srsStats?.reviewedCount ?? 0) < BEGINNER_REVIEW_THRESHOLD,
+      });
     },
-    // Wait for the budget so the first deck is built against the real daily
-    // limit, not a default.
-    enabled: !!user && !budgetLoading,
+    // Wait for the budget and the stats so the first deck is built against
+    // the real daily limit and the real review count, not defaults.
+    enabled: !!user && !budgetLoading && !statsLoading,
     // A review session must be stable while it runs: a focus-driven refetch
     // replaces the array Review.tsx is indexing into, skipping or repeating
     // cards. The pages invalidate this key explicitly when a rebuild is wanted.

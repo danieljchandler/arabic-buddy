@@ -6,6 +6,7 @@ import {
   recognitionChannel,
   type CardDirection,
   type SchedulableCard,
+  BEGINNER_REVIEW_THRESHOLD,
 } from "@/lib/reviewOrder";
 
 interface TestCard extends SchedulableCard {
@@ -206,6 +207,59 @@ describe("buildReviewOrder", () => {
     ];
     buildReviewOrder(input, { newCardCap: 0 });
     expect(ids(input)).toEqual(["b", "a"]);
+  });
+});
+
+describe("buildReviewOrder — blocked new cards for beginners", () => {
+  // Reviews r1..r3 are due before the new cards; new cards n1 (recognition),
+  // n2 (production), n3 (recognition) are all due later.
+  const deck = () => [
+    card("n1", "recognition", 0, "2026-01-10T00:00:00Z"),
+    card("n2", "production", 0, "2026-01-11T00:00:00Z"),
+    card("n3", "recognition", 0, "2026-01-12T00:00:00Z"),
+    card("r1", "recognition", 3, "2026-01-01T00:00:00Z"),
+    card("r2", "production", 2, "2026-01-02T00:00:00Z"),
+    card("r3", "recognition", 4, "2026-01-03T00:00:00Z"),
+  ];
+
+  it("keeps the default shape when the flag is off", () => {
+    const order = buildReviewOrder(deck(), { newCardCap: 10 });
+    // Reviews and new cards alternate — the existing behaviour, unchanged.
+    expect(ids(order)).toEqual(["r1", "n1", "r2", "n2", "r3", "n3"]);
+  });
+
+  it("puts every new card after every review when blocked", () => {
+    const order = buildReviewOrder(deck(), { newCardCap: 10, blockNewCards: true });
+    const firstNew = order.findIndex((c) => c.repetitions === 0);
+    const lastReview = order.map((c) => c.repetitions).lastIndexOf(3);
+    expect(firstNew).toBeGreaterThan(lastReview);
+    expect(order.slice(0, 3).every((c) => c.repetitions > 0)).toBe(true);
+  });
+
+  it("does not alternate directions inside the block — recognition first, then production", () => {
+    const order = buildReviewOrder(deck(), { newCardCap: 10, blockNewCards: true });
+    expect(ids(order.slice(3))).toEqual(["n1", "n3", "n2"]);
+  });
+
+  it("still interleaves the review cards' directions", () => {
+    const order = buildReviewOrder(deck(), { newCardCap: 10, blockNewCards: true });
+    // r1 (rec) is most overdue and leads; the production review is mixed in,
+    // not pushed to the end — only *new* cards are blocked.
+    expect(ids(order.slice(0, 3))).toEqual(["r1", "r2", "r3"]);
+  });
+
+  it("still honours the new-card cap inside the block", () => {
+    const order = buildReviewOrder(deck(), { newCardCap: 1, blockNewCards: true });
+    expect(ids(order)).toEqual(["r1", "r2", "r3", "n1"]);
+  });
+
+  it("admits nothing new when the budget is spent", () => {
+    const order = buildReviewOrder(deck(), { newCardCap: 0, blockNewCards: true });
+    expect(ids(order)).toEqual(["r1", "r2", "r3"]);
+  });
+
+  it("exports a threshold callers gate on", () => {
+    expect(BEGINNER_REVIEW_THRESHOLD).toBeGreaterThan(0);
   });
 });
 

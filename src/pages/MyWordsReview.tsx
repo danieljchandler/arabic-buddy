@@ -24,7 +24,8 @@ import { Button } from "@/components/ui/button";
 import { Rating, calculateNextReview, elapsedDaysSince } from "@/lib/spacedRepetition";
 import { useDesiredRetention } from "@/hooks/useDesiredRetention";
 import { useFsrsCalibration } from "@/hooks/useFsrsCalibration";
-import { buildReviewOrder, scheduleDirectionFor, type CardDirection } from "@/lib/reviewOrder";
+import { useSRSStats } from "@/hooks/useSRSStats";
+import { buildReviewOrder, scheduleDirectionFor, type CardDirection, BEGINNER_REVIEW_THRESHOLD } from "@/lib/reviewOrder";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -138,6 +139,10 @@ const MyWordsReview = () => {
   const updateReview = useUpdateUserVocabularyReview();
   const { cap: newCap, setCap: setNewCap } = useNewCardCap();
   const { remaining: remainingNewBudget, isLoading: budgetLoading } = useRemainingNewCardBudget(newCap);
+  // Beginner or not decides whether new cards are blocked or interleaved
+  // (OrderOptions.blockNewCards). Read live in the queryFn, like the budget,
+  // so it can't flip the key mid-session.
+  const { data: srsStats, isLoading: statsLoading } = useSRSStats();
   const claimNewCard = useClaimNewCard();
   const session = useReviewSession();
   const queryClient = useQueryClient();
@@ -356,13 +361,15 @@ const MyWordsReview = () => {
 
       return buildReviewOrder(usable, {
         newCardCap: Math.min(newCap, remainingNewBudget),
+        blockNewCards: (srsStats?.reviewedCount ?? 0) < BEGINNER_REVIEW_THRESHOLD,
       });
     },
-    // Wait for the budget so the first deck is built against the real daily
-    // limit, and keep the session stable once built: a focus-driven refetch
-    // replaces the array the session is indexing into, skipping or repeating
-    // cards. Rebuilds happen through the explicit invalidations on this key.
-    enabled: !!user && !budgetLoading,
+    // Wait for the budget and the stats so the first deck is built against
+    // the real daily limit and the real review count, and keep the session
+    // stable once built: a focus-driven refetch replaces the array the
+    // session is indexing into, skipping or repeating cards. Rebuilds happen
+    // through the explicit invalidations on this key.
+    enabled: !!user && !budgetLoading && !statsLoading,
     refetchOnWindowFocus: false,
     staleTime: 5 * 60 * 1000,
   });

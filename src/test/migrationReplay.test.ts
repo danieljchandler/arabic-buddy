@@ -28,7 +28,7 @@ interface BuildResult {
 /**
  * Migrations that do not replay from scratch today.
  *
- * Five try to create something an earlier migration already created; two
+ * Six try to create something an earlier migration already created; two
  * reference tables that no migration creates at all. Recorded rather than
  * fixed, because fixing the last two means writing migrations for tables whose
  * real shape only production knows — that needs a schema dump, not a guess.
@@ -43,6 +43,13 @@ const KNOWN_REPLAY_FAILURES = [
   "20260321182338_c12bdf4f-7518-40cb-bf1b-f02d1c61009e.sql",
   "20260529150401_dc0b25a8-3051-4445-a8be-cd323f128c64.sql",
   "20260529155315_a303684f-1e60-4e83-8c60-8f228e46c637.sql",
+  // A dashboard-generated duplicate of the five hand-written 20260901 plateau
+  // migrations (monologue_attempts, set-phrase production schedule, learner
+  // error sources, shadow_attempts, chunk-coach source). It re-CREATEs
+  // monologue_attempts without IF NOT EXISTS, so it fails on its first
+  // statement and the rest is skipped — harmlessly, since every statement in
+  // it had already been applied by the file that sorts before it.
+  "20260901135131_f4578375-8b3f-430f-9e54-d2cbe7a7568b.sql",
 ];
 
 /** Tables the app reads that replaying the migrations does not produce. */

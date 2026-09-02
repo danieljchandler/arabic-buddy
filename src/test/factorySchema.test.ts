@@ -69,6 +69,7 @@ const FACTORY_TABLES: Record<string, string> = {
   anAuthenticStoryLine: "authentic_story_lines",
   anInteractiveStory: "interactive_stories",
   anInviteCode: "invite_codes",
+  aReviewLog: "review_log",
 };
 
 /**

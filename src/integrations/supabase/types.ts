@@ -3366,6 +3366,66 @@ export type Database = {
         }
         Relationships: []
       }
+      review_log: {
+        Row: {
+          card_id: string
+          created_at: string
+          deck: string
+          difficulty_after: number | null
+          difficulty_before: number | null
+          direction: string
+          duration_ms: number | null
+          elapsed_days: number | null
+          id: number
+          item_id: string
+          rating: string | null
+          repetitions_after: number | null
+          reviewed_at: string
+          scheduled_days: number | null
+          stability_after: number | null
+          stability_before: number | null
+          user_id: string
+        }
+        Insert: {
+          card_id: string
+          created_at?: string
+          deck: string
+          difficulty_after?: number | null
+          difficulty_before?: number | null
+          direction: string
+          duration_ms?: number | null
+          elapsed_days?: number | null
+          id?: never
+          item_id: string
+          rating?: string | null
+          repetitions_after?: number | null
+          reviewed_at: string
+          scheduled_days?: number | null
+          stability_after?: number | null
+          stability_before?: number | null
+          user_id: string
+        }
+        Update: {
+          card_id?: string
+          created_at?: string
+          deck?: string
+          difficulty_after?: number | null
+          difficulty_before?: number | null
+          direction?: string
+          duration_ms?: number | null
+          elapsed_days?: number | null
+          id?: never
+          item_id?: string
+          rating?: string | null
+          repetitions_after?: number | null
+          reviewed_at?: string
+          scheduled_days?: number | null
+          stability_after?: number | null
+          stability_before?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       review_streaks: {
         Row: {
           created_at: string

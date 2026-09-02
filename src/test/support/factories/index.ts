@@ -37,6 +37,7 @@ export const topicId = makeId("77777777");
 export const setPhraseId = makeId("88888888");
 export const occasionId = makeId("f1f1f1f1");
 export const userSetPhraseId = makeId("99999999");
+export const reviewLogId = (index = 0): number => 1000 + index;
 export const videoId = makeId("aaaaaaaa");
 export const storyId = makeId("bbbbbbbb");
 export const episodeId = makeId("cccccccc");
@@ -403,6 +404,32 @@ export const aLearnerError = (over: Row = {}): Row => ({
   error_kind: "mispronunciation",
   resolved_at: null,
   created_at: iso(),
+  ...over,
+});
+
+/**
+ * One review event as the database trigger writes it
+ * (20260902000000_review_log.sql). Clients never insert these — the emulator
+ * has no triggers, so a test that needs history seeds it with this directly.
+ */
+export const aReviewLog = (over: Row = {}): Row => ({
+  id: reviewLogId(0),
+  user_id: TEST_USER_ID,
+  deck: "word",
+  card_id: reviewId(0),
+  item_id: wordId(0),
+  direction: "recognition",
+  rating: "good",
+  stability_before: 3.17,
+  stability_after: 8.2,
+  difficulty_before: 5,
+  difficulty_after: 4.9,
+  elapsed_days: 3,
+  scheduled_days: 3,
+  repetitions_after: 2,
+  reviewed_at: daysAgo(1),
+  duration_ms: null,
+  created_at: daysAgo(1),
   ...over,
 });
 

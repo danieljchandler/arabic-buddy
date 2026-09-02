@@ -368,6 +368,10 @@ export function buildReviewUpdate(
     : false;
 
   const nowIso = now.toISOString();
+  // last_result carries the rating for both directions. It is what the
+  // review_log trigger (20260902000000_review_log.sql) records as the rating
+  // of this review; until it was written here the column existed but was
+  // always null, and a log with no ratings cannot fit anything.
   const update: Record<string, unknown> = production
     ? {
         production_ease_factor: result.stability,
@@ -378,6 +382,7 @@ export function buildReviewUpdate(
         production_last_reviewed_at: nowIso,
         production_lapses: productionLapses,
         is_leech: isLeech,
+        last_result: rating,
       }
     : {
         ease_factor: result.stability,
@@ -388,6 +393,7 @@ export function buildReviewUpdate(
         last_reviewed_at: nowIso,
         lapses,
         is_leech: isLeech,
+        last_result: rating,
       };
 
   // Unlock the production direction once the learner can recognise the word.

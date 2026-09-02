@@ -104,6 +104,7 @@ export const ROUTES: RouteSpec[] = [
   { path: "/learn", gate: "public", boundary: "LearnRoute" },
   { path: "/learn/:lessonId", params: { lessonId: LESSON_ID }, gate: "public", boundary: "LearnLessonRoute" },
   { path: "/quiz/:lessonId", params: { lessonId: LESSON_ID }, gate: "public", boundary: "QuizRoute" },
+  { path: "/placement/c-test", gate: "auth", boundary: "CTestRoute" },
   { path: "/placement", gate: "public", boundary: "PlacementQuizRoute" },
   { path: "/bridge", gate: "public", boundary: "MsaBridgeRoute" },
   { path: "/grammar", gate: "public", boundary: "GrammarRoute" },

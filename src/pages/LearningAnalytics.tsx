@@ -114,11 +114,13 @@ const LearningAnalytics = () => {
     },
   });
   const productive = summarizeProductive(monologues.data ?? []);
-  const levelSeries = placement.history.map((p) => ({
-    at: new Date(p.taken_at).toLocaleDateString(undefined, { month: "short", year: "2-digit" }),
-    level: cefrOrdinal(p.cefr_level),
-    label: p.cefr_level,
-  }));
+  const levelSeries = placement.history
+    .filter((p) => !!p.cefr_level)
+    .map((p) => ({
+      at: new Date(p.taken_at).toLocaleDateString(undefined, { month: "short", year: "2-digit" }),
+      level: cefrOrdinal(p.cefr_level!),
+      label: p.cefr_level!,
+    }));
 
   if (!isAuthenticated) {
     return (
@@ -251,6 +253,38 @@ const LearningAnalytics = () => {
                   <Line type="monotone" dataKey="level" stroke="hsl(var(--primary))" strokeWidth={2} dot />
                 </LineChart>
               </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+
+        {/* C-test — the second outcome instrument: a percentage over a level-
+            controlled passage, so it moves between placements. */}
+        <div className="bg-card border border-border rounded-2xl p-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold text-foreground flex items-center gap-2">
+              <Target className="h-4 w-4 text-primary" /> C-test
+            </h2>
+            <Button size="sm" variant="outline" onClick={() => navigate("/placement/c-test")}>
+              {placement.cTests.length > 0 ? "Take another" : "Take a C-test"}
+            </Button>
+          </div>
+          {placement.cTests.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              A short passage at your level with half of every second word missing. Restoring them is a
+              quick, well-studied measure of overall proficiency — take one now and again after a stretch of practice.
+            </p>
+          ) : (
+            <div className="flex items-center gap-6 text-sm">
+              <div>
+                <span className="text-2xl font-bold text-primary">{Math.round(placement.cTests[placement.cTests.length - 1].score ?? 0)}%</span>
+                <span className="text-muted-foreground ml-1">latest</span>
+              </div>
+              {placement.cTests.length > 1 && (
+                <div>
+                  <span className="text-2xl font-bold text-foreground">{Math.round(placement.cTests[0].score ?? 0)}%</span>
+                  <span className="text-muted-foreground ml-1">first, {placement.cTests.length} taken</span>
+                </div>
+              )}
             </div>
           )}
         </div>

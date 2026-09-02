@@ -5,7 +5,9 @@ import { useDialect } from "@/contexts/DialectContext";
 
 export interface PlacementRow {
   id: string;
-  cefr_level: string;
+  instrument: "placement" | "c_test";
+  cefr_level: string | null;
+  score: number | null;
   confidence: number | null;
   reviews_at_time: number | null;
   taken_at: string;
@@ -20,7 +22,10 @@ export const CEFR_ORDER = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
 export const cefrOrdinal = (level: string): number => Math.max(0, CEFR_ORDER.indexOf(level as (typeof CEFR_ORDER)[number]));
 
 export interface PlacementHistoryState {
+  /** Placement-quiz results only, oldest first. */
   history: PlacementRow[];
+  /** C-test results, oldest first — a percentage, not a level. */
+  cTests: PlacementRow[];
   latest: PlacementRow | null;
   /** Rated reviews logged since the latest placement (0 when none). */
   reviewsSinceLatest: number;
@@ -48,7 +53,7 @@ export function usePlacementHistory(now: Date = new Date()): PlacementHistorySta
     queryFn: async (): Promise<PlacementRow[]> => {
       const { data, error } = await supabase
         .from("placement_results")
-        .select("id, cefr_level, confidence, reviews_at_time, taken_at")
+        .select("id, instrument, cefr_level, score, confidence, reviews_at_time, taken_at")
         .eq("user_id", user!.id)
         .eq("dialect", activeDialect)
         .order("taken_at", { ascending: true });
@@ -57,7 +62,9 @@ export function usePlacementHistory(now: Date = new Date()): PlacementHistorySta
     },
   });
 
-  const latest = history.data && history.data.length > 0 ? history.data[history.data.length - 1] : null;
+  const placements = (history.data ?? []).filter((r) => r.instrument !== "c_test");
+  const cTests = (history.data ?? []).filter((r) => r.instrument === "c_test");
+  const latest = placements.length > 0 ? placements[placements.length - 1] : null;
 
   const since = useQuery({
     queryKey: ["reviews-since", user?.id, latest?.taken_at ?? null],
@@ -79,7 +86,8 @@ export function usePlacementHistory(now: Date = new Date()): PlacementHistorySta
   const replacementDue = !!latest && ageDays >= REPLACEMENT_AFTER_DAYS && reviewsSinceLatest >= REPLACEMENT_AFTER_REVIEWS;
 
   return {
-    history: history.data ?? [],
+    history: placements,
+    cTests,
     latest,
     reviewsSinceLatest,
     replacementDue,

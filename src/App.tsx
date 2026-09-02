@@ -55,6 +55,7 @@ const Pricing = lazyPage(() => import("./pages/Pricing"));
 const PronunciationPractice = lazyPage(() => import("./pages/PronunciationPractice"));
 const Monologue = lazyPage(() => import("./pages/Monologue"));
 const PerceptionSounds = lazyPage(() => import("./pages/PerceptionSounds"));
+const CTest = lazyPage(() => import("./pages/CTest"));
 const WordClips = lazyPage(() => import("./pages/WordClips"));
 const NativeFeedback = lazyPage(() => import("./pages/NativeFeedback"));
 const WritingPractice = lazyPage(() => import("./pages/WritingPractice"));
@@ -444,6 +445,9 @@ const App = () => {
             } />
             <Route path="/souq-news" element={
               <ErrorBoundary name="SouqNewsRoute"><SouqNews /></ErrorBoundary>
+            } />
+            <Route path="/placement/c-test" element={
+              <ErrorBoundary name="CTestRoute"><ProtectedRoute><CTest /></ProtectedRoute></ErrorBoundary>
             } />
             <Route path="/placement" element={
               <ErrorBoundary name="PlacementQuizRoute"><PlacementQuiz /></ErrorBoundary>

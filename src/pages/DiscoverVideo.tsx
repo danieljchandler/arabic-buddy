@@ -51,6 +51,7 @@ import { recordContinue } from "@/lib/continueProgress";
 import { useUserLevel } from "@/hooks/useUserLevel";
 import { useQueryClient } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
+import { track } from "@/lib/analytics";
 
 declare global {
   interface Window {
@@ -669,7 +670,32 @@ const DiscoverVideo = ({
   const [isSlowListening, setIsSlowListening] = useState(false);
   const slowListenAudioRef = useRef<HTMLAudioElement | null>(null);
   const slowListenTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [showFullTranscript, setShowFullTranscript] = useState(false);
+  // Transcript-primary by default. Reading-while-listening is the one input
+  // mode whose vocabulary gains *grow* by the delayed test (13% → 17%), and
+  // audiovisual viewing alone is the weakest (7% → 5%) — research §3. The
+  // video stays the on-ramp; the transcript is where words stick.
+  const [showFullTranscript, setShowFullTranscript] = useState(true);
+  // Transcript-visible time, counted apart from watch time, so the two can
+  // be compared against what a learner actually retains.
+  const transcriptShownAtRef = useRef<number | null>(Date.now());
+  useEffect(() => {
+    if (showFullTranscript) {
+      transcriptShownAtRef.current = Date.now();
+      return;
+    }
+    if (transcriptShownAtRef.current != null) {
+      const seconds = Math.round((Date.now() - transcriptShownAtRef.current) / 1000);
+      transcriptShownAtRef.current = null;
+      if (seconds > 0) track("transcript_visible", { video_id: video?.id ?? null, seconds });
+    }
+  }, [showFullTranscript, video?.id]);
+  useEffect(() => () => {
+    if (transcriptShownAtRef.current != null) {
+      const seconds = Math.round((Date.now() - transcriptShownAtRef.current) / 1000);
+      if (seconds > 0) track("transcript_visible", { video_id: video?.id ?? null, seconds });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [manualLineIndex, setManualLineIndex] = useState(0);
   // Timer-based sync for non-YouTube
   const [timerPlaying, setTimerPlaying] = useState(false);

@@ -314,12 +314,13 @@ e2e build.
 
 ## Phase 5 — Feedback that names the error; video as carrier (P6, P7, R3, R7)
 
-**5a. Pronunciation feedback names the phoneme.** `useAzurePronunciation`
-already returns per-phoneme scores (`PhonemeResult`) and
-`pronunciationScoringCore.worstPhoneme()` picks the worst — but
-`PronunciationPractice.tsx` renders neither. Render the worst phoneme mapped
-back to its letter and `sound_hint` from `src/data/arabicAlphabet.ts`, with a
-one-line contrast note (which Phase 2 makes actionable: "practise ح vs ه").
+**5a. Pronunciation feedback names the phoneme — as shipped.**
+`src/lib/phonemeFeedback.ts` maps Azure's IPA symbols to the letter, its name
+and its `sound_hint`, picks the weakest nameable sound (skipping omissions,
+unscored zeros and vowels), and uses Azure's own "heard instead" alternative
+to say what came out: "In حبيبي, ح (ḥa) came out closer to ه (ha). ح is a
+deep breathy h from the throat." When the confusion is one of Sound Pairs'
+nine contrasts the feedback links straight to that drill.
 Explicit beats indirect nearly two-to-one (R7). Word/sentence modes only —
 shadow mode stays on fluency and closeness, as `shadowScoring.ts` argues and
 the research confirms.
@@ -329,10 +330,12 @@ g = 0.07. The pronunciation surfaces show a "week N of 5" progress marker
 against first use, and the feature's `featureMetrics` events carry it, so
 retention past week five becomes a number we watch.
 
-**5c. Transcript-primary playback.** In `DiscoverVideo`, the transcript is
-visible by default with the focused line tracked (the `usePageAiContext`
-`position` layer already knows it), and the word-focus affordances lead.
-`featureMetrics` records transcript-visible time separately from watch time.
+**5c. Transcript-primary playback — as shipped.** In `DiscoverVideo` the
+full transcript is open by default (it was a toggle that started closed);
+the active line, seeking, saving and shadowing were already on it.
+Transcript-visible time is sent as its own analytics event
+(`transcript_visible`, seconds per video) so it can be compared against
+watch time and retention.
 Video stays the on-ramp — it has the *lowest* coverage requirement of any mode
 (R3) — and the 0b bands express that difference directly. This is design-led
 and can trail the rest.

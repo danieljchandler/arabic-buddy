@@ -3,6 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
 import { useAzurePronunciation, scoreBand, type PronunciationResult, type WordResult } from "@/hooks/useAzurePronunciation";
+import { Link } from "react-router-dom";
+import { describeWorstSound, worstSound } from "@/lib/phonemeFeedback";
+import { programmeWeek, pronunciationFirstUse, recordPronunciationFirstUse } from "@/lib/programmeWeek";
+import { track } from "@/lib/analytics";
 import { AppShell } from "@/components/layout/AppShell";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { LoadingPanel } from "@/components/loading/LoadingPanel";
@@ -65,6 +69,11 @@ const PronunciationPractice = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [mode, setMode] = useState<"word" | "sentence" | "shadow">("word");
   const [sessionScores, setSessionScores] = useState<number[]>([]);
+  // Pronunciation training pays only past about five weeks of use (programmes
+  // of 1–4 weeks measured g = 0.07; 5–8 weeks g = 1.01 — research §5), so
+  // the page says which week this is and the metrics carry it.
+  const [firstUse] = useState<string | null>(() => recordPronunciationFirstUse() ?? pronunciationFirstUse());
+  const week = programmeWeek(firstUse, new Date());
   const [wordsLoading, setWordsLoading] = useState(true);
   const [showEnglish, setShowEnglish] = useState(false);
 
@@ -167,6 +176,13 @@ const PronunciationPractice = () => {
           const res = await assess(blob, referenceText, assessLocale);
           if (res) {
             setSessionScores((prev) => [...prev, res.overall]);
+            const weakest = worstSound(res.words);
+            track("pronunciation_assessed", {
+              week: week.week,
+              overall: Math.round(res.overall),
+              worst_sound: weakest?.target?.code ?? null,
+              heard_instead: weakest?.heard?.code ?? null,
+            });
             markTaskCompletedToday("speaking");
           }
         }
@@ -287,6 +303,7 @@ const PronunciationPractice = () => {
           </div>
           <p className="text-sm text-muted-foreground">
             Word {currentIndex + 1} of {words.length}
+            <span className="text-muted-foreground"> · Week {week.week} of {week.of}</span>
           </p>
         </div>
 
@@ -461,6 +478,25 @@ const PronunciationPractice = () => {
                 </div>
               ))}
             </div>
+
+            {/* Name the sound. Explicit feedback (g = 0.86) nearly doubles a
+                bare score (g = 0.50), and segmental is where ASR feedback
+                works — research §5. Word/sentence mode only: shadowing scores
+                fluency, never a phoneme. */}
+            {(() => {
+              const weakest = worstSound(result.words);
+              if (!weakest) return null;
+              return (
+                <div className="mb-5 rounded-xl bg-muted/60 px-4 py-3 text-sm" role="status">
+                  <p className="text-foreground">{describeWorstSound(weakest)}</p>
+                  {weakest.contrast && (
+                    <Link to="/alphabet/sounds" className="mt-1 inline-block text-xs text-primary underline-offset-2 hover:underline">
+                      Train your ear on {weakest.contrast.a} vs {weakest.contrast.b} →
+                    </Link>
+                  )}
+                </div>
+              );
+            })()}
 
             {/* Per-word breakdown */}
             {result.words.length > 0 && (

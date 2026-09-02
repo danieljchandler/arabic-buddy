@@ -138,9 +138,9 @@ exposures. `reviewOrder.test.ts` gains the blocked path.
 the three conversation surfaces. The three differ in shape:
 
 - **`conversation-practice`** turned out to have **no client caller** — the
-  Conversation Simulator drives `free-chat`, and nothing else references the
-  function. It is left untouched rather than given an extraction path nobody
-  would exercise; it is a candidate for removal in a later cleanup.
+  Conversation Simulator drives `free-chat`, and nothing else referenced the
+  function. It has since been removed (function, config entry, emulator stub
+  and tests); the extraction path was never wired to it.
 - **`free-chat`** streams via `streamBrain` and never holds the reply, but its
   tutor prompt already makes the model prepend a `[[CORRECTION]]` line when the
   learner's message had a genuine mistake, and the client splits that line out.
@@ -250,8 +250,11 @@ tested. This is where R9 compounds: the retrieval-practice gain was driven by
 high-frequency words, and this makes those the ones a learner meets first.
 Shipped for the curriculum deck (`vocabulary_words`), whose words the app
 chooses; the personal deck is the learner's own picks, where a frequency
-order would second-guess them. `set_phrases` receive ranks from the same job
-but their practice order is not yet driven by it.
+order would second-guess them. `set_phrases` receive ranks from the same job, and
+`generate-set-phrase-quiz` now uses the rank as the secondary key when it
+admits new phrases — inside each occasion-familiarity band, so the
+teddy-bear counterweight (widen across occasions) still comes first and
+"common first" decides within it; unranked phrases sort last.
 
 **3a, as shipped.** The caption source joins `caption_lines` →
 `channel_videos` → `content_channels.dialect`, keeps lines whose own

@@ -167,6 +167,9 @@ let loadCounter = 0;
  * underneath it.
  */
 let currentRoutes: RouteTable | null = null;
+const GOOGLE_OPENAI_ROUTE = "generativelanguage.googleapis.com/v1beta/openai";
+/** Route tables that have already been warned about (see the routing fetch). */
+const warnedTables = new WeakSet<object>();
 let currentCalls: UpstreamCall[] | null = null;
 let fetchInstalled = false;
 
@@ -219,6 +222,24 @@ function installRoutingFetch(): void {
         `Unrouted upstream request to ${url}\n` +
           `Add a route in supabase/functions/_test/upstreams.ts, or pass one ` +
           `via loadFunction(name, { upstreams: { "${new URL(url).hostname}": ... } }).`,
+      );
+    }
+
+    // The trap that broke four test files after google/* moved off OpenRouter
+    // (1550b69): a tool-call answer stubbed on openrouter.ai while a Gemini
+    // model's request falls through to Google's plain-text default. Warn at
+    // the moment it happens, once per test, rather than on every setup that
+    // merely looks that shape — most of those are fine.
+    if (
+      !overrideMatch &&
+      match === GOOGLE_OPENAI_ROUTE &&
+      Object.keys(currentRoutes.overrides).some((k) => k.includes("openrouter.ai")) &&
+      !warnedTables.has(currentRoutes)
+    ) {
+      warnedTables.add(currentRoutes);
+      console.warn(
+        `[harness] a google/* model called ${GOOGLE_OPENAI_ROUTE} and got the plain-text default ` +
+          `while openrouter.ai is stubbed. If the function needs a tool call, stub this route too.`,
       );
     }
 

@@ -244,6 +244,9 @@ function promptCaller(extra: Record<string, UpstreamHandler> = {}): Record<strin
     "/rest/v1/user_concept_mastery": () => json([]),
     "/rest/v1/learner_errors": () => json([]),
     "ai.gateway.lovable.dev": () => chatCompletion("", generated),
+    // google/* models are served by Google's OpenAI-compatible route since
+    // 1550b69, whose harness default answers no tool call — stub it like the rest.
+    "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("", generated),
     "openrouter.ai": () => chatCompletion("", generated),
     ...extra,
   };
@@ -288,6 +291,7 @@ Deno.test("monologue-prompts serves the handwritten bank when generation fails",
     { dialect: "Egyptian", count: 2 },
     promptCaller({
       "ai.gateway.lovable.dev": () => json({ error: "down" }, 500),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "down" }, 500),
       "openrouter.ai": () => json({ error: "down" }, 500),
     }),
   );
@@ -306,6 +310,7 @@ Deno.test("monologue-prompts clamps the requested count", async () => {
     { dialect: "Gulf", count: 99 },
     promptCaller({
       "ai.gateway.lovable.dev": () => json({ error: "down" }, 500),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "down" }, 500),
       "openrouter.ai": () => json({ error: "down" }, 500),
     }),
   );
@@ -335,6 +340,7 @@ function feedbackCaller(extra: Record<string, UpstreamHandler> = {}): Record<str
     "/rest/v1/learner_errors": (request) =>
       request.method === "GET" ? json([]) : json({}, 201),
     "ai.gateway.lovable.dev": () => chatCompletion("", coached),
+    "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("", coached),
     "openrouter.ai": () => chatCompletion("", coached),
     ...extra,
   });
@@ -397,6 +403,8 @@ Deno.test("score-monologue drops a no-op rewrite instead of inventing a correcti
     feedbackCaller({
       "ai.gateway.lovable.dev": () =>
         chatCompletion("", { ...coached, rewrite_original: "بروح السوق", rewrite_arabic: "بِروح السوق" }),
+      "generativelanguage.googleapis.com/v1beta/openai": () =>
+        chatCompletion("", { ...coached, rewrite_original: "بروح السوق", rewrite_arabic: "بِروح السوق" }),
       "openrouter.ai": () =>
         chatCompletion("", { ...coached, rewrite_original: "بروح السوق", rewrite_arabic: "بِروح السوق" }),
     }),
@@ -415,6 +423,7 @@ Deno.test("score-monologue still delivers metrics when the coaching pass fails",
     takeBody(),
     feedbackCaller({
       "ai.gateway.lovable.dev": () => json({ error: "down" }, 500),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "down" }, 500),
       "openrouter.ai": () => json({ error: "down" }, 500),
     }),
   );

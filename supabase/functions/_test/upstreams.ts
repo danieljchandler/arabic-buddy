@@ -166,6 +166,11 @@ export function defaultUpstreams(): Record<string, UpstreamHandler> {
     // OpenRouter. The keys stay host-specific so a test can assert *which*
     // provider a function reached, not just that it reached something.
     "openrouter.ai": () => chatCompletion("fixture reply"),
+    // Every google/* model in modelRegistry is served here (aiGateway routes
+    // by vendor prefix since 1550b69), not by openrouter.ai. A test that stubs
+    // a tool-call answer on openrouter.ai alone gets this plain-text default
+    // for a Gemini model, and the Brain retries, falls back and 500s.
+    // stubUpstreams warns about that shape; stub this route too.
     "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("fixture reply"),
     "generativelanguage.googleapis.com/v1beta/models": geminiNative,
     "api.fanar.qa": () => chatCompletion("fixture reply"),

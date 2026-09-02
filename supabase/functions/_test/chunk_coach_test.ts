@@ -58,6 +58,9 @@ function caller(extra: Record<string, UpstreamHandler> = {}): Record<string, Ups
     "/rest/v1/dialect_rules": () => json([]),
     "api.munsit.com": heard("تسلم الله يعطيك العافية"),
     "ai.gateway.lovable.dev": () => chatCompletion("", judged()),
+    // google/* models are served by Google's OpenAI-compatible route since
+    // 1550b69, whose harness default answers no tool call — stub it like the rest.
+    "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("", judged()),
     "openrouter.ai": () => chatCompletion("", judged()),
     ...extra,
   };
@@ -131,6 +134,7 @@ Deno.test("practice-chunk-coach reserves 5 for an answer with nothing to fix", a
     anAnswer(),
     caller({
       "ai.gateway.lovable.dev": () => chatCompletion("", judged({ natural: true })),
+      "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("", judged({ natural: true })),
       "openrouter.ai": () => chatCompletion("", judged({ natural: true })),
     }),
   );
@@ -144,6 +148,7 @@ Deno.test("practice-chunk-coach records a miss under its own source", async () =
   const fn = await loadFunction("practice-chunk-coach", {
     upstreams: caller({
       "ai.gateway.lovable.dev": () => chatCompletion("", judged({ used_chunk: false })),
+      "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("", judged({ used_chunk: false })),
       "openrouter.ai": () => chatCompletion("", judged({ used_chunk: false })),
     }),
   });
@@ -174,6 +179,7 @@ Deno.test("practice-chunk-coach grades an incomprehensible use at 2", async () =
     anAnswer(),
     caller({
       "ai.gateway.lovable.dev": () => chatCompletion("", judged({ understandable: false })),
+      "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("", judged({ understandable: false })),
       "openrouter.ai": () => chatCompletion("", judged({ understandable: false })),
     }),
   );

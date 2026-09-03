@@ -19,6 +19,24 @@ runtime check was possible, reproduced locally.
 | Migration replay (stock Postgres 16) | **FAIL** — see B1 |
 | `npm run test:e2e` (Playwright) | pass — 2137 specs, Chromium, 27.5 min |
 
+## Fix status
+
+All nine confirmed items were fixed on this branch the same day:
+
+| Item | Fix |
+| --- | --- |
+| A1 | `check-subscription` reads the period end from the subscription item; edge test covers the Basil shape |
+| A2 | `CTest.tsx` unwraps the `passage` envelope; emulator stub and spec return the real shape |
+| A3 | Culture Guide sends the session token and `apikey` header |
+| A4 | `20260903090000_review_streaks_friend_visibility.sql` adds a leaderboard-visibility select policy (guarded for replay, since no migration creates the table) |
+| A5 | `src/lib/referralHandoff.ts` stashes `?ref=` on boot; the invite card opens prefilled until redeemed |
+| B1 | The dashboard-exported migration is reduced to its four GRANTs. **Still to do by hand:** confirm production's `supabase_migrations.schema_migrations` lists the seven `20260902…` files |
+| B2 | Back button goes to `/admin` |
+| B3 | `_shared/curriculumModels.ts` is the one list both the picker and `curriculum-chat` read; retired ids remain as aliases |
+| B4 | `20260903100000_reviewer_content_writes.sql` widens set-phrase, occasion, dialect-rule delete and violation policies to `can_manage_content()`; the handlers now fail on a zero-row write |
+
+Section C items are unchanged and remain open.
+
 ## A. Confirmed broken — learner-facing
 
 ### A1. Paying subscribers are reported as "Free plan"

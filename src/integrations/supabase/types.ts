@@ -1592,6 +1592,33 @@ export type Database = {
         }
         Relationships: []
       }
+      dialect_word_frequency: {
+        Row: {
+          count: number
+          dialect: string
+          doc_count: number
+          token: string
+          updated_at: string
+          zipf: number
+        }
+        Insert: {
+          count?: number
+          dialect: string
+          doc_count?: number
+          token: string
+          updated_at?: string
+          zipf?: number
+        }
+        Update: {
+          count?: number
+          dialect?: string
+          doc_count?: number
+          token?: string
+          updated_at?: string
+          zipf?: number
+        }
+        Relationships: []
+      }
       discover_videos: {
         Row: {
           cefr_level: string | null
@@ -3007,6 +3034,54 @@ export type Database = {
         }
         Relationships: []
       }
+      placement_results: {
+        Row: {
+          cefr_level: string | null
+          confidence: number | null
+          created_at: string
+          detail: Json
+          dialect: string
+          id: string
+          instrument: string
+          reviews_at_time: number | null
+          score: number | null
+          strengths: Json
+          taken_at: string
+          user_id: string
+          weaknesses: Json
+        }
+        Insert: {
+          cefr_level?: string | null
+          confidence?: number | null
+          created_at?: string
+          detail?: Json
+          dialect?: string
+          id?: string
+          instrument?: string
+          reviews_at_time?: number | null
+          score?: number | null
+          strengths?: Json
+          taken_at?: string
+          user_id: string
+          weaknesses?: Json
+        }
+        Update: {
+          cefr_level?: string | null
+          confidence?: number | null
+          created_at?: string
+          detail?: Json
+          dialect?: string
+          id?: string
+          instrument?: string
+          reviews_at_time?: number | null
+          score?: number | null
+          strengths?: Json
+          taken_at?: string
+          user_id?: string
+          weaknesses?: Json
+        }
+        Relationships: []
+      }
       processed_videos: {
         Row: {
           content_hash: string
@@ -3064,6 +3139,9 @@ export type Database = {
           custom_institution: string | null
           desired_retention: number | null
           display_name: string | null
+          fsrs_weights: Json | null
+          fsrs_weights_fitted_at: string | null
+          fsrs_weights_reviews: number | null
           id: string
           institution_id: string | null
           interests: string[]
@@ -3095,6 +3173,9 @@ export type Database = {
           custom_institution?: string | null
           desired_retention?: number | null
           display_name?: string | null
+          fsrs_weights?: Json | null
+          fsrs_weights_fitted_at?: string | null
+          fsrs_weights_reviews?: number | null
           id?: string
           institution_id?: string | null
           interests?: string[]
@@ -3126,6 +3207,9 @@ export type Database = {
           custom_institution?: string | null
           desired_retention?: number | null
           display_name?: string | null
+          fsrs_weights?: Json | null
+          fsrs_weights_fitted_at?: string | null
+          fsrs_weights_reviews?: number | null
           id?: string
           institution_id?: string | null
           interests?: string[]
@@ -3363,6 +3447,66 @@ export type Database = {
           referrer_id?: string
           rewarded_at?: string | null
           status?: string
+        }
+        Relationships: []
+      }
+      review_log: {
+        Row: {
+          card_id: string
+          created_at: string
+          deck: string
+          difficulty_after: number | null
+          difficulty_before: number | null
+          direction: string
+          duration_ms: number | null
+          elapsed_days: number | null
+          id: number
+          item_id: string
+          rating: string | null
+          repetitions_after: number | null
+          reviewed_at: string
+          scheduled_days: number | null
+          stability_after: number | null
+          stability_before: number | null
+          user_id: string
+        }
+        Insert: {
+          card_id: string
+          created_at?: string
+          deck: string
+          difficulty_after?: number | null
+          difficulty_before?: number | null
+          direction: string
+          duration_ms?: number | null
+          elapsed_days?: number | null
+          id?: never
+          item_id: string
+          rating?: string | null
+          repetitions_after?: number | null
+          reviewed_at: string
+          scheduled_days?: number | null
+          stability_after?: number | null
+          stability_before?: number | null
+          user_id: string
+        }
+        Update: {
+          card_id?: string
+          created_at?: string
+          deck?: string
+          difficulty_after?: number | null
+          difficulty_before?: number | null
+          direction?: string
+          duration_ms?: number | null
+          elapsed_days?: number | null
+          id?: never
+          item_id?: string
+          rating?: string | null
+          repetitions_after?: number | null
+          reviewed_at?: string
+          scheduled_days?: number | null
+          stability_after?: number | null
+          stability_before?: number | null
+          user_id?: string
         }
         Relationships: []
       }
@@ -3618,6 +3762,7 @@ export type Database = {
           dialect: string
           difficulty: string
           formality: string
+          frequency_rank: number | null
           id: string
           occasion_id: string | null
           phrase_arabic: string
@@ -3644,6 +3789,7 @@ export type Database = {
           dialect?: string
           difficulty?: string
           formality?: string
+          frequency_rank?: number | null
           id?: string
           occasion_id?: string | null
           phrase_arabic: string
@@ -3670,6 +3816,7 @@ export type Database = {
           dialect?: string
           difficulty?: string
           formality?: string
+          frequency_rank?: number | null
           id?: string
           occasion_id?: string | null
           phrase_arabic?: string
@@ -4629,6 +4776,57 @@ export type Database = {
         }
         Relationships: []
       }
+      user_perception_progress: {
+        Row: {
+          attempts: number
+          completed_at: string | null
+          contrast_id: string
+          correct: number
+          created_at: string
+          dialect: string
+          id: string
+          last_practiced_at: string
+          resurface_attempts: number
+          resurface_correct: number
+          resurfaced_at: string | null
+          seconds: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          completed_at?: string | null
+          contrast_id: string
+          correct?: number
+          created_at?: string
+          dialect?: string
+          id?: string
+          last_practiced_at?: string
+          resurface_attempts?: number
+          resurface_correct?: number
+          resurfaced_at?: string | null
+          seconds?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          completed_at?: string | null
+          contrast_id?: string
+          correct?: number
+          created_at?: string
+          dialect?: string
+          id?: string
+          last_practiced_at?: string
+          resurface_attempts?: number
+          resurface_correct?: number
+          resurfaced_at?: string | null
+          seconds?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_phrases: {
         Row: {
           created_at: string
@@ -5265,6 +5463,7 @@ export type Database = {
           created_at: string
           dialect_module: string
           display_order: number
+          frequency_rank: number | null
           id: string
           image_position: string | null
           image_scene_description: string | null
@@ -5286,6 +5485,7 @@ export type Database = {
           created_at?: string
           dialect_module?: string
           display_order?: number
+          frequency_rank?: number | null
           id?: string
           image_position?: string | null
           image_scene_description?: string | null
@@ -5307,6 +5507,7 @@ export type Database = {
           created_at?: string
           dialect_module?: string
           display_order?: number
+          frequency_rank?: number | null
           id?: string
           image_position?: string | null
           image_scene_description?: string | null
@@ -5692,6 +5893,7 @@ export type Database = {
           source_id: string
         }[]
       }
+      phrase_quality_to_rating: { Args: { quality: number }; Returns: string }
       reap_stuck_video_transcriptions: { Args: never; Returns: Json }
       record_checkpoint: {
         Args: { _index: number; _score: number }

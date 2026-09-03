@@ -7,6 +7,7 @@ import { detectMsaLeaks } from "../_shared/msaLeakDetector.ts";
 import type { Dialect } from "../_shared/dialectHelpers.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
+import { CURRICULUM_MODEL_OPTIONS } from "../_shared/curriculumModels.ts";
 import { chatFetch } from "../_shared/aiGateway.ts";
 
 
@@ -14,35 +15,31 @@ interface ModelConfig {
   model: string;
 }
 
-// Model IDs come from _shared/modelRegistry.ts so a registry bump propagates
-// here instead of leaving this admin tool pinned to a stale generation. Keys
-// are what the ModelSelector sends; the `model` field is what goes over the
-// wire. Keep this in sync with MODEL_OPTIONS in
-// src/components/admin/curriculum-builder/ModelSelector.tsx — an option the
-// selector offers but this map lacks fails with "Unknown model".
+// The offered models live in _shared/curriculumModels.ts, which the browser's
+// ModelSelector renders from too — one list, so the selector cannot offer an
+// id this map lacks. Keys are what the selector sends; the `model` field is
+// what goes over the wire.
 const routed = (model: string): ModelConfig => ({ model });
 
 const MODEL_REGISTRY: Record<string, ModelConfig> = {
-  // GEMINI_FAST and GEMINI_FLASH point at the same model today, so one entry
-  // covers both lineup slots; a second key would be a duplicate property.
-  [MODEL_IDS.GEMINI_FLASH]: routed(MODEL_IDS.GEMINI_FLASH),
-  [MODEL_IDS.GEMINI_PRO]: routed(MODEL_IDS.GEMINI_PRO),
-  [MODEL_IDS.CLAUDE]: routed(MODEL_IDS.CLAUDE),
-  [MODEL_IDS.QWEN]: routed(MODEL_IDS.QWEN),
-  [MODEL_IDS.SABA]: routed(MODEL_IDS.SABA),
-  "google/gemma-3-12b-it": routed("google/gemma-3-12b-it"),
+  ...Object.fromEntries(
+    CURRICULUM_MODEL_OPTIONS.map((option) => [
+      option.id,
+      routed(option.id === "fanar" ? MODEL_IDS.FANAR : option.id),
+    ]),
+  ),
   // Retired ids kept as aliases onto their current equivalents. An admin whose
-  // saved preference predates a registry bump gets the current model rather
+  // saved session predates a registry bump gets the current model rather
   // than "Unknown model" — the selector no longer offers these.
   "anthropic/claude-sonnet-4-5": routed(MODEL_IDS.CLAUDE),
   "anthropic/claude-sonnet-4.5": routed(MODEL_IDS.CLAUDE),
   "google/gemini-3.5-flash": routed(MODEL_IDS.GEMINI_FLASH),
+  "google/gemini-3.5-flash-lite": routed(MODEL_IDS.GEMINI_FLASH),
   "google/gemini-3-flash-preview": routed(MODEL_IDS.GEMINI_FAST),
   "google/gemini-2.5-flash": routed(MODEL_IDS.GEMINI_FAST),
+  "google/gemini-2.5-pro": routed(MODEL_IDS.GEMINI_PRO),
+  "qwen/qwen3-max": routed(MODEL_IDS.QWEN),
   "qwen/qwen3-235b-a22b": routed(MODEL_IDS.QWEN),
-  // Fanar routes through aiGateway like everything else now — it used to need
-  // its own endpoint and key here because the gateway did not know it.
-  fanar: routed(MODEL_IDS.FANAR),
 };
 
 const DIALECT_CONTEXT: Record<string, string> = {

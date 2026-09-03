@@ -91,20 +91,29 @@ const AdminChunkCandidates = () => {
 
   const promote = async (candidate: CompoundCandidate) => {
     setPromoting(candidate.arabic);
-    const { error } = await supabase.from("set_phrases").insert({
-      dialect: activeDialect,
-      phrase_arabic: candidate.arabic,
-      phrase_english: candidate.gloss,
-      // The first example line's translation is honest scenario raw material;
-      // the editorial pass rewrites it.
-      scenario_english: candidate.contexts[0]?.lineTranslation ?? null,
-      status: "draft",
-      tags: ["transcript"],
-      created_by: user?.id ?? null,
-    });
+    // `.select()` so a write RLS lets through with nothing written (0 rows,
+    // no error) reads as the failure it is rather than a drafted phrase.
+    const { data, error } = await supabase
+      .from("set_phrases")
+      .insert({
+        dialect: activeDialect,
+        phrase_arabic: candidate.arabic,
+        phrase_english: candidate.gloss,
+        // The first example line's translation is honest scenario raw material;
+        // the editorial pass rewrites it.
+        scenario_english: candidate.contexts[0]?.lineTranslation ?? null,
+        status: "draft",
+        tags: ["transcript"],
+        created_by: user?.id ?? null,
+      })
+      .select("id");
     setPromoting(null);
     if (error) {
       toast.error(`Couldn't promote: ${error.message}`);
+      return;
+    }
+    if (!data?.length) {
+      toast.error("Couldn't promote: nothing was written — you may not have permission.");
       return;
     }
     setPromoted((prev) => new Set(prev).add(candidate.arabic));

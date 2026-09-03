@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Copy, Gift, Loader2, Share2, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { consumeReferralCode, peekReferralCode } from "@/lib/referralHandoff";
 
 interface ReferralInfo {
   code: string;
@@ -18,13 +19,20 @@ interface ReferralInfo {
  * Copy adapts to whether rewards are configured server-side
  * (STRIPE_REFERRAL_COUPON): with them it's "give a month, get a month";
  * without, it's a plain invite.
+ *
+ * The one exception to the laziness: a friend who arrived through a
+ * `?ref=CODE` share link (stashed by `captureReferralFromUrl` in App) has the
+ * card opened for them with the code already in the redeem box, so the link
+ * does what it promised without a hunt for this card.
  */
 export function ReferralCard() {
-  const [open, setOpen] = useState(false);
+  // Read once on mount: the stash is what the share link left behind.
+  const [handoffCode] = useState(() => peekReferralCode());
+  const [open, setOpen] = useState(Boolean(handoffCode));
   const [loading, setLoading] = useState(false);
   const [info, setInfo] = useState<ReferralInfo | null>(null);
   const [copied, setCopied] = useState(false);
-  const [redeemInput, setRedeemInput] = useState("");
+  const [redeemInput, setRedeemInput] = useState(handoffCode ?? "");
   const [redeeming, setRedeeming] = useState(false);
 
   const load = async () => {
@@ -36,7 +44,10 @@ export function ReferralCard() {
         body: { action: "get" },
       });
       if (error || !data?.code) throw error ?? new Error("no code");
-      setInfo(data as ReferralInfo);
+      const loaded = data as ReferralInfo;
+      setInfo(loaded);
+      // An account that has already used a code has no use for a stashed one.
+      if (loaded.redeemed) consumeReferralCode();
     } catch {
       toast.error("Couldn't load your invite code — try again in a moment.");
       setOpen(false);
@@ -44,6 +55,13 @@ export function ReferralCard() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (handoffCode) void load();
+    // Mount only: `load` is stable in effect (it guards on info/loading) and
+    // the stash was read once into `handoffCode`.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const copy = async () => {
     if (!info) return;
@@ -97,6 +115,7 @@ export function ReferralCard() {
       );
       setInfo((prev) => (prev ? { ...prev, redeemed: true } : prev));
       setRedeemInput("");
+      consumeReferralCode();
     } finally {
       setRedeeming(false);
     }
@@ -149,6 +168,12 @@ export function ReferralCard() {
             {info.referrals.pending + info.referrals.converted + info.referrals.rewarded} joined ·{" "}
             {info.referrals.converted + info.referrals.rewarded} subscribed
           </p>
+
+          {!info.redeemed && handoffCode && redeemInput === handoffCode && (
+            <p className="text-xs text-muted-foreground border-t border-border pt-3">
+              A friend invited you — redeem their code below.
+            </p>
+          )}
 
           {!info.redeemed && (
             <div className="flex items-center gap-2 border-t border-border pt-3">

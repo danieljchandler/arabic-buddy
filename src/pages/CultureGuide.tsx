@@ -110,13 +110,19 @@ const CultureGuide = () => {
       let assistantSoFar = "";
 
       try {
+        // The session token, not the anon key. The function's daily cap
+        // resolves a *user* from this header and the anon key has none, so
+        // every question here came back 401 "Please sign in".
+        const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string;
+        const { data: { session } } = await supabase.auth.getSession();
         const resp = await fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/culture-guide`,
           {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+              apikey: anonKey,
+              Authorization: `Bearer ${session?.access_token ?? anonKey}`,
             },
             body: JSON.stringify({ messages: allMessages, dialect: activeDialect }),
             signal: controller.signal,

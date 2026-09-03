@@ -66,9 +66,23 @@ const AdminSetPhrases = () => {
     }
   };
 
+  // Every write below ends in `.select("id")` so an RLS-filtered write (0 rows,
+  // no error) fails loudly instead of toasting success while the row survives
+  // untouched — the same guard as useDeleteDiscoverVideo.
+  const nothingWritten = (verb: string) =>
+    `Nothing was ${verb} — you may not have permission to change this phrase.`;
+
   const togglePublish = async (id: string, current: string) => {
     const next = current === "published" ? "draft" : "published";
-    await sb.from("set_phrases").update({ status: next }).eq("id", id);
+    const { data, error } = await sb.from("set_phrases").update({ status: next }).eq("id", id).select("id");
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    if (!data?.length) {
+      toast.error(nothingWritten("updated"));
+      return;
+    }
     toast.success(next === "published" ? "Approved & published" : "Moved back to draft");
     refetch();
   };
@@ -103,9 +117,13 @@ const AdminSetPhrases = () => {
   };
 
   const saveEdit = async (id: string) => {
-    const { error } = await sb.from("set_phrases").update(draft).eq("id", id);
+    const { data, error } = await sb.from("set_phrases").update(draft).eq("id", id).select("id");
     if (error) {
       toast.error(error.message);
+      return;
+    }
+    if (!data?.length) {
+      toast.error(nothingWritten("saved"));
       return;
     }
     toast.success("Saved");
@@ -114,7 +132,18 @@ const AdminSetPhrases = () => {
   };
 
   const addOccasion = async (slug: string, name: string) => {
-    await sb.from("set_phrase_occasions").insert({ slug, name, dialect: activeDialect, status: "published" });
+    const { data, error } = await sb
+      .from("set_phrase_occasions")
+      .insert({ slug, name, dialect: activeDialect, status: "published" })
+      .select("id");
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    if (!data?.length) {
+      toast.error(`Nothing was added — you may not have permission to add occasions.`);
+      return;
+    }
     refetch();
     toast.success(`Added ${name}`);
   };
@@ -122,7 +151,7 @@ const AdminSetPhrases = () => {
   return (
     <div className="container mx-auto p-4 max-w-3xl">
       <div className="flex items-center gap-2 mb-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/admin/dashboard")}>
+        <Button variant="ghost" size="icon" onClick={() => navigate("/admin")}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <h1 className="text-xl font-bold">Set Phrases ({activeDialect})</h1>

@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ReferralCard } from "./ReferralCard";
+import { REFERRAL_STORAGE_KEY } from "@/lib/referralHandoff";
 
 /**
  * The referral card. Two behaviours carry the design: it is lazy (nothing is
@@ -104,6 +105,81 @@ describe("redeeming", () => {
 
     // The input stays — the learner may have another (valid) code.
     expect(screen.getByLabelText("Referral code")).toBeInTheDocument();
+  });
+});
+
+describe("a friend's share link", () => {
+  // What `captureReferralFromUrl` leaves behind after `/?ref=CODE`.
+  const arriveWithCode = (code = "ABCD2345") =>
+    window.localStorage.setItem(REFERRAL_STORAGE_KEY, code);
+
+  it("opens the card and prefills the code, so the link keeps its promise", async () => {
+    arriveWithCode();
+
+    await act(async () => {
+      render(<ReferralCard />);
+    });
+
+    expect(invoke).toHaveBeenCalledWith("referral", { body: { action: "get" } });
+    expect(await screen.findByLabelText("Referral code")).toHaveValue("ABCD2345");
+    expect(screen.getByText(/A friend invited you/)).toBeInTheDocument();
+    // Still there: the learner has not redeemed yet, and a reload must not lose it.
+    expect(window.localStorage.getItem(REFERRAL_STORAGE_KEY)).toBe("ABCD2345");
+  });
+
+  it("clears the stash once the code is redeemed", async () => {
+    arriveWithCode();
+    await act(async () => {
+      render(<ReferralCard />);
+    });
+    await screen.findByLabelText("Referral code");
+
+    invoke.mockResolvedValueOnce({ data: { ok: true }, error: null });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Redeem" }));
+    });
+
+    expect(invoke).toHaveBeenLastCalledWith("referral", {
+      body: { action: "redeem", code: "ABCD2345" },
+    });
+    expect(window.localStorage.getItem(REFERRAL_STORAGE_KEY)).toBeNull();
+  });
+
+  it("keeps the stash when the redeem is refused, so the learner can retry", async () => {
+    arriveWithCode();
+    await act(async () => {
+      render(<ReferralCard />);
+    });
+    await screen.findByLabelText("Referral code");
+
+    invoke.mockResolvedValueOnce({
+      data: { error: "unknown_code", message: "That code doesn't exist." },
+      error: null,
+    });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Redeem" }));
+    });
+
+    expect(window.localStorage.getItem(REFERRAL_STORAGE_KEY)).toBe("ABCD2345");
+  });
+
+  it("drops the stash for an account that already used a code", async () => {
+    arriveWithCode();
+    invoke.mockResolvedValue({ data: info({ redeemed: true }), error: null });
+
+    await act(async () => {
+      render(<ReferralCard />);
+    });
+
+    expect(await screen.findByText("GVQX7RPM")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Referral code")).not.toBeInTheDocument();
+    expect(window.localStorage.getItem(REFERRAL_STORAGE_KEY)).toBeNull();
+  });
+
+  it("stays lazy and collapsed with nothing stashed", () => {
+    render(<ReferralCard />);
+    expect(invoke).not.toHaveBeenCalled();
+    expect(screen.getByRole("button", { name: /Invite friends/ })).toBeInTheDocument();
   });
 });
 

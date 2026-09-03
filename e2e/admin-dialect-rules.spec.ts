@@ -232,6 +232,22 @@ test.describe("moving a rule through its life", () => {
     await expect(page.getByText("Rule deleted")).toBeVisible();
     expect(db.rows("dialect_rules")).toHaveLength(0);
   });
+
+  test("reports a delete that removed nothing", async ({ page, db }) => {
+    // RLS filters rather than rejects: a delete it disallows answers 200 with
+    // zero rows, which is what a reviewer saw while DELETE was admin-only.
+    db.seed("dialect_rules", [aDialectRule({ id: ruleId(0) })]);
+    page.on("dialog", (dialog) => dialog.accept());
+    await page.goto("/admin/dialect-rules");
+    await expect(page.locator("button:has(svg.lucide-trash2)")).toBeVisible();
+
+    db.seed("dialect_rules", []);
+    await page.locator("button:has(svg.lucide-trash2)").click();
+
+    await expect(page.getByText("Failed")).toBeVisible();
+    await expect(page.getByText(/nothing was deleted/i)).toBeVisible();
+    await expect(page.getByText("Rule deleted")).toHaveCount(0);
+  });
 });
 
 test.describe("editing a rule", () => {
@@ -579,7 +595,20 @@ test.describe("the violations digest", () => {
       .toMatchObject({ includeResolved: true });
   });
 
+  /** The stored row behind the digest's one sample. */
+  const aViolation = () => ({
+    id: "v-1",
+    dialect: "Gulf",
+    detected_by: "leak_detector",
+    offending_text: "أريد أن أذهب الآن",
+    msa_token: "الآن",
+    source_function: "free-chat",
+    resolved: false,
+    created_at: daysAgo(1),
+  });
+
   test("marks a sample resolved", async ({ page, db, backend }) => {
+    db.seed("dialect_rule_violations", [aViolation()]);
     backend.stubFunction("dialect-violations-digest", digest());
     await openViolations(page);
 
@@ -591,6 +620,21 @@ test.describe("the violations digest", () => {
     const write = db.lastWriteTo("dialect_rule_violations");
     expect(write?.method).toBe("PATCH");
     expect(write?.payload[0]).toEqual({ resolved: true });
+    expect(db.rows("dialect_rule_violations")[0]).toMatchObject({ resolved: true });
+  });
+
+  test("reports a resolve that changed nothing", async ({ page, db, backend }) => {
+    // The digest comes from an edge function under the service role, so it
+    // can show a sample the caller's own RLS then hides from the update.
+    db.seed("dialect_rule_violations", []);
+    backend.stubFunction("dialect-violations-digest", digest());
+    await openViolations(page);
+
+    await page.getByRole("button", { name: "Resolve", exact: true }).click();
+
+    await expect(page.getByText("Failed")).toBeVisible();
+    await expect(page.getByText(/nothing was resolved/i)).toBeVisible();
+    await expect(page.getByText("Marked resolved")).toHaveCount(0);
   });
 
   test("offers no resolve on one already resolved", async ({ page, backend }) => {
@@ -783,6 +827,20 @@ test.describe("who can open it", () => {
 
     await expect(page.getByRole("heading", { name: /dialect rulebook/i })).toBeVisible();
     await expect(page.getByText("A draft rule.")).toBeVisible();
+  });
+
+  test("a content reviewer's delete persists", async ({ page, signInAs, db }) => {
+    // DELETE on dialect_rules admits content managers (migration
+    // 20260903100000) — before it, a reviewer's delete matched zero rows.
+    await signInAs("content_reviewer");
+    db.seed("dialect_rules", [aDialectRule({ id: ruleId(0) })]);
+    page.on("dialog", (dialog) => dialog.accept());
+    await page.goto("/admin/dialect-rules");
+
+    await page.locator("button:has(svg.lucide-trash2)").click();
+
+    await expect(page.getByText("Rule deleted")).toBeVisible();
+    expect(db.rows("dialect_rules")).toHaveLength(0);
   });
 
   test("a recorder may too", async ({ page, signInAs }) => {

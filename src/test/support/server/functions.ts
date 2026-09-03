@@ -571,7 +571,9 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
   // `history: []` serves the Profile level card's never-placed state; the
   // quiz shapes serve everything the quiz flow itself doesn't override.
   "placement-quiz": () => ok({ questions: [], level: "A2", history: [] }),
-  "reading-passage": () => ok({ passage: "", questions: [] }),
+  // The real function nests the lines under `passage`; a flat string here let
+  // the C-test read the wrong level and still pass.
+  "reading-passage": () => ok({ passage: { title: "", lines: [], questions: [] } }),
   "reading-qa": () => ok({ answer: "" }),
   "phrase-of-the-day": () => ok({ phrase: null }),
 
@@ -981,6 +983,32 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
   "backfill-literal-translations": () => ok({ updated: 0 }),
   "vet-corpus-sentences": () => ok({ results: [] }),
   "notify-due-reviews": () => ok({ sent: 0 }),
+  // The learner's own code on `get`; on `redeem`, the two refusals a fresh
+  // account can actually hit — no such code, or its own — otherwise accepted.
+  // Rewards off, as in a project with no STRIPE_REFERRAL_COUPON configured.
+  referral: (ctx) => {
+    const body = (ctx.body ?? {}) as { action?: string; code?: string };
+    const own = "GVQX7RPM";
+    if (body.action === "redeem") {
+      const code = (body.code ?? "").trim().toUpperCase();
+      if (code === own) {
+        return { status: 400, body: { error: "own_code", message: "That's your own code." } };
+      }
+      if (!/^[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{8}$/.test(code)) {
+        return {
+          status: 404,
+          body: { error: "unknown_code", message: "That code doesn't exist." },
+        };
+      }
+      return ok({ ok: true });
+    }
+    return ok({
+      code: own,
+      referrals: { pending: 0, converted: 0, rewarded: 0 },
+      redeemed: false,
+      rewards_enabled: false,
+    });
+  },
 };
 
 /** The 429 an over-quota free user gets, exactly as `_shared/usageCap.ts` sends it. */

@@ -10,6 +10,7 @@ import { ChatWindow } from '@/components/admin/curriculum-builder/ChatWindow';
 import { ChatInput, type ChatMode } from '@/components/admin/curriculum-builder/ChatInput';
 import { DialectSelector, type GulfDialect } from '@/components/admin/curriculum-builder/DialectSelector';
 import { ModelSelector, type LLMModelId } from '@/components/admin/curriculum-builder/ModelSelector';
+import { DEFAULT_CURRICULUM_MODEL } from '../../../supabase/functions/_shared/curriculumModels';
 import { PreviewPanel } from '@/components/admin/curriculum-builder/PreviewPanel';
 import {
   Dialog,
@@ -57,7 +58,7 @@ const CurriculumBuilder = () => {
 
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [newDialect, setNewDialect] = useState<GulfDialect>(activeDialect as GulfDialect);
-  const [newModel, setNewModel] = useState<LLMModelId>('google/gemini-3.5-flash-lite');
+  const [newModel, setNewModel] = useState<LLMModelId>(DEFAULT_CURRICULUM_MODEL);
   const [newStageId, setNewStageId] = useState<string>('');
   const [newCefr, setNewCefr] = useState<string>('');
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);

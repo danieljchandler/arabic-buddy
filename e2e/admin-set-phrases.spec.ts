@@ -276,18 +276,31 @@ test.describe("the phrase queue", () => {
     expect(db.lastWriteTo("set_phrases")?.payload[0]).toMatchObject({ status: "draft" });
   });
 
-  test("claims a publish succeeded even when the update was rejected", async ({ page, db }) => {
-    // Pinned, not fixed. `togglePublish` never looks at the error — it toasts
-    // and refetches regardless, so a phrase that stayed draft reads as approved
-    // until the refetch lands and silently flips the button back.
+  test("reports a rejected publish instead of pretending it worked", async ({ page, db }) => {
     db.seed("set_phrases", [aSetPhrase({ status: "draft" })]);
     await page.goto("/admin/set-phrases");
 
     db.failWrites("set_phrases", 403);
     await page.getByRole("button", { name: /^Approve$/ }).click();
 
-    await expect(page.getByText(/approved & published/i)).toBeVisible();
+    await expect(page.getByText(/approved & published/i)).toHaveCount(0);
     expect(db.rows("set_phrases")[0].status).toBe("draft");
+  });
+
+  test("reports a publish that changed nothing", async ({ page, db }) => {
+    // RLS does not reject a write it disallows — it filters the row out, and
+    // PostgREST answers 200 with zero rows. That is what a content reviewer
+    // saw before the policies admitted them, so the handler has to read the
+    // returned rows rather than the status.
+    db.seed("set_phrases", [aSetPhrase({ status: "draft" })]);
+    await page.goto("/admin/set-phrases");
+    await expect(page.getByRole("button", { name: /^Approve$/ })).toBeVisible();
+
+    db.seed("set_phrases", []);
+    await page.getByRole("button", { name: /^Approve$/ }).click();
+
+    await expect(page.getByText(/nothing was updated/i)).toBeVisible();
+    await expect(page.getByText(/approved & published/i)).toHaveCount(0);
   });
 
   test("edits a phrase in place", async ({ page, db }) => {
@@ -651,6 +664,21 @@ test.describe("who can open it", () => {
     await expect(page.getByText("good morning")).toBeVisible();
   });
 
+  test("a content reviewer's approval persists", async ({ page, signInAs, db }) => {
+    // The policies on set_phrases admit content managers (migration
+    // 20260903100000), so a reviewer's approve is a real write, not a
+    // zero-row no-op behind a green toast.
+    await signInAs("content_reviewer");
+    db.seed("set_phrase_occasions", []);
+    db.seed("set_phrases", [aSetPhrase({ status: "draft" })]);
+    await page.goto("/admin/set-phrases");
+
+    await page.getByRole("button", { name: /^Approve$/ }).click();
+
+    await expect(page.getByText(/approved & published/i)).toBeVisible();
+    expect(db.rows("set_phrases")[0].status).toBe("published");
+  });
+
   test("a recorder may too", async ({ page, signInAs, db }) => {
     await signInAs("recorder");
     db.seed("set_phrase_occasions", []);
@@ -679,10 +707,9 @@ test.describe("who can open it", () => {
 });
 
 test.describe("the back arrow", () => {
-  test("leads to a route that does not exist", async ({ page, signInAs, db }) => {
-    // Pinned, not fixed. The dashboard is the index route of /admin; there is
-    // no /admin/dashboard, so the only navigation control on this page lands
-    // the admin on the 404 screen.
+  test("leads back to the admin dashboard", async ({ page, signInAs, db }) => {
+    // The dashboard is the index route of /admin; there is no /admin/dashboard,
+    // and this button used to point there and land on the 404 screen.
     await signInAs("admin");
     db.seed("set_phrase_occasions", []);
     db.seed("set_phrases", []);
@@ -690,7 +717,7 @@ test.describe("the back arrow", () => {
 
     await page.locator("button:has(svg.lucide-arrow-left)").click();
 
-    await expect(page).toHaveURL(/\/admin\/dashboard$/);
-    await expect(page.getByText(/404/)).toBeVisible();
+    await expect(page).toHaveURL(/\/admin$/);
+    await expect(page.getByText(/404/)).toHaveCount(0);
   });
 });

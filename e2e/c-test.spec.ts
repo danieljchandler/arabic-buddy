@@ -17,7 +17,13 @@ test.describe("the C-test", () => {
     await signInAs("free");
     db.seed("placement_results", []);
     db.seed("review_log", []);
-    backend.stubFunction("reading-passage", { passage: PASSAGE });
+    // The shape the real function returns: lines nested under `passage`.
+    backend.stubFunction("reading-passage", {
+      passage: {
+        title: "السوق",
+        lines: PASSAGE.split(/(?<=[.!؟،])\s+/).map((arabic) => ({ arabic })),
+      },
+    });
   });
 
   test("renders the gaps as inputs and scores a perfect answer at 100%", async ({ page, db }) => {

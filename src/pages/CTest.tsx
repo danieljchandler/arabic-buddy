@@ -27,7 +27,11 @@ import { cn } from "@/lib/utils";
 interface PassageLine { arabic?: string }
 
 function linesFrom(raw: unknown): string[] {
-  const data = raw as { lines?: PassageLine[]; passage?: string } | null;
+  const data = raw as { lines?: PassageLine[]; passage?: unknown } | null;
+  // reading-passage answers `{ passage: { title, lines, … } }` — the lines sit
+  // one level down. Reading them off the envelope found nothing, so every
+  // visit ended in "too short to make a test from".
+  if (data?.passage && typeof data.passage === "object") return linesFrom(data.passage);
   if (Array.isArray(data?.lines) && data.lines.length > 0) {
     return data.lines.map((l) => (typeof l?.arabic === "string" ? l.arabic : "")).filter(Boolean);
   }

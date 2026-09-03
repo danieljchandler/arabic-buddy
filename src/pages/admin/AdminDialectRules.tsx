@@ -414,8 +414,17 @@ const RuleRow = ({ rule, dialect }: RuleRowProps) => {
 
   const remove = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase.from('dialect_rules' as any).delete().eq('id', rule.id);
+      // `.select()` so an RLS-filtered delete (0 rows, no error) fails loudly
+      // instead of toasting success while the rule survives.
+      const { data, error } = await supabase
+        .from('dialect_rules' as any)
+        .delete()
+        .eq('id', rule.id)
+        .select('id');
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error('Nothing was deleted — you may not have permission to delete this rule.');
+      }
     },
     onSuccess: () => {
       toast({ title: 'Rule deleted' });
@@ -620,11 +629,17 @@ const ViolationsPanel = ({ dialect }: { dialect: string }) => {
 
   const resolve = useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
+      // `.select()` so an RLS-filtered update (0 rows, no error) fails loudly
+      // instead of reporting a sample resolved that is still open.
+      const { data, error } = await supabase
         .from('dialect_rule_violations' as any)
         .update({ resolved: true })
-        .eq('id', id);
+        .eq('id', id)
+        .select('id');
       if (error) throw error;
+      if (!data || data.length === 0) {
+        throw new Error('Nothing was resolved — you may not have permission to change this sample.');
+      }
     },
     onSuccess: () => {
       toast({ title: 'Marked resolved' });

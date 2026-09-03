@@ -17,7 +17,7 @@ runtime check was possible, reproduced locally.
 | `npm run check:edge` (deno check) | pass |
 | `npm run test:edge` | pass — 1844 tests |
 | Migration replay (stock Postgres 16) | **FAIL** — see B1 |
-| `npm run test:e2e` (Playwright) | in progress at time of writing; result appended below when it finishes |
+| `npm run test:e2e` (Playwright) | pass — 2137 specs, Chromium, 27.5 min |
 
 ## A. Confirmed broken — learner-facing
 

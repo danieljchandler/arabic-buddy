@@ -346,6 +346,48 @@ Deno.test("check-subscription writes what Stripe said into subscribers", async (
   }
 });
 
+Deno.test("check-subscription reads the period end from the subscription item", async () => {
+  // The client is pinned to a Basil API version, which dropped
+  // current_period_end from the subscription object. Reading it there threw on
+  // every active subscription, so paying learners were written up as free.
+  const periodEnd = Math.floor(Date.now() / 1000) + 86_400;
+  const fn = await loadFunction("check-subscription", {
+    upstreams: {
+      ...upstreams({ existingCustomer: "cus_fixture" }),
+      "api.stripe.com": (request: Request) => {
+        const url = new URL(request.url);
+        if (url.pathname.includes("/customers")) {
+          return json({ data: [{ id: "cus_fixture", email: "learner@example.com" }] });
+        }
+        if (url.pathname.includes("/subscriptions")) {
+          return json({
+            data: [{
+              id: "sub_1",
+              items: {
+                data: [{ current_period_end: periodEnd, price: { product: "prod_U77NfmTFN3mabx" } }],
+              },
+            }],
+          });
+        }
+        return json({ data: [] });
+      },
+    },
+  });
+  try {
+    const response = await fn.handler(jsonRequest("check-subscription", {}));
+    assertEquals(response.status, 200);
+    const body = await response.json();
+    assertEquals(body.subscribed, true);
+    assertEquals(body.subscription_end, new Date(periodEnd * 1000).toISOString());
+
+    const upsert = fn.callsTo("/rest/v1/subscribers").at(-1);
+    assert(upsert, "expected an upsert into subscribers");
+    assertStringIncludes(upsert.body ?? "", '"subscribed":true');
+  } finally {
+    fn.restore();
+  }
+});
+
 // ── Referral rewards (D4) ───────────────────────────────────────────────────
 // Both rewards are Stripe-side. The referred learner's month off is a coupon
 // auto-applied at first checkout while their redemption is still pending; the
@@ -405,8 +447,13 @@ Deno.test("check-subscription converts a referral and credits the referrer", asy
           return json({
             data: [{
               id: "sub_1",
-              current_period_end: Math.floor(Date.now() / 1000) + 86_400,
-              items: { data: [{ price: { product: "prod_U77NfmTFN3mabx" } }] },
+              // Basil shape: the period lives on the item, not the subscription.
+              items: {
+                data: [{
+                  current_period_end: Math.floor(Date.now() / 1000) + 86_400,
+                  price: { product: "prod_U77NfmTFN3mabx" },
+                }],
+              },
             }],
           });
         }

@@ -1,82 +1,17 @@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 
-// Every id here must exist in MODEL_REGISTRY in
-// supabase/functions/curriculum-chat/index.ts — an option this list offers but
-// that map lacks fails at request time with "Unknown model".
-export type LLMModelId =
-  | 'google/gemini-3.7-flash'
-  | 'google/gemini-3.5-flash-lite'
-  | 'google/gemini-2.5-pro'
-  | 'anthropic/claude-sonnet-5'
-  | 'qwen/qwen3-max'
-  | 'mistralai/mistral-saba'
-  | 'google/gemma-3-12b-it'
-  | 'fanar';
+import {
+  CURRICULUM_MODEL_OPTIONS,
+  curriculumModelName,
+} from "../../../../supabase/functions/_shared/curriculumModels";
 
-interface ModelOption {
-  id: LLMModelId;
-  name: string;
-  provider: string;
-  description: string;
-  badge?: string;
-}
+// The options come from the same module curriculum-chat builds its registry
+// from, so the picker cannot offer an id the function rejects. An id is a
+// plain string now rather than a union: the list is the source of truth.
+export type LLMModelId = string;
 
-const MODEL_OPTIONS: ModelOption[] = [
-  {
-    id: 'google/gemini-3.7-flash',
-    name: 'Gemini 3.7 Flash',
-    provider: 'Google',
-    description: 'Pipeline-aligned drafter. Top dialect quality.',
-    badge: 'Recommended',
-  },
-  {
-    id: 'anthropic/claude-sonnet-5',
-    name: 'Claude Sonnet 5',
-    provider: 'OpenRouter',
-    description: 'Pipeline-aligned drafter & judge.',
-    badge: 'Pipeline',
-  },
-  {
-    id: 'fanar',
-    name: 'Fanar 2 (27B)',
-    provider: 'Qatar (QCRI)',
-    description: 'Arabic-native specialist, 32k context.',
-    badge: 'Arabic Expert',
-  },
-  {
-    id: 'mistralai/mistral-saba',
-    name: 'Mistral Saba',
-    provider: 'OpenRouter',
-    description: 'Arabic-focused 24B. Cheap second opinion.',
-    badge: 'Arabic',
-  },
-  {
-    id: 'qwen/qwen3-max',
-    name: 'Qwen3 Max',
-    provider: 'OpenRouter',
-    description: 'Third verifier (weighted lower than Gemini/Claude).',
-    badge: 'Verifier',
-  },
-  {
-    id: 'google/gemini-2.5-pro',
-    name: 'Gemini 2.5 Pro',
-    provider: 'Google',
-    description: 'Previous-gen strong Gemini.',
-  },
-  {
-    id: 'google/gemini-3.5-flash-lite',
-    name: 'Gemini 3.5 Flash Lite',
-    provider: 'Google',
-    description: 'The pipeline\'s cheap tier. Fast one-shots.',
-  },
-  {
-    id: 'google/gemma-3-12b-it',
-    name: 'Gemma 3 12B',
-    provider: 'OpenRouter',
-    description: 'Good Arabic understanding.',
-  },
-];
+const MODEL_OPTIONS = CURRICULUM_MODEL_OPTIONS;
 
 interface ModelSelectorProps {
   value: LLMModelId;
@@ -109,8 +44,6 @@ export const ModelSelector = ({ value, onChange, className }: ModelSelectorProps
   );
 };
 
-export const getModelName = (id: LLMModelId | string): string => {
-  return MODEL_OPTIONS.find((m) => m.id === id)?.name ?? id;
-};
+export const getModelName = (id: LLMModelId): string => curriculumModelName(id);
 
 export { MODEL_OPTIONS };

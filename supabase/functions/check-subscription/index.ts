@@ -122,7 +122,14 @@ serve(async (req) => {
 
     if (hasActiveSub) {
       const subscription = subscriptions.data[0];
-      subscriptionEnd = new Date(subscription.current_period_end * 1000).toISOString();
+      // Stripe's Basil API versions (2025-03-31 onward, which this client is
+      // pinned to) moved current_period_end off the subscription and onto each
+      // subscription item. Reading the old location gave undefined, so
+      // `new Date(NaN)` threw and every paying learner was reported as free.
+      const legacy = subscription as { current_period_end?: number | null };
+      const periodEnd =
+        subscription.items?.data?.[0]?.current_period_end ?? legacy.current_period_end ?? null;
+      subscriptionEnd = periodEnd ? new Date(periodEnd * 1000).toISOString() : null;
       logStep("Active subscription found", { subscriptionId: subscription.id, endDate: subscriptionEnd });
       productId = subscription.items.data[0].price.product;
       

@@ -3036,36 +3036,45 @@ export type Database = {
       }
       placement_results: {
         Row: {
-          cefr_level: string
+          cefr_level: string | null
           confidence: number | null
           created_at: string
+          detail: Json
           dialect: string
           id: string
+          instrument: string
           reviews_at_time: number | null
+          score: number | null
           strengths: Json
           taken_at: string
           user_id: string
           weaknesses: Json
         }
         Insert: {
-          cefr_level: string
+          cefr_level?: string | null
           confidence?: number | null
           created_at?: string
+          detail?: Json
           dialect?: string
           id?: string
+          instrument?: string
           reviews_at_time?: number | null
+          score?: number | null
           strengths?: Json
           taken_at?: string
           user_id: string
           weaknesses?: Json
         }
         Update: {
-          cefr_level?: string
+          cefr_level?: string | null
           confidence?: number | null
           created_at?: string
+          detail?: Json
           dialect?: string
           id?: string
+          instrument?: string
           reviews_at_time?: number | null
+          score?: number | null
           strengths?: Json
           taken_at?: string
           user_id?: string

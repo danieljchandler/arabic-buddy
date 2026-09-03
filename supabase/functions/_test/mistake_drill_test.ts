@@ -57,6 +57,9 @@ function caller(extra: Record<string, UpstreamHandler> = {}): Record<string, Ups
     "/rest/v1/dialect_prompts": () => json([]),
     "/rest/v1/dialect_rules": () => json([]),
     "ai.gateway.lovable.dev": () => chatCompletion("", generated),
+    // google/* models are served by Google's OpenAI-compatible route since
+    // 1550b69, whose harness default answers no tool call — stub it like the rest.
+    "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("", generated),
     "openrouter.ai": () => chatCompletion("", generated),
     ...extra,
   };

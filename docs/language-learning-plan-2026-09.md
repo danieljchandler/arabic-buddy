@@ -138,9 +138,9 @@ exposures. `reviewOrder.test.ts` gains the blocked path.
 the three conversation surfaces. The three differ in shape:
 
 - **`conversation-practice`** turned out to have **no client caller** — the
-  Conversation Simulator drives `free-chat`, and nothing else references the
-  function. It is left untouched rather than given an extraction path nobody
-  would exercise; it is a candidate for removal in a later cleanup.
+  Conversation Simulator drives `free-chat`, and nothing else referenced the
+  function. It has since been removed (function, config entry, emulator stub
+  and tests); the extraction path was never wired to it.
 - **`free-chat`** streams via `streamBrain` and never holds the reply, but its
   tutor prompt already makes the model prepend a `[[CORRECTION]]` line when the
   learner's message had a genuine mistake, and the client splits that line out.
@@ -250,8 +250,11 @@ tested. This is where R9 compounds: the retrieval-practice gain was driven by
 high-frequency words, and this makes those the ones a learner meets first.
 Shipped for the curriculum deck (`vocabulary_words`), whose words the app
 chooses; the personal deck is the learner's own picks, where a frequency
-order would second-guess them. `set_phrases` receive ranks from the same job
-but their practice order is not yet driven by it.
+order would second-guess them. `set_phrases` receive ranks from the same job, and
+`generate-set-phrase-quiz` now uses the rank as the secondary key when it
+admits new phrases — inside each occasion-familiarity band, so the
+teddy-bear counterweight (widen across occasions) still comes first and
+"common first" decides within it; unranked phrases sort last.
 
 **3a, as shipped.** The caption source joins `caption_lines` →
 `channel_videos` → `content_channels.dialect`, keeps lines whose own
@@ -357,10 +360,16 @@ distinct words (types) and words (tokens) per monologue transcript with the
 app's own tokeniser, keeps a cumulative spoken vocabulary, and compares the
 latest five monologues with the five before; LearningAnalytics shows it as
 "Words you've said". It is computed on read from `monologue_attempts`, not
-stored — the transcripts are the record. The **C-test** generator is deferred:
-it is a new model-calling surface (generator, edge function, scoring, UI)
-and the plan's remaining budget went to the measures that needed no new
-generation. It stays the next item here.
+stored — the transcripts are the record. The **C-test** is live too, without a new
+model-calling surface: `/placement/c-test` takes a passage from the existing
+`reading-passage` generator (already pitched at the learner's level and
+gated for dialect) and `src/lib/cTest.ts` does the rest — the first
+sentence stays whole, then the second half of every second word of three or
+more letters is deleted, scoring is exact on the normalised form so hamza
+seats, ة/ه, ى/ي and tashkeel never count against a learner. The result is a
+percentage stored in `placement_results` as `instrument = 'c_test'` (the
+table gained `instrument`, `score` and `detail`; `cefr_level` is nullable),
+and LearningAnalytics shows first-vs-latest beside the level line.
 
 **6c. ADI2 as a second dialect signal — plumbed, inert.**
 `_shared/aldiSignal.ts` scores text with the Sentence-ALDi model through the

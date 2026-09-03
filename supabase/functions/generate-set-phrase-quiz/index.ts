@@ -206,11 +206,19 @@ serve(async (req) => {
     const familiarity = (p: { occasion_id?: unknown }) =>
       typeof p.occasion_id === "string" ? occasionFamiliarity.get(p.occasion_id) ?? 0 : 0;
 
+    // Within a familiarity band, the more common phrase first: frequency_rank
+    // comes from the dialect's own transcripts (derive-word-frequency; 1 = most
+    // frequent), and the retrieval-practice gain the deck relies on was driven
+    // by high-frequency items (docs/language-learning-research-2026-09.md §1).
+    // Unranked phrases — never seen in the corpus — sort last, still shuffled.
+    const rankOf = (p: { frequency_rank?: unknown }) =>
+      typeof p.frequency_rank === "number" ? p.frequency_rank : Number.POSITIVE_INFINITY;
+
     const filtered = (candidates ?? []).filter((p: any) => !dueIds.has(p.id));
     const newPicks = shuffle(filtered)
       .sort(
-        (a: { occasion_id?: unknown }, b: { occasion_id?: unknown }) =>
-          familiarity(a) - familiarity(b),
+        (a: { occasion_id?: unknown; frequency_rank?: unknown }, b: { occasion_id?: unknown; frequency_rank?: unknown }) =>
+          familiarity(a) - familiarity(b) || rankOf(a) - rankOf(b),
       )
       .slice(0, Math.max(0, remaining));
 

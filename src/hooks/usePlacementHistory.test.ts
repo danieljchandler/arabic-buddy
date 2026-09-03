@@ -72,6 +72,17 @@ describe("usePlacementHistory", () => {
     expect(busyButRecent.result.current.replacementDue).toBe(false);
   });
 
+  it("keeps C-test results apart from placements, and never treats one as the latest level", async () => {
+    const { result } = render((b) => b.db.seed("placement_results", [
+      aPlacementResult({ cefr_level: "A2", taken_at: daysBefore(100) }),
+      aPlacementResult({ id: "beef0000-0000-4000-8000-000000000003", instrument: "c_test", cefr_level: null, score: 62, taken_at: daysBefore(5) }),
+    ]));
+    await waitFor(() => expect(result.current.cTests).toHaveLength(1));
+    expect(result.current.history).toHaveLength(1);
+    expect(result.current.latest?.cefr_level).toBe("A2");
+    expect(result.current.cTests[0].score).toBe(62);
+  });
+
   it("orders CEFR levels for charting", () => {
     expect(cefrOrdinal("A1")).toBe(0);
     expect(cefrOrdinal("B2")).toBe(3);

@@ -338,6 +338,28 @@ Deno.test("generate-set-phrase-quiz builds a scenario question from a cached phr
   assertEquals(items[0].choices.filter((c) => c.correct).length, 1);
 });
 
+Deno.test("generate-set-phrase-quiz offers the more common phrase first within an occasion", async () => {
+  // Same occasion, so the teddy-bear counterweight is a tie; frequency_rank
+  // (1 = most frequent in the dialect's own transcripts) breaks it, and a
+  // phrase the corpus never says sorts last.
+  const rare = scenarioPhrase({ id: "99999999-0000-4000-8000-000000000011", phrase_arabic: "نادر جداً", frequency_rank: 40 });
+  const common = scenarioPhrase({ id: "99999999-0000-4000-8000-000000000012", phrase_arabic: "يعطيك العافية", frequency_rank: 3 });
+  const unseen = scenarioPhrase({ id: "99999999-0000-4000-8000-000000000013", phrase_arabic: "ما قالها أحد", frequency_rank: null });
+
+  const one = await withRandom(0.9, () =>
+    call("generate-set-phrase-quiz", { dialect: "Gulf", length: 1 }, quizUpstreams({
+      "/rest/v1/set_phrases": () => json([unseen, rare, common]),
+    })));
+  assertEquals(one.status, 200);
+  assertEquals((one.body.items as QuizItem[]).map((i) => i.expected_arabic), ["يعطيك العافية"]);
+
+  const three = await withRandom(0.9, () =>
+    call("generate-set-phrase-quiz", { dialect: "Gulf", length: 3 }, quizUpstreams({
+      "/rest/v1/set_phrases": () => json([unseen, rare, common]),
+    })));
+  assertEquals((three.body.items as QuizItem[]).map((i) => i.expected_arabic), ["يعطيك العافية", "نادر جداً", "ما قالها أحد"]);
+});
+
 Deno.test("generate-set-phrase-quiz does not call the model when distractors are cached", async () => {
   const result = await withRandom(0.9, () =>
     call("generate-set-phrase-quiz", { dialect: "Gulf" }, quizUpstreams()));

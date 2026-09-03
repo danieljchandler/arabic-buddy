@@ -10,6 +10,13 @@ import { aDiscoverVideo, videoId } from "../src/test/support/factories";
  * `thumbnail_url` usually shows a picture anyway and has nothing to fetch.
  * What is left is TikTok, whose stills are signed CDN URLs that have to be
  * asked for, and Instagram, which has no public oEmbed at all.
+ *
+ * "Asked for" is the whole difficulty. What TikTok answers with expires in
+ * about forty-eight hours, so a row that stored the answer showed a picture
+ * for two days and a broken image afterwards — which is why thumbnails kept
+ * "dropping out" days after an admin added them. The asking therefore happens
+ * in `persist-video-thumbnail`, which keeps a copy in our own bucket; the
+ * browser cannot do that part, the CDNs sending no CORS headers.
  */
 
 /** A 1x1 transparent GIF, inline, so a thumbnail needs no network at all. */
@@ -62,25 +69,39 @@ test.describe("the thumbnail backfill", () => {
     await expect(backfillButton(page)).toHaveText(/Find 1 missing thumbnail$/);
   });
 
-  test("fetches a TikTok still and saves it", async ({ page, db, allowExternalHosts }) => {
-    // TikTok's oEmbed is public and CORS-open, which is why this can run from
-    // the admin's own browser rather than needing an edge function.
-    // The CDN host too: the saved still is rendered straight back into the
-    // list, which is the proof it actually landed on the row.
-    allowExternalHosts(["tiktok.com", "tiktokcdn.test"]);
-    await page.route("**/www.tiktok.com/oembed**", (route) =>
-      route.fulfill({ json: { thumbnail_url: "https://p16.tiktokcdn.test/obj/still.jpg" } }),
-    );
+  test("counts a video whose still is about to expire", async ({ page, db, allowExternalHosts }) => {
+    // The row renders its (doomed) still, so the CDN host has to be declared
+    // even though nothing there answers.
+    allowExternalHosts(["tiktokcdn.test"]);
+    // The row that made this a bug rather than a gap: it has a thumbnail, it
+    // renders today, and TikTok's signature on it runs out on Friday. Left off
+    // the list, it silently goes blank and nobody is told.
+    db.seed("discover_videos", [
+      aTikTokVideo({
+        id: videoId(0),
+        title: "A meme",
+        thumbnail_url:
+          "https://p16.tiktokcdn.test/obj/still.image?x-expires=1788613200&x-signature=abc",
+      }),
+    ]);
 
+    await page.goto("/admin/videos");
+    await expect(backfillButton(page)).toHaveText(/Find 1 missing thumbnail$/);
+  });
+
+  test("stores a still that outlives TikTok's signature", async ({ page, db }) => {
     db.seed("discover_videos", [aTikTokVideo({ id: videoId(0), title: "A meme" })]);
 
     await page.goto("/admin/videos");
     await backfillButton(page).click();
 
     await expect(page.getByText("Found 1 thumbnail")).toBeVisible();
-    expect(db.lastWriteTo("discover_videos")?.payload[0]).toMatchObject({
-      thumbnail_url: "https://p16.tiktokcdn.test/obj/still.jpg",
-    });
+
+    // What lands on the row is a copy of ours, not the signed URL the platform
+    // handed out — the difference between a thumbnail and a two-day loan.
+    const stored = db.rows("discover_videos")[0].thumbnail_url as string;
+    expect(stored).toContain("/storage/v1/object/public/flashcard-images/video-stills/");
+    expect(stored).not.toContain("x-expires");
   });
 
   test("says which videos still need a human", async ({ page, db }) => {

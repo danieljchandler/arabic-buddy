@@ -15,6 +15,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { resolveUserId, isAdminUser } from "../_shared/usageCap.ts";
+import { ensureDurableThumbnail } from "../_shared/thumbnailMirror.ts";
 
 interface ParsedVideo {
   platform: "tiktok" | "youtube" | "instagram";
@@ -218,6 +219,18 @@ serve(async (req) => {
     }
 
     const meta = await fetchOembed(parsed);
+
+    // TikTok's oEmbed hands back a *signed* still whose `x-expires` is about
+    // forty-eight hours out, so a row that stored it verbatim went blank two
+    // days after it was shared. Keep our own copy while the signature is still
+    // good; a YouTube still passes through untouched, being permanent already.
+    const durableThumbnail = meta.thumbnailUrl
+      ? await ensureDurableThumbnail(supabase, {
+          key: `${parsed.platform}-${parsed.videoId}`,
+          url: meta.thumbnailUrl,
+        })
+      : null;
+
     const fallbackTitle = `${parsed.platform === "tiktok" ? "TikTok" : parsed.platform === "youtube" ? "YouTube" : "Instagram"} ${parsed.videoId}`;
 
     const { data: inserted, error: insertErr } = await supabase
@@ -227,7 +240,7 @@ serve(async (req) => {
         source_url: parsed.canonicalUrl,
         platform: parsed.platform,
         embed_url: parsed.embedUrl,
-        thumbnail_url: meta.thumbnailUrl,
+        thumbnail_url: durableThumbnail?.url ?? null,
         dialect,
         difficulty: "Intermediate",
         published: false,

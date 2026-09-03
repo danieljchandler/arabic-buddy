@@ -1,4 +1,5 @@
 import { getThumbnailCandidates, type ThumbnailSources } from "@/lib/videoEmbed";
+import { isEphemeralThumbnailUrl } from "../../supabase/functions/_shared/thumbnailUrlCore";
 
 /** The columns a backfill needs off a video row. */
 export interface BackfillableVideo extends ThumbnailSources {
@@ -8,12 +9,27 @@ export interface BackfillableVideo extends ThumbnailSources {
   thumbnail_url?: string | null;
 }
 
+/**
+ * Videos showing no picture, or about to stop showing one.
+ *
+ * Two separate faults, one list. A row with nothing to render has been blank
+ * since it was created. A row holding a *signed* still — TikTok's oEmbed hands
+ * back a URL with about forty-eight hours on it — renders for two days and
+ * then goes blank, which is why thumbnails kept "dropping out" after being
+ * added. Both are fixed the same way, by asking the server for one and keeping
+ * a copy of our own, so both belong on the same button.
+ */
+export function needsThumbnail(video: BackfillableVideo): boolean {
+  if (isEphemeralThumbnailUrl(video.thumbnail_url)) return true;
+  return getThumbnailCandidates(video.thumbnail_url, video).length === 0;
+}
+
 export type ThumbnailOutcome =
   /** Worked out from the row's own URL — no network, always available. */
   | { status: "derived"; thumbnailUrl: string }
-  /** Asked the platform for it. */
-  | { status: "fetched"; thumbnailUrl: string }
-  /** Nothing to do; the row already has one. */
+  /** The server found one, copied it somewhere permanent, and stored it. */
+  | { status: "refreshed"; thumbnailUrl: string }
+  /** Nothing to do; the row already has one that will not expire. */
   | { status: "present" }
   /** Nothing can be done without a human. */
   | { status: "unavailable"; reason: string };
@@ -27,32 +43,29 @@ export interface BackfillReport {
   failedToSave: Array<{ id: string; title: string; reason: string }>;
 }
 
-/**
- * TikTok's oEmbed, which is public, unauthenticated and CORS-open — the same
- * call the video form makes when an admin presses "Fetch thumbnail".
- *
- * Instagram has an oEmbed too, but it needs a Facebook app token, so there is
- * no equivalent here and Instagram rows come back `unavailable`.
- */
-export async function fetchTikTokThumbnail(sourceUrl: string): Promise<string | null> {
-  try {
-    const response = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(sourceUrl)}`);
-    if (!response.ok) return null;
-    const data = await response.json();
-    return typeof data?.thumbnail_url === "string" && data.thumbnail_url ? data.thumbnail_url : null;
-  } catch {
-    // A deleted or private video 404s, and the network can simply fail. Either
-    // way this row is one for the report, not for an exception.
-    return null;
-  }
+/** What the server answers when asked to give one video a durable still. */
+export interface RefreshResult {
+  thumbnailUrl?: string | null;
+  error?: string | null;
 }
 
-interface ResolveDeps {
-  fetchTikTok?: (sourceUrl: string) => Promise<string | null>;
+export interface ResolveDeps {
+  /**
+   * Ask the server for a still and have it stored.
+   *
+   * Not something the browser can do itself: the platform CDNs serve their
+   * stills without `Access-Control-Allow-Origin`, so a page can display those
+   * bytes but cannot read them to keep a copy — and a copy is the whole point,
+   * since the URL they hand out expires. The edge function holds the service
+   * role, does the copy, and writes the row, so what comes back here is
+   * already saved.
+   */
+  refresh: (videoId: string) => Promise<RefreshResult>;
 }
 
 /**
- * Find a still for one video that has none.
+ * Find a still for one video that has none, or a lasting one for a video whose
+ * still is on loan.
  *
  * The order matters: deriving from the row's own URL is free and cannot fail,
  * so it is tried first and covers every YouTube video. Only what is left over
@@ -60,32 +73,23 @@ interface ResolveDeps {
  */
 export async function resolveThumbnail(
   video: BackfillableVideo,
-  { fetchTikTok = fetchTikTokThumbnail }: ResolveDeps = {},
+  { refresh }: ResolveDeps,
 ): Promise<ThumbnailOutcome> {
-  if (video.thumbnail_url) return { status: "present" };
+  // An expiring still counts as missing: it is the reason this row is here.
+  if (video.thumbnail_url && !isEphemeralThumbnailUrl(video.thumbnail_url)) {
+    return { status: "present" };
+  }
 
   const [derived] = getThumbnailCandidates(null, video);
   if (derived) return { status: "derived", thumbnailUrl: derived };
 
-  const sourceUrl = video.source_url;
-  if (!sourceUrl) {
+  if (!video.source_url) {
     return { status: "unavailable", reason: "no source URL to work from" };
   }
 
-  if (video.platform === "tiktok" || sourceUrl.includes("tiktok.com")) {
-    const fetched = await fetchTikTok(sourceUrl);
-    return fetched
-      ? { status: "fetched", thumbnailUrl: fetched }
-      : { status: "unavailable", reason: "TikTok returned no thumbnail — the video may be private or gone" };
-  }
-
-  return {
-    status: "unavailable",
-    // The honest answer for Instagram, and for anything else that turns up:
-    // the still has to come off the video itself, which is the upload path the
-    // video form already has.
-    reason: `no public thumbnail for ${video.platform || "this platform"} — upload the video file and capture a frame`,
-  };
+  const result = await refresh(video.id);
+  if (result.thumbnailUrl) return { status: "refreshed", thumbnailUrl: result.thumbnailUrl };
+  return { status: "unavailable", reason: result.error || "no thumbnail could be found" };
 }
 
 interface BackfillDeps extends ResolveDeps {
@@ -96,11 +100,12 @@ interface BackfillDeps extends ResolveDeps {
 }
 
 /**
- * Walk a list of videos, find a still for each one that has none, and save it.
+ * Walk a list of videos, find a still for each one that needs one, and save it.
  *
- * Sequential on purpose: this runs from an admin's browser against a public
- * oEmbed endpoint, and a burst of parallel requests to TikTok is the shape of
- * traffic that gets rate-limited. The list is a few hundred rows at worst.
+ * Sequential on purpose: this runs from an admin's browser and each refresh is
+ * a platform call the server makes on our behalf. A burst of parallel requests
+ * to a public oEmbed endpoint is the shape of traffic that gets rate-limited.
+ * The list is a few hundred rows at worst.
  */
 export async function backfillThumbnails(
   videos: BackfillableVideo[],
@@ -115,6 +120,10 @@ export async function backfillThumbnails(
       report.alreadyHad += 1;
     } else if (outcome.status === "unavailable") {
       report.unresolved.push({ id: video.id, title: video.title, reason: outcome.reason });
+    } else if (outcome.status === "refreshed") {
+      // Already written, by the function that made the copy. Writing it again
+      // from here would be a second round trip to say the same thing.
+      report.filled += 1;
     } else {
       try {
         const result = await save(video.id, outcome.thumbnailUrl);

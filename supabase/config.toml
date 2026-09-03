@@ -261,6 +261,13 @@ verify_jwt = true
 [functions.ingest-shared-video]
 verify_jwt = true
 
+# Copies a video still into our own bucket so it stops expiring: TikTok's
+# oEmbed hands back a signed URL that dies in about 48 hours. Content-manager-
+# role checked inside; the CDN sends no CORS headers, so the browser cannot do
+# this itself.
+[functions.persist-video-thumbnail]
+verify_jwt = true
+
 # Clip-pipeline mining: expands a concept's dialect realizations into caption
 # index searches and writes pending clip_candidates. Content-manager-role
 # checked inside; the automation loop calls with the service-role key (a valid

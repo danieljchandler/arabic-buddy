@@ -14,6 +14,8 @@ import {
   generatePassword,
   isAccessIdRole,
 } from "../../../../supabase/functions/_shared/accessCodeCore";
+import { isEphemeralThumbnailUrl } from "../../../../supabase/functions/_shared/thumbnailUrlCore";
+import { getThumbnailCandidates } from "../../../lib/videoEmbed";
 
 /**
  * Edge-function responses.
@@ -482,6 +484,84 @@ function transcriptReview({ db, userId, body }: FunctionContext): FunctionRespon
   }
 }
 
+/** Who may write video content — `can_manage_content()`. */
+const CONTENT_ROLES = ["admin", "content_reviewer"];
+
+/**
+ * A working `persist-video-thumbnail`, against the in-memory database.
+ *
+ * The behaviour worth reproducing is the reason the function exists at all:
+ * what TikTok hands out is a *signed* still that expires in about forty-eight
+ * hours, so the function copies it into our own bucket and stores that address
+ * instead. There is no network here, so the emulator plays TikTok's part —
+ * answering with a signed URL — and then does what the real one does with it.
+ * A spec can therefore assert the thing that matters: what lands on the row
+ * outlives the signature.
+ */
+function persistVideoThumbnail({ db, userId, body }: FunctionContext): FunctionResponse {
+  const payload = (body ?? {}) as Row;
+  const videoId = String(payload.videoId ?? "");
+
+  const roles = db
+    .rows("user_roles")
+    .filter((row) => row.user_id === userId)
+    .map((row) => String(row.role));
+  if (!userId || !roles.some((role) => CONTENT_ROLES.includes(role))) {
+    return { status: 403, body: { error: "forbidden" } };
+  }
+
+  const video = db.rows("discover_videos").find((row) => row.id === videoId);
+  if (!video) return { status: 404, body: { error: "not_found" } };
+
+  const stored = typeof video.thumbnail_url === "string" ? video.thumbnail_url : null;
+  const given = typeof payload.thumbnailUrl === "string" ? payload.thumbnailUrl : null;
+
+  let source = "given";
+  let candidate = given;
+  if (!candidate && stored && !isEphemeralThumbnailUrl(stored)) {
+    return ok({ thumbnailUrl: stored, source: "stored", mirrored: false });
+  }
+  if (!candidate) {
+    [candidate] = getThumbnailCandidates(null, {
+      source_url: video.source_url as string | null,
+      embed_url: video.embed_url as string | null,
+    });
+    if (candidate) source = "derived";
+  }
+  if (!candidate) {
+    const isTikTok =
+      video.platform === "tiktok" || String(video.source_url ?? "").includes("tiktok.com");
+    if (isTikTok) {
+      // What the platform actually answers with, signature and all.
+      candidate =
+        `https://p16.tiktokcdn.test/obj/${videoId}?x-expires=2000000000&x-signature=abc`;
+      source = "platform";
+    }
+  }
+  if (!candidate) {
+    return {
+      status: 422,
+      body: {
+        error: "no_thumbnail",
+        message:
+          video.platform === "instagram"
+            ? "Instagram has no public thumbnail — upload the video file and capture a frame."
+            : "No thumbnail could be found — the video may be private or deleted.",
+      },
+    };
+  }
+
+  const mirrored = isEphemeralThumbnailUrl(candidate);
+  const thumbnailUrl = mirrored
+    ? `https://e2e.supabase.co/storage/v1/object/public/flashcard-images/video-stills/${videoId}.jpg`
+    : candidate;
+
+  const live = db.raw("discover_videos").find((row) => row.id === videoId);
+  if (live) live.thumbnail_url = thumbnailUrl;
+
+  return ok({ thumbnailUrl, source, mirrored });
+}
+
 export const defaultFunctions: Record<string, FunctionHandler> = {
   // `tier`, not `subscription_tier`: the function names it `tier` and
   // `useSubscription` reads `data.tier`. A fixture using the other spelling
@@ -528,6 +608,7 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
   "generate-word-jingle": () => ok(aJingle()),
   "generate-phrase-jingle": () => ok(aJingle()),
   "persist-word-audio": () => ok({ audioUrl: "https://cdn.test/word.mp3" }),
+  "persist-video-thumbnail": persistVideoThumbnail,
 
   // Raw audio, not JSON. All three return `new Response(audioBuffer)` with an
   // audio content type, and every caller pipes `res.blob()` through

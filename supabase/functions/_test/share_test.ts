@@ -1,4 +1,4 @@
-import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
+import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { jsonRequest, loadFunction } from "./harness.ts";
 import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
 
@@ -215,6 +215,40 @@ Deno.test("ingest-shared-video turns a shared TikTok into a running pipeline", a
 
   // No Cobalt call from here: audio acquisition is the pipeline's job.
   assertEquals(calls.filter((u) => u.includes("cobalt") || u.includes("imput")).length, 0);
+});
+
+Deno.test("ingest-shared-video keeps its own copy of a still that expires", async () => {
+  // TikTok's oEmbed answers with a *signed* URL — `x-expires` about
+  // forty-eight hours out — so a row that stored it verbatim went blank two
+  // days after the link was shared, with nobody having touched it. The copy
+  // has to happen here rather than in the browser: the CDN serves the bytes
+  // without CORS headers.
+  const { requests } = await call(
+    "ingest-shared-video",
+    { url: TIKTOK_URL, dialect: "Gulf" },
+    adminIngest({
+      "www.tiktok.com/oembed": () =>
+        json({
+          title: "وناسة الديرة",
+          thumbnail_url: "https://p16.tiktokcdn.test/obj/s.image?x-expires=1788613200&x-signature=a",
+        }),
+      "p16.tiktokcdn.test": () =>
+        new Response(new Uint8Array([0xff, 0xd8, 0xff, 0xdb]), {
+          status: 200,
+          headers: { "content-type": "image/jpeg" },
+        }),
+      "/storage/v1/object/flashcard-images": () => json({ Key: "flashcard-images/x" }),
+    }),
+  );
+
+  const insert = requests.find(
+    (c) => c.url.includes("/rest/v1/discover_videos") && c.method === "POST",
+  );
+  const record = JSON.parse(insert?.body ?? "{}") as Record<string, unknown>;
+  assertStringIncludes(
+    String(record.thumbnail_url),
+    "/storage/v1/object/public/flashcard-images/video-stills/",
+  );
 });
 
 Deno.test("ingest-shared-video refuses anonymous callers", async () => {

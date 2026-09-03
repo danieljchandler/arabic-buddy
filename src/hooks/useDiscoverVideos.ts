@@ -182,13 +182,29 @@ export function useDeleteDiscoverVideo() {
   });
 }
 
+/** The server's own explanation behind a failed `functions.invoke`, if it sent one. */
+async function functionErrorMessage(error: unknown): Promise<string | null> {
+  const response = (error as { context?: { json?: () => Promise<unknown> } })?.context;
+  if (!response || typeof response.json !== "function") return null;
+  try {
+    const body = (await response.json()) as { message?: string; error?: string };
+    return body?.message || body?.error || null;
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Fill in the thumbnails of every video that has none.
+ * Fill in the thumbnails of every video that has none — or whose one expires.
  *
- * Most of the library needs nothing written to it — a YouTube still is derived
- * from the row's own URL at render time. This is for the rest: TikTok stills
- * are signed CDN URLs that have to be asked for, and a row whose oEmbed came
- * back empty at ingest has been blank ever since with nothing to re-try it.
+ * Most of the library needs nothing written to it: a YouTube still is derived
+ * from the row's own URL at render time. This is for the rest. TikTok stills
+ * have to be asked for, and what the platform answers with is a *signed* URL
+ * good for about forty-eight hours — which is why videos kept losing their
+ * picture days after an admin gave them one. So the asking is done by
+ * `persist-video-thumbnail`, which copies the image into our own bucket and
+ * writes the row itself; the browser cannot do that part, the CDNs being
+ * closed to cross-origin reads.
  *
  * It takes the admin list it is already looking at rather than re-reading, so
  * the count on the button and the rows it works on are the same set.
@@ -205,6 +221,18 @@ export function useBackfillThumbnails() {
     }) =>
       backfillThumbnails(videos, {
         onProgress,
+        refresh: async (videoId) => {
+          const { data, error } = await supabase.functions.invoke("persist-video-thumbnail", {
+            body: { videoId },
+          });
+          // "This one needs a frame captured by hand" comes back as a 422,
+          // which the client turns into an error whose `message` is only ever
+          // "non-2xx status code". The sentence worth showing the admin is in
+          // the body, so the report reads it out of there.
+          if (error) return { error: (await functionErrorMessage(error)) ?? error.message };
+          const payload = data as { thumbnailUrl?: string; message?: string } | null;
+          return { thumbnailUrl: payload?.thumbnailUrl ?? null, error: payload?.message ?? null };
+        },
         save: async (id, thumbnailUrl) => {
           const { error } = await supabase
             .from("discover_videos")

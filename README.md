@@ -718,6 +718,40 @@ re-seeds the transcript once it has been edited in this session — a refetch
 landing under a reviewer used to drop their work back to the stored version with
 no warning.
 
+### Video stills that stop expiring
+
+A video's thumbnail used to vanish a couple of days after an admin added it,
+and fetching it again looked like a fix — for a couple more days. The cause is
+that TikTok's oEmbed does not answer with an address for a still, it answers
+with a *signed* one:
+`…tiktokcdn-us.com/…image?x-expires=1788613200&x-signature=…`. That timestamp
+is about forty-eight hours out, so any row storing the platform's answer
+verbatim showed a picture until the weekend and a broken image afterwards, and
+re-fetching only minted another two-day URL.
+
+YouTube rows never had the problem, because nothing about them is stored:
+`getThumbnailCandidates` re-derives `i.ytimg.com/vi/<id>/…` from the video id
+at render time. TikTok and Instagram stills cannot be derived from anything, so
+the only durable answer is to keep our own copy —
+`persist-video-thumbnail` fetches the image while the signature is still good
+and puts it in `flashcard-images/video-stills/`, and *that* URL goes on the
+row. It has to be a function rather than page code: the CDNs serve those bytes
+with no `Access-Control-Allow-Origin`, so the browser can display them and
+cannot read them.
+
+Every write path goes through it — the video form's **Fetch thumbnail** button
+and its saves, `ingest-shared-video` at share time, and the **Find N missing
+thumbnails** backfill on `/admin/videos`. `_shared/thumbnailUrlCore.ts` is what
+decides which URLs are on loan (`x-expires`, and Meta's hex `oe=` on Meta's own
+hosts); it is imported by both the browser and Deno so the two halves cannot
+disagree. The backfill counts a row holding a signed still as missing one,
+which is what lets the library heal itself rather than being fixed a video at a
+time. Two things it will not do: store a still it was given if a permanent one
+already sits on the row, and store the CDN's 403 error page as though it were a
+JPEG — an expired signature answers 200-shaped enough to be dangerous, so the
+content type is checked before anything is uploaded. When the copy genuinely
+cannot be made, the borrowed URL is kept: a picture for two days beats none.
+
 ## Trending (free social harvest)
 
 `/trending` shows what the Arab world is posting right now: per-country X trend

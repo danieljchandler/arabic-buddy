@@ -230,6 +230,68 @@ test.describe("saving a new video", () => {
   });
 });
 
+test.describe("the thumbnail", () => {
+  /**
+   * TikTok does not hand out an address for a still, it hands out a signed one
+   * — `x-expires` about forty-eight hours out. Storing what the platform said
+   * is why videos kept losing their picture days after being added, and why
+   * pressing Fetch again always seemed to fix it: it minted another two-day
+   * URL. `persist-video-thumbnail` keeps a copy of the image instead, which is
+   * work only the server can do — the CDN answers without CORS headers, so
+   * this page can display those bytes and cannot read them.
+   */
+  const SIGNED_STILL =
+    "https://p16.tiktokcdn.test/obj/still.image?x-expires=1788613200&x-signature=abc";
+
+  const fetchThumbnail = (page: Page) =>
+    page.getByRole("button", { name: /(Re-)?[Ff]etch thumbnail/ });
+
+  test("swaps a still that expires for one of ours", async ({ page, db, allowExternalHosts }) => {
+    // The still itself, and the embedded player the edit page renders beside it.
+    allowExternalHosts(["tiktok.com", "tiktokcdn.test"]);
+    seedVideo(db, {
+      platform: "tiktok",
+      source_url: "https://www.tiktok.com/@creator/video/7451234567890123456",
+      embed_url: "https://www.tiktok.com/player/v1/7451234567890123456",
+      thumbnail_url: SIGNED_STILL,
+    });
+
+    await page.goto(`/admin/videos/${VIDEO}/edit`);
+    await fetchThumbnail(page).click();
+
+    await expect(page.getByText("Thumbnail fetched!")).toBeVisible();
+    const stored = db.rows("discover_videos")[0].thumbnail_url as string;
+    expect(stored).toContain("/storage/v1/object/public/flashcard-images/video-stills/");
+    expect(stored).not.toContain("x-expires");
+  });
+
+  test("does not leave a borrowed still on a video it just created", async ({
+    page,
+    db,
+    allowExternalHosts,
+  }) => {
+    // The create path: the oEmbed answer is good enough to preview with, and
+    // the save is where it has to be turned into something permanent.
+    allowExternalHosts(["tiktok.com", "tiktokcdn.test"]);
+    await page.route("**/www.tiktok.com/oembed**", (route) =>
+      route.fulfill({ json: { thumbnail_url: SIGNED_STILL, html: 'data-video-id="7451234567890123456"' } }),
+    );
+
+    await page.goto("/admin/videos/new");
+    await urlField(page).fill("https://www.tiktok.com/@creator/video/7451234567890123456");
+    await page.getByRole("button", { name: "Parse" }).click();
+    await expect(page.getByText(/TikTok video detected/)).toBeVisible();
+
+    await titleField(page).fill("A meme");
+    await saveButton(page).click();
+    await expect(page.getByText("Video created!")).toBeVisible();
+
+    await expect
+      .poll(() => db.rows("discover_videos")[0]?.thumbnail_url as string)
+      .toContain("/storage/v1/object/public/flashcard-images/video-stills/");
+  });
+});
+
 test.describe("editing an existing video", () => {
   test("loads the video into the form", async ({ page, db }) => {
     seedVideo(db);

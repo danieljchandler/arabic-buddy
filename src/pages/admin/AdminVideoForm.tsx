@@ -43,6 +43,7 @@ import { VideoThumbnail } from "@/components/media/VideoThumbnail";
 // path validates against. Two copies would drift, and the one that drifts is
 // always the one enforcing.
 import { REVIEWABLE_DIALECTS, subvarietyLabel } from "../../../supabase/functions/_shared/dialectSubvarieties";
+import { isEphemeralThumbnailUrl } from "../../../supabase/functions/_shared/thumbnailUrlCore";
 
 const DIALECTS = REVIEWABLE_DIALECTS;
 const DIFFICULTIES = ["Beginner", "Intermediate", "Advanced", "Expert"];
@@ -609,6 +610,42 @@ const AdminVideoForm = () => {
     });
   }, []);
 
+  /**
+   * Have the server keep a copy of a still, and put that copy on the row.
+   *
+   * TikTok does not hand out an address for a picture, it hands out a signed
+   * one: `x-expires` is about forty-eight hours out. Storing that verbatim is
+   * why thumbnails kept vanishing days after they were added, and why fetching
+   * one again always "worked" — it minted another two-day URL. Copying the
+   * bytes is server-side work whether we like it or not: the CDN serves them
+   * without `Access-Control-Allow-Origin`, so this page can show them and
+   * cannot read them.
+   *
+   * Passing no `url` asks the server to find one itself. Returns what it
+   * stored, or null — in which case the borrowed URL is still a picture for
+   * two days, which beats none.
+   */
+  const persistDurableThumbnail = useCallback(
+    async (id: string, url?: string | null): Promise<string | null> => {
+      const { data, error } = await supabase.functions.invoke("persist-video-thumbnail", {
+        body: url ? { videoId: id, thumbnailUrl: url } : { videoId: id },
+      });
+      if (error) {
+        console.error("Could not store a lasting thumbnail:", error);
+        return null;
+      }
+
+      const stored = (data as { thumbnailUrl?: string } | null)?.thumbnailUrl ?? null;
+      if (stored) {
+        setThumbnailUrl(stored);
+        queryClient.invalidateQueries({ queryKey: ["discover-video", id] });
+        queryClient.invalidateQueries({ queryKey: ["admin-discover-videos"] });
+      }
+      return stored;
+    },
+    [queryClient],
+  );
+
   // Populate form when editing (or when server-side processing completes)
   useEffect(() => {
     if (existingVideo) {
@@ -701,9 +738,13 @@ const AdminVideoForm = () => {
   /**
    * Manual fallback for when a thumbnail didn't get set automatically —
    * TikTok's oEmbed occasionally omits thumbnail_url, and Instagram has no
-   * public oEmbed we can call without an app token. Tries, in order:
-   * platform thumbnail APIs, then capturing a frame from whatever media file
-   * is currently loaded in the form.
+   * public oEmbed we can call without an app token. Tries, in order: the
+   * server (which asks the platform and keeps the answer), then capturing a
+   * frame from whatever media file is currently loaded in the form.
+   *
+   * The asking moved server-side because the answer expires. A still fetched
+   * here and stored verbatim was gone in two days, which is what made this
+   * button feel like something you had to keep pressing.
    */
   const handleFetchThumbnail = useCallback(async () => {
     if (!sourceUrl && !audioFile) {
@@ -713,29 +754,42 @@ const AdminVideoForm = () => {
     setIsFetchingThumbnail(true);
     try {
       let fetched: string | null = null;
-      let resolvedPlatform = platform;
 
-      if (sourceUrl && !resolvedPlatform) {
-        resolvedPlatform = parseVideoUrl(sourceUrl)?.platform ?? (sourceUrl.includes("tiktok.com") ? "tiktok" : "");
-      }
+      if (videoId) {
+        // The row exists, so the server can do the whole job: ask the
+        // platform, copy the still somewhere permanent, write the column.
+        fetched = await persistDurableThumbnail(videoId);
+      } else if (sourceUrl) {
+        // No row yet. Resolve what we can for the preview; the save that
+        // creates the row hands it over to be made permanent.
+        const resolvedPlatform =
+          platform || parseVideoUrl(sourceUrl)?.platform || (sourceUrl.includes("tiktok.com") ? "tiktok" : "");
 
-      if (resolvedPlatform === "youtube") {
-        const parsed = parseVideoUrl(sourceUrl);
-        if (parsed?.platform === "youtube") fetched = getYouTubeThumbnail(parsed.videoId);
-      } else if (resolvedPlatform === "tiktok" && sourceUrl) {
-        try {
-          const response = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(sourceUrl)}`);
-          const data = await response.json();
-          if (data?.thumbnail_url) fetched = data.thumbnail_url as string;
-        } catch (err) {
-          console.error("TikTok oEmbed thumbnail fetch error:", err);
+        if (resolvedPlatform === "youtube") {
+          const parsed = parseVideoUrl(sourceUrl);
+          if (parsed?.platform === "youtube") fetched = getYouTubeThumbnail(parsed.videoId);
+        } else if (resolvedPlatform === "tiktok") {
+          try {
+            const response = await fetch(`https://www.tiktok.com/oembed?url=${encodeURIComponent(sourceUrl)}`);
+            const data = await response.json();
+            if (data?.thumbnail_url) fetched = data.thumbnail_url as string;
+          } catch (err) {
+            console.error("TikTok oEmbed thumbnail fetch error:", err);
+          }
         }
       }
 
       // Fall back to capturing a frame from whatever media file is loaded,
-      // regardless of platform (covers Instagram and TikTok oEmbed misses).
+      // regardless of platform (covers Instagram, and a TikTok that has since
+      // gone private). The upload lands in our own bucket, so it is permanent
+      // already and only needs writing to the row.
       if (!fetched && audioFile && isVideoFile(audioFile)) {
         fetched = await captureAndUploadThumbnail(audioFile);
+        if (fetched && videoId && !(await persistDurableThumbnail(videoId, fetched))) {
+          toast.error("Thumbnail captured but couldn't be saved — click Update Video to retry.");
+          setThumbnailUrl(fetched);
+          return;
+        }
       }
 
       if (!fetched) {
@@ -746,23 +800,11 @@ const AdminVideoForm = () => {
       }
 
       setThumbnailUrl(fetched);
-      if (videoId) {
-        const { error } = await (supabase.from("discover_videos" as any) as any)
-          .update({ thumbnail_url: fetched })
-          .eq("id", videoId);
-        if (error) {
-          console.error("Failed to persist fetched thumbnail:", error);
-          toast.error("Thumbnail fetched but couldn't be saved — click Update Video to retry.");
-          return;
-        }
-        queryClient.invalidateQueries({ queryKey: ["discover-video", videoId] });
-        queryClient.invalidateQueries({ queryKey: ["admin-discover-videos"] });
-      }
       toast.success("Thumbnail fetched!");
     } finally {
       setIsFetchingThumbnail(false);
     }
-  }, [sourceUrl, platform, audioFile, videoId, captureAndUploadThumbnail, queryClient]);
+  }, [sourceUrl, platform, audioFile, videoId, captureAndUploadThumbnail, persistDurableThumbnail]);
 
   /**
    * Creates (or reuses) the DB row, uploads audio to storage, and
@@ -844,6 +886,12 @@ const AdminVideoForm = () => {
         await (supabase.from("discover_videos" as any) as any)
           .update(updates)
           .eq("id", targetVideoId);
+      }
+
+      // A still borrowed from TikTok is signed for about two days, so the URL
+      // just written would go dead on its own. Swap it for a copy of ours.
+      if (targetVideoId && isEphemeralThumbnailUrl(saveThumbnail)) {
+        await persistDurableThumbnail(targetVideoId, saveThumbnail);
       }
 
       // Upload audio to storage.
@@ -1080,6 +1128,11 @@ const AdminVideoForm = () => {
       await (supabase.from("discover_videos" as any) as any)
         .update({ transcription_status: "pending", transcription_error: null })
         .eq("id", targetVideoId);
+    }
+
+    // Same as above: whatever TikTok handed us expires, so keep a copy.
+    if (targetVideoId && isEphemeralThumbnailUrl(saveThumbnail)) {
+      await persistDurableThumbnail(targetVideoId, saveThumbnail);
     }
 
     return targetVideoId;
@@ -1321,6 +1374,18 @@ const AdminVideoForm = () => {
     }
     setIsSaving(true);
 
+    /**
+     * A still on loan is not saved just because the column holds it.
+     *
+     * TikTok's stills are signed for about forty-eight hours, so the row we
+     * are writing here would lose its picture two days from now with nobody
+     * touching it. The server keeps a copy; a failure is not worth losing the
+     * save over, since the borrowed URL still shows something meanwhile.
+     */
+    const keepThumbnail = async (id: string | undefined, url: string) => {
+      if (id && isEphemeralThumbnailUrl(url)) await persistDurableThumbnail(id, url);
+    };
+
     try {
       const record = {
         title: saveTitle,
@@ -1356,16 +1421,21 @@ const AdminVideoForm = () => {
         await settleAndPersist();
         const { error } = await (supabase.from("discover_videos" as any) as any).update(record).eq("id", videoId);
         if (error) throw error;
+        await keepThumbnail(videoId, saveThumbnail);
         toast.success("Video updated!");
       } else {
-        const { error } = await (supabase.from("discover_videos" as any) as any).insert({
-          ...record,
-          transcript_lines: transcriptLines as unknown as Record<string, unknown>[],
-          vocabulary: vocabulary as unknown as Record<string, unknown>[],
-          grammar_points: grammarPoints as unknown as Record<string, unknown>[],
-          cultural_context: culturalContext || null,
-        });
+        const { data: created, error } = await (supabase.from("discover_videos" as any) as any)
+          .insert({
+            ...record,
+            transcript_lines: transcriptLines as unknown as Record<string, unknown>[],
+            vocabulary: vocabulary as unknown as Record<string, unknown>[],
+            grammar_points: grammarPoints as unknown as Record<string, unknown>[],
+            cultural_context: culturalContext || null,
+          })
+          .select("id")
+          .single();
         if (error) throw error;
+        await keepThumbnail(created?.id, saveThumbnail);
         toast.success("Video created!");
       }
 

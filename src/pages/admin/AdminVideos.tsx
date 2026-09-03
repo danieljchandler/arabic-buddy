@@ -26,7 +26,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { formatDuration, getThumbnailCandidates } from "@/lib/videoEmbed";
+import { formatDuration } from "@/lib/videoEmbed";
+import { needsThumbnail } from "@/lib/thumbnailBackfill";
 import { VideoThumbnail } from "@/components/media/VideoThumbnail";
 import type { TranscriptLine } from "@/types/transcript";
 import { cn } from "@/lib/utils";
@@ -142,16 +143,16 @@ const AdminVideos = () => {
   };
 
   /**
-   * The videos showing no picture at all.
+   * The videos showing no picture — now, or in two days' time.
    *
-   * Not simply "thumbnail_url is null": a YouTube still is derived from the
+   * Not simply "thumbnail_url is null". A YouTube still is derived from the
    * row's own URL, so most rows with an empty column already show something
-   * and there is nothing to go and fetch for them. What is left is the set a
-   * network call might actually help with.
+   * and there is nothing to go and fetch for them. And a row that *has* a
+   * TikTok still may be the worst case of the lot: what the platform hands
+   * out is signed and expires in about forty-eight hours, so it looks fine on
+   * the day it is added and is blank by the time anyone scrolls past it.
    */
-  const missingThumbnails = (videos ?? []).filter(
-    (video) => getThumbnailCandidates(video.thumbnail_url, video).length === 0,
-  );
+  const missingThumbnails = (videos ?? []).filter(needsThumbnail);
 
   const runBackfill = () => {
     backfillThumbnails.mutate(

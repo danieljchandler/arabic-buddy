@@ -15,6 +15,7 @@ import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
 import { lazyRetry } from "@/lib/lazyRetry";
 import { PageSkeleton } from "@/components/ui/skeleton-page";
 import { logClientError } from "@/lib/errorLog";
+import { captureReferralFromUrl } from "@/lib/referralHandoff";
 
 // ─── Lazy-loaded page components ─────────────────────────────────────────────
 // Each page is loaded on-demand so the initial bundle stays small.
@@ -156,6 +157,10 @@ const queryClient = new QueryClient({
 
 const App = () => {
   useEffect(() => {
+    // A friend's `?ref=CODE` share link: stash the code before any redirect
+    // (sign-up, onboarding) discards the query string. ReferralCard applies it.
+    captureReferralFromUrl();
+
     const CRASH_KEY = "__app_last_crash";
 
     const persistCrash = (payload: unknown) => {

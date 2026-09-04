@@ -1,0 +1,283 @@
+# Fix plan for the 2026-09-04 QA audit
+
+Companion to `docs/qa-audit-2026-09-04.md`. Nothing here is implemented yet.
+Each work package is sized to be one PR, lists the files it touches, the
+drift guards it will trip (this repo fails CI when a new function, module or
+route lands without its counterpart), and how it is verified — in most cases
+by re-running the `qa/` harness, which is the point of having it.
+
+## Not in this plan: the TikTok audio item (M1)
+
+The muted TikTok embed is by design and stays that way. The audit item was not
+about unmuting the embed or exposing the TikTok video; it was about *our own*
+audio copy in the private `video-audio` bucket, which `DiscoverVideo` uses as
+the master clock for the muted frame, for slow-listen and for shadowing.
+Today only reviewers and admins can mint a signed URL for it, so a learner's
+page falls back to the silent timer-synced mode. Two things still need a
+decision before anything is touched, and the plan leaves them open:
+
+1. Is silent, timer-synced playback the intended learner experience for
+   TikTok clips, or should learners hear our audio copy through a short-lived
+   URL minted server-side (bucket stays private, no direct TikTok access)?
+2. Either way, should the client stop probing six file extensions × two keys
+   (12 failing storage calls per page view) when the viewer cannot sign?
+
+Nothing else in this plan depends on the answer.
+
+## Order of work
+
+| # | Package | Fixes | Owner | Size |
+| --- | --- | --- | --- | --- |
+| 1 | Guard the unauthenticated paid functions | B2, part of M4 | dev | S |
+| 2 | Make the duplicate migration idempotent; bring the out-of-band tables into migrations | B3, M6 | dev + one dashboard export | M |
+| 3 | Deploy `persist-video-thumbnail` and run the backfill | M2 | ops | S |
+| 4 | Import the lessons (or gate the curriculum until they exist) | B1, part of m2 | content + dev | M |
+| 5 | Visible error and retry state when the backend fails | M3 | dev | M |
+| 6 | Stop calling sign-in-only functions for signed-out visitors | rest of M4 | dev | S |
+| 7 | Small frontend fixes from the click sweep | m1, m2, m3, m8, m9 | dev | S |
+| 8 | Transcript word timings and Listen audio encoding | M5, m4 | dev + paid backfill | M |
+| 9 | Database and storage hygiene | m5, m6, m7 | dev + ops | S |
+| 10 | Authenticated QA run and close-out | audit "Blocked" section | you + dev | S |
+
+Packages 1–3 are the launch blockers and are independent of each other.
+Package 5 should land before 6 so the 401 handling has somewhere to render.
+
+---
+
+## 1. Guard the unauthenticated paid functions (B2)
+
+**Files**
+- `supabase/functions/practice-chunk-coach/index.ts`
+- `supabase/functions/score-set-phrase-voice/index.ts`
+- `supabase/functions/scrape-x-post/index.ts`
+- `supabase/functions/check-subscription/index.ts`
+- `supabase/config.toml`
+- `supabase/functions/_test/practice-chunk-coach_test.ts`, `…/score-set-phrase-voice_test.ts`, `…/scrape-x-post_test.ts`, `…/check-subscription_test.ts` (extend, they already exist for the coverage guard)
+
+**Steps**
+1. In `practice-chunk-coach` and `score-set-phrase-voice`, before reading the
+   body: `const userId = await resolveUserId(req)`; return 401 when null;
+   `await enforceDailyCap(userId, "<feature>")` and return its response when
+   it refuses. Both helpers are in `_shared/usageCap.ts` and every other
+   ASR/LLM function shows the pattern (`score-shadow-attempt` is the closest
+   twin).
+2. In `scrape-x-post`, require a resolved user (it is only reachable from the
+   signed-in Learn-from-X flow); no cap needed unless Jina is metered.
+3. Add `[functions.practice-chunk-coach]`, `[functions.score-set-phrase-voice]`,
+   `[functions.scrape-x-post]` with `verify_jwt = true` to `config.toml`, with
+   the one-line reason comment the file uses everywhere else.
+4. In `check-subscription`, map "missing sub claim" to a 401 instead of
+   letting it fall into the 500 branch.
+5. Edge tests: for each function, one case "no Authorization → 401 before
+   any provider fetch" (use the harness's routed `fetch` to assert Munsit was
+   never called), one "cap exceeded → 429".
+
+**Verify**
+- `npm run check:edge && npm run test:edge`.
+- After deploy: `curl -X POST …/functions/v1/practice-chunk-coach -H "apikey: <anon>" -d '{}'` → 401 (today 400).
+- `qa/output/schema/fn-guards.txt` regenerated shows no function without a guard except `discover-feed`.
+
+## 2. Migrations: duplicate policy file and out-of-band tables (B3, M6)
+
+**Files**
+- `supabase/migrations/20260903130627_1ec9b393-b96d-4911-b7a7-86e2ee975cac.sql`
+- new `supabase/migrations/20260905000000_out_of_band_tables.sql` (name to taste)
+- `src/test/migrationReplay.test.ts` (`KNOWN_FAILURES`, `KNOWN_MISSING_TABLES`)
+- `contract/build.mjs`
+- `src/integrations/supabase/types.ts` only if the export differs from it
+
+**Steps**
+1. Edit the duplicate file so every `CREATE POLICY` is preceded by
+   `DROP POLICY IF EXISTS` (its first block already does this for
+   `review_streaks`, so the style is in the file). Do **not** delete the file:
+   production's `supabase_migrations.schema_migrations` may list it, and the
+   file also inserts its own ledger rows. Then check the dashboard ledger
+   lists *both* `20260903100000` and `20260903130627`; if only one, mark the
+   other applied by hand.
+2. Export the production definitions of `learning_paths`,
+   `processed_videos`, `review_streaks`, `user_difficulty`,
+   `weekly_recommendations` (Dashboard → Database → table → "Definition", or
+   `supabase db pull` against the project) and paste them into one new
+   migration as `CREATE TABLE IF NOT EXISTS …`, followed by their indexes,
+   `ENABLE ROW LEVEL SECURITY`, policies (each `DROP POLICY IF EXISTS` first)
+   and explicit `GRANT`s. Add
+   `INSERT INTO storage.buckets (id, name, public) VALUES ('story-videos','story-videos', true) ON CONFLICT DO NOTHING`.
+3. `20260529150401` and `20260529155315` fail today only because
+   `processed_videos`/`review_streaks` do not exist yet at that point in the
+   replay. Migrations run in timestamp order, so a new file cannot fix them;
+   make the new file self-sufficient (it re-creates their policies with
+   `DROP POLICY IF EXISTS`) and leave those two in `KNOWN_FAILURES` with a
+   comment saying why.
+4. Remove `processed_videos`/`review_streaks` from `KNOWN_MISSING_TABLES` and
+   let the test's "these now replay cleanly, remove them" branch tell you what
+   else to drop.
+5. `contract/build.mjs`: pass `-1` (`--single-transaction`) to `psql` so a
+   failing file leaves nothing half-applied, as the previous audit noted.
+6. Optional but worth it: a tiny guard test that every table in
+   `types.ts` is created by *some* migration, so the next dashboard-only
+   table fails CI instead of the next audit.
+
+**Verify**
+- `DATABASE_URL=… npx vitest run src/test/migrationReplay.test.ts` green
+  locally; CI job "Migration replay" green on the PR.
+- `node qa/build-map.mjs` no longer prints "no policy found in replay" for
+  those five tables.
+
+## 3. Deploy `persist-video-thumbnail` and backfill (M2)
+
+**Steps (ops, no code)**
+1. `supabase functions deploy persist-video-thumbnail --project-ref ovscskaijvclaxelkdyf`.
+2. `curl -X OPTIONS …/functions/v1/persist-video-thumbnail -H "Origin: https://hakiya.app"` → 200.
+3. Trigger the backfill the PR #332 client already performs
+   (`useDiscoverVideos.ts:205` — opening `/discover` as an admin persists any
+   card whose thumbnail is still on a third-party CDN), or call the function
+   once per published TikTok video from a script.
+4. `GET /rest/v1/discover_videos?select=thumbnail_url&published=eq.true` →
+   every URL on `ovscskaijvclaxelkdyf.supabase.co/…/flashcard-images/tiktok-thumbs/`
+   or `img.youtube.com`; none on `tiktokcdn.com`.
+
+**Follow-up (dev, S)**: a `supabase/functions/_test` or CI step that lists
+deployed functions against the directory list would have caught this; the
+management API needs a token, so it is a manual checklist item until then.
+
+## 4. Lessons (B1) and word audio
+
+**Decision needed**: import now, or hide the curriculum until content is
+ready. The plan assumes import.
+
+**Steps**
+1. Content: run the spreadsheets in `curriculum/` through
+   `/admin/lessons/import` for Gulf first (the importer flags multi-word
+   entries and persists the authored sections; see README "Curriculum").
+   Confirm `GET /rest/v1/lessons?select=id,dialect_module` returns rows per
+   dialect that has a stage.
+2. Dev, if the import is not imminent: hide the `/curriculum` tile on
+   `/choose` and the "Lessons" entry on `/skills/read` behind a
+   `lessons.length > 0` check (both already query `useAllLessons`), and make
+   the Curriculum empty state link to Alphabet Journey (it does) — this is
+   already the graceful path, so the change is only the entry points.
+3. Word audio: `vocabulary_words.audio_url` is empty on the sampled rows, so
+   the speaker button on `/learn` does nothing (m2). Run `persist-word-audio`
+   for words without audio (paid TTS, ~82 words) or disable the button when
+   `audio_url` is null.
+
+**Verify**: `/curriculum` shows lessons; `qa` crawl of `/learn/:lessonId`
+substitutes a real id automatically once one exists.
+
+## 5. Visible error state when the backend fails (M3)
+
+**Files**
+- new `src/components/shared/QueryErrorState.tsx` (+ test)
+- `src/App.tsx` (QueryClient defaults)
+- list pages: `src/pages/Discover.tsx`, `Curriculum.tsx`, `Leaderboard.tsx`,
+  `Stories.tsx`, `SetPhrases.tsx`, `Feed.tsx`, `Index.tsx`, `Pricing.tsx`,
+  `ReadingLibrary.tsx`, `Listen.tsx`, `Review.tsx`, `MeHub.tsx`
+- `e2e/` one spec using the emulator's failure injection (or `page.route`) for
+  three of them
+
+**Steps**
+1. `QueryErrorState`: takes `error` and `onRetry`, distinguishes network
+   (`TypeError: Failed to fetch`) from 5xx from 401, copy from
+   `ErrorBoundary.ERROR_MESSAGES` so the wording matches.
+2. QueryClient: replace `retry: 1` with a function that returns `false` for
+   any 4xx (`FunctionsHttpError` status, PostgREST `code` 401/403/PGRST3xx)
+   and `true` once for network/5xx. This also removes the 401 retry storms in
+   M4.
+3. On each list page, branch on `isError` *before* the empty-state branch.
+   The empty state must only render when the query succeeded with zero rows.
+4. Global fallback: a small `onError` in the QueryCache that shows one
+   `toast` per 30s for network errors, so pages not yet converted still say
+   something.
+
+**Verify**: `npx playwright test -c qa/playwright.qa.config.ts resilience.spec.ts`
+→ `backend-500` and `network-drop` columns read `error-shown` for every route
+in the table; `slow-4s` still `looks-normal`/`silent-empty`.
+
+## 6. Gate sign-in-only calls on public pages (M4, client side)
+
+**Files**
+- `src/hooks/useSetPhrases.ts` (`generate-set-phrase-quiz`)
+- `src/pages/SetPhrasesPractice.tsx` (renders `/set-phrases/practice` and `/review`)
+- `src/hooks/usePhraseOfTheDay.ts` or wherever `/today` calls `phrase-of-the-day`
+- `src/pages/DiscoverVideo.tsx` (`convert-to-fusha` on load for TikTok)
+- `src/components/shared/TappableArabicText.tsx` (`word-enrichment`)
+- TTS entry points: `src/hooks/useTts*.ts` / `src/lib/tts*.ts` (whatever wraps `tts-speak` / `azure-tts`)
+
+**Steps**
+1. `enabled: !!user` on every `useQuery` that invokes one of these, and an
+   early return in the imperative callers, with an inline "Sign in to
+   practise this" affordance (there is already one on `/curriculum`, reuse
+   its look).
+2. For TTS taps by a signed-out visitor, show the same affordance instead of
+   silently swallowing the 401.
+3. `word-enrichment` on `/reading-library/:id`: 28 calls during one sweep —
+   besides gating, debounce per word and cache by word text in React Query.
+
+**Verify**: anon `qa` crawl → the "Supabase failures" table has no 401 rows in
+the `load` phase; `/set-phrases*` shows the sign-in affordance instead of
+"No phrases ready yet".
+
+## 7. Small frontend fixes (m1, m2, m3, m8, m9)
+
+- `src/pages/PlacementQuiz.tsx:373`: `navigate(-1)` → `navigate(window.history.length > 1 ? -1 : "/")`, or a plain link to `/`.
+- `src/pages/Learn.tsx` speaker button: disable with a tooltip when the word has no `audio_url`.
+- `/bridge` "I don't know MSA": either wire it or remove it — check what it was meant to toggle.
+- `aria-label` on the icon-only buttons the sweep named `lucide-volume2`, `lucide-heart`, "(unlabeled)" on `/reading-library/:id`.
+- Click-blocked controls (m3): open `/alphabet/:letterCode`, `/alphabet/sounds`, `/conversation`, `/dialect-compare`, `/vocab-games`, `/stories/:storyId`, `/reset-password` at 390×844 and 1280×720 and click the listed controls by hand; the usual cause is the assistant FAB or a sticky bar overlapping, which is one `z-index`/`padding-bottom` fix.
+- Landing page (m8): check the dialect cards render without an
+  `whileInView` trigger; if they use one, add `viewport={{ once: true, amount: 0 }}` or render statically.
+
+**Verify**: re-run the crawl; the "did nothing" and "could not be clicked"
+sections shrink to the acceptable cases (already-active tab, native form
+validation).
+
+## 8. Word timings and Listen audio (M5, m4)
+
+**Decision needed**: is per-word highlighting a launch feature? If not, skip
+8.1 and make the UI degrade explicitly.
+
+8.1 Word timings (dev + paid): `resync-transcript-timing` already exists and
+is reviewer-gated. Add a `--missing-words-only` mode (skip lines that already
+carry `words[]`), run it over the 49 published videos from `/admin/videos`
+(≈ 600 lines; one ASR pass per video), then verify with the one-liner in the
+audit (`qa/media.spec.ts` prints `withWordTiming` per sample). Log the cost
+from `llm_usage_logs`/provider dashboard before doing all of them.
+
+8.2 Listen audio (dev): in `generate-listen-audio` / `generate-story-full-audio`,
+encode the stitched output to Opus (or MP3 if Safari matters more than size)
+before upload and set `cacheControl: "public, max-age=31536000"` on the
+`storage.upload` call; keep `full.wav` for existing episodes but write the
+compressed sibling and prefer it in `useListen.ts`. Verify with the
+`listen episode audio` media test once a learner login exists (HEAD shows
+`audio/ogg`, size < 1 MB, cache header).
+
+## 9. Database and storage hygiene (m5, m6, m7)
+
+- `caption_lines`: add the index the search RPC needs (`search_caption_lines`
+  already exists — check its `WHERE`), and never `count: "exact"` on it; a
+  short migration.
+- `tutor-audio-clips`: **decision** — if clips are private to the uploader,
+  replace the bucket in `lahja_public_read` with an owner-scoped SELECT like
+  `learner-audio`; if they are shared content, leave it and note it in README.
+- `ALLOWED_ORIGINS`: remove `http://localhost:8080` from the production
+  secret (`supabase secrets set ALLOWED_ORIGINS=…`); the hermetic e2e suite
+  does not need it and the `qa/` harness passes its own Origin.
+
+**Verify**: `qa/output/schema/fn-preflight.txt` regenerated shows a 200 for
+`https://hakiya.app` and no `access-control-allow-origin` for
+`http://localhost:8080`.
+
+## 10. Authenticated run and close-out
+
+1. You: a confirmed learner login (or autoconfirm on briefly plus one invite
+   code) and, if available, a 7-day edge-function log export.
+2. `QA_EMAIL=… QA_PASSWORD=… npx playwright test -c qa/playwright.qa.config.ts`
+   then `node qa/report.mjs` — covers the 28 auth-gated routes, onboarding's
+   `weekly_goals` writes, `/listen` playback, `review_streaks` on `/friends`.
+3. One manual pass over the 19 paid controls with `QA_ALLOW_PAID=1` on
+   `media.spec.ts` and by hand elsewhere; record function + status in the
+   report.
+4. From a network with YouTube/TikTok access: `media.spec.ts` for the player
+   itself.
+5. Re-run the whole harness after packages 1–7 merge and diff
+   `qa/output/crawl-report.md` against this run's copy.

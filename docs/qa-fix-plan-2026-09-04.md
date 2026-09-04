@@ -145,6 +145,17 @@ management API needs a token, so it is a manual checklist item until then.
 
 ## 4. Lessons (B1) and word audio
 
+**Status: the code half is done on this branch, smaller than planned.**
+`e2e/choose.spec.ts` records a deliberate product decision — the Curriculum
+door stays open rather than greyed out "coming soon" — so the tile is not
+hidden. Instead its subtitle stops promising "lessons in order" while the
+active dialect has none and points at the Alphabet Journey, which is what
+`/curriculum` itself does. The speaker button on `/learn` turned out to be
+already disabled when a word has no audio and no TTS result; the sweep
+caught it mid-generation. **Still yours**: the lesson import
+(`/admin/lessons/import`) and, if wanted, `persist-word-audio` for the
+words with no `audio_url`.
+
 **Decision needed**: import now, or hide the curriculum until content is
 ready. The plan assumes import.
 

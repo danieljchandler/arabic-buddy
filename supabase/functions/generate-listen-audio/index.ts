@@ -13,6 +13,12 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
+
+// Episodes were served with `cache-control: no-cache`, so every replay
+// re-downloaded the whole file (3.7 MB of WAV for one episode in the 2026-09-04
+// audit). A day is long enough to make replays and scrubbing free and short
+// enough that a regenerated episode at the same path is picked up tomorrow.
+const LISTEN_AUDIO_CACHE_SECONDS = "86400";
 import {
   planProvider,
   synthesizeLine,
@@ -83,7 +89,7 @@ async function runJob(episodeId: string) {
       if (!bytes) {
         bytes = await synthesizeLine(line.arabic, line.speaker_role ?? "", i, plan);
         await admin.storage.from("listen-audio").upload(linePath, bytes, {
-          contentType: plan.contentType, upsert: true,
+          contentType: plan.contentType, upsert: true, cacheControl: LISTEN_AUDIO_CACHE_SECONDS,
         });
         const { data: pub } = admin.storage.from("listen-audio").getPublicUrl(linePath);
         const seconds = estimateSeconds(bytes.length, plan);
@@ -115,7 +121,7 @@ async function runJob(episodeId: string) {
     const fullPath = `episodes/${episodeId}/full.${plan.ext}`;
     const { error: upErr } = await admin.storage
       .from("listen-audio")
-      .upload(fullPath, fullBytes, { contentType: plan.contentType, upsert: true });
+      .upload(fullPath, fullBytes, { contentType: plan.contentType, upsert: true, cacheControl: LISTEN_AUDIO_CACHE_SECONDS });
     if (upErr) throw new Error(`full upload: ${upErr.message}`);
     const { data: fullPub } = admin.storage.from("listen-audio").getPublicUrl(fullPath);
 

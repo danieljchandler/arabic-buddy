@@ -295,6 +295,16 @@ validation).
 
 ## 8. Word timings and Listen audio (M5, m4)
 
+**Status: the cheap half is done on this branch; the rest is yours.**
+`generate-listen-audio` and `generate-story-full-audio` now upload with
+`cacheControl: 86400`, so a replay or a scrub no longer re-downloads the
+whole episode (a day, not a year, because the same path is overwritten when
+an episode is regenerated). Re-encoding WAV to Opus needs an encoder the
+Deno runtime does not have; leave it unless mobile data cost turns out to
+matter. For word timings, `resync-transcript-timing` already realigns a
+whole video from `/admin/videos/:id/edit`, so a "missing-words-only" mode
+buys little — the decision below is the only open item.
+
 **Decision needed**: is per-word highlighting a launch feature? If not, skip
 8.1 and make the UI degrade explicitly.
 
@@ -314,6 +324,14 @@ compressed sibling and prefer it in `useListen.ts`. Verify with the
 `audio/ogg`, size < 1 MB, cache header).
 
 ## 9. Database and storage hygiene (m5, m6, m7)
+
+**Status: nothing to commit; two of three are yours.** `caption_lines`
+already carries `idx_caption_lines_video` and a full-text index, and
+`search_caption_lines` uses them; the statement timeout the audit saw was
+its own `count=exact` probe over the whole table, which no client page
+does — so no migration. The tutor-clip read scope (m6) waits on your
+decision, and removing `http://localhost:8080` from `ALLOWED_ORIGINS` (m7)
+is a `supabase secrets set` on the project, not a code change.
 
 - `caption_lines`: add the index the search RPC needs (`search_caption_lines`
   already exists — check its `WHERE`), and never `count: "exact"` on it; a
@@ -345,6 +363,21 @@ compressed sibling and prefer it in `useListen.ts`. Verify with the
    `qa/output/crawl-report.md` against this run's copy.
 
 ## 11. TikTok audio copy for signed-in learners (M1)
+
+**Status: done on this branch.** `supabase/functions/discover-video-audio`
+answers a signed-in caller (under a 300/day per-learner cap, which is also
+the authorization marker `serviceRoleAuthorization.test.ts` requires) with a
+ten-minute service-role signed URL for a *published* video's staged audio,
+found by the pipeline's extension order with the legacy YouTube-id key as
+fallback, or `{ url: null, reason: "no_audio" }`. Seven edge tests cover
+it. `resolveDiscoverVideoAudioUrl` calls it once when there is a session
+and makes no request without one (five unit tests); the twelve client-side
+signing probes are gone, and `videoAudioStaging.ts` is now used only by the
+admin edit page. The TikTok player shows "Sign in to hear the audio and use
+slow listen" to visitors. The emulator gained a handler so the hermetic
+`discover.spec.ts` slow-listen tests keep passing. **Still yours**: deploy
+the new function (`supabase functions deploy discover-video-audio`) — the
+client falls back to silent timer mode until it exists.
 
 **What stays the same**: the TikTok `player/v1` iframe stays muted
 (`DiscoverVideo.tsx:1337-1358`), the `video-audio` bucket stays private, and

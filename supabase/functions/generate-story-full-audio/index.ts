@@ -6,6 +6,12 @@ import { planProvider, synthesizeLine } from "../_shared/listenTts.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { requireContentManager } from "../_shared/requireRole.ts";
 
+// Episodes were served with `cache-control: no-cache`, so every replay
+// re-downloaded the whole file (3.7 MB of WAV for one episode in the 2026-09-04
+// audit). A day is long enough to make replays and scrubbing free and short
+// enough that a regenerated episode at the same path is picked up tomorrow.
+const LISTEN_AUDIO_CACHE_SECONDS = "86400";
+
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -101,7 +107,7 @@ Deno.serve(async (req) => {
 
         const { error: upErr } = await admin.storage
           .from("listen-audio")
-          .upload(path, bytes, { contentType: plan.contentType, upsert: true });
+          .upload(path, bytes, { contentType: plan.contentType, upsert: true, cacheControl: LISTEN_AUDIO_CACHE_SECONDS });
 
         if (upErr) {
           console.warn(`Upload failed for line ${i}:`, upErr.message);

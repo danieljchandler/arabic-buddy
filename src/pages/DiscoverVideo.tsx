@@ -1868,6 +1868,16 @@ const DiscoverVideo = ({
                       </span>
                     </div>
                   )}
+                  {/* The embed is muted by design; the sound is our own audio
+                      copy, which only a signed-in learner can fetch. Say so
+                      rather than playing a silent clip with no explanation. */}
+                  {!isAuthenticated && !tiktokAudioReady && (
+                    <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center px-3">
+                      <span className="rounded-full bg-black/75 px-3 py-1 text-xs font-medium text-white shadow-elegant">
+                        Sign in to hear the audio and use slow listen
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

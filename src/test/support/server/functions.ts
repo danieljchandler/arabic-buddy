@@ -488,6 +488,28 @@ function transcriptReview({ db, userId, body }: FunctionContext): FunctionRespon
 const CONTENT_ROLES = ["admin", "content_reviewer"];
 
 /**
+ * A working `discover-video-audio`: a ten-minute signed URL for a published
+ * video's own audio copy, for a signed-in caller. The real function lists the
+ * private bucket under the service role; the emulator has no bucket, so every
+ * published video counts as having a staged wav.
+ */
+function discoverVideoAudio({ db, userId, body }: FunctionContext): FunctionResponse {
+  if (!userId) return { status: 401, body: { error: "auth_required" } };
+  const payload = (body ?? {}) as Row;
+  const videoId = String(payload.videoId ?? "");
+  const video = db.rows("discover_videos").find((row) => row.id === videoId);
+  if (!video || video.published !== true) return { status: 404, body: { error: "not_found" } };
+  // The same shape the storage double's own object/sign answer takes, so a
+  // spec that staged `video-audio/<id>.wav` gets a URL the double serves.
+  const path = `${videoId}.wav`;
+  return ok({
+    url: `https://e2e.supabase.co/storage/v1/object/public/video-audio/${path}?token=fixture`,
+    path,
+    expiresAt: new Date(Date.now() + 600_000).toISOString(),
+  });
+}
+
+/**
  * A working `persist-video-thumbnail`, against the in-memory database.
  *
  * The behaviour worth reproducing is the reason the function exists at all:
@@ -609,6 +631,7 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
   "generate-phrase-jingle": () => ok(aJingle()),
   "persist-word-audio": () => ok({ audioUrl: "https://cdn.test/word.mp3" }),
   "persist-video-thumbnail": persistVideoThumbnail,
+  "discover-video-audio": discoverVideoAudio,
 
   // Raw audio, not JSON. All three return `new Response(audioBuffer)` with an
   // audio content type, and every caller pipes `res.blob()` through

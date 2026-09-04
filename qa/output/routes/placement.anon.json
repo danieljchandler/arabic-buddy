@@ -1,0 +1,98 @@
+{
+ "route": "/placement",
+ "label": "/placement",
+ "gate": "public",
+ "url": "/placement",
+ "authed": false,
+ "loadMs": 1680,
+ "state": {
+  "finalUrl": "http://127.0.0.1:4173/placement",
+  "path": "/placement",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 337,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": false,
+  "errorTextVisible": false,
+  "emptyStateText": null,
+  "headline": "Gulf Arabic Placement",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "infiniteLoader": false,
+ "expectedRedirect": null,
+ "screenshot": "/home/user/arabic-buddy/qa/output/screens/placement.anon.png",
+ "inventory": {
+  "buttons": 2,
+  "links": 0,
+  "inputs": 0,
+  "tabs": 0,
+  "forms": 0,
+  "media": 1
+ },
+ "links": [],
+ "load": {
+  "failures": [
+   {
+    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+    "method": "GET",
+    "status": null,
+    "layer": "other",
+    "target": "fonts.googleapis.com/css2",
+    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   }
+  ],
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+  ],
+  "pageErrors": [],
+  "supabaseRequests": 1
+ },
+ "interaction": {
+  "controls": [
+   {
+    "index": 0,
+    "label": "Start Quiz",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 3,
+    "requests": 1,
+    "newFailures": 0,
+    "outcome": "dom-changed"
+   },
+   {
+    "index": 1,
+    "label": "Go Back",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": -3,
+    "requests": 0,
+    "newFailures": 1,
+    "outcome": "navigated",
+    "navigatedTo": "blank"
+   }
+  ],
+  "failures": [
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/placement-quiz",
+    "method": "POST",
+    "status": null,
+    "layer": "functions",
+    "target": "placement-quiz",
+    "error": "net::ERR_ABORTED"
+   },
+   {
+    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+    "method": "GET",
+    "status": null,
+    "layer": "other",
+    "target": "fonts.googleapis.com/css2",
+    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   }
+  ],
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+  ],
+  "pageErrors": []
+ }
+}

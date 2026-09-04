@@ -1,0 +1,261 @@
+{
+ "route": "/alphabet/:letterCode",
+ "label": "/alphabet/:letterCode",
+ "gate": "public",
+ "url": "/alphabet/alif",
+ "authed": false,
+ "loadMs": 2313,
+ "state": {
+  "finalUrl": "http://127.0.0.1:4173/alphabet/alif",
+  "path": "/alphabet/alif",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 181,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": false,
+  "errorTextVisible": false,
+  "emptyStateText": null,
+  "headline": "Meet the letter",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "infiniteLoader": false,
+ "expectedRedirect": null,
+ "screenshot": "/home/user/arabic-buddy/qa/output/screens/alphabet_letterCode.anon.png",
+ "inventory": {
+  "buttons": 14,
+  "links": 0,
+  "inputs": 0,
+  "tabs": 0,
+  "forms": 0,
+  "media": 0
+ },
+ "links": [],
+ "load": {
+  "failures": [
+   {
+    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+    "method": "GET",
+    "status": null,
+    "layer": "other",
+    "target": "fonts.googleapis.com/css2",
+    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/tts-speak",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "tts-speak",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/azure-tts",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "azure-tts",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   }
+  ],
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "pageErrors": [],
+  "supabaseRequests": 8
+ },
+ "interaction": {
+  "controls": [
+   {
+    "index": 0,
+    "label": "Go home",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 15,
+    "requests": 65,
+    "newFailures": 0,
+    "outcome": "navigated",
+    "navigatedTo": "/"
+   },
+   {
+    "index": 1,
+    "label": "Map",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 7,
+    "requests": 3,
+    "newFailures": 0,
+    "outcome": "navigated",
+    "navigatedTo": "/alphabet"
+   },
+   {
+    "index": 2,
+    "label": "Step 1: Meet the letter",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 2,
+    "requests": 0,
+    "newFailures": 0,
+    "outcome": "dom-changed"
+   },
+   {
+    "index": 3,
+    "label": "Step 2: Hear & see",
+    "kind": "button",
+    "action": "needs-live-api-test"
+   },
+   {
+    "index": 4,
+    "label": "Step 3: Trace it",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 8,
+    "requests": 0,
+    "newFailures": 0,
+    "outcome": "dom-changed"
+   },
+   {
+    "index": 5,
+    "label": "Step 4: Four faces",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 7,
+    "requests": 0,
+    "newFailures": 0,
+    "outcome": "dom-changed"
+   },
+   {
+    "index": 6,
+    "label": "Step 5: Spot the letter",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 7,
+    "requests": 0,
+    "newFailures": 0,
+    "outcome": "dom-changed"
+   },
+   {
+    "index": 7,
+    "label": "Step 6: Sound match",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 10,
+    "requests": 2,
+    "newFailures": 1,
+    "outcome": "dom-changed"
+   },
+   {
+    "index": 8,
+    "label": "Fusha (MSA) pronunciation",
+    "kind": "button",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 3000ms exceeded."
+   },
+   {
+    "index": 9,
+    "label": "Gulf pronunciation",
+    "kind": "button",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 3000ms exceeded."
+   },
+   {
+    "index": 10,
+    "label": "Ask AI",
+    "kind": "button",
+    "action": "needs-live-api-test"
+   },
+   {
+    "index": 11,
+    "label": "I've heard it",
+    "kind": "button",
+    "action": "needs-live-api-test"
+   },
+   {
+    "index": 12,
+    "label": "Skip",
+    "kind": "button",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 3000ms exceeded."
+   }
+  ],
+  "failures": [
+   {
+    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+    "method": "GET",
+    "status": null,
+    "layer": "other",
+    "target": "fonts.googleapis.com/css2",
+    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/tts-speak",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "tts-speak",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/azure-tts",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "azure-tts",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+    "method": "GET",
+    "status": null,
+    "layer": "other",
+    "target": "fonts.googleapis.com/css2",
+    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/tts-speak",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "tts-speak",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/azure-tts",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "azure-tts",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/tts-speak",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "tts-speak",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/azure-tts",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "azure-tts",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   }
+  ],
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "pageErrors": []
+ }
+}

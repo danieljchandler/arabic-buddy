@@ -1,0 +1,193 @@
+{
+ "video": {
+  "id": "f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a",
+  "platform": "tiktok",
+  "source_url": "https://vt.tiktok.com/ZSXmFWLTx/",
+  "thumbnail_url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/public/flashcard-images/tiktok-thumbs/049dbfa9-4a15-4d39-9ab8-f99690394a9e.jpg"
+ },
+ "timing": {
+  "lines": 11,
+  "withLineTiming": 11,
+  "withWordTiming": 0,
+  "monotonic": true
+ },
+ "state": {
+  "finalUrl": "http://127.0.0.1:4173/discover/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a",
+  "path": "/discover/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 2764,
+  "bodyText": "Back Kuwaiti Intermediate سيدا، سيدا. إحنا عندنا هنا سيدي جابر. أنا هقول لك سيدا، إيش يا أخي لخبطني Start subtitle sync Reset 0s سيدا، سيدا. إحنا عندنا هنا سيدي",
+  "notFoundText": false,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": false,
+  "errorTextVisible": false,
+  "emptyStateText": null,
+  "headline": "سيدا، سيدا. إحنا عندنا هنا سيدي جابر. أنا هقول لك سيدا، إيش",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "media": {
+  "iframes": [
+   {
+    "src": "https://www.tiktok.com/player/v1/7654509704722320660?autoplay=1&muted=1&music_info=0&description=0&rel=0",
+    "w": 420,
+    "h": 512
+   }
+  ],
+  "videos": [],
+  "audios": [],
+  "transcriptLinesRendered": 0,
+  "rtlBlocks": 24,
+  "playControls": []
+ },
+ "playAttempt": null,
+ "tts": {
+  "status": "needs live API test",
+  "control": null
+ },
+ "storageFailures": [
+  {
+   "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.wav",
+   "method": "POST",
+   "status": 400,
+   "layer": "storage",
+   "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.wav",
+   "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+  },
+  {
+   "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.wav",
+   "method": "POST",
+   "status": 400,
+   "layer": "storage",
+   "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.wav",
+   "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+  },
+  {
+   "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp4",
+   "method": "POST",
+   "status": 400,
+   "layer": "storage",
+   "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp4",
+   "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+  },
+  {
+   "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp4",
+   "method": "POST",
+   "status": 400,
+   "layer": "storage",
+   "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp4",
+   "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+  },
+  {
+   "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.m4a",
+   "method": "POST",
+   "status": 400,
+   "layer": "storage",
+   "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.m4a",
+   "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+  },
+  {
+   "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.webm",
+   "method": "POST",
+   "status": 400,
+   "layer": "storage",
+   "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.webm",
+   "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+  },
+  {
+   "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp3",
+   "method": "POST",
+   "status": 400,
+   "layer": "storage",
+   "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp3",
+   "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+  },
+  {
+   "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.m4a",
+   "method": "POST",
+   "status": 400,
+   "layer": "storage",
+   "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.m4a",
+   "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+  },
+  {
+   "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.webm",
+   "method": "POST",
+   "status": 400,
+   "layer": "storage",
+   "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.webm",
+   "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+  },
+  {
+   "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.opus",
+   "method": "POST",
+   "status": 400,
+   "layer": "storage",
+   "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.opus",
+   "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+  },
+  {
+   "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp3",
+   "method": "POST",
+   "status": 400,
+   "layer": "storage",
+   "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp3",
+   "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+  },
+  {
+   "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.opus",
+   "method": "POST",
+   "status": 400,
+   "layer": "storage",
+   "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.opus",
+   "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+  }
+ ],
+ "functionFailures": [],
+ "restFailures": [
+  {
+   "url": "https://ovscskaijvclaxelkdyf.supabase.co/rest/v1/video_likes?select=id&video_id=eq.f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a",
+   "method": "HEAD",
+   "status": null,
+   "layer": "rest",
+   "target": "video_likes",
+   "error": "net::ERR_ABORTED"
+  }
+ ],
+ "externalFailures": [
+  {
+   "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+   "method": "GET",
+   "status": null,
+   "layer": "other",
+   "target": "fonts.googleapis.com/css2",
+   "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
+  },
+  {
+   "url": "https://www.tiktok.com/player/v1/7654509704722320660",
+   "method": "GET",
+   "status": null,
+   "layer": "tiktok",
+   "target": "www.tiktok.com",
+   "error": "net::ERR_ABORTED"
+  }
+ ],
+ "consoleErrors": [
+  "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+  "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+  "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+  "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+  "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+  "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+  "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+  "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+  "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+  "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+  "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+  "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+  "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+ ],
+ "pageErrors": [],
+ "screenshot": "/home/user/arabic-buddy/qa/output/screens/media_tiktok.png"
+}

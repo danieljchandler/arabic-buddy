@@ -1,0 +1,329 @@
+public.access_credentials|Admins read access credentials|SELECT|authenticated|is_admin()|
+public.achievements|Admins can manage achievements|ALL|public|is_admin()|is_admin()
+public.achievements|Anyone can view achievements|SELECT|public|true|
+public.anki_import_batches|Users delete own anki batches|DELETE|public|(auth.uid() = user_id)|
+public.anki_import_batches|Users insert own anki batches|INSERT|public||(auth.uid() = user_id)
+public.anki_import_batches|Users view own anki batches|SELECT|public|(auth.uid() = user_id)|
+public.audio_files|Admins can manage audio_files|ALL|authenticated|is_admin()|is_admin()
+public.audio_files|Anyone can view audio_files|SELECT|anon,authenticated|true|
+public.authentic_stories|Content managers can delete authentic stories|DELETE|authenticated|(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'content_reviewer'::app_role))|
+public.authentic_stories|Content managers can insert authentic stories|INSERT|authenticated||(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'content_reviewer'::app_role))
+public.authentic_stories|Anyone can view published authentic stories|SELECT|public|(status = 'published'::text)|
+public.authentic_stories|Content managers can view all authentic stories|SELECT|authenticated|(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'content_reviewer'::app_role))|
+public.authentic_stories|Content managers can update authentic stories|UPDATE|authenticated|(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'content_reviewer'::app_role))|(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'content_reviewer'::app_role))
+public.authentic_story_lines|Content managers can delete story lines|DELETE|authenticated|(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'content_reviewer'::app_role))|
+public.authentic_story_lines|Content managers can insert story lines|INSERT|authenticated||(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'content_reviewer'::app_role))
+public.authentic_story_lines|Anyone can view lines of published stories|SELECT|public|(EXISTS ( SELECT 1
+   FROM authentic_stories s
+  WHERE ((s.id = authentic_story_lines.story_id) AND (s.status = 'published'::text))))|
+public.authentic_story_lines|Content managers can view all story lines|SELECT|authenticated|(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'content_reviewer'::app_role))|
+public.authentic_story_lines|Content managers can update story lines|UPDATE|authenticated|(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'content_reviewer'::app_role))|(has_role(auth.uid(), 'admin'::app_role) OR has_role(auth.uid(), 'content_reviewer'::app_role))
+public.beta_feedback|Admins delete feedback|DELETE|authenticated|has_role(auth.uid(), 'admin'::app_role)|
+public.beta_feedback|Users insert own feedback|INSERT|authenticated||(auth.uid() = user_id)
+public.beta_feedback|Users view own feedback|SELECT|authenticated|((auth.uid() = user_id) OR has_role(auth.uid(), 'admin'::app_role))|
+public.beta_feedback|Admins update feedback|UPDATE|authenticated|has_role(auth.uid(), 'admin'::app_role)|has_role(auth.uid(), 'admin'::app_role)
+public.bible_lessons|Admins can delete bible lessons|DELETE|public|has_role(auth.uid(), 'admin'::app_role)|
+public.bible_lessons|Admins can insert bible lessons|INSERT|public||has_role(auth.uid(), 'admin'::app_role)
+public.bible_lessons|Bible readers can view published lessons|SELECT|public|(((published = true) AND has_bible_access()) OR is_admin())|
+public.bible_lessons|Admins can update bible lessons|UPDATE|public|has_role(auth.uid(), 'admin'::app_role)|
+public.caption_lines|caption_lines_manage|ALL|public|can_manage_content()|can_manage_content()
+public.challenges|Users can create challenges|INSERT|public||(auth.uid() = challenger_id)
+public.challenges|Users can view their challenges|SELECT|public|((auth.uid() = challenger_id) OR (auth.uid() = challenged_id))|
+public.challenges|Users can update challenges they're part of|UPDATE|public|((auth.uid() = challenger_id) OR (auth.uid() = challenged_id))|
+public.channel_videos|channel_videos_manage|ALL|public|can_manage_content()|can_manage_content()
+public.client_errors|Admins can delete errors|DELETE|authenticated|is_admin()|
+public.client_errors|Authenticated users can log errors|INSERT|authenticated||((auth.uid() = user_id) OR (user_id IS NULL))
+public.client_errors|Admins can view errors|SELECT|authenticated|is_admin()|
+public.clip_candidates|clip_candidates_manage|ALL|public|can_manage_content()|can_manage_content()
+public.concept_realizations|concept_realizations_manage|ALL|public|can_manage_content()|can_manage_content()
+public.concept_realizations|concept_realizations_read|SELECT|public|((status = 'approved'::text) OR can_manage_content())|
+public.content_channels|content_channels_manage|ALL|public|can_manage_content()|can_manage_content()
+public.content_concept_links|Admins manage links|ALL|authenticated|is_admin()|is_admin()
+public.content_concept_links|Authenticated can read links|SELECT|authenticated|true|
+public.content_import_logs|Users can insert their own logs|INSERT|authenticated||(auth.uid() = user_id)
+public.content_import_logs|Admins can view all logs|SELECT|authenticated|is_admin()|
+public.content_requests|Users can insert their own requests|INSERT|authenticated||(auth.uid() = user_id)
+public.content_requests|Admins can view all requests|SELECT|authenticated|is_admin()|
+public.content_requests|Users can view their own requests|SELECT|authenticated|(auth.uid() = user_id)|
+public.conversation_scenarios|Admins can delete conversation scenarios|DELETE|public|is_admin()|
+public.conversation_scenarios|Admins can insert conversation scenarios|INSERT|public||is_admin()
+public.conversation_scenarios|Anyone can view published conversation scenarios|SELECT|public|((status = 'published'::text) OR is_admin())|
+public.conversation_scenarios|Admins can update conversation scenarios|UPDATE|public|is_admin()|
+public.curriculum_chat_approvals|Admins can insert approvals|INSERT|authenticated||is_admin()
+public.curriculum_chat_approvals|Admins can view approvals|SELECT|authenticated|is_admin()|
+public.curriculum_chat_messages|Admins can delete chat messages|DELETE|authenticated|is_admin()|
+public.curriculum_chat_messages|Admins can insert chat messages|INSERT|authenticated||is_admin()
+public.curriculum_chat_messages|Admins can view chat messages|SELECT|authenticated|is_admin()|
+public.curriculum_chat_sessions|Admins can delete chat sessions|DELETE|authenticated|is_admin()|
+public.curriculum_chat_sessions|Admins can insert chat sessions|INSERT|authenticated||is_admin()
+public.curriculum_chat_sessions|Admins can view chat sessions|SELECT|authenticated|is_admin()|
+public.curriculum_chat_sessions|Admins can update chat sessions|UPDATE|authenticated|is_admin()|is_admin()
+public.curriculum_concepts|Admins manage concepts|ALL|authenticated|is_admin()|is_admin()
+public.curriculum_concepts|Authenticated can read concepts|SELECT|authenticated|true|
+public.curriculum_generation_log|Admins manage gen log|ALL|authenticated|is_admin()|is_admin()
+public.curriculum_stages|Admins can delete curriculum stages|DELETE|authenticated|is_admin()|
+public.curriculum_stages|Admins can insert curriculum stages|INSERT|authenticated||is_admin()
+public.curriculum_stages|Anyone can view curriculum stages|SELECT|anon,authenticated|true|
+public.curriculum_stages|Admins can update curriculum stages|UPDATE|authenticated|is_admin()|is_admin()
+public.daily_challenge_completions|Users can insert their own completions|INSERT|public||(auth.uid() = user_id)
+public.daily_challenge_completions|Users can view their own completions|SELECT|public|(auth.uid() = user_id)|
+public.daily_challenges|Admins can delete daily challenges|DELETE|public|is_admin()|
+public.daily_challenges|Admins can insert daily challenges|INSERT|public||is_admin()
+public.daily_challenges|Anyone can view published daily challenges|SELECT|public|((status = 'published'::text) OR is_admin())|
+public.daily_challenges|Admins can update daily challenges|UPDATE|public|is_admin()|
+public.daily_new_card_counts|Users can view their own new-card counts|SELECT|authenticated|(( SELECT auth.uid() AS uid) = user_id)|
+public.daily_vocab_stories|Users insert own daily stories|INSERT|authenticated||(auth.uid() = user_id)
+public.daily_vocab_stories|Users view own daily stories|SELECT|authenticated|(auth.uid() = user_id)|
+public.daily_vocab_stories|Users update own daily stories|UPDATE|authenticated|(auth.uid() = user_id)|
+public.dialect_corpus_sentences|Service role writes corpus sentences|ALL|service_role|true|true
+public.dialect_corpus_sentences|Admins read corpus sentences|SELECT|authenticated|is_admin()|
+public.dialect_native_reviews|Admins manage native reviews|ALL|authenticated|is_admin()|is_admin()
+public.dialect_native_reviews|Reviewers can read native reviews|SELECT|authenticated|(has_role(auth.uid(), 'recorder'::app_role) OR has_role(auth.uid(), 'content_reviewer'::app_role))|
+public.dialect_native_reviews|Reviewers can update native reviews|UPDATE|authenticated|(has_role(auth.uid(), 'recorder'::app_role) OR has_role(auth.uid(), 'content_reviewer'::app_role))|(has_role(auth.uid(), 'recorder'::app_role) OR has_role(auth.uid(), 'content_reviewer'::app_role))
+public.dialect_rule_violations|Content managers manage violations|ALL|authenticated|can_manage_content()|can_manage_content()
+public.dialect_rules|Content managers can delete rules|DELETE|authenticated|can_manage_content()|
+public.dialect_rules|Content managers can insert rules|INSERT|authenticated||can_manage_content()
+public.dialect_rules|Content managers can read rules|SELECT|authenticated|((status = 'approved'::text) OR can_manage_content())|
+public.dialect_rules|Content managers can update rules|UPDATE|authenticated|can_manage_content()|can_manage_content()
+public.dialect_word_frequency|Signed-in users can read word frequency|SELECT|authenticated|true|
+public.discover_videos|Admins can delete videos|DELETE|public|is_admin()|
+public.discover_videos|Content managers can insert videos|INSERT|authenticated||can_manage_content()
+public.discover_videos|Published videos are public, reviewers see every video|SELECT|public|((published = true) OR can_review_transcripts())|
+public.discover_videos|Content managers can update videos|UPDATE|authenticated|can_manage_content()|can_manage_content()
+public.fanar_usage|Service role insert fanar_usage|INSERT|service_role||true
+public.fanar_usage|Admin read fanar_usage|SELECT|public|is_admin()|
+public.feature_alerts|Admins read alerts|SELECT|authenticated|has_role(auth.uid(), 'admin'::app_role)|
+public.feature_alerts|Admins acknowledge alerts|UPDATE|authenticated|has_role(auth.uid(), 'admin'::app_role)|has_role(auth.uid(), 'admin'::app_role)
+public.feature_metrics|Admins can delete feature metrics|DELETE|authenticated|has_role(auth.uid(), 'admin'::app_role)|
+public.feature_metrics|Service role can insert metrics|INSERT|service_role||true
+public.feature_metrics|Admins can read feature metrics|SELECT|authenticated|has_role(auth.uid(), 'admin'::app_role)|
+public.grammar_exercises|Admins can delete grammar exercises|DELETE|public|is_admin()|
+public.grammar_exercises|Admins can insert grammar exercises|INSERT|public||is_admin()
+public.grammar_exercises|Anyone can view published grammar exercises|SELECT|public|((status = 'published'::text) OR is_admin())|
+public.grammar_exercises|Admins can update grammar exercises|UPDATE|public|is_admin()|
+public.human_review_requests|Users can insert their own requests|INSERT|authenticated||(auth.uid() = user_id)
+public.human_review_requests|Admins can view all requests|SELECT|authenticated|is_admin()|
+public.human_review_requests|Users can view their own requests|SELECT|authenticated|(auth.uid() = user_id)|
+public.human_review_requests|Admins can update requests|UPDATE|authenticated|is_admin()|
+public.institutions|Admins can manage institutions|ALL|public|is_admin()|is_admin()
+public.institutions|Anyone can view institutions|SELECT|public|true|
+public.interactive_stories|Admins can delete stories|DELETE|public|is_admin()|
+public.interactive_stories|Admins can insert stories|INSERT|public||is_admin()
+public.interactive_stories|Anyone can view published stories|SELECT|public|((status = 'published'::text) OR is_admin())|
+public.interactive_stories|Admins can update stories|UPDATE|public|is_admin()|is_admin()
+public.invite_codes|Admins can delete invite codes|DELETE|authenticated|is_admin()|
+public.invite_codes|Admins can create invite codes|INSERT|authenticated||(is_admin() AND (auth.uid() = created_by))
+public.invite_codes|Admins can view all invite codes|SELECT|authenticated|is_admin()|
+public.invite_codes|Admins can update invite codes|UPDATE|authenticated|is_admin()|is_admin()
+public.invite_redemptions|Admins can view all redemptions|SELECT|authenticated|is_admin()|
+public.invite_redemptions|Users can view their own redemption|SELECT|authenticated|(auth.uid() = user_id)|
+public.learner_ai_memory|learners delete their own AI memory|DELETE|authenticated|(auth.uid() = user_id)|
+public.learner_ai_memory|learners read their own AI memory|SELECT|authenticated|(auth.uid() = user_id)|
+public.learner_errors|Users can view their own errors|SELECT|authenticated|(( SELECT auth.uid() AS uid) = user_id)|
+public.learner_errors|Users can resolve their own errors|UPDATE|authenticated|(( SELECT auth.uid() AS uid) = user_id)|(( SELECT auth.uid() AS uid) = user_id)
+public.lesson_clips|lesson_clips_manage|ALL|public|can_manage_content()|can_manage_content()
+public.lesson_clips|lesson_clips_read|SELECT|public|true|
+public.lesson_progress|Users can create their own lesson progress|INSERT|authenticated||(( SELECT auth.uid() AS uid) = user_id)
+public.lesson_progress|Users can view their own lesson progress|SELECT|authenticated|(( SELECT auth.uid() AS uid) = user_id)|
+public.lesson_progress|Users can update their own lesson progress|UPDATE|authenticated|(( SELECT auth.uid() AS uid) = user_id)|(( SELECT auth.uid() AS uid) = user_id)
+public.lessons|Admins can delete lessons|DELETE|authenticated|is_admin()|
+public.lessons|Admins can insert lessons|INSERT|authenticated||is_admin()
+public.lessons|Anyone can view lessons|SELECT|anon,authenticated|true|
+public.lessons|Admins can update lessons|UPDATE|authenticated|is_admin()|is_admin()
+public.listen_episode_plays|Users delete their own plays|DELETE|authenticated|(auth.uid() = user_id)|
+public.listen_episode_plays|Users insert their own plays|INSERT|authenticated||(auth.uid() = user_id)
+public.listen_episode_plays|Users see their own plays|SELECT|authenticated|(auth.uid() = user_id)|
+public.listen_episode_plays|Users update their own plays|UPDATE|authenticated|(auth.uid() = user_id)|
+public.listen_episodes|Creator or admin can delete episodes|DELETE|authenticated|((auth.uid() = creator_id) OR has_role(auth.uid(), 'admin'::app_role))|
+public.listen_episodes|Authenticated users can create episodes|INSERT|authenticated||(auth.uid() = creator_id)
+public.listen_episodes|Episodes are readable by all authenticated users|SELECT|authenticated|true|
+public.listen_episodes|Creator or admin can update episodes|UPDATE|authenticated|((auth.uid() = creator_id) OR has_role(auth.uid(), 'admin'::app_role))|
+public.listen_line_audio|Line audio readable by authenticated users|SELECT|authenticated|true|
+public.listening_exercises|Admins can delete listening exercises|DELETE|public|is_admin()|
+public.listening_exercises|Admins can insert listening exercises|INSERT|public||is_admin()
+public.listening_exercises|Anyone can view published listening exercises|SELECT|public|((status = 'published'::text) OR is_admin())|
+public.listening_exercises|Admins can update listening exercises|UPDATE|public|is_admin()|
+public.llm_usage_logs|Service role insert llm_usage_logs|INSERT|service_role||true
+public.llm_usage_logs|Admin read llm_usage_logs|SELECT|authenticated|is_admin()|
+public.meme_posts|Admins manage memes|ALL|authenticated|is_admin()|is_admin()
+public.meme_posts|Anyone can view published memes|SELECT|public|((status = 'published'::text) OR is_admin())|
+public.monologue_attempts|Users can view their own monologue attempts|SELECT|authenticated|(auth.uid() = user_id)|
+public.msa_transformation_rules|Admins manage rules|ALL|authenticated|is_admin()|is_admin()
+public.msa_transformation_rules|Anyone can view published rules|SELECT|public|((status = 'published'::text) OR is_admin())|
+public.native_feedback_credits|Users read own credit ledger|SELECT|authenticated|(user_id = auth.uid())|
+public.native_feedback_requests|Users read own feedback requests|SELECT|authenticated|(user_id = auth.uid())|
+public.pending_role_grants|Admins read pending role grants|SELECT|authenticated|is_admin()|
+public.picture_scene_hotspots|Admins can delete hotspots|DELETE|public|is_admin()|
+public.picture_scene_hotspots|Admins can insert hotspots|INSERT|public||is_admin()
+public.picture_scene_hotspots|Anyone can view hotspots of published scenes|SELECT|public|(EXISTS ( SELECT 1
+   FROM picture_scenes s
+  WHERE ((s.id = picture_scene_hotspots.scene_id) AND ((s.status = 'published'::text) OR is_admin()))))|
+public.picture_scene_hotspots|Admins can update hotspots|UPDATE|public|is_admin()|
+public.picture_scenes|Admins can delete picture scenes|DELETE|public|is_admin()|
+public.picture_scenes|Admins can insert picture scenes|INSERT|public||is_admin()
+public.picture_scenes|Anyone can view published picture scenes|SELECT|public|((status = 'published'::text) OR is_admin())|
+public.picture_scenes|Admins can update picture scenes|UPDATE|public|is_admin()|
+public.placement_history|Users read own placement history|SELECT|authenticated|(user_id = auth.uid())|
+public.placement_results|Users insert own placement results|INSERT|public||(auth.uid() = user_id)
+public.placement_results|Users view own placement results|SELECT|public|(auth.uid() = user_id)|
+public.profiles|Users can insert their own profile|INSERT|public||(auth.uid() = user_id)
+public.profiles|Users view own profile or admin|SELECT|public|((auth.uid() = user_id) OR is_admin())|
+public.profiles|Users can update their own profile|UPDATE|public|(auth.uid() = user_id)|
+public.published_clips|published_clips_manage|ALL|public|can_manage_content()|can_manage_content()
+public.published_clips|published_clips_read|SELECT|public|true|
+public.push_subscriptions|Users can delete their own push subscriptions|DELETE|authenticated|(( SELECT auth.uid() AS uid) = user_id)|
+public.push_subscriptions|Users can create their own push subscriptions|INSERT|authenticated||(( SELECT auth.uid() AS uid) = user_id)
+public.push_subscriptions|Users can view their own push subscriptions|SELECT|authenticated|(( SELECT auth.uid() AS uid) = user_id)|
+public.push_subscriptions|Users can update their own push subscriptions|UPDATE|authenticated|(( SELECT auth.uid() AS uid) = user_id)|(( SELECT auth.uid() AS uid) = user_id)
+public.reading_passages|Admins can delete reading passages|DELETE|public|is_admin()|
+public.reading_passages|Admins can insert reading passages|INSERT|public||is_admin()
+public.reading_passages|Anyone can view published reading passages|SELECT|public|((status = 'published'::text) OR is_admin())|
+public.reading_passages|Admins can update reading passages|UPDATE|public|is_admin()|
+public.referral_codes|Users read own referral code|SELECT|authenticated|(user_id = auth.uid())|
+public.referral_redemptions|Participants read own redemptions|SELECT|authenticated|((referrer_id = auth.uid()) OR (referred_user_id = auth.uid()))|
+public.review_log|Users can view their own review log|SELECT|authenticated|(auth.uid() = user_id)|
+public.saved_chat_conversations|Users can delete their own saved conversations|DELETE|authenticated|(auth.uid() = user_id)|
+public.saved_chat_conversations|Users can create their own saved conversations|INSERT|authenticated||(auth.uid() = user_id)
+public.saved_chat_conversations|Users can view their own saved conversations|SELECT|authenticated|(auth.uid() = user_id)|
+public.saved_chat_conversations|Users can update their own saved conversations|UPDATE|authenticated|(auth.uid() = user_id)|(auth.uid() = user_id)
+public.saved_text_translations|Users delete own saved translations|DELETE|authenticated|(auth.uid() = user_id)|
+public.saved_text_translations|Users insert own saved translations|INSERT|authenticated||(auth.uid() = user_id)
+public.saved_text_translations|Users view own saved translations|SELECT|authenticated|(auth.uid() = user_id)|
+public.saved_text_translations|Users update own saved translations|UPDATE|authenticated|(auth.uid() = user_id)|(auth.uid() = user_id)
+public.saved_transcriptions|Users can delete their own transcriptions|DELETE|public|(auth.uid() = user_id)|
+public.saved_transcriptions|Users can create their own transcriptions|INSERT|public||(auth.uid() = user_id)
+public.saved_transcriptions|Users can view their own transcriptions|SELECT|public|(auth.uid() = user_id)|
+public.saved_transcriptions|Users can update their own transcriptions|UPDATE|public|(auth.uid() = user_id)|
+public.set_phrase_occasions|Content managers manage occasions|ALL|authenticated|can_manage_content()|can_manage_content()
+public.set_phrase_occasions|Anyone can view published occasions|SELECT|public|((status = 'published'::text) OR can_manage_content())|
+public.set_phrase_quiz_attempts|Users insert own attempts|INSERT|public||(auth.uid() = user_id)
+public.set_phrase_quiz_attempts|Admins view all attempts|SELECT|authenticated|is_admin()|
+public.set_phrase_quiz_attempts|Users view own attempts|SELECT|public|(auth.uid() = user_id)|
+public.set_phrases|Content managers manage phrases|ALL|authenticated|can_manage_content()|can_manage_content()
+public.set_phrases|Anyone can view published phrases|SELECT|public|((status = 'published'::text) OR can_manage_content())|
+public.shadow_attempts|Users can view their own shadow attempts|SELECT|authenticated|(auth.uid() = user_id)|
+public.social_content_sources|social_content_sources_manage|ALL|public|can_manage_content()|can_manage_content()
+public.social_posts|social_posts_manage|ALL|public|can_manage_content()|can_manage_content()
+public.social_posts|social_posts_read|SELECT|public|can_manage_content()|
+public.story_progress|Users can insert their own progress|INSERT|public||(auth.uid() = user_id)
+public.story_progress|Users can view their own progress|SELECT|public|(auth.uid() = user_id)|
+public.story_progress|Users can update their own progress|UPDATE|public|(auth.uid() = user_id)|
+public.story_scenes|Admins can delete scenes|DELETE|public|is_admin()|
+public.story_scenes|Admins can insert scenes|INSERT|public||is_admin()
+public.story_scenes|Anyone can view scenes of published stories|SELECT|public|(EXISTS ( SELECT 1
+   FROM interactive_stories s
+  WHERE ((s.id = story_scenes.story_id) AND ((s.status = 'published'::text) OR is_admin()))))|
+public.story_scenes|Admins can update scenes|UPDATE|public|is_admin()|is_admin()
+public.subscribers|Users read own subscriber row|SELECT|authenticated|(user_id = auth.uid())|
+public.topics|Admins can delete topics|DELETE|authenticated|is_admin()|
+public.topics|Admins can insert topics|INSERT|authenticated||is_admin()
+public.topics|Anyone can view topics|SELECT|anon,authenticated|true|
+public.topics|Admins can update topics|UPDATE|authenticated|is_admin()|is_admin()
+public.training_examples|Admins read training examples|SELECT|authenticated|is_admin()|
+public.transcript_line_comments|Reviewers read line comments|SELECT|authenticated|can_review_transcripts()|
+public.transcript_line_reviews|Reviewers read line reviews|SELECT|authenticated|can_review_transcripts()|
+public.transcript_line_revisions|Reviewers read line revisions|SELECT|authenticated|can_review_transcripts()|
+public.trending_topics|trending_topics_read|SELECT|public|can_manage_content()|
+public.trending_video_candidates|Admins can delete candidates|DELETE|public|is_admin()|
+public.trending_video_candidates|Admins can insert candidates|INSERT|public||is_admin()
+public.trending_video_candidates|Admins can view all candidates|SELECT|public|is_admin()|
+public.trending_video_candidates|Admins can update candidates|UPDATE|public|is_admin()|
+public.tutor_upload_candidates|Users can delete their own candidates|DELETE|public|(auth.uid() = user_id)|
+public.tutor_upload_candidates|Users can insert their own candidates|INSERT|public||(auth.uid() = user_id)
+public.tutor_upload_candidates|Users can view their own candidates|SELECT|public|(auth.uid() = user_id)|
+public.tutor_upload_candidates|Users can update their own candidates|UPDATE|public|(auth.uid() = user_id)|
+public.usage_counters|Users can view their own usage counters|SELECT|authenticated|(auth.uid() = user_id)|
+public.user_achievements|Users can view their own achievements|SELECT|public|(auth.uid() = user_id)|
+public.user_checkpoint_progress|Users view own checkpoint progress|SELECT|public|(auth.uid() = user_id)|
+public.user_concept_mastery|Users insert own mastery|INSERT|authenticated||(( SELECT auth.uid() AS uid) = user_id)
+public.user_concept_mastery|Admins read all mastery|SELECT|authenticated|is_admin()|
+public.user_concept_mastery|Users read own mastery|SELECT|authenticated|(( SELECT auth.uid() AS uid) = user_id)|
+public.user_concept_mastery|Users update own mastery|UPDATE|authenticated|(( SELECT auth.uid() AS uid) = user_id)|(( SELECT auth.uid() AS uid) = user_id)
+public.user_follows|Users can unfollow|DELETE|public|(auth.uid() = follower_id)|
+public.user_follows|Users can follow others|INSERT|public||(auth.uid() = follower_id)
+public.user_follows|Users can view follows involving them or public profiles|SELECT|public|((auth.uid() = follower_id) OR (auth.uid() = following_id) OR (EXISTS ( SELECT 1
+   FROM profiles
+  WHERE ((profiles.user_id = user_follows.following_id) AND (profiles.show_on_leaderboard = true)))))|
+public.user_letter_progress|Users delete own letter progress|DELETE|public|(auth.uid() = user_id)|
+public.user_letter_progress|Users insert own letter progress|INSERT|public||(auth.uid() = user_id)
+public.user_letter_progress|Users view own letter progress|SELECT|public|(auth.uid() = user_id)|
+public.user_letter_progress|Users update own letter progress|UPDATE|public|(auth.uid() = user_id)|
+public.user_perception_progress|Users delete own perception progress|DELETE|public|(auth.uid() = user_id)|
+public.user_perception_progress|Users insert own perception progress|INSERT|public||(auth.uid() = user_id)
+public.user_perception_progress|Users view own perception progress|SELECT|public|(auth.uid() = user_id)|
+public.user_perception_progress|Users update own perception progress|UPDATE|public|(auth.uid() = user_id)|
+public.user_phrases|Users can delete their own phrases|DELETE|public|(auth.uid() = user_id)|
+public.user_phrases|Users can add their own phrases|INSERT|public||(auth.uid() = user_id)
+public.user_phrases|Users can view their own phrases|SELECT|public|(auth.uid() = user_id)|
+public.user_phrases|Users can update their own phrases|UPDATE|public|(auth.uid() = user_id)|
+public.user_picture_scene_progress|Users can insert their own scene progress|INSERT|public||(auth.uid() = user_id)
+public.user_picture_scene_progress|Users can view their own scene progress|SELECT|public|(auth.uid() = user_id)|
+public.user_picture_scene_progress|Users can update their own scene progress|UPDATE|public|(auth.uid() = user_id)|
+public.user_roles|Admins can manage roles|ALL|authenticated|is_admin()|is_admin()
+public.user_roles|Admins can view all roles|SELECT|authenticated|is_admin()|
+public.user_roles|Users can view their own role|SELECT|public|(auth.uid() = user_id)|
+public.user_set_phrases|Users delete own user_set_phrases|DELETE|public|(auth.uid() = user_id)|
+public.user_set_phrases|Users insert own user_set_phrases|INSERT|public||(auth.uid() = user_id)
+public.user_set_phrases|Users view own user_set_phrases|SELECT|public|(auth.uid() = user_id)|
+public.user_set_phrases|Users update own user_set_phrases|UPDATE|public|(auth.uid() = user_id)|
+public.user_vocabulary|Users can delete their own vocabulary|DELETE|public|(auth.uid() = user_id)|
+public.user_vocabulary|Users can add their own vocabulary|INSERT|public||(auth.uid() = user_id)
+public.user_vocabulary|Users can view their own vocabulary|SELECT|public|(auth.uid() = user_id)|
+public.user_vocabulary|Users can update their own vocabulary|UPDATE|public|(auth.uid() = user_id)|
+public.user_xp|Anyone can view public XP for leaderboard|SELECT|public|((EXISTS ( SELECT 1
+   FROM profiles
+  WHERE ((profiles.user_id = user_xp.user_id) AND (profiles.show_on_leaderboard = true)))) OR (auth.uid() = user_id))|
+public.user_xp|Users can view their own XP|SELECT|public|(auth.uid() = user_id)|
+public.video_likes|Users can unlike videos|DELETE|public|(auth.uid() = user_id)|
+public.video_likes|Users can like videos|INSERT|public||(auth.uid() = user_id)
+public.video_likes|Users can view likes on published videos for counts|SELECT|public|(EXISTS ( SELECT 1
+   FROM discover_videos
+  WHERE ((discover_videos.id = video_likes.video_id) AND (discover_videos.published = true))))|
+public.video_likes|Users can view their own likes|SELECT|public|(auth.uid() = user_id)|
+public.video_ratings|Users can insert their own ratings|INSERT|authenticated||(auth.uid() = user_id)
+public.video_ratings|Admins can view all ratings|SELECT|authenticated|is_admin()|
+public.video_ratings|Users can view their own ratings|SELECT|authenticated|(auth.uid() = user_id)|
+public.video_ratings|Users can update their own ratings|UPDATE|authenticated|(auth.uid() = user_id)|
+public.video_views|Users insert own video views|INSERT|public||(auth.uid() = user_id)
+public.video_views|Users view own video views|SELECT|public|(auth.uid() = user_id)|
+public.video_views|Users update own video views|UPDATE|public|(auth.uid() = user_id)|
+public.vocab_battles|Users can create battles as challenger|INSERT|public||(auth.uid() = challenger_id)
+public.vocab_battles|Users can view battles they're part of|SELECT|public|((auth.uid() = challenger_id) OR (auth.uid() = opponent_id))|
+public.vocab_battles|Users can update battles they're part of|UPDATE|public|((auth.uid() = challenger_id) OR (auth.uid() = opponent_id))|
+public.vocab_concepts|vocab_concepts_manage|ALL|public|can_manage_content()|can_manage_content()
+public.vocab_concepts|vocab_concepts_read|SELECT|public|true|
+public.vocab_game_sets|Admins can delete vocab game sets|DELETE|public|is_admin()|
+public.vocab_game_sets|Admins can insert vocab game sets|INSERT|public||is_admin()
+public.vocab_game_sets|Anyone can view published vocab game sets|SELECT|public|((status = 'published'::text) OR is_admin())|
+public.vocab_game_sets|Admins can update vocab game sets|UPDATE|public|is_admin()|
+public.vocabulary_words|Admins can delete vocabulary words|DELETE|authenticated|is_admin()|
+public.vocabulary_words|Admins and recorders can insert vocabulary words|INSERT|authenticated||(is_admin() OR is_recorder())
+public.vocabulary_words|Anyone can view vocabulary words|SELECT|anon,authenticated|true|
+public.vocabulary_words|Admins and recorders can update vocabulary words|UPDATE|authenticated|(is_admin() OR is_recorder())|(is_admin() OR is_recorder())
+public.voice_usage|Users read own voice usage|SELECT|authenticated|(auth.uid() = user_id)|
+public.weekly_goals|Users can view their own goals|SELECT|public|(auth.uid() = user_id)|
+public.word_reviews|Users can delete their own reviews|DELETE|public|(auth.uid() = user_id)|
+public.word_reviews|Users can insert their own reviews|INSERT|public||(auth.uid() = user_id)
+public.word_reviews|Users can view their own reviews|SELECT|public|(auth.uid() = user_id)|
+public.word_reviews|Users can update their own reviews|UPDATE|public|(auth.uid() = user_id)|
+storage.objects|Service role manages listen audio|ALL|service_role|(bucket_id = 'listen-audio'::text)|(bucket_id = 'listen-audio'::text)
+storage.objects|Admins can delete feedback screenshots|DELETE|authenticated|((bucket_id = 'feedback-screenshots'::text) AND is_admin())|
+storage.objects|Admins can delete video-audio files|DELETE|authenticated|((bucket_id = 'video-audio'::text) AND is_admin())|
+storage.objects|lahja_admin_delete_system_buckets|DELETE|authenticated|((bucket_id = ANY (ARRAY['flashcard-images'::text, 'flashcard-audio'::text, 'audio'::text])) AND is_admin())|
+storage.objects|lahja_owner_delete_user_buckets|DELETE|authenticated|((bucket_id = ANY (ARRAY['avatars'::text, 'meme-uploads'::text, 'tutor-audio-clips'::text])) AND ((auth.uid())::text = (storage.foldername(name))[1]))|
+storage.objects|Admins can upload video audio|INSERT|authenticated||((bucket_id = 'video-audio'::text) AND is_admin())
+storage.objects|Beta testers can upload feedback screenshots|INSERT|authenticated||((bucket_id = 'feedback-screenshots'::text) AND is_beta_tester() AND ((storage.foldername(name))[1] = (auth.uid())::text))
+storage.objects|lahja_admin_write_system_buckets|INSERT|authenticated||((bucket_id = ANY (ARRAY['flashcard-images'::text, 'flashcard-audio'::text, 'audio'::text])) AND is_admin())
+storage.objects|lahja_owner_insert_user_buckets|INSERT|authenticated||((bucket_id = ANY (ARRAY['avatars'::text, 'meme-uploads'::text, 'tutor-audio-clips'::text])) AND ((auth.uid())::text = (storage.foldername(name))[1]))
+storage.objects|Admins can read all feedback screenshots|SELECT|authenticated|((bucket_id = 'feedback-screenshots'::text) AND is_admin())|
+storage.objects|Admins can read video audio|SELECT|authenticated|((bucket_id = 'video-audio'::text) AND is_admin())|
+storage.objects|Admins read learner audio|SELECT|authenticated|((bucket_id = 'learner-audio'::text) AND is_admin())|
+storage.objects|Admins read training exports|SELECT|authenticated|((bucket_id = 'training-exports'::text) AND is_admin())|
+storage.objects|Listen audio publicly readable|SELECT|public|(bucket_id = 'listen-audio'::text)|
+storage.objects|Public can read story videos|SELECT|public|(bucket_id = 'story-videos'::text)|
+storage.objects|Reviewers can read video audio|SELECT|public|((bucket_id = 'video-audio'::text) AND can_review_transcripts())|
+storage.objects|Users can read own feedback screenshots|SELECT|authenticated|((bucket_id = 'feedback-screenshots'::text) AND ((storage.foldername(name))[1] = (auth.uid())::text))|
+storage.objects|lahja_public_read|SELECT|anon,authenticated|(bucket_id = ANY (ARRAY['avatars'::text, 'meme-uploads'::text, 'flashcard-images'::text, 'flashcard-audio'::text, 'tutor-audio-clips'::text, 'audio'::text]))|
+storage.objects|Admins can update video-audio files|UPDATE|authenticated|((bucket_id = 'video-audio'::text) AND is_admin())|((bucket_id = 'video-audio'::text) AND is_admin())
+storage.objects|lahja_admin_update_system_buckets|UPDATE|authenticated|((bucket_id = ANY (ARRAY['flashcard-images'::text, 'flashcard-audio'::text, 'audio'::text])) AND is_admin())|((bucket_id = ANY (ARRAY['flashcard-images'::text, 'flashcard-audio'::text, 'audio'::text])) AND is_admin())
+storage.objects|lahja_owner_update_user_buckets|UPDATE|authenticated|((bucket_id = ANY (ARRAY['avatars'::text, 'meme-uploads'::text, 'tutor-audio-clips'::text])) AND ((auth.uid())::text = (storage.foldername(name))[1]))|((bucket_id = ANY (ARRAY['avatars'::text, 'meme-uploads'::text, 'tutor-audio-clips'::text])) AND ((auth.uid())::text = (storage.foldername(name))[1]))

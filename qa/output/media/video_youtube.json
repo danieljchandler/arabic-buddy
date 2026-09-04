@@ -1,0 +1,192 @@
+{
+ "video": {
+  "id": "848dfb0c-f828-4c87-8690-a4e4b6de58e1",
+  "platform": "youtube",
+  "source_url": "https://youtube.com/shorts/kTKcSSW6NZw?si=jWpwNiz6jmYIsLs-",
+  "thumbnail_url": "https://img.youtube.com/vi/kTKcSSW6NZw/hqdefault.jpg"
+ },
+ "timing": {
+  "lines": 12,
+  "withLineTiming": 11,
+  "withWordTiming": 0,
+  "monotonic": true
+ },
+ "state": {
+  "finalUrl": "http://127.0.0.1:4173/discover/848dfb0c-f828-4c87-8690-a4e4b6de58e1",
+  "path": "/discover/848dfb0c-f828-4c87-8690-a4e4b6de58e1",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 1850,
+  "bodyText": "Back Saudi Intermediate Honestly, I told you I wanted a matcha. أنا صراحة قلت لك أبغى ماتشا. آه مو لشيء، بس أهلي كانوا يطلقوا. Ask AI Practice shadowing 1 / 12 ",
+  "notFoundText": false,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": false,
+  "errorTextVisible": false,
+  "emptyStateText": null,
+  "headline": "Honestly, I told you I wanted a matcha.",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "media": {
+  "iframes": [],
+  "videos": [],
+  "audios": [],
+  "transcriptLinesRendered": 0,
+  "rtlBlocks": 25,
+  "playControls": [
+   "Practice shadowing",
+   "Practice shadowing",
+   "Practice shadowing",
+   "Practice shadowing",
+   "Practice shadowing",
+   "Practice shadowing",
+   "Practice shadowing",
+   "Practice shadowing",
+   "Practice shadowing",
+   "Practice shadowing",
+   "Practice shadowing",
+   "Practice shadowing"
+  ]
+ },
+ "playAttempt": null,
+ "tts": {
+  "status": "needs live API test",
+  "control": null
+ },
+ "storageFailures": [
+  {
+   "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.wav",
+   "method": "POST",
+   "status": 400,
+   "layer": "storage",
+   "target": "object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.wav",
+   "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+  },
+  {
+   "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.mp4",
+   "method": "POST",
+   "status": 400,
+   "layer": "storage",
+   "target": "object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.mp4",
+   "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+  },
+  {
+   "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.m4a",
+   "method": "POST",
+   "status": 400,
+   "layer": "storage",
+   "target": "object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.m4a",
+   "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+  },
+  {
+   "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.webm",
+   "method": "POST",
+   "status": 400,
+   "layer": "storage",
+   "target": "object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.webm",
+   "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+  },
+  {
+   "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.mp3",
+   "method": "POST",
+   "status": 400,
+   "layer": "storage",
+   "target": "object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.mp3",
+   "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+  },
+  {
+   "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.opus",
+   "method": "POST",
+   "status": 400,
+   "layer": "storage",
+   "target": "object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.opus",
+   "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+  },
+  {
+   "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/kTKcSSW6NZw.wav",
+   "method": "POST",
+   "status": 400,
+   "layer": "storage",
+   "target": "object/sign/video-audio/kTKcSSW6NZw.wav",
+   "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+  },
+  {
+   "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/kTKcSSW6NZw.mp4",
+   "method": "POST",
+   "status": 400,
+   "layer": "storage",
+   "target": "object/sign/video-audio/kTKcSSW6NZw.mp4",
+   "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+  },
+  {
+   "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/kTKcSSW6NZw.m4a",
+   "method": "POST",
+   "status": 400,
+   "layer": "storage",
+   "target": "object/sign/video-audio/kTKcSSW6NZw.m4a",
+   "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+  },
+  {
+   "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/kTKcSSW6NZw.webm",
+   "method": "POST",
+   "status": 400,
+   "layer": "storage",
+   "target": "object/sign/video-audio/kTKcSSW6NZw.webm",
+   "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+  },
+  {
+   "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/kTKcSSW6NZw.mp3",
+   "method": "POST",
+   "status": 400,
+   "layer": "storage",
+   "target": "object/sign/video-audio/kTKcSSW6NZw.mp3",
+   "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+  },
+  {
+   "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/kTKcSSW6NZw.opus",
+   "method": "POST",
+   "status": 400,
+   "layer": "storage",
+   "target": "object/sign/video-audio/kTKcSSW6NZw.opus",
+   "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+  }
+ ],
+ "functionFailures": [],
+ "restFailures": [
+  {
+   "url": "https://ovscskaijvclaxelkdyf.supabase.co/rest/v1/video_likes?select=id&video_id=eq.848dfb0c-f828-4c87-8690-a4e4b6de58e1",
+   "method": "HEAD",
+   "status": null,
+   "layer": "rest",
+   "target": "video_likes",
+   "error": "net::ERR_ABORTED"
+  }
+ ],
+ "externalFailures": [
+  {
+   "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+   "method": "GET",
+   "status": null,
+   "layer": "other",
+   "target": "fonts.googleapis.com/css2",
+   "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
+  }
+ ],
+ "consoleErrors": [
+  "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+  "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+  "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+  "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+  "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+  "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+  "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+  "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+  "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+  "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+  "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+  "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+  "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+ ],
+ "pageErrors": [],
+ "screenshot": "/home/user/arabic-buddy/qa/output/screens/media_youtube.png"
+}

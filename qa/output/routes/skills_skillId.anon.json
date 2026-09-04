@@ -1,0 +1,63 @@
+{
+ "route": "/skills/:skillId",
+ "label": "/skills/:skillId",
+ "gate": "public",
+ "url": "/skills/read",
+ "authed": false,
+ "loadMs": 1690,
+ "state": {
+  "finalUrl": "http://127.0.0.1:4173/skills/read",
+  "path": "/skills/read",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 245,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": false,
+  "errorTextVisible": false,
+  "emptyStateText": null,
+  "headline": "Read",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "infiniteLoader": false,
+ "expectedRedirect": null,
+ "screenshot": "/home/user/arabic-buddy/qa/output/screens/skills_skillId.anon.png",
+ "inventory": {
+  "buttons": 0,
+  "links": 5,
+  "inputs": 0,
+  "tabs": 0,
+  "forms": 0,
+  "media": 0
+ },
+ "links": [
+  "/choose",
+  "/reading",
+  "/reading-library",
+  "/souq-news",
+  "/stories"
+ ],
+ "load": {
+  "failures": [
+   {
+    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+    "method": "GET",
+    "status": null,
+    "layer": "other",
+    "target": "fonts.googleapis.com/css2",
+    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   }
+  ],
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+  ],
+  "pageErrors": [],
+  "supabaseRequests": 0
+ },
+ "interaction": {
+  "controls": [],
+  "failures": [],
+  "consoleErrors": [],
+  "pageErrors": []
+ }
+}

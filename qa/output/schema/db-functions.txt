@@ -1,0 +1,43 @@
+_alert_from_metric|t|
+admin_find_user|t|_identifier text
+admin_grant_role_by_email|t|_identifier text, _role app_role
+admin_list_managed_roles|t|
+admin_list_pending_role_grants|t|
+admin_revoke_pending_role|t|_id uuid
+apply_pending_role_grants|t|
+award_xp|t|_amount integer, _reason text
+can_manage_content|t|
+can_review_transcripts|t|
+corpus_sentence_from_gold|t|
+grant_achievement|t|_achievement_id uuid
+guard_admin_role_removal|t|
+handle_new_user|t|
+has_bible_access|t|
+has_complimentary_access|t|_user_id uuid
+has_redeemed_invite|t|
+has_role|t|_user_id uuid, _role app_role
+increment_listen_play_count|t|_episode_id uuid
+increment_new_card_count|t|_amount integer
+increment_review_count|t|
+increment_usage_counter|t|_user_id uuid, _key text, _amount integer
+is_access_id_role|f|_role app_role
+is_admin|t|
+is_beta_tester|t|
+is_bible_reader|t|
+is_content_reviewer|t|
+is_grantable_role|f|_role app_role
+is_recorder|t|
+is_transcriber|t|
+log_set_phrase_review|t|
+log_word_review|t|
+phrase_quality_to_rating|f|quality integer
+reap_stuck_video_transcriptions|t|
+record_checkpoint|t|_index integer, _score integer
+redeem_invite_code|t|_code text
+search_caption_lines|t|q_terms text[], q_dialect text, min_duration_ms integer, max_duration_ms integer, match_count integer
+settle_native_feedback|t|
+spend_native_feedback_credit|t|_user_id uuid, _reason text
+training_example_from_review|t|
+update_updated_at_column|f|
+user_has_bible_access|t|_user_id uuid
+verify_invite_code|t|_code text

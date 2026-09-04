@@ -1,0 +1,115 @@
+{
+ "route": "/discover/:videoId",
+ "label": "/discover/:videoId (unknown id)",
+ "gate": "public",
+ "url": "/discover/aaaaaaaa-0000-4000-8000-000000000000",
+ "authed": false,
+ "loadMs": 3080,
+ "state": {
+  "finalUrl": "http://127.0.0.1:4173/discover/aaaaaaaa-0000-4000-8000-000000000000",
+  "path": "/discover/aaaaaaaa-0000-4000-8000-000000000000",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 97,
+  "bodyText": "This clip didn't load It may have been removed, or the connection dropped. Try again Browse clips",
+  "notFoundText": false,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": false,
+  "errorTextVisible": true,
+  "emptyStateText": null,
+  "headline": "",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "infiniteLoader": false,
+ "expectedRedirect": null,
+ "screenshot": "/home/user/arabic-buddy/qa/output/screens/discover_videoId_unknown_id_.anon.png",
+ "inventory": {
+  "buttons": 2,
+  "links": 0,
+  "inputs": 0,
+  "tabs": 0,
+  "forms": 0,
+  "media": 0
+ },
+ "links": [],
+ "load": {
+  "failures": [
+   {
+    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+    "method": "GET",
+    "status": null,
+    "layer": "other",
+    "target": "fonts.googleapis.com/css2",
+    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/rest/v1/discover_videos?select=*&id=eq.aaaaaaaa-0000-4000-8000-000000000000",
+    "method": "GET",
+    "status": 406,
+    "layer": "rest",
+    "target": "discover_videos",
+    "body": "{\"code\":\"PGRST116\",\"details\":\"The result contains 0 rows\",\"hint\":null,\"message\":\"Cannot coerce the result to a single JSON object\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/rest/v1/discover_videos?select=*&id=eq.aaaaaaaa-0000-4000-8000-000000000000",
+    "method": "GET",
+    "status": 406,
+    "layer": "rest",
+    "target": "discover_videos",
+    "body": "{\"code\":\"PGRST116\",\"details\":\"The result contains 0 rows\",\"hint\":null,\"message\":\"Cannot coerce the result to a single JSON object\"}"
+   }
+  ],
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+   "Failed to load resource: the server responded with a status of 406 (Not Acceptable)",
+   "Failed to load resource: the server responded with a status of 406 (Not Acceptable)"
+  ],
+  "pageErrors": [],
+  "supabaseRequests": 4
+ },
+ "interaction": {
+  "controls": [
+   {
+    "index": 0,
+    "label": "Try again",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 5,
+    "requests": 1,
+    "newFailures": 1,
+    "outcome": "dom-changed"
+   },
+   {
+    "index": 1,
+    "label": "Browse clips",
+    "kind": "button",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 3000ms exceeded."
+   }
+  ],
+  "failures": [
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/rest/v1/discover_videos?select=*&id=eq.aaaaaaaa-0000-4000-8000-000000000000",
+    "method": "GET",
+    "status": 406,
+    "layer": "rest",
+    "target": "discover_videos",
+    "body": "{\"code\":\"PGRST116\",\"details\":\"The result contains 0 rows\",\"hint\":null,\"message\":\"Cannot coerce the result to a single JSON object\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/rest/v1/discover_videos?select=*&id=eq.aaaaaaaa-0000-4000-8000-000000000000",
+    "method": "GET",
+    "status": 406,
+    "layer": "rest",
+    "target": "discover_videos",
+    "body": "{\"code\":\"PGRST116\",\"details\":\"The result contains 0 rows\",\"hint\":null,\"message\":\"Cannot coerce the result to a single JSON object\"}"
+   }
+  ],
+  "consoleErrors": [
+   "Failed to load resource: the server responded with a status of 406 (Not Acceptable)",
+   "Failed to load resource: the server responded with a status of 406 (Not Acceptable)"
+  ],
+  "pageErrors": []
+ }
+}

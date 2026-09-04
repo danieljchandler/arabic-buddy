@@ -1,0 +1,724 @@
+{
+ "route": "/reading-library/:id",
+ "label": "/reading-library/:id",
+ "gate": "public",
+ "url": "/reading-library/e0ca411c-8f1d-4581-b4c8-66c64277b29b",
+ "authed": false,
+ "loadMs": 3682,
+ "state": {
+  "finalUrl": "http://127.0.0.1:4173/reading-library/e0ca411c-8f1d-4581-b4c8-66c64277b29b",
+  "path": "/reading-library/e0ca411c-8f1d-4581-b4c8-66c64277b29b",
+  "title": "The First Visit to the Majlis — Reading Library — Hakiya",
+  "bodyChars": 2415,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": false,
+  "errorTextVisible": false,
+  "emptyStateText": null,
+  "headline": "The First Visit to the Majlis",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "infiniteLoader": false,
+ "expectedRedirect": null,
+ "screenshot": "/home/user/arabic-buddy/qa/output/screens/reading-library_id.anon.png",
+ "inventory": {
+  "buttons": 259,
+  "links": 0,
+  "inputs": 0,
+  "tabs": 0,
+  "forms": 0,
+  "media": 0
+ },
+ "links": [],
+ "load": {
+  "failures": [
+   {
+    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+    "method": "GET",
+    "status": null,
+    "layer": "other",
+    "target": "fonts.googleapis.com/css2",
+    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   }
+  ],
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+  ],
+  "pageErrors": [],
+  "supabaseRequests": 70
+ },
+ "interaction": {
+  "controls": [
+   {
+    "index": 0,
+    "label": "lucide-arrow-left",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 11,
+    "requests": 19,
+    "newFailures": 0,
+    "outcome": "navigated",
+    "navigatedTo": "/reading-library"
+   },
+   {
+    "index": 1,
+    "label": "(unlabeled)",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 0,
+    "requests": 0,
+    "newFailures": 0,
+    "outcome": "no-op"
+   },
+   {
+    "index": 2,
+    "label": "(unlabeled)",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 5,
+    "requests": 1,
+    "newFailures": 0,
+    "outcome": "dom-changed"
+   },
+   {
+    "index": 3,
+    "label": "(unlabeled)",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 5,
+    "requests": 1,
+    "newFailures": 0,
+    "outcome": "dom-changed"
+   },
+   {
+    "index": 4,
+    "label": "(unlabeled)",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 5,
+    "requests": 1,
+    "newFailures": 0,
+    "outcome": "dom-changed"
+   },
+   {
+    "index": 5,
+    "label": "(unlabeled)",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 5,
+    "requests": 1,
+    "newFailures": 0,
+    "outcome": "dom-changed"
+   },
+   {
+    "index": 6,
+    "label": "(unlabeled)",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 5,
+    "requests": 1,
+    "newFailures": 0,
+    "outcome": "dom-changed"
+   },
+   {
+    "index": 7,
+    "label": "Look up “كَانَ”",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 18,
+    "requests": 1,
+    "newFailures": 1,
+    "outcome": "dialog"
+   },
+   {
+    "index": 8,
+    "label": "Look up “نَاصِرٌ”",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 18,
+    "requests": 1,
+    "newFailures": 1,
+    "outcome": "dialog"
+   },
+   {
+    "index": 9,
+    "label": "Look up “يَشْعُرُ”",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 18,
+    "requests": 1,
+    "newFailures": 1,
+    "outcome": "dialog"
+   },
+   {
+    "index": 10,
+    "label": "Look up “بِتَوَتُّرٍ”",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 18,
+    "requests": 1,
+    "newFailures": 1,
+    "outcome": "dialog"
+   },
+   {
+    "index": 11,
+    "label": "Look up “شَدِيدٍ”",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 18,
+    "requests": 1,
+    "newFailures": 1,
+    "outcome": "dialog"
+   },
+   {
+    "index": 12,
+    "label": "Look up “وَهُوَ”",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 18,
+    "requests": 1,
+    "newFailures": 1,
+    "outcome": "dialog"
+   },
+   {
+    "index": 13,
+    "label": "Look up “يَقِفُ”",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 18,
+    "requests": 1,
+    "newFailures": 1,
+    "outcome": "dialog"
+   },
+   {
+    "index": 14,
+    "label": "Look up “أَمَامَ”",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 14,
+    "requests": 1,
+    "newFailures": 0,
+    "outcome": "dialog"
+   },
+   {
+    "index": 15,
+    "label": "Look up “بَابِ”",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 14,
+    "requests": 1,
+    "newFailures": 1,
+    "outcome": "dialog"
+   },
+   {
+    "index": 16,
+    "label": "Look up “بَيْتِ”",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 14,
+    "requests": 1,
+    "newFailures": 0,
+    "outcome": "dialog"
+   },
+   {
+    "index": 17,
+    "label": "Look up “أَبُو”",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 18,
+    "requests": 1,
+    "newFailures": 2,
+    "outcome": "dialog"
+   },
+   {
+    "index": 18,
+    "label": "Look up “رَاشِدٍ”",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 18,
+    "requests": 1,
+    "newFailures": 1,
+    "outcome": "dialog"
+   },
+   {
+    "index": 19,
+    "label": "Ask AI",
+    "kind": "button",
+    "action": "needs-live-api-test"
+   },
+   {
+    "index": 20,
+    "label": "lucide-play",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 3,
+    "requests": 1,
+    "newFailures": 0,
+    "outcome": "dom-changed"
+   },
+   {
+    "index": 21,
+    "label": "lucide-skip-forward",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 60,
+    "requests": 2,
+    "newFailures": 0,
+    "outcome": "dom-changed"
+   },
+   {
+    "index": 22,
+    "label": "(unlabeled)",
+    "kind": "button[switch]",
+    "action": "clicked",
+    "mutations": 483,
+    "requests": 0,
+    "newFailures": 0,
+    "outcome": "dom-changed"
+   },
+   {
+    "index": 23,
+    "label": "(unlabeled)",
+    "kind": "button[switch]",
+    "action": "clicked",
+    "mutations": 21,
+    "requests": 0,
+    "newFailures": 0,
+    "outcome": "dom-changed"
+   },
+   {
+    "index": 24,
+    "label": "Look up “كَانَ”",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 79,
+    "requests": 2,
+    "newFailures": 1,
+    "outcome": "dialog"
+   },
+   {
+    "index": 25,
+    "label": "Look up “نَاصِرٌ”",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 20,
+    "requests": 2,
+    "newFailures": 1,
+    "outcome": "dialog"
+   },
+   {
+    "index": 26,
+    "label": "Look up “يَشْعُرُ”",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 18,
+    "requests": 2,
+    "newFailures": 1,
+    "outcome": "dialog"
+   },
+   {
+    "index": 27,
+    "label": "Look up “بِتَوَتُّرٍ”",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 18,
+    "requests": 2,
+    "newFailures": 1,
+    "outcome": "dialog"
+   },
+   {
+    "index": 28,
+    "label": "Look up “شَدِيدٍ”",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 18,
+    "requests": 2,
+    "newFailures": 1,
+    "outcome": "dialog"
+   },
+   {
+    "index": 29,
+    "label": "Look up “وَهُوَ”",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 18,
+    "requests": 2,
+    "newFailures": 1,
+    "outcome": "dialog"
+   },
+   {
+    "index": 30,
+    "label": "Look up “يَقِفُ”",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 18,
+    "requests": 2,
+    "newFailures": 1,
+    "outcome": "dialog"
+   },
+   {
+    "index": 31,
+    "label": "Look up “أَمَامَ”",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 18,
+    "requests": 2,
+    "newFailures": 1,
+    "outcome": "dialog"
+   },
+   {
+    "index": 32,
+    "label": "Look up “بَابِ”",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 18,
+    "requests": 2,
+    "newFailures": 1,
+    "outcome": "dialog"
+   },
+   {
+    "index": 33,
+    "label": "Look up “بَيْتِ”",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 18,
+    "requests": 2,
+    "newFailures": 1,
+    "outcome": "dialog"
+   },
+   {
+    "index": 34,
+    "label": "Look up “أَبُو”",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 18,
+    "requests": 2,
+    "newFailures": 1,
+    "outcome": "dialog"
+   },
+   {
+    "index": 35,
+    "label": "Look up “رَاشِدٍ”",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 18,
+    "requests": 2,
+    "newFailures": 1,
+    "outcome": "dialog"
+   },
+   {
+    "index": 36,
+    "label": "Look up “الْيَوْمُ”",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 87,
+    "requests": 2,
+    "newFailures": 1,
+    "outcome": "dialog"
+   },
+   {
+    "index": 37,
+    "label": "Look up “هُوَ”",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 18,
+    "requests": 2,
+    "newFailures": 1,
+    "outcome": "dialog"
+   },
+   {
+    "index": 38,
+    "label": "Look up “مَوْعِدُ”",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 18,
+    "requests": 2,
+    "newFailures": 1,
+    "outcome": "dialog"
+   },
+   {
+    "index": 39,
+    "label": "Look up “زِيَارَتِهِ”",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 18,
+    "requests": 2,
+    "newFailures": 1,
+    "outcome": "dialog"
+   },
+   {
+    "index": -1,
+    "label": "(218 more controls not exercised)",
+    "kind": "note",
+    "action": "skipped-unsafe"
+   }
+  ],
+  "failures": [
+   {
+    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+    "method": "GET",
+    "status": null,
+    "layer": "other",
+    "target": "fonts.googleapis.com/css2",
+    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "word-enrichment",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "word-enrichment",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "word-enrichment",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "word-enrichment",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "word-enrichment",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "word-enrichment",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "word-enrichment",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "word-enrichment",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "word-enrichment",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "word-enrichment",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "word-enrichment",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "word-enrichment",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "word-enrichment",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "word-enrichment",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "word-enrichment",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "word-enrichment",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "word-enrichment",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "word-enrichment",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "word-enrichment",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "word-enrichment",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "word-enrichment",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "word-enrichment",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "word-enrichment",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "word-enrichment",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "word-enrichment",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "word-enrichment",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "word-enrichment",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+    "method": "POST",
+    "status": 401,
+    "layer": "functions",
+    "target": "word-enrichment",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+   }
+  ],
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "pageErrors": []
+ }
+}

@@ -1,0 +1,43 @@
+{
+ "path": "/curriculum",
+ "mode": "slow-4s",
+ "verdict": "silent-empty",
+ "early": {
+  "finalUrl": "http://127.0.0.1:4173/curriculum",
+  "path": "/curriculum",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 0,
+  "bodyText": "",
+  "notFoundText": false,
+  "is404": false,
+  "spinnerVisible": true,
+  "errorBoundary": false,
+  "errorTextVisible": false,
+  "emptyStateText": null,
+  "headline": "",
+  "isBlank": true,
+  "redirectedToAuth": false
+ },
+ "state": {
+  "finalUrl": "http://127.0.0.1:4173/curriculum",
+  "path": "/curriculum",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 197,
+  "bodyText": "Curriculum Your Gulf path, stage by stage. Sign in to track which lessons you've finished. No lessons yet for Gulf Try another dialect from the switcher on Home",
+  "notFoundText": false,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": false,
+  "errorTextVisible": false,
+  "emptyStateText": "No lessons yet",
+  "headline": "Curriculum",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_slow-4s_curriculum.png",
+ "consoleErrors": [
+  "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+ ],
+ "pageErrors": [],
+ "failures": 1
+}

@@ -1,0 +1,43 @@
+{
+ "path": "/choose",
+ "mode": "slow-4s",
+ "verdict": "looks-normal",
+ "early": {
+  "finalUrl": "http://127.0.0.1:4173/choose",
+  "path": "/choose",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 322,
+  "bodyText": "← Watch clips What do you want to do? Review Nothing due — you are caught up 01 Listen استماع 02 Read قراءة 03 Speak تحدّث 04 Write كتابة Upload Ask Games Alpha",
+  "notFoundText": false,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": false,
+  "errorTextVisible": false,
+  "emptyStateText": null,
+  "headline": "What do you want to do?",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "state": {
+  "finalUrl": "http://127.0.0.1:4173/choose",
+  "path": "/choose",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 322,
+  "bodyText": "← Watch clips What do you want to do? Review Nothing due — you are caught up 01 Listen استماع 02 Read قراءة 03 Speak تحدّث 04 Write كتابة Upload Ask Games Alpha",
+  "notFoundText": false,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": false,
+  "errorTextVisible": false,
+  "emptyStateText": null,
+  "headline": "What do you want to do?",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_slow-4s_choose.png",
+ "consoleErrors": [
+  "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+ ],
+ "pageErrors": [],
+ "failures": 1
+}

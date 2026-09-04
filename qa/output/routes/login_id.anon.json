@@ -1,0 +1,100 @@
+{
+ "route": "/login/id",
+ "label": "/login/id",
+ "gate": "public",
+ "url": "/login/id",
+ "authed": false,
+ "loadMs": 1705,
+ "state": {
+  "finalUrl": "http://127.0.0.1:4173/login/id",
+  "path": "/login/id",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 225,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": false,
+  "errorTextVisible": false,
+  "emptyStateText": null,
+  "headline": "",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "infiniteLoader": false,
+ "expectedRedirect": null,
+ "screenshot": "/home/user/arabic-buddy/qa/output/screens/login_id.anon.png",
+ "inventory": {
+  "buttons": 3,
+  "links": 0,
+  "inputs": 2,
+  "tabs": 0,
+  "forms": 1,
+  "media": 0
+ },
+ "links": [],
+ "load": {
+  "failures": [
+   {
+    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+    "method": "GET",
+    "status": null,
+    "layer": "other",
+    "target": "fonts.googleapis.com/css2",
+    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   }
+  ],
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+  ],
+  "pageErrors": [],
+  "supabaseRequests": 0
+ },
+ "interaction": {
+  "controls": [
+   {
+    "index": 0,
+    "label": "Show password",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 4,
+    "requests": 0,
+    "newFailures": 0,
+    "outcome": "dom-changed"
+   },
+   {
+    "index": 1,
+    "label": "Sign in",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 0,
+    "requests": 0,
+    "newFailures": 0,
+    "outcome": "no-op"
+   },
+   {
+    "index": 2,
+    "label": "Sign in with an email address instead",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 7,
+    "requests": 4,
+    "newFailures": 0,
+    "outcome": "navigated",
+    "navigatedTo": "/admin/login"
+   }
+  ],
+  "failures": [
+   {
+    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+    "method": "GET",
+    "status": null,
+    "layer": "other",
+    "target": "fonts.googleapis.com/css2",
+    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   }
+  ],
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+  ],
+  "pageErrors": []
+ }
+}

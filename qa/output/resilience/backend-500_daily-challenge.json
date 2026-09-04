@@ -1,0 +1,28 @@
+{
+ "path": "/daily-challenge",
+ "mode": "backend-500",
+ "verdict": "looks-normal",
+ "early": null,
+ "state": {
+  "finalUrl": "http://127.0.0.1:4173/daily-challenge",
+  "path": "/daily-challenge",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 115,
+  "bodyText": "Daily Challenge Complete today's challenge to keep your streak! Start Today's ChallengeSign in to track your streak",
+  "notFoundText": false,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": false,
+  "errorTextVisible": false,
+  "emptyStateText": null,
+  "headline": "Daily Challenge",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_backend-500_daily-challenge.png",
+ "consoleErrors": [
+  "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+ ],
+ "pageErrors": [],
+ "failures": 1
+}

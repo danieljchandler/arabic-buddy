@@ -1,0 +1,116 @@
+access-credentials|true|user admin
+ai-resegment-transcript|true|user admin LLM
+analyze-gulf-arabic|false|user admin internal LLM SPEECH
+analyze-meme|false|user cap LLM SPEECH
+ask-translation|false|cap LLM
+assistant-chat|false|cap LLM
+assistant-tools|default|sub
+azure-pronunciation|false|cap SPEECH
+azure-tts|false|cap SPEECH
+backfill-literal-translations|default|user admin LLM
+bible-passage|default|user LLM
+camel-analyze|false|cap SPEECH
+check-subscription|true|user STRIPE
+classify-tutor-segments|false|user LLM
+convert-to-fusha|default|cap LLM
+create-checkout|true|user STRIPE
+culture-guide|false|cap
+curriculum-chat|true|user cap LLM SPEECH
+customer-portal|true|user STRIPE
+daily-challenge|false|cap LLM
+deepgram-transcribe|false|user cap SPEECH
+derive-word-frequency|false|user admin
+dialect-compare|false|cap LLM
+dialect-violations-digest|true|user admin
+discover-feed|default|
+discover-trending-videos|false|cap
+download-media|false|user cap admin internal SPEECH
+draft-concept-realizations|true|user admin LLM
+draft-dialect-rules|true|user admin LLM
+edit-story-scene-image|default|user admin LLM
+elevenlabs-tts|false|cap SPEECH
+embed-content|true|user
+enrich-word-roots|default|cap LLM
+extract-concepts|true|user admin
+extract-grammar-points|true|cap LLM
+extract-learner-errors|true|cap LLM
+extract-visual-context|false|user admin LLM
+fanar-transcribe|false|user cap
+farasa|false|cap SPEECH
+free-chat|false|cap LLM
+generate-daily-story|default|user cap
+generate-flashcard-image|true|user cap LLM
+generate-listen-audio|false|cap SPEECH
+generate-listen-line-audio|true|user cap SPEECH
+generate-listen-script|true|cap LLM
+generate-mnemonic|default|cap LLM
+generate-phrase-jingle|default|cap LLM
+generate-sample-sentences|default|cap LLM
+generate-set-phrase-quiz|default|user cap LLM
+generate-story|true|cap LLM
+generate-story-cover|false|user admin LLM
+generate-story-full-audio|default|user admin SPEECH
+generate-story-preview-audio|default|user admin
+generate-story-video|default|user admin LLM
+generate-story-video-full|default|user admin LLM
+generate-suggested-story-text|default|user LLM
+generate-word-jingle|default|cap LLM
+grammar-drill|false|cap LLM
+harvest-channel-videos|true|user admin
+harvest-social-trends|false|user admin LLM
+hf-chat|false|cap LLM
+how-do-i-say|false|user cap LLM
+import-authentic-story|default|user LLM
+index-channel-captions|true|user admin
+ingest-shared-video|true|user
+learn-from-metric|default|user admin LLM
+listening-quiz|false|cap LLM SPEECH
+mine-clip-candidates|true|user admin
+mine-dialect-corpus|true|user admin LLM
+mistake-drill|true|cap LLM
+monologue-prompts|true|cap LLM SPEECH
+munsit-transcribe|false|cap SPEECH
+munsit-tts|false|cap SPEECH
+native-feedback|true|user STRIPE
+notify-due-reviews|default|user
+persist-video-thumbnail|true|user admin
+persist-word-audio|default|cap SPEECH
+phrase-of-the-day|default|cap LLM
+placement-quiz|false|user LLM
+practice-chunk-coach|false|LLM SPEECH
+practice-sentence-coach|default|cap LLM SPEECH
+pregenerate-daily|true|user
+process-approved-video|true|user admin LLM SPEECH
+pronunciation-feedback|false|cap LLM SPEECH
+publish-verified-clips|true|user admin LLM
+rate-video-cefr|default|user LLM SPEECH
+reading-passage|false|cap LLM
+reading-qa|default|cap LLM
+realtime-session-token|default|user sub cap SPEECH
+record-grammar-outcome|true|user
+record-transcript-corrections|true|user
+reextract-on-screen-text|true|user admin LLM
+referral|true|user STRIPE
+report-content|true|cap
+request-situation-phrases|default|cap LLM
+resync-transcript-timing|true|user admin SPEECH
+score-monologue|true|cap LLM SPEECH
+score-set-phrase-voice|false|SPEECH
+score-shadow-attempt|false|user SPEECH
+scrape-x-post|false|
+screen-shared-content|true|cap LLM
+seed-set-phrases|default|user LLM
+soniox-transcribe|false|user cap SPEECH
+souq-news|false|cap LLM
+souq-news-quiz|default|cap LLM
+suggest-flashcards|default|cap LLM
+suggest-stories|default|user LLM
+transcript-review|true|user admin LLM
+translate-phrase|false|cap LLM
+translate-story-dialect|default|user admin LLM
+translate-text|default|cap LLM
+tts-speak|false|cap SPEECH
+verify-clip-candidate|true|user admin LLM SPEECH
+vet-corpus-sentences|default|user admin LLM SPEECH
+word-enrichment|default|cap LLM
+writing-coach|true|cap LLM

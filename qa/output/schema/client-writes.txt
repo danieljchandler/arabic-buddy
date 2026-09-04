@@ -1,0 +1,75 @@
+table | client write | policies covering it | files
+anki_import_batches | INSERT | INSERT[public] | components/mywords/ImportFromAnkiDialog.tsx
+anki_import_batches | UPDATE | NONE → write silently refused (0 rows) or 42501 | components/mywords/ImportFromAnkiDialog.tsx
+authentic_stories | DELETE | DELETE[authenticated] | pages/admin/AdminReadingLibrary.tsx
+authentic_stories | UPDATE | UPDATE[authenticated] | pages/admin/AdminReadingLibraryForm.tsx
+beta_feedback | INSERT | INSERT[authenticated] | components/feedback/FeedbackWidget.tsx
+beta_feedback | UPDATE | UPDATE[authenticated] | pages/admin/AdminFeedback.tsx
+beta_feedback | DELETE | DELETE[authenticated] | pages/admin/AdminFeedback.tsx
+bible_lessons | UPDATE | UPDATE[public] | pages/admin/AdminBibleLessons.tsx
+bible_lessons | INSERT | INSERT[public] | pages/admin/AdminBibleLessons.tsx
+bible_lessons | DELETE | DELETE[public] | pages/admin/AdminBibleLessons.tsx
+challenges | INSERT | INSERT[public] | hooks/useSocial.ts
+challenges | UPDATE | UPDATE[public] | hooks/useSocial.ts
+client_errors | INSERT | INSERT[authenticated] | lib/errorLog.ts
+client_errors | DELETE | DELETE[authenticated] | pages/admin/AdminErrors.tsx
+clip_candidates | UPDATE | ALL[public] | pages/admin/AdminClips.tsx
+content_channels | UPDATE | ALL[public] | pages/admin/AdminChannels.tsx
+content_channels | INSERT | ALL[public] | pages/admin/AdminChannels.tsx
+content_import_logs | INSERT | INSERT[authenticated] | pages/Transcribe.tsx
+content_requests | INSERT | INSERT[authenticated] | components/discover/ContentRequestBar.tsx
+discover_videos | UPDATE | UPDATE[authenticated] | hooks/useDiscoverVideos.ts
+feature_alerts | UPDATE | UPDATE[authenticated] | components/admin/AlertsBell.tsx
+human_review_requests | INSERT | INSERT[authenticated] | pages/CultureGuide.tsx
+interactive_stories | DELETE | DELETE[public] | pages/admin/AdminStories.tsx
+interactive_stories | UPDATE | UPDATE[public] | pages/admin/AdminStories.tsx, pages/admin/AdminStoryForm.tsx
+interactive_stories | INSERT | INSERT[public] | pages/admin/AdminStoryForm.tsx
+lessons | INSERT | INSERT[authenticated] | hooks/useCurriculumApproval.ts, hooks/useLessonImport.ts
+listen_episodes | DELETE | DELETE[authenticated] | hooks/useListen.ts
+profiles | UPDATE | UPDATE[public] | hooks/useLeaderboard.ts, pages/PlacementQuiz.tsx, pages/Settings.tsx
+saved_chat_conversations | UPDATE | UPDATE[authenticated] | hooks/useSavedConversations.ts
+saved_chat_conversations | INSERT | INSERT[authenticated] | hooks/useSavedConversations.ts
+saved_chat_conversations | DELETE | DELETE[authenticated] | hooks/useSavedConversations.ts
+saved_text_translations | INSERT | INSERT[authenticated] | hooks/useSavedTranslations.ts
+saved_text_translations | DELETE | DELETE[authenticated] | hooks/useSavedTranslations.ts
+saved_transcriptions | DELETE | DELETE[public] | pages/MyTranscriptions.tsx
+saved_transcriptions | INSERT | INSERT[public] | pages/Transcribe.tsx
+set_phrase_occasions | INSERT | ALL[authenticated] | pages/admin/AdminSetPhrases.tsx
+set_phrase_quiz_attempts | INSERT | INSERT[public] | hooks/useSetPhrases.ts
+set_phrases | INSERT | ALL[authenticated] | components/admin/AdminRequestSituationCard.tsx, pages/admin/AdminChunkCandidates.tsx
+set_phrases | UPDATE | ALL[authenticated] | pages/admin/AdminSetPhrases.tsx
+set_phrases | DELETE | ALL[authenticated] | pages/admin/AdminSetPhrases.tsx
+social_posts | UPDATE | ALL[public] | hooks/useSocialTrends.ts
+story_progress | INSERT | INSERT[public] | hooks/useInteractiveStories.ts
+story_progress | UPDATE | UPDATE[public] | hooks/useInteractiveStories.ts
+story_scenes | DELETE | DELETE[public] | pages/admin/AdminStoryForm.tsx
+story_scenes | INSERT | INSERT[public] | pages/admin/AdminStoryForm.tsx
+topics | UPDATE | UPDATE[authenticated] | pages/admin/TopicForm.tsx
+topics | DELETE | DELETE[authenticated] | pages/admin/Topics.tsx
+trending_video_candidates | INSERT | INSERT[public] | pages/admin/TrendingVideos.tsx
+trending_video_candidates | UPDATE | UPDATE[public] | pages/admin/TrendingVideos.tsx
+user_follows | INSERT | INSERT[public] | hooks/useSocial.ts
+user_follows | DELETE | DELETE[public] | hooks/useSocial.ts
+user_perception_progress | INSERT | INSERT[public] | hooks/usePerceptionProgress.ts
+user_perception_progress | UPDATE | UPDATE[public] | hooks/usePerceptionProgress.ts
+user_phrases | UPDATE | UPDATE[public] | hooks/useUserPhrases.ts, pages/MyPhrasesReview.tsx, pages/Settings.tsx
+user_phrases | INSERT | INSERT[public] | hooks/useUserPhrases.ts
+user_phrases | DELETE | DELETE[public] | hooks/useUserPhrases.ts
+user_roles | DELETE | ALL[authenticated] | pages/admin/BibleAccess.tsx
+user_set_phrases | INSERT | INSERT[public] | hooks/useSetPhrases.ts
+user_set_phrases | UPDATE | UPDATE[public] | hooks/useSetPhrases.ts
+user_vocabulary | INSERT | INSERT[public] | components/mywords/ImportFromAnkiDialog.tsx, components/shared/SaveUnknownsBar.tsx, hooks/useTutorUpload.ts
+user_vocabulary | UPDATE | UPDATE[public] | components/shared/SaveUnknownsBar.tsx, hooks/useUserVocabulary.ts, pages/MyWords.tsx
+user_vocabulary | DELETE | DELETE[public] | hooks/useUserVocabulary.ts, pages/MyWords.tsx
+video_ratings | INSERT | INSERT[authenticated] | components/discover/VideoRating.tsx
+video_ratings | UPDATE | UPDATE[authenticated] | components/discover/VideoRating.tsx
+vocab_battles | INSERT | INSERT[public] | hooks/useVocabBattles.ts
+vocab_battles | UPDATE | UPDATE[public] | hooks/useVocabBattles.ts
+vocab_battles | DELETE | NONE → write silently refused (0 rows) or 42501 | hooks/useVocabBattles.ts
+vocabulary_words | INSERT | INSERT[authenticated] | hooks/useLessonImport.ts, pages/admin/BulkWordImport.tsx
+vocabulary_words | UPDATE | UPDATE[authenticated] | pages/Review.tsx, pages/admin/LessonWords.tsx, pages/admin/WordForm.tsx
+vocabulary_words | DELETE | DELETE[authenticated] | pages/admin/LessonWords.tsx, pages/admin/Words.tsx
+weekly_goals | INSERT | NONE → write silently refused (0 rows) or 42501 | pages/Onboarding.tsx, pages/Settings.tsx
+weekly_goals | UPDATE | NONE → write silently refused (0 rows) or 42501 | pages/Onboarding.tsx, pages/Settings.tsx
+word_reviews | UPDATE | UPDATE[public] | hooks/useReview.ts, pages/Review.tsx
+word_reviews | INSERT | INSERT[public] | hooks/useReview.ts, pages/Review.tsx

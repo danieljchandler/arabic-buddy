@@ -17,6 +17,7 @@ import {
 } from "@/lib/lessonPath";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { QueryErrorState } from "@/components/shared/QueryErrorState";
 import { CheckCircle2, ChevronRight, Loader2, PlayCircle, Circle } from "lucide-react";
 import stageFoundationsArt from "@/assets/illustrations/stage-foundations.webp";
 import stageBuildingBlocksArt from "@/assets/illustrations/stage-building-blocks.webp";
@@ -56,8 +57,8 @@ const STAGE_ART: Record<string, string> = {
 const Curriculum = () => {
   const { activeDialect } = useDialect();
   const { isAuthenticated } = useAuth();
-  const { data: stages, isLoading: stagesLoading } = useStages();
-  const { data: lessons, isLoading: lessonsLoading } = useAllLessons();
+  const { data: stages, isLoading: stagesLoading, isError: stagesFailed, error: stagesError, refetch: refetchStages } = useStages();
+  const { data: lessons, isLoading: lessonsLoading, isError: lessonsFailed, error: lessonsError, refetch: refetchLessons } = useAllLessons();
   const { data: progressRows } = useLessonProgress();
 
   const progress = useMemo(() => indexProgress(progressRows ?? []), [progressRows]);
@@ -98,6 +99,23 @@ const Curriculum = () => {
         <div className="flex items-center justify-center py-24">
           <Loader2 className="h-10 w-10 animate-spin text-primary" />
         </div>
+      </AppShell>
+    );
+  }
+
+  // A failed fetch is not an empty curriculum: say so, with a way to retry,
+  // instead of "No lessons yet" (which is what an outage used to render as).
+  if (stagesFailed || lessonsFailed) {
+    return (
+      <AppShell>
+        <QueryErrorState
+          error={stagesFailed ? stagesError : lessonsError}
+          title="Couldn't load the curriculum"
+          onRetry={() => {
+            void refetchStages();
+            void refetchLessons();
+          }}
+        />
       </AppShell>
     );
   }

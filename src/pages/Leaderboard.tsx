@@ -35,6 +35,7 @@ import {
 } from "@/hooks/useLeaderboard";
 import { cn } from "@/lib/utils";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { QueryErrorState } from "@/components/shared/QueryErrorState";
 import { toast } from "sonner";
 import {
   Trophy,
@@ -281,12 +282,15 @@ const Leaderboard = () => {
   const { user, isAuthenticated } = useAuth();
   const [tab, setTab] = useState<Tab>("weekly");
 
-  const { data: weeklyData, isLoading: weeklyLoading } = useWeeklyLeaderboard();
-  const { data: allTimeData, isLoading: allTimeLoading } = useAllTimeLeaderboard();
+  const { data: weeklyData, isLoading: weeklyLoading, isError: weeklyFailed, error: weeklyError, refetch: refetchWeekly } = useWeeklyLeaderboard();
+  const { data: allTimeData, isLoading: allTimeLoading, isError: allTimeFailed, error: allTimeError, refetch: refetchAllTime } = useAllTimeLeaderboard();
   const { data: myRank } = useMyRank();
 
   const data = tab === "weekly" ? weeklyData : allTimeData;
   const isLoading = tab === "weekly" ? weeklyLoading : allTimeLoading;
+  const isError = tab === "weekly" ? weeklyFailed : allTimeFailed;
+  const queryError = tab === "weekly" ? weeklyError : allTimeError;
+  const refetchTab = tab === "weekly" ? refetchWeekly : refetchAllTime;
 
   return (
     <AppShell>
@@ -361,7 +365,9 @@ const Leaderboard = () => {
 
         {/* Leaderboard List */}
         <div className="space-y-2">
-          {isLoading ? (
+          {isError ? (
+            <QueryErrorState error={queryError} onRetry={() => refetchTab()} title="Couldn't load the leaderboard" />
+          ) : isLoading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>

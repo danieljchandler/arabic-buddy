@@ -24,6 +24,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useComprehensionMap } from "@/hooks/useComprehensionMap";
 import { ComprehensionBar } from "@/components/shared/ComprehensionBar";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { QueryErrorState } from "@/components/shared/QueryErrorState";
 
 const FORMAT_META: Record<ListenFormat, { label: string; icon: any; blurb: string }> = {
   podcast: { label: "Podcast", icon: Headphones, blurb: "Two-host conversation" },
@@ -45,7 +46,7 @@ const Listen = () => {
   // How much of each episode's script the learner already knows. The scripts
   // are already in the cache — the list query selects them — so this is free.
   const [justRightOnly, setJustRightOnly] = useState(false);
-  const { data: episodes, isLoading } = useListenEpisodes();
+  const { data: episodes, isLoading, isError, error, refetch } = useListenEpisodes();
   // Audio-led episodes: the listening floors (90% minimal). The script is
   // shown alongside, but the evidence for a lower reading-while-listening
   // floor is not there, so the audio-only figure is the conservative one.
@@ -122,10 +123,13 @@ const Listen = () => {
                 Just right for me
               </Button>
             )}
+            {isError && (
+              <QueryErrorState error={error} onRetry={() => refetch()} title="Couldn't load episodes" size="inline" />
+            )}
             {isLoading && (
               <div className="flex justify-center py-10"><Loader2 className="h-5 w-5 animate-spin text-primary" /></div>
             )}
-            {!isLoading && (!shelfEpisodes || shelfEpisodes.length === 0) && (
+            {!isLoading && !isError && (!shelfEpisodes || shelfEpisodes.length === 0) && (
               /* Two different absences: a filter that matched nothing is
                  "no-results", a dialect with no episodes recorded yet is the
                  invitation state. They used to share one bare card of grey

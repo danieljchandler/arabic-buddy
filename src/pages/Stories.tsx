@@ -8,6 +8,7 @@ import { Loader2, BookOpen, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { InfoHint } from '@/components/InfoHint';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { QueryErrorState } from "@/components/shared/QueryErrorState";
 import { PAGE_HINTS } from '@/lib/pageHints';
 
 const DIFFICULTY_COLORS: Record<string, string> = {
@@ -18,7 +19,7 @@ const DIFFICULTY_COLORS: Record<string, string> = {
 
 const Stories = () => {
   const navigate = useNavigate();
-  const { data: stories, isLoading } = usePublishedStories();
+  const { data: stories, isLoading, isError, error, refetch } = usePublishedStories();
 
   return (
     <AppShell>
@@ -33,7 +34,9 @@ const Stories = () => {
           <p className="text-muted-foreground">Choose your adventure and learn Arabic through immersive scenarios</p>
         </div>
 
-        {isLoading ? (
+        {isError ? (
+          <QueryErrorState error={error} onRetry={() => refetch()} title="Couldn't load stories" />
+        ) : isLoading ? (
           <LoadingPanel variant="inline" task="story" className="py-16" />
         ) : stories && stories.length > 0 ? (
           <div className="space-y-3">

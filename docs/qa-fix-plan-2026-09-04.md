@@ -180,6 +180,20 @@ substitutes a real id automatically once one exists.
 
 ## 5. Visible error state when the backend fails (M3)
 
+**Status: done on this branch.** `lib/queryErrors.ts` classifies a failed
+query (network / auth / server / client) and gives React Query a retry
+policy that re-asks a network or 5xx failure once and a 4xx never;
+`QueryErrorState` renders the failure with a retry (or sign-in) button using
+the ErrorBoundary's wording; `lib/queryFailureToast.ts` posts one
+rate-limited toast per outage from the QueryCache for pages not yet
+converted. Discover (browse and feed), Curriculum, Leaderboard, Stories,
+Reading Library, Set Phrases and Listen branch on `isError` before their
+empty states. `e2e/backend-failure.spec.ts` injects a 500 on each page's
+table and asserts the alert appears and the empty-state copy does not, plus
+one retry round-trip. Feed already had an error branch; `/` and `/today`
+show the signed-out landing page for anonymous visitors, so their
+"silent-empty" resilience result was correct behaviour, not a gap.
+
 **Files**
 - new `src/components/shared/QueryErrorState.tsx` (+ test)
 - `src/App.tsx` (QueryClient defaults)

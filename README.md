@@ -105,18 +105,31 @@ behind. `_test/` changes deploy nothing. `src/test/edgeDeployTargets.test.ts`
 covers the resolver, including against the real functions tree, so a regex that
 quietly stopped matching fails the suite rather than shipping an empty deploy.
 
-It needs one secret, `SUPABASE_ACCESS_TOKEN`, added under **Settings > Secrets
-and variables > Actions** from a token minted at
-<https://supabase.com/dashboard/account/tokens>. The check for it runs *after*
-the job has worked out what to deploy, so a docs-only push to `main` never goes
-red over a secret it did not need; when functions did change and the token is
-missing, the job fails naming both the setting and the functions left on their
-previous version, because deploying nothing in silence is the failure this
-exists to end. The project ref is read from `supabase/config.toml` rather than
-duplicated as a second secret. To deploy by hand — after changing a secret, say,
-when no code changed — run the workflow from the Actions tab: leave the input
-blank for the last commit's functions, name specific ones space-separated, or
-pass `all`.
+Deploying needs one secret, `SUPABASE_ACCESS_TOKEN`, added under **Settings >
+Secrets and variables > Actions** from a token minted at
+<https://supabase.com/dashboard/account/tokens>. **A project managed by Lovable
+Cloud does not give you one** — the project is not in an account you can mint
+tokens for — so without the secret the job *skips* rather than failing, warning
+which functions were left on their previous version. A permanently red `main`
+would be worse than no check: it trains everyone to ignore the one signal that
+matters. Set the secret and the job takes over. The project ref is read from
+`supabase/config.toml` rather than duplicated as a second secret. To deploy by
+hand — after changing a secret, say, when no code changed — run the workflow
+from the Actions tab: leave the input blank for the last commit's functions,
+name specific ones space-separated, or pass `all`.
+
+**When you cannot deploy from CI, the app says so instead.**
+`supabase/functions/_shared/edgeBuild.ts` holds one `EDGE_BUILD` marker that
+both halves compile in. The deployed function reports it — `{ probe: true }` to
+`process-approved-video`, answered before it reads any other argument — and
+`EdgeBuildBanner` on the Manage Videos pages compares that against the value in
+the frontend bundle, which *does* redeploy on merge. When they differ, a content
+manager sees a banner naming both builds, with the deploy request to paste. That
+is the check that ends the failure mode this all came from: a fix that had
+already landed looking like it did nothing, for three rounds, because the
+backend was still serving the previous copy. **Bump `EDGE_BUILD` whenever an
+edge function changes in a way worth telling apart in production** — leaving it
+alone is what makes the check quietly stop working.
 
 **The edge functions need their own typecheck.** They are Deno, they import over
 `https://`, and `tsc` cannot resolve those specifiers — so `tsconfig.app.json`

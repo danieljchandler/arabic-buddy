@@ -18,6 +18,7 @@ import { AdminTranscriptEditor } from "@/components/admin/AdminTranscriptEditor"
 import { TranscriptDraftBanner } from "@/components/admin/TranscriptDraftBanner";
 import { useTranscriptDraft } from "@/hooks/useTranscriptDraft";
 import { usePipelineResume } from "@/hooks/usePipelineResume";
+import { EdgeBuildBanner } from "@/components/admin/EdgeBuildBanner";
 import { describePipelineProgress, describeQuietFor } from "@/lib/pipelineProgress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -1505,6 +1506,9 @@ const AdminVideoForm = () => {
           isEditing ? "max-w-6xl" : "max-w-2xl",
         )}
       >
+        {/* Deployed-backend check: see EdgeBuildBanner. */}
+        <EdgeBuildBanner enabled={canManage} />
+
         {/*
           What the run is actually doing, under whichever in-flight banner is
           showing. Kept to one line, and only rendered once the pipeline has

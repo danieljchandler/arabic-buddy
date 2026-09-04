@@ -2,6 +2,7 @@ import { expect, test } from "./support/fixtures";
 import { aDiscoverVideo, videoId as makeVideoId } from "../src/test/support/factories";
 import type { MemoryDb } from "../src/test/support/postgrest/store";
 import type { Page } from "@playwright/test";
+import { EDGE_BUILD } from "../supabase/functions/_shared/edgeBuild";
 
 /**
  * The Discover video editor — at 1564 lines the largest file in the repo, and
@@ -342,6 +343,36 @@ test.describe("editing an existing video", () => {
     });
   });
 
+  test("warns when the backend is running older code than the app", async ({ page, db, backend }) => {
+    // Edge functions do not deploy with the app, and on a managed Supabase
+    // project there is no token to let CI do it. So the app checks, rather
+    // than leaving a stale backend to be discovered by debugging a fix that
+    // had already landed.
+    seedVideo(db);
+    backend.stubFunction("process-approved-video", { success: true, build: "an-older-build" });
+
+    await page.goto(`/admin/videos/${VIDEO}/edit`);
+
+    const banner = page.getByTestId("edge-build-banner");
+    await expect(banner).toContainText("running older code");
+    // Both builds, because "which one is running" is the next question.
+    await expect(banner).toContainText("an-older-build");
+    await expect(banner).toContainText(EDGE_BUILD);
+    // And the functions to name, since the reader has to ask someone else.
+    await expect(banner).toContainText("process-approved-video");
+    await expect(banner).toContainText("analyze-gulf-arabic");
+  });
+
+  test("says nothing when the backend matches the app", async ({ page, db, backend }) => {
+    seedVideo(db);
+    backend.stubFunction("process-approved-video", { success: true, build: EDGE_BUILD });
+
+    await page.goto(`/admin/videos/${VIDEO}/edit`);
+
+    await expect(page.getByRole("button", { name: /Update Video/ })).toBeVisible();
+    await expect(page.getByTestId("edge-build-banner")).toHaveCount(0);
+  });
+
   test("says which step a running transcription is on", async ({ page, db }) => {
     // A spinner is not a report. The pipeline writes where it has got to onto
     // the row, so an admin watching a long run can tell a slow step from a
@@ -389,7 +420,12 @@ test.describe("editing an existing video", () => {
     await page.goto(`/admin/videos/${VIDEO}/edit`);
 
     await expect(page.getByText(/Transcription is being processed on the server/)).toBeVisible();
-    expect(backend.callsTo("process-approved-video")).toHaveLength(0);
+    // The build probe shares this endpoint, so what matters is that nothing
+    // asked the run to resume — not that the function went untouched.
+    const resumes = backend
+      .callsTo("process-approved-video")
+      .filter((call) => (call.body as { resume?: boolean } | null)?.resume);
+    expect(resumes).toHaveLength(0);
   });
 
   test("says a transcription is queued", async ({ page, db }) => {

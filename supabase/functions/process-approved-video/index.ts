@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { EDGE_BUILD } from "../_shared/edgeBuild.ts";
 import { requireContentManager } from "../_shared/requireRole.ts";
 import {
   SONIOX_MODEL,
@@ -375,7 +376,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  * anything yet. Bump it whenever this file changes in a way worth telling
  * apart in production.
  */
-const PIPELINE_BUILD = "staged-2026-09-04";
+const PIPELINE_BUILD = EDGE_BUILD;
 
 /**
  * Say where the run has got to, on the row itself.
@@ -2146,7 +2147,7 @@ serve(async (req) => {
     `[handler] authorized ${gate.viaServiceRole ? "internal service-role call" : `user ${gate.userId}`}`,
   );
 
-  let body: { videoId?: string; stage?: string; resume?: boolean } | null = null;
+  let body: { videoId?: string; stage?: string; resume?: boolean; probe?: boolean } | null = null;
   try {
     body = await req.json();
   } catch (e) {
@@ -2156,6 +2157,18 @@ serve(async (req) => {
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
+  // "Which build is actually deployed?" — asked by the admin pages so a
+  // backend running behind the repository is visible as a banner rather than
+  // discovered by debugging a bug that was already fixed. Answered before any
+  // other argument is read, and before anything is touched, so it costs a
+  // round trip and nothing else.
+  if (body?.probe) {
+    return new Response(
+      JSON.stringify({ success: true, build: PIPELINE_BUILD }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
   const { videoId, stage: requestedStage, resume } = body ?? {};
   console.log(`[handler] videoId=${videoId} stage=${requestedStage ?? "-"} resume=${!!resume}`);
   if (!videoId) {

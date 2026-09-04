@@ -1,0 +1,4629 @@
+{
+ "routes": [
+  {
+   "route": "/",
+   "label": "/",
+   "gate": "public",
+   "url": "/",
+   "authed": false,
+   "loadMs": 2379,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/",
+    "path": "/",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 1243,
+    "bodyText": "حكاية — a story. Yours starts with one word. Real spoken Arabic, one story at a time. Gulf · Egyptian · Yemeni. Hakiya means حكاية — a story. Dialect-first less",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": "come back",
+    "headline": "Real spoken Arabic,one story at a time.Gulf · Egyptian · Yemeni.",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "infiniteLoader": false,
+   "expectedRedirect": null,
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/root.anon.png",
+   "inventory": {
+    "buttons": 3,
+    "links": 3,
+    "inputs": 0,
+    "tabs": 0,
+    "forms": 0,
+    "media": 1
+   },
+   "links": [
+    "/terms",
+    "/privacy"
+   ],
+   "load": {
+    "failures": [],
+    "consoleErrors": [],
+    "pageErrors": [],
+    "supabaseRequests": 0
+   },
+   "interaction": {
+    "controls": [
+     {
+      "index": 0,
+      "label": "Join the beta — it’s free",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 14,
+      "requests": 10,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/auth"
+     },
+     {
+      "index": 1,
+      "label": "Try the placement quiz",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 11,
+      "requests": 9,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/placement"
+     },
+     {
+      "index": 2,
+      "label": "Join the beta — it’s free",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 14,
+      "requests": 10,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/auth"
+     }
+    ],
+    "failures": [],
+    "consoleErrors": [],
+    "pageErrors": []
+   }
+  },
+  {
+   "route": "/alphabet/:letterCode",
+   "label": "/alphabet/:letterCode",
+   "gate": "public",
+   "url": "/alphabet/alif",
+   "authed": false,
+   "loadMs": 2279,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/alphabet/alif",
+    "path": "/alphabet/alif",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 258,
+    "bodyText": "Sign in to hear pronunciation Native-speaker audio is generated per learner. Map STEP 1 OF 6 Meet the letter ا ALSO WRITTEN AS ا plain alif أ hamza on top (shor",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "Meet the letter",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "infiniteLoader": false,
+   "expectedRedirect": null,
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/alphabet_letterCode.anon.png",
+   "inventory": {
+    "buttons": 14,
+    "links": 0,
+    "inputs": 0,
+    "tabs": 0,
+    "forms": 0,
+    "media": 0
+   },
+   "links": [],
+   "load": {
+    "failures": [
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/tts-speak",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "tts-speak",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/azure-tts",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "azure-tts",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     }
+    ],
+    "consoleErrors": [
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    ],
+    "pageErrors": [],
+    "supabaseRequests": 2
+   },
+   "interaction": {
+    "controls": [
+     {
+      "index": 0,
+      "label": "Go home",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 15,
+      "requests": 63,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/"
+     },
+     {
+      "index": 1,
+      "label": "Map",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 7,
+      "requests": 3,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/alphabet"
+     },
+     {
+      "index": 2,
+      "label": "Step 1: Meet the letter",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 2,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 3,
+      "label": "Step 2: Hear & see",
+      "kind": "button",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 4,
+      "label": "Step 3: Trace it",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 8,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 5,
+      "label": "Step 4: Four faces",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 7,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 6,
+      "label": "Step 5: Spot the letter",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 10,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 7,
+      "label": "Step 6: Sound match",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 10,
+      "requests": 2,
+      "newFailures": 1,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 8,
+      "label": "Fusha (MSA) pronunciation",
+      "kind": "button",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 9,
+      "label": "Gulf pronunciation",
+      "kind": "button",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 10,
+      "label": "Ask AI",
+      "kind": "button",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 11,
+      "label": "I've heard it",
+      "kind": "button",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 12,
+      "label": "Skip",
+      "kind": "button",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     }
+    ],
+    "failures": [
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/tts-speak",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "tts-speak",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/azure-tts",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "azure-tts",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/tts-speak",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "tts-speak",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/azure-tts",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "azure-tts",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/tts-speak",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "tts-speak",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/azure-tts",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "azure-tts",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     }
+    ],
+    "consoleErrors": [
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    ],
+    "pageErrors": []
+   }
+  },
+  {
+   "route": "/bridge",
+   "label": "/bridge",
+   "gate": "public",
+   "url": "/bridge",
+   "authed": false,
+   "loadMs": 1678,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/bridge",
+    "path": "/bridge",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 1906,
+    "bodyText": "From MSA → Gulf Bridge your Modern Standard Arabic into dialect You already know الفصحى. Here's how it transforms into Gulf — sound by sound, word by word. Show",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "Bridge your Modern Standard Arabic into dialect",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "infiniteLoader": false,
+   "expectedRedirect": null,
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/bridge.anon.png",
+   "inventory": {
+    "buttons": 22,
+    "links": 0,
+    "inputs": 0,
+    "tabs": 0,
+    "forms": 0,
+    "media": 0
+   },
+   "links": [],
+   "load": {
+    "failures": [],
+    "consoleErrors": [],
+    "pageErrors": [],
+    "supabaseRequests": 1
+   },
+   "interaction": {
+    "controls": [
+     {
+      "index": 0,
+      "label": "Go home",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 15,
+      "requests": 66,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/"
+     },
+     {
+      "index": 1,
+      "label": "Toggle Bridge view",
+      "kind": "button[switch]",
+      "action": "clicked",
+      "mutations": 3,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 2,
+      "label": "I don't know MSA",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 0,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "no-op"
+     },
+     {
+      "index": 3,
+      "label": "A little",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 4,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 4,
+      "label": "Intermediate",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 4,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 5,
+      "label": "Advanced / fluent",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 4,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 6,
+      "label": "Ask AI about this sentence",
+      "kind": "button",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 7,
+      "label": "Ask AI about this sentence",
+      "kind": "button",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 8,
+      "label": "Ask AI about this sentence",
+      "kind": "button",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 9,
+      "label": "Ask AI about this sentence",
+      "kind": "button",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 10,
+      "label": "Ask AI about this sentence",
+      "kind": "button",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 11,
+      "label": "Ask AI about this sentence",
+      "kind": "button",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 12,
+      "label": "Ask AI about this sentence",
+      "kind": "button",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 13,
+      "label": "Ask AI about this sentence",
+      "kind": "button",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 14,
+      "label": "Ask AI about this sentence",
+      "kind": "button",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 15,
+      "label": "Ask AI about this sentence",
+      "kind": "button",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 16,
+      "label": "Ask AI about this sentence",
+      "kind": "button",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 17,
+      "label": "Ask AI about this sentence",
+      "kind": "button",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 18,
+      "label": "Ask AI about this sentence",
+      "kind": "button",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 19,
+      "label": "Ask AI about this sentence",
+      "kind": "button",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 20,
+      "label": "See it in My Words",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 9,
+      "requests": 13,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/auth"
+     },
+     {
+      "index": 21,
+      "label": "Turn on Bridge & go home",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 15,
+      "requests": 66,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/"
+     }
+    ],
+    "failures": [],
+    "consoleErrors": [],
+    "pageErrors": []
+   }
+  },
+  {
+   "route": "/curriculum",
+   "label": "/curriculum",
+   "gate": "public",
+   "url": "/curriculum",
+   "authed": false,
+   "loadMs": 1665,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/curriculum",
+    "path": "/curriculum",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 197,
+    "bodyText": "Curriculum Your Gulf path, stage by stage. Sign in to track which lessons you've finished. No lessons yet for Gulf Try another dialect from the switcher on Home",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": "No lessons yet",
+    "headline": "Curriculum",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "infiniteLoader": false,
+   "expectedRedirect": null,
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/curriculum.anon.png",
+   "inventory": {
+    "buttons": 1,
+    "links": 2,
+    "inputs": 0,
+    "tabs": 0,
+    "forms": 0,
+    "media": 0
+   },
+   "links": [
+    "/auth",
+    "/alphabet"
+   ],
+   "load": {
+    "failures": [],
+    "consoleErrors": [],
+    "pageErrors": [],
+    "supabaseRequests": 2
+   },
+   "interaction": {
+    "controls": [
+     {
+      "index": 0,
+      "label": "Go home",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 15,
+      "requests": 72,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/"
+     }
+    ],
+    "failures": [],
+    "consoleErrors": [],
+    "pageErrors": []
+   }
+  },
+  {
+   "route": "/discover/:videoId",
+   "label": "/discover/:videoId (tiktok)",
+   "gate": "public",
+   "url": "/discover/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a",
+   "authed": false,
+   "loadMs": 2268,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/discover/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a",
+    "path": "/discover/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 2810,
+    "bodyText": "Back Kuwaiti Intermediate Sign in to hear the audio and use slow listen سيدا، سيدا. إحنا عندنا هنا سيدي جابر. أنا هقول لك سيدا، إيش يا أخي لخبطني Start subtitle",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "سيدا، سيدا. إحنا عندنا هنا سيدي جابر. أنا هقول لك سيدا، إيش",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "infiniteLoader": false,
+   "expectedRedirect": null,
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/discover_videoId_tiktok_.anon.png",
+   "inventory": {
+    "buttons": 150,
+    "links": 0,
+    "inputs": 0,
+    "tabs": 0,
+    "forms": 0,
+    "media": 1
+   },
+   "links": [],
+   "load": {
+    "failures": [
+     {
+      "url": "https://www.tiktok.com/player/v1/7654509704722320660",
+      "method": "GET",
+      "status": null,
+      "layer": "tiktok",
+      "target": "www.tiktok.com",
+      "error": "net::ERR_ABORTED"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/rest/v1/video_likes?select=id&video_id=eq.f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a",
+      "method": "HEAD",
+      "status": null,
+      "layer": "rest",
+      "target": "video_likes",
+      "error": "net::ERR_ABORTED"
+     }
+    ],
+    "consoleErrors": [],
+    "pageErrors": [],
+    "supabaseRequests": 2
+   },
+   "interaction": {
+    "controls": [
+     {
+      "index": 0,
+      "label": "Back",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 12,
+      "requests": 40,
+      "newFailures": 1,
+      "outcome": "navigated",
+      "navigatedTo": "/discover"
+     },
+     {
+      "index": 1,
+      "label": "Like this video",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 7,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 2,
+      "label": "Start subtitle sync",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 5,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 3,
+      "label": "Reset",
+      "kind": "button",
+      "action": "skipped-unsafe"
+     },
+     {
+      "index": 4,
+      "label": "سيدا،",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 13,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dialog"
+     },
+     {
+      "index": 5,
+      "label": "سيدا.",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 13,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dialog"
+     },
+     {
+      "index": 6,
+      "label": "إحنا",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 16,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dialog"
+     },
+     {
+      "index": 7,
+      "label": "عندنا",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 13,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dialog"
+     },
+     {
+      "index": 8,
+      "label": "هنا",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 49,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 9,
+      "label": "سيدي",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 10,
+      "label": "جابر.",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 11,
+      "label": "أنا",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 12,
+      "label": "هقول",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 13,
+      "label": "لك",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 14,
+      "label": "سيدا،",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 15,
+      "label": "إيش",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 16,
+      "label": "دخل",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 17,
+      "label": "سيدي",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 18,
+      "label": "جابر",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 19,
+      "label": "يا",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 20,
+      "label": "أخي؟",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 21,
+      "label": "Ask AI",
+      "kind": "button",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 22,
+      "label": "Next line",
+      "kind": "button",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 23,
+      "label": "Hide Transcript (11)",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 2,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 24,
+      "label": "Continuous",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 9,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 25,
+      "label": "(unlabeled)",
+      "kind": "button[switch]",
+      "action": "clicked",
+      "mutations": 6,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 26,
+      "label": "(unlabeled)",
+      "kind": "button[switch]",
+      "action": "clicked",
+      "mutations": 4,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 27,
+      "label": "Show Fusha (MSA) line",
+      "kind": "button[switch]",
+      "action": "clicked",
+      "mutations": 3,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 28,
+      "label": "سيدا، سيدا. إحنا عندنا هنا سيدي جابر. أنا هقول لك سيدا، إيش ",
+      "kind": "div[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 29,
+      "label": "سيدا،",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 30,
+      "label": "سيدا.",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 31,
+      "label": "إحنا",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 32,
+      "label": "عندنا",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 33,
+      "label": "هنا",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 34,
+      "label": "سيدي",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 35,
+      "label": "جابر.",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 36,
+      "label": "أنا",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 37,
+      "label": "هقول",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 38,
+      "label": "لك",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 39,
+      "label": "سيدا،",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": -1,
+      "label": "(112 more controls not exercised)",
+      "kind": "note",
+      "action": "skipped-unsafe"
+     }
+    ],
+    "failures": [
+     {
+      "url": "https://www.tiktok.com/player/v1/7654509704722320660?autoplay=1&muted=1&music_info=0&description=0&rel=0",
+      "method": "GET",
+      "status": null,
+      "layer": "tiktok",
+      "target": "www.tiktok.com",
+      "error": "net::ERR_ABORTED"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/rest/v1/discover_videos?select=*&published=eq.true&order=created_at.desc&dialect=in.%28Gulf%2CSaudi%2CKuwaiti%2CUAE%2CBahraini%2CQatari%2COmani%29",
+      "method": "GET",
+      "status": null,
+      "layer": "rest",
+      "target": "discover_videos",
+      "error": "net::ERR_ABORTED"
+     },
+     {
+      "url": "https://www.tiktok.com/player/v1/7654509704722320660",
+      "method": "GET",
+      "status": null,
+      "layer": "tiktok",
+      "target": "www.tiktok.com",
+      "error": "net::ERR_ABORTED"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/rest/v1/video_likes?select=id&video_id=eq.f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a",
+      "method": "HEAD",
+      "status": null,
+      "layer": "rest",
+      "target": "video_likes",
+      "error": "net::ERR_ABORTED"
+     },
+     {
+      "url": "https://www.tiktok.com/player/v1/7654509704722320660?autoplay=1&muted=1&music_info=0&description=0&rel=0",
+      "method": "GET",
+      "status": null,
+      "layer": "tiktok",
+      "target": "www.tiktok.com",
+      "error": "net::ERR_CONNECTION_RESET"
+     }
+    ],
+    "consoleErrors": [],
+    "pageErrors": []
+   }
+  },
+  {
+   "route": "/discover/:videoId",
+   "label": "/discover/:videoId (unknown id)",
+   "gate": "public",
+   "url": "/discover/aaaaaaaa-0000-4000-8000-000000000000",
+   "authed": false,
+   "loadMs": 3289,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/discover/aaaaaaaa-0000-4000-8000-000000000000",
+    "path": "/discover/aaaaaaaa-0000-4000-8000-000000000000",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 214,
+    "bodyText": "The server had a problem answering Some parts of this page may be missing. Pull to refresh or try again in a moment. This clip didn't load It may have been remo",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": true,
+    "emptyStateText": null,
+    "headline": "",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "infiniteLoader": false,
+   "expectedRedirect": null,
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/discover_videoId_unknown_id_.anon.png",
+   "inventory": {
+    "buttons": 2,
+    "links": 0,
+    "inputs": 0,
+    "tabs": 0,
+    "forms": 0,
+    "media": 0
+   },
+   "links": [],
+   "load": {
+    "failures": [
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/rest/v1/discover_videos?select=*&id=eq.aaaaaaaa-0000-4000-8000-000000000000",
+      "method": "GET",
+      "status": 406,
+      "layer": "rest",
+      "target": "discover_videos",
+      "body": "{\"code\":\"PGRST116\",\"details\":\"The result contains 0 rows\",\"hint\":null,\"message\":\"Cannot coerce the result to a single JSON object\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/rest/v1/discover_videos?select=*&id=eq.aaaaaaaa-0000-4000-8000-000000000000",
+      "method": "GET",
+      "status": 406,
+      "layer": "rest",
+      "target": "discover_videos",
+      "body": "{\"code\":\"PGRST116\",\"details\":\"The result contains 0 rows\",\"hint\":null,\"message\":\"Cannot coerce the result to a single JSON object\"}"
+     }
+    ],
+    "consoleErrors": [
+     "Failed to load resource: the server responded with a status of 406 (Not Acceptable)",
+     "Failed to load resource: the server responded with a status of 406 (Not Acceptable)"
+    ],
+    "pageErrors": [],
+    "supabaseRequests": 2
+   },
+   "interaction": {
+    "controls": [
+     {
+      "index": 0,
+      "label": "Try again",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 5,
+      "requests": 1,
+      "newFailures": 1,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 1,
+      "label": "Browse clips",
+      "kind": "button",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     }
+    ],
+    "failures": [
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/rest/v1/discover_videos?select=*&id=eq.aaaaaaaa-0000-4000-8000-000000000000",
+      "method": "GET",
+      "status": 406,
+      "layer": "rest",
+      "target": "discover_videos",
+      "body": "{\"code\":\"PGRST116\",\"details\":\"The result contains 0 rows\",\"hint\":null,\"message\":\"Cannot coerce the result to a single JSON object\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/rest/v1/discover_videos?select=*&id=eq.aaaaaaaa-0000-4000-8000-000000000000",
+      "method": "GET",
+      "status": 406,
+      "layer": "rest",
+      "target": "discover_videos",
+      "body": "{\"code\":\"PGRST116\",\"details\":\"The result contains 0 rows\",\"hint\":null,\"message\":\"Cannot coerce the result to a single JSON object\"}"
+     }
+    ],
+    "consoleErrors": [
+     "Failed to load resource: the server responded with a status of 406 (Not Acceptable)",
+     "Failed to load resource: the server responded with a status of 406 (Not Acceptable)"
+    ],
+    "pageErrors": []
+   }
+  },
+  {
+   "route": "/discover/:videoId",
+   "label": "/discover/:videoId (youtube)",
+   "gate": "public",
+   "url": "/discover/848dfb0c-f828-4c87-8690-a4e4b6de58e1",
+   "authed": false,
+   "loadMs": 2073,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/discover/848dfb0c-f828-4c87-8690-a4e4b6de58e1",
+    "path": "/discover/848dfb0c-f828-4c87-8690-a4e4b6de58e1",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 1850,
+    "bodyText": "Back Saudi Intermediate Honestly, I told you I wanted a matcha. أنا صراحة قلت لك أبغى ماتشا. آه مو لشيء، بس أهلي كانوا يطلقوا. Ask AI Practice shadowing 1 / 12 ",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "Honestly, I told you I wanted a matcha.",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "infiniteLoader": false,
+   "expectedRedirect": null,
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/discover_videoId_youtube_.anon.png",
+   "inventory": {
+    "buttons": 123,
+    "links": 0,
+    "inputs": 0,
+    "tabs": 0,
+    "forms": 0,
+    "media": 0
+   },
+   "links": [],
+   "load": {
+    "failures": [
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/rest/v1/video_likes?select=id&video_id=eq.848dfb0c-f828-4c87-8690-a4e4b6de58e1",
+      "method": "HEAD",
+      "status": null,
+      "layer": "rest",
+      "target": "video_likes",
+      "error": "net::ERR_ABORTED"
+     }
+    ],
+    "consoleErrors": [],
+    "pageErrors": [],
+    "supabaseRequests": 3
+   },
+   "interaction": {
+    "controls": [
+     {
+      "index": 0,
+      "label": "Back",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 11,
+      "requests": 38,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/discover"
+     },
+     {
+      "index": 1,
+      "label": "Like this video",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 7,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 2,
+      "label": "آه",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 19,
+      "requests": 2,
+      "newFailures": 0,
+      "outcome": "dialog"
+     },
+     {
+      "index": 3,
+      "label": "مو",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 13,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dialog"
+     },
+     {
+      "index": 4,
+      "label": "لشيء،",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 23,
+      "requests": 3,
+      "newFailures": 2,
+      "outcome": "dialog"
+     },
+     {
+      "index": 5,
+      "label": "بس",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 16,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dialog"
+     },
+     {
+      "index": 6,
+      "label": "أهلي",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 23,
+      "requests": 3,
+      "newFailures": 1,
+      "outcome": "dialog"
+     },
+     {
+      "index": 7,
+      "label": "كانوا",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 23,
+      "requests": 3,
+      "newFailures": 3,
+      "outcome": "dialog"
+     },
+     {
+      "index": 8,
+      "label": "يطلقوا.",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 23,
+      "requests": 3,
+      "newFailures": 1,
+      "outcome": "dialog"
+     },
+     {
+      "index": 9,
+      "label": "Ask AI",
+      "kind": "button",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 10,
+      "label": "Practice shadowing",
+      "kind": "button",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 11,
+      "label": "Next line",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 13,
+      "requests": 0,
+      "newFailures": 2,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 12,
+      "label": "Hide Transcript (12)",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 2,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 13,
+      "label": "1x",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 24,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dialog"
+     },
+     {
+      "index": 14,
+      "label": "Continuous",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 5,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 15,
+      "label": "(unlabeled)",
+      "kind": "button[switch]",
+      "action": "clicked",
+      "mutations": 6,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 16,
+      "label": "(unlabeled)",
+      "kind": "button[switch]",
+      "action": "clicked",
+      "mutations": 4,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 17,
+      "label": "Show Fusha (MSA) line",
+      "kind": "button[switch]",
+      "action": "clicked",
+      "mutations": 3,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 18,
+      "label": "آه مو لشيء، بس أهلي كانوا يطلقوا.Ask AIPractice shadowingOh,",
+      "kind": "div[button]",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 19,
+      "label": "آه",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 20,
+      "label": "مو",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 21,
+      "label": "لشيء،",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 22,
+      "label": "بس",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 23,
+      "label": "أهلي",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 24,
+      "label": "كانوا",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 25,
+      "label": "يطلقوا.",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 26,
+      "label": "Ask AI",
+      "kind": "button",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 27,
+      "label": "Practice shadowing",
+      "kind": "button",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 28,
+      "label": "عادي كذا؟ في شيء؟Ask AIPractice shadowingIs it okay like thi",
+      "kind": "div[button]",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 29,
+      "label": "عادي",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 30,
+      "label": "كذا؟",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 31,
+      "label": "في",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 32,
+      "label": "شيء؟",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 33,
+      "label": "Ask AI",
+      "kind": "button",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 34,
+      "label": "Practice shadowing",
+      "kind": "button",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 35,
+      "label": "أنا صراحة قلت لك أبغى ماتشا.Ask AIPractice shadowingHonestly",
+      "kind": "div[button]",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 36,
+      "label": "أنا",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 37,
+      "label": "صراحة",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 38,
+      "label": "قلت",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": 39,
+      "label": "لك",
+      "kind": "span[button]",
+      "action": "click-failed",
+      "error": "locator.click: Timeout 8000ms exceeded."
+     },
+     {
+      "index": -1,
+      "label": "(85 more controls not exercised)",
+      "kind": "note",
+      "action": "skipped-unsafe"
+     }
+    ],
+    "failures": [
+     {
+      "url": "https://www.youtube.com/iframe_api",
+      "method": "GET",
+      "status": null,
+      "layer": "youtube",
+      "target": "www.youtube.com",
+      "error": "net::ERR_ABORTED"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/rest/v1/discover_videos?select=*&published=eq.true&order=created_at.desc&dialect=in.%28Gulf%2CSaudi%2CKuwaiti%2CUAE%2CBahraini%2CQatari%2COmani%29",
+      "method": "GET",
+      "status": null,
+      "layer": "rest",
+      "target": "discover_videos",
+      "error": "net::ERR_ABORTED"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/rest/v1/video_likes?select=id&video_id=eq.848dfb0c-f828-4c87-8690-a4e4b6de58e1",
+      "method": "HEAD",
+      "status": null,
+      "layer": "rest",
+      "target": "video_likes",
+      "error": "net::ERR_ABORTED"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "translate-phrase",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "translate-phrase",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "translate-phrase",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "translate-phrase",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "translate-phrase",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "translate-phrase",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "translate-phrase",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "translate-phrase",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "translate-phrase",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "translate-phrase",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "translate-phrase",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "translate-phrase",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "translate-phrase",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "translate-phrase",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://www.youtube.com/iframe_api",
+      "method": "GET",
+      "status": null,
+      "layer": "youtube",
+      "target": "www.youtube.com",
+      "error": "net::ERR_CONNECTION_RESET"
+     }
+    ],
+    "consoleErrors": [
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: net::ERR_CONNECTION_RESET"
+    ],
+    "pageErrors": []
+   }
+  },
+  {
+   "route": "/leaderboard",
+   "label": "/leaderboard",
+   "gate": "public",
+   "url": "/leaderboard",
+   "authed": false,
+   "loadMs": 2407,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/leaderboard",
+    "path": "/leaderboard",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 161,
+    "bodyText": "Leaderboard Compete with other learners This Week All Time No rankings yet Finish a lesson or a review and you will show up here. Sign in to join the leaderboar",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": "No rankings yet",
+    "headline": "Leaderboard",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "infiniteLoader": false,
+   "expectedRedirect": null,
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/leaderboard.anon.png",
+   "inventory": {
+    "buttons": 5,
+    "links": 0,
+    "inputs": 0,
+    "tabs": 0,
+    "forms": 0,
+    "media": 0
+   },
+   "links": [],
+   "load": {
+    "failures": [],
+    "consoleErrors": [],
+    "pageErrors": [],
+    "supabaseRequests": 2
+   },
+   "interaction": {
+    "controls": [
+     {
+      "index": 0,
+      "label": "Go home",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 15,
+      "requests": 65,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/"
+     },
+     {
+      "index": 1,
+      "label": "Learn about Leaderboard",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 14,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dialog"
+     },
+     {
+      "index": 2,
+      "label": "This Week",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 0,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "no-op"
+     },
+     {
+      "index": 3,
+      "label": "All Time",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 2,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 4,
+      "label": "Sign in to join the leaderboard",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 8,
+      "requests": 11,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/auth"
+     }
+    ],
+    "failures": [],
+    "consoleErrors": [],
+    "pageErrors": []
+   }
+  },
+  {
+   "route": "/placement",
+   "label": "/placement",
+   "gate": "public",
+   "url": "/placement",
+   "authed": false,
+   "loadMs": 1482,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/placement",
+    "path": "/placement",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 337,
+    "bodyText": "Gulf Arabic Placement No matter where you are in your Arabic journey, we'll get you to the right test to show you exactly where you stand right now. Answer 20 a",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "Gulf Arabic Placement",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "infiniteLoader": false,
+   "expectedRedirect": null,
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/placement.anon.png",
+   "inventory": {
+    "buttons": 2,
+    "links": 0,
+    "inputs": 0,
+    "tabs": 0,
+    "forms": 0,
+    "media": 1
+   },
+   "links": [],
+   "load": {
+    "failures": [],
+    "consoleErrors": [],
+    "pageErrors": [],
+    "supabaseRequests": 0
+   },
+   "interaction": {
+    "controls": [
+     {
+      "index": 0,
+      "label": "Start Quiz",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 3,
+      "requests": 1,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 1,
+      "label": "Go Back",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": -3,
+      "requests": 0,
+      "newFailures": 1,
+      "outcome": "navigated",
+      "navigatedTo": "blank"
+     }
+    ],
+    "failures": [
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/placement-quiz",
+      "method": "POST",
+      "status": null,
+      "layer": "functions",
+      "target": "placement-quiz",
+      "error": "net::ERR_ABORTED"
+     }
+    ],
+    "consoleErrors": [],
+    "pageErrors": []
+   }
+  },
+  {
+   "route": "/reading-library/:id",
+   "label": "/reading-library/:id",
+   "gate": "public",
+   "url": "/reading-library/e0ca411c-8f1d-4581-b4c8-66c64277b29b",
+   "authed": false,
+   "loadMs": 2490,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/reading-library/e0ca411c-8f1d-4581-b4c8-66c64277b29b",
+    "path": "/reading-library/e0ca411c-8f1d-4581-b4c8-66c64277b29b",
+    "title": "The First Visit to the Majlis — Reading Library — Hakiya",
+    "bodyChars": 2415,
+    "bodyText": "The First Visit to the Majlis أول مرة في المجلس intermediate Gulf 1 / 6 كَانَ نَاصِرٌ يَشْعُرُ بِتَوَتُّرٍ شَدِيدٍ وَهُوَ يَقِفُ أَمَامَ بَابِ بَيْتِ \"أَبُو رَا",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "The First Visit to the Majlis",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "infiniteLoader": false,
+   "expectedRedirect": null,
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/reading-library_id.anon.png",
+   "inventory": {
+    "buttons": 259,
+    "links": 0,
+    "inputs": 0,
+    "tabs": 0,
+    "forms": 0,
+    "media": 0
+   },
+   "links": [],
+   "load": {
+    "failures": [],
+    "consoleErrors": [],
+    "pageErrors": [],
+    "supabaseRequests": 8
+   },
+   "interaction": {
+    "controls": [
+     {
+      "index": 0,
+      "label": "Back to the library",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 11,
+      "requests": 23,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/reading-library"
+     },
+     {
+      "index": 1,
+      "label": "(unlabeled)",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 0,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "no-op"
+     },
+     {
+      "index": 2,
+      "label": "(unlabeled)",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 5,
+      "requests": 1,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 3,
+      "label": "(unlabeled)",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 5,
+      "requests": 1,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 4,
+      "label": "(unlabeled)",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 5,
+      "requests": 1,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 5,
+      "label": "(unlabeled)",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 5,
+      "requests": 1,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 6,
+      "label": "(unlabeled)",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 5,
+      "requests": 1,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 7,
+      "label": "Look up “كَانَ”",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 18,
+      "requests": 1,
+      "newFailures": 1,
+      "outcome": "dialog"
+     },
+     {
+      "index": 8,
+      "label": "Look up “نَاصِرٌ”",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 18,
+      "requests": 1,
+      "newFailures": 1,
+      "outcome": "dialog"
+     },
+     {
+      "index": 9,
+      "label": "Look up “يَشْعُرُ”",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 14,
+      "requests": 1,
+      "newFailures": 0,
+      "outcome": "dialog"
+     },
+     {
+      "index": 10,
+      "label": "Look up “بِتَوَتُّرٍ”",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 18,
+      "requests": 1,
+      "newFailures": 1,
+      "outcome": "dialog"
+     },
+     {
+      "index": 11,
+      "label": "Look up “شَدِيدٍ”",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 18,
+      "requests": 1,
+      "newFailures": 1,
+      "outcome": "dialog"
+     },
+     {
+      "index": 12,
+      "label": "Look up “وَهُوَ”",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 18,
+      "requests": 1,
+      "newFailures": 1,
+      "outcome": "dialog"
+     },
+     {
+      "index": 13,
+      "label": "Look up “يَقِفُ”",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 18,
+      "requests": 1,
+      "newFailures": 1,
+      "outcome": "dialog"
+     },
+     {
+      "index": 14,
+      "label": "Look up “أَمَامَ”",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 14,
+      "requests": 1,
+      "newFailures": 0,
+      "outcome": "dialog"
+     },
+     {
+      "index": 15,
+      "label": "Look up “بَابِ”",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 18,
+      "requests": 1,
+      "newFailures": 2,
+      "outcome": "dialog"
+     },
+     {
+      "index": 16,
+      "label": "Look up “بَيْتِ”",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 18,
+      "requests": 1,
+      "newFailures": 1,
+      "outcome": "dialog"
+     },
+     {
+      "index": 17,
+      "label": "Look up “أَبُو”",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 18,
+      "requests": 1,
+      "newFailures": 1,
+      "outcome": "dialog"
+     },
+     {
+      "index": 18,
+      "label": "Look up “رَاشِدٍ”",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 18,
+      "requests": 1,
+      "newFailures": 1,
+      "outcome": "dialog"
+     },
+     {
+      "index": 19,
+      "label": "Ask AI",
+      "kind": "button",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 20,
+      "label": "Play",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 4,
+      "requests": 1,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 21,
+      "label": "Next line",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 51,
+      "requests": 2,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 22,
+      "label": "(unlabeled)",
+      "kind": "button[switch]",
+      "action": "clicked",
+      "mutations": 483,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 23,
+      "label": "(unlabeled)",
+      "kind": "button[switch]",
+      "action": "clicked",
+      "mutations": 21,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 24,
+      "label": "Look up “كَانَ”",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 77,
+      "requests": 2,
+      "newFailures": 1,
+      "outcome": "dialog"
+     },
+     {
+      "index": 25,
+      "label": "Look up “نَاصِرٌ”",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 18,
+      "requests": 2,
+      "newFailures": 1,
+      "outcome": "dialog"
+     },
+     {
+      "index": 26,
+      "label": "Look up “يَشْعُرُ”",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 18,
+      "requests": 2,
+      "newFailures": 1,
+      "outcome": "dialog"
+     },
+     {
+      "index": 27,
+      "label": "Look up “بِتَوَتُّرٍ”",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 18,
+      "requests": 2,
+      "newFailures": 1,
+      "outcome": "dialog"
+     },
+     {
+      "index": 28,
+      "label": "Look up “شَدِيدٍ”",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 18,
+      "requests": 2,
+      "newFailures": 1,
+      "outcome": "dialog"
+     },
+     {
+      "index": 29,
+      "label": "Look up “وَهُوَ”",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 18,
+      "requests": 2,
+      "newFailures": 1,
+      "outcome": "dialog"
+     },
+     {
+      "index": 30,
+      "label": "Look up “يَقِفُ”",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 18,
+      "requests": 2,
+      "newFailures": 1,
+      "outcome": "dialog"
+     },
+     {
+      "index": 31,
+      "label": "Look up “أَمَامَ”",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 18,
+      "requests": 2,
+      "newFailures": 1,
+      "outcome": "dialog"
+     },
+     {
+      "index": 32,
+      "label": "Look up “بَابِ”",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 18,
+      "requests": 2,
+      "newFailures": 1,
+      "outcome": "dialog"
+     },
+     {
+      "index": 33,
+      "label": "Look up “بَيْتِ”",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 18,
+      "requests": 2,
+      "newFailures": 1,
+      "outcome": "dialog"
+     },
+     {
+      "index": 34,
+      "label": "Look up “أَبُو”",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 18,
+      "requests": 2,
+      "newFailures": 1,
+      "outcome": "dialog"
+     },
+     {
+      "index": 35,
+      "label": "Look up “رَاشِدٍ”",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 18,
+      "requests": 2,
+      "newFailures": 1,
+      "outcome": "dialog"
+     },
+     {
+      "index": 36,
+      "label": "Look up “الْيَوْمُ”",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 87,
+      "requests": 2,
+      "newFailures": 1,
+      "outcome": "dialog"
+     },
+     {
+      "index": 37,
+      "label": "Look up “هُوَ”",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 18,
+      "requests": 2,
+      "newFailures": 1,
+      "outcome": "dialog"
+     },
+     {
+      "index": 38,
+      "label": "Look up “مَوْعِدُ”",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 18,
+      "requests": 2,
+      "newFailures": 1,
+      "outcome": "dialog"
+     },
+     {
+      "index": 39,
+      "label": "Look up “زِيَارَتِهِ”",
+      "kind": "span[button]",
+      "action": "clicked",
+      "mutations": 18,
+      "requests": 2,
+      "newFailures": 1,
+      "outcome": "dialog"
+     },
+     {
+      "index": -1,
+      "label": "(218 more controls not exercised)",
+      "kind": "note",
+      "action": "skipped-unsafe"
+     }
+    ],
+    "failures": [
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/public/listen-audio/authentic-stories/e0ca411c-8f1d-4581-b4c8-66c64277b29b/preview-scene-1783433187073.png",
+      "method": "GET",
+      "status": null,
+      "layer": "storage",
+      "target": "object/public/listen-audio/authentic-stories/e0ca411c-8f1d-4581-b4c8-66c64277b29b/preview-scene-1783433187073.png",
+      "error": "net::ERR_ABORTED"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "word-enrichment",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "word-enrichment",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "word-enrichment",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "word-enrichment",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "word-enrichment",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "word-enrichment",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "word-enrichment",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "word-enrichment",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "word-enrichment",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "word-enrichment",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "word-enrichment",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "word-enrichment",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "word-enrichment",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "word-enrichment",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "word-enrichment",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "word-enrichment",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "word-enrichment",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "word-enrichment",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "word-enrichment",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "word-enrichment",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "word-enrichment",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "word-enrichment",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "word-enrichment",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "word-enrichment",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "word-enrichment",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "word-enrichment",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "word-enrichment",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     },
+     {
+      "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/word-enrichment",
+      "method": "POST",
+      "status": 401,
+      "layer": "functions",
+      "target": "word-enrichment",
+      "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
+     }
+    ],
+    "consoleErrors": [
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+     "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    ],
+    "pageErrors": []
+   }
+  },
+  {
+   "route": "/set-phrases",
+   "label": "/set-phrases",
+   "gate": "public",
+   "url": "/set-phrases",
+   "authed": false,
+   "loadMs": 1893,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/set-phrases",
+    "path": "/set-phrases",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 706,
+    "bodyText": "Set Phrases Practice Gulf situational phrases Greetings, weddings, Eid, condolences and more — voice or choice quizzes with spaced repetition. Mixed practice Re",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "Set Phrases",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "infiniteLoader": false,
+   "expectedRedirect": null,
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/set-phrases.anon.png",
+   "inventory": {
+    "buttons": 22,
+    "links": 0,
+    "inputs": 1,
+    "tabs": 0,
+    "forms": 0,
+    "media": 0
+   },
+   "links": [],
+   "load": {
+    "failures": [],
+    "consoleErrors": [],
+    "pageErrors": [],
+    "supabaseRequests": 1
+   },
+   "interaction": {
+    "controls": [
+     {
+      "index": 0,
+      "label": "Go home",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 15,
+      "requests": 64,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/"
+     },
+     {
+      "index": 1,
+      "label": "Learn about Set Phrases",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 14,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dialog"
+     },
+     {
+      "index": 2,
+      "label": "Mixed practice",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 7,
+      "requests": 7,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/set-phrases/practice"
+     },
+     {
+      "index": 3,
+      "label": "Ordering coffee at a café",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 1,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 4,
+      "label": "Bargaining at the souq",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 1,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 5,
+      "label": "Visiting someone at the hospital",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 1,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 6,
+      "label": "Talking to a taxi driver",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 1,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 7,
+      "label": "Meeting your future in-laws",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 1,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dom-changed"
+     },
+     {
+      "index": 8,
+      "label": "Generate phrases",
+      "kind": "button",
+      "action": "needs-live-api-test"
+     },
+     {
+      "index": 9,
+      "label": "ApologiesPractice",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 7,
+      "requests": 7,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/set-phrases/practice"
+     },
+     {
+      "index": 10,
+      "label": "ComplimentsPractice",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 7,
+      "requests": 7,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/set-phrases/practice"
+     },
+     {
+      "index": 11,
+      "label": "EidPractice",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 7,
+      "requests": 7,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/set-phrases/practice"
+     },
+     {
+      "index": 12,
+      "label": "Funeral & CondolencesPractice",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 7,
+      "requests": 7,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/set-phrases/practice"
+     },
+     {
+      "index": 13,
+      "label": "GreetingsPractice",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 7,
+      "requests": 7,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/set-phrases/practice"
+     },
+     {
+      "index": 14,
+      "label": "Health & SneezePractice",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 7,
+      "requests": 7,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/set-phrases/practice"
+     },
+     {
+      "index": 15,
+      "label": "Hospitality & FoodPractice",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 7,
+      "requests": 7,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/set-phrases/practice"
+     },
+     {
+      "index": 16,
+      "label": "New BabyPractice",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 7,
+      "requests": 7,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/set-phrases/practice"
+     },
+     {
+      "index": 17,
+      "label": "ReligiousPractice",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 7,
+      "requests": 7,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/set-phrases/practice"
+     },
+     {
+      "index": 18,
+      "label": "ThanksPractice",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 7,
+      "requests": 7,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/set-phrases/practice"
+     },
+     {
+      "index": 19,
+      "label": "Travel & Safe TripPractice",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 7,
+      "requests": 7,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/set-phrases/practice"
+     },
+     {
+      "index": 20,
+      "label": "WeddingPractice",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 7,
+      "requests": 7,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/set-phrases/practice"
+     }
+    ],
+    "failures": [],
+    "consoleErrors": [],
+    "pageErrors": []
+   }
+  },
+  {
+   "route": "/set-phrases/practice",
+   "label": "/set-phrases/practice",
+   "gate": "public",
+   "url": "/set-phrases/practice",
+   "authed": false,
+   "loadMs": 1484,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/set-phrases/practice",
+    "path": "/set-phrases/practice",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 117,
+    "bodyText": "Sign in to practise set phrases The quiz is built from your own phrase deck, so it needs to know who you are. Sign in",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "infiniteLoader": false,
+   "expectedRedirect": null,
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/set-phrases_practice.anon.png",
+   "inventory": {
+    "buttons": 0,
+    "links": 1,
+    "inputs": 0,
+    "tabs": 0,
+    "forms": 0,
+    "media": 0
+   },
+   "links": [
+    "/auth"
+   ],
+   "load": {
+    "failures": [],
+    "consoleErrors": [],
+    "pageErrors": [],
+    "supabaseRequests": 0
+   },
+   "interaction": {
+    "controls": [],
+    "failures": [],
+    "consoleErrors": [],
+    "pageErrors": []
+   }
+  },
+  {
+   "route": "/set-phrases/review",
+   "label": "/set-phrases/review",
+   "gate": "public",
+   "url": "/set-phrases/review",
+   "authed": false,
+   "loadMs": 1472,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/set-phrases/review",
+    "path": "/set-phrases/review",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 117,
+    "bodyText": "Sign in to practise set phrases The quiz is built from your own phrase deck, so it needs to know who you are. Sign in",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "infiniteLoader": false,
+   "expectedRedirect": null,
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/set-phrases_review.anon.png",
+   "inventory": {
+    "buttons": 0,
+    "links": 1,
+    "inputs": 0,
+    "tabs": 0,
+    "forms": 0,
+    "media": 0
+   },
+   "links": [
+    "/auth"
+   ],
+   "load": {
+    "failures": [],
+    "consoleErrors": [],
+    "pageErrors": [],
+    "supabaseRequests": 0
+   },
+   "interaction": {
+    "controls": [],
+    "failures": [],
+    "consoleErrors": [],
+    "pageErrors": []
+   }
+  },
+  {
+   "route": "/stories",
+   "label": "/stories",
+   "gate": "public",
+   "url": "/stories",
+   "authed": false,
+   "loadMs": 1659,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/stories",
+    "path": "/stories",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 263,
+    "bodyText": "Interactive Stories Choose your adventure and learn Arabic through immersive scenarios A Day in Oman يوم في عمان A traveler on an Omani beach is invited by loca",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "Interactive Stories",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "infiniteLoader": false,
+   "expectedRedirect": null,
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/stories.anon.png",
+   "inventory": {
+    "buttons": 3,
+    "links": 0,
+    "inputs": 0,
+    "tabs": 0,
+    "forms": 0,
+    "media": 0
+   },
+   "links": [],
+   "load": {
+    "failures": [],
+    "consoleErrors": [],
+    "pageErrors": [],
+    "supabaseRequests": 1
+   },
+   "interaction": {
+    "controls": [
+     {
+      "index": 0,
+      "label": "Go home",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 15,
+      "requests": 67,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/"
+     },
+     {
+      "index": 1,
+      "label": "Learn about Interactive Stories",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 14,
+      "requests": 0,
+      "newFailures": 0,
+      "outcome": "dialog"
+     },
+     {
+      "index": 2,
+      "label": "A Day in Omanيوم في عمانA traveler on an Omani beach is invi",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 7,
+      "requests": 13,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/stories/0972f6c9-f1b3-4fd1-92ab-b9eeec0457a9"
+     }
+    ],
+    "failures": [],
+    "consoleErrors": [],
+    "pageErrors": []
+   }
+  },
+  {
+   "route": "/today",
+   "label": "/today",
+   "gate": "public",
+   "url": "/today",
+   "authed": false,
+   "loadMs": 3460,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/today",
+    "path": "/today",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 1243,
+    "bodyText": "حكاية — a story. Yours starts with one word. Real spoken Arabic, one story at a time. Gulf · Egyptian · Yemeni. Hakiya means حكاية — a story. Dialect-first less",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": "come back",
+    "headline": "Real spoken Arabic,one story at a time.Gulf · Egyptian · Yemeni.",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "infiniteLoader": false,
+   "expectedRedirect": null,
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/today.anon.png",
+   "inventory": {
+    "buttons": 3,
+    "links": 3,
+    "inputs": 0,
+    "tabs": 0,
+    "forms": 0,
+    "media": 1
+   },
+   "links": [
+    "/terms",
+    "/privacy"
+   ],
+   "load": {
+    "failures": [],
+    "consoleErrors": [],
+    "pageErrors": [],
+    "supabaseRequests": 1
+   },
+   "interaction": {
+    "controls": [
+     {
+      "index": 0,
+      "label": "Join the beta — it’s free",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 14,
+      "requests": 9,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/auth"
+     },
+     {
+      "index": 1,
+      "label": "Try the placement quiz",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 11,
+      "requests": 8,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/placement"
+     },
+     {
+      "index": 2,
+      "label": "Join the beta — it’s free",
+      "kind": "button",
+      "action": "clicked",
+      "mutations": 14,
+      "requests": 9,
+      "newFailures": 0,
+      "outcome": "navigated",
+      "navigatedTo": "/auth"
+     }
+    ],
+    "failures": [],
+    "consoleErrors": [],
+    "pageErrors": []
+   }
+  }
+ ],
+ "resilience": [
+  {
+   "path": "/alphabet",
+   "mode": "backend-500",
+   "verdict": "looks-normal",
+   "early": null,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/alphabet",
+    "path": "/alphabet",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 645,
+    "bodyText": "← Skills Alphabet Journey All 28 letters in order. Each one is a short lesson — meet it, hear it, trace it, then play. 0 / 28 mastered ص س Sound pairs Train you",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "Alphabet Journey",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_backend-500_alphabet.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   ],
+   "pageErrors": [],
+   "failures": 1
+  },
+  {
+   "path": "/choose",
+   "mode": "backend-500",
+   "verdict": "looks-normal",
+   "early": null,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/choose",
+    "path": "/choose",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 322,
+    "bodyText": "← Watch clips What do you want to do? Review Nothing due — you are caught up 01 Listen استماع 02 Read قراءة 03 Speak تحدّث 04 Write كتابة Upload Ask Games Alpha",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "What do you want to do?",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_backend-500_choose.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+   ],
+   "pageErrors": [],
+   "failures": 3
+  },
+  {
+   "path": "/curriculum",
+   "mode": "backend-500",
+   "verdict": "error-shown",
+   "early": null,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/curriculum",
+    "path": "/curriculum",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 119,
+    "bodyText": "Couldn't load the curriculum The server had a problem answering. It is usually brief — try again in a moment. Try again",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": true,
+    "emptyStateText": null,
+    "headline": "Couldn't load the curriculum",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_backend-500_curriculum.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+   ],
+   "pageErrors": [],
+   "failures": 5
+  },
+  {
+   "path": "/daily-challenge",
+   "mode": "backend-500",
+   "verdict": "looks-normal",
+   "early": null,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/daily-challenge",
+    "path": "/daily-challenge",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 115,
+    "bodyText": "Daily Challenge Complete today's challenge to keep your streak! Start Today's ChallengeSign in to track your streak",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "Daily Challenge",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_backend-500_daily-challenge.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   ],
+   "pageErrors": [],
+   "failures": 1
+  },
+  {
+   "path": "/discover",
+   "mode": "backend-500",
+   "verdict": "error-shown",
+   "early": null,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/discover",
+    "path": "/discover",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 256,
+    "bodyText": "Discover Watch Arabic videos with synced subtitles and translations Request content — suggest a video, creator, or topic For You Browse Gulf All Couldn't load v",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": true,
+    "emptyStateText": null,
+    "headline": "Discover",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_backend-500_discover.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+   ],
+   "pageErrors": [],
+   "failures": 3
+  },
+  {
+   "path": "/leaderboard",
+   "mode": "backend-500",
+   "verdict": "error-shown",
+   "early": null,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/leaderboard",
+    "path": "/leaderboard",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 211,
+    "bodyText": "Leaderboard Compete with other learners This Week All Time Couldn't load the leaderboard The server had a problem answering. It is usually brief — try again in ",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": true,
+    "emptyStateText": null,
+    "headline": "Leaderboard",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_backend-500_leaderboard.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+   ],
+   "pageErrors": [],
+   "failures": 5
+  },
+  {
+   "path": "/pricing",
+   "mode": "backend-500",
+   "verdict": "silent-empty",
+   "early": null,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/pricing",
+    "path": "/pricing",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 2177,
+    "bodyText": "Choose Your Plan Unlock the full power of Hakiya to accelerate your Arabic learning Hakiya is in closed beta — pricing below reflects our upcoming public launch",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": "Get started",
+    "headline": "Choose Your Plan",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_backend-500_pricing.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   ],
+   "pageErrors": [],
+   "failures": 1
+  },
+  {
+   "path": "/",
+   "mode": "backend-500",
+   "verdict": "silent-empty",
+   "early": null,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/",
+    "path": "/",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 1243,
+    "bodyText": "حكاية — a story. Yours starts with one word. Real spoken Arabic, one story at a time. Gulf · Egyptian · Yemeni. Hakiya means حكاية — a story. Dialect-first less",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": "come back",
+    "headline": "Real spoken Arabic,one story at a time.Gulf · Egyptian · Yemeni.",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_backend-500_root.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   ],
+   "pageErrors": [],
+   "failures": 1
+  },
+  {
+   "path": "/set-phrases",
+   "mode": "backend-500",
+   "verdict": "error-shown",
+   "early": null,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/set-phrases",
+    "path": "/set-phrases",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 567,
+    "bodyText": "Set Phrases Practice Gulf situational phrases Greetings, weddings, Eid, condolences and more — voice or choice quizzes with spaced repetition. Mixed practice Re",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": true,
+    "emptyStateText": null,
+    "headline": "Set Phrases",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_backend-500_set-phrases.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+   ],
+   "pageErrors": [],
+   "failures": 3
+  },
+  {
+   "path": "/stories",
+   "mode": "backend-500",
+   "verdict": "error-shown",
+   "early": null,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/stories",
+    "path": "/stories",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 199,
+    "bodyText": "Interactive Stories Choose your adventure and learn Arabic through immersive scenarios Couldn't load stories The server had a problem answering. It is usually b",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": true,
+    "emptyStateText": null,
+    "headline": "Interactive Stories",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_backend-500_stories.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+   ],
+   "pageErrors": [],
+   "failures": 3
+  },
+  {
+   "path": "/today",
+   "mode": "backend-500",
+   "verdict": "silent-empty",
+   "early": null,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/today",
+    "path": "/today",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 1243,
+    "bodyText": "حكاية — a story. Yours starts with one word. Real spoken Arabic, one story at a time. Gulf · Egyptian · Yemeni. Hakiya means حكاية — a story. Dialect-first less",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": "come back",
+    "headline": "Real spoken Arabic,one story at a time.Gulf · Egyptian · Yemeni.",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_backend-500_today.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+   ],
+   "pageErrors": [],
+   "failures": 3
+  },
+  {
+   "path": "/alphabet",
+   "mode": "network-drop",
+   "verdict": "looks-normal",
+   "early": null,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/alphabet",
+    "path": "/alphabet",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 645,
+    "bodyText": "← Skills Alphabet Journey All 28 letters in order. Each one is a short lesson — meet it, hear it, trace it, then play. 0 / 28 mastered ص س Sound pairs Train you",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "Alphabet Journey",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_network-drop_alphabet.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   ],
+   "pageErrors": [],
+   "failures": 1
+  },
+  {
+   "path": "/choose",
+   "mode": "network-drop",
+   "verdict": "looks-normal",
+   "early": null,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/choose",
+    "path": "/choose",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 322,
+    "bodyText": "← Watch clips What do you want to do? Review Nothing due — you are caught up 01 Listen استماع 02 Read قراءة 03 Speak تحدّث 04 Write كتابة Upload Ask Games Alpha",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "What do you want to do?",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_network-drop_choose.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED"
+   ],
+   "pageErrors": [],
+   "failures": 3
+  },
+  {
+   "path": "/curriculum",
+   "mode": "network-drop",
+   "verdict": "error-shown",
+   "early": null,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/curriculum",
+    "path": "/curriculum",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 114,
+    "bodyText": "Couldn't load the curriculum We couldn't reach the server. Check your internet connection and try again. Try again",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": true,
+    "errorTextVisible": true,
+    "emptyStateText": null,
+    "headline": "Couldn't load the curriculum",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_network-drop_curriculum.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED"
+   ],
+   "pageErrors": [],
+   "failures": 5
+  },
+  {
+   "path": "/daily-challenge",
+   "mode": "network-drop",
+   "verdict": "looks-normal",
+   "early": null,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/daily-challenge",
+    "path": "/daily-challenge",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 115,
+    "bodyText": "Daily Challenge Complete today's challenge to keep your streak! Start Today's ChallengeSign in to track your streak",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "Daily Challenge",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_network-drop_daily-challenge.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   ],
+   "pageErrors": [],
+   "failures": 1
+  },
+  {
+   "path": "/discover",
+   "mode": "network-drop",
+   "verdict": "error-shown",
+   "early": null,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/discover",
+    "path": "/discover",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 251,
+    "bodyText": "Discover Watch Arabic videos with synced subtitles and translations Request content — suggest a video, creator, or topic For You Browse Gulf All Couldn't load v",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": true,
+    "errorTextVisible": true,
+    "emptyStateText": null,
+    "headline": "Discover",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_network-drop_discover.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED"
+   ],
+   "pageErrors": [],
+   "failures": 3
+  },
+  {
+   "path": "/leaderboard",
+   "mode": "network-drop",
+   "verdict": "error-shown",
+   "early": null,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/leaderboard",
+    "path": "/leaderboard",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 206,
+    "bodyText": "Leaderboard Compete with other learners This Week All Time Couldn't load the leaderboard We couldn't reach the server. Check your internet connection and try ag",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": true,
+    "errorTextVisible": true,
+    "emptyStateText": null,
+    "headline": "Leaderboard",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_network-drop_leaderboard.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED"
+   ],
+   "pageErrors": [],
+   "failures": 5
+  },
+  {
+   "path": "/pricing",
+   "mode": "network-drop",
+   "verdict": "silent-empty",
+   "early": null,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/pricing",
+    "path": "/pricing",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 2177,
+    "bodyText": "Choose Your Plan Unlock the full power of Hakiya to accelerate your Arabic learning Hakiya is in closed beta — pricing below reflects our upcoming public launch",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": "Get started",
+    "headline": "Choose Your Plan",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_network-drop_pricing.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   ],
+   "pageErrors": [],
+   "failures": 1
+  },
+  {
+   "path": "/",
+   "mode": "network-drop",
+   "verdict": "silent-empty",
+   "early": null,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/",
+    "path": "/",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 1243,
+    "bodyText": "حكاية — a story. Yours starts with one word. Real spoken Arabic, one story at a time. Gulf · Egyptian · Yemeni. Hakiya means حكاية — a story. Dialect-first less",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": "come back",
+    "headline": "Real spoken Arabic,one story at a time.Gulf · Egyptian · Yemeni.",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_network-drop_root.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   ],
+   "pageErrors": [],
+   "failures": 1
+  },
+  {
+   "path": "/set-phrases",
+   "mode": "network-drop",
+   "verdict": "error-shown",
+   "early": null,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/set-phrases",
+    "path": "/set-phrases",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 562,
+    "bodyText": "Set Phrases Practice Gulf situational phrases Greetings, weddings, Eid, condolences and more — voice or choice quizzes with spaced repetition. Mixed practice Re",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": true,
+    "errorTextVisible": true,
+    "emptyStateText": null,
+    "headline": "Set Phrases",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_network-drop_set-phrases.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED"
+   ],
+   "pageErrors": [],
+   "failures": 3
+  },
+  {
+   "path": "/stories",
+   "mode": "network-drop",
+   "verdict": "error-shown",
+   "early": null,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/stories",
+    "path": "/stories",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 194,
+    "bodyText": "Interactive Stories Choose your adventure and learn Arabic through immersive scenarios Couldn't load stories We couldn't reach the server. Check your internet c",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": true,
+    "errorTextVisible": true,
+    "emptyStateText": null,
+    "headline": "Interactive Stories",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_network-drop_stories.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED"
+   ],
+   "pageErrors": [],
+   "failures": 3
+  },
+  {
+   "path": "/today",
+   "mode": "network-drop",
+   "verdict": "silent-empty",
+   "early": null,
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/today",
+    "path": "/today",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 1243,
+    "bodyText": "حكاية — a story. Yours starts with one word. Real spoken Arabic, one story at a time. Gulf · Egyptian · Yemeni. Hakiya means حكاية — a story. Dialect-first less",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": "come back",
+    "headline": "Real spoken Arabic,one story at a time.Gulf · Egyptian · Yemeni.",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_network-drop_today.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+    "Failed to load resource: net::ERR_FAILED",
+    "Failed to load resource: net::ERR_FAILED"
+   ],
+   "pageErrors": [],
+   "failures": 3
+  },
+  {
+   "path": "/alphabet",
+   "mode": "slow-4s",
+   "verdict": "looks-normal",
+   "early": {
+    "finalUrl": "http://127.0.0.1:4173/alphabet",
+    "path": "/alphabet",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 645,
+    "bodyText": "← Skills Alphabet Journey All 28 letters in order. Each one is a short lesson — meet it, hear it, trace it, then play. 0 / 28 mastered ص س Sound pairs Train you",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "Alphabet Journey",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/alphabet",
+    "path": "/alphabet",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 645,
+    "bodyText": "← Skills Alphabet Journey All 28 letters in order. Each one is a short lesson — meet it, hear it, trace it, then play. 0 / 28 mastered ص س Sound pairs Train you",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "Alphabet Journey",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_slow-4s_alphabet.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   ],
+   "pageErrors": [],
+   "failures": 1
+  },
+  {
+   "path": "/choose",
+   "mode": "slow-4s",
+   "verdict": "looks-normal",
+   "early": {
+    "finalUrl": "http://127.0.0.1:4173/choose",
+    "path": "/choose",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 322,
+    "bodyText": "← Watch clips What do you want to do? Review Nothing due — you are caught up 01 Listen استماع 02 Read قراءة 03 Speak تحدّث 04 Write كتابة Upload Ask Games Alpha",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "What do you want to do?",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/choose",
+    "path": "/choose",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 339,
+    "bodyText": "← Watch clips What do you want to do? Review Nothing due — you are caught up 01 Listen استماع 02 Read قراءة 03 Speak تحدّث 04 Write كتابة Upload Ask Games Alpha",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "What do you want to do?",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_slow-4s_choose.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   ],
+   "pageErrors": [],
+   "failures": 1
+  },
+  {
+   "path": "/curriculum",
+   "mode": "slow-4s",
+   "verdict": "silent-empty",
+   "early": {
+    "finalUrl": "http://127.0.0.1:4173/curriculum",
+    "path": "/curriculum",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 0,
+    "bodyText": "",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": true,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "",
+    "isBlank": true,
+    "redirectedToAuth": false
+   },
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/curriculum",
+    "path": "/curriculum",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 197,
+    "bodyText": "Curriculum Your Gulf path, stage by stage. Sign in to track which lessons you've finished. No lessons yet for Gulf Try another dialect from the switcher on Home",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": "No lessons yet",
+    "headline": "Curriculum",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_slow-4s_curriculum.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   ],
+   "pageErrors": [],
+   "failures": 1
+  },
+  {
+   "path": "/daily-challenge",
+   "mode": "slow-4s",
+   "verdict": "looks-normal",
+   "early": {
+    "finalUrl": "http://127.0.0.1:4173/daily-challenge",
+    "path": "/daily-challenge",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 115,
+    "bodyText": "Daily Challenge Complete today's challenge to keep your streak! Start Today's ChallengeSign in to track your streak",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "Daily Challenge",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/daily-challenge",
+    "path": "/daily-challenge",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 115,
+    "bodyText": "Daily Challenge Complete today's challenge to keep your streak! Start Today's ChallengeSign in to track your streak",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "Daily Challenge",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_slow-4s_daily-challenge.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   ],
+   "pageErrors": [],
+   "failures": 1
+  },
+  {
+   "path": "/discover",
+   "mode": "slow-4s",
+   "verdict": "looks-normal",
+   "early": {
+    "finalUrl": "http://127.0.0.1:4173/discover",
+    "path": "/discover",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 183,
+    "bodyText": "Discover Watch Arabic videos with synced subtitles and translations Request content — suggest a video, creator, or topic For You Browse Gulf All لحظة… One momen",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "Discover",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/discover",
+    "path": "/discover",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 3083,
+    "bodyText": "Discover Watch Arabic videos with synced subtitles and translations Request content — suggest a video, creator, or topic For You Browse Gulf All 0:40 إِيْش النَ",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "Discover",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_slow-4s_discover.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   ],
+   "pageErrors": [],
+   "failures": 1
+  },
+  {
+   "path": "/leaderboard",
+   "mode": "slow-4s",
+   "verdict": "silent-empty",
+   "early": {
+    "finalUrl": "http://127.0.0.1:4173/leaderboard",
+    "path": "/leaderboard",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 90,
+    "bodyText": "Leaderboard Compete with other learners This Week All Time Sign in to join the leaderboard",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": true,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "Leaderboard",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/leaderboard",
+    "path": "/leaderboard",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 161,
+    "bodyText": "Leaderboard Compete with other learners This Week All Time No rankings yet Finish a lesson or a review and you will show up here. Sign in to join the leaderboar",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": "No rankings yet",
+    "headline": "Leaderboard",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_slow-4s_leaderboard.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   ],
+   "pageErrors": [],
+   "failures": 1
+  },
+  {
+   "path": "/pricing",
+   "mode": "slow-4s",
+   "verdict": "silent-empty",
+   "early": {
+    "finalUrl": "http://127.0.0.1:4173/pricing",
+    "path": "/pricing",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 2177,
+    "bodyText": "Choose Your Plan Unlock the full power of Hakiya to accelerate your Arabic learning Hakiya is in closed beta — pricing below reflects our upcoming public launch",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": "Get started",
+    "headline": "Choose Your Plan",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/pricing",
+    "path": "/pricing",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 2177,
+    "bodyText": "Choose Your Plan Unlock the full power of Hakiya to accelerate your Arabic learning Hakiya is in closed beta — pricing below reflects our upcoming public launch",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": "Get started",
+    "headline": "Choose Your Plan",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_slow-4s_pricing.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   ],
+   "pageErrors": [],
+   "failures": 1
+  },
+  {
+   "path": "/",
+   "mode": "slow-4s",
+   "verdict": "silent-empty",
+   "early": {
+    "finalUrl": "http://127.0.0.1:4173/",
+    "path": "/",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 1243,
+    "bodyText": "حكاية — a story. Yours starts with one word. Real spoken Arabic, one story at a time. Gulf · Egyptian · Yemeni. Hakiya means حكاية — a story. Dialect-first less",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": "come back",
+    "headline": "Real spoken Arabic,one story at a time.Gulf · Egyptian · Yemeni.",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/",
+    "path": "/",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 1243,
+    "bodyText": "حكاية — a story. Yours starts with one word. Real spoken Arabic, one story at a time. Gulf · Egyptian · Yemeni. Hakiya means حكاية — a story. Dialect-first less",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": "come back",
+    "headline": "Real spoken Arabic,one story at a time.Gulf · Egyptian · Yemeni.",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_slow-4s_root.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   ],
+   "pageErrors": [],
+   "failures": 1
+  },
+  {
+   "path": "/set-phrases",
+   "mode": "slow-4s",
+   "verdict": "looks-normal",
+   "early": {
+    "finalUrl": "http://127.0.0.1:4173/set-phrases",
+    "path": "/set-phrases",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 452,
+    "bodyText": "Set Phrases Practice Gulf situational phrases Greetings, weddings, Eid, condolences and more — voice or choice quizzes with spaced repetition. Mixed practice Re",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": true,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "Set Phrases",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/set-phrases",
+    "path": "/set-phrases",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 706,
+    "bodyText": "Set Phrases Practice Gulf situational phrases Greetings, weddings, Eid, condolences and more — voice or choice quizzes with spaced repetition. Mixed practice Re",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "Set Phrases",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_slow-4s_set-phrases.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   ],
+   "pageErrors": [],
+   "failures": 1
+  },
+  {
+   "path": "/stories",
+   "mode": "slow-4s",
+   "verdict": "looks-normal",
+   "early": {
+    "finalUrl": "http://127.0.0.1:4173/stories",
+    "path": "/stories",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 153,
+    "bodyText": "Interactive Stories Choose your adventure and learn Arabic through immersive scenarios نفتح دفتر الحكايات Opening the book of tales… Loading, please wait",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "Interactive Stories",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/stories",
+    "path": "/stories",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 263,
+    "bodyText": "Interactive Stories Choose your adventure and learn Arabic through immersive scenarios A Day in Oman يوم في عمان A traveler on an Omani beach is invited by loca",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "Interactive Stories",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_slow-4s_stories.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   ],
+   "pageErrors": [],
+   "failures": 1
+  },
+  {
+   "path": "/today",
+   "mode": "slow-4s",
+   "verdict": "silent-empty",
+   "early": {
+    "finalUrl": "http://127.0.0.1:4173/today",
+    "path": "/today",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 1243,
+    "bodyText": "حكاية — a story. Yours starts with one word. Real spoken Arabic, one story at a time. Gulf · Egyptian · Yemeni. Hakiya means حكاية — a story. Dialect-first less",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": "come back",
+    "headline": "Real spoken Arabic,one story at a time.Gulf · Egyptian · Yemeni.",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/today",
+    "path": "/today",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 1243,
+    "bodyText": "حكاية — a story. Yours starts with one word. Real spoken Arabic, one story at a time. Gulf · Egyptian · Yemeni. Hakiya means حكاية — a story. Dialect-first less",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": "come back",
+    "headline": "Real spoken Arabic,one story at a time.Gulf · Egyptian · Yemeni.",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_slow-4s_today.png",
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   ],
+   "pageErrors": [],
+   "failures": 1
+  }
+ ],
+ "media": [
+  {
+   "video": {
+    "id": "f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a",
+    "platform": "tiktok",
+    "source_url": "https://vt.tiktok.com/ZSXmFWLTx/",
+    "thumbnail_url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/public/flashcard-images/tiktok-thumbs/049dbfa9-4a15-4d39-9ab8-f99690394a9e.jpg"
+   },
+   "timing": {
+    "lines": 11,
+    "withLineTiming": 11,
+    "withWordTiming": 0,
+    "monotonic": true
+   },
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/discover/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a",
+    "path": "/discover/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 2764,
+    "bodyText": "Back Kuwaiti Intermediate سيدا، سيدا. إحنا عندنا هنا سيدي جابر. أنا هقول لك سيدا، إيش يا أخي لخبطني Start subtitle sync Reset 0s سيدا، سيدا. إحنا عندنا هنا سيدي",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "سيدا، سيدا. إحنا عندنا هنا سيدي جابر. أنا هقول لك سيدا، إيش",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "media": {
+    "iframes": [
+     {
+      "src": "https://www.tiktok.com/player/v1/7654509704722320660?autoplay=1&muted=1&music_info=0&description=0&rel=0",
+      "w": 420,
+      "h": 512
+     }
+    ],
+    "videos": [],
+    "audios": [],
+    "transcriptLinesRendered": 0,
+    "rtlBlocks": 24,
+    "playControls": []
+   },
+   "playAttempt": null,
+   "tts": {
+    "status": "needs live API test",
+    "control": null
+   },
+   "storageFailures": [
+    {
+     "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.wav",
+     "method": "POST",
+     "status": 400,
+     "layer": "storage",
+     "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.wav",
+     "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    },
+    {
+     "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.wav",
+     "method": "POST",
+     "status": 400,
+     "layer": "storage",
+     "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.wav",
+     "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    },
+    {
+     "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp4",
+     "method": "POST",
+     "status": 400,
+     "layer": "storage",
+     "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp4",
+     "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    },
+    {
+     "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp4",
+     "method": "POST",
+     "status": 400,
+     "layer": "storage",
+     "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp4",
+     "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    },
+    {
+     "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.m4a",
+     "method": "POST",
+     "status": 400,
+     "layer": "storage",
+     "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.m4a",
+     "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    },
+    {
+     "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.webm",
+     "method": "POST",
+     "status": 400,
+     "layer": "storage",
+     "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.webm",
+     "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    },
+    {
+     "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp3",
+     "method": "POST",
+     "status": 400,
+     "layer": "storage",
+     "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp3",
+     "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    },
+    {
+     "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.m4a",
+     "method": "POST",
+     "status": 400,
+     "layer": "storage",
+     "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.m4a",
+     "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    },
+    {
+     "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.webm",
+     "method": "POST",
+     "status": 400,
+     "layer": "storage",
+     "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.webm",
+     "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    },
+    {
+     "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.opus",
+     "method": "POST",
+     "status": 400,
+     "layer": "storage",
+     "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.opus",
+     "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    },
+    {
+     "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp3",
+     "method": "POST",
+     "status": 400,
+     "layer": "storage",
+     "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp3",
+     "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    },
+    {
+     "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.opus",
+     "method": "POST",
+     "status": 400,
+     "layer": "storage",
+     "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.opus",
+     "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    }
+   ],
+   "functionFailures": [],
+   "restFailures": [
+    {
+     "url": "https://ovscskaijvclaxelkdyf.supabase.co/rest/v1/video_likes?select=id&video_id=eq.f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a",
+     "method": "HEAD",
+     "status": null,
+     "layer": "rest",
+     "target": "video_likes",
+     "error": "net::ERR_ABORTED"
+    }
+   ],
+   "externalFailures": [
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+     "method": "GET",
+     "status": null,
+     "layer": "other",
+     "target": "fonts.googleapis.com/css2",
+     "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
+    },
+    {
+     "url": "https://www.tiktok.com/player/v1/7654509704722320660",
+     "method": "GET",
+     "status": null,
+     "layer": "tiktok",
+     "target": "www.tiktok.com",
+     "error": "net::ERR_ABORTED"
+    }
+   ],
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+    "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+   ],
+   "pageErrors": [],
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/media_tiktok.png"
+  },
+  {
+   "video": {
+    "id": "848dfb0c-f828-4c87-8690-a4e4b6de58e1",
+    "platform": "youtube",
+    "source_url": "https://youtube.com/shorts/kTKcSSW6NZw?si=jWpwNiz6jmYIsLs-",
+    "thumbnail_url": "https://img.youtube.com/vi/kTKcSSW6NZw/hqdefault.jpg"
+   },
+   "timing": {
+    "lines": 12,
+    "withLineTiming": 11,
+    "withWordTiming": 0,
+    "monotonic": true
+   },
+   "state": {
+    "finalUrl": "http://127.0.0.1:4173/discover/848dfb0c-f828-4c87-8690-a4e4b6de58e1",
+    "path": "/discover/848dfb0c-f828-4c87-8690-a4e4b6de58e1",
+    "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+    "bodyChars": 1850,
+    "bodyText": "Back Saudi Intermediate Honestly, I told you I wanted a matcha. أنا صراحة قلت لك أبغى ماتشا. آه مو لشيء، بس أهلي كانوا يطلقوا. Ask AI Practice shadowing 1 / 12 ",
+    "notFoundText": false,
+    "is404": false,
+    "spinnerVisible": false,
+    "errorBoundary": false,
+    "errorTextVisible": false,
+    "emptyStateText": null,
+    "headline": "Honestly, I told you I wanted a matcha.",
+    "isBlank": false,
+    "redirectedToAuth": false
+   },
+   "media": {
+    "iframes": [],
+    "videos": [],
+    "audios": [],
+    "transcriptLinesRendered": 0,
+    "rtlBlocks": 25,
+    "playControls": [
+     "Practice shadowing",
+     "Practice shadowing",
+     "Practice shadowing",
+     "Practice shadowing",
+     "Practice shadowing",
+     "Practice shadowing",
+     "Practice shadowing",
+     "Practice shadowing",
+     "Practice shadowing",
+     "Practice shadowing",
+     "Practice shadowing",
+     "Practice shadowing"
+    ]
+   },
+   "playAttempt": null,
+   "tts": {
+    "status": "needs live API test",
+    "control": null
+   },
+   "storageFailures": [
+    {
+     "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.wav",
+     "method": "POST",
+     "status": 400,
+     "layer": "storage",
+     "target": "object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.wav",
+     "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    },
+    {
+     "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.mp4",
+     "method": "POST",
+     "status": 400,
+     "layer": "storage",
+     "target": "object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.mp4",
+     "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    },
+    {
+     "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.m4a",
+     "method": "POST",
+     "status": 400,
+     "layer": "storage",
+     "target": "object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.m4a",
+     "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    },
+    {
+     "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.webm",
+     "method": "POST",
+     "status": 400,
+     "layer": "storage",
+     "target": "object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.webm",
+     "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    },
+    {
+     "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.mp3",
+     "method": "POST",
+     "status": 400,
+     "layer": "storage",
+     "target": "object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.mp3",
+     "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    },
+    {
+     "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.opus",
+     "method": "POST",
+     "status": 400,
+     "layer": "storage",
+     "target": "object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.opus",
+     "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    },
+    {
+     "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/kTKcSSW6NZw.wav",
+     "method": "POST",
+     "status": 400,
+     "layer": "storage",
+     "target": "object/sign/video-audio/kTKcSSW6NZw.wav",
+     "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    },
+    {
+     "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/kTKcSSW6NZw.mp4",
+     "method": "POST",
+     "status": 400,
+     "layer": "storage",
+     "target": "object/sign/video-audio/kTKcSSW6NZw.mp4",
+     "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    },
+    {
+     "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/kTKcSSW6NZw.m4a",
+     "method": "POST",
+     "status": 400,
+     "layer": "storage",
+     "target": "object/sign/video-audio/kTKcSSW6NZw.m4a",
+     "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    },
+    {
+     "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/kTKcSSW6NZw.webm",
+     "method": "POST",
+     "status": 400,
+     "layer": "storage",
+     "target": "object/sign/video-audio/kTKcSSW6NZw.webm",
+     "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    },
+    {
+     "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/kTKcSSW6NZw.mp3",
+     "method": "POST",
+     "status": 400,
+     "layer": "storage",
+     "target": "object/sign/video-audio/kTKcSSW6NZw.mp3",
+     "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    },
+    {
+     "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/kTKcSSW6NZw.opus",
+     "method": "POST",
+     "status": 400,
+     "layer": "storage",
+     "target": "object/sign/video-audio/kTKcSSW6NZw.opus",
+     "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    }
+   ],
+   "functionFailures": [],
+   "restFailures": [
+    {
+     "url": "https://ovscskaijvclaxelkdyf.supabase.co/rest/v1/video_likes?select=id&video_id=eq.848dfb0c-f828-4c87-8690-a4e4b6de58e1",
+     "method": "HEAD",
+     "status": null,
+     "layer": "rest",
+     "target": "video_likes",
+     "error": "net::ERR_ABORTED"
+    }
+   ],
+   "externalFailures": [
+    {
+     "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+     "method": "GET",
+     "status": null,
+     "layer": "other",
+     "target": "fonts.googleapis.com/css2",
+     "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
+    }
+   ],
+   "consoleErrors": [
+    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+    "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "Failed to load resource: the server responded with a status of 400 (Bad Request)",
+    "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+   ],
+   "pageErrors": [],
+   "screenshot": "/home/user/arabic-buddy/qa/output/screens/media_youtube.png"
+  }
+ ]
+}

@@ -26,7 +26,7 @@ const seenKey = (dialect: string, date: string) => `phraseOfDay:seen:${dialect}:
 
 export const PhraseOfTheDay = () => {
   const { activeDialect } = useDialect();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const addPhrase = useAddUserPhrase();
 
   const [phrase, setPhrase] = useState<PhraseData | null>(null);
@@ -133,9 +133,14 @@ export const PhraseOfTheDay = () => {
   };
 
   useEffect(() => {
+    // phrase-of-the-day is generated per learner and answers 401 signed out.
+    // The home renders this card while the session is still resolving, so
+    // without the wait every visit began with a failed call (retried three
+    // times) before the landing page took over.
+    if (authLoading || !isAuthenticated) return;
     fetchPhrase();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeDialect]);
+  }, [activeDialect, authLoading, isAuthenticated]);
 
   const handleSave = async () => {
     if (!isAuthenticated) {
@@ -191,7 +196,12 @@ export const PhraseOfTheDay = () => {
         </Button>
       </div>
 
-      {loading && !phrase ? (
+      {!authLoading && !isAuthenticated ? (
+        <div className="py-6 text-center text-sm text-muted-foreground relative z-10">
+          A new {activeDialect} phrase every day, picked for your level.{" "}
+          <a href="/auth" className="text-primary hover:underline">Sign in</a> to see today's.
+        </div>
+      ) : loading && !phrase ? (
         <div className="py-8 text-center text-sm text-muted-foreground">
           Generating today's phrase…
         </div>

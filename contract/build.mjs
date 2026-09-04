@@ -9,8 +9,9 @@
  *
  * Applies contract/prelude.sql first, which supplies the auth and storage
  * objects the migrations reference but do not create (see that file). Each
- * migration runs in its own transaction, so one failure does not abort the
- * rest — the point is to report every problem in one pass.
+ * migration runs as its own psql invocation (statement-level transactions,
+ * not one per file — see `apply`), so one failure does not abort the rest —
+ * the point is to report every problem in one pass.
  *
  * DESTRUCTIVE: drops and recreates the public, auth and storage schemas before
  * it starts. Point DATABASE_URL at a throwaway database and nothing else. The
@@ -41,6 +42,11 @@ if (!DATABASE_URL) {
 /** Run a .sql file, returning its error output if it failed. */
 function apply(file) {
   try {
+    // Deliberately NOT `-1` (one transaction per file): several historical
+    // migrations add an enum value and use it in the same file, which Postgres
+    // only allows across a commit. Production applied them that way, so the
+    // replay must too; a file that fails therefore keeps its earlier
+    // statements, exactly as production did.
     execFileSync("psql", [DATABASE_URL, "-v", "ON_ERROR_STOP=1", "-q", "-f", file], {
       stdio: ["ignore", "ignore", "pipe"],
     });

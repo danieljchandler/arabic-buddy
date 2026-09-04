@@ -1,0 +1,28 @@
+{
+ "path": "/alphabet",
+ "mode": "network-drop",
+ "verdict": "looks-normal",
+ "early": null,
+ "state": {
+  "finalUrl": "http://127.0.0.1:4173/alphabet",
+  "path": "/alphabet",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 645,
+  "bodyText": "← Skills Alphabet Journey All 28 letters in order. Each one is a short lesson — meet it, hear it, trace it, then play. 0 / 28 mastered ص س Sound pairs Train you",
+  "notFoundText": false,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": false,
+  "errorTextVisible": false,
+  "emptyStateText": null,
+  "headline": "Alphabet Journey",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_network-drop_alphabet.png",
+ "consoleErrors": [
+  "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+ ],
+ "pageErrors": [],
+ "failures": 1
+}

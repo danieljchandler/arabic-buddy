@@ -1,0 +1,43 @@
+{
+ "path": "/leaderboard",
+ "mode": "slow-4s",
+ "verdict": "silent-empty",
+ "early": {
+  "finalUrl": "http://127.0.0.1:4173/leaderboard",
+  "path": "/leaderboard",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 90,
+  "bodyText": "Leaderboard Compete with other learners This Week All Time Sign in to join the leaderboard",
+  "notFoundText": false,
+  "is404": false,
+  "spinnerVisible": true,
+  "errorBoundary": false,
+  "errorTextVisible": false,
+  "emptyStateText": null,
+  "headline": "Leaderboard",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "state": {
+  "finalUrl": "http://127.0.0.1:4173/leaderboard",
+  "path": "/leaderboard",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 161,
+  "bodyText": "Leaderboard Compete with other learners This Week All Time No rankings yet Finish a lesson or a review and you will show up here. Sign in to join the leaderboar",
+  "notFoundText": false,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": false,
+  "errorTextVisible": false,
+  "emptyStateText": "No rankings yet",
+  "headline": "Leaderboard",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_slow-4s_leaderboard.png",
+ "consoleErrors": [
+  "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+ ],
+ "pageErrors": [],
+ "failures": 1
+}

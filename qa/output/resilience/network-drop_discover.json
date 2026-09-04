@@ -1,0 +1,30 @@
+{
+ "path": "/discover",
+ "mode": "network-drop",
+ "verdict": "error-shown",
+ "early": null,
+ "state": {
+  "finalUrl": "http://127.0.0.1:4173/discover",
+  "path": "/discover",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 251,
+  "bodyText": "Discover Watch Arabic videos with synced subtitles and translations Request content — suggest a video, creator, or topic For You Browse Gulf All Couldn't load v",
+  "notFoundText": false,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": true,
+  "errorTextVisible": true,
+  "emptyStateText": null,
+  "headline": "Discover",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_network-drop_discover.png",
+ "consoleErrors": [
+  "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+  "Failed to load resource: net::ERR_FAILED",
+  "Failed to load resource: net::ERR_FAILED"
+ ],
+ "pageErrors": [],
+ "failures": 3
+}

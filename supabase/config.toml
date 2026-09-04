@@ -347,3 +347,9 @@ verify_jwt = false
 # FREQUENCY_DERIVE_SECRET header; there is no human caller, so no JWT.
 [functions.derive-word-frequency]
 verify_jwt = false
+
+# Mints a ten-minute signed URL for a published video's own audio copy in the
+# private video-audio bucket, for a signed-in learner. The bucket policies stay
+# reviewer/admin-only; this is the one door learners have to that audio.
+[functions.discover-video-audio]
+verify_jwt = true

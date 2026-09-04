@@ -1,0 +1,43 @@
+{
+ "path": "/discover",
+ "mode": "slow-4s",
+ "verdict": "looks-normal",
+ "early": {
+  "finalUrl": "http://127.0.0.1:4173/discover",
+  "path": "/discover",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 183,
+  "bodyText": "Discover Watch Arabic videos with synced subtitles and translations Request content — suggest a video, creator, or topic For You Browse Gulf All لحظة… One momen",
+  "notFoundText": false,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": false,
+  "errorTextVisible": false,
+  "emptyStateText": null,
+  "headline": "Discover",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "state": {
+  "finalUrl": "http://127.0.0.1:4173/discover",
+  "path": "/discover",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 3083,
+  "bodyText": "Discover Watch Arabic videos with synced subtitles and translations Request content — suggest a video, creator, or topic For You Browse Gulf All 0:40 إِيْش النَ",
+  "notFoundText": false,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": false,
+  "errorTextVisible": false,
+  "emptyStateText": null,
+  "headline": "Discover",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_slow-4s_discover.png",
+ "consoleErrors": [
+  "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+ ],
+ "pageErrors": [],
+ "failures": 1
+}

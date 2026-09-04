@@ -29,9 +29,10 @@ interface BuildResult {
  * Migrations that do not replay from scratch today.
  *
  * Five try to create something an earlier migration already created; two
- * reference tables that no migration creates at all. Recorded rather than
- * fixed, because fixing the last two means writing migrations for tables whose
- * real shape only production knows — that needs a schema dump, not a guess.
+ * reference tables (processed_videos, review_streaks) that at their point in
+ * the sequence no migration had created. 20260904120000_out_of_band_tables.sql
+ * now creates both, but it sorts after them, so those two still fail on a
+ * fresh replay and their policies are restated in the later file instead.
  *
  * The list is pinned so it cannot grow. Shrinking it is the goal.
  */
@@ -45,8 +46,14 @@ const KNOWN_REPLAY_FAILURES = [
   "20260529155315_a303684f-1e60-4e83-8c60-8f228e46c637.sql",
 ];
 
-/** Tables the app reads that replaying the migrations does not produce. */
-const KNOWN_MISSING_TABLES = ["processed_videos", "review_streaks"];
+/**
+ * Tables the app reads that replaying the migrations does not produce.
+ *
+ * Empty since 20260904120000_out_of_band_tables.sql, which restated the five
+ * dashboard-only tables (and the story-videos bucket) with IF NOT EXISTS.
+ * src/test/tablesInMigrations.test.ts keeps it empty without a database.
+ */
+const KNOWN_MISSING_TABLES: string[] = [];
 
 describe.skipIf(!DATABASE_URL)("migration replay", () => {
   let result: BuildResult;

@@ -1,0 +1,28 @@
+{
+ "path": "/pricing",
+ "mode": "backend-500",
+ "verdict": "silent-empty",
+ "early": null,
+ "state": {
+  "finalUrl": "http://127.0.0.1:4173/pricing",
+  "path": "/pricing",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 2177,
+  "bodyText": "Choose Your Plan Unlock the full power of Hakiya to accelerate your Arabic learning Hakiya is in closed beta — pricing below reflects our upcoming public launch",
+  "notFoundText": false,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": false,
+  "errorTextVisible": false,
+  "emptyStateText": "Get started",
+  "headline": "Choose Your Plan",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_backend-500_pricing.png",
+ "consoleErrors": [
+  "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+ ],
+ "pageErrors": [],
+ "failures": 1
+}

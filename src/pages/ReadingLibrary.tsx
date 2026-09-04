@@ -7,6 +7,7 @@ import { LoadingPanel } from '@/components/loading/LoadingPanel';
 import { useComprehensionMap } from '@/hooks/useComprehensionMap';
 import { ComprehensionBar } from '@/components/shared/ComprehensionBar';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { QueryErrorState } from "@/components/shared/QueryErrorState";
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -50,7 +51,7 @@ const ReadingLibrary = () => {
   const [difficulty, setDifficulty] = useState('all');
   const [dialect, setDialect] = useState('all');
 
-  const { data: stories, isLoading } = usePublishedStories({ difficulty, dialect });
+  const { data: stories, isLoading, isError, error, refetch } = usePublishedStories({ difficulty, dialect });
   // Silent prose: nothing but the words carries meaning, so the reading
   // floors apply — the strictest of the three modes (95% minimal).
   const comprehensionMap = useComprehensionMap(stories, "reading");
@@ -127,7 +128,9 @@ const ReadingLibrary = () => {
         </div>
 
         {/* Stories Grid */}
-        {isLoading ? (
+        {isError ? (
+          <QueryErrorState error={error} onRetry={() => refetch()} title="Couldn't load the library" />
+        ) : isLoading ? (
           <LoadingPanel variant="inline" task="story" className="py-16" />
         ) : shelfStories && shelfStories.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

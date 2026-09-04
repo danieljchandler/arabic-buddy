@@ -1,0 +1,43 @@
+{
+ "path": "/set-phrases",
+ "mode": "slow-4s",
+ "verdict": "looks-normal",
+ "early": {
+  "finalUrl": "http://127.0.0.1:4173/set-phrases",
+  "path": "/set-phrases",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 452,
+  "bodyText": "Set Phrases Practice Gulf situational phrases Greetings, weddings, Eid, condolences and more — voice or choice quizzes with spaced repetition. Mixed practice Re",
+  "notFoundText": false,
+  "is404": false,
+  "spinnerVisible": true,
+  "errorBoundary": false,
+  "errorTextVisible": false,
+  "emptyStateText": null,
+  "headline": "Set Phrases",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "state": {
+  "finalUrl": "http://127.0.0.1:4173/set-phrases",
+  "path": "/set-phrases",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 706,
+  "bodyText": "Set Phrases Practice Gulf situational phrases Greetings, weddings, Eid, condolences and more — voice or choice quizzes with spaced repetition. Mixed practice Re",
+  "notFoundText": false,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": false,
+  "errorTextVisible": false,
+  "emptyStateText": null,
+  "headline": "Set Phrases",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_slow-4s_set-phrases.png",
+ "consoleErrors": [
+  "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+ ],
+ "pageErrors": [],
+ "failures": 1
+}

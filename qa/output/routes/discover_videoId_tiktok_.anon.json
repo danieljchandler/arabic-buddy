@@ -1,0 +1,451 @@
+{
+ "route": "/discover/:videoId",
+ "label": "/discover/:videoId (tiktok)",
+ "gate": "public",
+ "url": "/discover/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a",
+ "authed": false,
+ "loadMs": 2268,
+ "state": {
+  "finalUrl": "http://127.0.0.1:4173/discover/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a",
+  "path": "/discover/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 2810,
+  "bodyText": "Back Kuwaiti Intermediate Sign in to hear the audio and use slow listen سيدا، سيدا. إحنا عندنا هنا سيدي جابر. أنا هقول لك سيدا، إيش يا أخي لخبطني Start subtitle",
+  "notFoundText": false,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": false,
+  "errorTextVisible": false,
+  "emptyStateText": null,
+  "headline": "سيدا، سيدا. إحنا عندنا هنا سيدي جابر. أنا هقول لك سيدا، إيش",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "infiniteLoader": false,
+ "expectedRedirect": null,
+ "screenshot": "/home/user/arabic-buddy/qa/output/screens/discover_videoId_tiktok_.anon.png",
+ "inventory": {
+  "buttons": 150,
+  "links": 0,
+  "inputs": 0,
+  "tabs": 0,
+  "forms": 0,
+  "media": 1
+ },
+ "links": [],
+ "load": {
+  "failures": [
+   {
+    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+    "method": "GET",
+    "status": null,
+    "layer": "other",
+    "target": "fonts.googleapis.com/css2",
+    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   },
+   {
+    "url": "https://www.tiktok.com/player/v1/7654509704722320660",
+    "method": "GET",
+    "status": null,
+    "layer": "tiktok",
+    "target": "www.tiktok.com",
+    "error": "net::ERR_ABORTED"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/rest/v1/video_likes?select=id&video_id=eq.f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a",
+    "method": "HEAD",
+    "status": null,
+    "layer": "rest",
+    "target": "video_likes",
+    "error": "net::ERR_ABORTED"
+   }
+  ],
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+  ],
+  "pageErrors": [],
+  "supabaseRequests": 2
+ },
+ "interaction": {
+  "controls": [
+   {
+    "index": 0,
+    "label": "Back",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 12,
+    "requests": 40,
+    "newFailures": 1,
+    "outcome": "navigated",
+    "navigatedTo": "/discover"
+   },
+   {
+    "index": 1,
+    "label": "Like this video",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 7,
+    "requests": 0,
+    "newFailures": 0,
+    "outcome": "dom-changed"
+   },
+   {
+    "index": 2,
+    "label": "Start subtitle sync",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 5,
+    "requests": 0,
+    "newFailures": 0,
+    "outcome": "dom-changed"
+   },
+   {
+    "index": 3,
+    "label": "Reset",
+    "kind": "button",
+    "action": "skipped-unsafe"
+   },
+   {
+    "index": 4,
+    "label": "سيدا،",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 13,
+    "requests": 0,
+    "newFailures": 0,
+    "outcome": "dialog"
+   },
+   {
+    "index": 5,
+    "label": "سيدا.",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 13,
+    "requests": 0,
+    "newFailures": 0,
+    "outcome": "dialog"
+   },
+   {
+    "index": 6,
+    "label": "إحنا",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 16,
+    "requests": 0,
+    "newFailures": 0,
+    "outcome": "dialog"
+   },
+   {
+    "index": 7,
+    "label": "عندنا",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 13,
+    "requests": 0,
+    "newFailures": 0,
+    "outcome": "dialog"
+   },
+   {
+    "index": 8,
+    "label": "هنا",
+    "kind": "span[button]",
+    "action": "clicked",
+    "mutations": 49,
+    "requests": 0,
+    "newFailures": 0,
+    "outcome": "dom-changed"
+   },
+   {
+    "index": 9,
+    "label": "سيدي",
+    "kind": "span[button]",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 8000ms exceeded."
+   },
+   {
+    "index": 10,
+    "label": "جابر.",
+    "kind": "span[button]",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 8000ms exceeded."
+   },
+   {
+    "index": 11,
+    "label": "أنا",
+    "kind": "span[button]",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 8000ms exceeded."
+   },
+   {
+    "index": 12,
+    "label": "هقول",
+    "kind": "span[button]",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 8000ms exceeded."
+   },
+   {
+    "index": 13,
+    "label": "لك",
+    "kind": "span[button]",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 8000ms exceeded."
+   },
+   {
+    "index": 14,
+    "label": "سيدا،",
+    "kind": "span[button]",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 8000ms exceeded."
+   },
+   {
+    "index": 15,
+    "label": "إيش",
+    "kind": "span[button]",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 8000ms exceeded."
+   },
+   {
+    "index": 16,
+    "label": "دخل",
+    "kind": "span[button]",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 8000ms exceeded."
+   },
+   {
+    "index": 17,
+    "label": "سيدي",
+    "kind": "span[button]",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 8000ms exceeded."
+   },
+   {
+    "index": 18,
+    "label": "جابر",
+    "kind": "span[button]",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 8000ms exceeded."
+   },
+   {
+    "index": 19,
+    "label": "يا",
+    "kind": "span[button]",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 8000ms exceeded."
+   },
+   {
+    "index": 20,
+    "label": "أخي؟",
+    "kind": "span[button]",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 8000ms exceeded."
+   },
+   {
+    "index": 21,
+    "label": "Ask AI",
+    "kind": "button",
+    "action": "needs-live-api-test"
+   },
+   {
+    "index": 22,
+    "label": "Next line",
+    "kind": "button",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 8000ms exceeded."
+   },
+   {
+    "index": 23,
+    "label": "Hide Transcript (11)",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 2,
+    "requests": 0,
+    "newFailures": 0,
+    "outcome": "dom-changed"
+   },
+   {
+    "index": 24,
+    "label": "Continuous",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 9,
+    "requests": 0,
+    "newFailures": 0,
+    "outcome": "dom-changed"
+   },
+   {
+    "index": 25,
+    "label": "(unlabeled)",
+    "kind": "button[switch]",
+    "action": "clicked",
+    "mutations": 6,
+    "requests": 0,
+    "newFailures": 0,
+    "outcome": "dom-changed"
+   },
+   {
+    "index": 26,
+    "label": "(unlabeled)",
+    "kind": "button[switch]",
+    "action": "clicked",
+    "mutations": 4,
+    "requests": 0,
+    "newFailures": 0,
+    "outcome": "dom-changed"
+   },
+   {
+    "index": 27,
+    "label": "Show Fusha (MSA) line",
+    "kind": "button[switch]",
+    "action": "clicked",
+    "mutations": 3,
+    "requests": 0,
+    "newFailures": 0,
+    "outcome": "dom-changed"
+   },
+   {
+    "index": 28,
+    "label": "سيدا، سيدا. إحنا عندنا هنا سيدي جابر. أنا هقول لك سيدا، إيش ",
+    "kind": "div[button]",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 8000ms exceeded."
+   },
+   {
+    "index": 29,
+    "label": "سيدا،",
+    "kind": "span[button]",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 8000ms exceeded."
+   },
+   {
+    "index": 30,
+    "label": "سيدا.",
+    "kind": "span[button]",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 8000ms exceeded."
+   },
+   {
+    "index": 31,
+    "label": "إحنا",
+    "kind": "span[button]",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 8000ms exceeded."
+   },
+   {
+    "index": 32,
+    "label": "عندنا",
+    "kind": "span[button]",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 8000ms exceeded."
+   },
+   {
+    "index": 33,
+    "label": "هنا",
+    "kind": "span[button]",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 8000ms exceeded."
+   },
+   {
+    "index": 34,
+    "label": "سيدي",
+    "kind": "span[button]",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 8000ms exceeded."
+   },
+   {
+    "index": 35,
+    "label": "جابر.",
+    "kind": "span[button]",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 8000ms exceeded."
+   },
+   {
+    "index": 36,
+    "label": "أنا",
+    "kind": "span[button]",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 8000ms exceeded."
+   },
+   {
+    "index": 37,
+    "label": "هقول",
+    "kind": "span[button]",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 8000ms exceeded."
+   },
+   {
+    "index": 38,
+    "label": "لك",
+    "kind": "span[button]",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 8000ms exceeded."
+   },
+   {
+    "index": 39,
+    "label": "سيدا،",
+    "kind": "span[button]",
+    "action": "click-failed",
+    "error": "locator.click: Timeout 8000ms exceeded."
+   },
+   {
+    "index": -1,
+    "label": "(112 more controls not exercised)",
+    "kind": "note",
+    "action": "skipped-unsafe"
+   }
+  ],
+  "failures": [
+   {
+    "url": "https://www.tiktok.com/player/v1/7654509704722320660?autoplay=1&muted=1&music_info=0&description=0&rel=0",
+    "method": "GET",
+    "status": null,
+    "layer": "tiktok",
+    "target": "www.tiktok.com",
+    "error": "net::ERR_ABORTED"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/rest/v1/discover_videos?select=*&published=eq.true&order=created_at.desc&dialect=in.%28Gulf%2CSaudi%2CKuwaiti%2CUAE%2CBahraini%2CQatari%2COmani%29",
+    "method": "GET",
+    "status": null,
+    "layer": "rest",
+    "target": "discover_videos",
+    "error": "net::ERR_ABORTED"
+   },
+   {
+    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+    "method": "GET",
+    "status": null,
+    "layer": "other",
+    "target": "fonts.googleapis.com/css2",
+    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   },
+   {
+    "url": "https://www.tiktok.com/player/v1/7654509704722320660",
+    "method": "GET",
+    "status": null,
+    "layer": "tiktok",
+    "target": "www.tiktok.com",
+    "error": "net::ERR_ABORTED"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/rest/v1/video_likes?select=id&video_id=eq.f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a",
+    "method": "HEAD",
+    "status": null,
+    "layer": "rest",
+    "target": "video_likes",
+    "error": "net::ERR_ABORTED"
+   },
+   {
+    "url": "https://www.tiktok.com/player/v1/7654509704722320660?autoplay=1&muted=1&music_info=0&description=0&rel=0",
+    "method": "GET",
+    "status": null,
+    "layer": "tiktok",
+    "target": "www.tiktok.com",
+    "error": "net::ERR_CONNECTION_RESET"
+   }
+  ],
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+  ],
+  "pageErrors": []
+ }
+}

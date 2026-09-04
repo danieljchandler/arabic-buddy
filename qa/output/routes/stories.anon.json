@@ -1,0 +1,112 @@
+{
+ "route": "/stories",
+ "label": "/stories",
+ "gate": "public",
+ "url": "/stories",
+ "authed": false,
+ "loadMs": 1659,
+ "state": {
+  "finalUrl": "http://127.0.0.1:4173/stories",
+  "path": "/stories",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 263,
+  "bodyText": "Interactive Stories Choose your adventure and learn Arabic through immersive scenarios A Day in Oman يوم في عمان A traveler on an Omani beach is invited by loca",
+  "notFoundText": false,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": false,
+  "errorTextVisible": false,
+  "emptyStateText": null,
+  "headline": "Interactive Stories",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "infiniteLoader": false,
+ "expectedRedirect": null,
+ "screenshot": "/home/user/arabic-buddy/qa/output/screens/stories.anon.png",
+ "inventory": {
+  "buttons": 3,
+  "links": 0,
+  "inputs": 0,
+  "tabs": 0,
+  "forms": 0,
+  "media": 0
+ },
+ "links": [],
+ "load": {
+  "failures": [
+   {
+    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+    "method": "GET",
+    "status": null,
+    "layer": "other",
+    "target": "fonts.googleapis.com/css2",
+    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   }
+  ],
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+  ],
+  "pageErrors": [],
+  "supabaseRequests": 1
+ },
+ "interaction": {
+  "controls": [
+   {
+    "index": 0,
+    "label": "Go home",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 15,
+    "requests": 67,
+    "newFailures": 0,
+    "outcome": "navigated",
+    "navigatedTo": "/"
+   },
+   {
+    "index": 1,
+    "label": "Learn about Interactive Stories",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 14,
+    "requests": 0,
+    "newFailures": 0,
+    "outcome": "dialog"
+   },
+   {
+    "index": 2,
+    "label": "A Day in Omanيوم في عمانA traveler on an Omani beach is invi",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 7,
+    "requests": 13,
+    "newFailures": 0,
+    "outcome": "navigated",
+    "navigatedTo": "/stories/0972f6c9-f1b3-4fd1-92ab-b9eeec0457a9"
+   }
+  ],
+  "failures": [
+   {
+    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+    "method": "GET",
+    "status": null,
+    "layer": "other",
+    "target": "fonts.googleapis.com/css2",
+    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   },
+   {
+    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+    "method": "GET",
+    "status": null,
+    "layer": "other",
+    "target": "fonts.googleapis.com/css2",
+    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   }
+  ],
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+  ],
+  "pageErrors": []
+ }
+}

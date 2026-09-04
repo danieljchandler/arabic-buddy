@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState, useRef } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -30,6 +31,7 @@ const SetPhrasesPractice = ({ reviewMode = false }: Props) => {
   const [params] = useSearchParams();
   const occasionId = params.get("occasion") ?? undefined;
 
+  const { user, loading: authLoading } = useAuth();
   const generate = useGenerateQuiz();
   const scoreVoice = useScoreVoice();
   const chunkCoach = useChunkCoach();
@@ -67,6 +69,10 @@ const SetPhrasesPractice = ({ reviewMode = false }: Props) => {
   );
 
   useEffect(() => {
+    // The quiz is generated per learner (it reads their deck), so the function
+    // answers 401 to a signed-out visitor; asking anyway just logged a retry
+    // storm and ended in "No phrases ready yet". Say what is needed instead.
+    if (authLoading || !user) return;
     generate.mutate({ occasionId, length: 8 }, {
       onSuccess: (data) => {
         if (!data.length) toast.error("No phrases available — ask an admin to seed some.");
@@ -77,7 +83,7 @@ const SetPhrasesPractice = ({ reviewMode = false }: Props) => {
       },
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [occasionId]);
+  }, [occasionId, authLoading, user?.id]);
 
   const current = items[idx];
 
@@ -232,7 +238,22 @@ const SetPhrasesPractice = ({ reviewMode = false }: Props) => {
     }
   };
 
-  if (generate.isPending) {
+  if (!authLoading && !user) {
+    return (
+      <AppShell compact>
+        <Card className="p-6 text-center space-y-3">
+          <p className="text-sm font-medium">Sign in to practise set phrases</p>
+          <p className="text-sm text-muted-foreground">
+            The quiz is built from your own phrase deck, so it needs to know who you are.
+          </p>
+          <Button asChild>
+            <Link to="/auth" state={{ from: { pathname: "/set-phrases/practice" } }}>Sign in</Link>
+          </Button>
+        </Card>
+      </AppShell>
+    );
+  }
+  if (generate.isPending || (authLoading && !current)) {
     return (
       <AppShell compact>
         <div className="flex justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-primary" /></div>

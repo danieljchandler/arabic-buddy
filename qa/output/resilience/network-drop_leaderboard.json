@@ -1,0 +1,32 @@
+{
+ "path": "/leaderboard",
+ "mode": "network-drop",
+ "verdict": "error-shown",
+ "early": null,
+ "state": {
+  "finalUrl": "http://127.0.0.1:4173/leaderboard",
+  "path": "/leaderboard",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 206,
+  "bodyText": "Leaderboard Compete with other learners This Week All Time Couldn't load the leaderboard We couldn't reach the server. Check your internet connection and try ag",
+  "notFoundText": false,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": true,
+  "errorTextVisible": true,
+  "emptyStateText": null,
+  "headline": "Leaderboard",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_network-drop_leaderboard.png",
+ "consoleErrors": [
+  "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+  "Failed to load resource: net::ERR_FAILED",
+  "Failed to load resource: net::ERR_FAILED",
+  "Failed to load resource: net::ERR_FAILED",
+  "Failed to load resource: net::ERR_FAILED"
+ ],
+ "pageErrors": [],
+ "failures": 5
+}

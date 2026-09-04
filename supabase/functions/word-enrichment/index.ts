@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { askBrain, BrainHttpError } from "../_shared/aiBrain.ts";
-import { enforceDailyCap } from "../_shared/usageCap.ts";
+import { enforceAnonymousDailyCap, enforceDailyCap, resolveUserId } from "../_shared/usageCap.ts";
 import { getDialectTransliterationRules, type Dialect } from "../_shared/dialectHelpers.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
@@ -19,8 +19,13 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Free-tier daily cap (anonymous → 401, paid/admin unlimited).
-  const cap = await enforceDailyCap(req, 'word-enrichment', 60, corsHeaders);
+  // Free-tier daily cap (paid/admin unlimited). Reading and looking words up
+  // are open to anyone (TappableArabicText.test.tsx pins it), so a signed-out
+  // visitor gets a small per-IP allowance instead of the 401 that used to make
+  // every tap on a public page a silent failure.
+  const cap = (await resolveUserId(req))
+    ? await enforceDailyCap(req, 'word-enrichment', 60, corsHeaders)
+    : await enforceAnonymousDailyCap(req, 'word-enrichment', 10, corsHeaders);
   if (cap.limited) return cap.response;
 
   try {

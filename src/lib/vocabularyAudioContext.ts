@@ -7,7 +7,6 @@
 
 import { supabase } from "@/integrations/supabase/client";
 import { clipToWav, decodeAudioFile } from "./audioClipper";
-import { resolveStagedVideoAudioUrl } from "./videoAudioStaging";
 
 export interface AudioContext {
   sentenceAudioUrl?: string;
@@ -183,9 +182,16 @@ export async function synthesizeAndUploadTTS(
 
 /**
  * Resolve a fetchable audio URL for a Discover video.
- * Tries the private `video-audio` bucket first (signed URL), then falls
- * back to the public `audio` bucket via the `audio_files` lookup table.
- * Returns null if no audio is available yet (e.g. transcription still pending).
+ *
+ * The audio copy lives in the private `video-audio` bucket, whose SELECT
+ * policies admit reviewers and admins only, so a learner cannot sign a URL
+ * for it from the browser — every attempt used to cost twelve failing
+ * storage calls (six extensions × two keys) and end in silent timer mode.
+ * A signed-in caller now asks `discover-video-audio` once; it signs under
+ * the service role for a published video and says `no_audio` when nothing is
+ * staged. A signed-out visitor makes no request at all: the function would
+ * only answer 401. The legacy public `audio` bucket (`audio_files`) remains
+ * the last resort for old YouTube-keyed clips.
  */
 export async function resolveDiscoverVideoAudioUrl(video: {
   id?: string;
@@ -193,14 +199,20 @@ export async function resolveDiscoverVideoAudioUrl(video: {
   embed_url?: string;
 }): Promise<string | null> {
   try {
-    // Strategy 1: private `video-audio` bucket keyed by discover_videos.id
-    // (this is the path used by the admin uploader)
-    if (video.id) {
-      const staged = await resolveStagedVideoAudioUrl(video.id);
-      if (staged) return staged;
+    const { data: sessionData } = await supabase.auth.getSession();
+    const signedIn = Boolean(sessionData?.session);
+
+    if (video.id && signedIn) {
+      const { data, error } = await supabase.functions.invoke<{ url?: string | null; reason?: string }>(
+        "discover-video-audio",
+        { body: { videoId: video.id } },
+      );
+      if (!error && data?.url) return data.url;
+      // `no_audio` (nothing staged) and any failure both fall through to the
+      // legacy lookups, which cost one REST read at most.
     }
 
-    // Strategy 2: legacy YouTube id-based files in `video-audio`
+    // Legacy YouTube id-based files: the public `audio` bucket via `audio_files`.
     const url = video.source_url || video.embed_url || "";
     const ytMatch = url.match(
       /(?:youtube\.com\/(?:shorts\/|watch\?v=|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/
@@ -208,10 +220,6 @@ export async function resolveDiscoverVideoAudioUrl(video: {
     const videoId = ytMatch?.[1];
 
     if (videoId) {
-      const staged = await resolveStagedVideoAudioUrl(videoId);
-      if (staged) return staged;
-
-      // Strategy 3: public `audio` bucket via `audio_files` lookup
       const { data: audioRecord } = await supabase
         .from("audio_files")
         .select("storage_path")

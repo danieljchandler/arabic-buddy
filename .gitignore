@@ -52,3 +52,8 @@ deno.lock
 # Local training-data export snapshots (scripts/export-training-data.mjs)
 training-exports/
 scripts/art/
+
+# Live QA harness artefacts (qa/) — keep reports and JSON, drop bulky screenshots and traces
+qa/output/screens/
+qa/output/test-results/
+qa/output/playwright-report.json

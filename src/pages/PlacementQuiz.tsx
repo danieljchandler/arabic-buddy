@@ -370,7 +370,13 @@ export default function PlacementQuiz() {
               <Button onClick={startQuiz} disabled={loading} className="w-full h-12 text-base">
                 {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : "Start Quiz"}
               </Button>
-              <Button variant="ghost" onClick={() => navigate(-1)} className="text-muted-foreground">
+              <Button
+                variant="ghost"
+                // The landing page links here directly, so for a new visitor
+                // this is the first entry in the tab and -1 is about:blank.
+                onClick={() => (window.history.length > 1 ? navigate(-1) : navigate("/"))}
+                className="text-muted-foreground"
+              >
                 Go Back
               </Button>
             </div>

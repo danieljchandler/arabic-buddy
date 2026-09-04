@@ -1,0 +1,32 @@
+{
+ "path": "/leaderboard",
+ "mode": "backend-500",
+ "verdict": "error-shown",
+ "early": null,
+ "state": {
+  "finalUrl": "http://127.0.0.1:4173/leaderboard",
+  "path": "/leaderboard",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 211,
+  "bodyText": "Leaderboard Compete with other learners This Week All Time Couldn't load the leaderboard The server had a problem answering. It is usually brief — try again in ",
+  "notFoundText": false,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": false,
+  "errorTextVisible": true,
+  "emptyStateText": null,
+  "headline": "Leaderboard",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_backend-500_leaderboard.png",
+ "consoleErrors": [
+  "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+  "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+  "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+  "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+  "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+ ],
+ "pageErrors": [],
+ "failures": 5
+}

@@ -1,7 +1,9 @@
 import { useEffect, lazy, Suspense, type ComponentType } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { shouldRetryQuery } from "@/lib/queryErrors";
+import { notifyQueryFailure } from "@/lib/queryFailureToast";
 import { BrowserRouter, Navigate, Route, useParams } from "react-router-dom";
 import { TransitionRoutes } from "@/components/shell/TransitionRoutes";
 import { toast } from "sonner";
@@ -145,12 +147,17 @@ const ReadingLibrary = lazyPage(() => import("./pages/ReadingLibrary"));
 const ReadingLibraryStory = lazyPage(() => import("./pages/ReadingLibraryStory"));
 
 const queryClient = new QueryClient({
+  // One rate-limited toast per outage so pages that still fold a failed fetch
+  // into an empty state at least say something; see lib/queryFailureToast.
+  queryCache: new QueryCache({ onError: (error) => notifyQueryFailure(error) }),
   defaultOptions: {
     queries: {
       staleTime: 30_000, // 30s — avoid redundant refetches on navigation
       gcTime: 5 * 60_000, // 5 min garbage collection
       refetchOnWindowFocus: false,
-      retry: 1,
+      // One more try for a network or 5xx failure; never for a 4xx, whose
+      // answer will not change (a 401 used to be re-asked on every public page).
+      retry: shouldRetryQuery,
     },
   },
 });

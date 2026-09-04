@@ -1,0 +1,125 @@
+{
+ "route": "/today",
+ "label": "/today",
+ "gate": "public",
+ "url": "/today",
+ "authed": false,
+ "loadMs": 3460,
+ "state": {
+  "finalUrl": "http://127.0.0.1:4173/today",
+  "path": "/today",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 1243,
+  "bodyText": "حكاية — a story. Yours starts with one word. Real spoken Arabic, one story at a time. Gulf · Egyptian · Yemeni. Hakiya means حكاية — a story. Dialect-first less",
+  "notFoundText": false,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": false,
+  "errorTextVisible": false,
+  "emptyStateText": "come back",
+  "headline": "Real spoken Arabic,one story at a time.Gulf · Egyptian · Yemeni.",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "infiniteLoader": false,
+ "expectedRedirect": null,
+ "screenshot": "/home/user/arabic-buddy/qa/output/screens/today.anon.png",
+ "inventory": {
+  "buttons": 3,
+  "links": 3,
+  "inputs": 0,
+  "tabs": 0,
+  "forms": 0,
+  "media": 1
+ },
+ "links": [
+  "/terms",
+  "/privacy"
+ ],
+ "load": {
+  "failures": [
+   {
+    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+    "method": "GET",
+    "status": null,
+    "layer": "other",
+    "target": "fonts.googleapis.com/css2",
+    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   }
+  ],
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+  ],
+  "pageErrors": [],
+  "supabaseRequests": 1
+ },
+ "interaction": {
+  "controls": [
+   {
+    "index": 0,
+    "label": "Join the beta — it’s free",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 14,
+    "requests": 9,
+    "newFailures": 0,
+    "outcome": "navigated",
+    "navigatedTo": "/auth"
+   },
+   {
+    "index": 1,
+    "label": "Try the placement quiz",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 11,
+    "requests": 8,
+    "newFailures": 0,
+    "outcome": "navigated",
+    "navigatedTo": "/placement"
+   },
+   {
+    "index": 2,
+    "label": "Join the beta — it’s free",
+    "kind": "button",
+    "action": "clicked",
+    "mutations": 14,
+    "requests": 9,
+    "newFailures": 0,
+    "outcome": "navigated",
+    "navigatedTo": "/auth"
+   }
+  ],
+  "failures": [
+   {
+    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+    "method": "GET",
+    "status": null,
+    "layer": "other",
+    "target": "fonts.googleapis.com/css2",
+    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   },
+   {
+    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+    "method": "GET",
+    "status": null,
+    "layer": "other",
+    "target": "fonts.googleapis.com/css2",
+    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   },
+   {
+    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+    "method": "GET",
+    "status": null,
+    "layer": "other",
+    "target": "fonts.googleapis.com/css2",
+    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   }
+  ],
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+  ],
+  "pageErrors": []
+ }
+}

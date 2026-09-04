@@ -464,6 +464,8 @@ const LikeButton = ({ videoId, isAuthenticated }: { videoId: string; isAuthentic
   return (
     <button
       onClick={handleToggle}
+      aria-label={isLiked ? "Unlike this video" : "Like this video"}
+      aria-pressed={isLiked}
       disabled={isPending}
       className={cn(
         "flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all shrink-0",
@@ -1863,6 +1865,16 @@ const DiscoverVideo = ({
                     <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center px-3">
                       <span className="rounded-full bg-black/75 px-3 py-1 text-xs font-medium text-white shadow-elegant">
                         Tap the video to start it
+                      </span>
+                    </div>
+                  )}
+                  {/* The embed is muted by design; the sound is our own audio
+                      copy, which only a signed-in learner can fetch. Say so
+                      rather than playing a silent clip with no explanation. */}
+                  {!isAuthenticated && !tiktokAudioReady && (
+                    <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center px-3">
+                      <span className="rounded-full bg-black/75 px-3 py-1 text-xs font-medium text-white shadow-elegant">
+                        Sign in to hear the audio and use slow listen
                       </span>
                     </div>
                   )}

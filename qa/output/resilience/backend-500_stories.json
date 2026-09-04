@@ -1,0 +1,30 @@
+{
+ "path": "/stories",
+ "mode": "backend-500",
+ "verdict": "error-shown",
+ "early": null,
+ "state": {
+  "finalUrl": "http://127.0.0.1:4173/stories",
+  "path": "/stories",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 199,
+  "bodyText": "Interactive Stories Choose your adventure and learn Arabic through immersive scenarios Couldn't load stories The server had a problem answering. It is usually b",
+  "notFoundText": false,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": false,
+  "errorTextVisible": true,
+  "emptyStateText": null,
+  "headline": "Interactive Stories",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_backend-500_stories.png",
+ "consoleErrors": [
+  "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+  "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+  "Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+ ],
+ "pageErrors": [],
+ "failures": 3
+}

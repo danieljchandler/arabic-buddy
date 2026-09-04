@@ -10,6 +10,8 @@ import { SKILLS, VERBS, PATHS } from "@/lib/surfaces";
 import { useSwipeSurfaces } from "@/hooks/useSwipeSurfaces";
 import { useAlphabetProgress } from "@/hooks/useAlphabetProgress";
 import { useSRSStats } from "@/hooks/useSRSStats";
+import { useAllLessons } from "@/hooks/useLessons";
+import { useDialect } from "@/contexts/DialectContext";
 import { ARABIC_LETTERS } from "@/data/arabicAlphabet";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +43,12 @@ const Choose = () => {
   // it again.
   const swipe = useSwipeSurfaces({ onPrev: () => navigate("/") });
   const { masteredCount } = useAlphabetProgress();
+  // The door stays open even before any lesson exists for this dialect — the
+  // page behind it says so and points at the alphabet — but the tile should
+  // not promise "lessons in order" that a fresh project does not yet have.
+  const { activeDialect } = useDialect();
+  const { data: lessons, isSuccess: lessonsLoaded } = useAllLessons();
+  const noLessonsYet = lessonsLoaded && (lessons?.length ?? 0) === 0;
   const { data: srs } = useSRSStats();
   const due = srs?.totalDueNow ?? 0;
 
@@ -222,7 +230,9 @@ const Choose = () => {
           <span className="flex-1">
             <span className="block text-sm font-medium">Curriculum</span>
             <span className="block text-[11px] text-muted-foreground">
-              Lessons in order, stage by stage, progress saved
+              {noLessonsYet
+                ? `Lessons for ${activeDialect} are on the way — start with the Alphabet Journey`
+                : "Lessons in order, stage by stage, progress saved"}
             </span>
           </span>
           <ChevronRight className="h-4 w-4 text-muted-foreground" />

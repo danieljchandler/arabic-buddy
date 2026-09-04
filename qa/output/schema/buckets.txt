@@ -1,0 +1,11 @@
+audio|t
+avatars|t
+feedback-screenshots|f
+flashcard-audio|t
+flashcard-images|t
+learner-audio|f
+listen-audio|t
+meme-uploads|t
+training-exports|f
+tutor-audio-clips|t
+video-audio|f

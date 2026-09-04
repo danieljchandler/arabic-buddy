@@ -1,4 +1,5 @@
 import { useNavigate } from "react-router-dom";
+import { QueryErrorState } from "@/components/shared/QueryErrorState";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageCorner } from "@/components/shell/PageCorner";
 import { useSetPhraseOccasions, useUserSetPhrasesDueCount } from "@/hooks/useSetPhrases";
@@ -12,7 +13,7 @@ import { RequestSituationCard } from "@/components/set-phrases/RequestSituationC
 
 const SetPhrases = () => {
   const navigate = useNavigate();
-  const { data: occasions, isLoading } = useSetPhraseOccasions();
+  const { data: occasions, isLoading, isError, error, refetch } = useSetPhraseOccasions();
   const { data: dueCount = 0 } = useUserSetPhrasesDueCount();
   const { activeDialect } = useDialect();
 
@@ -54,7 +55,9 @@ const SetPhrases = () => {
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1 mb-2">
             By occasion
           </p>
-          {isLoading ? (
+          {isError ? (
+            <QueryErrorState error={error} onRetry={() => refetch()} title="Couldn't load occasions" size="inline" />
+          ) : isLoading ? (
             <div className="flex justify-center p-8">
               <Loader2 className="h-6 w-6 animate-spin text-primary" />
             </div>

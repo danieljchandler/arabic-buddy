@@ -1,0 +1,43 @@
+{
+ "path": "/stories",
+ "mode": "slow-4s",
+ "verdict": "looks-normal",
+ "early": {
+  "finalUrl": "http://127.0.0.1:4173/stories",
+  "path": "/stories",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 153,
+  "bodyText": "Interactive Stories Choose your adventure and learn Arabic through immersive scenarios نفتح دفتر الحكايات Opening the book of tales… Loading, please wait",
+  "notFoundText": false,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": false,
+  "errorTextVisible": false,
+  "emptyStateText": null,
+  "headline": "Interactive Stories",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "state": {
+  "finalUrl": "http://127.0.0.1:4173/stories",
+  "path": "/stories",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 263,
+  "bodyText": "Interactive Stories Choose your adventure and learn Arabic through immersive scenarios A Day in Oman يوم في عمان A traveler on an Omani beach is invited by loca",
+  "notFoundText": false,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": false,
+  "errorTextVisible": false,
+  "emptyStateText": null,
+  "headline": "Interactive Stories",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_slow-4s_stories.png",
+ "consoleErrors": [
+  "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+ ],
+ "pageErrors": [],
+ "failures": 1
+}

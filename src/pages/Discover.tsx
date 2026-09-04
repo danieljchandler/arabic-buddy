@@ -24,6 +24,7 @@ import { type Comprehension } from "@/lib/comprehension";
 import { ComprehensionBar } from "@/components/shared/ComprehensionBar";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { QueryErrorState } from "@/components/shared/QueryErrorState";
 import {
   Select,
   SelectContent,
@@ -151,7 +152,7 @@ const Discover = () => {
   }, [hasDialectPlacement, levelDifficulty]);
 
 
-  const { data: browseVideos, isLoading: isBrowseLoading } = useDiscoverVideos({
+  const { data: browseVideos, isLoading: isBrowseLoading, isError: isBrowseError, error: browseError, refetch: refetchBrowse } = useDiscoverVideos({
     dialect: dialect === "All" ? undefined : dialect,
     difficulty: difficulty === "All" ? undefined : difficulty,
     search: search || undefined,
@@ -175,7 +176,7 @@ const Discover = () => {
     });
   }, [browseVideos, justRightOnly, comprehensionMap]);
 
-  const { data: feed, isLoading: isFeedLoading, isFetching: isFeedFetching } = useDiscoverFeed(seed);
+  const { data: feed, isLoading: isFeedLoading, isFetching: isFeedFetching, isError: isFeedError, error: feedError, refetch: refetchFeed } = useDiscoverFeed(seed);
 
   const feedItems = useMemo(() => feed?.items ?? [], [feed]);
 
@@ -225,7 +226,9 @@ const Discover = () => {
             </Button>
           </div>
 
-          {isFeedLoading ? (
+          {isFeedError ? (
+            <QueryErrorState error={feedError} onRetry={() => refetchFeed()} title="Couldn't load your feed" size="inline" />
+          ) : isFeedLoading ? (
             <LoadingPanel variant="inline" className="py-16" />
           ) : feedItems.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -294,7 +297,9 @@ const Discover = () => {
             )}
           </div>
 
-          {isBrowseLoading ? (
+          {isBrowseError ? (
+            <QueryErrorState error={browseError} onRetry={() => refetchBrowse()} title="Couldn't load videos" />
+          ) : isBrowseLoading ? (
             <LoadingPanel variant="inline" className="py-16" />
           ) : shelfVideos && shelfVideos.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

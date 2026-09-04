@@ -1,0 +1,61 @@
+{
+ "route": "/set-phrases/practice",
+ "label": "/set-phrases/practice",
+ "gate": "public",
+ "url": "/set-phrases/practice",
+ "authed": false,
+ "loadMs": 1484,
+ "state": {
+  "finalUrl": "http://127.0.0.1:4173/set-phrases/practice",
+  "path": "/set-phrases/practice",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 117,
+  "bodyText": "Sign in to practise set phrases The quiz is built from your own phrase deck, so it needs to know who you are. Sign in",
+  "notFoundText": false,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": false,
+  "errorTextVisible": false,
+  "emptyStateText": null,
+  "headline": "",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "infiniteLoader": false,
+ "expectedRedirect": null,
+ "screenshot": "/home/user/arabic-buddy/qa/output/screens/set-phrases_practice.anon.png",
+ "inventory": {
+  "buttons": 0,
+  "links": 1,
+  "inputs": 0,
+  "tabs": 0,
+  "forms": 0,
+  "media": 0
+ },
+ "links": [
+  "/auth"
+ ],
+ "load": {
+  "failures": [
+   {
+    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+    "method": "GET",
+    "status": null,
+    "layer": "other",
+    "target": "fonts.googleapis.com/css2",
+    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
+   }
+  ],
+  "consoleErrors": [
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+  ],
+  "pageErrors": [],
+  "supabaseRequests": 0
+ },
+ "interaction": {
+  "controls": [],
+  "failures": [],
+  "consoleErrors": [],
+  "pageErrors": []
+ }
+}

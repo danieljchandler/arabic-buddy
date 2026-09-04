@@ -1,0 +1,30 @@
+{
+ "path": "/today",
+ "mode": "network-drop",
+ "verdict": "silent-empty",
+ "early": null,
+ "state": {
+  "finalUrl": "http://127.0.0.1:4173/today",
+  "path": "/today",
+  "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
+  "bodyChars": 1243,
+  "bodyText": "حكاية — a story. Yours starts with one word. Real spoken Arabic, one story at a time. Gulf · Egyptian · Yemeni. Hakiya means حكاية — a story. Dialect-first less",
+  "notFoundText": false,
+  "is404": false,
+  "spinnerVisible": false,
+  "errorBoundary": false,
+  "errorTextVisible": false,
+  "emptyStateText": "come back",
+  "headline": "Real spoken Arabic,one story at a time.Gulf · Egyptian · Yemeni.",
+  "isBlank": false,
+  "redirectedToAuth": false
+ },
+ "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_network-drop_today.png",
+ "consoleErrors": [
+  "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+  "Failed to load resource: net::ERR_FAILED",
+  "Failed to load resource: net::ERR_FAILED"
+ ],
+ "pageErrors": [],
+ "failures": 3
+}

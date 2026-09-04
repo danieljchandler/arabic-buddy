@@ -70,6 +70,60 @@ const aResult = (over: Record<string, unknown> = {}) => ({
  */
 const emptyStorage: UpstreamHandler = () => json({ error: "Object not found" }, 404);
 
+/**
+ * Storage that remembers the pipeline's checkpoint and nothing else.
+ *
+ * Each stage writes `<id>.pipeline.json` before handing over, and the next
+ * request reads it back. Backing that one object with memory is what lets a
+ * test follow a run across several requests; everything else falls through to
+ * the test's own storage handler.
+ */
+function withCheckpointStore(
+  base: UpstreamHandler,
+  store: Map<string, string> = new Map(),
+): { handler: UpstreamHandler; store: Map<string, string> } {
+  const handler: UpstreamHandler = async (request) => {
+    const marker = "/object/video-audio/";
+    const at = request.url.indexOf(marker);
+    if (at >= 0) {
+      const path = request.url.slice(at + marker.length).split("?")[0];
+      if (path.endsWith(".pipeline.json")) {
+        if (request.method === "GET") {
+          const stored = store.get(path);
+          return stored === undefined
+            ? json({ error: "Object not found" }, 404)
+            : new Response(stored, { status: 200, headers: { "content-type": "application/json" } });
+        }
+        // supabase-js wraps a Blob upload in multipart form data, under an
+        // empty part name that Deno's parser drops — so the JSON object is
+        // lifted out of the raw body instead.
+        const raw = await request.text();
+        const object = raw.match(/\{[\s\S]*\}/)?.[0] ?? "";
+        store.set(path, object);
+        return json({ Key: `video-audio/${path}` }, 200);
+      }
+    }
+    return base(request);
+  };
+  return { handler, store };
+}
+
+/** What a run left in its checkpoint, if anything. */
+const storedCheckpoint = (store: Map<string, string>): Record<string, unknown> | null => {
+  const raw = store.get(`${VIDEO}.pipeline.json`);
+  return raw ? (JSON.parse(raw) as Record<string, unknown>) : null;
+};
+
+/**
+ * The test-time clock for the analysis wait. The real pipeline polls every ten
+ * seconds and treats an analysis as possibly still running for the platform's
+ * whole 400s wall clock; a test cannot sit through that, and does not need to.
+ */
+const FAST_PIPELINE_ENV = {
+  PIPELINE_POLL_INTERVAL_MS: "1",
+  PIPELINE_ANALYZE_MAX_RUN_MS: "5",
+};
+
 function backend(
   options: {
     video?: Record<string, unknown> | null;
@@ -97,7 +151,10 @@ function backend(
     "/rest/v1/user_roles": () => json([{ role: "content_reviewer" }]),
 
     "/rest/v1/discover_videos": (request) => {
-      if (request.method !== "GET") return json([], 200);
+      // A write answers with the row it touched, as PostgREST does for
+      // `.select()` after an update — the finalising write reads that back to
+      // learn whether it was the request that claimed the row.
+      if (request.method !== "GET") return json([{ id: VIDEO }], 200);
       // Three different reads hit this table. The handler's opening `select=*`
       // fetches the row; step 2 re-reads only `engines_used` to merge
       // provenance; step 3 re-reads the analysis columns to see whether
@@ -131,6 +188,11 @@ function backend(
     "/functions/v1/download-media": download,
     "/functions/v1/analyze-gulf-arabic": analyze,
     "/functions/v1/rate-video-cefr": () => json({ success: true, cefr: "A2" }),
+    // The function hands each stage to itself as a new request. Refusing the
+    // hop here makes the stage run inline, so a test sees the whole run in one
+    // background task; the tests that follow a run across hops route this to
+    // the real handler instead.
+    "/functions/v1/process-approved-video": () => json({ error: "hops are not routed in this test" }, 503),
 
     ...extra,
   };
@@ -153,7 +215,10 @@ async function call(
     settle?: boolean;
   } = {},
 ): Promise<Result> {
-  const fn = await loadFunction("process-approved-video", { upstreams, env: opts.env });
+  const fn = await loadFunction("process-approved-video", {
+    upstreams,
+    env: { ...FAST_PIPELINE_ENV, ...(opts.env ?? {}) },
+  });
   try {
     const response = await fn.handler(
       jsonRequest(
@@ -349,7 +414,7 @@ Deno.test("process-approved-video marks the row processing before it answers", a
     // happens first so the admin list shows a spinner the moment the button is
     // clicked, rather than after the first engine answers.
     assertEquals(response.status, 202);
-    assertEquals(await response.json(), { success: true, message: "Processing started" });
+    assertEquals(await response.json(), { success: true, message: "Processing started", stage: "asr" });
 
     const patches = fn.calls
       .filter((c) => c.url.includes("discover_videos") && c.method === "PATCH")
@@ -1124,4 +1189,394 @@ Deno.test("process-approved-video flags a meme whose screen text came back empty
   const final = lastPatchWith(result, "transcription_status");
   assertEquals(final?.transcription_status, "completed");
   assertStringIncludes(String(final?.transcription_error), "no readable on-screen text");
+});
+
+// ── Stages, checkpoints and resumption ───────────────────────────────────────
+//
+// The platform's wall clock belongs to the worker, not the request, so a run
+// can be torn down at any point with no error raised. What these tests pin is
+// that the run is cut at stage boundaries it can be resumed from, that a
+// resume never repeats paid work, and that an analysis whose worker died is
+// started again rather than waited on forever.
+
+/**
+ * Drive a run through the real handler across every hop, the way the platform
+ * does: each `{ videoId, stage }` request the function sends itself lands back
+ * on the handler as a new request with its own background task.
+ */
+async function callAcrossHops(
+  body: unknown,
+  options: Parameters<typeof backend>[0] = {},
+  env: Record<string, string | undefined> = {},
+): Promise<Result & { store: Map<string, string>; hops: string[] }> {
+  const { handler: storage, store } = withCheckpointStore(options.storage ?? emptyStorage);
+  let self: ((request: Request) => Promise<Response>) | null = null;
+  const hops: string[] = [];
+  const upstreams = backend({
+    ...options,
+    storage,
+    extra: {
+      ...(options.extra ?? {}),
+      "/functions/v1/process-approved-video": async (request) => {
+        const parsed = JSON.parse(await request.text()) as { stage?: string };
+        hops.push(parsed.stage ?? "?");
+        // Re-enter the handler with the same headers the hop sent (the
+        // service-role bearer), exactly as the gateway would.
+        return await self!(new Request(request.url, { method: "POST", headers: request.headers, body: JSON.stringify(parsed) }));
+      },
+    },
+  });
+  const fn = await loadFunction("process-approved-video", {
+    upstreams,
+    env: { ...FAST_PIPELINE_ENV, ...env },
+  });
+  self = fn.handler;
+  try {
+    const response = await fn.handler(jsonRequest("process-approved-video", body, { jwt: SERVICE_ROLE }));
+    const parsed = JSON.parse(await response.text()) as Record<string, unknown>;
+    await fn.background();
+    return {
+      status: response.status,
+      body: parsed,
+      calls: fn.calls.map((c) => c.url),
+      bodies: fn.calls.map((c) => c.body),
+      patches: fn.calls
+        .filter((c) => c.url.includes("discover_videos") && c.method === "PATCH")
+        .map((c) => JSON.parse(c.body ?? "{}") as Record<string, unknown>),
+      store,
+      hops,
+    };
+  } finally {
+    fn.restore();
+  }
+}
+
+/** A checkpoint as the ASR stage leaves it: engines done, analysis not yet started. */
+const afterAsrCheckpoint = (over: Record<string, unknown> = {}) => ({
+  version: 1,
+  stage: "analyze",
+  startedAt: "2026-09-04T10:00:00.000Z",
+  updatedAt: "2026-09-04T10:01:00.000Z",
+  analyzeAttempts: 0,
+  asr: {
+    primaryText: "شلونك اليوم الحمد لله بخير",
+    primaryEngine: "Soniox",
+    dialectModule: "Gulf",
+    downloadDuration: 31,
+    texts: { scribe: "", fanar: "", soniox: "شلونك اليوم الحمد لله بخير", munsit: "", azure: "", cohere: "" },
+    sonioxTranslation: null,
+    alignmentWords: [
+      { text: "شلونك", start: 0.5, end: 1.0 },
+      { text: "اليوم", start: 1.1, end: 1.6 },
+      { text: "الحمد", start: 2.0, end: 2.4 },
+      { text: "لله", start: 2.5, end: 2.8 },
+      { text: "بخير", start: 3.0, end: 3.5 },
+    ],
+    alignmentSource: "Soniox",
+  },
+  ...over,
+});
+
+Deno.test("process-approved-video runs as three requests, one per stage", async () => {
+  const result = await callAcrossHops({ videoId: VIDEO });
+
+  // ASR hands to analyze, analyze hands to finalize; nothing runs inline.
+  assertEquals(result.hops, ["analyze", "finalize"]);
+  assertEquals(finalStatus(result), "completed");
+  assertEquals(storedCheckpoint(result.store)?.stage, "done");
+});
+
+Deno.test("process-approved-video checkpoints the ASR results before handing over", async () => {
+  const result = await callAcrossHops({ videoId: VIDEO });
+
+  // The hop is the first thing the checkpoint has to survive: whatever the
+  // engines produced is on disk before the analysis is asked for.
+  const store = result.store;
+  const writes = result.calls.filter((u) => u.includes(`${VIDEO}.pipeline.json`));
+  const firstHop = result.calls.findIndex((u) => u.includes("/functions/v1/process-approved-video"));
+  const firstWrite = result.calls.findIndex((u) => u.includes(`${VIDEO}.pipeline.json`));
+  assert(writes.length > 0, "expected a checkpoint write");
+  assert(firstWrite < firstHop, "expected the checkpoint written before the first hop");
+
+  const cp = storedCheckpoint(store) as { asr?: { primaryText?: string; alignmentSource?: string } };
+  assert(cp?.asr?.primaryText, "expected the primary transcript in the checkpoint");
+  assert(cp?.asr?.alignmentSource, "expected the alignment source in the checkpoint");
+});
+
+Deno.test("process-approved-video keeps going inline when the checkpoint cannot be written", async () => {
+  // Storage down for the checkpoint only. The run must not fail over a
+  // missing safety net — it runs as one task, exactly as it used to.
+  const result = await call({ videoId: VIDEO }, backend({
+    extra: {
+      "/functions/v1/process-approved-video": () => {
+        throw new Error("no hop should be attempted without a checkpoint");
+      },
+    },
+  }));
+
+  assertEquals(finalStatus(result), "completed");
+  assertEquals(bodySentTo(result, "rate-video-cefr").videoId, VIDEO);
+});
+
+Deno.test("process-approved-video runs the next stage inline when the hop is refused", async () => {
+  const { handler: storage } = withCheckpointStore(emptyStorage);
+  const result = await call({ videoId: VIDEO }, backend({
+    storage,
+    extra: {
+      "/functions/v1/process-approved-video": () => new Response("boom", { status: 503 }),
+    },
+  }));
+
+  // A refused hop is a lost stage boundary, not a lost run.
+  assertEquals(finalStatus(result), "completed");
+});
+
+Deno.test("process-approved-video resumes from the checkpoint without paying for the engines again", async () => {
+  const { handler: storage, store } = withCheckpointStore(emptyStorage);
+  store.set(`${VIDEO}.pipeline.json`, JSON.stringify(afterAsrCheckpoint()));
+
+  const result = await call({ videoId: VIDEO, resume: true }, backend({
+    video: aVideo({ transcription_status: "processing" }),
+    storage,
+  }));
+
+  assertEquals(result.status, 202);
+  assertEquals(result.body.stage, "analyze");
+  // No download, no engine: the checkpoint already holds the transcripts.
+  assertEquals(result.calls.some((u) => u.includes("download-media")), false);
+  assertEquals(result.calls.some((u) => u.includes("elevenlabs") || u.includes("soniox") || u.includes("munsit")), false);
+  // The checkpointed primary is what the analysis receives.
+  assertEquals(bodySentTo(result, "analyze-gulf-arabic").transcript, "شلونك اليوم الحمد لله بخير");
+  assertEquals(finalStatus(result), "completed");
+});
+
+Deno.test("process-approved-video resumes a row the analysis already wrote by finalising it", async () => {
+  const { handler: storage, store } = withCheckpointStore(emptyStorage);
+  store.set(`${VIDEO}.pipeline.json`, JSON.stringify(afterAsrCheckpoint({ analyzeAttempts: 1 })));
+
+  const result = await call({ videoId: VIDEO, resume: true }, backend({
+    video: aVideo({ transcription_status: "analysis_complete" }),
+    storage,
+    refreshed: {
+      transcription_status: "analysis_complete",
+      transcript_lines: [{ id: "l1", arabic: "شلونك اليوم" }, { id: "l2", arabic: "الحمد لله بخير" }],
+      cultural_context: "persisted directly",
+      title: "From the direct persist",
+      title_arabic: null,
+    },
+  }));
+
+  assertEquals(result.body.stage, "finalize");
+  assertEquals(result.calls.some((u) => u.includes("analyze-gulf-arabic")), false);
+  const final = lastPatchWith(result, "transcription_status");
+  assertEquals(final?.transcription_status, "completed");
+  // Real alignment from the checkpointed words, not the reaper's promotion
+  // that skips it: line two starts where its first word does.
+  const lines = final?.transcript_lines as Array<{ startMs: number }>;
+  assertEquals(lines[1].startMs, 2000);
+});
+
+Deno.test("process-approved-video leaves a finished or failed row alone on resume", async () => {
+  for (const status of ["completed", "failed", "manual"]) {
+    const result = await call({ videoId: VIDEO, resume: true }, backend({
+      video: aVideo({ transcription_status: status }),
+    }));
+    assertEquals(result.status, 200, status);
+    assertEquals(result.body.resumed, false, status);
+    assertEquals(result.patches.length, 0, `expected no write for a ${status} row`);
+  }
+});
+
+Deno.test("process-approved-video resumes a stale pending row from the start", async () => {
+  // A kickoff that was lost before the engines ran: nothing to checkpoint,
+  // so the resume is a fresh run — and the row moves to processing so the
+  // admin page stops calling it queued.
+  const result = await call({ videoId: VIDEO, resume: true }, backend({
+    video: aVideo({ transcription_status: "pending" }),
+  }));
+
+  assertEquals(result.body.stage, "asr");
+  assertEquals(result.patches[0].transcription_status, "processing");
+  assertEquals(result.calls.some((u) => u.includes("download-media")), true);
+  assertEquals(finalStatus(result), "completed");
+});
+
+Deno.test("process-approved-video finalises on the analysis's own callback, even with no checkpoint", async () => {
+  // analyze-gulf-arabic calls `{ stage: "finalize" }` after it persists. If the
+  // pipeline's checkpoint is gone (storage hiccup, older run), the transcript
+  // still completes — with proportional timing, since there are no words to
+  // align against.
+  const result = await call({ videoId: VIDEO, stage: "finalize" }, backend({
+    video: aVideo({ transcription_status: "analysis_complete", duration_seconds: 10 }),
+    refreshed: {
+      transcription_status: "analysis_complete",
+      transcript_lines: [{ id: "l1", arabic: "شلونك" }, { id: "l2", arabic: "الحمد لله" }],
+      cultural_context: null,
+      title: "Persisted",
+      title_arabic: "محفوظ",
+    },
+  }));
+
+  assertEquals(result.status, 202);
+  assertEquals(result.calls.some((u) => u.includes("analyze-gulf-arabic")), false);
+  const final = lastPatchWith(result, "transcription_status");
+  assertEquals(final?.transcription_status, "completed");
+  const lines = final?.transcript_lines as Array<{ startMs: number; endMs: number }>;
+  assertEquals(lines[0].startMs, 0);
+  assertEquals(lines[lines.length - 1].endMs, 10_000);
+  assertEquals(bodySentTo(result, "rate-video-cefr").videoId, VIDEO);
+});
+
+Deno.test("process-approved-video refuses a hop it has no checkpoint for", async () => {
+  const result = await call({ videoId: VIDEO, stage: "analyze" }, backend());
+  assertEquals(result.status, 409);
+});
+
+Deno.test("process-approved-video rejects a stage it does not have", async () => {
+  const result = await call({ videoId: VIDEO, stage: "teleport" }, backend());
+  assertEquals(result.status, 400);
+});
+
+Deno.test("process-approved-video does not rate a row another request finalised first", async () => {
+  // The finalising write is conditional on the row still being where this
+  // stage expects it. Zero rows back means the other finaliser won.
+  const result = await call({ videoId: VIDEO, stage: "finalize" }, backend({
+    video: aVideo({ transcription_status: "analysis_complete" }),
+    refreshed: { transcription_status: "analysis_complete", transcript_lines: [{ id: "l1", arabic: "شلونك" }] },
+    extra: {
+      "/rest/v1/discover_videos": (request) => {
+        if (request.method === "PATCH") return json([], 200);
+        if (request.url.includes("transcription_status")) {
+          return json({ transcription_status: "analysis_complete", transcript_lines: [{ id: "l1", arabic: "شلونك" }] }, 200);
+        }
+        return json(aVideo({ transcription_status: "analysis_complete" }), 200);
+      },
+    },
+  }));
+
+  assertEquals(finalStatus(result), "completed");
+  assertEquals(result.calls.some((u) => u.includes("rate-video-cefr")), false);
+});
+
+Deno.test("process-approved-video starts the analysis again once its worker must be dead", async () => {
+  // The first analysis answers nothing and never writes the row: the shape of
+  // a worker torn down mid-run. Past the platform's wall clock (5ms here) it is
+  // started again, and the second one lands.
+  let analyzeCalls = 0;
+  const result = await call({ videoId: VIDEO }, backend({
+    analyze: () => {
+      analyzeCalls++;
+      return new Response("gateway timeout", { status: 504 });
+    },
+    extra: {
+      "/rest/v1/discover_videos": (request) => {
+        if (request.method !== "GET") return json([{ id: VIDEO }], 200);
+        if (request.url.includes("select=engines_used")) return json({ engines_used: null }, 200);
+        if (request.url.includes("transcription_status")) {
+          return analyzeCalls >= 2
+            ? json({ transcription_status: "analysis_complete", transcript_lines: [{ id: "l1", arabic: "شلونك اليوم" }], cultural_context: null, title: "Second try", title_arabic: null }, 200)
+            : json({ transcription_status: "processing" }, 200);
+        }
+        return json(aVideo(), 200);
+      },
+    },
+  }));
+
+  assertEquals(analyzeCalls, 2);
+  const final = lastPatchWith(result, "transcription_status");
+  assertEquals(final?.transcription_status, "completed");
+  assertEquals(final?.title, "Second try");
+});
+
+Deno.test("process-approved-video gives up on the analysis after three dead starts", async () => {
+  let analyzeCalls = 0;
+  const result = await call({ videoId: VIDEO }, backend({
+    analyze: () => {
+      analyzeCalls++;
+      return new Response("gateway timeout", { status: 504 });
+    },
+  }));
+
+  assertEquals(analyzeCalls, 3);
+  assertEquals(finalStatus(result), "failed");
+  const error = String(lastPatchWith(result, "transcription_error")?.transcription_error);
+  assertStringIncludes(error, "started 3 times");
+  assertStringIncludes(error, "Download & Re-transcribe");
+});
+
+Deno.test("process-approved-video waits on an analysis that may still be running rather than restarting it", async () => {
+  // A resumed run whose analysis was fired seconds ago (well inside the wall
+  // clock, which the env sets to a generous value here) must not fire a second
+  // one on top of it — it polls the row, and finalises when the result lands.
+  const { handler: storage, store } = withCheckpointStore(emptyStorage);
+  store.set(`${VIDEO}.pipeline.json`, JSON.stringify(afterAsrCheckpoint({
+    analyzeAttempts: 1,
+    analyzeFiredAt: new Date().toISOString(),
+  })));
+  let reads = 0;
+  const result = await call({ videoId: VIDEO, resume: true }, backend({
+    video: aVideo({ transcription_status: "processing" }),
+    storage,
+    extra: {
+      "/rest/v1/discover_videos": (request) => {
+        if (request.method !== "GET") return json([{ id: VIDEO }], 200);
+        if (request.url.includes("select=engines_used")) return json({ engines_used: null }, 200);
+        if (request.url.includes("transcription_status")) {
+          reads++;
+          return reads >= 3
+            ? json({ transcription_status: "analysis_complete", transcript_lines: [{ id: "l1", arabic: "شلونك اليوم" }], cultural_context: null, title: null, title_arabic: null }, 200)
+            : json({ transcription_status: "processing" }, 200);
+        }
+        return json(aVideo({ transcription_status: "processing" }), 200);
+      },
+    },
+  }), { env: { PIPELINE_ANALYZE_MAX_RUN_MS: "60000" } });
+
+  assertEquals(result.calls.some((u) => u.includes("analyze-gulf-arabic")), false);
+  assertEquals(finalStatus(result), "completed");
+});
+
+Deno.test("process-approved-video stops when the analysis has recorded its own failure", async () => {
+  // A rejected save is written to the row by analyze-gulf-arabic with the
+  // reason. The pipeline must not overwrite that with a vaguer message, and
+  // must not start the analysis again.
+  let analyzeCalls = 0;
+  const result = await call({ videoId: VIDEO }, backend({
+    analyze: () => {
+      analyzeCalls++;
+      return new Response("gateway timeout", { status: 504 });
+    },
+    refreshed: { transcription_status: "failed" },
+  }));
+
+  assertEquals(analyzeCalls, 1);
+  assertEquals(finalStatus(result), "processing");
+});
+
+Deno.test("process-approved-video starts a fresh run's checkpoint over before the engines run", async () => {
+  // A checkpoint left by an earlier run — here one that exhausted its
+  // analysis starts — must not be what a resume of *this* run finds if the
+  // engines die before writing their own.
+  const { handler: storage, store } = withCheckpointStore(emptyStorage);
+  store.set(`${VIDEO}.pipeline.json`, JSON.stringify(afterAsrCheckpoint({ analyzeAttempts: 3 })));
+
+  // The download is the first paid step after the reset, so what the
+  // checkpoint holds when it is asked for is what a death during the engines
+  // would leave behind.
+  let atDownload: Record<string, unknown> | null = null;
+  const result = await call({ videoId: VIDEO }, backend({
+    storage,
+    download: () => {
+      atDownload = storedCheckpoint(store);
+      return json({ audioBase64: AUDIO_B64, contentType: "audio/mp4", duration: 31.4 });
+    },
+  }));
+
+  const early = atDownload as { stage: string; analyzeAttempts: number; asr?: unknown } | null;
+  assert(early, "expected the checkpoint to have been rewritten before the download");
+  assertEquals(early.stage, "asr");
+  assertEquals(early.analyzeAttempts, 0);
+  assertEquals(early.asr, undefined);
+  assertEquals(finalStatus(result), "completed");
+  assertEquals(storedCheckpoint(store)?.stage, "done");
 });

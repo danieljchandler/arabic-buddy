@@ -35,7 +35,11 @@ import {
 } from "../_shared/onScreenText.ts";
 
 
-const ASR_TIMEOUT_MS = 5 * 60 * 1000;
+// Per-engine ceiling. Five minutes used to be the figure, but the ASR stage
+// has to fit inside whatever is left of the worker's wall clock (see the note
+// on stages below), and every engine here finishes a ten-minute clip well
+// inside this; an engine that has not answered by now is not going to.
+const ASR_TIMEOUT_MS = 150 * 1000;
 
 // Munsit's sync /audio/transcribe has no async/polling counterpart and silently
 // returns an empty transcript above ~10 MB, so anything larger has to be split
@@ -216,44 +220,475 @@ function extractYouTubeVideoId(url: string): string | null {
 // ── Background pipeline ────────────────────────────────────────────────────
 // Runs entirely decoupled from the HTTP request lifecycle so that req.signal
 // (fired by the platform when the request connection closes) cannot abort it.
-async function runPipeline(
-  videoId: string,
-  video: VideoRow,
-  supabase: Supabase,
-  authHeader: string,
-  projectUrl: string,
-): Promise<void> {
-  // `.wav` first: the admin upload form extracts the audio track client-side and
-  // stages it as WAV, so when both exist the extracted audio is the better input
-  // (smaller, already 16 kHz mono). The other extensions cover URL-sourced
-  // downloads and uploads whose container the browser couldn't decode.
-  //
-  // Keep this list in step with STAGED_AUDIO_EXTENSIONS in
-  // `src/lib/videoAudioStaging.ts` — the Discover player streams the same
-  // staged file for TikTok subtitle sync, and audio only this side can find is
-  // audio the player treats as absent.
-  const storagePaths = [
-    `${videoId}.wav`, `${videoId}.mp4`, `${videoId}.m4a`, `${videoId}.webm`,
-    `${videoId}.mp3`, `${videoId}.opus`,
-  ];
 
-  // How long this run is allowed to take before it must stop waiting and write
-  // a terminal status.
-  //
-  // The pipeline lives inside an edge-function background task, and the platform
-  // ends that task by tearing the isolate down — not by raising something the
-  // `catch` below can see. A run that spends its whole allowance waiting on the
-  // analysis therefore dies without ever writing `failed`, and the row sits in
-  // `processing` forever with no error and nothing to retry. That is the bug
-  // behind every "stuck in queue" report, so the waits below are budgeted
-  // against this deadline and always keep headroom to record the outcome.
-  const pipelineStart = Date.now();
-  const PIPELINE_BUDGET_MS = 6 * 60 * 1000;
-  /** Milliseconds left before the run must stop waiting. */
-  const remainingMs = () => PIPELINE_BUDGET_MS - (Date.now() - pipelineStart);
+// ── Stages and checkpoints ─────────────────────────────────────────────────
+//
+// Why the pipeline is cut into stages at all.
+//
+// Supabase's wall-clock limit (400s on paid plans, 150s on the free tier) is
+// the life of the *worker*, not of the request: a worker stays up serving
+// requests and background tasks until it reaches the limit, and is then torn
+// down with whatever was still running inside it. A run that starts on a
+// worker warmed by an earlier upload — the second video of the afternoon, or a
+// re-transcribe a minute after a failure — has only a fraction of that budget
+// left, and there is no way to ask how much. The previous shape of this
+// function (one background task doing the download, six ASR engines, a three
+// to four minute analysis wait and finalisation, on a six-minute budget of its
+// own) assumed it always had the whole 400s. When it did not, it died between
+// two database writes: the row sat on `processing` with no error until the
+// reaper failed it twelve minutes later. That is the "starts, then nothing
+// happens, then times out" report, and it reproduces most reliably on the
+// second upload in a row.
+//
+// Now each stage writes what it produced to a checkpoint
+// (`video-audio/<id>.pipeline.json`) before moving on, and the next stage runs
+// as a *new request* to this same function (`{ videoId, stage }`). A worker
+// death loses at most the stage in flight, never the ASR results already paid
+// for. Anyone who notices the row has stopped moving — the admin page polling
+// it, or analyze-gulf-arabic once its results land — sends
+// `{ videoId, resume: true }` or `{ videoId, stage: "finalize" }`, and the run
+// picks up from the checkpoint instead of starting over.
+//
+//   asr       acquire audio, run every engine, pick a primary, checkpoint
+//   analyze   hand the transcripts to analyze-gulf-arabic; wait for it to
+//             persist `analysis_complete`; fire it again if it died
+//   finalize  align lines to the audio, strip on-screen text, mark completed,
+//             ask for a CEFR band
+type StageName = "asr" | "analyze" | "finalize" | "done";
+
+/** Everything the later stages need from the ASR fan-out. */
+interface AsrCheckpoint {
+  primaryText: string;
+  primaryEngine: string;
+  dialectModule: "Gulf" | "Egyptian" | "Yemeni";
+  /** The duration download-media reported, when the audio came from there. */
+  downloadDuration: number | null;
+  texts: { scribe: string; fanar: string; soniox: string; munsit: string; azure: string; cohere: string };
+  sonioxTranslation: string | null;
+  alignmentWords: AsrWord[];
+  alignmentSource: string;
+}
+
+interface Checkpoint extends Json {
+  version: 1;
+  stage: StageName;
+  startedAt: string;
+  updatedAt: string;
+  /** How many times analyze-gulf-arabic has been started for this run. */
+  analyzeAttempts: number;
+  /** When it was last started — "still running" is judged against the platform's wall clock. */
+  analyzeFiredAt?: string | null;
+  asr?: AsrCheckpoint;
+  /** The analysis reply, when it arrived over HTTP before the gateway gave up on it. */
+  httpResult?: AnalyzeResponse | null;
+  /** What the analysis judged the audio to be, from whichever reply carried a verdict. */
+  audio?: { noArabicSpeech: boolean; verdict?: string; reason?: string } | null;
+}
+
+interface PipelineContext {
+  videoId: string;
+  video: VideoRow;
+  supabase: Supabase;
+  /** The original caller's bearer — only ever a last resort when no service-role key is configured. */
+  authHeader: string;
+  projectUrl: string;
+}
+
+const CHECKPOINT_VERSION = 1;
+const checkpointPath = (videoId: string) => `${videoId}.pipeline.json`;
+
+/**
+ * Where the admin form stages audio. `.wav` first: the form extracts the audio
+ * track client-side and stages it as WAV, so when both exist the extracted
+ * audio is the better input (smaller, already 16 kHz mono). The other
+ * extensions cover URL-sourced downloads and uploads whose container the
+ * browser couldn't decode.
+ *
+ * Keep this list in step with STAGED_AUDIO_EXTENSIONS in
+ * `src/lib/videoAudioStaging.ts` — the Discover player streams the same staged
+ * file for TikTok subtitle sync, and audio only this side can find is audio
+ * the player treats as absent.
+ */
+const stagedAudioPaths = (videoId: string) => [
+  `${videoId}.wav`, `${videoId}.mp4`, `${videoId}.m4a`, `${videoId}.webm`,
+  `${videoId}.mp3`, `${videoId}.opus`,
+];
+
+function envInt(name: string, fallback: number): number {
+  const raw = Number(Deno.env.get(name));
+  return Number.isFinite(raw) && raw > 0 ? raw : fallback;
+}
+
+/** Starts of analyze-gulf-arabic allowed per run before the row is failed. */
+const MAX_ANALYZE_ATTEMPTS = 3;
+/**
+ * How long an analysis can possibly still be running after it was started:
+ * the platform's wall-clock limit. Until then a missing result means "not
+ * yet", after it the function is dead and a fresh start is the only way on.
+ */
+const ANALYZE_MAX_RUN_MS = envInt("PIPELINE_ANALYZE_MAX_RUN_MS", 400_000);
+/** The gateway answers 504 at 150s regardless; waiting longer on the socket buys nothing. */
+const ANALYZE_FETCH_TIMEOUT_MS = Math.min(150_000, ANALYZE_MAX_RUN_MS);
+const POLL_INTERVAL_MS = envInt("PIPELINE_POLL_INTERVAL_MS", 10_000);
+/**
+ * While waiting on the analysis the row is touched this often so its
+ * `updated_at` keeps moving: the reaper reads a row that has not moved for
+ * twelve minutes as dead, and the admin page reads one that has not moved for
+ * two as needing a nudge. Both must stay quiet while a run is genuinely alive.
+ */
+const HEARTBEAT_EVERY_MS = 30_000;
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+function freshCheckpoint(stage: StageName): Checkpoint {
+  const now = new Date().toISOString();
+  return { version: CHECKPOINT_VERSION, stage, startedAt: now, updatedAt: now, analyzeAttempts: 0 };
+}
+
+async function readCheckpoint(supabase: Supabase, videoId: string): Promise<Checkpoint | null> {
+  const { data, error } = await supabase.storage.from("video-audio").download(checkpointPath(videoId));
+  if (error || !data) return null;
+  try {
+    const parsed = JSON.parse(await data.text()) as Partial<Checkpoint> | null;
+    if (!parsed || parsed.version !== CHECKPOINT_VERSION || typeof parsed.stage !== "string") return null;
+    return parsed as Checkpoint;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Persist the checkpoint. Returns whether it is actually on disk: a run whose
+ * checkpoint cannot be written carries on inline, exactly as before, and only
+ * loses the ability to be resumed.
+ */
+async function writeCheckpoint(ctx: PipelineContext, cp: Checkpoint): Promise<boolean> {
+  cp.updatedAt = new Date().toISOString();
+  const { error } = await ctx.supabase.storage
+    .from("video-audio")
+    .upload(checkpointPath(ctx.videoId), new Blob([JSON.stringify(cp)], { type: "application/json" }), {
+      upsert: true,
+      contentType: "application/json",
+    });
+  if (error) {
+    console.warn(`[pipeline] Checkpoint write failed (run continues inline): ${error.message}`);
+    return false;
+  }
+  return true;
+}
+
+function serviceRoleBearer(ctx: PipelineContext): string {
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+  return key ? `Bearer ${key}` : ctx.authHeader;
+}
+
+/**
+ * Ask this same function to run the next stage as a new request.
+ *
+ * The request may well land on the very worker that sent it; that is fine.
+ * What the hop buys is a stage boundary the run can be resumed from, and a
+ * fresh per-request CPU allowance for the stages that parse audio containers
+ * and megabytes of JSON.
+ */
+async function hop(ctx: PipelineContext, stage: StageName): Promise<boolean> {
+  try {
+    const resp = await fetch(`${ctx.projectUrl}/functions/v1/process-approved-video`, {
+      method: "POST",
+      headers: { Authorization: serviceRoleBearer(ctx), "Content-Type": "application/json" },
+      body: JSON.stringify({ videoId: ctx.videoId, stage }),
+      signal: AbortSignal.timeout(20_000),
+    });
+    const text = await resp.text().catch(() => "");
+    if (!resp.ok) {
+      console.warn(`[pipeline] Hop to ${stage} refused (${resp.status}): ${text.slice(0, 200)}`);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.warn(`[pipeline] Hop to ${stage} failed:`, e instanceof Error ? e.message : String(e));
+    return false;
+  }
+}
+
+/** Move to `cp.stage`: by a hop when the checkpoint is on disk, inline otherwise. */
+async function advance(ctx: PipelineContext, cp: Checkpoint, persisted: boolean): Promise<void> {
+  if (persisted && await hop(ctx, cp.stage)) {
+    console.log(`[pipeline] Handed ${cp.stage} to a fresh request for ${ctx.videoId}`);
+    return;
+  }
+  console.log(`[pipeline] Running ${cp.stage} inline for ${ctx.videoId}`);
+  await runStage(ctx, cp);
+}
+
+async function runStage(ctx: PipelineContext, cp: Checkpoint): Promise<void> {
+  switch (cp.stage) {
+    case "asr":
+      return await runAsrStage(ctx, cp);
+    case "analyze":
+      return await runAnalyzeStage(ctx, cp);
+    case "finalize":
+      return await runFinalizeStage(ctx, cp);
+    case "done":
+      console.log(`[pipeline] ${ctx.videoId} is already finished; nothing to run`);
+      return;
+  }
+}
+
+/** Keep `updated_at` moving on a row that is still processing — and only such a row. */
+async function heartbeat(ctx: PipelineContext): Promise<void> {
+  try {
+    await ctx.supabase
+      .from("discover_videos")
+      .update({ transcription_status: "processing" })
+      .eq("id", ctx.videoId)
+      .eq("transcription_status", "processing");
+  } catch (e) {
+    console.warn("[pipeline] Heartbeat failed (non-fatal):", e instanceof Error ? e.message : String(e));
+  }
+}
+
+async function failRow(ctx: PipelineContext, stage: StageName, err: unknown): Promise<void> {
+  const errorMsg = err instanceof Error ? err.message : "Unknown error";
+  console.error(`[pipeline] ${stage} failed for video ${ctx.videoId}:`, errorMsg);
+  await ctx.supabase.from("discover_videos").update({
+    transcription_status: "failed",
+    transcription_error: errorMsg,
+  }).eq("id", ctx.videoId);
+}
+
+// ── Helpers shared by the later stages ────────────────────────────────────────
+
+interface VisualContext {
+  loaded: boolean;
+  summary: string | null;
+  culturalContext: string | null;
+  onScreenTextLines: OnScreenSegment[];
+  sceneContext: string | null;
+  /**
+   * The `visual_timeline` patch for an update, or nothing.
+   *
+   * Falls back to the overlays an older run left inside `transcript_lines`,
+   * so re-running the pipeline on a video from before this change moves that
+   * text across instead of deleting it. Writes nothing at all when there is
+   * nothing to write — an empty array here would wipe a timeline a separate
+   * re-read had just filled in.
+   */
+  timelinePatch: (rawLines: PipelineLine[]) => Record<string, unknown>;
+}
+
+/**
+ * On-screen text: read by the vision pass before the pipeline ran (frames ->
+ * extract-visual-context -> stored as `<id>.visual.json`) and loaded for EVERY
+ * video, not only the ones flagged as memes. Captions, POV lines and title
+ * cards turn up on ordinary clips just as often; the meme flag only decides
+ * whether the pipeline refuses to continue without them.
+ */
+async function loadVisualContext(ctx: PipelineContext): Promise<VisualContext> {
+  const { videoId, video, supabase } = ctx;
+  let summary: string | null = null;
+  let culturalContext: string | null = null;
+  let onScreenTextLines: OnScreenSegment[] = [];
+  let sceneContext: string | null = null;
+  let loaded = false;
+  try {
+    const { data: visualBlob } = await supabase.storage
+      .from("video-audio")
+      .download(`${videoId}.visual.json`);
+    if (visualBlob) {
+      loaded = true;
+      const visualResult = JSON.parse(await visualBlob.text()) as VisualResultBlob;
+      onScreenTextLines = segmentsFromVisualBlob(visualResult);
+      sceneContext = typeof visualResult?.sceneContext === "string" ? visualResult.sceneContext : null;
+      culturalContext = buildVisualContextText(
+        onScreenTextLines,
+        sceneContext,
+        typeof visualResult?.culturalContext === "string" ? visualResult.culturalContext : null,
+      );
+      if (onScreenTextLines.length > 0) {
+        // Context for the analysis, never transcript content: it tells the
+        // model what the frame says so it can settle an ambiguous spoken
+        // word, and the prompt forbids copying any of it into lines[].
+        const label = video.is_meme ? "MEME" : "VIDEO";
+        summary = `${label} — on-screen text segments (context only, NOT spoken):\n${summarizeOnScreenText(onScreenTextLines)}\n\nScene: ${sceneContext ?? ""}`.trim();
+        console.log(`[pipeline] ${onScreenTextLines.length} on-screen text segment(s) loaded`);
+      } else if (video.is_meme) {
+        console.warn("[pipeline] Meme: visual context loaded; no on-screen text detected — result will be flagged for review");
+      }
+    } else if (video.is_meme) {
+      console.warn(`[pipeline] Meme: no visual context file found for ${videoId}`);
+    }
+  } catch (e) {
+    console.warn("[pipeline] Visual context load failed (non-fatal):", e instanceof Error ? e.message : String(e));
+  }
+
+  // What gets written to `visual_timeline` at the end of the run. Kept
+  // alongside the transcript rather than inside it, so a caption is never
+  // mistaken for a line of speech.
+  const visualTimeline = toVisualTimeline(onScreenTextLines, sceneContext);
+  const timelinePatch = (rawLines: PipelineLine[]): Record<string, unknown> => {
+    if (visualTimeline.length > 0) return { visual_timeline: visualTimeline };
+    const recovered = toVisualTimeline(segmentsFromLegacyLines(rawLines), sceneContext);
+    if (recovered.length === 0) return {};
+    console.log(`[pipeline] Recovered ${recovered.length} on-screen segment(s) from legacy transcript lines`);
+    return { visual_timeline: recovered };
+  };
+
+  return { loaded, summary, culturalContext, onScreenTextLines, sceneContext, timelinePatch };
+}
+
+/**
+ * Align merged-Arabic lines to the source audio timeline.
+ *
+ * First choice: real alignment. The merged Arabic no longer matches the
+ * ASR token stream index for index (the LLM merge rewrites text), but the
+ * two streams still share most of their words — so anchor them by text
+ * (arabicMatch normalisation, unique-word anchors, fuzzy gap fill) and take
+ * each line's span from the ASR words that actually matched. This is what
+ * keeps pauses as pauses instead of smearing them across every line.
+ *
+ * Fallback: proportional allocation. When too few words match — a
+ * wordless engine won the pick, a degenerate token stream, a merge that
+ * rewrote everything — take the total speech span from the timestamped
+ * source and allocate to each line by character length. Wrong in detail
+ * but bounded, which beats a confidently misaligned timeline. (Walking
+ * Deepgram word indices, the original approach, broke on exactly that:
+ * English-tuned segmentation returned far fewer Arabic words, so later
+ * lines ended up with undefined timestamps.)
+ */
+function alignLinesToAudio(
+  rawLines: PipelineLine[],
+  relativeWords: AsrWord[],
+  alignmentSource: string,
+  audioDurationMs: number,
+): PipelineLine[] {
+  if (!Array.isArray(rawLines) || rawLines.length === 0) return rawLines;
+
+  const aligned = alignLinesToAsrWords(
+    rawLines.map((l) => String(l?.arabic ?? "")),
+    relativeWords,
+    { audioDurationMs },
+  );
+  if (aligned) {
+    const matched = aligned.reduce(
+      (acc, l) => acc + l.words.filter((w) => w.matched).length,
+      0,
+    );
+    const total = aligned.reduce((acc, l) => acc + l.words.length, 0);
+    console.log(
+      `[pipeline] Word alignment: ${matched}/${total} words matched to ${alignmentSource} timestamps`,
+    );
+    return rawLines.map((line, i) => ({
+      ...line,
+      startMs: aligned[i].startMs,
+      endMs: aligned[i].endMs,
+      // Per-word timings persist so the editor and any later re-sync can
+      // work from real times instead of re-fabricating uniform ones.
+      words: aligned[i].words,
+    }));
+  }
+  console.log(
+    `[pipeline] Word alignment rejected (too few matches against ${alignmentSource}); ` +
+      "falling back to proportional allocation",
+  );
+
+  // Scan all alignment words for true min start / max end. Some ASRs
+  // (notably Soniox) drop end_ms on the final token of a phrase, which
+  // previously collapsed the entire span to a single instant — every
+  // line ended up with startMs == endMs == first word offset.
+  let spanStartMs = Number.POSITIVE_INFINITY;
+  let spanEndMs = 0;
+  for (const w of relativeWords) {
+    const s = Number(w?.start ?? 0) * 1000;
+    const e = Number(w?.end ?? 0) * 1000;
+    if (s > 0 && s < spanStartMs) spanStartMs = s;
+    if (e > spanEndMs) spanEndMs = e;
+    if (s > spanEndMs) spanEndMs = s; // start-only tokens still extend span
+  }
+  if (!Number.isFinite(spanStartMs)) spanStartMs = 0;
+
+  // Degenerate span (missing or single-point word times) → fall back
+  // to full audio duration so line audio still plays in roughly the
+  // right place.
+  if (spanEndMs - spanStartMs < 500) {
+    if (audioDurationMs > 0) {
+      spanStartMs = 0;
+      spanEndMs = audioDurationMs;
+    } else {
+      spanStartMs = 0;
+      spanEndMs = Math.max(spanEndMs, rawLines.length * 2000);
+    }
+  }
+
+  const totalSpan = Math.max(1, spanEndMs - spanStartMs);
+
+  const lens = rawLines.map((l) => {
+    const txt = String(l?.arabic ?? "").replace(/\s+/g, "");
+    return Math.max(1, txt.length);
+  });
+  const totalLen = lens.reduce((a, b) => a + b, 0);
+
+  let cursor = spanStartMs;
+  return rawLines.map((line, i) => {
+    const share = (lens[i] / totalLen) * totalSpan;
+    const startMs = Math.round(cursor);
+    const endMs = Math.round(cursor + share);
+    cursor += share;
+    return { ...line, startMs, endMs };
+  });
+}
+
+/**
+ * Why this row may need a human before it is published. Two independent
+ * reasons, and a video can carry both: the vision pass read nothing off a
+ * meme's screen, and/or the analysis refused the audio as not-Arabic.
+ */
+function buildReviewNote(
+  audio: Checkpoint["audio"],
+  onScreenTextLines: OnScreenSegment[],
+  isMeme: boolean,
+): string | null {
+  const notes: string[] = [];
+  if (audio?.noArabicSpeech) {
+    notes.push(noArabicSpeechNote(
+      {
+        verdict: (audio.verdict as "non_arabic" | "no_speech") ?? "non_arabic",
+        keepAudioLines: false,
+        reason: audio.reason ?? "the engines did not find Arabic speech",
+      },
+      onScreenTextLines.length > 0,
+    ));
+  }
+  if (isMeme && onScreenTextLines.length === 0) {
+    notes.push("Meme screen-text extraction found no readable on-screen text; review manually before publishing.");
+  }
+  return notes.length > 0 ? notes.join(" ") : null;
+}
+
+// ── Stage 1+2: acquire audio and run the ASR fan-out ─────────────────────────
+async function runAsrStage(ctx: PipelineContext, cp: Checkpoint): Promise<void> {
+  const { videoId, video, supabase, authHeader, projectUrl } = ctx;
+  const storagePaths = stagedAudioPaths(videoId);
+
+  // This stage writes the row only at its ends, and a download plus six
+  // engines can sit between them for a couple of minutes. Touch the row
+  // meanwhile, so the admin page's "has this run died?" test — updated_at
+  // standing still — stays true only of a run that actually has.
+  const pulse = setInterval(() => { heartbeat(ctx); }, HEARTBEAT_EVERY_MS);
 
   try {
     console.log(`[pipeline] Starting for video ${videoId}: ${video.source_url}`);
+
+    // Start the checkpoint over. Whatever an earlier run left on disk — its
+    // engine results, its count of analysis starts — belongs to that run, and
+    // a resume of this one must not pick it up should this stage die before
+    // writing its own.
+    cp.stage = "asr";
+    cp.asr = undefined;
+    cp.analyzeAttempts = 0;
+    cp.analyzeFiredAt = null;
+    cp.httpResult = null;
+    cp.audio = null;
+    await writeCheckpoint(ctx, cp);
 
 
     // ── Step 1: Get audio ──────────────────────────────────────────
@@ -610,7 +1045,7 @@ async function runPipeline(
         let status = transcription.status;
         const startPoll = Date.now();
         while (status !== "completed" && status !== "error") {
-          if (Date.now() - startPoll > 4 * 60 * 1000) throw new Error("Soniox polling timeout");
+          if (Date.now() - startPoll > ASR_TIMEOUT_MS) throw new Error("Soniox polling timeout");
           await new Promise(r => setTimeout(r, 2000));
           const pollResp = await fetch(`${SONIOX_BASE}/transcriptions/${transcription.id}`, { headers: sHeaders });
           if (!pollResp.ok) { await pollResp.text(); continue; }
@@ -1096,89 +1531,91 @@ async function runPipeline(
       console.warn("[pipeline] Failed to persist ASR provenance (non-fatal):", e instanceof Error ? e.message : String(e));
     }
 
+    // ── Checkpoint: everything the analysis and finalisation need ──────────
+    // Written before the hand-off so a worker death from here on costs the
+    // run nothing it has already paid for.
+    cp.stage = "analyze";
+    cp.analyzeAttempts = 0;
+    cp.analyzeFiredAt = null;
+    cp.httpResult = null;
+    cp.audio = null;
+    cp.asr = {
+      primaryText,
+      primaryEngine,
+      dialectModule,
+      downloadDuration,
+      texts: {
+        scribe: scribeText, fanar: fanarText, soniox: sonioxText,
+        munsit: munsitText, azure: azureText, cohere: cohereText,
+      },
+      sonioxTranslation: sonioxResult?.translationText ?? null,
+      alignmentWords: relativeWords,
+      alignmentSource,
+    };
+    const persisted = await writeCheckpoint(ctx, cp);
+    clearInterval(pulse);
+    await advance(ctx, cp, persisted);
+  } catch (err) {
+    await failRow(ctx, "asr", err);
+  } finally {
+    clearInterval(pulse);
+  }
+}
 
-    // ── Step 3: Analyze via analyze-gulf-arabic ──────────────────
-    // Pass videoId so analyze-gulf-arabic persists results directly to DB,
-    // making the pipeline resilient to Supabase gateway ~150s timeouts.
-    // Send the QUALITY-PICKED primary text as `transcript`; everything else
-    // goes through as alternates for the LLM merge step.
-    console.log("[pipeline] Step 3: Analyzing transcript...");
+// ── Stage 3: analysis ────────────────────────────────────────────────────────
+//
+// analyze-gulf-arabic is asked to persist its results itself
+// (`transcription_status = 'analysis_complete'`), because its HTTP reply is
+// unreliable by design: the gateway answers 504 at 150s while the function
+// keeps running for minutes more. So this stage fires it, then watches the
+// row. What is new is the second start: an analysis that has produced nothing
+// after the platform's whole wall clock is dead — its worker was torn down —
+// and a fresh request to it is the only way to get a result. The old code
+// waited once and then failed the row.
+async function fireAnalysis(ctx: PipelineContext, body: Record<string, unknown>): Promise<AnalyzeResponse | null> {
+  try {
+    const analyzeResp = await fetch(`${ctx.projectUrl}/functions/v1/analyze-gulf-arabic`, {
+      method: "POST",
+      headers: { Authorization: serviceRoleBearer(ctx), "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(ANALYZE_FETCH_TIMEOUT_MS),
+    });
+    if (analyzeResp.ok) return await analyzeResp.json() as AnalyzeResponse;
+    const errText = await analyzeResp.text().catch(() => "");
+    console.warn(`[pipeline] analyze-gulf-arabic HTTP ${analyzeResp.status}: ${errText.slice(0, 200)}`);
+  } catch (fetchErr) {
+    console.warn(
+      "[pipeline] analyze-gulf-arabic fetch error (checking DB for direct-persist):",
+      fetchErr instanceof Error ? fetchErr.message : String(fetchErr),
+    );
+  }
+  return null;
+}
 
-    // On-screen text: read by the vision pass before this ran (frames ->
-    // extract-visual-context -> stored as `<id>.visual.json`) and loaded for
-    // EVERY video, not only the ones flagged as memes. Captions, POV lines and
-    // title cards turn up on ordinary clips just as often; the meme flag only
-    // decides whether the pipeline refuses to continue without them.
-    let visualContextSummary: string | null = null;
-    let visualCulturalContext: string | null = null;
-    let onScreenTextLines: OnScreenSegment[] = [];
-    let visualSceneContext: string | null = null;
-    let visualContextLoaded = false;
-    try {
-      const { data: visualBlob } = await supabase.storage
-        .from("video-audio")
-        .download(`${videoId}.visual.json`);
-      if (visualBlob) {
-        visualContextLoaded = true;
-        const visualResult = JSON.parse(await visualBlob.text()) as VisualResultBlob;
-        onScreenTextLines = segmentsFromVisualBlob(visualResult);
-        visualSceneContext = typeof visualResult?.sceneContext === "string" ? visualResult.sceneContext : null;
-        visualCulturalContext = buildVisualContextText(
-          onScreenTextLines,
-          visualSceneContext,
-          typeof visualResult?.culturalContext === "string" ? visualResult.culturalContext : null,
-        );
-        if (onScreenTextLines.length > 0) {
-          // Context for the analysis, never transcript content: it tells the
-          // model what the frame says so it can settle an ambiguous spoken
-          // word, and the prompt forbids copying any of it into lines[].
-          const label = video.is_meme ? "MEME" : "VIDEO";
-          visualContextSummary = `${label} — on-screen text segments (context only, NOT spoken):\n${summarizeOnScreenText(onScreenTextLines)}\n\nScene: ${visualSceneContext ?? ""}`.trim();
-          console.log(`[pipeline] ${onScreenTextLines.length} on-screen text segment(s) loaded`);
-        } else if (video.is_meme) {
-          console.warn("[pipeline] Meme: visual context loaded; no on-screen text detected — result will be flagged for review");
-        }
-      } else if (video.is_meme) {
-        console.warn(`[pipeline] Meme: no visual context file found for ${videoId}`);
-      }
-    } catch (e) {
-      console.warn("[pipeline] Visual context load failed (non-fatal):", e instanceof Error ? e.message : String(e));
+async function runAnalyzeStage(ctx: PipelineContext, cp: Checkpoint): Promise<void> {
+  const { videoId, video, supabase } = ctx;
+  try {
+    const asr = cp.asr;
+    if (!asr) {
+      throw new Error(
+        "The pipeline checkpoint holds no transcription results. Use Download & Re-transcribe on the video's edit page to run it again.",
+      );
     }
+    console.log(`[pipeline] Step 3: Analyzing transcript (${cp.analyzeAttempts} start(s) so far)...`);
 
+    const visual = await loadVisualContext(ctx);
     // A meme's joke is usually the text on screen, so analysing one on audio
     // alone produces a confident and wrong answer. Better to stop and ask for
     // the video file. Ordinary videos carry on without it.
-    if (video.is_meme && !visualContextLoaded) {
+    if (video.is_meme && !visual.loaded) {
       throw new Error("Meme screen-text extraction is missing. Upload the original video file so the Meme Analyzer can read text on screen before transcription.");
     }
-
-    // What gets written to `visual_timeline` at the end of the run. Kept
-    // alongside the transcript rather than inside it, so a caption is never
-    // mistaken for a line of speech.
-    const visualTimeline = toVisualTimeline(onScreenTextLines, visualSceneContext);
-
-    /**
-     * The `visual_timeline` patch for an update, or nothing.
-     *
-     * Falls back to the overlays an older run left inside `transcript_lines`,
-     * so re-running the pipeline on a video from before this change moves that
-     * text across instead of deleting it. Writes nothing at all when there is
-     * nothing to write — an empty array here would wipe a timeline a separate
-     * re-read had just filled in.
-     */
-    const visualTimelinePatch = (rawLines: PipelineLine[]): Record<string, unknown> => {
-      if (visualTimeline.length > 0) return { visual_timeline: visualTimeline };
-      const recovered = toVisualTimeline(segmentsFromLegacyLines(rawLines), visualSceneContext);
-      if (recovered.length === 0) return {};
-      console.log(`[pipeline] Recovered ${recovered.length} on-screen segment(s) from legacy transcript lines`);
-      return { visual_timeline: recovered };
-    };
 
     // Generate a signed URL for the staged audio so analyze-gulf-arabic
     // can pass it to Tier 1 (Gemini) as native multimodal input.
     let audioRef: string | null = null;
     try {
-      for (const path of storagePaths) {
+      for (const path of stagedAudioPaths(videoId)) {
         const { data: signed } = await supabase.storage
           .from("video-audio")
           .createSignedUrl(path, 60 * 30); // 30 min
@@ -1188,217 +1625,168 @@ async function runPipeline(
       console.warn("[pipeline] Signed URL failed (non-fatal):", e);
     }
 
+    // Send the QUALITY-PICKED primary text as `transcript`; everything else
+    // goes through as alternates for the LLM merge step.
     const analyzeBody: Record<string, unknown> = {
-      transcript: primaryText,
-      primaryEngine,
+      transcript: asr.primaryText,
+      primaryEngine: asr.primaryEngine,
       videoId,
-      dialectModule,
+      dialectModule: asr.dialectModule,
       isMeme: !!video.is_meme,
     };
     if (audioRef) analyzeBody.audioRef = audioRef;
-    if (visualContextSummary) analyzeBody.visualContext = visualContextSummary;
-    if (onScreenTextLines.length > 0) analyzeBody.onScreenTextSegments = onScreenTextLines;
-    if (fanarText) analyzeBody.fanarTranscript = fanarText;
-    if (sonioxText) analyzeBody.sonioxTranscript = sonioxText;
-    if (munsitText) analyzeBody.munsitTranscript = munsitText;
-    if (azureText) analyzeBody.azureTranscript = azureText;
-    if (scribeText) analyzeBody.scribeTranscript = scribeText;
-    if (cohereText) analyzeBody.cohereTranscript = cohereText;
-    const sonioxTranslation = sonioxResult?.translationText;
-    if (sonioxTranslation) analyzeBody.sonioxTranslation = sonioxTranslation;
+    if (visual.summary) analyzeBody.visualContext = visual.summary;
+    if (visual.onScreenTextLines.length > 0) analyzeBody.onScreenTextSegments = visual.onScreenTextLines;
+    if (asr.texts.fanar) analyzeBody.fanarTranscript = asr.texts.fanar;
+    if (asr.texts.soniox) analyzeBody.sonioxTranscript = asr.texts.soniox;
+    if (asr.texts.munsit) analyzeBody.munsitTranscript = asr.texts.munsit;
+    if (asr.texts.azure) analyzeBody.azureTranscript = asr.texts.azure;
+    if (asr.texts.scribe) analyzeBody.scribeTranscript = asr.texts.scribe;
+    if (asr.texts.cohere) analyzeBody.cohereTranscript = asr.texts.cohere;
+    if (asr.sonioxTranslation) analyzeBody.sonioxTranslation = asr.sonioxTranslation;
 
-    // Fire the analysis — it saves results directly to DB via videoId.
-    // We still try to read the response, but a 504 is non-fatal now.
-    let analyzeData: AnalyzeResponse | null = null;
-    try {
-      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-      const internalAuth = serviceRoleKey ? `Bearer ${serviceRoleKey}` : authHeader;
-      const analyzeResp = await fetch(`${projectUrl}/functions/v1/analyze-gulf-arabic`, {
-        method: "POST",
-        headers: { Authorization: internalAuth, "Content-Type": "application/json" },
-        body: JSON.stringify(analyzeBody),
-        // Never wait past the run's own deadline: leaving a minute of headroom
-        // is what lets the DB polling below (and, failing that, the terminal
-        // `failed` write) actually happen.
-        signal: AbortSignal.timeout(
-          Math.max(30_000, Math.min(3 * 60 * 1000, remainingMs() - 90_000)),
-        ),
+    let lastHeartbeat = Date.now();
+    while (true) {
+      // Nothing can have landed before the first start, so the row is only
+      // consulted once an analysis has actually been fired — on a resume,
+      // that may have been by an earlier request.
+      if (cp.analyzeAttempts > 0) {
+        const { data: row } = await supabase
+          .from("discover_videos")
+          .select("transcription_status")
+          .eq("id", videoId)
+          .single();
+        const status = (row as RefreshedRow | null)?.transcription_status;
 
-      });
-
-      if (analyzeResp.ok) {
-        analyzeData = await analyzeResp.json();
-      } else {
-        const errText = await analyzeResp.text().catch(() => "");
-        console.warn(`[pipeline] analyze-gulf-arabic HTTP ${analyzeResp.status}: ${errText.slice(0, 200)}`);
-      }
-    } catch (fetchErr) {
-      console.warn("[pipeline] analyze-gulf-arabic fetch error (checking DB for direct-persist):", fetchErr instanceof Error ? fetchErr.message : String(fetchErr));
-    }
-
-    // Check if analyze-gulf-arabic persisted results directly (status = 'analysis_complete')
-    const { data: refreshed } = await supabase.from("discover_videos")
-      .select("transcription_status, transcript_lines, vocabulary, grammar_points, cultural_context, dialect, difficulty, title, title_arabic")
-      .eq("id", videoId)
-      .single();
-
-    // Align merged-Arabic lines to the source audio timeline.
-    //
-    // First choice: real alignment. The merged Arabic no longer matches the
-    // ASR token stream index for index (the LLM merge rewrites text), but the
-    // two streams still share most of their words — so anchor them by text
-    // (arabicMatch normalisation, unique-word anchors, fuzzy gap fill) and take
-    // each line's span from the ASR words that actually matched. This is what
-    // keeps pauses as pauses instead of smearing them across every line.
-    //
-    // Fallback: proportional allocation. When too few words match — a
-    // wordless engine won the pick, a degenerate token stream, a merge that
-    // rewrote everything — take the total speech span from the timestamped
-    // source and allocate to each line by character length. Wrong in detail
-    // but bounded, which beats a confidently misaligned timeline. (Walking
-    // Deepgram word indices, the original approach, broke on exactly that:
-    // English-tuned segmentation returned far fewer Arabic words, so later
-    // lines ended up with undefined timestamps.)
-    const alignLinesToAudio = (rawLines: PipelineLine[]): PipelineLine[] => {
-      if (!Array.isArray(rawLines) || rawLines.length === 0) return rawLines;
-
-      // Total audio duration in ms — the most reliable upper bound.
-      const audioDurationMs =
-        ((downloadDuration && downloadDuration > 0 ? downloadDuration : 0) * 1000) ||
-        ((video.duration_seconds && video.duration_seconds > 0 ? video.duration_seconds : 0) * 1000) ||
-        0;
-
-      const aligned = alignLinesToAsrWords(
-        rawLines.map((l) => String(l?.arabic ?? "")),
-        relativeWords,
-        { audioDurationMs },
-      );
-      if (aligned) {
-        const matched = aligned.reduce(
-          (acc, l) => acc + l.words.filter((w) => w.matched).length,
-          0,
-        );
-        const total = aligned.reduce((acc, l) => acc + l.words.length, 0);
-        console.log(
-          `[pipeline] Word alignment: ${matched}/${total} words matched to ${alignmentSource} timestamps`,
-        );
-        return rawLines.map((line, i) => ({
-          ...line,
-          startMs: aligned[i].startMs,
-          endMs: aligned[i].endMs,
-          // Per-word timings persist so the editor and any later re-sync can
-          // work from real times instead of re-fabricating uniform ones.
-          words: aligned[i].words,
-        }));
-      }
-      console.log(
-        `[pipeline] Word alignment rejected (too few matches against ${alignmentSource}); ` +
-          "falling back to proportional allocation",
-      );
-
-      // Scan all alignment words for true min start / max end. Some ASRs
-      // (notably Soniox) drop end_ms on the final token of a phrase, which
-      // previously collapsed the entire span to a single instant — every
-      // line ended up with startMs == endMs == first word offset.
-      let spanStartMs = Number.POSITIVE_INFINITY;
-      let spanEndMs = 0;
-      for (const w of relativeWords) {
-        const s = Number(w?.start ?? 0) * 1000;
-        const e = Number(w?.end ?? 0) * 1000;
-        if (s > 0 && s < spanStartMs) spanStartMs = s;
-        if (e > spanEndMs) spanEndMs = e;
-        if (s > spanEndMs) spanEndMs = s; // start-only tokens still extend span
-      }
-      if (!Number.isFinite(spanStartMs)) spanStartMs = 0;
-
-      // Degenerate span (missing or single-point word times) → fall back
-      // to full audio duration so line audio still plays in roughly the
-      // right place.
-      if (spanEndMs - spanStartMs < 500) {
-        if (audioDurationMs > 0) {
-          spanStartMs = 0;
-          spanEndMs = audioDurationMs;
-        } else {
-          spanStartMs = 0;
-          spanEndMs = Math.max(spanEndMs, rawLines.length * 2000);
+        if (status === "analysis_complete") {
+          console.log("[pipeline] Results persisted directly by analyze-gulf-arabic");
+          cp.stage = "finalize";
+          const persisted = await writeCheckpoint(ctx, cp);
+          return await advance(ctx, cp, persisted);
+        }
+        if (status === "failed") {
+          // The analysis records its own failures (a rejected save, most often)
+          // with a reason; overwriting that with a vaguer one helps nobody.
+          console.warn("[pipeline] The analysis marked the row failed; stopping");
+          return;
+        }
+        if (status === "completed") {
+          console.log("[pipeline] Row already completed elsewhere; stopping");
+          return;
         }
       }
 
-      const totalSpan = Math.max(1, spanEndMs - spanStartMs);
+      const firedAt = cp.analyzeFiredAt ? Date.parse(cp.analyzeFiredAt) : Number.NaN;
+      const stillRunning = Number.isFinite(firedAt) && Date.now() - firedAt < ANALYZE_MAX_RUN_MS;
+      if (!stillRunning) {
+        if (cp.analyzeAttempts >= MAX_ANALYZE_ATTEMPTS) {
+          throw new Error(
+            `Analysis did not complete — it was started ${cp.analyzeAttempts} times and never saved a result. ` +
+              "The transcription engines succeeded, so use Download & Re-transcribe on the video's edit page to run it again.",
+          );
+        }
+        cp.analyzeAttempts += 1;
+        cp.analyzeFiredAt = new Date().toISOString();
+        await writeCheckpoint(ctx, cp);
+        console.log(`[pipeline] Starting analyze-gulf-arabic (attempt ${cp.analyzeAttempts}/${MAX_ANALYZE_ATTEMPTS})`);
 
-      const lens = rawLines.map((l) => {
-        const txt = String(l?.arabic ?? "").replace(/\s+/g, "");
-        return Math.max(1, txt.length);
-      });
-      const totalLen = lens.reduce((a, b) => a + b, 0);
+        const reply = await fireAnalysis(ctx, analyzeBody);
+        if (reply?.noArabicSpeech) {
+          console.log(`[pipeline] Audio rejected as ${reply.audio?.verdict ?? "not Arabic"}: ${reply.audio?.reason ?? ""}`);
+          cp.audio = { noArabicSpeech: true, verdict: reply.audio?.verdict, reason: reply.audio?.reason };
+        }
+        if (reply?.success && reply.result) {
+          // The reply beat the gateway. `result` is required here, not just
+          // `success`: a success envelope with no payload used to walk straight
+          // into `result.lines` and throw. Falling through to the row instead is
+          // what we'd want anyway — the analysis may still be writing to it.
+          cp.httpResult = reply;
+          cp.stage = "finalize";
+          const persisted = await writeCheckpoint(ctx, cp);
+          return await advance(ctx, cp, persisted);
+        }
+        // No usable reply: the function may still be running past the gateway's
+        // patience. Re-read the row before deciding anything.
+        continue;
+      }
 
-      let cursor = spanStartMs;
-      return rawLines.map((line, i) => {
-        const share = (lens[i] / totalLen) * totalSpan;
-        const startMs = Math.round(cursor);
-        const endMs = Math.round(cursor + share);
-        cursor += share;
-        return { ...line, startMs, endMs };
-      });
-    };
-
-    // Why this row may need a human before it is published. Two independent
-    // reasons, and a video can carry both: the vision pass read nothing off a
-    // meme's screen, and/or the analysis refused the audio as not-Arabic.
-    const noArabicSpeech = analyzeData?.noArabicSpeech === true;
-    if (noArabicSpeech) {
-      console.log(`[pipeline] Audio rejected as ${analyzeData?.audio?.verdict ?? "not Arabic"}: ${analyzeData?.audio?.reason ?? ""}`);
+      await sleep(POLL_INTERVAL_MS);
+      if (Date.now() - lastHeartbeat >= HEARTBEAT_EVERY_MS) {
+        await heartbeat(ctx);
+        lastHeartbeat = Date.now();
+      }
     }
-    const reviewNote = (): string | null => {
-      const notes: string[] = [];
-      if (noArabicSpeech) {
-        notes.push(noArabicSpeechNote(
-          {
-            verdict: (analyzeData?.audio?.verdict as "non_arabic" | "no_speech") ?? "non_arabic",
-            keepAudioLines: false,
-            reason: analyzeData?.audio?.reason ?? "the engines did not find Arabic speech",
-          },
-          onScreenTextLines.length > 0,
-        ));
-      }
-      if (video.is_meme && onScreenTextLines.length === 0) {
-        notes.push("Meme screen-text extraction found no readable on-screen text; review manually before publishing.");
-      }
-      return notes.length > 0 ? notes.join(" ") : null;
-    };
+  } catch (err) {
+    await failRow(ctx, "analyze", err);
+  }
+}
+
+// ── Stage 4: finalise ────────────────────────────────────────────────────────
+async function runFinalizeStage(ctx: PipelineContext, cp: Checkpoint): Promise<void> {
+  const { videoId, video, supabase } = ctx;
+  try {
+    console.log("[pipeline] Step 4: Finalizing transcript...");
+    const { data: refreshedRaw } = await supabase.from("discover_videos")
+      .select("transcription_status, transcript_lines, cultural_context, title, title_arabic")
+      .eq("id", videoId)
+      .single();
+    const refreshed = (refreshedRaw ?? null) as RefreshedRow | null;
+
+    if (refreshed?.transcription_status === "completed") {
+      console.log(`[pipeline] ${videoId} was finalized by another request; nothing to do`);
+      cp.stage = "done";
+      await writeCheckpoint(ctx, cp);
+      return;
+    }
+
+    const visual = await loadVisualContext(ctx);
+    const asr = cp.asr ?? null;
+    // Total audio duration in ms — the most reliable upper bound.
+    const audioDurationMs =
+      ((asr?.downloadDuration && asr.downloadDuration > 0 ? asr.downloadDuration : 0) * 1000) ||
+      ((video.duration_seconds && video.duration_seconds > 0 ? video.duration_seconds : 0) * 1000) ||
+      0;
+    const align = (rawLines: PipelineLine[]) =>
+      alignLinesToAudio(rawLines, asr?.alignmentWords ?? [], asr?.alignmentSource ?? "no engine", audioDurationMs);
+    const audio = cp.audio ??
+      (cp.httpResult?.noArabicSpeech
+        ? { noArabicSpeech: true, verdict: cp.httpResult.audio?.verdict, reason: cp.httpResult.audio?.reason }
+        : null);
+    const reviewNote = buildReviewNote(audio, visual.onScreenTextLines, !!video.is_meme);
+    const withContext = (primary: string | null | undefined) =>
+      video.is_meme
+        ? buildMemeReviewContext(visual.onScreenTextLines, combineContext(primary ?? null, visual.culturalContext))
+        : combineContext(primary ?? null, visual.culturalContext);
+
+    // The finalising write claims the row: it only goes through while the row
+    // is still where this stage expects it, so two finalisers racing (the
+    // pipeline's own poll and the analysis calling back) produce one
+    // transcript, and only the one that won goes on to ask for a rating.
+    let claimed = false;
 
     if (refreshed?.transcription_status === "analysis_complete") {
-      console.log("[pipeline] Results persisted directly by analyze-gulf-arabic");
-
-      const lines = alignLinesToAudio(
-        withoutOnScreenLines((refreshed.transcript_lines as PipelineLine[]) || []),
-      );
-
+      const rawLines = (refreshed.transcript_lines as PipelineLine[]) || [];
+      const lines = align(withoutOnScreenLines(rawLines));
       const title = refreshed.title || video.title;
       const titleArabic = refreshed.title_arabic || video.title_arabic;
 
-      // Finalize: add timestamps and mark completed
-      const { error: finalErr } = await supabase.from("discover_videos").update({
+      const { data: won, error: finalErr } = await supabase.from("discover_videos").update({
         title, title_arabic: titleArabic,
         transcript_lines: lines,
-        ...visualTimelinePatch((refreshed.transcript_lines as PipelineLine[]) || []),
-        cultural_context: video.is_meme
-          ? buildMemeReviewContext(onScreenTextLines, combineContext(refreshed.cultural_context as string | null, visualCulturalContext))
-          : combineContext(refreshed.cultural_context as string | null, visualCulturalContext),
-        transcription_error: reviewNote(),
+        ...visual.timelinePatch(rawLines),
+        cultural_context: withContext(refreshed.cultural_context),
+        transcription_error: reviewNote,
         transcription_status: "completed",
-      }).eq("id", videoId);
+      }).eq("id", videoId).eq("transcription_status", "analysis_complete").select("id");
 
       if (finalErr) throw new Error(`Failed to finalize results: ${finalErr.message}`);
-    } else if (analyzeData?.success && analyzeData.result) {
-      // Fallback: HTTP response arrived before gateway timeout.
-      // `result` is required here, not just `success`: a success envelope with
-      // no payload used to walk straight into `result.lines` and throw. Falling
-      // through to the polling branch instead is what we'd want anyway — the
-      // analysis may still be writing directly to the row.
-      const result = analyzeData.result;
-
-      const lines = alignLinesToAudio(withoutOnScreenLines(result.lines || []));
+      claimed = Array.isArray(won) ? won.length > 0 : true;
+    } else if (cp.httpResult?.success && cp.httpResult.result) {
+      // The reply arrived over HTTP but the analysis never wrote the row
+      // itself (it says so on the row when a save fails; this is the quieter
+      // case). Persist what it sent.
+      const result = cp.httpResult.result;
+      const lines = align(withoutOnScreenLines(result.lines || []));
 
       const sanitizedLines = lines.map((line) => ({
         ...line,
@@ -1445,131 +1833,92 @@ async function runPipeline(
         if (!titleArabic && first?.arabic) titleArabic = String(first.arabic).slice(0, 80);
       }
 
-      const { error: updateError } = await supabase.from("discover_videos").update({
+      const { data: won, error: updateError } = await supabase.from("discover_videos").update({
         title, title_arabic: titleArabic,
         transcript_lines: sanitizedLines,
-        ...visualTimelinePatch(result.lines || []),
+        ...visual.timelinePatch(result.lines || []),
         vocabulary: result.vocabulary || [],
         grammar_points: result.grammarPoints || [],
-        cultural_context: video.is_meme
-          ? buildMemeReviewContext(onScreenTextLines, combineContext(result.culturalContext || null, visualCulturalContext))
-          : combineContext(result.culturalContext || null, visualCulturalContext),
+        cultural_context: withContext(result.culturalContext),
         dialect: result.dialect || "Gulf",
         difficulty: result.difficulty || "Intermediate",
         transcription_status: "completed",
-        transcription_error: reviewNote(),
-      }).eq("id", videoId);
+        transcription_error: reviewNote,
+      }).eq("id", videoId).neq("transcription_status", "completed").select("id");
 
       if (updateError) throw new Error(`Failed to save results: ${updateError.message}`);
+      claimed = Array.isArray(won) ? won.length > 0 : true;
     } else {
-      // Neither direct-persist nor HTTP response succeeded — poll DB for
-      // late-arriving analyze-gulf-arabic completion.
-      //
-      // analyze-gulf-arabic can genuinely take up to ~3.5 minutes (ensemble
-      // of Claude + Qwen + Gemini + Fanar + gloss enrichment + diacritization).
-      // The 150s Supabase edge-function idle timeout can drop the HTTP
-      // response, but the function keeps running and persists directly.
-      // Poll until the run's deadline, keeping 45s in reserve so the outcome is
-      // always recorded. A fixed 4-minute loop was the actual defect: added to
-      // the analyze wait it ran past the background task's allowance, the
-      // isolate was killed mid-loop, and the row was left on `processing` with
-      // no error — the "stuck in queue" state.
-      console.log("[pipeline] No HTTP result — polling for late analyze-gulf-arabic persist...");
-      let landed = false;
-      let retryFull: RefreshedRow | null = null;
-      let waited = 0;
-      while (remainingMs() > 45_000) {
-        await new Promise(r => setTimeout(r, 10_000));
-        waited += 10;
-        const { data: retry } = await supabase.from("discover_videos")
-          .select("transcription_status, transcript_lines, cultural_context, title, title_arabic")
-          .eq("id", videoId)
-          .single();
-        if (retry?.transcription_status === "analysis_complete") {
-          retryFull = retry;
-          landed = true;
-          console.log(`[pipeline] analyze results landed after ${waited}s`);
-          break;
-        }
-      }
-
-
-      if (landed && retryFull) {
-        const retryLines = alignLinesToAudio(
-          withoutOnScreenLines((retryFull?.transcript_lines as PipelineLine[]) || []),
-        );
-
-        await supabase.from("discover_videos").update({
-          transcript_lines: retryLines,
-          ...visualTimelinePatch((retryFull?.transcript_lines as PipelineLine[]) || []),
-          cultural_context: video.is_meme
-            ? buildMemeReviewContext(onScreenTextLines, combineContext(retryFull?.cultural_context as string | null, visualCulturalContext))
-            : combineContext(retryFull?.cultural_context as string | null, visualCulturalContext),
-          transcription_status: "completed",
-          transcription_error: reviewNote(),
-        }).eq("id", videoId);
-      } else {
-        throw new Error(
-          `Analysis did not complete — no HTTP response and no saved results after ${waited}s. ` +
-            "The transcription engines succeeded, so use Download & Re-transcribe on the video's edit page to run it again.",
-        );
-
-      }
+      throw new Error(
+        "Nothing to finalize: the analysis has not saved a result for this video. " +
+          "Use Download & Re-transcribe on the video's edit page to run it again.",
+      );
     }
 
+    cp.stage = "done";
+    await writeCheckpoint(ctx, cp);
+
+    if (!claimed) {
+      console.log(`[pipeline] ${videoId} was finalized by another request first; skipping the rating`);
+      return;
+    }
 
     // NOTE: Intentionally keep staged audio in `video-audio/` so the Discover
     // player can stream it for subtitle sync (TikTok hidden-audio playback).
-    // Previously we removed `storagePaths` here to save storage, but that
+    // Previously we removed the staged paths here to save storage, but that
     // broke automatic sync for completed videos.
 
-    // Auto-tag difficulty (CEFR + WPM + rare-word ratio) once transcript is ready.
-    //
-    // Awaited, not fire-and-forget. This is the last step of a pipeline that is
-    // itself running inside the outer `waitUntil`, and registering a *second*
-    // waitUntil from a task that is about to settle does not reliably extend the
-    // isolate's life — rate-video-cefr was observed booting and shutting down
-    // with no log output of its own, which is what a mid-flight teardown looks
-    // like. Awaiting keeps it inside the window that is already being held open.
-    //
-    // Authorization uses the service-role key for the same reason the analyze
-    // call does: `authHeader` is whatever the original caller sent, which may be
-    // an anon key with no rights to this function.
-    try {
-      const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
-      const rateResp = await fetch(`${projectUrl}/functions/v1/rate-video-cefr`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: serviceRoleKey ? `Bearer ${serviceRoleKey}` : authHeader,
-        },
-        body: JSON.stringify({ videoId }),
-        // A hung rating must not hold the pipeline open indefinitely; the
-        // transcript is already persisted by this point either way.
-        signal: AbortSignal.timeout(90_000),
-      });
-      if (!rateResp.ok) {
-        console.warn(`[pipeline] auto-rate failed: ${rateResp.status} ${await rateResp.text().catch(() => "")}`);
-      } else {
-        console.log(`[pipeline] auto-rate completed for ${videoId}`);
-      }
-    } catch (e) {
-      console.warn("[pipeline] auto-rate error (non-fatal):", e instanceof Error ? e.message : String(e));
-    }
-
+    await rateDifficulty(ctx);
     console.log(`[pipeline] Completed for video ${videoId}`);
   } catch (err) {
-    const errorMsg = err instanceof Error ? err.message : "Unknown error";
-    console.error(`[pipeline] Failed for video ${videoId}:`, errorMsg);
+    await failRow(ctx, "finalize", err);
+  }
+}
 
-    await supabase.from("discover_videos").update({
-      transcription_status: "failed",
-      transcription_error: errorMsg,
-    }).eq("id", videoId);
+/**
+ * Auto-tag difficulty (CEFR + WPM + rare-word ratio) once the transcript is ready.
+ *
+ * Awaited, not fire-and-forget. This is the last step of a stage that is
+ * itself running inside the outer `waitUntil`, and registering a *second*
+ * waitUntil from a task that is about to settle does not reliably extend the
+ * isolate's life — rate-video-cefr was observed booting and shutting down
+ * with no log output of its own, which is what a mid-flight teardown looks
+ * like. Awaiting keeps it inside the window that is already being held open.
+ */
+async function rateDifficulty(ctx: PipelineContext): Promise<void> {
+  try {
+    const rateResp = await fetch(`${ctx.projectUrl}/functions/v1/rate-video-cefr`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: serviceRoleBearer(ctx) },
+      body: JSON.stringify({ videoId: ctx.videoId }),
+      // A hung rating must not hold the pipeline open indefinitely; the
+      // transcript is already persisted by this point either way.
+      signal: AbortSignal.timeout(90_000),
+    });
+    if (!rateResp.ok) {
+      console.warn(`[pipeline] auto-rate failed: ${rateResp.status} ${await rateResp.text().catch(() => "")}`);
+    } else {
+      console.log(`[pipeline] auto-rate completed for ${ctx.videoId}`);
+    }
+  } catch (e) {
+    console.warn("[pipeline] auto-rate error (non-fatal):", e instanceof Error ? e.message : String(e));
   }
 }
 
 // ── HTTP handler ───────────────────────────────────────────────────────────
+//
+// Three ways in, one body shape `{ videoId, stage?, resume? }`:
+//
+//   { videoId }                 a fresh run — the admin form's Approve /
+//                               Re-transcribe. Starts over from the audio.
+//   { videoId, stage }          an internal hop from an earlier stage, or the
+//                               analysis calling back with "finalize".
+//   { videoId, resume: true }   "this row has stopped moving" — from the admin
+//                               page's poll. Continues from the checkpoint, or
+//                               does nothing if the row is not mid-run.
+//
+// Every one of them answers 202 straight away and does the work in the
+// background; the caller learns the outcome from the row, as before.
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   console.log(`[handler] ${req.method} ${req.url}`);
@@ -1598,7 +1947,7 @@ serve(async (req) => {
     `[handler] authorized ${gate.viaServiceRole ? "internal service-role call" : `user ${gate.userId}`}`,
   );
 
-  let body: { videoId?: string } | null = null;
+  let body: { videoId?: string; stage?: string; resume?: boolean } | null = null;
   try {
     body = await req.json();
   } catch (e) {
@@ -1608,11 +1957,18 @@ serve(async (req) => {
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
-  const { videoId } = body ?? {};
-  console.log(`[handler] videoId=${videoId}`);
+  const { videoId, stage: requestedStage, resume } = body ?? {};
+  console.log(`[handler] videoId=${videoId} stage=${requestedStage ?? "-"} resume=${!!resume}`);
   if (!videoId) {
     return new Response(
       JSON.stringify({ error: "videoId is required" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+  const STAGES: StageName[] = ["asr", "analyze", "finalize", "done"];
+  if (requestedStage !== undefined && !STAGES.includes(requestedStage as StageName)) {
+    return new Response(
+      JSON.stringify({ error: `Unknown stage: ${requestedStage}` }),
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
@@ -1635,31 +1991,88 @@ serve(async (req) => {
     );
   }
 
-  await supabase
-    .from("discover_videos")
-    .update({ transcription_status: "processing", transcription_error: null })
-    .eq("id", videoId);
-
   const projectUrl = Deno.env.get("SUPABASE_URL")!;
   // Always use service-role key for inter-function calls so the pipeline
   // keeps working even after the original user JWT expires mid-run.
   const pipelineAuth = `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""}`;
+  const ctx: PipelineContext = {
+    videoId,
+    video: video as VideoRow,
+    supabase,
+    authHeader: pipelineAuth,
+    projectUrl,
+  };
+  const rowStatus = String((video as VideoRow & { transcription_status?: string | null }).transcription_status ?? "");
 
-  // Launch the pipeline as a background task that is fully decoupled from this
+  // Decide what to run. `cp` is the checkpoint the stage will work from.
+  let cp: Checkpoint;
+  if (requestedStage !== undefined) {
+    // A hop. The checkpoint on disk is the source of truth for what the
+    // earlier stages produced; the requested stage says where to pick up. A
+    // missing checkpoint is survivable for "finalize" (the analysis calling
+    // back after its own save — alignment then falls back to proportional
+    // timing), and for nothing else.
+    const stage = requestedStage as StageName;
+    const stored = await readCheckpoint(supabase, videoId);
+    if (!stored && stage !== "finalize" && stage !== "asr") {
+      return new Response(
+        JSON.stringify({ error: `No checkpoint to run ${stage} from` }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    cp = stored ?? freshCheckpoint(stage);
+    cp.stage = stage;
+  } else if (resume) {
+    // Only a row that is mid-run has anything to resume. A completed or
+    // failed row is left alone: an admin who wants another pass has a button
+    // for that, and it starts a fresh run on purpose.
+    if (rowStatus === "analysis_complete") {
+      cp = (await readCheckpoint(supabase, videoId)) ?? freshCheckpoint("finalize");
+      cp.stage = "finalize";
+    } else if (rowStatus === "processing" || rowStatus === "pending") {
+      const stored = await readCheckpoint(supabase, videoId);
+      if (stored && stored.stage !== "done") {
+        cp = stored;
+      } else {
+        // Nothing checkpointed: the run died before the engines finished, or
+        // never started. From the audio, then.
+        cp = freshCheckpoint("asr");
+      }
+      if (rowStatus === "pending") {
+        await supabase.from("discover_videos")
+          .update({ transcription_status: "processing", transcription_error: null })
+          .eq("id", videoId);
+      }
+    } else {
+      return new Response(
+        JSON.stringify({ success: true, resumed: false, status: rowStatus }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    console.log(`[handler] resuming ${videoId} at ${cp.stage}`);
+  } else {
+    await supabase
+      .from("discover_videos")
+      .update({ transcription_status: "processing", transcription_error: null })
+      .eq("id", videoId);
+    cp = freshCheckpoint("asr");
+  }
+
+  // Launch the stage as a background task that is fully decoupled from this
   // HTTP request. When the response is returned below, req.signal fires (the
-  // platform considers the request done), but runPipeline() continues running
+  // platform considers the request done), but the stage continues running
   // inside waitUntil and cannot be aborted by req.signal.
-  const pipeline = runPipeline(videoId, video, supabase, pipelineAuth, projectUrl);
+  const task = runStage(ctx, cp);
 
   try {
-    edgeRuntime()?.waitUntil?.(pipeline);
+    edgeRuntime()?.waitUntil?.(task);
   } catch {
     // Fallback: keep the promise alive as a detached task
-    pipeline.catch((err: unknown) => console.error("[pipeline] Unhandled background error:", err));
+    task.catch((err: unknown) => console.error("[pipeline] Unhandled background error:", err));
   }
 
   return new Response(
-    JSON.stringify({ success: true, message: "Processing started" }),
+    JSON.stringify({ success: true, message: "Processing started", stage: cp.stage }),
     { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
 });

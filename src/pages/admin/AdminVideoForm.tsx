@@ -17,6 +17,7 @@ import { Loader2, ArrowLeft, Sparkles, Save, Upload, Download, Image as ImageIco
 import { AdminTranscriptEditor } from "@/components/admin/AdminTranscriptEditor";
 import { TranscriptDraftBanner } from "@/components/admin/TranscriptDraftBanner";
 import { useTranscriptDraft } from "@/hooks/useTranscriptDraft";
+import { usePipelineResume } from "@/hooks/usePipelineResume";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import LineRevisionHistory from "@/components/admin/transcribe/LineRevisionHistory";
@@ -148,6 +149,13 @@ const AdminVideoForm = () => {
 
   const isEditing = !!videoId;
   const { data: existingVideo, isLoading: loadingVideo } = useDiscoverVideo(videoId);
+
+  // The poll above is what notices a transcription run that has died mid-way
+  // (a worker torn down between two stages leaves the row on `processing`
+  // with nothing left running); this is what does something about it,
+  // asking the pipeline to continue from its checkpoint.
+  const resumeCandidates = useMemo(() => (existingVideo ? [existingVideo] : undefined), [existingVideo]);
+  usePipelineResume(resumeCandidates, { enabled: isEditing && canManage });
 
   const [sourceUrl, setSourceUrl] = useState("");
   const [title, setTitle] = useState("");
@@ -1489,8 +1497,9 @@ const AdminVideoForm = () => {
               <Loader2 className="h-4 w-4 animate-spin" />
               <span className="text-sm font-medium">
                 Transcription is being processed on the server. This page will update automatically
-                when complete — the pipeline rewrites the transcript wholesale when it finishes, so
-                anything corrected now will be overwritten.
+                when complete, and restarts the run from its last checkpoint if it stalls — the
+                pipeline rewrites the transcript wholesale when it finishes, so anything corrected
+                now will be overwritten.
               </span>
             </CardContent>
           </Card>

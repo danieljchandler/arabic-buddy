@@ -1610,6 +1610,39 @@ async function fallbackLineTranslate(arabicLines: string[], dialect?: string): P
   }
 }
 
+/**
+ * Hand a persisted analysis back to the pipeline to finish.
+ *
+ * `process-approved-video` normally watches the row and picks this up itself,
+ * but its worker may be gone by the time a long analysis lands — the platform's
+ * wall clock belongs to the worker, and the analysis alone can outlive one.
+ * Calling `{ stage: "finalize" }` here makes finishing the transcript depend on
+ * nothing but this function having saved its result. Best effort: the pipeline
+ * poll and the admin page's resume both cover the case where this call fails.
+ */
+function finalizeViaPipeline(videoId: string): void {
+  const task = (async () => {
+    try {
+      const resp = await fetch(`${Deno.env.get('SUPABASE_URL')}/functions/v1/process-approved-video`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ videoId, stage: 'finalize' }),
+        signal: AbortSignal.timeout(20_000),
+      });
+      await resp.text().catch(() => '');
+      if (resp.ok) console.log(`[analyze] Asked the pipeline to finalize ${videoId}`);
+      else console.warn(`[analyze] Pipeline finalize call answered ${resp.status} for ${videoId}`);
+    } catch (e) {
+      console.warn(`[analyze] Pipeline finalize call failed for ${videoId}:`, e instanceof Error ? e.message : String(e));
+    }
+  })();
+  const runtime = (globalThis as unknown as { EdgeRuntime?: { waitUntil?(task: Promise<unknown>): void } }).EdgeRuntime;
+  if (runtime?.waitUntil) runtime.waitUntil(task);
+}
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   // Handle CORS preflight requests
@@ -1832,6 +1865,8 @@ serve(async (req) => {
                transcription_status: 'failed',
                transcription_error: `Analysis finished but saving the results failed: ${emptySaveErr.message}`,
              }).eq('id', pipelineVideoId);
+           } else {
+             finalizeViaPipeline(pipelineVideoId);
            }
          } catch (persistErr) {
            console.error('[analyze] Failed to persist empty-audio result:', persistErr);
@@ -2851,6 +2886,7 @@ serve(async (req) => {
             }).eq('id', pipelineVideoId);
           } else {
             console.log(`[analyze] Persisted results directly for video ${pipelineVideoId}`);
+            finalizeViaPipeline(pipelineVideoId);
           }
         } catch (persistErr) {
           console.error('[analyze] Direct DB persist failed:', persistErr);

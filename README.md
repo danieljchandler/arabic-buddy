@@ -752,6 +752,55 @@ JPEG — an expired signature answers 200-shaped enough to be dangerous, so the
 content type is checked before anything is uploaded. When the copy genuinely
 cannot be made, the borrowed URL is kept: a picture for two days beats none.
 
+### A transcription run that survives its worker
+
+"I uploaded a TikTok, the transcription started, and then nothing happened
+until it timed out with an error" is what a dead edge-function worker looks
+like from the admin form. Supabase's wall-clock limit (400s on paid plans) is
+the life of the *worker*, not the request: a worker keeps serving requests and
+background tasks until it reaches the limit and is then torn down with whatever
+is still running inside it, and nothing catchable is raised. So a run that
+starts on a worker warmed by an earlier upload — the second video in a row, or
+a re-transcribe a minute after a failure — has an unknown fraction of that
+budget left. `process-approved-video` used to be one background task doing the
+download, six ASR engines, a three-to-four-minute wait on `analyze-gulf-arabic`
+and finalisation, on a six-minute budget of its own that assumed a fresh
+worker; when it wasn't, the run died between two writes and the row sat on
+`processing` with no error until the reaper failed it twelve minutes later.
+
+Now the run is a chain of short requests to the same function, each writing a
+checkpoint (`video-audio/<id>.pipeline.json`) before handing over:
+`asr` (acquire audio, run every engine, pick a primary) → `analyze` (fire
+`analyze-gulf-arabic`, watch the row for its `analysis_complete`) →
+`finalize` (align lines to the audio, strip on-screen text, mark completed,
+ask `rate-video-cefr`). A death loses at most the stage in flight, never the
+engine results already paid for, and three things can pick the run back up:
+
+- **the function itself** — each stage hops to the next with
+  `{ videoId, stage }`, and an analysis that has produced nothing after the
+  platform's whole wall clock is treated as dead and started again (up to
+  three starts, then the row is failed with a message that says so);
+- **the analysis** — once `analyze-gulf-arabic` has saved its result it calls
+  `{ videoId, stage: "finalize" }`, so finishing the transcript no longer
+  depends on the pipeline's worker still being alive minutes later;
+- **the admin pages** — `/admin/videos` and the edit page already poll a
+  mid-run row; `usePipelineResume` (decision in `src/lib/pipelineResume.ts`)
+  sends `{ videoId, resume: true }` when a row has stopped moving for longer
+  than a live run ever goes quiet. Live runs touch the row every 30s (a
+  heartbeat during the engine fan-out and the analysis wait), so "two minutes
+  without an `updated_at` change" is a dead worker, not a slow engine.
+  `pending` is left alone for ten minutes, because the form holds a row there
+  for as long as a large upload takes.
+
+A resume never repeats paid work: it reads the checkpoint and continues from
+the stage it names, and a row that is already completed or failed is left
+alone (**Download & Re-transcribe** is the deliberate fresh start). The
+finalising write is conditional on the row still being where the stage
+expects it, so the pipeline's own poll and the analysis's callback racing to
+finish produce one transcript and one rating. The reaper in
+`reap_stuck_video_transcriptions` still runs underneath all of this, as the
+last resort when no page is open and no callback arrived.
+
 ## Trending (free social harvest)
 
 `/trending` shows what the Arab world is posting right now: per-country X trend

@@ -53,8 +53,8 @@ function pipelineExtensions(): string[] {
     join(process.cwd(), "supabase", "functions", "process-approved-video", "index.ts"),
     "utf8",
   );
-  const block = source.match(/const storagePaths = \[([\s\S]*?)\];/);
-  if (!block) throw new Error("could not find storagePaths in process-approved-video");
+  const block = source.match(/const stagedAudioPaths = \(videoId: string\) => \[([\s\S]*?)\];/);
+  if (!block) throw new Error("could not find stagedAudioPaths in process-approved-video");
   return [...block[1].matchAll(/\$\{videoId\}(\.[a-z0-9]+)/g)].map((m) => m[1]);
 }
 

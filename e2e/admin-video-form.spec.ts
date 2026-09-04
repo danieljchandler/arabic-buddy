@@ -324,6 +324,33 @@ test.describe("editing an existing video", () => {
     await expect(page.getByText(/Transcription is being processed on the server/)).toBeVisible();
   });
 
+  test("asks the pipeline to resume a run that has stopped moving", async ({ page, db, backend }) => {
+    // A worker torn down mid-run leaves the row on processing with nothing
+    // left to send the next stage. The page polls the row anyway; when it has
+    // not moved for longer than a live run ever goes quiet, it asks the
+    // function to continue from its checkpoint.
+    seedVideo(db, {
+      transcription_status: "processing",
+      updated_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+    });
+
+    await page.goto(`/admin/videos/${VIDEO}/edit`);
+
+    await expect.poll(() => backend.lastCallTo("process-approved-video")?.body).toEqual({
+      videoId: VIDEO,
+      resume: true,
+    });
+  });
+
+  test("leaves a run that is still moving alone", async ({ page, db, backend }) => {
+    seedVideo(db, { transcription_status: "processing", updated_at: new Date().toISOString() });
+
+    await page.goto(`/admin/videos/${VIDEO}/edit`);
+
+    await expect(page.getByText(/Transcription is being processed on the server/)).toBeVisible();
+    expect(backend.callsTo("process-approved-video")).toHaveLength(0);
+  });
+
   test("says a transcription is queued", async ({ page, db }) => {
     // Freshly queued — the stalled-pending detection keys off updated_at, and
     // the factory's default timestamp is old enough to read as stalled.

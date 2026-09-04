@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
+import { usePipelineResume } from "@/hooks/usePipelineResume";
 import {
   useAdminDiscoverVideos,
   useBackfillThumbnails,
@@ -110,6 +111,11 @@ const AdminVideos = () => {
   // Including them here offered publish/delete buttons whose writes matched
   // zero rows and "succeeded".
   const canManage = !rolesLoading && (isAdmin || isContentReviewer);
+
+  // The list polls while any video is mid-run; a row that has stopped moving
+  // is a run whose worker died, and this asks the pipeline to pick it up from
+  // its checkpoint rather than leaving it for the reaper to fail.
+  usePipelineResume(videos, { enabled: canManage });
 
   /**
    * Re-read one video's on-screen text.

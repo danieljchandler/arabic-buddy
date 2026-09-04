@@ -297,3 +297,44 @@ Deno.test("survives the on-screen-only pass failing", async () => {
   assertEquals(body.noArabicSpeech, true);
   assertEquals((body.result as { vocabulary: unknown[] }).vocabulary, []);
 });
+
+Deno.test("hands a persisted analysis back to the pipeline to finish", async () => {
+  // The pipeline's own worker may be gone by the time a long analysis lands
+  // (the platform's wall clock belongs to the worker, and the analysis alone
+  // can outlive one). Once the row is written, this function asks the pipeline
+  // to run its finalize stage — so a transcript finishes even when nothing is
+  // left watching for it.
+  const VIDEO = "cccccccc-0000-4000-8000-000000000000";
+  const SERVICE_ROLE = "e2e-service-role-not-a-real-secret";
+  const fn = await loadFunction("analyze-gulf-arabic", {
+    upstreams: allowed({
+      "openrouter.ai": () => chatCompletion(JSON.stringify({
+        audio: { verdict: "non_arabic", reason: "an English song" },
+        lines: [],
+      })),
+      "/rest/v1/discover_videos": () => json([{ id: VIDEO }], 200),
+      "/functions/v1/process-approved-video": () => json({ success: true }, 202),
+    }),
+  });
+  try {
+    const response = await fn.handler(
+      jsonRequest("analyze-gulf-arabic", {
+        transcript: "شلونك اليوم الحمد لله بخير وانت شخبارك",
+        videoId: VIDEO,
+      }, { jwt: SERVICE_ROLE }),
+    );
+    assertEquals(response.status, 200);
+    await fn.background();
+
+    const persisted = fn.calls.find((c) => c.url.includes("discover_videos") && c.method === "PATCH");
+    assert(persisted, "expected the empty transcript to be persisted");
+    assertEquals(JSON.parse(persisted.body ?? "{}").transcription_status, "analysis_complete");
+
+    const callback = fn.calls.find((c) => c.url.includes("/functions/v1/process-approved-video"));
+    assert(callback, "expected the pipeline to be asked to finalize");
+    assertEquals(JSON.parse(callback.body ?? "{}"), { videoId: VIDEO, stage: "finalize" });
+    assertEquals(callback.headers["authorization"], `Bearer ${SERVICE_ROLE}`);
+  } finally {
+    fn.restore();
+  }
+});

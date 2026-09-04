@@ -6,23 +6,17 @@ drift guards it will trip (this repo fails CI when a new function, module or
 route lands without its counterpart), and how it is verified — in most cases
 by re-running the `qa/` harness, which is the point of having it.
 
-## Not in this plan: the TikTok audio item (M1)
+## The TikTok audio item (M1), what it is and is not
 
-The muted TikTok embed is by design and stays that way. The audit item was not
-about unmuting the embed or exposing the TikTok video; it was about *our own*
-audio copy in the private `video-audio` bucket, which `DiscoverVideo` uses as
-the master clock for the muted frame, for slow-listen and for shadowing.
-Today only reviewers and admins can mint a signed URL for it, so a learner's
-page falls back to the silent timer-synced mode. Two things still need a
-decision before anything is touched, and the plan leaves them open:
-
-1. Is silent, timer-synced playback the intended learner experience for
-   TikTok clips, or should learners hear our audio copy through a short-lived
-   URL minted server-side (bucket stays private, no direct TikTok access)?
-2. Either way, should the client stop probing six file extensions × two keys
-   (12 failing storage calls per page view) when the viewer cannot sign?
-
-Nothing else in this plan depends on the answer.
+The muted TikTok embed is by design and stays muted; nothing in package 11
+touches the embed, its URL parameters, or TikTok's video. The audit item is
+about *our own* audio copy in the private `video-audio` bucket, which
+`DiscoverVideo` uses as the master clock for the muted frame, for slow-listen
+and for shadowing. Today only reviewers and admins can mint a signed URL for
+it, so a signed-in learner's page falls back to the silent timer-synced mode,
+and every visitor's page makes 12 failing storage calls trying. Package 11
+gives signed-in learners that audio through a short-lived URL minted
+server-side; the bucket stays private and the TikTok source is never exposed.
 
 ## Order of work
 
@@ -38,9 +32,12 @@ Nothing else in this plan depends on the answer.
 | 8 | Transcript word timings and Listen audio encoding | M5, m4 | dev + paid backfill | M |
 | 9 | Database and storage hygiene | m5, m6, m7 | dev + ops | S |
 | 10 | Authenticated QA run and close-out | audit "Blocked" section | you + dev | S |
+| 11 | Serve the TikTok audio copy to signed-in learners, stop the failing probes | M1 | dev | M |
 
 Packages 1–3 are the launch blockers and are independent of each other.
 Package 5 should land before 6 so the 401 handling has somewhere to render.
+Package 11 is Major and independent; schedule it alongside 5–6 since it
+shares the "sign in to…" affordance with 6.
 
 ---
 
@@ -281,3 +278,71 @@ compressed sibling and prefer it in `useListen.ts`. Verify with the
    itself.
 5. Re-run the whole harness after packages 1–7 merge and diff
    `qa/output/crawl-report.md` against this run's copy.
+
+## 11. TikTok audio copy for signed-in learners (M1)
+
+**What stays the same**: the TikTok `player/v1` iframe stays muted
+(`DiscoverVideo.tsx:1337-1358`), the `video-audio` bucket stays private, and
+its storage policies are not widened. Reviewers and admins keep their direct
+`createSignedUrl` path for the edit page.
+
+**What changes**: a learner gets a 10-minute signed URL for *our* audio copy
+from an edge function that runs under the service role and only answers for
+a published video and a signed-in caller. The client asks that function once
+instead of probing six extensions × two keys against a bucket it cannot read.
+
+**Files**
+- new `supabase/functions/discover-video-audio/index.ts`
+- new `supabase/functions/_test/discover-video-audio_test.ts` (the
+  `edgeFunctionCoverage` guard fails without it)
+- `supabase/config.toml` (`verify_jwt = true`, with the usual reason comment)
+- `src/lib/vocabularyAudioContext.ts` (`resolveDiscoverVideoAudioUrl`) and
+  `src/lib/videoAudioStaging.ts`
+- `src/pages/DiscoverVideo.tsx` (one affordance when signed out)
+- `src/test/support/server/functions.ts` (emulator handler, or every
+  hermetic spec that opens a TikTok video fails on the request guard)
+- `src/lib/vocabularyAudioContext.test.ts` (branching), `e2e/discover*.spec.ts`
+  (one case: learner gets an `<audio>` with a signed `video-audio` URL)
+
+**Steps**
+1. Edge function: `POST { videoId }` → `resolveUserId` (401 when null) →
+   service-role read of `discover_videos` (`id, published, platform,
+   source_url, embed_url`); 404 unless `published`. Find the staged object
+   the way `record-transcript-corrections/index.ts:39` already does (list
+   the bucket by the video id prefix, then the legacy YouTube-id prefix, take
+   the first extension in `STAGED_AUDIO_EXTENSIONS` order, which is the same
+   rule the admin uploader and the pipeline use). `createSignedUrl(path, 600)`
+   under the service role and return `{ url, expiresAt, path }`; return
+   `{ url: null, reason: "no_audio" }` when nothing is staged so the client
+   can drop into the existing timer mode without an error. No provider is
+   called, so no daily cap; a per-user `increment_usage_counter` is cheap if
+   you want a ceiling.
+2. `resolveDiscoverVideoAudioUrl`: if the caller is a reviewer/admin
+   (`useAdminAuth` role, or just try the direct path and fall through), keep
+   today's behaviour; otherwise, with no session return `null` without any
+   request; with a session call the function once. Memoise per video for
+   nine minutes (React Query, `staleTime: 9 * 60_000`) and re-mint on an
+   `<audio>` `error` whose response was 400/403 (URL expired mid-session).
+3. `DiscoverVideo`: when `!user && platform === "tiktok"`, show one line
+   under the player ("Sign in to hear the audio and use slow listen") in
+   place of the silent timer controls. Slow-listen and shadowing read
+   `tiktokAudioUrl` already, so they work for learners with no further
+   change.
+4. Emulator: a handler in `src/test/support/server/functions.ts` that
+   returns a fake signed URL for a video the in-memory `discover_videos`
+   marks published, and `no_audio` otherwise.
+
+**Security note for the decision record**: a signed URL lets the signed-in
+learner download the audio copy for ten minutes; it never references the
+TikTok video or the player. If even that is too much, the alternative is
+for the function to stream the bytes itself (`Response` with the object body
+and `Content-Range` support) so no URL exists at all; it costs function
+egress on every play and is the only reason to prefer it.
+
+**Verify**
+- Anon: `qa` crawl of `/discover/:videoId (tiktok)` shows zero `storage`
+  rows in the failure table and no `discover-video-audio` call.
+- Learner (`QA_EMAIL`): `media.spec.ts` → `media.audios[0].src` starts with
+  `…/storage/v1/object/sign/video-audio/`, `storageFailures: 0`, and the
+  slow-listen control is enabled. `npm run test:edge`, `npm test`, and the
+  hermetic `e2e/discover*` specs green.

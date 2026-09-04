@@ -74,14 +74,46 @@ the edge functions are configured in the Supabase dashboard, not committed.
 ### Continuous integration
 
 `.github/workflows/ci.yml` runs on every push to `main` and every pull request,
-in three jobs so a failure names its own kind:
+in jobs split so a failure names its own kind:
 
 - **Typecheck, lint & unit tests** — `tsc` over `src/`, the lint ratchet, Vitest,
   and the production build.
 - **Typecheck edge functions (Deno)** — `deno check` over
   `supabase/functions/**`. See below.
+- **Migration replay** — every migration against a stock `postgres:16`.
 - **End-to-end** — Playwright. A failed run uploads its HTML report as an
   artifact.
+- **Deploy edge functions** — on `main` only, after the first two pass. See
+  below.
+
+**Edge functions deploy from CI, because merging is not deploying.** They do not
+ship with the app: a merge changed the repository and left production serving
+the previous copy, which is the worst kind of difference because it is
+invisible. The code says one thing, the running system does another, and every
+symptom debugged in between belongs to code nobody is looking at. That is not
+hypothetical — it cost several rounds of chasing a transcription bug that had
+already been fixed, twice.
+
+Redeploying all 119 functions on every merge is the blunt version, and slow
+enough that someone eventually turns it off. So
+`scripts/edge-functions-to-deploy.mjs` works out the smallest correct set from
+the push's own diff: a change under `supabase/functions/<name>/` deploys that
+function, and a change under `_shared/` deploys every function whose imports
+*reach* it, followed transitively — a module three hops down is still bundled
+into whatever imports it, and missing that is exactly how a function gets left
+behind. `_test/` changes deploy nothing. `src/test/edgeDeployTargets.test.ts`
+covers the resolver, including against the real functions tree, so a regex that
+quietly stopped matching fails the suite rather than shipping an empty deploy.
+
+It needs one secret, `SUPABASE_ACCESS_TOKEN`, added under **Settings > Secrets
+and variables > Actions** from a token minted at
+<https://supabase.com/dashboard/account/tokens>. The job checks for it first and
+fails with that instruction rather than silently deploying nothing, since
+silence is the failure it exists to end. The project ref is read from
+`supabase/config.toml` rather than duplicated as a second secret. To deploy by
+hand — after changing a secret, say, when no code changed — run the workflow
+from the Actions tab: leave the input blank for the last commit's functions,
+name specific ones space-separated, or pass `all`.
 
 **The edge functions need their own typecheck.** They are Deno, they import over
 `https://`, and `tsc` cannot resolve those specifiers — so `tsconfig.app.json`

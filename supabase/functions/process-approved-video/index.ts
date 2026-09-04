@@ -319,8 +319,17 @@ function envInt(name: string, fallback: number): number {
   return Number.isFinite(raw) && raw > 0 ? raw : fallback;
 }
 
-/** Starts of analyze-gulf-arabic allowed per run before the row is failed. */
-const MAX_ANALYZE_ATTEMPTS = 3;
+/**
+ * Starts of analyze-gulf-arabic allowed per run before the row is failed.
+ *
+ * Two, not three. Each start that ends in a worker teardown costs a full wall
+ * clock of waiting, so a third only turns a fourteen-minute spinner into a
+ * twenty-minute one. The analysis now budgets itself and saves a usable
+ * transcript before its optional stages, so a start that produces nothing at
+ * all is a real fault rather than a slow success, and repeating it a third
+ * time is not what fixes it.
+ */
+const MAX_ANALYZE_ATTEMPTS = 2;
 /**
  * How long an analysis can possibly still be running after it was started:
  * the platform's wall-clock limit. Until then a missing result means "not

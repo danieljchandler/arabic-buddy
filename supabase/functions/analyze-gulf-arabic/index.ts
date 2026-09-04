@@ -124,6 +124,64 @@ const strictJsonPrefix = (isRetry: boolean) =>
 // Module-level dialect override (Gulf | Egyptian | Yemeni). Set per-request.
 let DIALECT_MODULE: 'Gulf' | 'Egyptian' | 'Yemeni' = 'Gulf';
 
+/**
+ * When this request must stop starting new work.
+ *
+ * Supabase ends an edge function by tearing its worker down at the wall-clock
+ * limit — 400s on paid plans — without raising anything catchable. This
+ * function persists once, at the end of a chain that can genuinely run longer
+ * than that: two merge calls, an ensemble of translation models, a Fusha pass
+ * that walks several models in turn, up to four sequential 30s Shaheen
+ * arbitration calls, an analysis retry, then vocabulary and gloss enrichment.
+ * Overrun therefore cost the entire run, and the pipeline waiting on the row
+ * saw only silence — which is what "stuck on waiting for analysis at 400
+ * seconds" is.
+ *
+ * So every optional stage below is now asked whether there is time for it
+ * before it starts, and the budget leaves headroom for the write that records
+ * the result. A run that is short of time returns a transcript with fewer
+ * embellishments; it does not return nothing.
+ *
+ * Module-level and reset per request, matching DIALECT_MODULE above. Edge
+ * functions serve one request at a time per isolate, which is what makes that
+ * safe here.
+ */
+let RUN_DEADLINE_AT = Number.POSITIVE_INFINITY;
+
+/** How long this request has left before it must stop starting work. */
+const timeLeftMs = (): number => RUN_DEADLINE_AT - Date.now();
+
+/**
+ * Is there time for a stage that needs roughly `needMs`?
+ *
+ * `label` is logged when the answer is no, because a transcript that came back
+ * without its Fusha row or its diacritics needs to say why, or the next person
+ * to look will read a deliberate skip as a broken feature.
+ */
+function haveTimeFor(needMs: number, label: string): boolean {
+  const left = timeLeftMs();
+  if (left >= needMs) return true;
+  console.warn(`[budget] Skipping ${label}: ${Math.round(left / 1000)}s left, needs ~${Math.round(needMs / 1000)}s`);
+  return false;
+}
+
+/**
+ * The share of the wall clock this function will spend before it must write.
+ *
+ * 300s against the platform's 400s leaves the persist, the pipeline hand-off
+ * and a margin for a worker that was already part-used when this request
+ * arrived — the wall clock belongs to the worker, not to the request, so the
+ * full 400s is a best case that a warm worker does not get.
+ */
+const ANALYZE_BUDGET_MS = Math.max(
+  // A floor only against a nonsensical value, deliberately low: a small budget
+  // is not dangerous here, it simply means every optional stage is skipped and
+  // the core transcript is what comes back. That is the designed behaviour
+  // under pressure, and it is what lets a test drive the guards directly.
+  5_000,
+  Number(Deno.env.get('ANALYZE_BUDGET_MS')) || 300_000,
+);
+
 const dialectFamilyLabel = () => {
   if (DIALECT_MODULE === 'Egyptian') return 'Egyptian Arabic (مصري)';
   if (DIALECT_MODULE === 'Yemeni') return 'Yemeni Arabic (يمني)';
@@ -730,6 +788,10 @@ async function runFushaPass(opts: {
 
   let lastStatus: FushaOutcome['status'] = 'failed';
   for (const attempt of attempts) {
+    // A waterfall of whole model calls, tried in turn. The Fusha row is an
+    // extra for the learner, not the transcript, so it yields its remaining
+    // attempts to the run's deadline rather than spending them.
+    if (!haveTimeFor(50_000, `Fusha pass on ${attempt.model}`)) break;
     try {
       const resp = await callAI({
         model: attempt.model,
@@ -1125,6 +1187,10 @@ async function callShaheenTranslate(
   const out: (string | null)[] = new Array(lines.length).fill(null);
   let lastFailure: { skipReason: ShaheenSkipReason; httpStatus?: number } | null = null;
   for (let i = 0; i < budget; i++) {
+    // Each of these is a sequential round trip with a 30s ceiling, so a slow
+    // Fanar can spend two minutes here on its own. Arbitrating fewer lines is
+    // a far smaller loss than losing the whole analysis to the wall clock.
+    if (!haveTimeFor(35_000, `Shaheen-MT line ${i + 1}/${budget}`)) break;
     const single = await shaheenFetch(lines[i], apiKey);
     if (!single.ok) { lastFailure = single; break; }
     meter();
@@ -1695,6 +1761,7 @@ serve(async (req) => {
       if (gate.denied) return gate.response;
     }
     DIALECT_MODULE = (dialectModule === 'Egyptian' || dialectModule === 'Yemeni') ? dialectModule : 'Gulf';
+    RUN_DEADLINE_AT = Date.now() + ANALYZE_BUDGET_MS;
     console.log('Dialect module for this request:', DIALECT_MODULE);
 
     // ── Quick phrase-translation shortcut ──────────────────────────────────
@@ -1962,6 +2029,13 @@ serve(async (req) => {
      // Retry Qwen Call 1 with stricter prompt if still failed
      if (!mergeOnlyAi?.lines || mergeOnlyAi.lines.length === 0) {
        console.log('Call 1 parse failed, retrying with stricter prompt...');
+       // The merge is not optional — without it there is no transcript — so
+       // this retry is worth the time whenever any is left. It is checked all
+       // the same, so a run with no budget fails saying so rather than being
+       // killed mid-call with nothing recorded anywhere.
+       if (!haveTimeFor(45_000, 'the stricter merge retry')) {
+         throw new Error('Ran out of time merging the ASR transcripts. Use Download & Re-transcribe to run it again.');
+       }
        const mergeRetry = await callAI({
          systemPrompt: getMergeOnlySystemPrompt(true, hasDualOrTriple, hasTriple),
          userContent: linesUserContent,
@@ -2431,6 +2505,12 @@ serve(async (req) => {
      // Retry Call 2 with stricter prompt if parse fails
      if (!analysisAi?.lines || analysisAi.lines.length === 0) {
        console.log('Call 2 parse failed, retrying with stricter prompt...');
+       // Vocabulary and grammar, not the transcript itself: worth a retry, but
+       // only if there is time for one. `partial` already covers the case
+       // where this never produces anything.
+       if (!haveTimeFor(45_000, 'the stricter analysis retry')) {
+         analysisAi = null;
+       } else {
        const analysisRetry = await callAI({
           systemPrompt: getAnalysisSystemPrompt(true, detectedDialect, visualContext, memeMode),
          userContent: mergedTranscriptText,
@@ -2439,6 +2519,7 @@ serve(async (req) => {
        });
        if (analysisRetry.content) {
          analysisAi = safeJsonParse<AnalysisAI>(analysisRetry.content);
+       }
        }
      }
 
@@ -2598,6 +2679,47 @@ serve(async (req) => {
      }
 
 
+      // ── A usable transcript, written before the embellishments ──────────
+      //
+      // Everything from here on improves a result that already exists:
+      // vocabulary enrichment and per-word glosses. The transcript, its
+      // translations, its grammar points and its context are all settled.
+      //
+      // Until this write existed the function persisted once, after the
+      // enrichment, so a worker torn down during it cost the entire run —
+      // every model call already paid for, and a pipeline left waiting on a
+      // row that would never change. Writing here bounds that loss to the
+      // enrichment alone. The pipeline is polling this row, so a run that
+      // dies immediately after still completes, with plainer vocabulary.
+      if (pipelineVideoId && typeof pipelineVideoId === 'string') {
+        try {
+          const svc = createClient(
+            Deno.env.get('SUPABASE_URL')!,
+            Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+          );
+          const { error: safetyErr } = await svc.from('discover_videos').update({
+            transcript_lines: finalLines.map((l) => ({
+              ...l,
+              tokens: toWordTokens(String(l.arabic ?? '').trim(), vocab, {}),
+            })),
+            vocabulary: vocab,
+            grammar_points: grammarPoints,
+            cultural_context: culturalContext || null,
+            dialect: detectedDialect || 'Gulf',
+            difficulty: detectedDifficulty || 'Intermediate',
+            transcription_status: 'analysis_complete',
+            transcription_error: null,
+          }).eq('id', pipelineVideoId);
+          if (safetyErr) {
+            console.warn('[analyze] Pre-enrichment save failed (continuing):', safetyErr.message);
+          } else {
+            console.log(`[analyze] Saved a usable transcript for ${pipelineVideoId} before enriching it`);
+          }
+        } catch (e) {
+          console.warn('[analyze] Pre-enrichment save failed (continuing):', e instanceof Error ? e.message : String(e));
+        }
+      }
+
       // ── Steps 5 & 6: Run Claude vocab enrichment and per-word gloss enrichment IN PARALLEL ──
       // Previously sequential — combined cost was pushing the function past the 150s
       // edge runtime idle limit. They are independent so we await them together.
@@ -2639,7 +2761,11 @@ serve(async (req) => {
           }).catch((e) => { console.warn('Gloss enrichment failed (non-blocking):', e); return { content: null }; })
         : Promise.resolve({ content: null } as { content: string | null });
 
-      const [claudeEnrichResp, glossResp] = await Promise.all([claudeEnrichPromise, glossPromise]);
+      // Both are extras over a transcript that is already saved, so they are
+      // the first thing a short run gives up.
+      const [claudeEnrichResp, glossResp] = haveTimeFor(50_000, 'vocabulary and gloss enrichment')
+        ? await Promise.all([claudeEnrichPromise, glossPromise])
+        : [{ content: null }, { content: null }] as [{ content: string | null }, { content: string | null }];
 
       // Apply Claude vocab enrichment
       if (claudeEnrichResp?.content) {
@@ -2863,17 +2989,44 @@ serve(async (req) => {
             // non-fatal — fall back to translation-only
           }
 
-          const { error: saveErr } = await svc.from('discover_videos').update({
-            transcript_lines: sanitizedLines,
-            vocabulary: transcriptResult.vocabulary || [],
-            grammar_points: transcriptResult.grammarPoints || [],
-            cultural_context: transcriptResult.culturalContext || null,
-            dialect: transcriptResult.dialect || 'Gulf',
-            difficulty: transcriptResult.difficulty || 'Intermediate',
-            transcription_status: 'analysis_complete',
-            transcription_error: null,
-            engines_used: mergedEnginesUsed,
-          }).eq('id', pipelineVideoId);
+          // The pre-enrichment save above may already have been picked up and
+          // finalised by the pipeline while the enrichment ran. If it was, the
+          // row's lines now carry audio timings this function does not have,
+          // and its status is the terminal one — so only the fields the
+          // enrichment actually improved are written, and the row is left
+          // finished rather than pushed back into a working state.
+          let alreadyFinalized = false;
+          try {
+            const { data: current } = await svc
+              .from('discover_videos')
+              .select('transcription_status')
+              .eq('id', pipelineVideoId)
+              .single();
+            alreadyFinalized = current?.transcription_status === 'completed';
+          } catch (_) {
+            // Unknown: take the ordinary path, which is the common one.
+          }
+
+          const { error: saveErr } = await svc.from('discover_videos').update(
+            alreadyFinalized
+              ? {
+                  vocabulary: transcriptResult.vocabulary || [],
+                  grammar_points: transcriptResult.grammarPoints || [],
+                  cultural_context: transcriptResult.culturalContext || null,
+                  engines_used: mergedEnginesUsed,
+                }
+              : {
+                  transcript_lines: sanitizedLines,
+                  vocabulary: transcriptResult.vocabulary || [],
+                  grammar_points: transcriptResult.grammarPoints || [],
+                  cultural_context: transcriptResult.culturalContext || null,
+                  dialect: transcriptResult.dialect || 'Gulf',
+                  difficulty: transcriptResult.difficulty || 'Intermediate',
+                  transcription_status: 'analysis_complete',
+                  transcription_error: null,
+                  engines_used: mergedEnginesUsed,
+                },
+          ).eq('id', pipelineVideoId);
 
           if (saveErr) {
             // A swallowed persist failure used to leave the row on
@@ -2884,6 +3037,8 @@ serve(async (req) => {
               transcription_status: 'failed',
               transcription_error: `Analysis finished but saving the results failed: ${saveErr.message}`,
             }).eq('id', pipelineVideoId);
+          } else if (alreadyFinalized) {
+            console.log(`[analyze] Enriched an already-finalized video ${pipelineVideoId}`);
           } else {
             console.log(`[analyze] Persisted results directly for video ${pipelineVideoId}`);
             finalizeViaPipeline(pipelineVideoId);

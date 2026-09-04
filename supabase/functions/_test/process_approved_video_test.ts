@@ -1521,7 +1521,7 @@ Deno.test("process-approved-video starts the analysis again once its worker must
   assertEquals(final?.title, "Second try");
 });
 
-Deno.test("process-approved-video gives up on the analysis after three dead starts", async () => {
+Deno.test("process-approved-video gives up on the analysis after two dead starts", async () => {
   let analyzeCalls = 0;
   const result = await call({ videoId: VIDEO }, backend({
     analyze: () => {
@@ -1530,10 +1530,10 @@ Deno.test("process-approved-video gives up on the analysis after three dead star
     },
   }));
 
-  assertEquals(analyzeCalls, 3);
+  assertEquals(analyzeCalls, 2);
   assertEquals(finalStatus(result), "failed");
   const error = String(lastPatchWith(result, "transcription_error")?.transcription_error);
-  assertStringIncludes(error, "started 3 times");
+  assertStringIncludes(error, "started 2 times");
   assertStringIncludes(error, "Download & Re-transcribe");
 });
 

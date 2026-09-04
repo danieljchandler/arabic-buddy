@@ -834,6 +834,44 @@ Three readings and what each rules out:
 The build marker also rides on every HTTP reply the function sends, so the
 same question can be answered from a single call without opening a video.
 
+#### The analysis has its own wall clock
+
+`analyze-gulf-arabic` is the long pole, and it used to persist exactly once,
+after every optional stage had run: the merge, a translation ensemble, a Fusha
+waterfall that walks several models in turn, up to four sequential 30-second
+Shaheen arbitration calls, an analysis retry, then vocabulary and gloss
+enrichment. That chain can outlast the 400-second wall clock, and a worker torn
+down inside it wrote nothing at all — every model call paid for, and the
+pipeline left waiting on a row that would never change. This was the actual
+cause of "stuck on waiting for the analysis at 400 seconds".
+
+Two changes, and the second is the one that matters:
+
+- **A budget.** `ANALYZE_BUDGET_MS` (300s by default, against the platform's
+  400s) is set when the request starts working, and every optional stage asks
+  `haveTimeFor` before it begins. The Fusha waterfall, the arbitration loop and
+  the enrichment all yield rather than start work they cannot finish, and each
+  skip is logged with the time remaining — a transcript that comes back without
+  its Fusha row has to say why, or the next person reads a deliberate skip as a
+  broken feature.
+- **A save before the embellishments.** Once the merge, translations, grammar
+  and context are settled, the row is written with `analysis_complete` before
+  the enrichment runs. Everything after that point improves a result that
+  already exists, so a teardown costs the enrichment rather than the run. The
+  pipeline is polling that row, so a run that dies immediately afterwards still
+  completes, with plainer vocabulary.
+
+The two interact, which the late write has to know about: the early save can be
+picked up and finalised by the pipeline while the enrichment is still running,
+and those lines then carry audio timings this function does not have. So the
+final write checks the row first and, on one already `completed`, updates only
+what the enrichment improved rather than pushing a finished row back into a
+working state.
+
+For the same reason the pipeline now allows two analysis starts rather than
+three: each start that ends in a teardown costs a full wall clock of waiting,
+so a third only turns a fourteen-minute spinner into a twenty-minute one.
+
 ## Trending (free social harvest)
 
 `/trending` shows what the Arab world is posting right now: per-country X trend

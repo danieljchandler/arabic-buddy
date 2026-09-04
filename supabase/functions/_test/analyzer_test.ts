@@ -338,3 +338,135 @@ Deno.test("hands a persisted analysis back to the pipeline to finish", async () 
     fn.restore();
   }
 });
+
+// ── Finishing inside the wall clock ──────────────────────────────────────────
+//
+// This function persisted once, after every optional stage had run: a merge, a
+// translation ensemble, a Fusha waterfall, up to four sequential 30s
+// arbitration calls, an analysis retry, then vocabulary and gloss enrichment.
+// That chain can outlast the platform's 400s wall clock, and a worker torn
+// down inside it wrote nothing at all — every model call paid for, and the
+// pipeline left waiting on a row that would never change.
+
+const PIPELINE_VIDEO = "cccccccc-0000-4000-8000-000000000000";
+const SERVICE_ROLE_KEY = "e2e-service-role-not-a-real-secret";
+
+/** A merge reply and an analysis reply, which is all a usable transcript needs. */
+const analysisReply = () =>
+  chatCompletion(JSON.stringify({
+    lines: [{ arabic: "شلونك اليوم" }, { arabic: "الحمد لله بخير" }],
+    dialect: "Gulf",
+    difficulty: "Beginner",
+    vocabulary: [{ arabic: "شلونك", english: "how are you" }],
+    grammarPoints: [{ title: "شلون", explanation: "how" }],
+    culturalContext: "An everyday Gulf greeting.",
+  }));
+
+async function runAnalysis(
+  videoStatus: string,
+): Promise<Array<Record<string, unknown>>> {
+  const fn = await loadFunction("analyze-gulf-arabic", {
+    upstreams: allowed({
+      "openrouter.ai": () => analysisReply(),
+      "generativelanguage.googleapis.com": () => analysisReply(),
+      "/rest/v1/discover_videos": (request) =>
+        request.method === "GET"
+          ? json({ transcription_status: videoStatus, engines_used: null }, 200)
+          : json([{ id: PIPELINE_VIDEO }], 200),
+      "/rest/v1/processed_videos": () => json({}, 201),
+      "/functions/v1/process-approved-video": () => json({ success: true }, 202),
+    }),
+  });
+  try {
+    await fn.handler(
+      jsonRequest("analyze-gulf-arabic", {
+        transcript: "شلونك اليوم الحمد لله بخير",
+        videoId: PIPELINE_VIDEO,
+        dialectModule: "Gulf",
+      }, { jwt: SERVICE_ROLE_KEY }),
+    );
+    await fn.background();
+    return fn.calls
+      .filter((c) => c.url.includes("discover_videos") && c.method === "PATCH")
+      .map((c) => JSON.parse(c.body ?? "{}") as Record<string, unknown>);
+  } finally {
+    fn.restore();
+  }
+}
+
+Deno.test("saves a usable transcript before spending time enriching it", async () => {
+  const writes = await runAnalysis("processing");
+
+  // More than one write is the whole point: the first carries a transcript the
+  // pipeline can finish with, so a teardown during the enrichment costs the
+  // enrichment rather than the run.
+  assert(writes.length >= 2, `expected a save before the enrichment, got ${writes.length} write(s)`);
+  const first = writes[0];
+  assertEquals(first.transcription_status, "analysis_complete");
+  assertEquals((first.transcript_lines as unknown[]).length, 2);
+  assert(Array.isArray(first.vocabulary), "expected vocabulary in the early save");
+});
+
+Deno.test("does not undo a row the pipeline already finished", async () => {
+  // The early save can be picked up and finalised while the enrichment is
+  // still running. Those lines now carry audio timings this function does not
+  // have, so the late write must leave them, and the status, alone.
+  const writes = await runAnalysis("completed");
+  const last = writes.at(-1);
+
+  assert(last, "expected a write");
+  assertEquals("transcript_lines" in last, false);
+  assertEquals("transcription_status" in last, false);
+  // What the enrichment actually improved still lands.
+  assert("vocabulary" in last);
+  assert("grammar_points" in last);
+});
+
+Deno.test("gives up its embellishments rather than the run when time is short", async () => {
+  // The budget is what stops the chain of optional stages from outlasting the
+  // worker. Squeezed to nothing, the extras — the Fusha row, the arbitration
+  // calls, the enrichment — are skipped, and a transcript still lands.
+  const counts: Record<string, number> = { squeezed: 0, roomy: 0 };
+  for (const [label, budget] of [["squeezed", "5000"], ["roomy", "300000"]] as const) {
+    const fn = await loadFunction("analyze-gulf-arabic", {
+      env: { ANALYZE_BUDGET_MS: budget },
+      upstreams: allowed({
+        "openrouter.ai": () => analysisReply(),
+        "generativelanguage.googleapis.com": () => analysisReply(),
+        "/rest/v1/discover_videos": (request) =>
+          request.method === "GET"
+            ? json({ transcription_status: "processing", engines_used: null }, 200)
+            : json([{ id: PIPELINE_VIDEO }], 200),
+        "/rest/v1/processed_videos": () => json({}, 201),
+        "/functions/v1/process-approved-video": () => json({ success: true }, 202),
+      }),
+    });
+    try {
+      const response = await fn.handler(
+        jsonRequest("analyze-gulf-arabic", {
+          transcript: "شلونك اليوم الحمد لله بخير",
+          videoId: PIPELINE_VIDEO,
+          dialectModule: "Gulf",
+        }, { jwt: SERVICE_ROLE_KEY }),
+      );
+      // Squeezed or not, the answer is a transcript.
+      assertEquals(response.status, 200, label);
+      const body = await response.json() as { success?: boolean; result?: { lines?: unknown[] } };
+      assertEquals(body.success, true, label);
+      assertEquals(body.result?.lines?.length, 2, label);
+      await fn.background();
+      counts[label] = fn.calls.filter((c) =>
+        c.url.includes("openrouter.ai") || c.url.includes("generativelanguage.googleapis.com")
+      ).length;
+    } finally {
+      fn.restore();
+    }
+  }
+
+  // The saving is in model calls not made — the run under pressure does strictly
+  // less work than the one with room.
+  assert(
+    counts.squeezed < counts.roomy,
+    `expected a squeezed run to make fewer model calls, got ${counts.squeezed} vs ${counts.roomy}`,
+  );
+});

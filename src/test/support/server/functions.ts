@@ -1038,7 +1038,25 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
   // `region_summary` for its toast — all three come back together.
   "discover-trending-videos": () =>
     ok({ success: true, candidates_found: 0, candidates: [], region_summary: {} }),
-  "process-approved-video": () => ok({ processed: true }),
+  /**
+   * The transcription pipeline's entry point.
+   *
+   * The reply matters, not just the status: the real function names the stage
+   * it picked up at (or says it resumed nothing), and `usePipelineResume`
+   * reads that to tell a deployment that understands `{ resume: true }` from
+   * an older one that would read it as "start over" and charge for a fresh run
+   * on every nudge. A double answering `{ processed: true }` would look like
+   * the older one.
+   */
+  "process-approved-video": ({ body }) => {
+    const { stage, resume } = (body ?? {}) as { stage?: string; resume?: boolean };
+    return ok({
+      success: true,
+      message: "Processing started",
+      stage: stage ?? (resume ? "analyze" : "asr"),
+      build: "fake-backend",
+    });
+  },
   "rate-video-cefr": () => ok({ cefr: "A2" }),
   "extract-concepts": () => ok({ concepts: [] }),
   "curriculum-chat": () => ok({ reply: "", proposals: [] }),

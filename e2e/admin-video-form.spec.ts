@@ -342,6 +342,47 @@ test.describe("editing an existing video", () => {
     });
   });
 
+  test("says which step a running transcription is on", async ({ page, db }) => {
+    // A spinner is not a report. The pipeline writes where it has got to onto
+    // the row, so an admin watching a long run can tell a slow step from a
+    // dead one — and can see which build of the function is serving it, which
+    // is what answers "did the deploy land?" before anything else matters.
+    seedVideo(db, {
+      transcription_status: "processing",
+      updated_at: new Date().toISOString(),
+      engines_used: {
+        pipeline: {
+          stage: "analyze",
+          note: "waiting for the analysis (90s)",
+          build: "staged-2026-09-04",
+          at: new Date().toISOString(),
+        },
+      },
+    });
+
+    await page.goto(`/admin/videos/${VIDEO}/edit`);
+
+    const progress = page.getByTestId("pipeline-progress");
+    await expect(progress).toContainText("waiting for the analysis (90s)");
+    await expect(progress).toContainText("staged-2026-09-04");
+    await expect(progress).toContainText("last moved just now");
+  });
+
+  test("says nothing about the step for a run from before progress reporting", async ({ page, db }) => {
+    // engines_used has carried ASR provenance far longer than it has carried a
+    // pipeline note; those rows must not render an empty or wrong step.
+    seedVideo(db, {
+      transcription_status: "processing",
+      updated_at: new Date().toISOString(),
+      engines_used: { asr: { munsit: { ok: true, chars: 40 } } },
+    });
+
+    await page.goto(`/admin/videos/${VIDEO}/edit`);
+
+    await expect(page.getByText(/Transcription is being processed on the server/)).toBeVisible();
+    await expect(page.getByTestId("pipeline-progress")).toHaveCount(0);
+  });
+
   test("leaves a run that is still moving alone", async ({ page, db, backend }) => {
     seedVideo(db, { transcription_status: "processing", updated_at: new Date().toISOString() });
 

@@ -68,6 +68,38 @@ describe("usePipelineResume", () => {
     await waitFor(() => expect(backend.callsTo("process-approved-video")).toHaveLength(2));
   });
 
+  it("stops asking a deployment that does not understand resume", async () => {
+    // An older copy of the function reads `{ resume: true }` as "start over",
+    // so every nudge would be a fresh paid run over the same video. A reply
+    // that names neither the stage it resumed nor that it resumed nothing is
+    // how that deployment identifies itself.
+    vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
+    const stalled = { id: "stalled", transcription_status: "processing", updated_at: ago(5 * 60 * 1000) };
+    const { backend, rerender } = renderResume([stalled]);
+    backend.stubFunction("process-approved-video", { success: true, message: "Processing started" });
+
+    await waitFor(() => expect(backend.callsTo("process-approved-video")).toHaveLength(1));
+
+    // Well past the cooldown, and it still does not ask again.
+    vi.setSystemTime(NOW + 60 * 60 * 1000);
+    rerender({ list: [{ ...stalled }] });
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(backend.callsTo("process-approved-video")).toHaveLength(1);
+  });
+
+  it("keeps nudging a deployment that does understand it", async () => {
+    vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
+    const stalled = { id: "stalled", transcription_status: "processing", updated_at: ago(5 * 60 * 1000) };
+    const { backend, rerender } = renderResume([stalled]);
+    backend.stubFunction("process-approved-video", { success: true, stage: "analyze", build: "staged-2026-09-04" });
+
+    await waitFor(() => expect(backend.callsTo("process-approved-video")).toHaveLength(1));
+
+    vi.setSystemTime(NOW + 4 * 60 * 1000);
+    rerender({ list: [{ ...stalled }] });
+    await waitFor(() => expect(backend.callsTo("process-approved-video")).toHaveLength(2));
+  });
+
   it("does nothing when disabled", async () => {
     vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
     const { backend } = renderResume(

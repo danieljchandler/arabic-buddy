@@ -801,6 +801,39 @@ finish produce one transcript and one rating. The reaper in
 `reap_stuck_video_transcriptions` still runs underneath all of this, as the
 last resort when no page is open and no callback arrived.
 
+#### Telling one stall from another
+
+A transcription that never finishes produces the same report — a spinner —
+whether the worker died, the stage hop was refused, the analysis is genuinely
+slow, or an older copy of the function is still deployed. Those need different
+fixes, so the pipeline says which one it is on the row itself.
+
+`process-approved-video` writes `engines_used.pipeline` on every stage
+boundary and every heartbeat: the `stage`, a `note` in the admin's words
+("waiting for the analysis (90s)"), the analysis `attempt` count, whether the
+stage had to run `inline` because a hop was refused, an `at` timestamp, and
+`build` — a marker naming the deployed copy of the function. The video edit
+page renders that as one line under the in-flight banner, and
+`src/lib/pipelineProgress.ts` is the pure half that reads it. No migration was
+needed: `engines_used` already existed and the page already read it.
+
+Three readings and what each rules out:
+
+- **The build is one you don't recognise, or the line is missing entirely.**
+  The deploy did not land, and nothing else in the report means anything yet.
+  Redeploy `process-approved-video` and `analyze-gulf-arabic`.
+- **"running without stage checkpoints".** Every hop is being refused, so the
+  run has degraded to the single long task this design replaced and a worker
+  teardown will kill it silently again. The hop is a service-role call to
+  `process-approved-video`, which is the one function in this pipeline with
+  `verify_jwt = true`; a non-JWT service-role key is rejected at the gateway
+  before the function runs.
+- **The step is named and "last moved" keeps advancing.** The run is alive and
+  merely slow; the step says which part to look at.
+
+The build marker also rides on every HTTP reply the function sends, so the
+same question can be answered from a single call without opening a video.
+
 ## Trending (free social harvest)
 
 `/trending` shows what the Arab world is posting right now: per-country X trend

@@ -18,6 +18,7 @@ import { AdminTranscriptEditor } from "@/components/admin/AdminTranscriptEditor"
 import { TranscriptDraftBanner } from "@/components/admin/TranscriptDraftBanner";
 import { useTranscriptDraft } from "@/hooks/useTranscriptDraft";
 import { usePipelineResume } from "@/hooks/usePipelineResume";
+import { describePipelineProgress, describeQuietFor } from "@/lib/pipelineProgress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import LineRevisionHistory from "@/components/admin/transcribe/LineRevisionHistory";
@@ -512,6 +513,20 @@ const AdminVideoForm = () => {
   // (pg_cron down, older database), the re-transcribe controls would stay
   // disabled forever. Re-enable them once the row has been stale longer than
   // the reaper's own windows. Recomputed on every poll-driven render.
+  /**
+   * What the pipeline says it is doing, from `engines_used.pipeline`.
+   *
+   * A spinner alone cannot be acted on: a run that is slow, a run whose worker
+   * died, and a deploy that never landed all look the same. This names the
+   * step, when it last moved, and which build of the function wrote it.
+   *
+   * Derived on every render rather than memoised: half of it is "how long
+   * since the run last moved", which is a reading against the clock and not a
+   * function of the row, so caching it against the row's own fields is what
+   * would make it wrong.
+   */
+  const pipelineProgress = describePipelineProgress(existingVideo?.engines_used);
+
   const serverStatusUpdatedAt = existingVideo?.updated_at;
   const processingIsStuck =
     isProcessing &&
@@ -1490,6 +1505,28 @@ const AdminVideoForm = () => {
           isEditing ? "max-w-6xl" : "max-w-2xl",
         )}
       >
+        {/*
+          What the run is actually doing, under whichever in-flight banner is
+          showing. Kept to one line, and only rendered once the pipeline has
+          written a note — a row from before progress reporting says nothing
+          rather than saying something wrong.
+        */}
+        {(() => {
+          const status = existingVideo?.transcription_status;
+          const inFlight = status === 'processing' || status === 'pending' || status === 'analysis_complete';
+          if (!isEditing || !inFlight || !pipelineProgress) return null;
+          const quiet = describeQuietFor(pipelineProgress.quietForMs);
+          return (
+            <p className="text-xs text-muted-foreground" data-testid="pipeline-progress">
+              Step: {pipelineProgress.step}
+              {quiet ? ` · last moved ${quiet}` : ""}
+              {pipelineProgress.looksStalled ? " · looks stalled, restarting it" : ""}
+              {pipelineProgress.inline ? " · running without stage checkpoints" : ""}
+              {pipelineProgress.build ? ` · pipeline ${pipelineProgress.build}` : ""}
+            </p>
+          );
+        })()}
+
         {/* Background transcription status banner */}
         {isEditing && existingVideo && (existingVideo as any).transcription_status === 'processing' && (
           <Card className="border-blue-300 bg-blue-50 dark:bg-blue-950/30">

@@ -340,6 +340,59 @@ const HEARTBEAT_EVERY_MS = 30_000;
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * Which build of this function is deployed, written onto every row it touches.
+ *
+ * The pipeline runs where nobody can watch it, and "the transcription spins
+ * forever" is the same report whether the cause is a dead worker, a refused
+ * hop, or an old copy of this file still being served. This marker settles the
+ * last of those from the admin page alone: if a run shows a build you do not
+ * recognise, the deploy did not land, and nothing else in the report means
+ * anything yet. Bump it whenever this file changes in a way worth telling
+ * apart in production.
+ */
+const PIPELINE_BUILD = "staged-2026-09-04";
+
+/**
+ * Say where the run has got to, on the row itself.
+ *
+ * `engines_used.pipeline` is chosen because it needs no migration and the
+ * admin page already reads that column. It is written on every stage
+ * boundary and every heartbeat, so a stalled run is not just "processing" —
+ * it names the step it stopped on, when it last moved, and how many times the
+ * analysis has been started. Progress reporting must never fail a run, so
+ * every error here is swallowed.
+ */
+async function recordProgress(
+  ctx: PipelineContext,
+  patch: { stage?: StageName; note?: string; attempt?: number; hop?: string },
+): Promise<void> {
+  try {
+    const { data: row } = await ctx.supabase
+      .from("discover_videos")
+      .select("engines_used")
+      .eq("id", ctx.videoId)
+      .single();
+    const existing = (row?.engines_used && typeof row.engines_used === "object")
+      ? row.engines_used as Record<string, unknown>
+      : {};
+    const previous = (existing.pipeline && typeof existing.pipeline === "object")
+      ? existing.pipeline as Record<string, unknown>
+      : {};
+    await ctx.supabase
+      .from("discover_videos")
+      .update({
+        engines_used: {
+          ...existing,
+          pipeline: { ...previous, ...patch, build: PIPELINE_BUILD, at: new Date().toISOString() },
+        },
+      })
+      .eq("id", ctx.videoId);
+  } catch (e) {
+    console.warn("[pipeline] Progress note failed (non-fatal):", e instanceof Error ? e.message : String(e));
+  }
+}
+
 function freshCheckpoint(stage: StageName): Checkpoint {
   const now = new Date().toISOString();
   return { version: CHECKPOINT_VERSION, stage, startedAt: now, updatedAt: now, analyzeAttempts: 0 };
@@ -410,13 +463,23 @@ async function hop(ctx: PipelineContext, stage: StageName): Promise<boolean> {
   }
 }
 
-/** Move to `cp.stage`: by a hop when the checkpoint is on disk, inline otherwise. */
+/**
+ * Move to `cp.stage`: by a hop when the checkpoint is on disk, inline otherwise.
+ *
+ * Running inline is the fallback, and it is the *old* shape of this function —
+ * one long task that a worker teardown kills silently. So a refused hop is
+ * recorded on the row rather than only logged: a run that finished inline
+ * every time is a run whose stage boundaries are not working, and that is
+ * worth seeing from the admin page instead of inferring from its symptoms.
+ */
 async function advance(ctx: PipelineContext, cp: Checkpoint, persisted: boolean): Promise<void> {
   if (persisted && await hop(ctx, cp.stage)) {
     console.log(`[pipeline] Handed ${cp.stage} to a fresh request for ${ctx.videoId}`);
     return;
   }
-  console.log(`[pipeline] Running ${cp.stage} inline for ${ctx.videoId}`);
+  const why = persisted ? "hop refused" : "no checkpoint";
+  console.log(`[pipeline] Running ${cp.stage} inline for ${ctx.videoId} (${why})`);
+  await recordProgress(ctx, { hop: `inline: ${why}` });
   await runStage(ctx, cp);
 }
 
@@ -434,14 +497,23 @@ async function runStage(ctx: PipelineContext, cp: Checkpoint): Promise<void> {
   }
 }
 
-/** Keep `updated_at` moving on a row that is still processing — and only such a row. */
-async function heartbeat(ctx: PipelineContext): Promise<void> {
+/**
+ * Keep `updated_at` moving on a row that is still processing — and only such
+ * a row.
+ *
+ * This is what tells a live run apart from a dead one: the admin page reads a
+ * row that has not moved for two minutes as a worker that is gone. A stage
+ * that can spend minutes inside one `await` therefore has to say so on a
+ * timer, or its own patience looks identical to death.
+ */
+async function heartbeat(ctx: PipelineContext, note?: string): Promise<void> {
   try {
     await ctx.supabase
       .from("discover_videos")
       .update({ transcription_status: "processing" })
       .eq("id", ctx.videoId)
       .eq("transcription_status", "processing");
+    if (note) await recordProgress(ctx, { note });
   } catch (e) {
     console.warn("[pipeline] Heartbeat failed (non-fatal):", e instanceof Error ? e.message : String(e));
   }
@@ -450,6 +522,7 @@ async function heartbeat(ctx: PipelineContext): Promise<void> {
 async function failRow(ctx: PipelineContext, stage: StageName, err: unknown): Promise<void> {
   const errorMsg = err instanceof Error ? err.message : "Unknown error";
   console.error(`[pipeline] ${stage} failed for video ${ctx.videoId}:`, errorMsg);
+  await recordProgress(ctx, { stage, note: `failed: ${errorMsg.slice(0, 200)}` });
   await ctx.supabase.from("discover_videos").update({
     transcription_status: "failed",
     transcription_error: errorMsg,
@@ -689,6 +762,7 @@ async function runAsrStage(ctx: PipelineContext, cp: Checkpoint): Promise<void> 
     cp.httpResult = null;
     cp.audio = null;
     await writeCheckpoint(ctx, cp);
+    await recordProgress(ctx, { stage: "asr", note: "finding the audio", attempt: 0, hop: "-" });
 
 
     // ── Step 1: Get audio ──────────────────────────────────────────
@@ -820,6 +894,7 @@ async function runAsrStage(ctx: PipelineContext, cp: Checkpoint): Promise<void> 
 
     const fileSizeMB = (audioBytes.byteLength / (1024 * 1024)).toFixed(2);
     console.log(`[pipeline] Audio ready: ${fileSizeMB} MB`);
+    await recordProgress(ctx, { note: `transcribing ${fileSizeMB} MB with every configured engine` });
 
     if (downloadDuration) {
       await supabase.from("discover_videos").update({ duration_seconds: downloadDuration }).eq("id", videoId);
@@ -1572,7 +1647,27 @@ async function runAsrStage(ctx: PipelineContext, cp: Checkpoint): Promise<void> 
 // after the platform's whole wall clock is dead — its worker was torn down —
 // and a fresh request to it is the only way to get a result. The old code
 // waited once and then failed the row.
-async function fireAnalysis(ctx: PipelineContext, body: Record<string, unknown>): Promise<AnalyzeResponse | null> {
+/**
+ * What came back from starting the analysis.
+ *
+ *   reply     it answered in time, with a body
+ *   finished  it answered with an error of its own — it is not running any
+ *             more, so there is nothing to wait for
+ *   unknown   the gateway gave up (504), the socket timed out, or the network
+ *             failed: the function may well still be running
+ *
+ * The distinction is what keeps a fast, definite failure from being waited on
+ * for the platform's whole wall clock as though it were a slow success.
+ */
+type AnalysisStart =
+  | { kind: "reply"; data: AnalyzeResponse }
+  | { kind: "finished"; status: number; detail: string }
+  | { kind: "unknown" };
+
+/** Statuses the gateway answers on the function's behalf while it is still running. */
+const GATEWAY_STATUSES = new Set([502, 503, 504]);
+
+async function fireAnalysis(ctx: PipelineContext, body: Record<string, unknown>): Promise<AnalysisStart> {
   try {
     const analyzeResp = await fetch(`${ctx.projectUrl}/functions/v1/analyze-gulf-arabic`, {
       method: "POST",
@@ -1580,16 +1675,25 @@ async function fireAnalysis(ctx: PipelineContext, body: Record<string, unknown>)
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(ANALYZE_FETCH_TIMEOUT_MS),
     });
-    if (analyzeResp.ok) return await analyzeResp.json() as AnalyzeResponse;
+    if (analyzeResp.ok) return { kind: "reply", data: await analyzeResp.json() as AnalyzeResponse };
     const errText = await analyzeResp.text().catch(() => "");
     console.warn(`[pipeline] analyze-gulf-arabic HTTP ${analyzeResp.status}: ${errText.slice(0, 200)}`);
+    if (GATEWAY_STATUSES.has(analyzeResp.status)) return { kind: "unknown" };
+    let detail = errText.slice(0, 300);
+    try {
+      const parsed = JSON.parse(errText) as { error?: unknown; details?: unknown };
+      detail = [parsed.error, parsed.details].filter((v) => typeof v === "string" && v).join(": ") || detail;
+    } catch {
+      // Not JSON; the raw text is the detail.
+    }
+    return { kind: "finished", status: analyzeResp.status, detail };
   } catch (fetchErr) {
     console.warn(
       "[pipeline] analyze-gulf-arabic fetch error (checking DB for direct-persist):",
       fetchErr instanceof Error ? fetchErr.message : String(fetchErr),
     );
   }
-  return null;
+  return { kind: "unknown" };
 }
 
 async function runAnalyzeStage(ctx: PipelineContext, cp: Checkpoint): Promise<void> {
@@ -1602,6 +1706,7 @@ async function runAnalyzeStage(ctx: PipelineContext, cp: Checkpoint): Promise<vo
       );
     }
     console.log(`[pipeline] Step 3: Analyzing transcript (${cp.analyzeAttempts} start(s) so far)...`);
+    await recordProgress(ctx, { stage: "analyze", note: "analysing the transcript", attempt: cp.analyzeAttempts });
 
     const visual = await loadVisualContext(ctx);
     // A meme's joke is usually the text on screen, so analysing one on audio
@@ -1689,21 +1794,52 @@ async function runAnalyzeStage(ctx: PipelineContext, cp: Checkpoint): Promise<vo
         cp.analyzeFiredAt = new Date().toISOString();
         await writeCheckpoint(ctx, cp);
         console.log(`[pipeline] Starting analyze-gulf-arabic (attempt ${cp.analyzeAttempts}/${MAX_ANALYZE_ATTEMPTS})`);
+        await recordProgress(ctx, {
+          note: `analysing the transcript (start ${cp.analyzeAttempts} of ${MAX_ANALYZE_ATTEMPTS})`,
+          attempt: cp.analyzeAttempts,
+        });
 
-        const reply = await fireAnalysis(ctx, analyzeBody);
-        if (reply?.noArabicSpeech) {
-          console.log(`[pipeline] Audio rejected as ${reply.audio?.verdict ?? "not Arabic"}: ${reply.audio?.reason ?? ""}`);
-          cp.audio = { noArabicSpeech: true, verdict: reply.audio?.verdict, reason: reply.audio?.reason };
+        const started = await fireAnalysis(ctx, analyzeBody);
+        if (started.kind === "finished") {
+          // It answered, and the answer was an error. Nothing is running, so
+          // waiting would only be waiting. A client-side rejection (a 4xx —
+          // the transcript, the auth, the body) will not change on a retry;
+          // a server-side failure might, so it costs another start now.
+          if (started.status >= 400 && started.status < 500) {
+            throw new Error(
+              `Analysis rejected the request (HTTP ${started.status}${started.detail ? `: ${started.detail}` : ""}). ` +
+                "Use Download & Re-transcribe on the video's edit page to run it again.",
+            );
+          }
+          console.warn(`[pipeline] Analysis failed outright (HTTP ${started.status}); starting it again without waiting`);
+          cp.analyzeFiredAt = null;
+          await writeCheckpoint(ctx, cp);
+          continue;
         }
-        if (reply?.success && reply.result) {
-          // The reply beat the gateway. `result` is required here, not just
-          // `success`: a success envelope with no payload used to walk straight
-          // into `result.lines` and throw. Falling through to the row instead is
-          // what we'd want anyway — the analysis may still be writing to it.
-          cp.httpResult = reply;
-          cp.stage = "finalize";
-          const persisted = await writeCheckpoint(ctx, cp);
-          return await advance(ctx, cp, persisted);
+        if (started.kind === "reply") {
+          const reply = started.data;
+          if (reply.noArabicSpeech) {
+            console.log(`[pipeline] Audio rejected as ${reply.audio?.verdict ?? "not Arabic"}: ${reply.audio?.reason ?? ""}`);
+            cp.audio = { noArabicSpeech: true, verdict: reply.audio?.verdict, reason: reply.audio?.reason };
+          }
+          if (reply.success && reply.result) {
+            // The reply beat the gateway. `result` is required here, not just
+            // `success`: a success envelope with no payload used to walk straight
+            // into `result.lines` and throw. Falling through to the row instead is
+            // what we'd want anyway — the analysis may still be writing to it.
+            cp.httpResult = reply;
+            cp.stage = "finalize";
+            const persisted = await writeCheckpoint(ctx, cp);
+            return await advance(ctx, cp, persisted);
+          }
+          if (reply.success === false) {
+            // In-band failure: the function finished and said so. Same as an
+            // HTTP 500 above — start again now rather than wait.
+            console.warn(`[pipeline] Analysis reported failure in band: ${String((reply as { error?: unknown }).error ?? "").slice(0, 200)}`);
+            cp.analyzeFiredAt = null;
+            await writeCheckpoint(ctx, cp);
+            continue;
+          }
         }
         // No usable reply: the function may still be running past the gateway's
         // patience. Re-read the row before deciding anything.
@@ -1712,7 +1848,11 @@ async function runAnalyzeStage(ctx: PipelineContext, cp: Checkpoint): Promise<vo
 
       await sleep(POLL_INTERVAL_MS);
       if (Date.now() - lastHeartbeat >= HEARTBEAT_EVERY_MS) {
-        await heartbeat(ctx);
+        const waitedSec = Math.round((Date.now() - Date.parse(cp.analyzeFiredAt ?? "")) / 1000);
+        await heartbeat(
+          ctx,
+          `waiting for the analysis${Number.isFinite(waitedSec) ? ` (${waitedSec}s)` : ""}`,
+        );
         lastHeartbeat = Date.now();
       }
     }
@@ -1726,6 +1866,7 @@ async function runFinalizeStage(ctx: PipelineContext, cp: Checkpoint): Promise<v
   const { videoId, video, supabase } = ctx;
   try {
     console.log("[pipeline] Step 4: Finalizing transcript...");
+    await recordProgress(ctx, { stage: "finalize", note: "saving the transcript" });
     const { data: refreshedRaw } = await supabase.from("discover_videos")
       .select("transcription_status, transcript_lines, cultural_context, title, title_arabic")
       .eq("id", videoId)
@@ -1868,6 +2009,7 @@ async function runFinalizeStage(ctx: PipelineContext, cp: Checkpoint): Promise<v
     // Previously we removed the staged paths here to save storage, but that
     // broke automatic sync for completed videos.
 
+    await recordProgress(ctx, { stage: "done", note: "rating the difficulty" });
     await rateDifficulty(ctx);
     console.log(`[pipeline] Completed for video ${videoId}`);
   } catch (err) {
@@ -2045,7 +2187,7 @@ serve(async (req) => {
       }
     } else {
       return new Response(
-        JSON.stringify({ success: true, resumed: false, status: rowStatus }),
+        JSON.stringify({ success: true, resumed: false, status: rowStatus, build: PIPELINE_BUILD }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -2072,7 +2214,7 @@ serve(async (req) => {
   }
 
   return new Response(
-    JSON.stringify({ success: true, message: "Processing started", stage: cp.stage }),
+    JSON.stringify({ success: true, message: "Processing started", stage: cp.stage, build: PIPELINE_BUILD }),
     { status: 202, headers: { ...corsHeaders, "Content-Type": "application/json" } }
   );
 });

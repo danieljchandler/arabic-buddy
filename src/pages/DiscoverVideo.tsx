@@ -464,6 +464,8 @@ const LikeButton = ({ videoId, isAuthenticated }: { videoId: string; isAuthentic
   return (
     <button
       onClick={handleToggle}
+      aria-label={isLiked ? "Unlike this video" : "Like this video"}
+      aria-pressed={isLiked}
       disabled={isPending}
       className={cn(
         "flex items-center gap-1.5 px-3 py-2 rounded-xl transition-all shrink-0",

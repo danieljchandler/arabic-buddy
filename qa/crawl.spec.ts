@@ -169,7 +169,10 @@ async function clickSweep(page: Page, monitors: ReturnType<typeof attachMonitors
     const failBefore = monitors.failures.length;
     const el = page.locator(`[data-qa-idx="${c.index}"]`).first();
     try {
-      await el.click({ timeout: 3000, noWaitAfter: true });
+      // 8s, not 3: the first run's click-failed list turned out to be page
+      // transitions and TTS-triggered re-renders, not covered controls
+      // (qa/probe-overlap.mjs found nothing over any of them).
+      await el.click({ timeout: 8000, noWaitAfter: true });
     } catch (e) {
       results.push({ ...c, action: "click-failed", error: String((e as Error).message).split("\n")[0].slice(0, 120) });
       continue;

@@ -250,7 +250,7 @@ const ReadingLibraryStory = () => {
         <div className="container mx-auto px-4 py-4 max-w-3xl">
           {/* Header */}
           <div className="flex items-center gap-2 mb-4">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/reading-library')}>
+            <Button variant="ghost" size="icon" aria-label="Back to the library" onClick={() => navigate('/reading-library')}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex-1">
@@ -333,12 +333,12 @@ const ReadingLibraryStory = () => {
               </div>
 
               <div className="flex items-center justify-between gap-2 mt-4 pt-3 border-t border-border">
-                <Button size="icon" variant="ghost" onClick={handlePrev} disabled={focusedIdx <= 0}>
+                <Button size="icon" variant="ghost" aria-label="Previous line" onClick={handlePrev} disabled={focusedIdx <= 0}>
                   <SkipBack className="h-4 w-4" />
                 </Button>
                 <div className="flex items-center gap-3">
                   {hasAudio && (
-                    <Button size="icon" variant="default" onClick={handlePlayPause} className="h-11 w-11 rounded-full">
+                    <Button size="icon" variant="default" aria-label={isPlaying ? "Pause" : "Play"} onClick={handlePlayPause} className="h-11 w-11 rounded-full">
                       {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
                     </Button>
                   )}
@@ -346,7 +346,7 @@ const ReadingLibraryStory = () => {
                     {focusedIdx + 1} / {lines.length}
                   </span>
                 </div>
-                <Button size="icon" variant="ghost" onClick={handleNext} disabled={focusedIdx >= lines.length - 1}>
+                <Button size="icon" variant="ghost" aria-label="Next line" onClick={handleNext} disabled={focusedIdx >= lines.length - 1}>
                   <SkipForward className="h-4 w-4" />
                 </Button>
               </div>

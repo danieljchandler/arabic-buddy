@@ -190,6 +190,7 @@ export default function MsaBridge() {
               key={opt.id}
               type="button"
               onClick={() => setBackground(opt.id)}
+              aria-pressed={msaBackground === opt.id}
               className={cn(
                 "px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
                 msaBackground === opt.id

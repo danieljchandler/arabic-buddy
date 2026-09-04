@@ -267,6 +267,20 @@ the `load` phase; `/set-phrases*` shows the sign-in affordance instead of
 
 ## 7. Small frontend fixes (m1, m2, m3, m8, m9)
 
+**Status: done on this branch, with two items closed as not-bugs.**
+`/placement` "Go Back" falls back to `/` when it is the first entry in the
+tab; the MSA-background chips on `/bridge` carry `aria-pressed` (the
+"no-op" was the already-selected default); the like button on a video and
+the back/previous/play/next buttons on a library story have `aria-label`s.
+The "could not be clicked" list (m3) was investigated with
+`qa/probe-overlap.mjs`, which checks what `elementFromPoint` finds over each
+control on the live page: nothing covers any of them, so those were the
+crawl's 3-second click budget expiring during page transitions and
+TTS-triggered re-renders; the budget is now 8 seconds. The landing-page
+bands (m8) are `Reveal` waiting for an IntersectionObserver that a
+full-page headless capture never scrolls into; `Reveal.test.tsx` already
+pins that it fails open for users, so nothing to change.
+
 - `src/pages/PlacementQuiz.tsx:373`: `navigate(-1)` → `navigate(window.history.length > 1 ? -1 : "/")`, or a plain link to `/`.
 - `src/pages/Learn.tsx` speaker button: disable with a tooltip when the word has no `audio_url`.
 - `/bridge` "I don't know MSA": either wire it or remove it — check what it was meant to toggle.

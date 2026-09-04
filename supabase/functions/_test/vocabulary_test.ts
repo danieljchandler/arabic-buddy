@@ -293,15 +293,28 @@ Deno.test("word-enrichment degrades to an empty shape on failure", async () => {
   assertEquals(body.uses, []);
 });
 
-Deno.test("word-enrichment turns an anonymous caller away", async () => {
-  const { status } = await call(
+Deno.test("word-enrichment serves an anonymous caller under the per-IP allowance", async () => {
+  // Reading and looking words up are open to anyone — the tappable text sits
+  // on public pages and TappableArabicText.test.tsx pins that — so a visitor
+  // is bucketed per IP (enforceAnonymousDailyCap) rather than turned away,
+  // which used to make every tap on the reading library a silent 401.
+  const { status, body } = await call(
     "word-enrichment",
-    { word: "كتاب" },
-    caller({ "generativelanguage.googleapis.com/v1beta/openai": emitting({}) }),
-    { jwt: null },
+    { word: "كتاب", dialect: "Gulf" },
+    caller({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
+        definition: "book",
+        literal: "book",
+        root: "ك ت ب",
+        transliteration: "kitaab",
+        uses: [],
+      }),
+    }),
+    { jwt: null, headers: { "x-forwarded-for": "203.0.113.9" } },
   );
 
-  assertEquals(status, 401);
+  assertEquals(status, 200);
+  assertEquals(body.definition, "book");
 });
 
 // ── generate-sample-sentences ───────────────────────────────────────────────

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { useDialect } from "@/contexts/DialectContext";
 
@@ -71,6 +72,17 @@ function runSerial<T>(task: () => Promise<T>): Promise<T> {
  * Returns a stable blob URL that is automatically revoked on unmount or when
  * the text/dialect changes. Skips the request when `skip` is true.
  */
+
+// Both TTS functions answer 401 to a signed-out visitor. The speaker buttons
+// used to fail silently; one notice per minute says what is needed.
+let signInNoticeAt = 0;
+function noteSignInNeeded() {
+  const now = Date.now();
+  if (now - signInNoticeAt < 60_000) return;
+  signInNoticeAt = now;
+  toast("Sign in to hear pronunciation", { description: "Native-speaker audio is generated per learner.", id: "tts-sign-in" });
+}
+
 export function useAzureTTS({ text, skip = false, dialect, voice, persist }: UseAzureTTSOptions): UseAzureTTSResult {
   const { activeDialect } = useDialect();
   const [ttsUrl, setTtsUrl] = useState<string | null>(null);
@@ -139,6 +151,8 @@ export function useAzureTTS({ text, skip = false, dialect, voice, persist }: Use
       }
 
       if (reqId !== requestIdRef.current) return;
+
+      if (response.status === 401) noteSignInNeeded();
 
       if (isAudio(response)) {
         const blob = await response.blob();

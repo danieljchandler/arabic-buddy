@@ -275,16 +275,16 @@ describe("saving it", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: /saved/i })).toBeDisabled());
   });
 
-  it("refuses for a signed-out visitor", async () => {
+  it("invites a signed-out visitor to sign in rather than generating", async () => {
     const { backend } = render({ persona: "anonymous" });
-    await waitFor(() => expect(screen.getByText("How are you?")).toBeInTheDocument());
 
-    await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /save as flashcard/i }));
-    });
-
-    // The card is worth showing to somebody who has not signed up — it is the
-    // clearest sample of what the app teaches — but there is nowhere to keep it.
+    // The function answers 401 to a visitor (it generates per learner), so
+    // asking was a failed call on every landing-page visit. The card says what
+    // it is and what is needed, and nothing is written or generated.
+    await waitFor(() => expect(screen.getByText(/sign in/i)).toBeInTheDocument());
+    await act(async () => {});
+    expect(backend.callsTo("phrase-of-the-day")).toEqual([]);
+    expect(screen.queryByText("How are you?")).not.toBeInTheDocument();
     expect(backend.db.writesTo("user_phrases")).toEqual([]);
   });
 });

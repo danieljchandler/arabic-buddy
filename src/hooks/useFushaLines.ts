@@ -14,6 +14,7 @@
  *     will not find one on the second ask.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { showCapToastIfLimited } from "@/lib/handleCapResponse";
 import type { TranscriptLine } from "@/types/transcript";
@@ -38,6 +39,10 @@ export function useFushaLines(
 ): UseFushaLinesResult {
   const [fetched, setFetched] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<FushaStatus>("idle");
+  // convert-to-fusha is capped per learner and answers 401 signed out; a
+  // visitor keeps the stored Fusha rows and simply gets no on-demand ones.
+  const { user } = useAuth();
+  const signedIn = Boolean(user);
   /** Line ids already sent, so a re-render never re-asks. */
   const asked = useRef<Set<string>>(new Set());
   const inFlight = useRef(false);
@@ -105,9 +110,9 @@ export function useFushaLines(
   }, [lines, dialect]);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !signedIn) return;
     void run();
-  }, [enabled, run]);
+  }, [enabled, run, signedIn]);
 
   const retry = useCallback(() => {
     // Only the ids that produced nothing are forgotten — the ones that worked

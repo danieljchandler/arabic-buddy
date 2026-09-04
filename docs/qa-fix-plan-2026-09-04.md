@@ -223,6 +223,26 @@ in the table; `slow-4s` still `looks-normal`/`silent-empty`.
 
 ## 6. Gate sign-in-only calls on public pages (M4, client side)
 
+**Status: done on this branch, with two calls resolved the other way.** The
+repo's own tests settled each case: where a test says a visitor is meant to
+have the feature, the *function* now serves visitors under a per-IP cap
+(the posture `enforceAnonymousDailyCap` already gives the placement quiz);
+where the function is per-learner by design, the *client* stops asking.
+- `phrase-of-the-day`: the home rendered the card before the session
+  resolved, so every visit began with a failed call retried three times. The
+  card now waits for auth and shows a sign-in line to visitors; its
+  anonymous test was rewritten (it had assumed the emulator's always-200).
+- `generate-set-phrase-quiz`: `/set-phrases/practice` and `/review` no
+  longer ask for a visitor; they show "Sign in to practise set phrases".
+- `convert-to-fusha`: `useFushaLines` does not run for a visitor; stored
+  Fusha rows still show.
+- `word-enrichment`: `TappableArabicText.test.tsx` pins that looking words
+  up is open to anyone, so the function now serves a visitor under a
+  10/day per-IP allowance (its edge test updated) and the client is unchanged.
+- TTS (`tts-speak` / `azure-tts`): a 401 on a speaker tap now shows one
+  "Sign in to hear pronunciation" notice per minute instead of nothing.
+- The 401 retry storm itself was fixed in package 5's retry policy.
+
 **Files**
 - `src/hooks/useSetPhrases.ts` (`generate-set-phrase-quiz`)
 - `src/pages/SetPhrasesPractice.tsx` (renders `/set-phrases/practice` and `/review`)

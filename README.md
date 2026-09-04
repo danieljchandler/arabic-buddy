@@ -107,13 +107,16 @@ quietly stopped matching fails the suite rather than shipping an empty deploy.
 
 It needs one secret, `SUPABASE_ACCESS_TOKEN`, added under **Settings > Secrets
 and variables > Actions** from a token minted at
-<https://supabase.com/dashboard/account/tokens>. The job checks for it first and
-fails with that instruction rather than silently deploying nothing, since
-silence is the failure it exists to end. The project ref is read from
-`supabase/config.toml` rather than duplicated as a second secret. To deploy by
-hand — after changing a secret, say, when no code changed — run the workflow
-from the Actions tab: leave the input blank for the last commit's functions,
-name specific ones space-separated, or pass `all`.
+<https://supabase.com/dashboard/account/tokens>. The check for it runs *after*
+the job has worked out what to deploy, so a docs-only push to `main` never goes
+red over a secret it did not need; when functions did change and the token is
+missing, the job fails naming both the setting and the functions left on their
+previous version, because deploying nothing in silence is the failure this
+exists to end. The project ref is read from `supabase/config.toml` rather than
+duplicated as a second secret. To deploy by hand — after changing a secret, say,
+when no code changed — run the workflow from the Actions tab: leave the input
+blank for the last commit's functions, name specific ones space-separated, or
+pass `all`.
 
 **The edge functions need their own typecheck.** They are Deno, they import over
 `https://`, and `tsc` cannot resolve those specifiers — so `tsconfig.app.json`

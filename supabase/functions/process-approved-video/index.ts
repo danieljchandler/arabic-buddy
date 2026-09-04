@@ -338,7 +338,22 @@ const MAX_ANALYZE_ATTEMPTS = 2;
 const ANALYZE_MAX_RUN_MS = envInt("PIPELINE_ANALYZE_MAX_RUN_MS", 400_000);
 /** The gateway answers 504 at 150s regardless; waiting longer on the socket buys nothing. */
 const ANALYZE_FETCH_TIMEOUT_MS = Math.min(150_000, ANALYZE_MAX_RUN_MS);
-const POLL_INTERVAL_MS = envInt("PIPELINE_POLL_INTERVAL_MS", 10_000);
+const POLL_INTERVAL_MS = envInt("PIPELINE_POLL_INTERVAL_MS", 5_000);
+
+/**
+ * How long the ASR fan-out waits for its stragglers.
+ *
+ * Six engines run in parallel and the run takes the slowest, so one engine
+ * having a bad day sets the pace for the whole stage — up to the per-engine
+ * ceiling, whatever the other five did in twenty seconds. The merge downstream
+ * arbitrates between whichever transcripts it is given and does not need all
+ * six, so past this point the stragglers are dropped and the run moves on.
+ *
+ * Only ever applied when at least one engine has already produced text: with
+ * nothing in hand there is nothing to move on with, and waiting is strictly
+ * better than failing the run for want of patience.
+ */
+const ASR_FANOUT_DEADLINE_MS = envInt("PIPELINE_ASR_FANOUT_MS", 120_000);
 /**
  * While waiting on the analysis the row is touched this often so its
  * `updated_at` keeps moving: the reaper reads a row that has not moved for
@@ -1479,9 +1494,42 @@ async function runAsrStage(ctx: PipelineContext, cp: Checkpoint): Promise<void> 
       }
     })();
 
-    const [scribeResult, fanarResult, sonioxResult, munsitResult, azureResult, cohereResult] = await Promise.all([
-      scribePromise, fanarPromise, sonioxPromise, munsitPromise, azurePromise, coherePromise,
-    ]);
+    // Take what the engines have when the deadline passes, rather than the
+    // slowest of six. Each leg already catches its own failures and resolves
+    // to a result, so tracking them as they settle costs nothing and is what
+    // makes "whatever arrived" a complete answer rather than a partial one.
+    const legs = [
+      ["scribe", scribePromise], ["fanar", fanarPromise], ["soniox", sonioxPromise],
+      ["munsit", munsitPromise], ["azure", azurePromise], ["cohere", coherePromise],
+    ] as const;
+    const settledLegs = new Map<string, AsrLegResult>();
+    const tracked = legs.map(([name, leg]) =>
+      leg.then((result) => { settledLegs.set(name, result); return result; }),
+    );
+    const noResult: AsrLegResult = { text: null, words: [], latencyMs: 0, error: "fanout_deadline" };
+    const hasText = () => [...settledLegs.values()].some((r) => (r?.text ?? "").trim().length > 0);
+
+    const fanoutDeadline = new Promise<"deadline">((resolve) =>
+      setTimeout(() => resolve("deadline"), ASR_FANOUT_DEADLINE_MS),
+    );
+    if (await Promise.race([Promise.all(tracked).then(() => "all" as const), fanoutDeadline]) === "deadline") {
+      if (hasText()) {
+        const late = legs.map(([name]) => name).filter((name) => !settledLegs.has(name));
+        console.warn(`[pipeline] ASR fan-out deadline reached; continuing without ${late.join(", ") || "nobody"}`);
+        await recordProgress(ctx, { note: `transcribed; ${late.length} slow engine(s) dropped` });
+      } else {
+        // Nothing to go on yet. Patience beats failing the run outright.
+        console.warn("[pipeline] ASR fan-out deadline reached with no transcript yet; waiting for the engines");
+        await Promise.all(tracked);
+      }
+    }
+
+    const scribeResult = settledLegs.get("scribe") ?? noResult;
+    const fanarResult = settledLegs.get("fanar") ?? noResult;
+    const sonioxResult = settledLegs.get("soniox") ?? noResult;
+    const munsitResult = settledLegs.get("munsit") ?? noResult;
+    const azureResult = settledLegs.get("azure") ?? noResult;
+    const cohereResult = settledLegs.get("cohere") ?? noResult;
 
     const scribeText = scribeResult?.text || "";
     const fanarText = fanarResult?.text || "";

@@ -1743,3 +1743,43 @@ Deno.test("process-approved-video starts the analysis again when it reports fail
   assertEquals(analyzeCalls, 2);
   assertEquals(finalStatus(result), "completed");
 });
+
+// ── Not waiting on the slowest engine ────────────────────────────────────────
+
+Deno.test("process-approved-video moves on without an engine that will not finish", async () => {
+  // Six engines run in parallel and the stage takes the slowest, so one having
+  // a bad day used to set the pace for the whole run. The merge downstream
+  // arbitrates between whatever it is given, so a straggler is dropped.
+  let hungResolved = false;
+  const result = await call({ videoId: VIDEO }, {
+    ...backend(),
+    "api.soniox.com": () =>
+      new Promise<Response>((resolve) => {
+        setTimeout(() => { hungResolved = true; resolve(json({ id: "never" })); }, 60_000);
+      }),
+  }, { env: { PIPELINE_ASR_FANOUT_MS: "50" } });
+
+  assertEquals(finalStatus(result), "completed");
+  assertEquals(hungResolved, false, "expected the run not to have waited for the hung engine");
+  // The transcript still reaches the analysis, from the engines that answered.
+  assert(String(bodySentTo(result, "analyze-gulf-arabic").transcript ?? "").length > 0);
+});
+
+Deno.test("process-approved-video waits rather than failing when no engine has answered yet", async () => {
+  // With nothing in hand there is nothing to move on with, so the deadline
+  // must not turn a slow run into "all transcription engines failed".
+  const slowly = (body: unknown): UpstreamHandler => () =>
+    new Promise<Response>((resolve) => setTimeout(() => resolve(json(body)), 60));
+
+  const result = await call({ videoId: VIDEO }, {
+    ...backend(),
+    "api.elevenlabs.io": slowly({ text: "شلونك اليوم", words: [] }),
+    "api.cohere.com": slowly({ text: "شلونك اليوم" }),
+    "api.fanar.qa": slowly({ text: "شلونك اليوم" }),
+    "api.munsit.com": slowly({ data: { transcription: "شلونك اليوم" } }),
+    "api.soniox.com": slowly({ id: "f", status: "completed", text: "شلونك اليوم", tokens: [] }),
+    "cognitiveservices": slowly({ combinedPhrases: [{ text: "شلونك اليوم" }] }),
+  }, { env: { PIPELINE_ASR_FANOUT_MS: "1" } });
+
+  assertEquals(finalStatus(result), "completed");
+});

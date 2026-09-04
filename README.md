@@ -872,6 +872,15 @@ For the same reason the pipeline now allows two analysis starts rather than
 three: each start that ends in a teardown costs a full wall clock of waiting,
 so a third only turns a fourteen-minute spinner into a twenty-minute one.
 
+The ASR stage has the same shape of problem in miniature. Six engines run in
+parallel and the stage takes the slowest, so one engine having a bad day set
+the pace for the whole run — up to its own 150-second ceiling, whatever the
+other five managed in twenty. `PIPELINE_ASR_FANOUT_MS` (120s) drops the
+stragglers, since the merge arbitrates between whatever transcripts it is
+given and has never needed all six. The one case where it does not apply is
+when no engine has produced text yet: with nothing in hand there is nothing to
+move on with, and waiting beats failing the run for want of patience.
+
 ## Trending (free social harvest)
 
 `/trending` shows what the Arab world is posting right now: per-country X trend

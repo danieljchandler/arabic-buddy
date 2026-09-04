@@ -10,6 +10,8 @@
   "path": "/stories",
   "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
   "bodyChars": 263,
+  "bodyText": "Interactive Stories Choose your adventure and learn Arabic through immersive scenarios A Day in Oman يوم في عمان A traveler on an Omani beach is invited by loca",
+  "notFoundText": false,
   "is404": false,
   "spinnerVisible": false,
   "errorBoundary": false,
@@ -46,7 +48,7 @@
    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
   ],
   "pageErrors": [],
-  "supabaseRequests": 5
+  "supabaseRequests": 1
  },
  "interaction": {
   "controls": [
@@ -56,7 +58,7 @@
     "kind": "button",
     "action": "clicked",
     "mutations": 15,
-    "requests": 68,
+    "requests": 67,
     "newFailures": 0,
     "outcome": "navigated",
     "navigatedTo": "/"
@@ -76,7 +78,7 @@
     "label": "A Day in Omanيوم في عمانA traveler on an Omani beach is invi",
     "kind": "button",
     "action": "clicked",
-    "mutations": 8,
+    "mutations": 7,
     "requests": 13,
     "newFailures": 0,
     "outcome": "navigated",

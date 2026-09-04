@@ -4,12 +4,14 @@
  "gate": "public",
  "url": "/leaderboard",
  "authed": false,
- "loadMs": 1868,
+ "loadMs": 2407,
  "state": {
   "finalUrl": "http://127.0.0.1:4173/leaderboard",
   "path": "/leaderboard",
   "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
   "bodyChars": 161,
+  "bodyText": "Leaderboard Compete with other learners This Week All Time No rankings yet Finish a lesson or a review and you will show up here. Sign in to join the leaderboar",
+  "notFoundText": false,
   "is404": false,
   "spinnerVisible": false,
   "errorBoundary": false,
@@ -46,7 +48,7 @@
    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
   ],
   "pageErrors": [],
-  "supabaseRequests": 6
+  "supabaseRequests": 2
  },
  "interaction": {
   "controls": [
@@ -56,7 +58,7 @@
     "kind": "button",
     "action": "clicked",
     "mutations": 15,
-    "requests": 66,
+    "requests": 65,
     "newFailures": 0,
     "outcome": "navigated",
     "navigatedTo": "/"

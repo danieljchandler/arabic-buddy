@@ -4,12 +4,14 @@
  "gate": "public",
  "url": "/set-phrases",
  "authed": false,
- "loadMs": 1862,
+ "loadMs": 1893,
  "state": {
   "finalUrl": "http://127.0.0.1:4173/set-phrases",
   "path": "/set-phrases",
   "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
   "bodyChars": 706,
+  "bodyText": "Set Phrases Practice Gulf situational phrases Greetings, weddings, Eid, condolences and more — voice or choice quizzes with spaced repetition. Mixed practice Re",
+  "notFoundText": false,
   "is404": false,
   "spinnerVisible": false,
   "errorBoundary": false,
@@ -46,7 +48,7 @@
    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
   ],
   "pageErrors": [],
-  "supabaseRequests": 28
+  "supabaseRequests": 1
  },
  "interaction": {
   "controls": [
@@ -56,7 +58,7 @@
     "kind": "button",
     "action": "clicked",
     "mutations": 15,
-    "requests": 65,
+    "requests": 64,
     "newFailures": 0,
     "outcome": "navigated",
     "navigatedTo": "/"
@@ -76,9 +78,9 @@
     "label": "Mixed practice",
     "kind": "button",
     "action": "clicked",
-    "mutations": 16,
-    "requests": 8,
-    "newFailures": 1,
+    "mutations": 7,
+    "requests": 7,
+    "newFailures": 0,
     "outcome": "navigated",
     "navigatedTo": "/set-phrases/practice"
    },
@@ -143,9 +145,9 @@
     "label": "ApologiesPractice",
     "kind": "button",
     "action": "clicked",
-    "mutations": 16,
-    "requests": 8,
-    "newFailures": 1,
+    "mutations": 7,
+    "requests": 7,
+    "newFailures": 0,
     "outcome": "navigated",
     "navigatedTo": "/set-phrases/practice"
    },
@@ -154,9 +156,9 @@
     "label": "ComplimentsPractice",
     "kind": "button",
     "action": "clicked",
-    "mutations": 16,
-    "requests": 8,
-    "newFailures": 1,
+    "mutations": 7,
+    "requests": 7,
+    "newFailures": 0,
     "outcome": "navigated",
     "navigatedTo": "/set-phrases/practice"
    },
@@ -165,9 +167,9 @@
     "label": "EidPractice",
     "kind": "button",
     "action": "clicked",
-    "mutations": 16,
-    "requests": 8,
-    "newFailures": 1,
+    "mutations": 7,
+    "requests": 7,
+    "newFailures": 0,
     "outcome": "navigated",
     "navigatedTo": "/set-phrases/practice"
    },
@@ -176,9 +178,9 @@
     "label": "Funeral & CondolencesPractice",
     "kind": "button",
     "action": "clicked",
-    "mutations": 16,
-    "requests": 8,
-    "newFailures": 1,
+    "mutations": 7,
+    "requests": 7,
+    "newFailures": 0,
     "outcome": "navigated",
     "navigatedTo": "/set-phrases/practice"
    },
@@ -187,9 +189,9 @@
     "label": "GreetingsPractice",
     "kind": "button",
     "action": "clicked",
-    "mutations": 16,
-    "requests": 8,
-    "newFailures": 1,
+    "mutations": 7,
+    "requests": 7,
+    "newFailures": 0,
     "outcome": "navigated",
     "navigatedTo": "/set-phrases/practice"
    },
@@ -198,9 +200,9 @@
     "label": "Health & SneezePractice",
     "kind": "button",
     "action": "clicked",
-    "mutations": 16,
-    "requests": 8,
-    "newFailures": 1,
+    "mutations": 7,
+    "requests": 7,
+    "newFailures": 0,
     "outcome": "navigated",
     "navigatedTo": "/set-phrases/practice"
    },
@@ -209,9 +211,9 @@
     "label": "Hospitality & FoodPractice",
     "kind": "button",
     "action": "clicked",
-    "mutations": 16,
-    "requests": 8,
-    "newFailures": 1,
+    "mutations": 7,
+    "requests": 7,
+    "newFailures": 0,
     "outcome": "navigated",
     "navigatedTo": "/set-phrases/practice"
    },
@@ -220,9 +222,9 @@
     "label": "New BabyPractice",
     "kind": "button",
     "action": "clicked",
-    "mutations": 16,
-    "requests": 8,
-    "newFailures": 1,
+    "mutations": 7,
+    "requests": 7,
+    "newFailures": 0,
     "outcome": "navigated",
     "navigatedTo": "/set-phrases/practice"
    },
@@ -231,9 +233,9 @@
     "label": "ReligiousPractice",
     "kind": "button",
     "action": "clicked",
-    "mutations": 16,
-    "requests": 8,
-    "newFailures": 1,
+    "mutations": 7,
+    "requests": 7,
+    "newFailures": 0,
     "outcome": "navigated",
     "navigatedTo": "/set-phrases/practice"
    },
@@ -242,9 +244,9 @@
     "label": "ThanksPractice",
     "kind": "button",
     "action": "clicked",
-    "mutations": 16,
-    "requests": 8,
-    "newFailures": 1,
+    "mutations": 7,
+    "requests": 7,
+    "newFailures": 0,
     "outcome": "navigated",
     "navigatedTo": "/set-phrases/practice"
    },
@@ -254,7 +256,7 @@
     "kind": "button",
     "action": "clicked",
     "mutations": 7,
-    "requests": 8,
+    "requests": 7,
     "newFailures": 0,
     "outcome": "navigated",
     "navigatedTo": "/set-phrases/practice"
@@ -264,9 +266,9 @@
     "label": "WeddingPractice",
     "kind": "button",
     "action": "clicked",
-    "mutations": 16,
-    "requests": 8,
-    "newFailures": 1,
+    "mutations": 7,
+    "requests": 7,
+    "newFailures": 0,
     "outcome": "navigated",
     "navigatedTo": "/set-phrases/practice"
    }
@@ -281,12 +283,12 @@
     "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
    },
    {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/generate-set-phrase-quiz",
-    "method": "POST",
-    "status": 401,
-    "layer": "functions",
-    "target": "generate-set-phrase-quiz",
-    "body": "{\"error\":\"unauthenticated\"}"
+    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+    "method": "GET",
+    "status": null,
+    "layer": "other",
+    "target": "fonts.googleapis.com/css2",
+    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
    },
    {
     "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
@@ -297,12 +299,12 @@
     "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
    },
    {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/generate-set-phrase-quiz",
-    "method": "POST",
-    "status": 401,
-    "layer": "functions",
-    "target": "generate-set-phrase-quiz",
-    "body": "{\"error\":\"unauthenticated\"}"
+    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+    "method": "GET",
+    "status": null,
+    "layer": "other",
+    "target": "fonts.googleapis.com/css2",
+    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
    },
    {
     "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
@@ -313,12 +315,12 @@
     "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
    },
    {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/generate-set-phrase-quiz",
-    "method": "POST",
-    "status": 401,
-    "layer": "functions",
-    "target": "generate-set-phrase-quiz",
-    "body": "{\"error\":\"unauthenticated\"}"
+    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+    "method": "GET",
+    "status": null,
+    "layer": "other",
+    "target": "fonts.googleapis.com/css2",
+    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
    },
    {
     "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
@@ -329,12 +331,12 @@
     "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
    },
    {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/generate-set-phrase-quiz",
-    "method": "POST",
-    "status": 401,
-    "layer": "functions",
-    "target": "generate-set-phrase-quiz",
-    "body": "{\"error\":\"unauthenticated\"}"
+    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+    "method": "GET",
+    "status": null,
+    "layer": "other",
+    "target": "fonts.googleapis.com/css2",
+    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
    },
    {
     "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
@@ -345,12 +347,12 @@
     "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
    },
    {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/generate-set-phrase-quiz",
-    "method": "POST",
-    "status": 401,
-    "layer": "functions",
-    "target": "generate-set-phrase-quiz",
-    "body": "{\"error\":\"unauthenticated\"}"
+    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
+    "method": "GET",
+    "status": null,
+    "layer": "other",
+    "target": "fonts.googleapis.com/css2",
+    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
    },
    {
     "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
@@ -361,14 +363,6 @@
     "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
    },
    {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/generate-set-phrase-quiz",
-    "method": "POST",
-    "status": 401,
-    "layer": "functions",
-    "target": "generate-set-phrase-quiz",
-    "body": "{\"error\":\"unauthenticated\"}"
-   },
-   {
     "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
     "method": "GET",
     "status": null,
@@ -377,108 +371,12 @@
     "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
    },
    {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/generate-set-phrase-quiz",
-    "method": "POST",
-    "status": 401,
-    "layer": "functions",
-    "target": "generate-set-phrase-quiz",
-    "body": "{\"error\":\"unauthenticated\"}"
-   },
-   {
     "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
     "method": "GET",
     "status": null,
     "layer": "other",
     "target": "fonts.googleapis.com/css2",
     "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/generate-set-phrase-quiz",
-    "method": "POST",
-    "status": 401,
-    "layer": "functions",
-    "target": "generate-set-phrase-quiz",
-    "body": "{\"error\":\"unauthenticated\"}"
-   },
-   {
-    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
-    "method": "GET",
-    "status": null,
-    "layer": "other",
-    "target": "fonts.googleapis.com/css2",
-    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/generate-set-phrase-quiz",
-    "method": "POST",
-    "status": 401,
-    "layer": "functions",
-    "target": "generate-set-phrase-quiz",
-    "body": "{\"error\":\"unauthenticated\"}"
-   },
-   {
-    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
-    "method": "GET",
-    "status": null,
-    "layer": "other",
-    "target": "fonts.googleapis.com/css2",
-    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/generate-set-phrase-quiz",
-    "method": "POST",
-    "status": 401,
-    "layer": "functions",
-    "target": "generate-set-phrase-quiz",
-    "body": "{\"error\":\"unauthenticated\"}"
-   },
-   {
-    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
-    "method": "GET",
-    "status": null,
-    "layer": "other",
-    "target": "fonts.googleapis.com/css2",
-    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/generate-set-phrase-quiz",
-    "method": "POST",
-    "status": 401,
-    "layer": "functions",
-    "target": "generate-set-phrase-quiz",
-    "body": "{\"error\":\"unauthenticated\"}"
-   },
-   {
-    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
-    "method": "GET",
-    "status": null,
-    "layer": "other",
-    "target": "fonts.googleapis.com/css2",
-    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/generate-set-phrase-quiz",
-    "method": "POST",
-    "status": null,
-    "layer": "functions",
-    "target": "generate-set-phrase-quiz",
-    "error": "net::ERR_ABORTED"
-   },
-   {
-    "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
-    "method": "GET",
-    "status": null,
-    "layer": "other",
-    "target": "fonts.googleapis.com/css2",
-    "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/generate-set-phrase-quiz",
-    "method": "POST",
-    "status": 401,
-    "layer": "functions",
-    "target": "generate-set-phrase-quiz",
-    "body": "{\"error\":\"unauthenticated\"}"
    },
    {
     "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
@@ -491,30 +389,18 @@
   ],
   "consoleErrors": [
    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
-   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
-   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
-   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
-   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
-   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
-   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
-   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
-   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
-   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
-   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
-   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
-   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
-   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
-   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
-   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
-   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
-   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
-   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
-   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
-   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
-   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
-   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
   ],
   "pageErrors": []

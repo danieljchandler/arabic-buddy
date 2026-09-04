@@ -4,12 +4,14 @@
  "gate": "public",
  "url": "/bridge",
  "authed": false,
- "loadMs": 1665,
+ "loadMs": 1678,
  "state": {
   "finalUrl": "http://127.0.0.1:4173/bridge",
   "path": "/bridge",
   "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
   "bodyChars": 1906,
+  "bodyText": "From MSA → Gulf Bridge your Modern Standard Arabic into dialect You already know الفصحى. Here's how it transforms into Gulf — sound by sound, word by word. Show",
+  "notFoundText": false,
   "is404": false,
   "spinnerVisible": false,
   "errorBoundary": false,
@@ -46,7 +48,7 @@
    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
   ],
   "pageErrors": [],
-  "supabaseRequests": 4
+  "supabaseRequests": 1
  },
  "interaction": {
   "controls": [
@@ -56,7 +58,7 @@
     "kind": "button",
     "action": "clicked",
     "mutations": 15,
-    "requests": 67,
+    "requests": 66,
     "newFailures": 0,
     "outcome": "navigated",
     "navigatedTo": "/"
@@ -86,7 +88,7 @@
     "label": "A little",
     "kind": "button",
     "action": "clicked",
-    "mutations": 2,
+    "mutations": 4,
     "requests": 0,
     "newFailures": 0,
     "outcome": "dom-changed"
@@ -96,7 +98,7 @@
     "label": "Intermediate",
     "kind": "button",
     "action": "clicked",
-    "mutations": 2,
+    "mutations": 4,
     "requests": 0,
     "newFailures": 0,
     "outcome": "dom-changed"
@@ -106,7 +108,7 @@
     "label": "Advanced / fluent",
     "kind": "button",
     "action": "clicked",
-    "mutations": 2,
+    "mutations": 4,
     "requests": 0,
     "newFailures": 0,
     "outcome": "dom-changed"
@@ -212,7 +214,7 @@
     "kind": "button",
     "action": "clicked",
     "mutations": 15,
-    "requests": 67,
+    "requests": 66,
     "newFailures": 0,
     "outcome": "navigated",
     "navigatedTo": "/"

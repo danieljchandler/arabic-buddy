@@ -4,13 +4,13 @@
  "gate": "public",
  "url": "/discover/aaaaaaaa-0000-4000-8000-000000000000",
  "authed": false,
- "loadMs": 3080,
+ "loadMs": 3289,
  "state": {
   "finalUrl": "http://127.0.0.1:4173/discover/aaaaaaaa-0000-4000-8000-000000000000",
   "path": "/discover/aaaaaaaa-0000-4000-8000-000000000000",
   "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
-  "bodyChars": 97,
-  "bodyText": "This clip didn't load It may have been removed, or the connection dropped. Try again Browse clips",
+  "bodyChars": 214,
+  "bodyText": "The server had a problem answering Some parts of this page may be missing. Pull to refresh or try again in a moment. This clip didn't load It may have been remo",
   "notFoundText": false,
   "is404": false,
   "spinnerVisible": false,
@@ -66,7 +66,7 @@
    "Failed to load resource: the server responded with a status of 406 (Not Acceptable)"
   ],
   "pageErrors": [],
-  "supabaseRequests": 4
+  "supabaseRequests": 2
  },
  "interaction": {
   "controls": [
@@ -85,7 +85,7 @@
     "label": "Browse clips",
     "kind": "button",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    }
   ],
   "failures": [

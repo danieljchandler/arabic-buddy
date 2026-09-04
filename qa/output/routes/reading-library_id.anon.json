@@ -4,12 +4,14 @@
  "gate": "public",
  "url": "/reading-library/e0ca411c-8f1d-4581-b4c8-66c64277b29b",
  "authed": false,
- "loadMs": 3682,
+ "loadMs": 2490,
  "state": {
   "finalUrl": "http://127.0.0.1:4173/reading-library/e0ca411c-8f1d-4581-b4c8-66c64277b29b",
   "path": "/reading-library/e0ca411c-8f1d-4581-b4c8-66c64277b29b",
   "title": "The First Visit to the Majlis — Reading Library — Hakiya",
   "bodyChars": 2415,
+  "bodyText": "The First Visit to the Majlis أول مرة في المجلس intermediate Gulf 1 / 6 كَانَ نَاصِرٌ يَشْعُرُ بِتَوَتُّرٍ شَدِيدٍ وَهُوَ يَقِفُ أَمَامَ بَابِ بَيْتِ \"أَبُو رَا",
+  "notFoundText": false,
   "is404": false,
   "spinnerVisible": false,
   "errorBoundary": false,
@@ -46,17 +48,17 @@
    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
   ],
   "pageErrors": [],
-  "supabaseRequests": 70
+  "supabaseRequests": 8
  },
  "interaction": {
   "controls": [
    {
     "index": 0,
-    "label": "lucide-arrow-left",
+    "label": "Back to the library",
     "kind": "button",
     "action": "clicked",
     "mutations": 11,
-    "requests": 19,
+    "requests": 23,
     "newFailures": 0,
     "outcome": "navigated",
     "navigatedTo": "/reading-library"
@@ -146,9 +148,9 @@
     "label": "Look up “يَشْعُرُ”",
     "kind": "span[button]",
     "action": "clicked",
-    "mutations": 18,
+    "mutations": 14,
     "requests": 1,
-    "newFailures": 1,
+    "newFailures": 0,
     "outcome": "dialog"
    },
    {
@@ -206,9 +208,9 @@
     "label": "Look up “بَابِ”",
     "kind": "span[button]",
     "action": "clicked",
-    "mutations": 14,
+    "mutations": 18,
     "requests": 1,
-    "newFailures": 1,
+    "newFailures": 2,
     "outcome": "dialog"
    },
    {
@@ -216,9 +218,9 @@
     "label": "Look up “بَيْتِ”",
     "kind": "span[button]",
     "action": "clicked",
-    "mutations": 14,
+    "mutations": 18,
     "requests": 1,
-    "newFailures": 0,
+    "newFailures": 1,
     "outcome": "dialog"
    },
    {
@@ -228,7 +230,7 @@
     "action": "clicked",
     "mutations": 18,
     "requests": 1,
-    "newFailures": 2,
+    "newFailures": 1,
     "outcome": "dialog"
    },
    {
@@ -249,20 +251,20 @@
    },
    {
     "index": 20,
-    "label": "lucide-play",
+    "label": "Play",
     "kind": "button",
     "action": "clicked",
-    "mutations": 3,
+    "mutations": 4,
     "requests": 1,
     "newFailures": 0,
     "outcome": "dom-changed"
    },
    {
     "index": 21,
-    "label": "lucide-skip-forward",
+    "label": "Next line",
     "kind": "button",
     "action": "clicked",
-    "mutations": 60,
+    "mutations": 51,
     "requests": 2,
     "newFailures": 0,
     "outcome": "dom-changed"
@@ -292,7 +294,7 @@
     "label": "Look up “كَانَ”",
     "kind": "span[button]",
     "action": "clicked",
-    "mutations": 79,
+    "mutations": 77,
     "requests": 2,
     "newFailures": 1,
     "outcome": "dialog"
@@ -302,7 +304,7 @@
     "label": "Look up “نَاصِرٌ”",
     "kind": "span[button]",
     "action": "clicked",
-    "mutations": 20,
+    "mutations": 18,
     "requests": 2,
     "newFailures": 1,
     "outcome": "dialog"
@@ -455,6 +457,14 @@
    }
   ],
   "failures": [
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/public/listen-audio/authentic-stories/e0ca411c-8f1d-4581-b4c8-66c64277b29b/preview-scene-1783433187073.png",
+    "method": "GET",
+    "status": null,
+    "layer": "storage",
+    "target": "object/public/listen-audio/authentic-stories/e0ca411c-8f1d-4581-b4c8-66c64277b29b/preview-scene-1783433187073.png",
+    "error": "net::ERR_ABORTED"
+   },
    {
     "url": "https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap",
     "method": "GET",

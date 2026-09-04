@@ -23,11 +23,8 @@
  "consoleErrors": [
   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
   "Failed to load resource: net::ERR_FAILED",
-  "Failed to load resource: net::ERR_FAILED",
-  "Failed to load resource: net::ERR_FAILED",
-  "Failed to load resource: net::ERR_FAILED",
   "Failed to load resource: net::ERR_FAILED"
  ],
  "pageErrors": [],
- "failures": 6
+ "failures": 3
 }

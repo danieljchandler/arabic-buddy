@@ -4,12 +4,14 @@
  "gate": "public",
  "url": "/placement",
  "authed": false,
- "loadMs": 1680,
+ "loadMs": 1482,
  "state": {
   "finalUrl": "http://127.0.0.1:4173/placement",
   "path": "/placement",
   "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
   "bodyChars": 337,
+  "bodyText": "Gulf Arabic Placement No matter where you are in your Arabic journey, we'll get you to the right test to show you exactly where you stand right now. Answer 20 a",
+  "notFoundText": false,
   "is404": false,
   "spinnerVisible": false,
   "errorBoundary": false,
@@ -46,7 +48,7 @@
    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
   ],
   "pageErrors": [],
-  "supabaseRequests": 1
+  "supabaseRequests": 0
  },
  "interaction": {
   "controls": [

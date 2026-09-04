@@ -21,8 +21,10 @@
  },
  "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_network-drop_choose.png",
  "consoleErrors": [
-  "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
+  "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
+  "Failed to load resource: net::ERR_FAILED",
+  "Failed to load resource: net::ERR_FAILED"
  ],
  "pageErrors": [],
- "failures": 1
+ "failures": 3
 }

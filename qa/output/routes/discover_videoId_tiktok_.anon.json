@@ -4,13 +4,13 @@
  "gate": "public",
  "url": "/discover/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a",
  "authed": false,
- "loadMs": 3275,
+ "loadMs": 2268,
  "state": {
   "finalUrl": "http://127.0.0.1:4173/discover/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a",
   "path": "/discover/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a",
   "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
-  "bodyChars": 2764,
-  "bodyText": "Back Kuwaiti Intermediate سيدا، سيدا. إحنا عندنا هنا سيدي جابر. أنا هقول لك سيدا، إيش يا أخي لخبطني Start subtitle sync Reset 0s سيدا، سيدا. إحنا عندنا هنا سيدي",
+  "bodyChars": 2810,
+  "bodyText": "Back Kuwaiti Intermediate Sign in to hear the audio and use slow listen سيدا، سيدا. إحنا عندنا هنا سيدي جابر. أنا هقول لك سيدا، إيش يا أخي لخبطني Start subtitle",
   "notFoundText": false,
   "is404": false,
   "spinnerVisible": false,
@@ -52,136 +52,19 @@
     "error": "net::ERR_ABORTED"
    },
    {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.wav",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.wav",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
     "url": "https://ovscskaijvclaxelkdyf.supabase.co/rest/v1/video_likes?select=id&video_id=eq.f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a",
     "method": "HEAD",
     "status": null,
     "layer": "rest",
     "target": "video_likes",
     "error": "net::ERR_ABORTED"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.wav",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.wav",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/convert-to-fusha",
-    "method": "POST",
-    "status": 401,
-    "layer": "functions",
-    "target": "convert-to-fusha",
-    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp4",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp4",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp4",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp4",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.m4a",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.m4a",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.webm",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.webm",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.m4a",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.m4a",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp3",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp3",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.webm",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.webm",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.opus",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.opus",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp3",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp3",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.opus",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.opus",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
    }
   ],
   "consoleErrors": [
-   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
   ],
   "pageErrors": [],
-  "supabaseRequests": 31
+  "supabaseRequests": 2
  },
  "interaction": {
   "controls": [
@@ -191,16 +74,20 @@
     "kind": "button",
     "action": "clicked",
     "mutations": 12,
-    "requests": 36,
+    "requests": 40,
     "newFailures": 1,
     "outcome": "navigated",
     "navigatedTo": "/discover"
    },
    {
     "index": 1,
-    "label": "lucide-heart",
+    "label": "Like this video",
     "kind": "button",
-    "action": "needs-live-api-test"
+    "action": "clicked",
+    "mutations": 7,
+    "requests": 0,
+    "newFailures": 0,
+    "outcome": "dom-changed"
    },
    {
     "index": 2,
@@ -243,7 +130,7 @@
     "label": "إحنا",
     "kind": "span[button]",
     "action": "clicked",
-    "mutations": 13,
+    "mutations": 16,
     "requests": 0,
     "newFailures": 0,
     "outcome": "dialog"
@@ -263,9 +150,9 @@
     "label": "هنا",
     "kind": "span[button]",
     "action": "clicked",
-    "mutations": 48,
+    "mutations": 49,
     "requests": 0,
-    "newFailures": 1,
+    "newFailures": 0,
     "outcome": "dom-changed"
    },
    {
@@ -273,84 +160,84 @@
     "label": "سيدي",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 10,
     "label": "جابر.",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 11,
     "label": "أنا",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 12,
     "label": "هقول",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 13,
     "label": "لك",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 14,
     "label": "سيدا،",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 15,
     "label": "إيش",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 16,
     "label": "دخل",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 17,
     "label": "سيدي",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 18,
     "label": "جابر",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 19,
     "label": "يا",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 20,
     "label": "أخي؟",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 21,
@@ -363,7 +250,7 @@
     "label": "Next line",
     "kind": "button",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 23,
@@ -420,84 +307,84 @@
     "label": "سيدا، سيدا. إحنا عندنا هنا سيدي جابر. أنا هقول لك سيدا، إيش ",
     "kind": "div[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 29,
     "label": "سيدا،",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 30,
     "label": "سيدا.",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 31,
     "label": "إحنا",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 32,
     "label": "عندنا",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 33,
     "label": "هنا",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 34,
     "label": "سيدي",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 35,
     "label": "جابر.",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 36,
     "label": "أنا",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 37,
     "label": "هقول",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 38,
     "label": "لك",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 39,
     "label": "سيدا،",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": -1,
@@ -540,116 +427,12 @@
     "error": "net::ERR_ABORTED"
    },
    {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.wav",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.wav",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.wav",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.wav",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
     "url": "https://ovscskaijvclaxelkdyf.supabase.co/rest/v1/video_likes?select=id&video_id=eq.f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a",
     "method": "HEAD",
     "status": null,
     "layer": "rest",
     "target": "video_likes",
     "error": "net::ERR_ABORTED"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/convert-to-fusha",
-    "method": "POST",
-    "status": 401,
-    "layer": "functions",
-    "target": "convert-to-fusha",
-    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp4",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp4",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.m4a",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.m4a",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp4",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp4",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.m4a",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.m4a",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.webm",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.webm",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.webm",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.webm",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp3",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp3",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp3",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.mp3",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.opus",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.opus",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.opus",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/f6b9c84f-6244-46b3-ab4d-9d73dbd3b83a.opus",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
    },
    {
     "url": "https://www.tiktok.com/player/v1/7654509704722320660?autoplay=1&muted=1&music_info=0&description=0&rel=0",
@@ -661,20 +444,7 @@
    }
   ],
   "consoleErrors": [
-   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
   ],
   "pageErrors": []
  }

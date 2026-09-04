@@ -4,7 +4,7 @@
  "gate": "public",
  "url": "/discover/848dfb0c-f828-4c87-8690-a4e4b6de58e1",
  "authed": false,
- "loadMs": 4112,
+ "loadMs": 2073,
  "state": {
   "finalUrl": "http://127.0.0.1:4173/discover/848dfb0c-f828-4c87-8690-a4e4b6de58e1",
   "path": "/discover/848dfb0c-f828-4c87-8690-a4e4b6de58e1",
@@ -50,121 +50,13 @@
     "layer": "rest",
     "target": "video_likes",
     "error": "net::ERR_ABORTED"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.wav",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.wav",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.mp4",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.mp4",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.m4a",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.m4a",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.webm",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.webm",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.mp3",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.mp3",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.opus",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.opus",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/kTKcSSW6NZw.wav",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/kTKcSSW6NZw.wav",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/kTKcSSW6NZw.mp4",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/kTKcSSW6NZw.mp4",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/kTKcSSW6NZw.m4a",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/kTKcSSW6NZw.m4a",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/kTKcSSW6NZw.webm",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/kTKcSSW6NZw.webm",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/kTKcSSW6NZw.mp3",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/kTKcSSW6NZw.mp3",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/kTKcSSW6NZw.opus",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/kTKcSSW6NZw.opus",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
    }
   ],
   "consoleErrors": [
-   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
   ],
   "pageErrors": [],
-  "supabaseRequests": 45
+  "supabaseRequests": 3
  },
  "interaction": {
   "controls": [
@@ -174,16 +66,20 @@
     "kind": "button",
     "action": "clicked",
     "mutations": 11,
-    "requests": 34,
+    "requests": 38,
     "newFailures": 0,
     "outcome": "navigated",
     "navigatedTo": "/discover"
    },
    {
     "index": 1,
-    "label": "lucide-heart",
+    "label": "Like this video",
     "kind": "button",
-    "action": "needs-live-api-test"
+    "action": "clicked",
+    "mutations": 7,
+    "requests": 0,
+    "newFailures": 0,
+    "outcome": "dom-changed"
    },
    {
     "index": 2,
@@ -202,7 +98,7 @@
     "action": "clicked",
     "mutations": 13,
     "requests": 0,
-    "newFailures": 1,
+    "newFailures": 0,
     "outcome": "dialog"
    },
    {
@@ -212,7 +108,7 @@
     "action": "clicked",
     "mutations": 23,
     "requests": 3,
-    "newFailures": 1,
+    "newFailures": 2,
     "outcome": "dialog"
    },
    {
@@ -220,9 +116,9 @@
     "label": "بس",
     "kind": "span[button]",
     "action": "clicked",
-    "mutations": 13,
+    "mutations": 16,
     "requests": 0,
-    "newFailures": 1,
+    "newFailures": 0,
     "outcome": "dialog"
    },
    {
@@ -232,7 +128,7 @@
     "action": "clicked",
     "mutations": 23,
     "requests": 3,
-    "newFailures": 3,
+    "newFailures": 1,
     "outcome": "dialog"
    },
    {
@@ -242,7 +138,7 @@
     "action": "clicked",
     "mutations": 23,
     "requests": 3,
-    "newFailures": 2,
+    "newFailures": 3,
     "outcome": "dialog"
    },
    {
@@ -250,8 +146,8 @@
     "label": "يطلقوا.",
     "kind": "span[button]",
     "action": "clicked",
-    "mutations": 19,
-    "requests": 2,
+    "mutations": 23,
+    "requests": 3,
     "newFailures": 1,
     "outcome": "dialog"
    },
@@ -274,7 +170,7 @@
     "action": "clicked",
     "mutations": 13,
     "requests": 0,
-    "newFailures": 1,
+    "newFailures": 2,
     "outcome": "dom-changed"
    },
    {
@@ -332,9 +228,9 @@
     "label": "Show Fusha (MSA) line",
     "kind": "button[switch]",
     "action": "clicked",
-    "mutations": 5,
-    "requests": 1,
-    "newFailures": 1,
+    "mutations": 3,
+    "requests": 0,
+    "newFailures": 0,
     "outcome": "dom-changed"
    },
    {
@@ -348,49 +244,49 @@
     "label": "آه",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 20,
     "label": "مو",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 21,
     "label": "لشيء،",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 22,
     "label": "بس",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 23,
     "label": "أهلي",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 24,
     "label": "كانوا",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 25,
     "label": "يطلقوا.",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 26,
@@ -415,28 +311,28 @@
     "label": "عادي",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 30,
     "label": "كذا؟",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 31,
     "label": "في",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 32,
     "label": "شيء؟",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 33,
@@ -461,28 +357,28 @@
     "label": "أنا",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 37,
     "label": "صراحة",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 38,
     "label": "قلت",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 39,
     "label": "لك",
     "kind": "span[button]",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": -1,
@@ -493,19 +389,19 @@
   ],
   "failures": [
    {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/rest/v1/discover_videos?select=*&published=eq.true&order=created_at.desc&dialect=in.%28Gulf%2CSaudi%2CKuwaiti%2CUAE%2CBahraini%2CQatari%2COmani%29",
-    "method": "GET",
-    "status": null,
-    "layer": "rest",
-    "target": "discover_videos",
-    "error": "net::ERR_ABORTED"
-   },
-   {
     "url": "https://www.youtube.com/iframe_api",
     "method": "GET",
     "status": null,
     "layer": "youtube",
     "target": "www.youtube.com",
+    "error": "net::ERR_ABORTED"
+   },
+   {
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/rest/v1/discover_videos?select=*&published=eq.true&order=created_at.desc&dialect=in.%28Gulf%2CSaudi%2CKuwaiti%2CUAE%2CBahraini%2CQatari%2COmani%29",
+    "method": "GET",
+    "status": null,
+    "layer": "rest",
+    "target": "discover_videos",
     "error": "net::ERR_ABORTED"
    },
    {
@@ -517,14 +413,6 @@
     "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
    },
    {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.wav",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.wav",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
     "url": "https://ovscskaijvclaxelkdyf.supabase.co/rest/v1/video_likes?select=id&video_id=eq.848dfb0c-f828-4c87-8690-a4e4b6de58e1",
     "method": "HEAD",
     "status": null,
@@ -533,92 +421,76 @@
     "error": "net::ERR_ABORTED"
    },
    {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.mp4",
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
     "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.mp4",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    "status": 401,
+    "layer": "functions",
+    "target": "translate-phrase",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
    },
    {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.m4a",
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
     "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.m4a",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    "status": 401,
+    "layer": "functions",
+    "target": "translate-phrase",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
    },
    {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.webm",
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
     "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.webm",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    "status": 401,
+    "layer": "functions",
+    "target": "translate-phrase",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
    },
    {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.mp3",
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
     "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.mp3",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    "status": 401,
+    "layer": "functions",
+    "target": "translate-phrase",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
    },
    {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.opus",
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
     "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/848dfb0c-f828-4c87-8690-a4e4b6de58e1.opus",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    "status": 401,
+    "layer": "functions",
+    "target": "translate-phrase",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
    },
    {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/kTKcSSW6NZw.wav",
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
     "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/kTKcSSW6NZw.wav",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    "status": 401,
+    "layer": "functions",
+    "target": "translate-phrase",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
    },
    {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/kTKcSSW6NZw.mp4",
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
     "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/kTKcSSW6NZw.mp4",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    "status": 401,
+    "layer": "functions",
+    "target": "translate-phrase",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
    },
    {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/kTKcSSW6NZw.m4a",
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
     "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/kTKcSSW6NZw.m4a",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    "status": 401,
+    "layer": "functions",
+    "target": "translate-phrase",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
    },
    {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/kTKcSSW6NZw.webm",
+    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
     "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/kTKcSSW6NZw.webm",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/kTKcSSW6NZw.mp3",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/kTKcSSW6NZw.mp3",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/storage/v1/object/sign/video-audio/kTKcSSW6NZw.opus",
-    "method": "POST",
-    "status": 400,
-    "layer": "storage",
-    "target": "object/sign/video-audio/kTKcSSW6NZw.opus",
-    "body": "{\"statusCode\":\"404\",\"error\":\"not_found\",\"message\":\"Object not found\",\"code\":\"NoSuchKey\"}"
+    "status": 401,
+    "layer": "functions",
+    "target": "translate-phrase",
+    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
    },
    {
     "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
@@ -667,100 +539,10 @@
     "layer": "youtube",
     "target": "www.youtube.com",
     "error": "net::ERR_CONNECTION_RESET"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
-    "method": "POST",
-    "status": 401,
-    "layer": "functions",
-    "target": "translate-phrase",
-    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
-    "method": "POST",
-    "status": 401,
-    "layer": "functions",
-    "target": "translate-phrase",
-    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
-    "method": "POST",
-    "status": 401,
-    "layer": "functions",
-    "target": "translate-phrase",
-    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
-    "method": "POST",
-    "status": 401,
-    "layer": "functions",
-    "target": "translate-phrase",
-    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
-    "method": "POST",
-    "status": 401,
-    "layer": "functions",
-    "target": "translate-phrase",
-    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
-    "method": "POST",
-    "status": 401,
-    "layer": "functions",
-    "target": "translate-phrase",
-    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
-    "method": "POST",
-    "status": 401,
-    "layer": "functions",
-    "target": "translate-phrase",
-    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/translate-phrase",
-    "method": "POST",
-    "status": 401,
-    "layer": "functions",
-    "target": "translate-phrase",
-    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/convert-to-fusha",
-    "method": "POST",
-    "status": 401,
-    "layer": "functions",
-    "target": "convert-to-fusha",
-    "body": "{\"error\":\"auth_required\",\"message\":\"Please sign in to use this feature.\"}"
    }
   ],
   "consoleErrors": [
    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 400 (Bad Request)",
-   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
-   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
-   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
-   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
-   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
-   "Failed to load resource: net::ERR_CONNECTION_RESET",
    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
@@ -769,7 +551,13 @@
    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
-   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+   "Failed to load resource: net::ERR_CONNECTION_RESET"
   ],
   "pageErrors": []
  }

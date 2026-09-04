@@ -252,6 +252,14 @@ where the function is per-learner by design, the *client* stops asking.
 - TTS (`tts-speak` / `azure-tts`): a 401 on a speaker tap now shows one
   "Sign in to hear pronunciation" notice per minute instead of nothing.
 - The 401 retry storm itself was fixed in package 5's retry policy.
+- **Verified** by re-crawling the affected routes against production on the
+  rebuilt bundle (`qa/output/crawl-report.md`, 15 routes, 33 outage runs):
+  the five converted list pages answer a backend 500 or network drop with
+  `error-shown`; the set-phrase pages and `/today` make no 401 calls; the
+  video pages make no storage-signing calls. One leftover: the alphabet
+  letter page (`/alphabet/:letterCode`) auto-plays the letter's
+  pronunciation on mount, which is one `tts-speak` + one `azure-tts` 401
+  per visit for a visitor — gate that autoplay on a session the same way.
 
 **Files**
 - `src/hooks/useSetPhrases.ts` (`generate-set-phrase-quiz`)

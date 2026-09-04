@@ -36,9 +36,8 @@
  },
  "screenshot": "/home/user/arabic-buddy/qa/output/screens/resilience_slow-4s_today.png",
  "consoleErrors": [
-  "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
-  "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
  ],
  "pageErrors": [],
- "failures": 2
+ "failures": 1
 }

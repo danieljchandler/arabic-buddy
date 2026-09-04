@@ -4,12 +4,14 @@
  "gate": "public",
  "url": "/curriculum",
  "authed": false,
- "loadMs": 1876,
+ "loadMs": 1665,
  "state": {
   "finalUrl": "http://127.0.0.1:4173/curriculum",
   "path": "/curriculum",
   "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
   "bodyChars": 197,
+  "bodyText": "Curriculum Your Gulf path, stage by stage. Sign in to track which lessons you've finished. No lessons yet for Gulf Try another dialect from the switcher on Home",
+  "notFoundText": false,
   "is404": false,
   "spinnerVisible": false,
   "errorBoundary": false,
@@ -49,7 +51,7 @@
    "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
   ],
   "pageErrors": [],
-  "supabaseRequests": 4
+  "supabaseRequests": 2
  },
  "interaction": {
   "controls": [
@@ -59,7 +61,7 @@
     "kind": "button",
     "action": "clicked",
     "mutations": 15,
-    "requests": 73,
+    "requests": 72,
     "newFailures": 0,
     "outcome": "navigated",
     "navigatedTo": "/"

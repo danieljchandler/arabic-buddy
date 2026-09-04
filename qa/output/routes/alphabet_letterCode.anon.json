@@ -4,12 +4,14 @@
  "gate": "public",
  "url": "/alphabet/alif",
  "authed": false,
- "loadMs": 2313,
+ "loadMs": 2279,
  "state": {
   "finalUrl": "http://127.0.0.1:4173/alphabet/alif",
   "path": "/alphabet/alif",
   "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
-  "bodyChars": 181,
+  "bodyChars": 258,
+  "bodyText": "Sign in to hear pronunciation Native-speaker audio is generated per learner. Map STEP 1 OF 6 Meet the letter ا ALSO WRITTEN AS ا plain alif أ hamza on top (shor",
+  "notFoundText": false,
   "is404": false,
   "spinnerVisible": false,
   "errorBoundary": false,
@@ -64,7 +66,7 @@
    "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
   ],
   "pageErrors": [],
-  "supabaseRequests": 8
+  "supabaseRequests": 2
  },
  "interaction": {
   "controls": [
@@ -74,7 +76,7 @@
     "kind": "button",
     "action": "clicked",
     "mutations": 15,
-    "requests": 65,
+    "requests": 63,
     "newFailures": 0,
     "outcome": "navigated",
     "navigatedTo": "/"
@@ -131,7 +133,7 @@
     "label": "Step 5: Spot the letter",
     "kind": "button",
     "action": "clicked",
-    "mutations": 7,
+    "mutations": 10,
     "requests": 0,
     "newFailures": 0,
     "outcome": "dom-changed"
@@ -151,14 +153,14 @@
     "label": "Fusha (MSA) pronunciation",
     "kind": "button",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 9,
     "label": "Gulf pronunciation",
     "kind": "button",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    },
    {
     "index": 10,
@@ -177,7 +179,7 @@
     "label": "Skip",
     "kind": "button",
     "action": "click-failed",
-    "error": "locator.click: Timeout 3000ms exceeded."
+    "error": "locator.click: Timeout 8000ms exceeded."
    }
   ],
   "failures": [

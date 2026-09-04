@@ -4,17 +4,19 @@
  "gate": "public",
  "url": "/set-phrases/practice",
  "authed": false,
- "loadMs": 2278,
+ "loadMs": 1484,
  "state": {
   "finalUrl": "http://127.0.0.1:4173/set-phrases/practice",
   "path": "/set-phrases/practice",
   "title": "Hakiya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni",
-  "bodyChars": 57,
+  "bodyChars": 117,
+  "bodyText": "Sign in to practise set phrases The quiz is built from your own phrase deck, so it needs to know who you are. Sign in",
+  "notFoundText": false,
   "is404": false,
   "spinnerVisible": false,
   "errorBoundary": false,
   "errorTextVisible": false,
-  "emptyStateText": "No phrases ready yet",
+  "emptyStateText": null,
   "headline": "",
   "isBlank": false,
   "redirectedToAuth": false
@@ -24,13 +26,15 @@
  "screenshot": "/home/user/arabic-buddy/qa/output/screens/set-phrases_practice.anon.png",
  "inventory": {
   "buttons": 0,
-  "links": 0,
+  "links": 1,
   "inputs": 0,
   "tabs": 0,
   "forms": 0,
   "media": 0
  },
- "links": [],
+ "links": [
+  "/auth"
+ ],
  "load": {
   "failures": [
    {
@@ -40,22 +44,13 @@
     "layer": "other",
     "target": "fonts.googleapis.com/css2",
     "error": "net::ERR_BLOCKED_BY_CLIENT.Inspector"
-   },
-   {
-    "url": "https://ovscskaijvclaxelkdyf.supabase.co/functions/v1/generate-set-phrase-quiz",
-    "method": "POST",
-    "status": 401,
-    "layer": "functions",
-    "target": "generate-set-phrase-quiz",
-    "body": "{\"error\":\"unauthenticated\"}"
    }
   ],
   "consoleErrors": [
-   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector",
-   "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+   "Failed to load resource: net::ERR_BLOCKED_BY_CLIENT.Inspector"
   ],
   "pageErrors": [],
-  "supabaseRequests": 1
+  "supabaseRequests": 0
  },
  "interaction": {
   "controls": [],

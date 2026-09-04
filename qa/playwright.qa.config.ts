@@ -63,6 +63,8 @@ export default defineConfig({
   ],
   webServer: {
     command: `npx vite preview --port ${PORT} --host 127.0.0.1 --strictPort`,
+    // Playwright runs this from the config's directory; dist/ is one up.
+    cwd: "..",
     // A TCP check, not an HTTP one: an HTTP readiness probe can be routed
     // through the egress proxy in sandboxed containers and never come back.
     port: PORT,

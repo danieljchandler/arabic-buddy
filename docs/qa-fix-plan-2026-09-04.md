@@ -18,6 +18,16 @@ and every visitor's page makes 12 failing storage calls trying. Package 11
 gives signed-in learners that audio through a short-lived URL minted
 server-side; the bucket stays private and the TikTok source is never exposed.
 
+## Where things stand (2026-09-04, end of day)
+
+Done on this branch, each as its own commit: 1 (reduced), 2, 4 (code
+half), 5, 6, 7, 8 (cache half), 11. Nothing to commit for 9. Still yours:
+3 (deploy `persist-video-thumbnail` and run the backfill), the deploy of the
+new `discover-video-audio` function, the lesson import (4), the paid
+word-timing backfill (8), the two decisions in 8 and 9, the
+`ALLOWED_ORIGINS` secret (9), and a learner login for 10. Every package's
+section below opens with its status.
+
 ## Order of work
 
 | # | Package | Fixes | Owner | Size |

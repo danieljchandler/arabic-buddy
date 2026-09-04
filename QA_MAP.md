@@ -57,8 +57,8 @@ Page `src/pages/Feed.tsx` · gate **public**
 
 - **Tables:** `audio_files` — ALL[authenticated] is_admin(); SELECT[anon,authenticated] everyone — live: anon sees 16 rows; `beta_feedback` — SELECT[authenticated] ((auth.uid() = user_id) OR has_role(auth.uid(), 'admin'::app_role)) — live: anon sees 0 rows; `discover_videos` — SELECT[public] ((published = true) OR can_review_transcripts()) — live: anon sees 49 rows; `review_streaks` — no policy found in replay (table may live outside migrations) — live: anon sees 0 rows; `saved_transcriptions` — SELECT[public] (auth.uid() = user_id) — live: anon sees 0 rows; `video_likes` — SELECT[public] (EXISTS ( SELECT 1; SELECT[public] (auth.uid() = user_id) — live: anon sees 0 rows; `video_ratings` — SELECT[authenticated] is_admin(); SELECT[authenticated] (auth.uid() = user_id) — live: anon sees 0 rows; `video_views` — SELECT[public] (auth.uid() = user_id) — live: anon sees 0 rows; `word_reviews` — SELECT[public] (auth.uid() = user_id) — live: anon sees 0 rows
 - **RPCs:** `is_beta_tester`
-- **Edge functions:** `azure-pronunciation` (verify_jwt=false, guarded, paid: SPEECH); `convert-to-fusha` (verify_jwt=default, guarded, paid: LLM); `discover-feed` (verify_jwt=default, UNGUARDED); `extract-grammar-points` (verify_jwt=true, guarded, paid: LLM); `grammar-drill` (verify_jwt=false, guarded, paid: LLM); `persist-video-thumbnail` (NOT DEPLOYED (404), verify_jwt=true, guarded); `pronunciation-feedback` (verify_jwt=false, guarded, paid: LLM/SPEECH); `reextract-on-screen-text` (verify_jwt=true, guarded, paid: LLM); `score-shadow-attempt` (verify_jwt=false, guarded, paid: SPEECH); `translate-phrase` (verify_jwt=false, guarded, paid: LLM)
-- **Buckets:** `audio` (public); `feedback-screenshots` (PRIVATE — reads need a storage.objects SELECT policy); `flashcard-audio` (public); `video-audio` (PRIVATE — reads need a storage.objects SELECT policy)
+- **Edge functions:** `azure-pronunciation` (verify_jwt=false, guarded, paid: SPEECH); `convert-to-fusha` (verify_jwt=default, guarded, paid: LLM); `discover-feed` (verify_jwt=default, UNGUARDED); `discover-video-audio` (); `extract-grammar-points` (verify_jwt=true, guarded, paid: LLM); `grammar-drill` (verify_jwt=false, guarded, paid: LLM); `persist-video-thumbnail` (NOT DEPLOYED (404), verify_jwt=true, guarded); `pronunciation-feedback` (verify_jwt=false, guarded, paid: LLM/SPEECH); `reextract-on-screen-text` (verify_jwt=true, guarded, paid: LLM); `score-shadow-attempt` (verify_jwt=false, guarded, paid: SPEECH); `translate-phrase` (verify_jwt=false, guarded, paid: LLM)
+- **Buckets:** `audio` (public); `feedback-screenshots` (PRIVATE — reads need a storage.objects SELECT policy); `flashcard-audio` (public)
 - **Crawled (anon):** headline "Real spoken Arabic,one story at a time.Gulf · Egyptian · Yemeni.", 3 buttons, 3 links, 0 inputs, 0 tabs, 1 media. Links: `/terms` `/privacy`
   - Controls: "Join the beta — it’s free", "Try the placement quiz"
 
@@ -70,7 +70,7 @@ Redirects to `/`.
 
 Page `src/pages/Choose.tsx` · gate **public**
 
-- **Tables:** `beta_feedback` — SELECT[authenticated] ((auth.uid() = user_id) OR has_role(auth.uid(), 'admin'::app_role)) — live: anon sees 0 rows; `user_checkpoint_progress` — SELECT[public] (auth.uid() = user_id) — live: anon sees 0 rows; `user_letter_progress` — SELECT[public] (auth.uid() = user_id) — live: anon sees 0 rows; `word_reviews` — SELECT[public] (auth.uid() = user_id) — live: anon sees 0 rows
+- **Tables:** `beta_feedback` — SELECT[authenticated] ((auth.uid() = user_id) OR has_role(auth.uid(), 'admin'::app_role)) — live: anon sees 0 rows; `lessons` — SELECT[anon,authenticated] everyone — live: anon sees 0 rows; `user_checkpoint_progress` — SELECT[public] (auth.uid() = user_id) — live: anon sees 0 rows; `user_letter_progress` — SELECT[public] (auth.uid() = user_id) — live: anon sees 0 rows; `word_reviews` — SELECT[public] (auth.uid() = user_id) — live: anon sees 0 rows
 - **RPCs:** `is_beta_tester`, `record_checkpoint`
 - **Buckets:** `feedback-screenshots` (PRIVATE — reads need a storage.objects SELECT policy)
 - **Crawled (anon):** headline "What do you want to do?", 0 buttons, 12 links, 0 inputs, 0 tabs, 0 media. Links: `/` `/review` `/skills/listen` `/skills/read` `/skills/speak` `/skills/write` `/tutor-upload` `/how-do-i-say` `/vocab-games` `/alphabet` `/curriculum` `/clips`
@@ -232,8 +232,8 @@ Page `src/pages/MemeAnalyzer.tsx` · gate **public**
 
 - **Tables:** `audio_files` — ALL[authenticated] is_admin(); SELECT[anon,authenticated] everyone — live: anon sees 16 rows; `beta_feedback` — SELECT[authenticated] ((auth.uid() = user_id) OR has_role(auth.uid(), 'admin'::app_role)) — live: anon sees 0 rows; `word_reviews` — SELECT[public] (auth.uid() = user_id) — live: anon sees 0 rows
 - **RPCs:** `is_beta_tester`
-- **Edge functions:** `analyze-meme` (verify_jwt=false, guarded, paid: LLM/SPEECH); `convert-to-fusha` (verify_jwt=default, guarded, paid: LLM); `deepgram-transcribe` (verify_jwt=false, guarded, paid: SPEECH); `grammar-drill` (verify_jwt=false, guarded, paid: LLM); `translate-phrase` (verify_jwt=false, guarded, paid: LLM)
-- **Buckets:** `audio` (public); `feedback-screenshots` (PRIVATE — reads need a storage.objects SELECT policy); `flashcard-audio` (public); `video-audio` (PRIVATE — reads need a storage.objects SELECT policy)
+- **Edge functions:** `analyze-meme` (verify_jwt=false, guarded, paid: LLM/SPEECH); `convert-to-fusha` (verify_jwt=default, guarded, paid: LLM); `deepgram-transcribe` (verify_jwt=false, guarded, paid: SPEECH); `discover-video-audio` (); `grammar-drill` (verify_jwt=false, guarded, paid: LLM); `translate-phrase` (verify_jwt=false, guarded, paid: LLM)
+- **Buckets:** `audio` (public); `feedback-screenshots` (PRIVATE — reads need a storage.objects SELECT policy); `flashcard-audio` (public)
 - **Crawled (anon):** headline "Meme Analyzer", 2 buttons, 0 links, 1 inputs, 0 tabs, 0 media. Links: 
   - Controls: "Go home", "Learn about Meme Analyzer"
 
@@ -293,8 +293,8 @@ Page `src/pages/Discover.tsx` · gate **public**
 Page `src/pages/DiscoverVideo.tsx` · gate **public**
 
 - **Tables:** `audio_files` — ALL[authenticated] is_admin(); SELECT[anon,authenticated] everyone — live: anon sees 16 rows; `discover_videos` — SELECT[public] ((published = true) OR can_review_transcripts()) — live: anon sees 49 rows; `saved_transcriptions` — SELECT[public] (auth.uid() = user_id) — live: anon sees 0 rows; `video_likes` — SELECT[public] (EXISTS ( SELECT 1; SELECT[public] (auth.uid() = user_id) — live: anon sees 0 rows; `video_ratings` — SELECT[authenticated] is_admin(); SELECT[authenticated] (auth.uid() = user_id) — live: anon sees 0 rows; `video_views` — SELECT[public] (auth.uid() = user_id) — live: anon sees 0 rows
-- **Edge functions:** `azure-pronunciation` (verify_jwt=false, guarded, paid: SPEECH); `convert-to-fusha` (verify_jwt=default, guarded, paid: LLM); `discover-feed` (verify_jwt=default, UNGUARDED); `extract-grammar-points` (verify_jwt=true, guarded, paid: LLM); `grammar-drill` (verify_jwt=false, guarded, paid: LLM); `persist-video-thumbnail` (NOT DEPLOYED (404), verify_jwt=true, guarded); `pronunciation-feedback` (verify_jwt=false, guarded, paid: LLM/SPEECH); `reextract-on-screen-text` (verify_jwt=true, guarded, paid: LLM); `score-shadow-attempt` (verify_jwt=false, guarded, paid: SPEECH); `translate-phrase` (verify_jwt=false, guarded, paid: LLM)
-- **Buckets:** `audio` (public); `flashcard-audio` (public); `video-audio` (PRIVATE — reads need a storage.objects SELECT policy)
+- **Edge functions:** `azure-pronunciation` (verify_jwt=false, guarded, paid: SPEECH); `convert-to-fusha` (verify_jwt=default, guarded, paid: LLM); `discover-feed` (verify_jwt=default, UNGUARDED); `discover-video-audio` (); `extract-grammar-points` (verify_jwt=true, guarded, paid: LLM); `grammar-drill` (verify_jwt=false, guarded, paid: LLM); `persist-video-thumbnail` (NOT DEPLOYED (404), verify_jwt=true, guarded); `pronunciation-feedback` (verify_jwt=false, guarded, paid: LLM/SPEECH); `reextract-on-screen-text` (verify_jwt=true, guarded, paid: LLM); `score-shadow-attempt` (verify_jwt=false, guarded, paid: SPEECH); `translate-phrase` (verify_jwt=false, guarded, paid: LLM)
+- **Buckets:** `audio` (public); `flashcard-audio` (public)
 - **Crawled (anon, /discover/:videoId (tiktok)):** headline "سيدا، سيدا. إحنا عندنا هنا سيدي جابر. أنا هقول لك سيدا، إيش", 150 buttons, 0 links, 0 inputs, 0 tabs, 1 media. Links: 
   - Controls: "Back", "lucide-heart", "Start subtitle sync", "Reset", "سيدا،", "سيدا.", "إحنا", "عندنا", "هنا", "سيدي", "جابر.", "أنا", "هقول", "لك", "إيش", "دخل", "جابر", "يا", "أخي؟", "Ask AI", "Next line", "Hide Transcript (11)", "Continuous", "(unlabeled)", "Show Fusha (MSA) line", "سيدا، سيدا. إحنا عندنا هنا سيدي جابر. أنا هقول لك سيدا، إيش "
 - **Crawled (anon, /discover/:videoId (unknown id)):** headline "", 2 buttons, 0 links, 0 inputs, 0 tabs, 0 media. Links: 
@@ -1213,7 +1213,7 @@ Page `src/pages/ReadingLibraryStory.tsx` · gate **public**
 - `learner_ai_memory` — SELECT[authenticated] (auth.uid() = user_id) — live: anon sees 0 rows → `/settings`
 - `learner_errors` — SELECT[authenticated] (( SELECT auth.uid() AS uid) = user_id) — live: anon sees 0 rows → `/today` `/mistakes`
 - `lesson_progress` — SELECT[authenticated] (( SELECT auth.uid() AS uid) = user_id) — live: anon sees 0 rows → `/today` `/curriculum` `/learn` `/learn/:lessonId`
-- `lessons` — SELECT[anon,authenticated] everyone — live: anon sees 0 rows → `/curriculum` `/learn` `/learn/:lessonId` `/quiz/:lessonId` `/admin` `/admin/curriculum` `/admin/lessons/import` `/admin/lessons/:lessonId/words` `/admin/topics/:topicId/words` `/admin/curriculum-builder` `/admin/curriculum-builder/:sessionId` `/admin/coverage`
+- `lessons` — SELECT[anon,authenticated] everyone — live: anon sees 0 rows → 13 routes
 - `listen_episodes` — SELECT[authenticated] everyone — live: anon sees 0 rows → `/listen` `/listen/:id`
 - `listening_exercises` — SELECT[public] ((status = 'published') OR is_admin()) — live: anon sees 0 rows → `/listening` `/admin/curriculum-builder` `/admin/curriculum-builder/:sessionId`
 - `monologue_attempts` — SELECT[authenticated] (auth.uid() = user_id) — live: anon sees 0 rows → `/monologue` `/analytics`
@@ -1286,6 +1286,7 @@ Page `src/pages/ReadingLibraryStory.tsx` · gate **public**
 - `dialect-violations-digest` (verify_jwt=true, guarded) → `/admin/dialect-rules`
 - `discover-feed` (verify_jwt=default, UNGUARDED) → `/` `/discover` `/discover/:videoId`
 - `discover-trending-videos` (verify_jwt=false, guarded) → `/admin/trending`
+- `discover-video-audio` () → `/` `/meme` `/discover/:videoId`
 - `download-media` (verify_jwt=false, guarded, paid: SPEECH) → `/transcribe` `/admin/videos/new` `/admin/videos/:videoId/edit`
 - `draft-dialect-rules` (verify_jwt=true, guarded, paid: LLM) → `/admin/dialect-rules`
 - `edit-story-scene-image` (verify_jwt=default, guarded, paid: LLM) → `/admin/reading-library/new` `/admin/reading-library/:id/edit`

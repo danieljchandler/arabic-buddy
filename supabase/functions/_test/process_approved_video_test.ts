@@ -258,6 +258,35 @@ const finalStatus = (result: Result): unknown =>
 const lastPatchWith = (result: Result, key: string): Record<string, unknown> | undefined =>
   result.patches.filter((p) => key in p).at(-1);
 
+/**
+ * The ASR provenance write.
+ *
+ * `engines_used` carries two unrelated things: the per-engine outcome written
+ * once after the fan-out, and the pipeline's progress note, rewritten on every
+ * stage boundary and heartbeat. "The last engines_used patch" is therefore
+ * almost always the progress note, so provenance is picked out by its own key.
+ */
+const asrProvenance = (result: Result): Record<string, Record<string, unknown>> | undefined => {
+  const patch = result.patches
+    .filter((p) => {
+      const used = p.engines_used as Record<string, unknown> | undefined;
+      return !!used && typeof used === "object" && "asr" in used;
+    })
+    .at(-1);
+  return (patch?.engines_used as { asr?: Record<string, Record<string, unknown>> } | undefined)?.asr;
+};
+
+/** The pipeline's own progress note, as an admin page would read it. */
+const progressNote = (result: Result): Record<string, unknown> | undefined => {
+  const patch = result.patches
+    .filter((p) => {
+      const used = p.engines_used as Record<string, unknown> | undefined;
+      return !!used && typeof used === "object" && "pipeline" in used;
+    })
+    .at(-1);
+  return (patch?.engines_used as { pipeline?: Record<string, unknown> } | undefined)?.pipeline;
+};
+
 /** The body sent to one of the sibling edge functions. */
 function bodySentTo(result: Result, name: string): Record<string, unknown> {
   const index = result.calls.findIndex((u) => u.includes(name));
@@ -414,7 +443,13 @@ Deno.test("process-approved-video marks the row processing before it answers", a
     // happens first so the admin list shows a spinner the moment the button is
     // clicked, rather than after the first engine answers.
     assertEquals(response.status, 202);
-    assertEquals(await response.json(), { success: true, message: "Processing started", stage: "asr" });
+    const receipt = await response.json() as Record<string, unknown>;
+    assertEquals(receipt.success, true);
+    assertEquals(receipt.message, "Processing started");
+    assertEquals(receipt.stage, "asr");
+    // The build marker rides on every reply so a caller can tell a deployed
+    // copy of this function from an older one still being served.
+    assert(typeof receipt.build === "string" && receipt.build.length > 0);
 
     const patches = fn.calls
       .filter((c) => c.url.includes("discover_videos") && c.method === "PATCH")
@@ -633,12 +668,9 @@ Deno.test("process-approved-video leaves Fanar alone once the day's budget is sp
 
 Deno.test("process-approved-video records what each engine returned", async () => {
   const result = await call({ videoId: VIDEO }, backend());
-  const provenance = lastPatchWith(result, "engines_used")?.engines_used as
-    | Record<string, Record<string, unknown>>
-    | undefined;
+  const asr = asrProvenance(result);
 
-  assert(provenance, "expected engines_used to be written");
-  const asr = provenance.asr as Record<string, Record<string, unknown>>;
+  assert(asr, "expected ASR provenance to be written");
   // Provenance in the row rather than only in the logs is what makes an engine
   // swap A/B-able after the fact.
   for (const engine of ["munsit", "soniox", "fanar", "scribe", "azure", "cohere"]) {
@@ -655,9 +687,9 @@ Deno.test("process-approved-video records a failing engine's error in provenance
     ...backend(),
     "api.soniox.com": () => new Response("service unavailable", { status: 503 }),
   });
-  const asr = (lastPatchWith(result, "engines_used")?.engines_used as
-    Record<string, Record<string, Record<string, unknown>>>).asr;
+  const asr = asrProvenance(result);
 
+  assert(asr, "expected ASR provenance to be written");
   assertEquals(asr.soniox.ok, false);
   assert(String(asr.soniox.error).length > 0, "expected the Soniox failure to be recorded");
 });
@@ -909,19 +941,20 @@ Deno.test("process-approved-video completes even when the rating fails", async (
 });
 
 Deno.test("process-approved-video fails the row when the finalising write is rejected", async () => {
-  let patches = 0;
   const result = await call({ videoId: VIDEO }, backend({
     extra: {
-      "/rest/v1/discover_videos": (request) => {
+      "/rest/v1/discover_videos": async (request) => {
         if (request.method === "GET") {
           if (request.url.includes("select=engines_used")) return json({ engines_used: null });
           if (request.url.includes("transcription_status")) return json({ transcription_status: "processing" });
           return json(aVideo());
         }
-        patches += 1;
-        // Let "processing", the duration and the provenance through; reject the
-        // one that carries the transcript.
-        return patches >= 4 && patches < 6
+        // Reject the write that carries the transcript and let every other one
+        // through. Picked out by its content rather than by counting writes:
+        // the run makes several (status, duration, provenance, progress
+        // notes), and a count breaks the moment one is added.
+        const body = await request.text();
+        return body.includes("transcript_lines")
           ? json({ message: "value too long for type character varying" }, 400)
           : json([], 200);
       },
@@ -1579,4 +1612,134 @@ Deno.test("process-approved-video starts a fresh run's checkpoint over before th
   assertEquals(early.asr, undefined);
   assertEquals(finalStatus(result), "completed");
   assertEquals(storedCheckpoint(store)?.stage, "done");
+});
+
+// ── Saying where the run got to ──────────────────────────────────────────────
+//
+// The pipeline runs where nobody can watch it, so "the transcription spins
+// forever" is the same report whether the cause is a dead worker, a refused
+// stage hop, a slow analysis, or an older copy of the function still being
+// served. These pin the notes that tell those apart from the admin page.
+
+Deno.test("process-approved-video says which step it is on, and which build is running", async () => {
+  const result = await call({ videoId: VIDEO }, backend());
+  const note = progressNote(result);
+
+  assert(note, "expected a progress note on the row");
+  assert(typeof note.build === "string" && note.build, "expected the build marker");
+  assert(typeof note.at === "string" && note.at, "expected a timestamp");
+  // Every stage announces itself, so a stall has a location and not just a
+  // duration.
+  const steps = result.patches
+    .map((p) => (p.engines_used as { pipeline?: { stage?: unknown } } | undefined)?.pipeline?.stage)
+    .filter((stage): stage is string => typeof stage === "string");
+  assert(steps.includes("asr"), `expected an asr note, got ${steps.join(", ")}`);
+  assert(steps.includes("analyze"), `expected an analyze note, got ${steps.join(", ")}`);
+  assert(steps.includes("finalize"), `expected a finalize note, got ${steps.join(", ")}`);
+});
+
+Deno.test("process-approved-video records that a stage had to run inline", async () => {
+  // Running inline is the old, fragile shape — one long task a worker teardown
+  // kills silently. A run that falls back to it every time is a run whose
+  // stage boundaries are not working, which has to be visible rather than
+  // inferred from the symptoms.
+  const { handler: storage } = withCheckpointStore(emptyStorage);
+  const result = await call({ videoId: VIDEO }, backend({
+    storage,
+    extra: { "/functions/v1/process-approved-video": () => new Response("nope", { status: 401 }) },
+  }));
+
+  const hops = result.patches
+    .map((p) => (p.engines_used as { pipeline?: { hop?: unknown } } | undefined)?.pipeline?.hop)
+    .filter((hop): hop is string => typeof hop === "string");
+  assert(hops.some((h) => h.startsWith("inline")), `expected an inline note, got ${hops.join(", ")}`);
+  assertEquals(finalStatus(result), "completed");
+});
+
+Deno.test("process-approved-video says why it failed, on the row's progress note too", async () => {
+  const result = await call({ videoId: VIDEO }, backend({
+    download: () => new Response("gone", { status: 410 }),
+  }));
+
+  assertEquals(finalStatus(result), "failed");
+  assert(String(progressNote(result)?.note).startsWith("failed:"));
+});
+
+// ── An analysis that answers with an error ───────────────────────────────────
+
+Deno.test("process-approved-video stops immediately when the analysis rejects the request", async () => {
+  // A 4xx is the analysis saying "this request is wrong" — a bad transcript, a
+  // refused auth. It is not running any more and a retry would be rejected the
+  // same way, so waiting out the platform's wall clock three times over is
+  // pure delay in front of a certain failure.
+  let analyzeCalls = 0;
+  const result = await call({ videoId: VIDEO }, backend({
+    analyze: () => {
+      analyzeCalls++;
+      return json({ error: "Missing or invalid transcript" }, 400);
+    },
+  }));
+
+  assertEquals(analyzeCalls, 1);
+  assertEquals(finalStatus(result), "failed");
+  const error = String(lastPatchWith(result, "transcription_error")?.transcription_error);
+  assertStringIncludes(error, "400");
+  assertStringIncludes(error, "Missing or invalid transcript");
+});
+
+Deno.test("process-approved-video starts the analysis again at once when it fails outright", async () => {
+  // A 500 means it finished and broke, rather than that it is still running,
+  // so the next start is owed immediately — not after the wall clock the
+  // "might still be running" case has to wait out.
+  let analyzeCalls = 0;
+  const result = await call({ videoId: VIDEO }, backend({
+    analyze: () => {
+      analyzeCalls++;
+      return analyzeCalls === 1
+        ? json({ error: "Internal server error" }, 500)
+        : json({ success: true, result: aResult() });
+    },
+  }), { env: { PIPELINE_ANALYZE_MAX_RUN_MS: "600000" } });
+
+  assertEquals(analyzeCalls, 2);
+  assertEquals(finalStatus(result), "completed");
+});
+
+Deno.test("process-approved-video treats a gateway timeout as the analysis still running", async () => {
+  // 504 is the gateway answering on the function's behalf while it works on.
+  // Restarting then would run two analyses over the same audio.
+  let analyzeCalls = 0;
+  const result = await call({ videoId: VIDEO }, backend({
+    analyze: () => {
+      analyzeCalls++;
+      return new Response("gateway timeout", { status: 504 });
+    },
+    refreshed: {
+      transcription_status: "analysis_complete",
+      transcript_lines: [{ id: "l1", arabic: "شلونك اليوم" }],
+      cultural_context: null,
+      title: null,
+      title_arabic: null,
+    },
+  }), { env: { PIPELINE_ANALYZE_MAX_RUN_MS: "600000" } });
+
+  assertEquals(analyzeCalls, 1);
+  assertEquals(finalStatus(result), "completed");
+});
+
+Deno.test("process-approved-video starts the analysis again when it reports failure in band", async () => {
+  // analyze-gulf-arabic reports failure as `success: false` with a 200, which
+  // a status check alone would read as a result.
+  let analyzeCalls = 0;
+  const result = await call({ videoId: VIDEO }, backend({
+    analyze: () => {
+      analyzeCalls++;
+      return analyzeCalls === 1
+        ? json({ success: false, error: "the ensemble came back empty" })
+        : json({ success: true, result: aResult() });
+    },
+  }), { env: { PIPELINE_ANALYZE_MAX_RUN_MS: "600000" } });
+
+  assertEquals(analyzeCalls, 2);
+  assertEquals(finalStatus(result), "completed");
 });

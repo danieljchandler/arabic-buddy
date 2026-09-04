@@ -31,8 +31,20 @@ export function usePipelineResume(
       nudgedAt.current.set(video.id, now);
       supabase.functions
         .invoke("process-approved-video", { body: { videoId: video.id, resume: true } })
-        .then(({ error }) => {
-          if (error) console.warn(`Could not resume transcription for ${video.id}:`, error);
+        .then(({ data, error }) => {
+          if (error) {
+            console.warn(`Could not resume transcription for ${video.id}:`, error);
+            return;
+          }
+          // A function that understands `resume` names the stage it picked up
+          // at (or says it resumed nothing). One that does not is an older
+          // deployment, which reads this request as "start over" — so it
+          // must not be sent again, or every nudge becomes a fresh paid run.
+          const reply = (data ?? {}) as { stage?: unknown; resumed?: unknown };
+          if (reply.stage === undefined && reply.resumed === undefined) {
+            console.warn(`process-approved-video did not understand resume for ${video.id}; not asking again`);
+            nudgedAt.current.set(video.id, Number.POSITIVE_INFINITY);
+          }
         })
         .catch((error: unknown) => {
           console.warn(`Could not resume transcription for ${video.id}:`, error);

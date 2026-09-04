@@ -41,38 +41,31 @@ shares the "sign in to…" affordance with 6.
 
 ---
 
-## 1. Guard the unauthenticated paid functions (B2)
+## 1. The "unauthenticated paid functions" (B2) — reduced after re-reading the code
 
-**Files**
-- `supabase/functions/practice-chunk-coach/index.ts`
-- `supabase/functions/score-set-phrase-voice/index.ts`
-- `supabase/functions/scrape-x-post/index.ts`
-- `supabase/functions/check-subscription/index.ts`
-- `supabase/config.toml`
-- `supabase/functions/_test/practice-chunk-coach_test.ts`, `…/score-set-phrase-voice_test.ts`, `…/scrape-x-post_test.ts`, `…/check-subscription_test.ts` (extend, they already exist for the coverage guard)
+**Status: done on this branch (commit below), smaller than first planned.**
 
-**Steps**
-1. In `practice-chunk-coach` and `score-set-phrase-voice`, before reading the
-   body: `const userId = await resolveUserId(req)`; return 401 when null;
-   `await enforceDailyCap(userId, "<feature>")` and return its response when
-   it refuses. Both helpers are in `_shared/usageCap.ts` and every other
-   ASR/LLM function shows the pattern (`score-shadow-attempt` is the closest
-   twin).
-2. In `scrape-x-post`, require a resolved user (it is only reachable from the
-   signed-in Learn-from-X flow); no cap needed unless Jina is metered.
-3. Add `[functions.practice-chunk-coach]`, `[functions.score-set-phrase-voice]`,
-   `[functions.scrape-x-post]` with `verify_jwt = true` to `config.toml`, with
-   the one-line reason comment the file uses everywhere else.
-4. In `check-subscription`, map "missing sub claim" to a 401 instead of
-   letting it fall into the 500 branch.
-5. Edge tests: for each function, one case "no Authorization → 401 before
-   any provider fetch" (use the harness's routed `fetch` to assert Munsit was
-   never called), one "cap exceeded → 429".
+While implementing, the premise turned out to be wrong: `practice-chunk-coach`,
+`score-set-phrase-voice` and `scrape-x-post` already run
+`enforceAnonymousDailyCap` (15 / 60 / 20 calls per client IP per day; commit
+`d575aaf`), deliberately, because the set-phrase practice page and
+Learn-from-X are public. The audit's static guard scan matched
+`enforceDailyCap` and missed the anonymous variant. Requiring sign-in would
+change product behaviour on two public pages, so it is **not** done here;
+if the per-IP ceilings are too generous, lower the three numbers in place.
 
-**Verify**
-- `npm run check:edge && npm run test:edge`.
-- After deploy: `curl -X POST …/functions/v1/practice-chunk-coach -H "apikey: <anon>" -d '{}'` → 401 (today 400).
-- `qa/output/schema/fn-guards.txt` regenerated shows no function without a guard except `discover-feed`.
+What was done:
+- `supabase/functions/check-subscription/index.ts`: a caller the auth server
+  rejects (no header, or a token with no `sub`, which is what the
+  publishable key is) now gets `401` instead of `500`, via a tagged
+  `AuthError` in the existing try/catch.
+- `supabase/functions/_test/payments_test.ts`: one test for the 401, both
+  with a rejected token and with no header, asserting Stripe is never called.
+- `docs/qa-audit-2026-09-04.md` B2 corrected accordingly.
+
+**Verify**: `npm run test:edge` (25/25 in `payments_test.ts`);
+`deno check` on the function. After deploy,
+`curl -X POST …/functions/v1/check-subscription -H "apikey: <anon>" -d '{}'` → 401.
 
 ## 2. Migrations: duplicate policy file and out-of-band tables (B3, M6)
 

@@ -260,6 +260,25 @@ Deno.test("check-subscription reports no plan when Stripe has no customer", asyn
   }
 });
 
+Deno.test("check-subscription answers 401, not 500, to a caller the auth server rejects", async () => {
+  // The publishable key alone carries no `sub`; that is an unauthenticated
+  // caller, not a broken function, and must not read as a 5xx in the logs.
+  const fn = await loadFunction("check-subscription", { upstreams: upstreams({ email: null }) });
+  try {
+    const response = await fn.handler(jsonRequest("check-subscription", {}, { jwt: fixtureJwt(USER) }));
+
+    assertEquals(response.status, 401);
+    assertStringIncludes((await response.json()).error, "Authentication error");
+    assertEquals(fn.callsTo("api.stripe.com").length, 0);
+
+    // And with no header at all — the same class of caller, the same answer.
+    const bare = await fn.handler(jsonRequest("check-subscription", {}, { jwt: null }));
+    assertEquals(bare.status, 401);
+  } finally {
+    fn.restore();
+  }
+});
+
 Deno.test("check-subscription authenticates with the caller's own token", async () => {
   const fn = await loadFunction("check-subscription", { upstreams: upstreams() });
   try {

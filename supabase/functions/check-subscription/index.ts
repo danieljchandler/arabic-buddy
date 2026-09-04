@@ -4,6 +4,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 
 
+/** Thrown for a caller we cannot identify; mapped to 401 rather than 500. */
+class AuthError extends Error {}
+
 const logStep = (step: string, details?: any) => {
   const detailsStr = details ? ` - ${JSON.stringify(details)}` : '';
   console.log(`[CHECK-SUBSCRIPTION] ${step}${detailsStr}`);
@@ -29,16 +32,16 @@ serve(async (req) => {
     logStep("Stripe key verified");
 
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("No authorization header provided");
+    if (!authHeader) throw new AuthError("No authorization header provided");
     logStep("Authorization header found");
 
     const token = authHeader.replace("Bearer ", "");
     logStep("Authenticating user with token");
     
     const { data: userData, error: userError } = await supabaseClient.auth.getUser(token);
-    if (userError) throw new Error(`Authentication error: ${userError.message}`);
+    if (userError) throw new AuthError(`Authentication error: ${userError.message}`);
     const user = userData.user;
-    if (!user?.email) throw new Error("User not authenticated or email not available");
+    if (!user?.email) throw new AuthError("User not authenticated or email not available");
     logStep("User authenticated", { userId: user.id, email: user.email });
 
     // Persist what Stripe told us into `subscribers`, which is what
@@ -214,9 +217,12 @@ serve(async (req) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR in check-subscription", { message: errorMessage });
+    // A caller the auth server does not recognise (the publishable key alone,
+    // an expired token) is a 401, not a server error: the client hides the
+    // plan badge on 401 and nothing pages on it.
     return new Response(JSON.stringify({ error: errorMessage }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
-      status: 500,
+      status: error instanceof AuthError ? 401 : 500,
     });
   }
 });

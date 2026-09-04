@@ -69,6 +69,19 @@ What was done:
 
 ## 2. Migrations: duplicate policy file and out-of-band tables (B3, M6)
 
+**Status: done on this branch.** The duplicate file drops the four renamed
+policies before creating them and guards its ledger insert, so it replays;
+`20260904120000_out_of_band_tables.sql` creates the five dashboard-only
+tables and the `story-videos` bucket with `IF NOT EXISTS`; the replay test's
+missing-table list is empty and a new static guard
+(`src/test/tablesInMigrations.test.ts`) keeps it that way. One planned step
+was dropped after trying it: `-1` (one transaction per file) in
+`contract/build.mjs` broke 30+ historical files that add an enum value and
+use it in the same file, which production's runner allowed, so the replay
+stays non-transactional and the header now says so. Local replay: 228 files,
+119 tables, exactly the seven known failures. Still yours: confirm the
+production ledger lists both `20260903100000` and `20260903130627`.
+
 **Files**
 - `supabase/migrations/20260903130627_1ec9b393-b96d-4911-b7a7-86e2ee975cac.sql`
 - new `supabase/migrations/20260905000000_out_of_band_tables.sql` (name to taste)

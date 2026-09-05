@@ -42,8 +42,11 @@ function applyUndo(prev: Segment[], op: UndoOperation): Segment[] {
     }
     case 'RippleTimestampOp': {
       return prev.map(seg => {
-        const change = op.changes.find(c => c.segmentId === seg.id);
-        return change ? { ...seg, [change.field]: change.previousValue } : seg;
+        const changes = op.changes.filter(c => c.segmentId === seg.id);
+        return changes.reduce<Segment>(
+          (updated, change) => ({ ...updated, [change.field]: change.previousValue }),
+          seg,
+        );
       });
     }
     default:
@@ -81,8 +84,11 @@ function applyRedo(prev: Segment[], op: UndoOperation): Segment[] {
     }
     case 'RippleTimestampOp': {
       return prev.map(seg => {
-        const change = op.changes.find(c => c.segmentId === seg.id);
-        return change ? { ...seg, [change.field]: change.newValue } : seg;
+        const changes = op.changes.filter(c => c.segmentId === seg.id);
+        return changes.reduce<Segment>(
+          (updated, change) => ({ ...updated, [change.field]: change.newValue }),
+          seg,
+        );
       });
     }
     default:
@@ -235,11 +241,12 @@ export function useTranscriptEditor(
 
   /**
    * Shift a timestamp and ripple to neighboring segments if needed.
-   * When extending segment[i]'s end past segment[i+1]'s start, pushes
-   * segment[i+1].start forward (cascading right). When pulling segment[i]'s
-   * start before segment[i-1]'s end, pushes segment[i-1].end backward
-   * (cascading left). All changes are recorded in a single RippleTimestampOp
-   * so undo reverses the entire cascade atomically.
+   *
+   * Moving only the overlapping edge can invert a neighbour (for example,
+   * pushing a 2–4s line's start to 5s leaves it as 5–4s). It can also leave a
+   * later line starting before the line above it, which the review write path
+   * correctly refuses. Clamp both edges while cascading so every intermediate
+   * state remains a valid, monotone timeline. All changes are one undo step.
    */
   const shiftTimestampRipple = useCallback(
     (segmentId: string, field: 'start' | 'end', newValue: number) => {
@@ -250,7 +257,9 @@ export function useTranscriptEditor(
         const next = prev.map(s => ({ ...s }));
         const changes: Array<{ segmentId: string; field: 'start' | 'end'; previousValue: number; newValue: number }> = [];
 
-        const record = (i: number, f: 'start' | 'end', oldVal: number, newVal: number) => {
+        const record = (i: number, f: 'start' | 'end', oldVal: number, nextValue: number) => {
+          const newVal = Math.round(Math.max(0, nextValue) * 1000) / 1000;
+          if (oldVal === newVal) return;
           changes.push({ segmentId: next[i].id, field: f, previousValue: oldVal, newValue: newVal });
           next[i] = { ...next[i], [f]: newVal };
         };
@@ -258,21 +267,39 @@ export function useTranscriptEditor(
         record(idx, field, prev[idx][field], newValue);
 
         if (field === 'end') {
+          // The edited line itself must not end before it starts.
+          if (next[idx].start > next[idx].end) {
+            record(idx, 'start', next[idx].start, next[idx].end);
+          }
           // Ripple right: push subsequent segments' starts if they overlap.
           for (let i = idx + 1; i < next.length; i++) {
             if (next[i].start < next[i - 1].end) {
               const oldStart = next[i].start;
-              record(i, 'start', oldStart, Math.round(next[i - 1].end * 1000) / 1000);
+              record(i, 'start', oldStart, next[i - 1].end);
+              // Do not leave the neighbour with a negative duration. A
+              // zero-length boundary is safe and can be widened deliberately.
+              if (next[i].end < next[i].start) {
+                record(i, 'end', next[i].end, next[i].start);
+              }
             } else {
               break;
             }
           }
         } else {
+          // The edited line itself must not end before it starts.
+          if (next[idx].end < next[idx].start) {
+            record(idx, 'end', next[idx].end, next[idx].start);
+          }
           // Ripple left: push preceding segments' ends if they overlap.
           for (let i = idx - 1; i >= 0; i--) {
             if (next[i].end > next[i + 1].start) {
               const oldEnd = next[i].end;
-              record(i, 'end', oldEnd, Math.round(next[i + 1].start * 1000) / 1000);
+              record(i, 'end', oldEnd, next[i + 1].start);
+              // Pull the start back too if the new boundary crossed the whole
+              // line, then continue left against that repaired boundary.
+              if (next[i].start > next[i].end) {
+                record(i, 'start', next[i].start, next[i].end);
+              }
             } else {
               break;
             }

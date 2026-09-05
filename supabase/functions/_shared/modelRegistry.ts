@@ -141,6 +141,53 @@ export const IMAGE_MODEL_IDS = {
   OPENAI: 'openai/gpt-image-2',
 } as const;
 
+// ---- Reasoning ---------------------------------------------------------------
+//
+// Whether a model thinks before it answers is a provider default, and the
+// defaults changed under this app on 2026-08-31 without anything here asking
+// for it. Every model the pipeline ran on before that date answered directly
+// unless a request enabled reasoning; every model in the lineup that replaced
+// them reasons by default — OpenRouter's own metadata has Sonnet 5 at
+// `default_effort: "high"` and Qwen 3.8 Max at `"xhigh"` with reasoning
+// *mandatory*, and Google runs Gemini 3.x Flash at "medium". The transcript
+// merge, which writes a whole clip fully voweled inside JSON, went from a
+// forty-second call to one that thought for minutes first and then spent its
+// output budget on the thinking — which is what a video "timing out" and a
+// transcript arriving as one untranslated line both were.
+//
+// So `aiGateway.chatFetch` asks for the *lowest* level a model allows unless
+// its caller says otherwise: `"none"` where reasoning can be switched off,
+// the model's floor where it cannot. The floor is looked up here, next to the
+// id, because it is a property of the model and not of the call — and because
+// OpenRouter answers 400 to an effort a model does not support, so a guess is
+// not good enough. When adding a model, read its `reasoning` block on
+// https://openrouter.ai/api/v1/models (`mandatory`, `supported_efforts`).
+export type ReasoningEffort = 'none' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max';
+
+const REASONING_FLOOR: Record<string, 'none' | 'minimal' | 'low'> = {
+  [MODEL_IDS.CLAUDE]: 'none',         // optional; supports low…max when on
+  [MODEL_IDS.GPT_MINI]: 'none',       // optional; "none" is in its supported list
+  [MODEL_IDS.QWEN]: 'minimal',        // mandatory; minimal is its floor
+  [MODEL_IDS.GEMINI_FLASH]: 'low',    // mandatory; Gemini 3.7 Flash offers low/medium/high
+  [MODEL_IDS.GEMINI_PRO]: 'low',      // mandatory; same three levels
+};
+
+/**
+ * The least reasoning `model` can be asked to do.
+ *
+ * Unknown ids fall back by vendor: Gemini 3.x cannot be switched off, so it
+ * gets "low"; Qwen's current Max tier is mandatory with a "minimal" floor;
+ * anything else is asked for none. A wrong guess is not fatal — the gateway
+ * retries a rejected default without it — but it costs a round trip.
+ */
+export function reasoningFloor(model: string): 'none' | 'minimal' | 'low' {
+  const known = REASONING_FLOOR[model];
+  if (known) return known;
+  if (/^google\//.test(model)) return 'low';
+  if (/^qwen\//.test(model)) return 'minimal';
+  return 'none';
+}
+
 // ---- Voting weights for runEnsemble ranking --------------------------------
 // Claude Sonnet 5 and Gemini 3.7 Flash are co-equal authoritative drafters.
 // Qwen and the second GPT drafter stay at lower weights.

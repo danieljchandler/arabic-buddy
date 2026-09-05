@@ -117,6 +117,8 @@ interface RefreshedRow extends Json {
   cultural_context?: string | null;
   title?: string | null;
   title_arabic?: string | null;
+  /** A note the analysis left about its own result — kept when this stage has none of its own. */
+  transcription_error?: string | null;
 }
 
 /**
@@ -1968,7 +1970,7 @@ async function runFinalizeStage(ctx: PipelineContext, cp: Checkpoint): Promise<v
     console.log("[pipeline] Step 4: Finalizing transcript...");
     await recordProgress(ctx, { stage: "finalize", note: "saving the transcript" });
     const { data: refreshedRaw } = await supabase.from("discover_videos")
-      .select("transcription_status, transcript_lines, cultural_context, title, title_arabic")
+      .select("transcription_status, transcript_lines, cultural_context, title, title_arabic, transcription_error")
       .eq("id", videoId)
       .single();
     const refreshed = (refreshedRaw ?? null) as RefreshedRow | null;
@@ -2018,7 +2020,11 @@ async function runFinalizeStage(ctx: PipelineContext, cp: Checkpoint): Promise<v
         transcript_lines: lines,
         ...visual.timelinePatch(rawLines),
         cultural_context: withContext(refreshed.cultural_context),
-        transcription_error: reviewNote,
+        // The analysis may have left a note of its own on the row — that its
+        // merge failed and the lines were split by rule — and this stage has
+        // nothing to say more often than not. Overwriting a real note with
+        // nothing is how an untranslated transcript arrives unexplained.
+        transcription_error: reviewNote ?? refreshed.transcription_error ?? null,
         transcription_status: "completed",
       }).eq("id", videoId).eq("transcription_status", "analysis_complete").select("id");
 

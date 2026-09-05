@@ -688,15 +688,39 @@ and their share of its `words` and `tokens` (glosses included), but a
 translation described the whole line and cannot be divided, so a piece arrives
 with an empty one flagged `needs_review` / `review_reason: "empty"`.
 
-The merge failing in the first place had one cause worth naming: the
-analyser's model calls carry a 40-second deadline that was sized for the wait
-for headers, and once that deadline was (rightly) kept armed through reading
-the body — a provider that stalls mid-answer must not hang the run — it became
-a ceiling on the *generation*, and a merge that writes a whole clip fully
-voweled inside JSON does not finish in forty seconds. `callAI` and `callFanar`
-now run two deadlines on one signal: 40 s (30 s for Fanar) to headers, then a
-generation budget from `generationBudgetMs` — scaled to `max_tokens`, capped at
-two minutes, and never past the run's own `ANALYZE_BUDGET_MS` deadline.
+Why the merge failed in the first place is worth recording, because two
+rounds of timeout tuning treated it as a timing problem. The lineup refresh of
+2026-08-31 moved the pipeline onto models that **reason before answering by
+their providers' defaults** — OpenRouter's own metadata has Sonnet 5 at
+`default_effort: "high"` and Qwen 3.8 Max (the merge model) at `"xhigh"` with
+reasoning *mandatory*, and Google runs Gemini 3.7 Flash at "medium" — where
+every model before that date answered directly unless a request enabled
+reasoning. Nothing in the app asked for it. The merge, which writes a whole
+clip fully voweled inside JSON, went from a forty-second call to one that
+thought for minutes and then spent its 8k-token output budget on the thinking,
+so its JSON came back truncated or empty and the rule-split fallback ran. A
+40-second ceiling made that failure fast (one chunk); a longer one made it
+slow (a stall, see below). `aiGateway.chatFetch` now asks every model for the
+least reasoning it allows — `reasoning: { effort: "none" }` on OpenRouter,
+`reasoning_effort: "low"` on Google's endpoint, a model's own floor where it
+cannot be switched off — unless the caller passes `reasoning: "model-default"`
+or a specific effort. The floors live in `modelRegistry.ts` next to the ids
+(`reasoningFloor`), and a provider that rejects the default with a 400 is
+retried once without it. The analyser's own deadlines stay two-phase: 40 s
+(30 s for Fanar) to headers, then a generation budget from
+`generationBudgetMs` — scaled to `max_tokens`, capped at two minutes, and never
+past the run's own `ANALYZE_BUDGET_MS` deadline.
+
+The pipeline reads the *row*, never the analysis's HTTP reply — the gateway
+drops that at 150 seconds while the analysis runs on — so every outcome the
+analysis can end in has to be written to the row or it did not happen. A merge
+that failed after the reply was dropped, or an error thrown late, used to leave
+the row on `processing`; the pipeline then waited out the platform's whole
+wall clock, started the analysis again, waited again, and failed a quarter of
+an hour later with "started 2 times and never saved a result". Now a failed
+merge persists its rule-split lines as `analysis_complete` with a note saying
+so (which the finalize stage keeps rather than overwriting with its own empty
+one), and a thrown error marks the row `failed` at once.
 
 After a reviewer has corrected the text, the text is ground truth and the
 timing is not — so the workspace's **Re-sync timing** button runs *forced

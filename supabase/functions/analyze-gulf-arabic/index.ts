@@ -1789,12 +1789,62 @@ function finalizeViaPipeline(videoId: string): void {
   if (runtime?.waitUntil) runtime.waitUntil(task);
 }
 
+/**
+ * Put what this run ended in onto the video's row, for the pipeline.
+ *
+ * When the pipeline calls this function it reads the *row*, not the reply:
+ * the gateway drops the HTTP response at 150 seconds while the analysis runs
+ * on for minutes, so a reply is only ever seen for a fast run. Every outcome
+ * therefore has to be written here or it did not happen — a merge that failed
+ * after the reply was dropped, or an error thrown late, used to leave the row
+ * on `processing`, and the pipeline then waited the platform's whole wall
+ * clock, started the analysis again, waited again, and finally failed with
+ * "started 2 times and never saved a result": a quarter of an hour of a
+ * spinner for a failure that was known in the first minute.
+ *
+ * `onlyWhile` guards the write the way the pipeline's own writes are guarded:
+ * a failure may only land on a row still processing, and a result only on one
+ * not already completed by a finaliser that won a race.
+ */
+async function recordForPipeline(
+  videoId: string,
+  patch: Record<string, unknown>,
+  onlyWhile: 'processing' | 'not_completed',
+): Promise<boolean> {
+  try {
+    const svc = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
+    );
+    const update = svc.from('discover_videos').update(patch).eq('id', videoId);
+    const { error } = onlyWhile === 'processing'
+      ? await update.eq('transcription_status', 'processing')
+      : await update.neq('transcription_status', 'completed');
+    if (error) {
+      console.error(`[analyze] Could not record the outcome for ${videoId}:`, error.message);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error(`[analyze] Could not record the outcome for ${videoId}:`, e instanceof Error ? e.message : String(e));
+    return false;
+  }
+}
+
+/** The note left on a transcript whose merge failed and was split by rule instead. */
+const MERGE_FAILED_NOTE =
+  'The AI merge of the transcription engines did not produce lines, so the raw transcript was ' +
+  'split by rule and has no translations. Use Download & Re-transcribe to run the analysis again.';
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }
+
+  // The row a thrown error has to be recorded on, once the body has named it.
+  let rowForOutcome: string | null = null;
 
   // Authenticate user
   const authHeader = req.headers.get('Authorization');
@@ -1840,6 +1890,7 @@ serve(async (req) => {
       const gate = await requireContentManager(req, corsHeaders);
       if (gate.denied) return gate.response;
     }
+    if (pipelineVideoId && typeof pipelineVideoId === 'string') rowForOutcome = pipelineVideoId;
     DIALECT_MODULE = (dialectModule === 'Egyptian' || dialectModule === 'Yemeni') ? dialectModule : 'Gulf';
     RUN_DEADLINE_AT = Date.now() + ANALYZE_BUDGET_MS;
     console.log('Dialect module for this request:', DIALECT_MODULE);
@@ -2132,6 +2183,20 @@ serve(async (req) => {
        console.error('Call 1 failed: could not produce merged transcript. Skipping Call 2.');
        partial = true;
        const fallback = createFallbackResult(transcript);
+       // The pipeline reads the row, and by now the gateway may well have
+       // dropped this reply. A rule-split transcript with a note saying so is
+       // a poor result, but a result — the alternative was a row left on
+       // `processing` for the whole wall clock, twice.
+       if (rowForOutcome) {
+         const saved = await recordForPipeline(rowForOutcome, {
+           transcript_lines: fallback.lines,
+           vocabulary: [],
+           grammar_points: [],
+           transcription_status: 'analysis_complete',
+           transcription_error: MERGE_FAILED_NOTE,
+         }, 'not_completed');
+         if (saved) finalizeViaPipeline(rowForOutcome);
+       }
        return new Response(
          JSON.stringify({ success: true, result: fallback, partial }),
          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -3146,10 +3211,19 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error in analyze-gulf-arabic function:', error);
+    const details = error instanceof Error ? error.message : 'Unknown error';
+    // The pipeline stops waiting the moment the row says failed; without this
+    // it waited out the wall clock and started the analysis again.
+    if (rowForOutcome) {
+      await recordForPipeline(rowForOutcome, {
+        transcription_status: 'failed',
+        transcription_error: `Analysis failed: ${details}`,
+      }, 'processing');
+    }
     return new Response(
-      JSON.stringify({ 
-        error: 'Internal server error', 
-        details: error instanceof Error ? error.message : 'Unknown error' 
+      JSON.stringify({
+        error: 'Internal server error',
+        details,
       }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );

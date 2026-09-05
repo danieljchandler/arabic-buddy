@@ -683,3 +683,102 @@ Deno.test("never hands a merge failure back as one line", async () => {
     fn.restore();
   }
 });
+
+// ── Every outcome reaches the row ────────────────────────────────────────────
+//
+// When the pipeline calls this function it reads the row, not the reply: the
+// gateway drops the HTTP response at 150 seconds while the analysis runs on.
+// A merge that failed after that, or an error thrown late, used to leave the
+// row on `processing`, and the pipeline then waited out the platform's whole
+// wall clock, started the analysis again, waited again, and failed a quarter
+// of an hour later with "started 2 times and never saved a result".
+
+Deno.test("persists the rule-split fallback for the pipeline when the merge fails", async () => {
+  const words = [
+    "شلونك", "اليوم", "الحمد", "لله", "بخير", "وانت", "شخبارك", "والله", "زين",
+    "الحين", "وين", "رايح", "بروح", "السوق", "اشتري", "اغراض", "للبيت", "طيب",
+  ];
+  const fn = await loadFunction("analyze-gulf-arabic", {
+    env: { FANAR_API_KEY: undefined },
+    upstreams: allowed({
+      "openrouter.ai": () => chatCompletion("Sorry, I cannot help with that."),
+      "generativelanguage.googleapis.com": () => chatCompletion("Sorry, I cannot help with that."),
+      "/rest/v1/discover_videos": () => json([{ id: PIPELINE_VIDEO }], 200),
+      "/functions/v1/process-approved-video": () => json({ success: true }, 202),
+    }),
+  });
+  try {
+    const response = await fn.handler(jsonRequest("analyze-gulf-arabic", {
+      transcript: words.join(" "),
+      videoId: PIPELINE_VIDEO,
+    }, { jwt: SERVICE_ROLE_KEY }));
+    assertEquals(response.status, 200);
+    await fn.background();
+
+    const persisted = fn.calls.find((c) => c.url.includes("discover_videos") && c.method === "PATCH");
+    assert(persisted, "expected the fallback transcript to be written to the row");
+    const patch = JSON.parse(persisted.body ?? "{}") as {
+      transcription_status: string;
+      transcription_error: string;
+      transcript_lines: Array<{ arabic: string }>;
+    };
+    assertEquals(patch.transcription_status, "analysis_complete");
+    assert(patch.transcript_lines.length > 1, "the fallback is line by line, not one chunk");
+    assert(patch.transcription_error.includes("did not produce lines"), "the row says why it has no translations");
+    // Only a row not already finalised by someone else.
+    assert(persisted.url.includes("transcription_status=neq.completed"));
+
+    const callback = fn.calls.find((c) => c.url.includes("/functions/v1/process-approved-video"));
+    assert(callback, "expected the pipeline to be asked to finalize");
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("records its own failure on the row rather than leaving it processing", async () => {
+  // Out of time before the merge could be retried: the run throws. The row
+  // must say so, and only while it is still the run's to fail.
+  const fn = await loadFunction("analyze-gulf-arabic", {
+    env: { FANAR_API_KEY: undefined, ANALYZE_BUDGET_MS: "5000" },
+    upstreams: allowed({
+      "openrouter.ai": () => chatCompletion("Sorry, I cannot help with that."),
+      "generativelanguage.googleapis.com": () => chatCompletion("Sorry, I cannot help with that."),
+      "/rest/v1/discover_videos": () => json([{ id: PIPELINE_VIDEO }], 200),
+    }),
+  });
+  try {
+    const response = await fn.handler(jsonRequest("analyze-gulf-arabic", {
+      transcript: "شلونك اليوم الحمد لله بخير",
+      videoId: PIPELINE_VIDEO,
+    }, { jwt: SERVICE_ROLE_KEY }));
+    assertEquals(response.status, 500);
+    await fn.background();
+
+    const persisted = fn.calls.find((c) => c.url.includes("discover_videos") && c.method === "PATCH");
+    assert(persisted, "expected the failure to be written to the row");
+    const patch = JSON.parse(persisted.body ?? "{}") as { transcription_status: string; transcription_error: string };
+    assertEquals(patch.transcription_status, "failed");
+    assert(patch.transcription_error.includes("Ran out of time merging"));
+    assert(persisted.url.includes("transcription_status=eq.processing"));
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("writes nothing to any row when no pipeline video is named", async () => {
+  // The Transcribe page calls this directly, with no row to update.
+  const fn = await loadFunction("analyze-gulf-arabic", {
+    env: { FANAR_API_KEY: undefined },
+    upstreams: allowed({
+      "openrouter.ai": () => chatCompletion("Sorry, I cannot help with that."),
+      "generativelanguage.googleapis.com": () => chatCompletion("Sorry, I cannot help with that."),
+    }),
+  });
+  try {
+    const response = await fn.handler(jsonRequest("analyze-gulf-arabic", { transcript: "شلونك اليوم الحمد لله بخير" }));
+    assertEquals(response.status, 200);
+    assertEquals(fn.calls.filter((c) => c.url.includes("discover_videos")).length, 0);
+  } finally {
+    fn.restore();
+  }
+});

@@ -142,6 +142,16 @@ harness.
   vendors whose own APIs don't use it. Call models with `chatFetch` /
   `chatFetchDetailed` / `generateImage` rather than a bare `fetch` to a
   provider URL, and never reintroduce a hosting provider's AI gateway.
+  **Reasoning is off unless a call asks for it.** The current lineup reasons
+  by default at its providers (Sonnet 5 "high", Qwen 3.8 Max "xhigh" and
+  mandatory, Gemini 3.x Flash "medium"), which is what turned the transcript
+  merge into a minutes-long call that spent its output budget thinking.
+  `chatFetch` sends each model the least it allows — the floor is
+  `reasoningFloor()` in `modelRegistry.ts`, kept next to the id because
+  OpenRouter answers 400 to an effort a model does not support — and retries
+  once without it if the provider rejects it. Pass `reasoning:
+  "model-default"` or `{ effort }` to opt a call in. When adding a model, read
+  its `reasoning` block on OpenRouter's model list and add its floor.
   **OpenRouter is also the safety net:** when a vendor's key is missing, or its
   API answers with a status in aiGateway's fallback set (400/401/403/404/408 and
   5xx — deliberately *not* 429), the same model is retried once through

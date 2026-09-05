@@ -42,8 +42,11 @@ function applyUndo(prev: Segment[], op: UndoOperation): Segment[] {
     }
     case 'RippleTimestampOp': {
       return prev.map(seg => {
-        const change = op.changes.find(c => c.segmentId === seg.id);
-        return change ? { ...seg, [change.field]: change.previousValue } : seg;
+        const changes = op.changes.filter(c => c.segmentId === seg.id);
+        return changes.reduce<Segment>(
+          (updated, change) => ({ ...updated, [change.field]: change.previousValue }),
+          seg,
+        );
       });
     }
     default:
@@ -81,8 +84,11 @@ function applyRedo(prev: Segment[], op: UndoOperation): Segment[] {
     }
     case 'RippleTimestampOp': {
       return prev.map(seg => {
-        const change = op.changes.find(c => c.segmentId === seg.id);
-        return change ? { ...seg, [change.field]: change.newValue } : seg;
+        const changes = op.changes.filter(c => c.segmentId === seg.id);
+        return changes.reduce<Segment>(
+          (updated, change) => ({ ...updated, [change.field]: change.newValue }),
+          seg,
+        );
       });
     }
     default:

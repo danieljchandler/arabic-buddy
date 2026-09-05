@@ -1420,6 +1420,98 @@ Deno.test("process-approved-video leaves a finished or failed row alone on resum
   }
 });
 
+Deno.test("process-approved-video ignores delayed stage hops after completion", async () => {
+  for (const stage of ["asr", "analyze", "finalize"]) {
+    const result = await call({ videoId: VIDEO, stage }, backend({
+      video: aVideo({ transcription_status: "completed" }),
+    }));
+    assertEquals(result.status, 200, stage);
+    assertEquals(result.body.status, "completed", stage);
+    assertEquals(result.patches, [], stage);
+    assertEquals(result.calls.some((url) => url.includes("/functions/v1/")), false, stage);
+  }
+});
+
+Deno.test("process-approved-video cannot fail a row another finalizer just completed", async () => {
+  let status = "processing";
+  let attemptedFailure = false;
+  await call({ videoId: VIDEO, stage: "finalize" }, backend({
+    extra: {
+      "/rest/v1/discover_videos": async (request) => {
+        if (request.method === "PATCH") {
+          const patch = await request.json();
+          if (patch.transcription_status === "failed") {
+            attemptedFailure = true;
+            status = "completed"; // Another finalizer wins immediately before this write.
+            if (new URL(request.url).searchParams.get("transcription_status") === "neq.completed") return json([]);
+          }
+          if (patch.transcription_status) status = patch.transcription_status;
+          return json([{ id: VIDEO }]);
+        }
+        if (request.url.includes("select=engines_used")) return json({ engines_used: null });
+        return json(aVideo({ transcription_status: status }));
+      },
+    },
+  }));
+  assert(attemptedFailure);
+  assertEquals(status, "completed");
+});
+
+Deno.test("process-approved-video heartbeats before the analysis HTTP request returns", async () => {
+  let responsePending = false;
+  let heartbeatDuringRequest = false;
+  const result = await call({ videoId: VIDEO }, backend({
+    analyze: async () => {
+      responsePending = true;
+      await new Promise((resolve) => setTimeout(resolve, 35));
+      responsePending = false;
+      return json({ success: true, result: aResult() });
+    },
+    extra: {
+      "/rest/v1/discover_videos": async (request) => {
+        if (request.method === "PATCH") {
+          const patch = await request.json();
+          if (responsePending && patch.transcription_status === "processing") heartbeatDuringRequest = true;
+          return json([{ id: VIDEO }]);
+        }
+        if (request.url.includes("select=engines_used")) return json({ engines_used: null });
+        if (request.url.includes("transcription_status")) return json({ transcription_status: "processing" });
+        return json(aVideo());
+      },
+    },
+  }), { env: { PIPELINE_HEARTBEAT_MS: "5", PIPELINE_ANALYZE_MAX_RUN_MS: "1000" } });
+  assert(heartbeatDuringRequest, "the admin must see activity before its stale threshold expires");
+  assertEquals(finalStatus(result), "completed");
+  assertEquals(result.calls.filter((url) => url.includes("analyze-gulf-arabic")).length, 1);
+});
+
+Deno.test("process-approved-video heartbeats while downloading audio before ASR", async () => {
+  let downloading = false;
+  let heartbeatDuringDownload = false;
+  const result = await call({ videoId: VIDEO }, backend({
+    download: async () => {
+      downloading = true;
+      await new Promise((resolve) => setTimeout(resolve, 35));
+      downloading = false;
+      return json({ audioBase64: AUDIO_B64, contentType: "audio/mp4", duration: 31.4 });
+    },
+    extra: {
+      "/rest/v1/discover_videos": async (request) => {
+        if (request.method === "PATCH") {
+          const patch = await request.json();
+          if (downloading && patch.transcription_status === "processing") heartbeatDuringDownload = true;
+          return json([{ id: VIDEO }]);
+        }
+        if (request.url.includes("select=engines_used")) return json({ engines_used: null });
+        if (request.url.includes("transcription_status")) return json({ transcription_status: "processing" });
+        return json(aVideo());
+      },
+    },
+  }), { env: { PIPELINE_HEARTBEAT_MS: "5" } });
+  assert(heartbeatDuringDownload);
+  assertEquals(finalStatus(result), "completed");
+});
+
 Deno.test("process-approved-video resumes a stale pending row from the start", async () => {
   // A kickoff that was lost before the engines ran: nothing to checkpoint,
   // so the resume is a fresh run — and the row moves to processing so the

@@ -361,7 +361,7 @@ const ASR_FANOUT_DEADLINE_MS = envInt("PIPELINE_ASR_FANOUT_MS", 120_000);
  * twelve minutes as dead, and the admin page reads one that has not moved for
  * two as needing a nudge. Both must stay quiet while a run is genuinely alive.
  */
-const HEARTBEAT_EVERY_MS = 30_000;
+const HEARTBEAT_EVERY_MS = envInt("PIPELINE_HEARTBEAT_MS", 30_000);
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -522,6 +522,22 @@ async function runStage(ctx: PipelineContext, cp: Checkpoint): Promise<void> {
   }
 }
 
+/** Keep long downloads, ASR calls and the analysis HTTP wait from looking dead. */
+async function runWithHeartbeat(ctx: PipelineContext, cp: Checkpoint): Promise<void> {
+  const task = runStage(ctx, cp).then(() => true);
+  while (true) {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const completed = await Promise.race([
+      task,
+      new Promise<false>((resolve) => {
+        timer = setTimeout(() => resolve(false), HEARTBEAT_EVERY_MS);
+      }),
+    ]).finally(() => clearTimeout(timer));
+    if (completed) return;
+    await heartbeat(ctx);
+  }
+}
+
 /**
  * Keep `updated_at` moving on a row that is still processing — and only such
  * a row.
@@ -551,7 +567,7 @@ async function failRow(ctx: PipelineContext, stage: StageName, err: unknown): Pr
   await ctx.supabase.from("discover_videos").update({
     transcription_status: "failed",
     transcription_error: errorMsg,
-  }).eq("id", ctx.videoId);
+  }).eq("id", ctx.videoId).neq("transcription_status", "completed");
 }
 
 // ── Helpers shared by the later stages ────────────────────────────────────────
@@ -2216,6 +2232,15 @@ serve(async (req) => {
   };
   const rowStatus = String((video as VideoRow & { transcription_status?: string | null }).transcription_status ?? "");
 
+  // A delayed internal hop must not restart paid work on a completed video.
+  // An explicit fresh run (no stage/resume) still supports Re-transcribe.
+  if (requestedStage !== undefined && rowStatus === "completed") {
+    return new Response(
+      JSON.stringify({ success: true, resumed: false, status: rowStatus, build: PIPELINE_BUILD }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
   // Decide what to run. `cp` is the checkpoint the stage will work from.
   let cp: Checkpoint;
   if (requestedStage !== undefined) {
@@ -2274,7 +2299,7 @@ serve(async (req) => {
   // HTTP request. When the response is returned below, req.signal fires (the
   // platform considers the request done), but the stage continues running
   // inside waitUntil and cannot be aborted by req.signal.
-  const task = runStage(ctx, cp);
+  const task = runWithHeartbeat(ctx, cp);
 
   try {
     edgeRuntime()?.waitUntil?.(task);

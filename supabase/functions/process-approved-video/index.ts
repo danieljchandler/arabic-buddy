@@ -24,6 +24,7 @@ import { noArabicSpeechNote } from "../_shared/arabicSpeechGate.ts";
 import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { alignLinesToAsrWords } from "../_shared/transcriptTimingAlign.ts";
+import { splitOverlongLines } from "../_shared/transcriptLineSplit.ts";
 import {
   buildVisualContextText,
   segmentsFromLegacyLines,
@@ -669,6 +670,31 @@ async function loadVisualContext(ctx: PipelineContext): Promise<VisualContext> {
  * English-tuned segmentation returned far fewer Arabic words, so later
  * lines ended up with undefined timestamps.)
  */
+/**
+ * Break any line the length of a paragraph into subtitle lines at the
+ * speaker's pauses.
+ *
+ * The analysis is supposed to hand back lines of a dozen words at most, and
+ * usually does. When its merge fails it falls back to splitting the raw ASR
+ * text on punctuation — which Arabic ASR mostly lacks — and the whole clip
+ * arrives here as one line, which then has nothing for the caption highlight,
+ * phrase pause, shadowing or the review workspace to work with. Once the
+ * alignment above has put real times on every word, the right boundaries are
+ * measurable rather than guessed: see _shared/transcriptLineSplit.ts. Lines
+ * of a sensible length pass through untouched.
+ */
+function splitLongLines(lines: PipelineLine[]): PipelineLine[] {
+  const { lines: split, splits } = splitOverlongLines(lines);
+  if (splits.length > 0) {
+    console.log(
+      `[pipeline] Split ${splits.length} over-long line(s) into ${
+        splits.reduce((acc, s) => acc + s.pieceIds.length, 0)
+      } at the speaker's pauses`,
+    );
+  }
+  return split;
+}
+
 function alignLinesToAudio(
   rawLines: PipelineLine[],
   relativeWords: AsrWord[],
@@ -1962,7 +1988,9 @@ async function runFinalizeStage(ctx: PipelineContext, cp: Checkpoint): Promise<v
       ((video.duration_seconds && video.duration_seconds > 0 ? video.duration_seconds : 0) * 1000) ||
       0;
     const align = (rawLines: PipelineLine[]) =>
-      alignLinesToAudio(rawLines, asr?.alignmentWords ?? [], asr?.alignmentSource ?? "no engine", audioDurationMs);
+      splitLongLines(
+        alignLinesToAudio(rawLines, asr?.alignmentWords ?? [], asr?.alignmentSource ?? "no engine", audioDurationMs),
+      );
     const audio = cp.audio ??
       (cp.httpResult?.noArabicSpeech
         ? { noArabicSpeech: true, verdict: cp.httpResult.audio?.verdict, reason: cp.httpResult.audio?.reason }

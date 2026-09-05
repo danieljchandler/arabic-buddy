@@ -850,6 +850,63 @@ Deno.test("process-approved-video times lines from real ASR word timestamps", as
   assert(lines.every((l) => l.words.every((w) => w.matched)), "expected every word matched");
 });
 
+Deno.test("process-approved-video breaks a one-line transcript at the speaker's pauses", async () => {
+  // The analysis's merge failed and its punctuation fallback handed the whole
+  // clip back as a single line — the shape every uploaded video took while
+  // the merge was being cut off mid-answer. Soniox heard every word, with a
+  // 1.4-second silence after the fifth and 0.9 seconds after the twelfth.
+  const words = [
+    "شلونك", "اليوم", "الحمد", "لله", "بخير", "وانت", "شخبارك", "والله", "زين",
+    "الحين", "وين", "رايح", "بروح", "السوق", "اشتري", "اغراض", "للبيت", "طيب",
+    "الله", "يوفقك",
+  ];
+  const pauses: Record<number, number> = { 5: 1_400, 12: 900 };
+  let at = 500;
+  const tokens = words.map((text, i) => {
+    at += pauses[i] ?? 80;
+    const start_ms = at;
+    at += 300;
+    return { text: ` ${text}`, start_ms, end_ms: at };
+  });
+  const soniox: UpstreamHandler = (request) => {
+    const path = new URL(request.url).pathname;
+    if (path.endsWith("/files")) return json({ id: "file_fixture" });
+    if (path.endsWith("/transcript")) return json({ text: words.join(" "), tokens });
+    return json({ id: "tr_fixture", status: "completed" });
+  };
+  const result = await call({ videoId: VIDEO }, backend({
+    analyze: () => json({
+      success: true,
+      partial: true,
+      result: aResult({ lines: [{ id: "l1", arabic: words.join(" "), translation: "" }] }),
+    }),
+    extra: { "api.soniox.com": soniox },
+  }));
+  const lines = lastPatchWith(result, "transcript_lines")?.transcript_lines as Array<{
+    id: string;
+    arabic: string;
+    startMs: number;
+    endMs: number;
+    words: Array<{ surface: string }>;
+    tokens: Array<{ surface: string }>;
+  }>;
+
+  // Three lines where there was one, broken exactly at the two silences, and
+  // the silences themselves still there between them.
+  assertEquals(lines.map((l) => l.arabic), [
+    words.slice(0, 5).join(" "),
+    words.slice(5, 12).join(" "),
+    words.slice(12).join(" "),
+  ]);
+  assertEquals(lines.map((l) => l.id), ["l1-1", "l1-2", "l1-3"]);
+  assertEquals(lines[1].startMs - lines[0].endMs, 1_400);
+  assertEquals(lines[2].startMs - lines[1].endMs, 900);
+  // Each piece keeps its own words' real timings and gets tokens of its own.
+  assertEquals(lines[1].words.map((w) => w.surface), words.slice(5, 12));
+  assertEquals(lines[2].tokens.map((t) => t.surface), words.slice(12));
+  assertEquals(finalStatus(result), "completed");
+});
+
 Deno.test("process-approved-video gives every line a place on the audio timeline", async () => {
   const result = await call({ videoId: VIDEO }, backend());
   const lines = lastPatchWith(result, "transcript_lines")?.transcript_lines as

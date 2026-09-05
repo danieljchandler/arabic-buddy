@@ -31,6 +31,74 @@ async function describeFunctionError(error: unknown): Promise<string> {
   return (error as { message?: string } | null)?.message ?? "Unknown error";
 }
 
+/** One line as `resync-transcript-timing` returns it. */
+interface ResyncLine {
+  id: string;
+  arabic?: string;
+  translation?: string;
+  literal?: string;
+  startMs: number;
+  endMs: number;
+  words?: LineWordTiming[];
+  /** Set on a line the server cut out of a longer one, naming that line. */
+  splitFrom?: string;
+}
+
+interface ResyncReply {
+  lines?: ResyncLine[];
+  matched?: number;
+  total?: number;
+  /** How many over-long lines were cut at the speaker's pauses, and into how many. */
+  splitCount?: number;
+  pieceCount?: number;
+  /** Whether every new piece came back with English drafted for it. */
+  translated?: boolean;
+}
+
+/**
+ * What a re-sync did, in one line under the toast.
+ *
+ * "Review the proposed times" told the reviewer nothing they could check. The
+ * counts are what let them judge the proposal before opening the diff: how
+ * many words the aligner actually placed, and whether any line was cut up.
+ */
+function describeResync(reply: ResyncReply, lineCount: number): string {
+  const parts: string[] = [];
+  if (typeof reply.matched === "number" && typeof reply.total === "number" && reply.total > 0) {
+    parts.push(`${reply.matched} of ${reply.total} words matched to the audio across ${lineCount} lines.`);
+  } else {
+    parts.push(`${lineCount} lines re-timed.`);
+  }
+  if (reply.splitCount && reply.pieceCount) {
+    parts.push(
+      `${reply.splitCount} long ${reply.splitCount === 1 ? "line was" : "lines were"} cut at the speaker's pauses into ${reply.pieceCount}` +
+        (reply.translated ? ", with English drafted." : " — the new lines still need translating."),
+    );
+  }
+  parts.push("Accept or reject the proposal below.");
+  return parts.join(" ");
+}
+
+/**
+ * A 404 here is not a missing video — the function checks that itself and
+ * answers 404 with `video_not_found` — but a backend that has never had this
+ * function deployed. Naming that is the difference between "nothing happened"
+ * and knowing what to deploy.
+ */
+async function describeResyncError(error: unknown): Promise<string> {
+  const ctx = (error as { context?: Response } | null)?.context;
+  if (ctx && typeof ctx === "object" && "status" in ctx && (ctx as Response).status === 404) {
+    try {
+      const body = (await (ctx as Response).clone().json()) as { error?: string };
+      if (body?.error === "video_not_found") return "404: this video no longer exists.";
+    } catch {
+      /* not JSON — a bare 404 from the gateway is the undeployed case */
+    }
+    return "The re-sync function is not deployed on this backend yet (resync-transcript-timing). Deploy the edge functions and try again.";
+  }
+  return describeFunctionError(error);
+}
+
 interface AdminTranscriptEditorProps {
   lines: TranscriptLine[];
   onChange: (lines: TranscriptLine[]) => void;
@@ -271,9 +339,8 @@ export function AdminTranscriptEditor({
           },
         });
         if (error) throw error;
-        const retimed = (data as {
-          lines?: Array<{ id: string; startMs: number; endMs: number; words?: LineWordTiming[] }>;
-        } | null)?.lines;
+        const reply = (data ?? null) as ResyncReply | null;
+        const retimed = reply?.lines;
         if (!retimed || retimed.length === 0) {
           toast({
             title: "Re-sync returned no timings",
@@ -282,30 +349,62 @@ export function AdminTranscriptEditor({
           });
           return null;
         }
-        const byId = new Map(retimed.map((line) => [line.id, line]));
+
+        // A line the server cut at the speaker's pauses comes back as several
+        // lines naming it in `splitFrom`. They replace it, in the server's
+        // order; a line it re-timed is matched by id; a line it did not mention
+        // is left exactly as it was.
+        const byId = new Map<string, ResyncLine>();
+        const piecesOf = new Map<string, ResyncLine[]>();
+        for (const line of retimed) {
+          if (line.splitFrom) {
+            const list = piecesOf.get(line.splitFrom) ?? [];
+            list.push(line);
+            piecesOf.set(line.splitFrom, list);
+          } else {
+            byId.set(line.id, line);
+          }
+        }
+        const toWords = (line: ResyncLine): Word[] =>
+          (line.words ?? []).map<Word>((w) => ({
+            word: w.surface,
+            start: w.startMs / 1000,
+            end: w.endMs / 1000,
+            confidence: 1,
+          }));
+
         toast({
           title: "Timings aligned to the audio",
-          description: "Review the proposed times and accept or reject.",
+          description: describeResync(reply!, retimed.length),
         });
-        return segments.map((seg) => {
+        return segments.flatMap<Segment>((seg) => {
+          const pieces = piecesOf.get(seg.id);
+          if (pieces && pieces.length > 0) {
+            return pieces.map<Segment>((piece) => ({
+              ...seg,
+              id: piece.id,
+              text: piece.arabic ?? seg.text,
+              translation: piece.translation ?? "",
+              literal: piece.literal,
+              start: piece.startMs / 1000,
+              end: piece.endMs / 1000,
+              confidence: 1,
+              words: toWords(piece),
+            }));
+          }
           const match = byId.get(seg.id);
-          if (!match) return seg;
-          return {
+          if (!match) return [seg];
+          return [{
             ...seg,
             start: match.startMs / 1000,
             end: match.endMs / 1000,
-            words: (match.words ?? []).map<Word>((w) => ({
-              word: w.surface,
-              start: w.startMs / 1000,
-              end: w.endMs / 1000,
-              confidence: 1,
-            })),
-          };
+            words: toWords(match),
+          }];
         });
       } catch (e: unknown) {
         toast({
           title: "Re-sync failed",
-          description: await describeFunctionError(e),
+          description: await describeResyncError(e),
           variant: "destructive",
         });
         return null;

@@ -480,9 +480,11 @@ Deno.test("keeps completion and aligned lines when finalization wins during the 
 for (const provider of ["openrouter.ai", "api.fanar.qa/v1/chat/completions"]) {
   Deno.test(`finishes analysis when ${provider} sends headers then stalls its body`, async () => {
     const originalSetTimeout = globalThis.setTimeout;
-    // Exercise the real timeout path without waiting 30–40 seconds per call.
+    // Exercise the real timeout path without waiting for it: every provider
+    // deadline — the wait for headers and the generation budget that replaces
+    // it once they arrive — is thirty seconds or more.
     globalThis.setTimeout = ((handler: TimerHandler, delay?: number, ...args: unknown[]) =>
-      originalSetTimeout(handler, delay === 30_000 || delay === 40_000 ? 5 : delay, ...args)) as typeof setTimeout;
+      originalSetTimeout(handler, typeof delay === "number" && delay >= 30_000 ? 5 : delay, ...args)) as typeof setTimeout;
     let stalled = false;
     let aborted = false;
     let release: (() => void) | undefined;
@@ -581,4 +583,103 @@ Deno.test("gives up its embellishments rather than the run when time is short", 
     counts.squeezed < counts.roomy,
     `expected a squeezed run to make fewer model calls, got ${counts.squeezed} vs ${counts.roomy}`,
   );
+});
+
+Deno.test("keeps reading an answer that takes longer than the header deadline to write", async () => {
+  // The merge writes every line of a clip fully voweled, up to 8k tokens of
+  // JSON, which takes a model longer than the 40 seconds allowed for it to
+  // *start* answering. One deadline used to cover both, so the whole merge
+  // was thrown away on any clip longer than a short one and the punctuation
+  // fallback ran instead. Here the header deadline is squeezed to a few
+  // milliseconds while the generation budget is left alone, and the body
+  // arrives slowly: a run that honours the distinction reads it in full.
+  const originalSetTimeout = globalThis.setTimeout;
+  globalThis.setTimeout = ((handler: TimerHandler, delay?: number, ...args: unknown[]) =>
+    originalSetTimeout(handler, delay === 30_000 || delay === 40_000 ? 5 : delay, ...args)) as typeof setTimeout;
+  let aborted = false;
+  const slowBody = (request: Request): Response => {
+    const bytes = new TextEncoder().encode(envelope());
+    let offset = 0;
+    return new Response(new ReadableStream({
+      pull(controller) {
+        return new Promise<void>((resolve) => {
+          originalSetTimeout(() => {
+            if (request.signal.aborted) { aborted = true; controller.error(new DOMException("Timed out", "AbortError")); return resolve(); }
+            if (offset >= bytes.length) { controller.close(); return resolve(); }
+            controller.enqueue(bytes.slice(offset, offset + 64));
+            offset += 64;
+            resolve();
+          }, 4);
+        });
+      },
+    }), { status: 200, headers: { "content-type": "application/json" } });
+  };
+  // An OpenAI-shaped completion whose content is the merge/analysis reply.
+  const envelope = (): string => JSON.stringify({
+    choices: [{
+      index: 0,
+      finish_reason: "stop",
+      message: {
+        role: "assistant",
+        content: JSON.stringify({
+          lines: [{ arabic: "شلونك اليوم" }, { arabic: "الحمد لله بخير" }],
+          dialect: "Gulf",
+          difficulty: "Beginner",
+          vocabulary: [],
+          grammarPoints: [],
+        }),
+      },
+    }],
+  });
+  const fn = await loadFunction("analyze-gulf-arabic", {
+    env: { FANAR_API_KEY: undefined },
+    upstreams: allowed({
+      "openrouter.ai": slowBody,
+      "generativelanguage.googleapis.com": slowBody,
+    }),
+  });
+  try {
+    const response = await fn.handler(jsonRequest("analyze-gulf-arabic", {
+      transcript: "شلونك اليوم الحمد لله بخير",
+    }));
+    const body = await response.json() as { success?: boolean; partial?: boolean; result?: { lines?: Array<{ arabic: string }> } };
+    assertEquals(response.status, 200);
+    assertEquals(aborted, false, "a body still arriving within its generation budget must not be cut off");
+    assertEquals(Boolean(body.partial), false);
+    assertEquals(body.result?.lines?.map((l) => l.arabic), ["شلونك اليوم", "الحمد لله بخير"]);
+  } finally {
+    fn.restore();
+    globalThis.setTimeout = originalSetTimeout;
+  }
+});
+
+Deno.test("never hands a merge failure back as one line", async () => {
+  // Every model answers with something that is not a transcript, so the merge
+  // fails and the punctuation fallback runs — on ASR text that, like most
+  // Arabic ASR output, has no punctuation in it. That used to come back as a
+  // single line the length of the clip.
+  const words = [
+    "شلونك", "اليوم", "الحمد", "لله", "بخير", "وانت", "شخبارك", "والله", "زين",
+    "الحين", "وين", "رايح", "بروح", "السوق", "اشتري", "اغراض", "للبيت", "طيب",
+    "الله", "يوفقك", "يعني", "بشوفك", "بكره", "ان", "شاء", "الله", "مع", "السلامة",
+  ];
+  const fn = await loadFunction("analyze-gulf-arabic", {
+    env: { FANAR_API_KEY: undefined },
+    upstreams: allowed({
+      "openrouter.ai": () => chatCompletion("Sorry, I cannot help with that."),
+      "generativelanguage.googleapis.com": () => chatCompletion("Sorry, I cannot help with that."),
+    }),
+  });
+  try {
+    const response = await fn.handler(jsonRequest("analyze-gulf-arabic", { transcript: words.join(" ") }));
+    const body = await response.json() as { success?: boolean; partial?: boolean; result?: { lines?: Array<{ arabic: string }> } };
+    assertEquals(response.status, 200);
+    assertEquals(body.partial, true);
+    const lines = body.result?.lines ?? [];
+    assert(lines.length > 1, `expected the fallback to break ${words.length} words into lines, got ${lines.length}`);
+    for (const line of lines) assert(line.arabic.split(/\s+/).length <= 12, `over-long fallback line: ${line.arabic}`);
+    assertEquals(lines.map((l) => l.arabic).join(" "), words.join(" "));
+  } finally {
+    fn.restore();
+  }
 });

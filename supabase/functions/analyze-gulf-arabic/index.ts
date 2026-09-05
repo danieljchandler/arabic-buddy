@@ -32,6 +32,7 @@ import {
 } from "../_shared/fushaBridge.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { chatFetch, hasAnyProvider, providerForModel, type Provider } from "../_shared/aiGateway.ts";
+import { splitOverlongLines } from "../_shared/transcriptLineSplit.ts";
 import {
   decideAudio,
   dropNonArabicLines,
@@ -163,6 +164,46 @@ function haveTimeFor(needMs: number, label: string): boolean {
   if (left >= needMs) return true;
   console.warn(`[budget] Skipping ${label}: ${Math.round(left / 1000)}s left, needs ~${Math.round(needMs / 1000)}s`);
   return false;
+}
+
+/**
+ * How long a model call may wait for the provider to start answering.
+ *
+ * A provider that has not sent headers in this long is queued, down or
+ * unreachable, and the alternates are the better bet.
+ */
+const CONNECT_TIMEOUT_MS = 40_000;
+/** Fanar is intermittently slow; it gets less patience for the same reason. */
+const FANAR_CONNECT_TIMEOUT_MS = 30_000;
+/** Longest any one call may spend writing its answer, however large. */
+const GENERATION_CEILING_MS = 120_000;
+
+/**
+ * How long a call may take to finish writing once it has started answering.
+ *
+ * One deadline used to cover the whole call, and it was sized for the wait
+ * for headers: 40 seconds. That was fine while it only covered the wait for
+ * headers, but a deadline that stays armed while the body streams in — which
+ * it must, or a provider that stalls mid-answer hangs the run — is a ceiling
+ * on the *generation*. The merge writes every line of a clip fully voweled
+ * inside a JSON envelope, up to 8k tokens of it, and the translation ensemble
+ * is allowed 16k; at the rates the lineup actually delivers on Arabic that is
+ * a minute or two, not forty seconds. Cutting it off at forty threw the merge
+ * away for anything longer than a short clip, and the fallback that then ran
+ * splits the raw ASR text on punctuation Arabic ASR does not produce — which
+ * is how a whole video came back as one line with no translation.
+ *
+ * So the generation gets a budget of its own, scaled to what it was asked to
+ * write and never past the run's own deadline, less the margin the final
+ * write needs.
+ */
+function generationBudgetMs(maxTokens: number): number {
+  // Forty tokens a second is the slow end of what the lineup delivers on
+  // voweled Arabic JSON; faster models simply finish early.
+  const forTokens = Math.ceil(maxTokens / 40) * 1_000;
+  const ceiling = Math.min(GENERATION_CEILING_MS, Math.max(CONNECT_TIMEOUT_MS, forTokens));
+  const left = timeLeftMs() - 15_000;
+  return Math.max(5_000, Math.min(ceiling, left));
 }
 
 /**
@@ -853,14 +894,16 @@ async function callAI({
   model = MODEL_IDS.QWEN,
 }: CallAIArgs): Promise<{ content: string | null; error?: string; status?: number }> {
     const controller = new AbortController();
-    // Tightened from 55s → 40s so the full multi-stage pipeline (Call 1 + parallel
-    // Call 2 stage + possible retries) fits within the edge runtime's 150s idle
-    // timeout. Slow models will be aborted and fall back to alternates.
-    const timeoutMs = 40_000;
-    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    // Two deadlines on one signal. The first is the wait for headers — a
+    // provider that has not started answering in 40s is queued or down, and
+    // the alternates are the better bet. The second is re-armed once headers
+    // arrive and covers reading the body: fetch() resolves on headers while
+    // the model is still writing, so a deadline that stopped there let a
+    // provider stall mid-answer and hang the run. Sized separately because
+    // the two are different questions — see generationBudgetMs.
+    let timeoutMs = CONNECT_TIMEOUT_MS;
+    let timeout = setTimeout(() => controller.abort(), timeoutMs);
 
-    // Keep the deadline armed until the body has been consumed. fetch() can
-    // resolve on headers while a provider is still generating its response.
     try {
     const startedAt = Date.now();
     let response: Response;
@@ -886,6 +929,12 @@ async function callAI({
 
     const elapsedMs = Date.now() - startedAt;
     console.log('AI provider response:', { status: response.status, ok: response.ok, isRetry, elapsedMs });
+
+    // Headers are in: the model has started writing. Re-arm for the body with
+    // a budget sized to what it was asked to write.
+    clearTimeout(timeout);
+    timeoutMs = generationBudgetMs(maxTokens);
+    timeout = setTimeout(() => controller.abort(), timeoutMs);
  
    if (!response.ok) {
      const errorText = await response.text();
@@ -898,8 +947,13 @@ async function callAI({
    try {
      responseText = await response.text();
    } catch (e) {
-     console.error('Failed to read response body:', e);
-     return { content: null, error: 'Failed to read AI response body', status: 500 };
+     const isAbort = controller.signal.aborted || (e instanceof DOMException && e.name === 'AbortError');
+     console.error('Failed to read response body:', { isRetry, isAbort, elapsedMs: Date.now() - startedAt, error: String(e) });
+     return {
+       content: null,
+       error: isAbort ? `AI response timed out after ${timeoutMs}ms of generation` : 'Failed to read AI response body',
+       status: isAbort ? 504 : 500,
+     };
    }
    
    if (!responseText || responseText.trim().length === 0) {
@@ -944,10 +998,11 @@ async function callFanar({
   temperature = 0.2,
 }: CallFanarArgs): Promise<{ content: string | null; error?: string; status?: number }> {
   const controller = new AbortController();
-  // Fanar is known to be intermittently slow/unstable — keep its timeout short so
-  // it can't single-handedly stall the parallel stage past the 150s edge budget.
-  const timeoutMs = 30_000;
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  // Same two-phase deadline as callAI: a short wait for headers, because Fanar
+  // is intermittently slow and must not stall the parallel stage on its own,
+  // then a generation budget once it has started answering.
+  let timeoutMs = FANAR_CONNECT_TIMEOUT_MS;
+  let timeout = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
   const startedAt = Date.now();
@@ -984,6 +1039,10 @@ async function callFanar({
   const elapsedMs = Date.now() - startedAt;
   console.log('Fanar response:', { model, status: response.status, ok: response.ok, elapsedMs });
 
+  clearTimeout(timeout);
+  timeoutMs = generationBudgetMs(maxTokens);
+  timeout = setTimeout(() => controller.abort(), timeoutMs);
+
   if (!response.ok) {
     const errorText = await response.text();
     console.error('Fanar error body (first 800 chars):', errorText?.slice?.(0, 800) ?? errorText);
@@ -994,8 +1053,13 @@ async function callFanar({
   try {
     responseText = await response.text();
   } catch (e) {
-    console.error('Failed to read Fanar response body:', e);
-    return { content: null, error: 'Failed to read Fanar response body', status: 500 };
+    const isAbort = controller.signal.aborted || (e instanceof DOMException && e.name === 'AbortError');
+    console.error('Failed to read Fanar response body:', { model, isAbort, elapsedMs: Date.now() - startedAt, error: String(e) });
+    return {
+      content: null,
+      error: isAbort ? `Fanar response timed out after ${timeoutMs}ms of generation` : 'Failed to read Fanar response body',
+      status: isAbort ? 504 : 500,
+    };
   }
 
   if (!responseText || responseText.trim().length === 0) {
@@ -1252,7 +1316,7 @@ function createFallbackResult(transcript: string): TranscriptResult {
     .map(s => s.trim())
     .filter(s => s.length > 0);
 
-  const lines: TranscriptLine[] = sentences.map((sentence, index) => ({
+  const bySentence: TranscriptLine[] = sentences.map((sentence, index) => ({
     id: `line-${generateId()}-${index}`,
     arabic: sentence,
     translation: '',
@@ -1261,6 +1325,16 @@ function createFallbackResult(transcript: string): TranscriptResult {
       surface: word,
     })),
   }));
+
+  // Arabic ASR output mostly has no punctuation, so the split above tends to
+  // hand a whole clip back as one line — which every line-by-line feature
+  // downstream then has nothing to do with. Break the long ones at clause
+  // openers and the merge prompt's own word cap; the pipeline re-breaks them
+  // at the speaker's real pauses once it has word timings.
+  const { lines } = splitOverlongLines(bySentence, {
+    maxWords: 12,
+    pieceId: (parent, n) => `${parent.id}-${n}`,
+  });
 
   return {
     rawTranscriptArabic: transcript,

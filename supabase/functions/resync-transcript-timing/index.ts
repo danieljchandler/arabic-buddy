@@ -10,6 +10,14 @@
 // timed words back onto the stored lines through the same text-anchoring
 // module the pipeline uses, and returns the re-timed lines.
 //
+// A line the length of a paragraph — the shape a transcript takes when the
+// analysis's merge failed and its punctuation fallback handed the whole clip
+// back as one line — is broken at the speaker's pauses once the words carry
+// real times (`_shared/transcriptLineSplit.ts`), and the new pieces get their
+// English drafted, best effort, so the reviewer is handed lines and not a
+// list of blanks. Lines of a sensible length keep their text exactly as
+// written: this is a timing pass, not an edit.
+//
 // By default nothing is written: the transcript editor shows the proposal
 // through its diff preview and persists an accepted one via transcript-review
 // `save_lines` (source "resync"), which is the audited write path. A caller
@@ -19,7 +27,13 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { requireRole, TRANSCRIPT_EDITOR_ROLES } from "../_shared/requireRole.ts";
 import { alignLinesToAsrWords, type TimedAsrWord } from "../_shared/transcriptTimingAlign.ts";
+import { splitOverlongLines } from "../_shared/transcriptLineSplit.ts";
 import { diffTranscriptRevisions } from "../_shared/transcriptRevisionCore.ts";
+import { normalizeDialect } from "../_shared/transcriptDiffCore.ts";
+import { subvarietyPromptHint } from "../_shared/dialectSubvarieties.ts";
+import { askBrain } from "../_shared/aiBrain.ts";
+import { getLineup } from "../_shared/modelRegistry.ts";
+import type { Dialect } from "../_shared/dialectTypes.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -37,10 +51,101 @@ function admin() {
 interface TranscriptLine {
   id?: string;
   arabic?: string;
+  translation?: string;
+  literal?: string;
   startMs?: number;
   endMs?: number;
   segmentType?: string;
   [key: string]: unknown;
+}
+
+/** The English drafted for one piece of a split line. */
+interface DraftedEnglish {
+  translation: string;
+  literal?: string;
+}
+
+/**
+ * Draft the English for the pieces a split produced.
+ *
+ * A translation described the whole line it was written for and cannot be
+ * divided among the pieces, so they arrive blank. Handing a reviewer twenty
+ * blanks after they pressed a timing button is not a fix, so the pieces are
+ * translated here in one call — best effort: a model that is down or slow
+ * costs the pieces their English, never the re-sync. Only the pieces are
+ * sent; a line the reviewer wrote keeps the translation they gave it.
+ */
+async function draftEnglishForPieces(
+  pieces: TranscriptLine[],
+  video: { dialect?: unknown; dialect_subvariety?: unknown },
+): Promise<Map<string, DraftedEnglish>> {
+  const drafted = new Map<string, DraftedEnglish>();
+  if (pieces.length === 0) return drafted;
+
+  // `discover_videos.dialect` carries city-level labels the brain's rulebook
+  // has no prompts for; normalizeDialect collapses them onto the three it does.
+  const dialect: Dialect = normalizeDialect(video.dialect) ?? "Gulf";
+  const variety = subvarietyPromptHint(video.dialect, video.dialect_subvariety);
+  const numbered = pieces.map((p, i) => `${i + 1}. ${String(p.arabic ?? "")}`).join("\n");
+
+  try {
+    const brain = await askBrain<{ lines?: Array<{ index?: number; translation?: string; literal?: string }> }>({
+      purpose: "transcript_resync_piece_translation",
+      dialect,
+      strategy: "solo",
+      models: [...getLineup("TRANSLATION").drafters],
+      // The output is English; the MSA repair pass has nothing to repair.
+      skipRepair: true,
+      maxTokens: Math.min(4_000, 200 + 90 * pieces.length),
+      temperature: 0.2,
+      // The whole call has to fit inside the browser's wait for this
+      // function alongside the forced alignment that already ran.
+      budgetMs: 45_000,
+      callTimeoutMs: 40_000,
+      userPrompt:
+        `These are consecutive lines of a spoken ${dialect} Arabic transcript. They were ` +
+        `just cut from longer lines at the speaker's pauses, so each one is a clause or ` +
+        `a short sentence and the ones next to it are its context.\n\n` +
+        (variety ? `The reviewer has identified this clip as: ${variety}\n\n` : "") +
+        `For every numbered line give a natural, plain English translation for a learner ` +
+        `and a word-for-word literal gloss that keeps the Arabic word order. Translate ` +
+        `each line on its own; do not merge or renumber them.\n\n${numbered}`,
+      tool: {
+        name: "emit_line_translations",
+        description: "Natural and literal English for each numbered line.",
+        parameters: {
+          type: "object",
+          properties: {
+            lines: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  index: { type: "integer", description: "The line's number, starting at 1." },
+                  translation: { type: "string", description: "Natural English." },
+                  literal: { type: "string", description: "Word-for-word gloss." },
+                },
+                required: ["index", "translation"],
+              },
+            },
+          },
+          required: ["lines"],
+        },
+      },
+    });
+    for (const entry of brain.output?.lines ?? []) {
+      const index = Number(entry?.index);
+      const piece = Number.isInteger(index) ? pieces[index - 1] : undefined;
+      const translation = String(entry?.translation ?? "").trim();
+      if (!piece?.id || !translation) continue;
+      const literal = String(entry?.literal ?? "").trim();
+      drafted.set(piece.id, { translation, ...(literal ? { literal } : {}) });
+    }
+  } catch (e) {
+    console.warn("[resync] drafting English for split lines failed (pieces left for review):",
+      e instanceof Error ? e.message : String(e));
+  }
+  return drafted;
 }
 
 /** One word from the forced-alignment response. */
@@ -161,7 +266,7 @@ Deno.serve(async (req) => {
 
     const { data: video } = await admin()
       .from("discover_videos")
-      .select("id, source_url, duration_seconds, transcript_lines")
+      .select("id, source_url, duration_seconds, transcript_lines, dialect, dialect_subvariety")
       .eq("id", videoId)
       .maybeSingle();
     if (!video) return json({ error: "video_not_found" }, 404, cors);
@@ -230,7 +335,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const retimed = lines.map((line, i) => ({
+    const retimed: TranscriptLine[] = lines.map((line, i) => ({
       ...line,
       startMs: timings[i].startMs,
       endMs: timings[i].endMs,
@@ -240,11 +345,46 @@ Deno.serve(async (req) => {
     const total = timings.reduce((acc, l) => acc + l.words.length, 0);
     console.log(`[resync] ${videoId}: ${matched}/${total} words matched`);
 
+    // With real times on every word, a line the length of a paragraph can be
+    // broken where the speaker actually paused. Lines of a sensible length
+    // come through untouched — a reviewer's segmentation is ground truth.
+    const { lines: split, splits } = splitOverlongLines(retimed);
+    const parentOf = new Map<string, string>();
+    for (const s of splits) for (const id of s.pieceIds) parentOf.set(id, s.parentId);
+    const pieces = split.filter((l) => typeof l.id === "string" && parentOf.has(l.id));
+    let translated = 0;
+    if (pieces.length > 0) {
+      console.log(`[resync] ${videoId}: split ${splits.length} over-long line(s) into ${pieces.length}`);
+      const drafted = await draftEnglishForPieces(pieces, video);
+      for (const piece of pieces) {
+        const english = drafted.get(String(piece.id));
+        if (!english) continue;
+        piece.translation = english.translation;
+        if (english.literal) piece.literal = english.literal;
+        // No longer "empty": the flag the splitter set described a blank.
+        delete piece.needs_review;
+        delete piece.review_reason;
+        translated += 1;
+      }
+    }
+    const summary = {
+      matched,
+      total,
+      splitCount: splits.length,
+      // Which lines are new, for the editor; only the response carries it.
+      pieceCount: pieces.length,
+      translated: pieces.length > 0 && translated === pieces.length,
+    };
+    const answer = split.map((line) => {
+      const parent = typeof line.id === "string" ? parentOf.get(line.id) : undefined;
+      return parent ? { ...line, splitFrom: parent } : line;
+    });
+
     if (persist) {
-      const revisions = diffTranscriptRevisions(lines, retimed);
+      const revisions = diffTranscriptRevisions(lines, split);
       const { error } = await admin()
         .from("discover_videos")
-        .update({ transcript_lines: retimed })
+        .update({ transcript_lines: split })
         .eq("id", videoId);
       if (error) return json({ error: "save_failed", message: error.message }, 500, cors);
       if (revisions.length > 0) {
@@ -261,10 +401,10 @@ Deno.serve(async (req) => {
         );
         if (logErr) console.error("[resync] revision log failed:", logErr.message);
       }
-      return json({ saved: true, lines: retimed, matched, total }, 200, cors);
+      return json({ saved: true, lines: answer, ...summary }, 200, cors);
     }
 
-    return json({ lines: retimed, matched, total }, 200, cors);
+    return json({ lines: answer, ...summary }, 200, cors);
   } catch (e) {
     console.error("resync-transcript-timing error:", e);
     return json({ error: e instanceof Error ? e.message : "Unknown error" }, 500, cors);

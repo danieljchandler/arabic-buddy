@@ -2714,6 +2714,15 @@ serve(async (req) => {
             console.warn('[analyze] Pre-enrichment save failed (continuing):', safetyErr.message);
           } else {
             console.log(`[analyze] Saved a usable transcript for ${pipelineVideoId} before enriching it`);
+            // This is the first durable, complete-enough result. Hand it off
+            // now, not after the optional enrichment below. The pipeline
+            // watcher that started this request can be torn down while this
+            // function is working; without this callback the row remains on
+            // analysis_complete until an admin-page nudge, and that nudge can
+            // resume the analyze checkpoint and start the expensive analysis
+            // over again. finalize is conditional/idempotent, so the watcher
+            // and this callback racing is safe.
+            finalizeViaPipeline(pipelineVideoId);
           }
         } catch (e) {
           console.warn('[analyze] Pre-enrichment save failed (continuing):', e instanceof Error ? e.message : String(e));

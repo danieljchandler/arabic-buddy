@@ -361,14 +361,10 @@ describe("moving a timestamp", () => {
     // past the next one moves that one out of the way.
     expect(result.current.segments[1].start).toBe(5);
 
-    // Pinned. It moves the neighbour's `start` and never its `end`, so the
-    // segment is left inverted — starting at 5 and ending at 4, a subtitle of
-    // negative duration that will never display. The cascade then stops,
-    // because the next comparison reads that untouched `end`: the third line
-    // keeps its original timing and the transcript is silently broken in the
-    // middle rather than shifted.
-    expect(result.current.segments[1].end).toBe(4);
-    expect(result.current.segments[2].start).toBe(4);
+    // Crossing the whole neighbour collapses it to a safe boundary rather than
+    // leaving a negative-duration line, and the repair continues to the right.
+    expect(result.current.segments[1].end).toBe(5);
+    expect(result.current.segments[2].start).toBe(5);
   });
 
   it("stops rippling as soon as there is room", () => {
@@ -392,10 +388,11 @@ describe("moving a timestamp", () => {
     });
 
     expect(result.current.segments[1].end).toBe(1);
-    // Same inversion in the other direction: the neighbour now ends before it
-    // starts, and the cascade halts against its unchanged `start`.
-    expect(result.current.segments[1].start).toBe(2);
-    expect(result.current.segments[0].end).toBe(2);
+    // Crossing the whole neighbour repairs its start too and continues left,
+    // so the line starts remain monotone and the server can accept the save.
+    expect(result.current.segments[1].start).toBe(1);
+    expect(result.current.segments[0].end).toBe(1);
+    expect(result.current.segments[0].start).toBe(0);
   });
 
   it("keeps the cascade to millisecond precision", () => {
@@ -572,7 +569,8 @@ describe("undo and redo", () => {
     });
 
     expect(result.current.segments[1].start).toBe(5);
-    expect(result.current.segments[2].start).toBe(4);
+    expect(result.current.segments[1].end).toBe(5);
+    expect(result.current.segments[2].start).toBe(5);
   });
 
   it("walks back through several operations", () => {

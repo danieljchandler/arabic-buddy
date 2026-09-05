@@ -686,7 +686,15 @@ touched, however long a pause it spans — its segmentation and its translation
 are somebody's deliberate work. Pieces cut from a line keep its other fields
 and their share of its `words` and `tokens` (glosses included), but a
 translation described the whole line and cannot be divided, so a piece arrives
-with an empty one flagged `needs_review` / `review_reason: "empty"`.
+with an empty one flagged `needs_review` / `review_reason: "empty"`. That is
+why the pipeline splits a *translated* long line only once English has been
+drafted for every piece (`_shared/transcriptPieceTranslation.ts`, one call to
+the `TRANSLATION` lineup, shared with the Re-sync button) and otherwise keeps
+the line whole with the English it had — the first run of the splitter cut
+every line the merge left over fourteen words and the transcript came through
+line by line and untranslated. A line with no translation is split freely. The
+analyser's rule-split fallback now also translates its lines with one cheap
+call, so even a failed merge no longer arrives without English.
 
 Why the merge failed in the first place is worth recording, because two
 rounds of timeout tuning treated it as a timing problem. The lineup refresh of

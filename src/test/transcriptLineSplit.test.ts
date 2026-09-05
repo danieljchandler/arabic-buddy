@@ -204,6 +204,15 @@ describe("splitOverlongLines", () => {
     expect(lines.map((l) => l.arabic).join(" ")).toBe(twentyWords.join(" "));
   });
 
+  it("leaves lines the caller rules out alone, however long", () => {
+    const translated = { ...chunk, id: "kept" };
+    const { lines, splits } = splitOverlongLines([translated, { ...chunk, id: "cut", translation: "" }], {
+      only: (l) => !String(l.translation ?? "").trim(),
+    });
+    expect(lines[0]).toBe(translated);
+    expect(splits.map((s) => s.parentId)).toEqual(["cut"]);
+  });
+
   it("mints ids the way the caller asks", () => {
     const { lines } = splitOverlongLines([chunk], { pieceId: (p, n) => `${p.id}~${n}` });
     expect(lines[0].id).toBe("line-1~1");

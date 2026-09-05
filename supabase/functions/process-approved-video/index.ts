@@ -25,6 +25,7 @@ import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { alignLinesToAsrWords } from "../_shared/transcriptTimingAlign.ts";
 import { splitOverlongLines } from "../_shared/transcriptLineSplit.ts";
+import { draftEnglishForPieces } from "../_shared/transcriptPieceTranslation.ts";
 import {
   buildVisualContextText,
   segmentsFromLegacyLines,
@@ -75,6 +76,7 @@ interface PipelineLine extends Json {
 interface VideoRow extends Json {
   source_url?: string | null;
   dialect?: string | null;
+  dialect_subvariety?: string | null;
   title?: string | null;
   title_arabic?: string | null;
   is_meme?: boolean | null;
@@ -672,9 +674,12 @@ async function loadVisualContext(ctx: PipelineContext): Promise<VisualContext> {
  * English-tuned segmentation returned far fewer Arabic words, so later
  * lines ended up with undefined timestamps.)
  */
+const hasTranslation = (line: PipelineLine): boolean =>
+  String(line?.translation ?? "").trim().length > 0;
+
 /**
  * Break any line the length of a paragraph into subtitle lines at the
- * speaker's pauses.
+ * speaker's pauses — without ever losing a translation to do it.
  *
  * The analysis is supposed to hand back lines of a dozen words at most, and
  * usually does. When its merge fails it falls back to splitting the raw ASR
@@ -682,19 +687,68 @@ async function loadVisualContext(ctx: PipelineContext): Promise<VisualContext> {
  * arrives here as one line, which then has nothing for the caption highlight,
  * phrase pause, shadowing or the review workspace to work with. Once the
  * alignment above has put real times on every word, the right boundaries are
- * measurable rather than guessed: see _shared/transcriptLineSplit.ts. Lines
- * of a sensible length pass through untouched.
+ * measurable rather than guessed: see _shared/transcriptLineSplit.ts.
+ *
+ * A line with no translation is split freely: nothing is lost. A translated
+ * line is a different matter — its English described the whole line and
+ * cannot be divided among the pieces, so the pieces would arrive blank. That
+ * is what a run of this stage did to every line the merge left over fourteen
+ * words: the transcript came through line by line and untranslated. So a
+ * translated line is split only once English has actually been drafted for
+ * every piece (`_shared/transcriptPieceTranslation.ts`); when the model is
+ * down, or any piece comes back blank, the line stays whole with the English
+ * it had. A long caption beats a missing one.
  */
-function splitLongLines(lines: PipelineLine[]): PipelineLine[] {
-  const { lines: split, splits } = splitOverlongLines(lines);
-  if (splits.length > 0) {
-    console.log(
-      `[pipeline] Split ${splits.length} over-long line(s) into ${
-        splits.reduce((acc, s) => acc + s.pieceIds.length, 0)
-      } at the speaker's pauses`,
-    );
+async function splitLongLines(ctx: PipelineContext, lines: PipelineLine[]): Promise<PipelineLine[]> {
+  // Untranslated lines first — free to split.
+  const free = splitOverlongLines(lines, { only: (l) => !hasTranslation(l as PipelineLine) });
+  if (free.splits.length > 0) {
+    console.log(`[pipeline] Split ${free.splits.length} untranslated over-long line(s) at the speaker's pauses`);
   }
-  return split;
+
+  // Translated lines: split provisionally, then keep the split only where the
+  // pieces got English of their own.
+  const provisional = splitOverlongLines(free.lines, { only: (l) => hasTranslation(l as PipelineLine) });
+  if (provisional.splits.length === 0) return free.lines;
+
+  const parentOf = new Map<string, string>();
+  for (const s of provisional.splits) for (const id of s.pieceIds) parentOf.set(id, s.parentId);
+  const pieces = provisional.lines.filter((l) => typeof l.id === "string" && parentOf.has(l.id));
+  const drafted = await draftEnglishForPieces(pieces, {
+    dialect: ctx.video.dialect,
+    dialect_subvariety: ctx.video.dialect_subvariety,
+  });
+
+  const complete = new Set<string>();
+  for (const s of provisional.splits) {
+    if (s.pieceIds.every((id) => drafted.has(id))) complete.add(s.parentId);
+  }
+  const originals = new Map(free.lines.map((l) => [String(l.id ?? ""), l]));
+
+  const out: PipelineLine[] = [];
+  let restored = 0;
+  for (const line of provisional.lines) {
+    const id = String(line.id ?? "");
+    const parent = parentOf.get(id);
+    if (!parent) { out.push(line); continue; }
+    if (!complete.has(parent)) {
+      // Keep the parent whole, once, in the place its first piece held.
+      const original = originals.get(parent);
+      if (original && out[out.length - 1] !== original) { out.push(original); restored += 1; }
+      continue;
+    }
+    const english = drafted.get(id)!;
+    const piece: PipelineLine = { ...line, translation: english.translation };
+    if (english.literal) piece.literal = english.literal;
+    delete piece.needs_review;
+    delete piece.review_reason;
+    out.push(piece);
+  }
+  console.log(
+    `[pipeline] Split ${complete.size} translated over-long line(s) with English drafted for the pieces` +
+      (restored > 0 ? `; kept ${restored} whole because their pieces could not be translated` : ""),
+  );
+  return out;
 }
 
 function alignLinesToAudio(
@@ -1991,6 +2045,7 @@ async function runFinalizeStage(ctx: PipelineContext, cp: Checkpoint): Promise<v
       0;
     const align = (rawLines: PipelineLine[]) =>
       splitLongLines(
+        ctx,
         alignLinesToAudio(rawLines, asr?.alignmentWords ?? [], asr?.alignmentSource ?? "no engine", audioDurationMs),
       );
     const audio = cp.audio ??
@@ -2011,7 +2066,7 @@ async function runFinalizeStage(ctx: PipelineContext, cp: Checkpoint): Promise<v
 
     if (refreshed?.transcription_status === "analysis_complete") {
       const rawLines = (refreshed.transcript_lines as PipelineLine[]) || [];
-      const lines = align(withoutOnScreenLines(rawLines));
+      const lines = await align(withoutOnScreenLines(rawLines));
       const title = refreshed.title || video.title;
       const titleArabic = refreshed.title_arabic || video.title_arabic;
 
@@ -2035,7 +2090,7 @@ async function runFinalizeStage(ctx: PipelineContext, cp: Checkpoint): Promise<v
       // itself (it says so on the row when a save fails; this is the quieter
       // case). Persist what it sent.
       const result = cp.httpResult.result;
-      const lines = align(withoutOnScreenLines(result.lines || []));
+      const lines = await align(withoutOnScreenLines(result.lines || []));
 
       const sanitizedLines = lines.map((line) => ({
         ...line,

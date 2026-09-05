@@ -65,6 +65,13 @@ export interface SplitOptions {
   longPauseMs?: number;
   /** The id given to piece `n` (1-based) of `parent`. */
   pieceId?: (parent: SplittableLine, n: number) => string;
+  /**
+   * Which lines may be split at all; the rest pass through untouched however
+   * long they are. The pipeline uses it to split freely only where nothing is
+   * lost — a line with no translation — and to hold a translated line back
+   * until it knows it can give the pieces English of their own.
+   */
+  only?: (line: SplittableLine) => boolean;
 }
 
 export interface LineSplit {
@@ -260,6 +267,7 @@ export function splitOverlongLines<L extends object>(
     // editor's), all of them JSON off the same column; the fields read here
     // are checked at runtime rather than demanded of the type.
     const line = raw as SplittableLine;
+    if (opts.only && !opts.only(line)) { out.push(raw); continue; }
     const { words, real } = timedWords(line);
     const breaks = words.length >= 2 ? chooseLineBreaks(words, opts) : [];
     if (breaks.length === 0) { out.push(raw); continue; }

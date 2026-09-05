@@ -1834,7 +1834,8 @@ async function recordForPipeline(
 /** The note left on a transcript whose merge failed and was split by rule instead. */
 const MERGE_FAILED_NOTE =
   'The AI merge of the transcription engines did not produce lines, so the raw transcript was ' +
-  'split by rule and has no translations. Use Download & Re-transcribe to run the analysis again.';
+  'split by rule and translated line by line without the usual review. Use Download & ' +
+  'Re-transcribe to run the analysis again.';
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -2183,6 +2184,18 @@ serve(async (req) => {
        console.error('Call 1 failed: could not produce merged transcript. Skipping Call 2.');
        partial = true;
        const fallback = createFallbackResult(transcript);
+       // The lines are the raw ASR text split by rule, but they are lines, and
+       // a line can be translated: one cheap call gives the learner English
+       // where the ensemble never got to run. Best effort, inside the budget.
+       if (fallback.lines.length > 0 && haveTimeFor(50_000, 'translating the rule-split fallback')) {
+         const english = await fallbackLineTranslate(fallback.lines.map((l) => l.arabic), DIALECT_MODULE);
+         fallback.lines.forEach((line, i) => {
+           const t = (english[i] ?? '').trim();
+           if (t) line.translation = t;
+         });
+         const filled = fallback.lines.filter((l) => l.translation).length;
+         console.log(`Fallback transcript: ${filled}/${fallback.lines.length} lines translated`);
+       }
        // The pipeline reads the row, and by now the gateway may well have
        // dropped this reply. A rule-split transcript with a note saying so is
        // a poor result, but a result — the alternative was a row left on

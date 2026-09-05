@@ -372,10 +372,12 @@ async function runAnalysis(
     upstreams: allowed({
       "openrouter.ai": () => analysisReply(),
       "generativelanguage.googleapis.com": () => analysisReply(),
-      "/rest/v1/discover_videos": (request) =>
-        request.method === "GET"
-          ? json({ transcription_status: videoStatus, engines_used: null }, 200)
-          : json([{ id: PIPELINE_VIDEO }], 200),
+      "/rest/v1/discover_videos": (request) => {
+        if (request.method === "GET") return json({ transcription_status: videoStatus, engines_used: null }, 200);
+        // Model PostgREST's conditional update, including the lost-claim case.
+        const filter = new URL(request.url).searchParams.get("transcription_status");
+        return json(filter === "neq.completed" && videoStatus === "completed" ? [] : [{ id: PIPELINE_VIDEO }], 200);
+      },
       "/rest/v1/processed_videos": () => json({}, 201),
       "/functions/v1/process-approved-video": () => json({ success: true }, 202),
     }),
@@ -434,6 +436,100 @@ Deno.test("does not undo a row the pipeline already finished", async () => {
   assert("grammar_points" in last);
 });
 
+Deno.test("keeps completion and aligned lines when finalization wins during the enrichment save", async () => {
+  const aligned = [{ id: "aligned", arabic: "شلونك اليوم", startMs: 0, endMs: 3000 }];
+  const row: Record<string, unknown> = { transcription_status: "processing", engines_used: null };
+  let raced = false;
+  const fn = await loadFunction("analyze-gulf-arabic", {
+    upstreams: allowed({
+      "openrouter.ai": () => analysisReply(),
+      "generativelanguage.googleapis.com": () => analysisReply(),
+      "/functions/v1/process-approved-video": () => json({ success: true }, 202),
+      "/rest/v1/discover_videos": async (request) => {
+        if (request.method === "GET") return json(row);
+        const patch = await request.json();
+        if (patch.transcript_lines && patch.engines_used) {
+          // Completion happens AFTER any preflight read but BEFORE the UPDATE.
+          raced = true;
+          Object.assign(row, { transcription_status: "completed", transcript_lines: aligned, cultural_context: "visual + audio" });
+        }
+        const filter = new URL(request.url).searchParams.get("transcription_status");
+        if (filter === "neq.completed" && row.transcription_status === "completed") return json([]);
+        if (filter === "eq.processing" && row.transcription_status !== "processing") return json([]);
+        Object.assign(row, patch);
+        return json([{ id: PIPELINE_VIDEO }]);
+      },
+    }),
+  });
+  try {
+    const response = await fn.handler(jsonRequest("analyze-gulf-arabic", {
+      transcript: "شلونك اليوم الحمد لله بخير", videoId: PIPELINE_VIDEO,
+    }, { jwt: SERVICE_ROLE_KEY }));
+    await fn.background();
+    assertEquals(response.status, 200);
+    assert(raced);
+    assertEquals(row.transcription_status, "completed");
+    assertEquals(row.transcript_lines, aligned);
+    assertEquals(row.cultural_context, "visual + audio");
+    assert(Array.isArray(row.vocabulary));
+  } finally {
+    fn.restore();
+  }
+});
+
+for (const provider of ["openrouter.ai", "api.fanar.qa/v1/chat/completions"]) {
+  Deno.test(`finishes analysis when ${provider} sends headers then stalls its body`, async () => {
+    const originalSetTimeout = globalThis.setTimeout;
+    // Exercise the real timeout path without waiting 30–40 seconds per call.
+    globalThis.setTimeout = ((handler: TimerHandler, delay?: number, ...args: unknown[]) =>
+      originalSetTimeout(handler, delay === 30_000 || delay === 40_000 ? 5 : delay, ...args)) as typeof setTimeout;
+    let stalled = false;
+    let aborted = false;
+    let release: (() => void) | undefined;
+    const fn = await loadFunction("analyze-gulf-arabic", {
+      env: { FANAR_API_KEY: "fixture-fanar-key" },
+      upstreams: allowed({
+        "openrouter.ai": () => analysisReply(),
+        "generativelanguage.googleapis.com": () => analysisReply(),
+        [provider]: (request) => {
+          if (stalled) return analysisReply();
+          stalled = true;
+          return new Response(new ReadableStream({
+            start(controller) {
+              release = () => controller.close();
+              request.signal.addEventListener("abort", () => {
+                aborted = true;
+                release = undefined;
+                controller.error(new DOMException("Timed out", "AbortError"));
+              }, { once: true });
+            },
+          }), { status: 200 });
+        },
+        "/rest/v1/discover_videos": () => json([{ id: PIPELINE_VIDEO }]),
+        "/functions/v1/process-approved-video": () => json({ success: true }, 202),
+      }),
+    });
+    // On the broken code this releases the hung body, letting the test fail
+    // its abort assertion rather than hanging the entire test suite.
+    const watchdog = originalSetTimeout(() => release?.(), 500);
+    try {
+      const response = await fn.handler(jsonRequest("analyze-gulf-arabic", {
+        transcript: "شلونك اليوم الحمد لله بخير", videoId: PIPELINE_VIDEO,
+      }, { jwt: SERVICE_ROLE_KEY }));
+      await fn.background();
+      assertEquals(response.status, 200);
+      assert(stalled);
+      assert(aborted, "the provider deadline must cover reading the response body");
+      assert(fn.calls.some((c) => c.method === "PATCH" && c.body?.includes('"analysis_complete"')));
+    } finally {
+      clearTimeout(watchdog);
+      release?.();
+      fn.restore();
+      globalThis.setTimeout = originalSetTimeout;
+    }
+  });
+}
+
 Deno.test("gives up its embellishments rather than the run when time is short", async () => {
   // The budget is what stops the chain of optional stages from outlasting the
   // worker. Squeezed to nothing, the extras — the Fusha row, the arbitration
@@ -470,6 +566,10 @@ Deno.test("gives up its embellishments rather than the run when time is short", 
       counts[label] = fn.calls.filter((c) =>
         c.url.includes("openrouter.ai") || c.url.includes("generativelanguage.googleapis.com")
       ).length;
+      if (label === "squeezed") {
+        assertEquals(fn.calls.some((c) => c.body?.includes("Vocabulary list to enrich")), false);
+        assertEquals(fn.calls.some((c) => c.body?.includes("Translate each of these Arabic words")), false);
+      }
     } finally {
       fn.restore();
     }

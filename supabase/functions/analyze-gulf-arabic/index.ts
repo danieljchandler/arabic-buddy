@@ -859,6 +859,9 @@ async function callAI({
     const timeoutMs = 40_000;
     const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
+    // Keep the deadline armed until the body has been consumed. fetch() can
+    // resolve on headers while a provider is still generating its response.
+    try {
     const startedAt = Date.now();
     let response: Response;
     try {
@@ -879,8 +882,6 @@ async function callAI({
         error: isAbort ? `AI request timed out after ${timeoutMs}ms` : String(e),
         status: isAbort ? 504 : 500,
       };
-    } finally {
-      clearTimeout(timeout);
     }
 
     const elapsedMs = Date.now() - startedAt;
@@ -917,6 +918,9 @@ async function callAI({
    
    const content = data.choices?.[0]?.message?.content;
     return { content };
+    } finally {
+      clearTimeout(timeout);
+    }
  }
  
 type CallFanarArgs = {
@@ -945,6 +949,7 @@ async function callFanar({
   const timeoutMs = 30_000;
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
 
+  try {
   const startedAt = Date.now();
   let response: Response;
   try {
@@ -974,8 +979,6 @@ async function callFanar({
       error: isAbort ? `Fanar request timed out after ${timeoutMs}ms` : String(e),
       status: isAbort ? 504 : 500,
     };
-  } finally {
-    clearTimeout(timeout);
   }
 
   const elapsedMs = Date.now() - startedAt;
@@ -1010,6 +1013,9 @@ async function callFanar({
 
   const content = data.choices?.[0]?.message?.content;
   return { content };
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 // ─── FANAR SHAHEEN-MT — dedicated AR→EN translation model ───────────────────
@@ -1632,7 +1638,6 @@ async function fallbackLineTranslate(arabicLines: string[], dialect?: string): P
         signal: controller.signal,
         label: 'analyze-gulf-arabic:fallback-translate',
       });
-      clearTimeout(timeout);
       if (!response.ok) {
         console.warn(`${model} translation error:`, response.status);
         return null;
@@ -1640,9 +1645,10 @@ async function fallbackLineTranslate(arabicLines: string[], dialect?: string): P
       const data = await response.json();
       return data?.choices?.[0]?.message?.content || null;
     } catch (e) {
-      clearTimeout(timeout);
       console.warn(`${model} translation failed:`, e instanceof Error ? e.message : String(e));
       return null;
+    } finally {
+      clearTimeout(timeout);
     }
   }
 
@@ -1925,13 +1931,13 @@ serve(async (req) => {
              grammar_points: result.grammarPoints,
              ...(result.culturalContext ? { cultural_context: result.culturalContext } : {}),
              transcription_status: 'analysis_complete',
-           }).eq('id', pipelineVideoId);
+           }).eq('id', pipelineVideoId).neq('transcription_status', 'completed');
            if (emptySaveErr) {
              console.error('[analyze] Failed to persist empty-audio result:', emptySaveErr.message);
              await svc.from('discover_videos').update({
                transcription_status: 'failed',
                transcription_error: `Analysis finished but saving the results failed: ${emptySaveErr.message}`,
-             }).eq('id', pipelineVideoId);
+             }).eq('id', pipelineVideoId).eq('transcription_status', 'processing');
            } else {
              finalizeViaPipeline(pipelineVideoId);
            }
@@ -2709,7 +2715,7 @@ serve(async (req) => {
             difficulty: detectedDifficulty || 'Intermediate',
             transcription_status: 'analysis_complete',
             transcription_error: null,
-          }).eq('id', pipelineVideoId);
+          }).eq('id', pipelineVideoId).neq('transcription_status', 'completed');
           if (safetyErr) {
             console.warn('[analyze] Pre-enrichment save failed (continuing):', safetyErr.message);
           } else {
@@ -2752,7 +2758,8 @@ serve(async (req) => {
                !COMMON_GLOSSES[w] && !COMMON_GLOSSES[stripped];
       });
 
-      const claudeEnrichPromise = (vocab.length > 0)
+      const enrich = haveTimeFor(50_000, 'vocabulary and gloss enrichment');
+      const claudeEnrichPromise = (enrich && vocab.length > 0)
         ? callAI({
             model: MODEL_IDS.CLAUDE,
             systemPrompt: getVocabEnrichmentSystemPrompt(),
@@ -2761,7 +2768,7 @@ serve(async (req) => {
           }).catch((e) => { console.warn('Claude vocab enrichment failed (non-blocking):', e); return { content: null }; })
         : Promise.resolve({ content: null } as { content: string | null });
 
-      const glossPromise = (unknownWords.length > 0)
+      const glossPromise = (enrich && unknownWords.length > 0)
         ? callAI({
             model: MODEL_IDS.GEMINI_FAST,
             systemPrompt: getGlossEnrichmentPrompt(detectedDialect),
@@ -2772,9 +2779,7 @@ serve(async (req) => {
 
       // Both are extras over a transcript that is already saved, so they are
       // the first thing a short run gives up.
-      const [claudeEnrichResp, glossResp] = haveTimeFor(50_000, 'vocabulary and gloss enrichment')
-        ? await Promise.all([claudeEnrichPromise, glossPromise])
-        : [{ content: null }, { content: null }] as [{ content: string | null }, { content: string | null }];
+      const [claudeEnrichResp, glossResp] = await Promise.all([claudeEnrichPromise, glossPromise]);
 
       // Apply Claude vocab enrichment
       if (claudeEnrichResp?.content) {
@@ -3004,38 +3009,20 @@ serve(async (req) => {
           // and its status is the terminal one — so only the fields the
           // enrichment actually improved are written, and the row is left
           // finished rather than pushed back into a working state.
-          let alreadyFinalized = false;
-          try {
-            const { data: current } = await svc
-              .from('discover_videos')
-              .select('transcription_status')
-              .eq('id', pipelineVideoId)
-              .single();
-            alreadyFinalized = current?.transcription_status === 'completed';
-          } catch (_) {
-            // Unknown: take the ordinary path, which is the common one.
-          }
-
-          const { error: saveErr } = await svc.from('discover_videos').update(
-            alreadyFinalized
-              ? {
-                  vocabulary: transcriptResult.vocabulary || [],
-                  grammar_points: transcriptResult.grammarPoints || [],
-                  cultural_context: transcriptResult.culturalContext || null,
-                  engines_used: mergedEnginesUsed,
-                }
-              : {
-                  transcript_lines: sanitizedLines,
-                  vocabulary: transcriptResult.vocabulary || [],
-                  grammar_points: transcriptResult.grammarPoints || [],
-                  cultural_context: transcriptResult.culturalContext || null,
-                  dialect: transcriptResult.dialect || 'Gulf',
-                  difficulty: transcriptResult.difficulty || 'Intermediate',
-                  transcription_status: 'analysis_complete',
-                  transcription_error: null,
-                  engines_used: mergedEnginesUsed,
-                },
-          ).eq('id', pipelineVideoId);
+          // Test status in the UPDATE itself. A read followed by an
+          // unconditional write can race the finalizer and resurrect the row.
+          const { data: saved, error: saveErr } = await svc.from('discover_videos').update({
+            transcript_lines: sanitizedLines,
+            vocabulary: transcriptResult.vocabulary || [],
+            grammar_points: transcriptResult.grammarPoints || [],
+            cultural_context: transcriptResult.culturalContext || null,
+            dialect: transcriptResult.dialect || 'Gulf',
+            difficulty: transcriptResult.difficulty || 'Intermediate',
+            transcription_status: 'analysis_complete',
+            transcription_error: null,
+            engines_used: mergedEnginesUsed,
+          }).eq('id', pipelineVideoId)
+            .neq('transcription_status', 'completed').select('id');
 
           if (saveErr) {
             // A swallowed persist failure used to leave the row on
@@ -3045,8 +3032,15 @@ serve(async (req) => {
             await svc.from('discover_videos').update({
               transcription_status: 'failed',
               transcription_error: `Analysis finished but saving the results failed: ${saveErr.message}`,
-            }).eq('id', pipelineVideoId);
-          } else if (alreadyFinalized) {
+            }).eq('id', pipelineVideoId).eq('transcription_status', 'processing');
+          } else if (Array.isArray(saved) && saved.length === 0) {
+            // Preserve the finalizer's timings and combined visual context.
+            const { error: enrichmentErr } = await svc.from('discover_videos').update({
+              vocabulary: transcriptResult.vocabulary || [],
+              grammar_points: transcriptResult.grammarPoints || [],
+              engines_used: mergedEnginesUsed,
+            }).eq('id', pipelineVideoId).eq('transcription_status', 'completed');
+            if (enrichmentErr) console.warn('[analyze] Optional enrichment save failed:', enrichmentErr.message);
             console.log(`[analyze] Enriched an already-finalized video ${pipelineVideoId}`);
           } else {
             console.log(`[analyze] Persisted results directly for video ${pipelineVideoId}`);
@@ -3064,7 +3058,7 @@ serve(async (req) => {
               transcription_error: `Analysis finished but saving the results failed: ${
                 persistErr instanceof Error ? persistErr.message : String(persistErr)
               }`,
-            }).eq('id', pipelineVideoId);
+            }).eq('id', pipelineVideoId).eq('transcription_status', 'processing');
           } catch (_) {
             // Nothing left to record the failure on.
           }

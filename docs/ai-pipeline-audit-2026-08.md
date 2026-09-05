@@ -9,6 +9,12 @@ the record of what the pipeline looked like before any changes. **The ALLaM prop
 Part 3 was not built** — see [the 2026-08-05 update](#update--2026-08-05-what-was-actually-built)
 at the end for what shipped instead and why.
 
+**2026-09-05:** Part 3's access objection (nobody hosts ALLaM pay-per-token) is being
+undone by the Microsoft/HUMAIN Foundry deal, and HUMAIN has since released a separate
+frontier model, `humain-m3`. Both are assessed against this pipeline in
+[`humain-m3-allam-evaluation-2026-09.md`](./humain-m3-allam-evaluation-2026-09.md) —
+short version: still no, and the reason is now quality evidence rather than hosting.
+
 ---
 
 ## Part 1 — What's actually there

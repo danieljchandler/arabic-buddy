@@ -260,3 +260,124 @@ Deno.test("every leg refusing is a null, not a throw", async () => {
     },
   });
 });
+
+// ── Reasoning ────────────────────────────────────────────────────────────────
+//
+// Whether a model thinks before it answers is a provider default, and the
+// lineup that replaced the pre-2026-08-31 one reasons by default: Sonnet 5 at
+// "high", Qwen 3.8 Max at "xhigh" (and mandatory), Gemini 3.x Flash at
+// "medium". Nothing asked for that, and the transcript merge went from a
+// forty-second call to one that thought for minutes and spent its output
+// budget doing it. The gateway now asks for the least a model allows unless
+// the caller says otherwise — and, since OpenRouter answers 400 to an effort a
+// model does not support, retries a rejected default once without it.
+
+Deno.test("asks an OpenRouter model for no reasoning unless told otherwise", async () => {
+  await withGateway(async (mod, up) => {
+    await mod.chatFetch("anthropic/claude-sonnet-5", { messages: [] });
+
+    const [call] = up.callsTo(OPENROUTER);
+    assert(call);
+    assertEquals(bodyOf(call).reasoning, { effort: "none" });
+  });
+});
+
+Deno.test("asks a model that must reason for its floor, never for none", async () => {
+  await withGateway(async (mod, up) => {
+    await mod.chatFetch("qwen/qwen3.8-max", { messages: [] });
+
+    const [call] = up.callsTo(OPENROUTER);
+    assert(call);
+    // Qwen 3.8 Max cannot be switched off; "minimal" is the least it takes.
+    assertEquals(bodyOf(call).reasoning, { effort: "minimal" });
+  });
+});
+
+Deno.test("spells the reasoning default the way Google's endpoint takes it", async () => {
+  await withGateway(async (mod, up) => {
+    await mod.chatFetch("google/gemini-3.7-flash", { messages: [] });
+
+    const [call] = up.callsTo(GOOGLE);
+    assert(call);
+    // Google's OpenAI-shaped endpoint takes `reasoning_effort`, and Gemini 3.x
+    // cannot be turned off, so the least it accepts is "low".
+    assertEquals(bodyOf(call).reasoning_effort, "low");
+    assertEquals(bodyOf(call).reasoning, undefined);
+  });
+});
+
+Deno.test("leaves a caller's own reasoning field exactly as written", async () => {
+  await withGateway(async (mod, up) => {
+    await mod.chatFetch("anthropic/claude-sonnet-5", {
+      messages: [],
+      reasoning: { effort: "high", max_tokens: 4000 },
+    });
+
+    const [call] = up.callsTo(OPENROUTER);
+    assert(call);
+    assertEquals(bodyOf(call).reasoning, { effort: "high", max_tokens: 4000 });
+  });
+});
+
+Deno.test("sends nothing about reasoning when a caller wants the model's default", async () => {
+  await withGateway(async (mod, up) => {
+    await mod.chatFetch("anthropic/claude-sonnet-5", { messages: [] }, { reasoning: "model-default" });
+
+    const [call] = up.callsTo(OPENROUTER);
+    assert(call);
+    assertEquals("reasoning" in bodyOf(call), false);
+    assertEquals("reasoning_effort" in bodyOf(call), false);
+  });
+});
+
+Deno.test("lets a caller ask for a specific level", async () => {
+  await withGateway(async (mod, up) => {
+    await mod.chatFetch("anthropic/claude-sonnet-5", { messages: [] }, { reasoning: { effort: "medium" } });
+
+    const [call] = up.callsTo(OPENROUTER);
+    assert(call);
+    assertEquals(bodyOf(call).reasoning, { effort: "medium" });
+  });
+});
+
+Deno.test("retries once without the default when a provider rejects it", async () => {
+  // The floor table is a reading of each model's metadata, not a contract; a
+  // wrong reading must cost a round trip, not every call for that model.
+  let seen = 0;
+  await withGateway(async (mod, up) => {
+    const response = await mod.chatFetch("mistralai/mistral-saba", { messages: [] });
+
+    const calls = up.callsTo(OPENROUTER);
+    assertEquals(calls.length, 2);
+    assertEquals(bodyOf(calls[0]).reasoning, { effort: "none" });
+    assertEquals("reasoning" in bodyOf(calls[1]), false);
+    assertEquals(response.status, 200);
+    assert(seen === 2);
+  }, {
+    upstreams: {
+      "openrouter.ai": (request) => {
+        seen += 1;
+        return seen === 1
+          ? json({ error: { message: "reasoning is not supported for this model" } }, 400)
+          : chatCompletion("ok");
+      },
+    },
+  });
+});
+
+Deno.test("does not retry a 400 the caller's own body earned", async () => {
+  let seen = 0;
+  await withGateway(async (mod, up) => {
+    const response = await mod.chatFetch("anthropic/claude-sonnet-5", { messages: [] }, { reasoning: "model-default" });
+    assertEquals(response.status, 400);
+    assertEquals(up.callsTo(OPENROUTER).length, 1);
+  }, {
+    upstreams: {
+      "openrouter.ai": () => {
+        seen += 1;
+        return json({ error: { message: "bad request" } }, 400);
+      },
+    },
+  });
+  assertEquals(seen, 1);
+});

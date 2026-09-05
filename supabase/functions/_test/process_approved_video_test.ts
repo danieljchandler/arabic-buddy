@@ -807,6 +807,26 @@ Deno.test("process-approved-video prefers what analysis wrote to the row directl
   assertEquals(final?.cultural_context, "persisted directly");
 });
 
+Deno.test("process-approved-video keeps the note the analysis left on the row", async () => {
+  // The analysis writes a note when its merge failed and the lines were split
+  // by rule. This stage has no note of its own on an ordinary run, and used to
+  // write null over it — so an untranslated transcript arrived unexplained.
+  const result = await call({ videoId: VIDEO }, backend({
+    analyze: () => new Response("gateway timeout", { status: 504 }),
+    refreshed: {
+      transcription_status: "analysis_complete",
+      transcript_lines: [{ id: "l1", arabic: "شلونك اليوم" }],
+      cultural_context: null,
+      title: "T",
+      title_arabic: "ت",
+      transcription_error: "The AI merge of the transcription engines did not produce lines.",
+    },
+  }));
+  const final = lastPatchWith(result, "transcription_status");
+  assertEquals(final?.transcription_status, "completed");
+  assertEquals(final?.transcription_error, "The AI merge of the transcription engines did not produce lines.");
+});
+
 Deno.test("process-approved-video times lines from real ASR word timestamps", async () => {
   // Soniox hears the fixture's two lines word for word, with a 3.4-second
   // silence between them — somebody nodding, a cut, a laugh.

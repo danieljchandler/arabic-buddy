@@ -28,7 +28,7 @@
 // it gets its own helper (`generateImage`) rather than a shared body.
 // =============================================================================
 
-import { IMAGE_MODEL_IDS } from './modelRegistry.ts';
+import { IMAGE_MODEL_IDS, reasoningFloor, type ReasoningEffort } from './modelRegistry.ts';
 
 export type Provider = 'google' | 'openai' | 'openrouter' | 'fanar';
 
@@ -205,6 +205,15 @@ export function chatRoute(model: string, provider = providerForModel(model)): Ch
  */
 const FALLBACK_STATUSES = new Set([400, 401, 403, 404, 408, 500, 502, 503, 504]);
 
+/**
+ * How much a model may think before it answers.
+ *
+ *   'off'            the least the model allows (see `reasoningFloor`) — the default
+ *   'model-default'  send nothing and take the provider's default
+ *   { effort }       ask for a specific level
+ */
+export type ReasoningPreference = 'off' | 'model-default' | { effort: ReasoningEffort };
+
 export interface ChatFetchOptions {
   signal?: AbortSignal;
   /** Extra headers merged over the route's own (auth and content-type). */
@@ -213,6 +222,50 @@ export interface ChatFetchOptions {
   noFallback?: boolean;
   /** Prefix for the console warning a fallback emits. Defaults to the model id. */
   label?: string;
+  /**
+   * Whether the model may think first. Off unless asked: the lineup's models
+   * reason by default at their providers (Sonnet 5 "high", Qwen 3.8 Max
+   * "xhigh"), which turned every pipeline call into a minutes-long one and
+   * spent the output budget on thinking. A body that already carries a
+   * `reasoning` or `reasoning_effort` field is left exactly as written.
+   */
+  reasoning?: ReasoningPreference;
+}
+
+/**
+ * The reasoning field a provider understands, or nothing.
+ *
+ * OpenRouter takes a `reasoning` object; Google's and OpenAI's OpenAI-shaped
+ * endpoints take `reasoning_effort`. Google cannot switch Gemini 3.x off, so a
+ * request for "none" is sent to it as "low" — the least it accepts — rather
+ * than rejected. Fanar has no such switch.
+ */
+function reasoningFieldFor(
+  provider: Provider,
+  effort: ReasoningEffort,
+): Record<string, unknown> | null {
+  if (provider === 'fanar') return null;
+  if (provider === 'openrouter') return { reasoning: { effort } };
+  if (provider === 'google') return { reasoning_effort: effort === 'none' ? 'low' : effort };
+  return { reasoning_effort: effort };
+}
+
+/**
+ * `body` with the reasoning default applied for `provider`, and whether
+ * anything was added — a body the caller already shaped is returned as is.
+ */
+export function withReasoningDefault(
+  body: Record<string, unknown>,
+  model: string,
+  provider: Provider,
+  preference: ReasoningPreference = 'off',
+): { body: Record<string, unknown>; injected: boolean } {
+  if (preference === 'model-default') return { body, injected: false };
+  if ('reasoning' in body || 'reasoning_effort' in body) return { body, injected: false };
+  const effort = typeof preference === 'object' ? preference.effort : reasoningFloor(model);
+  const field = reasoningFieldFor(provider, effort);
+  if (!field) return { body, injected: false };
+  return { body: { ...body, ...field }, injected: true };
 }
 
 export interface ChatFetchResult {
@@ -241,13 +294,18 @@ export async function chatFetchDetailed(
   const route = chatRoute(model, primary);
   const label = options.label ?? model;
 
-  const send = async (r: ChatRoute): Promise<Response> =>
-    await fetch(r.url, {
+  // The reasoning default is shaped per route, because the provider that ends
+  // up answering may not be the one asked first, and the two spell it
+  // differently. `plain` sends the caller's body untouched.
+  const send = async (r: ChatRoute, plain = false): Promise<Response> => {
+    const shaped = plain ? body : withReasoningDefault(body, model, r.provider, options.reasoning).body;
+    return await fetch(r.url, {
       method: 'POST',
       headers: { ...r.headers, ...(options.headers ?? {}) },
-      body: JSON.stringify({ ...body, model: r.model }),
+      body: JSON.stringify({ ...shaped, model: r.model }),
       signal: options.signal,
     });
+  };
 
   const fallbackRoute = (): ChatRoute | null => {
     if (options.noFallback || !canFallBack(primary)) return null;
@@ -257,6 +315,22 @@ export async function chatFetchDetailed(
   let response: Response;
   try {
     response = await send(route);
+    // A 400 to a request we added a reasoning field to may be that field: an
+    // effort the model does not support is rejected as a bad request, and the
+    // floor table is a best reading of each model's metadata, not a contract.
+    // One plain retry costs a round trip; a wrong guess left standing would
+    // cost the whole call, on every call, for that model.
+    if (
+      response.status === 400 &&
+      withReasoningDefault(body, model, route.provider, options.reasoning).injected
+    ) {
+      const detail = await response.clone().text().catch(() => '');
+      console.warn(
+        `[aiGateway] ${label}: ${route.provider} answered 400 with the reasoning default ` +
+          `(${detail.slice(0, 200)}) — retrying without it`,
+      );
+      response = await send(route, true);
+    }
   } catch (err) {
     // A transport-level failure (DNS, TLS, connection reset) is exactly what the
     // second provider exists for. An abort is not — the caller asked to stop.

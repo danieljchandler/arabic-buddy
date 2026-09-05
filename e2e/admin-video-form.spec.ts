@@ -291,6 +291,33 @@ test.describe("the thumbnail", () => {
       .poll(() => db.rows("discover_videos")[0]?.thumbnail_url as string)
       .toContain("/storage/v1/object/public/flashcard-images/video-stills/");
   });
+
+  test("does not hold the video operation behind a slow thumbnail mirror", async ({
+    page,
+    backend,
+    allowExternalHosts,
+  }) => {
+    // Mirroring was added in front of both Save and the upload pipeline. When
+    // the edge request/CDN timed out, the media operation never got as far as
+    // staging audio or starting transcription. A borrowed still is already on
+    // the row, so making it durable must remain background work.
+    allowExternalHosts(["tiktok.com", "tiktokcdn.test"]);
+    await page.route("**/www.tiktok.com/oembed**", (route) =>
+      route.fulfill({ json: { thumbnail_url: SIGNED_STILL, html: 'data-video-id="7451234567890123456"' } }),
+    );
+    backend.stubFunction("persist-video-thumbnail", () => new Promise(() => undefined));
+
+    await page.goto("/admin/videos/new");
+    await urlField(page).fill("https://www.tiktok.com/@creator/video/7451234567890123456");
+    await page.getByRole("button", { name: "Parse" }).click();
+    await expect(page.getByText(/TikTok video detected/)).toBeVisible();
+
+    await titleField(page).fill("A video with a slow still");
+    await saveButton(page).click();
+
+    await expect(page.getByText("Video created!")).toBeVisible({ timeout: 2_000 });
+    await expect(page).toHaveURL(/\/admin\/videos$/);
+  });
 });
 
 test.describe("editing an existing video", () => {

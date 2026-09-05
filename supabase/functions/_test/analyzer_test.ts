@@ -364,7 +364,10 @@ const analysisReply = () =>
 
 async function runAnalysis(
   videoStatus: string,
-): Promise<Array<Record<string, unknown>>> {
+): Promise<{
+  writes: Array<Record<string, unknown>>;
+  finalizeCalls: Array<Record<string, unknown>>;
+}> {
   const fn = await loadFunction("analyze-gulf-arabic", {
     upstreams: allowed({
       "openrouter.ai": () => analysisReply(),
@@ -386,16 +389,20 @@ async function runAnalysis(
       }, { jwt: SERVICE_ROLE_KEY }),
     );
     await fn.background();
-    return fn.calls
+    const writes = fn.calls
       .filter((c) => c.url.includes("discover_videos") && c.method === "PATCH")
       .map((c) => JSON.parse(c.body ?? "{}") as Record<string, unknown>);
+    const finalizeCalls = fn.calls
+      .filter((c) => c.url.includes("/functions/v1/process-approved-video"))
+      .map((c) => JSON.parse(c.body ?? "{}") as Record<string, unknown>);
+    return { writes, finalizeCalls };
   } finally {
     fn.restore();
   }
 }
 
 Deno.test("saves a usable transcript before spending time enriching it", async () => {
-  const writes = await runAnalysis("processing");
+  const { writes, finalizeCalls } = await runAnalysis("processing");
 
   // More than one write is the whole point: the first carries a transcript the
   // pipeline can finish with, so a teardown during the enrichment costs the
@@ -405,13 +412,18 @@ Deno.test("saves a usable transcript before spending time enriching it", async (
   assertEquals(first.transcription_status, "analysis_complete");
   assertEquals((first.transcript_lines as unknown[]).length, 2);
   assert(Array.isArray(first.vocabulary), "expected vocabulary in the early save");
+  assertEquals(
+    finalizeCalls[0],
+    { videoId: PIPELINE_VIDEO, stage: "finalize" },
+    "the first usable save must finish the pipeline without waiting for its old watcher",
+  );
 });
 
 Deno.test("does not undo a row the pipeline already finished", async () => {
   // The early save can be picked up and finalised while the enrichment is
   // still running. Those lines now carry audio timings this function does not
   // have, so the late write must leave them, and the status, alone.
-  const writes = await runAnalysis("completed");
+  const { writes } = await runAnalysis("completed");
   const last = writes.at(-1);
 
   assert(last, "expected a write");

@@ -670,6 +670,25 @@ const AdminVideoForm = () => {
     [queryClient],
   );
 
+  /**
+   * Mirror an expiring still without putting it on the upload/save critical path.
+   *
+   * `persist-video-thumbnail` has to fetch the TikTok CDN and upload those bytes
+   * again. Since that work was added, every TikTok upload waited for that edge
+   * request before it even staged the audio; a slow CDN or edge timeout therefore
+   * looked like the video upload itself had failed. The row already contains the
+   * borrowed still, so durability is best-effort and can finish independently.
+   */
+  const keepThumbnailInBackground = useCallback(
+    (id: string | undefined, url: string | null | undefined) => {
+      if (!id || !isEphemeralThumbnailUrl(url)) return;
+      void persistDurableThumbnail(id, url).catch((error) => {
+        console.warn("Could not store a lasting thumbnail in the background:", error);
+      });
+    },
+    [persistDurableThumbnail],
+  );
+
   // Populate form when editing (or when server-side processing completes)
   useEffect(() => {
     if (existingVideo) {
@@ -912,11 +931,10 @@ const AdminVideoForm = () => {
           .eq("id", targetVideoId);
       }
 
-      // A still borrowed from TikTok is signed for about two days, so the URL
-      // just written would go dead on its own. Swap it for a copy of ours.
-      if (targetVideoId && isEphemeralThumbnailUrl(saveThumbnail)) {
-        await persistDurableThumbnail(targetVideoId, saveThumbnail);
-      }
+      // Do not await the optional CDN copy here. It used to sit in front of the
+      // actual audio upload, so a thumbnail timeout prevented transcription
+      // from starting even though the video row had already been created.
+      keepThumbnailInBackground(targetVideoId, saveThumbnail);
 
       // Upload audio to storage.
       //
@@ -1154,10 +1172,9 @@ const AdminVideoForm = () => {
         .eq("id", targetVideoId);
     }
 
-    // Same as above: whatever TikTok handed us expires, so keep a copy.
-    if (targetVideoId && isEphemeralThumbnailUrl(saveThumbnail)) {
-      await persistDurableThumbnail(targetVideoId, saveThumbnail);
-    }
+    // Same as above: keep the copy, but never make it a prerequisite for the
+    // media operation the user asked for.
+    keepThumbnailInBackground(targetVideoId, saveThumbnail);
 
     return targetVideoId;
   };
@@ -1406,10 +1423,6 @@ const AdminVideoForm = () => {
      * touching it. The server keeps a copy; a failure is not worth losing the
      * save over, since the borrowed URL still shows something meanwhile.
      */
-    const keepThumbnail = async (id: string | undefined, url: string) => {
-      if (id && isEphemeralThumbnailUrl(url)) await persistDurableThumbnail(id, url);
-    };
-
     try {
       const record = {
         title: saveTitle,
@@ -1445,7 +1458,7 @@ const AdminVideoForm = () => {
         await settleAndPersist();
         const { error } = await (supabase.from("discover_videos" as any) as any).update(record).eq("id", videoId);
         if (error) throw error;
-        await keepThumbnail(videoId, saveThumbnail);
+        keepThumbnailInBackground(videoId, saveThumbnail);
         toast.success("Video updated!");
       } else {
         const { data: created, error } = await (supabase.from("discover_videos" as any) as any)
@@ -1459,7 +1472,7 @@ const AdminVideoForm = () => {
           .select("id")
           .single();
         if (error) throw error;
-        await keepThumbnail(created?.id, saveThumbnail);
+        keepThumbnailInBackground(created?.id, saveThumbnail);
         toast.success("Video created!");
       }
 

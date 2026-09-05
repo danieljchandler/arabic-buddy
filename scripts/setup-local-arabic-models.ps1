@@ -75,7 +75,7 @@ $Catalogue = @(
         ApproxGB    = 5.4
         Recommended = $true
         Title       = 'Fanar 1 9B Instruct (QCRI)'
-        Why         = 'Arabic-first, and the same family Hakiya already calls through the QCRI API. Best like-for-like local comparison.'
+        Why         = 'The only model here claiming Gulf: its card says MSA plus Gulf, Levantine and Egyptian. Caveat - its published AraDiCE dialect benchmarks are Egyptian and Levantine, not Gulf. Same family Hakiya already calls through the QCRI API.'
         Context     = 8192
     },
     [pscustomobject]@{
@@ -85,7 +85,7 @@ $Catalogue = @(
         ApproxGB    = 9.0
         Recommended = $true
         Title       = 'Jais family 13B chat (G42/Inception)'
-        Why         = 'Real Jais architecture, bilingual AR/EN tokenizer. The largest Jais that fits this machine with usable quality.'
+        Why         = 'Real Jais architecture, bilingual AR/EN tokenizer, largest Jais that fits. Note its card states Arabic (MSA) and English - AL-QASIDA finds Jais trained primarily on MSA, overlooking dialects. Expect MSA output.'
         Context     = 4096
     },
     [pscustomobject]@{
@@ -383,6 +383,8 @@ Write-Info '1. Open LM Studio. The models appear under My Models automatically.'
 Write-Info '2. Load ONE at a time - RAM is shared with the iGPU, so two large models will swap.'
 Write-Info '3. For an OpenAI-compatible endpoint on http://localhost:1234/v1 :'
 Write-Info '       lms server start'
-Write-Info '4. Sanity-check Arabic output before trusting any of them for dialect work:'
-Write-Info '       these models are all instruction-tuned toward MSA, not dialect.'
+Write-Info '4. Dialect coverage differs per model - check the notes above, not a blanket rule.'
+Write-Info '   But coverage is not production: AL-QASIDA (arXiv:2412.04193) finds models'
+Write-Info '   under-produce dialect out of reluctance even when they can generate it, so'
+Write-Info '   expect MSA answers by default and measure leak rate rather than assuming.'
 Write-Host ''

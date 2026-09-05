@@ -1783,3 +1783,19 @@ Deno.test("process-approved-video waits rather than failing when no engine has a
 
   assertEquals(finalStatus(result), "completed");
 });
+
+Deno.test("process-approved-video survives an engine that rejects after being dropped", async () => {
+  // Once the fan-out deadline moves on, nothing is awaiting the stragglers.
+  // A leg that then rejects would be an unhandled rejection, which can take
+  // the isolate down and kill the run that is still finishing — the exact
+  // failure the staged design exists to avoid.
+  const result = await call({ videoId: VIDEO }, {
+    ...backend(),
+    "api.soniox.com": () =>
+      new Promise<Response>((_resolve, reject) => {
+        setTimeout(() => reject(new Error("socket died long after we stopped waiting")), 30);
+      }),
+  }, { env: { PIPELINE_ASR_FANOUT_MS: "1" } });
+
+  assertEquals(finalStatus(result), "completed");
+});

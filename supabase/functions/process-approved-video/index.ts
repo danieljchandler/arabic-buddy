@@ -1505,7 +1505,23 @@ async function runAsrStage(ctx: PipelineContext, cp: Checkpoint): Promise<void> 
     ] as const;
     const settledLegs = new Map<string, AsrLegResult>();
     const tracked = legs.map(([name, leg]) =>
-      leg.then((result) => { settledLegs.set(name, result); return result; }),
+      leg
+        .then((result) => { settledLegs.set(name, result); return result; })
+        // A leg that rejects rather than returning a failure result must not
+        // become an *unhandled* rejection. Once the deadline below has moved
+        // on, nothing is awaiting these promises any more, and an unhandled
+        // rejection can take the isolate down — killing the run that is still
+        // finishing, which is the failure this whole stage design exists to
+        // avoid. Each leg catches its own errors already; this is the net
+        // under that, not a replacement for it.
+        .catch((e): AsrLegResult => {
+          console.warn(`[pipeline] ${name} leg threw:`, e instanceof Error ? e.message : String(e));
+          const failed: AsrLegResult = {
+            text: null, words: [], latencyMs: 0, error: String(e).slice(0, 200),
+          };
+          settledLegs.set(name, failed);
+          return failed;
+        }),
     );
     const noResult: AsrLegResult = { text: null, words: [], latencyMs: 0, error: "fanout_deadline" };
     const hasText = () => [...settledLegs.values()].some((r) => (r?.text ?? "").trim().length > 0);

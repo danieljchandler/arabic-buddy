@@ -21,4 +21,4 @@
  * against an unbumped one from the server is exactly the "not deployed yet"
  * signal. Leaving it alone is what makes the check quietly stop working.
  */
-export const EDGE_BUILD = "2026-09-04.2";
+export const EDGE_BUILD = "2026-09-04.3";

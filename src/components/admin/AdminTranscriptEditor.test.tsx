@@ -800,6 +800,147 @@ describe("AdminTranscriptEditor — re-sync timing", () => {
       }),
     );
   });
+
+  // A transcript that came back from the pipeline as one line the length of
+  // the clip. The server cuts it at the speaker's pauses and drafts English
+  // for the pieces; the adapter has to turn those into new segments rather
+  // than look them up by an id they cannot have.
+  const chunk: Segment = {
+    id: "line-1",
+    video_id: "vid",
+    start: 0,
+    end: 9,
+    text: "شلونك اليوم الحمد لله بخير وانت شخبارك والله زين الحين وين رايح بروح السوق اشتري اغراض للبيت طيب الله يوفقك",
+    translation: "",
+    confidence: 1,
+    words: [],
+  };
+  const piece = (n: number, arabic: string, startMs: number, endMs: number, translation: string) => ({
+    id: `line-1-${n}`,
+    arabic,
+    translation,
+    literal: `literal ${n}`,
+    startMs,
+    endMs,
+    splitFrom: "line-1",
+    words: arabic.split(" ").map((surface, i, all) => {
+      const step = (endMs - startMs) / all.length;
+      return { surface, startMs: Math.round(startMs + step * i), endMs: Math.round(startMs + step * (i + 1)), matched: true };
+    }),
+  });
+  const cut = {
+    lines: [
+      piece(1, "شلونك اليوم الحمد لله بخير", 500, 2400, "How are you today, fine thank God"),
+      piece(2, "وانت شخبارك والله زين الحين وين رايح", 3800, 6500, "And you? Fine. Where are you off to now?"),
+      piece(3, "بروح السوق اشتري اغراض للبيت طيب الله يوفقك", 7400, 10500, "To the market, for the house. Okay, God bless"),
+    ],
+    matched: 20,
+    total: 20,
+    splitCount: 1,
+    pieceCount: 3,
+    translated: true,
+  };
+
+  it("turns a line the server cut at pauses into new segments, in its order", async () => {
+    const { backend } = render([aLine()], undefined, VIDEO);
+    backend.stubFunction("resync-transcript-timing", cut);
+
+    const untouched: Segment = { ...segments[0], id: "line-2", start: 11, end: 12 };
+    let result: Segment[] | null = null;
+    await act(async () => {
+      result = (await props().onResyncTiming?.([chunk, untouched])) ?? null;
+    });
+
+    expect(result!.map((s) => s.id)).toEqual(["line-1-1", "line-1-2", "line-1-3", "line-2"]);
+    expect(result![0]).toMatchObject({
+      video_id: "vid",
+      text: "شلونك اليوم الحمد لله بخير",
+      translation: "How are you today, fine thank God",
+      literal: "literal 1",
+      start: 0.5,
+      end: 2.4,
+    });
+    // The silence between the pieces survives, and each carries its own words.
+    expect(result![1].start - result![0].end).toBeCloseTo(1.4);
+    expect(result![1].words.map((w) => w.word)).toEqual(["وانت", "شخبارك", "والله", "زين", "الحين", "وين", "رايح"]);
+    expect(result![3]).toMatchObject({ id: "line-2", start: 11, end: 12 });
+  });
+
+  it("says how much the aligner placed and what it cut", async () => {
+    const { backend } = render([aLine()], undefined, VIDEO);
+    backend.stubFunction("resync-transcript-timing", cut);
+
+    await act(async () => {
+      await props().onResyncTiming?.([chunk]);
+    });
+
+    expect(toast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Timings aligned to the audio",
+        description: expect.stringContaining("20 of 20 words matched to the audio across 3 lines."),
+      }),
+    );
+    expect(toast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: expect.stringContaining("1 long line was cut at the speaker's pauses into 3, with English drafted."),
+      }),
+    );
+  });
+
+  it("says when the new lines still need translating", async () => {
+    const { backend } = render([aLine()], undefined, VIDEO);
+    backend.stubFunction("resync-transcript-timing", {
+      ...cut,
+      lines: cut.lines.map((l) => ({ ...l, translation: "" })),
+      translated: false,
+    });
+
+    let result: Segment[] | null = null;
+    await act(async () => {
+      result = (await props().onResyncTiming?.([chunk])) ?? null;
+    });
+
+    expect(result!.every((s) => s.translation === "")).toBe(true);
+    expect(toast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        description: expect.stringContaining("the new lines still need translating"),
+      }),
+    );
+  });
+
+  it("names a backend that has never had the function deployed", async () => {
+    const { backend } = render([aLine()], undefined, VIDEO);
+    backend.stubFunctionFailure("resync-transcript-timing", 404, {
+      code: "NOT_FOUND",
+      message: "Requested function was not found",
+    });
+
+    let result: Segment[] | null | undefined;
+    await act(async () => {
+      result = await props().onResyncTiming?.(segments);
+    });
+
+    expect(result).toBeNull();
+    expect(toast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Re-sync failed",
+        description: expect.stringContaining("not deployed on this backend"),
+      }),
+    );
+  });
+
+  it("still tells a missing video apart from a missing function", async () => {
+    const { backend } = render([aLine()], undefined, VIDEO);
+    backend.stubFunctionFailure("resync-transcript-timing", 404, { error: "video_not_found" });
+
+    await act(async () => {
+      await props().onResyncTiming?.(segments);
+    });
+
+    expect(toast).toHaveBeenCalledWith(
+      expect.objectContaining({ description: "404: this video no longer exists." }),
+    );
+  });
 });
 
 /**

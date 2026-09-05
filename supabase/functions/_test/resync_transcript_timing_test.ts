@@ -1,6 +1,6 @@
 import { assert, assertEquals } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { jsonRequest, loadFunction } from "./harness.ts";
-import { json, type UpstreamHandler } from "./upstreams.ts";
+import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
 
 /**
  * `resync-transcript-timing` — the forced-alignment pass that locks a
@@ -256,4 +256,176 @@ Deno.test("resync-transcript-timing reports a missing transcript", async () => {
   );
   assertEquals(result.status, 400);
   assertEquals(result.body.error, "no_transcript");
+});
+
+// ── A transcript that came back as one line ──────────────────────────────────
+//
+// The shape every uploaded video took while the analysis's merge was being
+// cut off mid-answer: its punctuation fallback handed the whole clip back as
+// a single line. Re-timing that line is not a fix. With real times on every
+// word the speaker's pauses are where the lines should break, and the pieces
+// need English of their own, because the parent's described the whole chunk.
+
+const CHUNK_WORDS = [
+  "شلونك", "اليوم", "الحمد", "لله", "بخير", "وانت", "شخبارك", "والله", "زين",
+  "الحين", "وين", "رايح", "بروح", "السوق", "اشتري", "اغراض", "للبيت", "طيب",
+  "الله", "يوفقك",
+];
+
+/** The aligner hears the chunk word for word, pausing after the 5th and 12th words. */
+function chunkAlignment(): Response {
+  const pauses: Record<number, number> = { 5: 1.4, 12: 0.9 };
+  let at = 0.5;
+  return json({
+    words: CHUNK_WORDS.map((text, i) => {
+      at += pauses[i] ?? 0.08;
+      const start = at;
+      at += 0.3;
+      return { text, start, end: at, loss: 0.1 };
+    }),
+  });
+}
+
+const CHUNK_ROW = {
+  ...VIDEO_ROW,
+  dialect: "Kuwaiti",
+  dialect_subvariety: null,
+  transcript_lines: [{
+    id: "line-1",
+    arabic: CHUNK_WORDS.join(" "),
+    translation: "",
+    segmentType: "audio",
+    startMs: 0,
+    endMs: 9_000,
+  }],
+};
+
+/** What the translation model answers when asked for the pieces' English. */
+const draftedEnglish = () =>
+  chatCompletion("", {
+    lines: [
+      { index: 1, translation: "How are you today, fine thank God", literal: "how-you today the-praise to-God well" },
+      { index: 2, translation: "And you, how are you? Fine. Where are you off to now?", literal: "and-you what-news-your by-God fine now where going" },
+      { index: 3, translation: "I'm going to the market to buy things for the house, okay, God bless you", literal: "I-go the-market I-buy things for-the-house okay God grant-you-success" },
+    ],
+  });
+
+/** Routes for the brain's own bookkeeping, which the sinks swallow errors on anyway. */
+const brainSinks: Record<string, UpstreamHandler> = {
+  "/rest/v1/llm_usage_logs": () => json({}, 201),
+  "/rest/v1/feature_metrics": () => json({}, 201),
+  "/rest/v1/training_examples": () => json({}, 201),
+  "/rest/v1/dialect_rule_violations": () => json({}, 201),
+};
+
+Deno.test("resync-transcript-timing breaks a one-line transcript at the speaker's pauses", async () => {
+  const result = await call(
+    { videoId: VIDEO },
+    upstreams({
+      video: CHUNK_ROW,
+      align: chunkAlignment,
+      extra: {
+        ...brainSinks,
+        "openrouter.ai": draftedEnglish,
+        "generativelanguage.googleapis.com": draftedEnglish,
+      },
+    }),
+  );
+  assertEquals(result.status, 200);
+  const lines = result.body.lines as Array<{
+    id: string;
+    arabic: string;
+    translation: string;
+    literal?: string;
+    startMs: number;
+    endMs: number;
+    splitFrom?: string;
+    words: Array<{ surface: string; matched: boolean }>;
+  }>;
+
+  // Three lines where there was one, cut exactly at the two silences, which
+  // are still there between them.
+  assertEquals(lines.map((l) => l.arabic), [
+    CHUNK_WORDS.slice(0, 5).join(" "),
+    CHUNK_WORDS.slice(5, 12).join(" "),
+    CHUNK_WORDS.slice(12).join(" "),
+  ]);
+  assertEquals(lines.map((l) => l.id), ["line-1-1", "line-1-2", "line-1-3"]);
+  assert(lines.every((l) => l.splitFrom === "line-1"), "each piece names the line it came from");
+  assertEquals(lines[1].startMs - lines[0].endMs, 1_400);
+  assertEquals(lines[2].startMs - lines[1].endMs, 900);
+  assertEquals(lines[1].words.map((w) => w.surface), CHUNK_WORDS.slice(5, 12));
+  assert(lines.every((l) => l.words.every((w) => w.matched)));
+
+  // The pieces come with English of their own rather than blanks.
+  assertEquals(lines[0].translation, "How are you today, fine thank God");
+  assertEquals(lines[2].literal, "I-go the-market I-buy things for-the-house okay God grant-you-success");
+  assertEquals(result.body.splitCount, 1);
+  assertEquals(result.body.pieceCount, 3);
+  assertEquals(result.body.translated, true);
+  assertEquals(result.patches.length, 0);
+});
+
+Deno.test("resync-transcript-timing leaves the pieces for review when no model can translate them", async () => {
+  // The re-sync is a timing pass first. A translation model that is down
+  // costs the pieces their English and says so; it does not cost the re-sync.
+  const result = await call(
+    { videoId: VIDEO },
+    upstreams({
+      video: CHUNK_ROW,
+      align: chunkAlignment,
+      extra: {
+        ...brainSinks,
+        "openrouter.ai": () => json({ error: "upstream down" }, 500),
+        "generativelanguage.googleapis.com": () => json({ error: "upstream down" }, 500),
+      },
+    }),
+  );
+  assertEquals(result.status, 200);
+  const lines = result.body.lines as Array<{ translation: string; needs_review?: boolean; review_reason?: string }>;
+  assertEquals(lines.length, 3);
+  for (const line of lines) {
+    assertEquals(line.translation, "");
+    assertEquals(line.needs_review, true);
+    assertEquals(line.review_reason, "empty");
+  }
+  assertEquals(result.body.translated, false);
+});
+
+Deno.test("resync-transcript-timing persists split lines without the response-only provenance", async () => {
+  const result = await call(
+    { videoId: VIDEO, persist: true },
+    upstreams({
+      video: CHUNK_ROW,
+      align: chunkAlignment,
+      extra: {
+        ...brainSinks,
+        "openrouter.ai": draftedEnglish,
+        "generativelanguage.googleapis.com": draftedEnglish,
+      },
+    }),
+    SERVICE_ROLE,
+  );
+  assertEquals(result.status, 200);
+  const patch = result.patches.find((p) => "transcript_lines" in p);
+  assert(patch, "expected transcript_lines to be written");
+  const stored = patch.transcript_lines as Array<Record<string, unknown>>;
+  assertEquals(stored.length, 3);
+  assert(stored.every((l) => !("splitFrom" in l)), "splitFrom is for the editor, not the row");
+  assertEquals(stored[0].translation, "How are you today, fine thank God");
+  // Three new line ids, each logged as new structure under the resync source.
+  assert(result.revisionPosts.some((r) => r.field === "structure" && r.line_id === "line-1-2"));
+  assert(result.revisionPosts.every((r) => r.source === "resync"));
+});
+
+Deno.test("resync-transcript-timing never cuts a line of sensible length", async () => {
+  // Two short lines with a 3.4s silence between them, as in the fixture: the
+  // pause is between the lines, and neither is over the cap, so nothing moves.
+  const result = await call({ videoId: VIDEO }, upstreams({ extra: brainSinks }));
+  assertEquals(result.status, 200);
+  const lines = result.body.lines as Array<{ id: string; splitFrom?: string }>;
+  assertEquals(lines.map((l) => l.id), ["line-1", "line-2"]);
+  assertEquals(result.body.splitCount, 0);
+  assertEquals(result.body.pieceCount, 0);
+  assertEquals(result.body.translated, false);
 });

@@ -669,19 +669,55 @@ flagged `matched` or interpolated). When too few words match, the pipeline
 falls back to the old proportional-by-character allocation: wrong in detail but
 bounded, and it leaves no `words` array behind to be mistaken for real times.
 
+A transcript can also arrive as **one line the length of the clip**. The
+analysis's merge is supposed to hand back lines of a dozen words, and does;
+but when the merge fails it falls back to splitting the raw ASR text on
+punctuation, which Arabic ASR mostly lacks, so the whole clip lands as a
+single line with no translation — and every feature that works line by line
+(the caption highlight, phrase pause, shadowing, the review workspace) has
+nothing to work with. Once the alignment above has put real times on every
+word, the right boundaries are measurable: `_shared/transcriptLineSplit.ts`
+breaks any line over `DEFAULT_MAX_WORDS` (14) at the speaker's longest pauses
+first, then at the dialect's clause openers (يعني، بس، لكن، عشان…) and
+punctuation, and only then evenly. The pipeline runs it after alignment, and
+the analyser's own fallback runs the text-only form so it never emits a chunk
+even to callers that skip the pipeline. A line of sensible length is never
+touched, however long a pause it spans — its segmentation and its translation
+are somebody's deliberate work. Pieces cut from a line keep its other fields
+and their share of its `words` and `tokens` (glosses included), but a
+translation described the whole line and cannot be divided, so a piece arrives
+with an empty one flagged `needs_review` / `review_reason: "empty"`.
+
+The merge failing in the first place had one cause worth naming: the
+analyser's model calls carry a 40-second deadline that was sized for the wait
+for headers, and once that deadline was (rightly) kept armed through reading
+the body — a provider that stalls mid-answer must not hang the run — it became
+a ceiling on the *generation*, and a merge that writes a whole clip fully
+voweled inside JSON does not finish in forty seconds. `callAI` and `callFanar`
+now run two deadlines on one signal: 40 s (30 s for Fanar) to headers, then a
+generation budget from `generationBudgetMs` — scaled to `max_tokens`, capped at
+two minutes, and never past the run's own `ANALYZE_BUDGET_MS` deadline.
+
 After a reviewer has corrected the text, the text is ground truth and the
 timing is not — so the workspace's **Re-sync timing** button runs *forced
 alignment*: `resync-transcript-timing` sends the editor's current lines
 (unsaved draft included) and the staged audio to ElevenLabs' forced-alignment
 endpoint, maps the timed words back through the same anchoring module, and the
-proposal lands in the editor's diff preview. Accepting persists through
-`save_lines` with revision source `resync`, so a machine re-time is
-distinguishable from a native speaker's judgement in the history. The function
-refuses audio that doesn't fit the transcript (a trust gate on the match
-ratio) rather than writing a confident mistake, and `save_lines` itself now
-refuses timings the player can't use: a NaN from a half-typed field, a line
-ending before it starts, a timeline running backwards. Gaps between lines are
-legal — with honest timings they are silences, not errors.
+proposal lands in the editor's diff preview. It runs the same line splitter
+afterwards, so pressing it on a one-line transcript is what turns it into
+timed lines; the new pieces name their parent in `splitFrom` (response only,
+never stored) and get their English drafted in one call to the `TRANSLATION`
+lineup — best effort, so a model that is down costs the pieces their
+translation, never the re-sync, and the toast says which happened along with
+how many words the aligner placed. Accepting persists through `save_lines`
+with revision source `resync`, so a machine re-time is distinguishable from a
+native speaker's judgement in the history. The function refuses audio that
+doesn't fit the transcript (a trust gate on the match ratio) rather than
+writing a confident mistake, and `save_lines` itself now refuses timings the
+player can't use: a NaN from a half-typed field, a line ending before it
+starts, a timeline running backwards. Gaps between lines are legal — with
+honest timings they are silences, not errors. A 404 from the button is named
+for what it is: a backend that has never had the function deployed.
 
 The editor reads the persisted `words` for its per-word highlight, split
 boundaries and AI re-segmentation anchors, falling back to an even spread only

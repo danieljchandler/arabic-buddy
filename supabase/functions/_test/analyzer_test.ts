@@ -782,3 +782,48 @@ Deno.test("writes nothing to any row when no pipeline video is named", async () 
     fn.restore();
   }
 });
+
+Deno.test("translates the rule-split fallback line by line", async () => {
+  // The merge failed, so the lines are raw ASR text split by rule — but they
+  // are lines, and a line can be translated. One cheap call fills them in
+  // rather than handing the learner a transcript with no English at all.
+  const words = [
+    "شلونك", "اليوم", "الحمد", "لله", "بخير", "وانت", "شخبارك", "والله", "زين",
+    "الحين", "وين", "رايح", "بروح", "السوق", "اشتري", "اغراض", "للبيت", "طيب",
+  ];
+  const models: UpstreamHandler = async (request) => {
+    const body = await request.clone().text();
+    if (body.includes("Translate these Gulf Arabic lines")) {
+      return chatCompletion("1. How are you today, fine thank God\n2. And you? Where are you off to now?\n3. To the market, for the house, okay");
+    }
+    return chatCompletion("Sorry, I cannot help with that.");
+  };
+  const fn = await loadFunction("analyze-gulf-arabic", {
+    env: { FANAR_API_KEY: undefined },
+    upstreams: allowed({
+      "openrouter.ai": models,
+      "generativelanguage.googleapis.com": models,
+      "/rest/v1/discover_videos": () => json([{ id: PIPELINE_VIDEO }], 200),
+      "/functions/v1/process-approved-video": () => json({ success: true }, 202),
+    }),
+  });
+  try {
+    const response = await fn.handler(jsonRequest("analyze-gulf-arabic", {
+      transcript: words.join(" "),
+      videoId: PIPELINE_VIDEO,
+    }, { jwt: SERVICE_ROLE_KEY }));
+    assertEquals(response.status, 200);
+    const body = await response.json() as { result?: { lines?: Array<{ arabic: string; translation: string }> } };
+    const lines = body.result?.lines ?? [];
+    assert(lines.length > 1);
+    assert(lines.every((l) => l.translation.length > 0), `every fallback line translated: ${JSON.stringify(lines.map((l) => l.translation))}`);
+    assertEquals(lines[0].translation, "How are you today, fine thank God");
+    await fn.background();
+    const persisted = fn.calls.find((c) => c.url.includes("discover_videos") && c.method === "PATCH");
+    assert(persisted);
+    const patch = JSON.parse(persisted.body ?? "{}") as { transcript_lines: Array<{ translation: string }> };
+    assert(patch.transcript_lines.every((l) => l.translation.length > 0), "the row gets the translations too");
+  } finally {
+    fn.restore();
+  }
+});

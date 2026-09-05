@@ -1,6 +1,6 @@
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { FIXTURE_ENV, jsonRequest, loadFunction, optionsRequest } from "./harness.ts";
-import { json, type UpstreamHandler } from "./upstreams.ts";
+import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
 
 /**
  * `process-approved-video` — the transcription pipeline behind the Discover
@@ -925,6 +925,93 @@ Deno.test("process-approved-video breaks a one-line transcript at the speaker's 
   assertEquals(lines[1].words.map((w) => w.surface), words.slice(5, 12));
   assertEquals(lines[2].tokens.map((t) => t.surface), words.slice(12));
   assertEquals(finalStatus(result), "completed");
+});
+
+// A translated line is a different matter from an untranslated one: its
+// English described the whole line and cannot be divided among the pieces.
+// The first run of the splitter did exactly that to every line the merge left
+// over fourteen words — the transcript came through line by line and
+// untranslated. Now a translated line is split only once English has been
+// drafted for every piece (_shared/transcriptPieceTranslation.ts); otherwise
+// it stays whole with the English it had.
+
+const LONG_WORDS = [
+  "شلونك", "اليوم", "الحمد", "لله", "بخير", "وانت", "شخبارك", "والله", "زين",
+  "الحين", "وين", "رايح", "بروح", "السوق", "اشتري", "اغراض", "للبيت", "طيب",
+  "الله", "يوفقك",
+];
+
+/** Soniox hears the long line word for word, pausing after the 5th and 12th words. */
+const sonioxHearsLongLine: UpstreamHandler = (request) => {
+  const path = new URL(request.url).pathname;
+  if (path.endsWith("/files")) return json({ id: "file_fixture" });
+  if (path.endsWith("/transcript")) {
+    const pauses: Record<number, number> = { 5: 1_400, 12: 900 };
+    let at = 500;
+    const tokens = LONG_WORDS.map((text, i) => {
+      at += pauses[i] ?? 80;
+      const start_ms = at;
+      at += 300;
+      return { text: ` ${text}`, start_ms, end_ms: at };
+    });
+    return json({ text: LONG_WORDS.join(" "), tokens });
+  }
+  return json({ id: "tr_fixture", status: "completed" });
+};
+
+const LONG_TRANSLATED = {
+  id: "l1",
+  arabic: LONG_WORDS.join(" "),
+  translation: "How are you today, fine thank God, and you, where are you off to, to the market, God bless you",
+};
+
+Deno.test("process-approved-video keeps a long translated line whole rather than losing its English", async () => {
+  // The default model fixture answers with plain text, so no English can be
+  // drafted for the pieces — the line must come through as it was.
+  const result = await call({ videoId: VIDEO }, backend({
+    analyze: () => json({ success: true, result: aResult({ lines: [LONG_TRANSLATED] }) }),
+    extra: { "api.soniox.com": sonioxHearsLongLine },
+  }));
+  const lines = lastPatchWith(result, "transcript_lines")?.transcript_lines as Array<{
+    id: string; arabic: string; translation: string;
+  }>;
+  assertEquals(lines.length, 1);
+  assertEquals(lines[0].id, "l1");
+  assertEquals(lines[0].arabic, LONG_WORDS.join(" "));
+  assertEquals(lines[0].translation, LONG_TRANSLATED.translation);
+  assertEquals(finalStatus(result), "completed");
+});
+
+Deno.test("process-approved-video splits a long translated line once its pieces have English of their own", async () => {
+  const drafted = () =>
+    chatCompletion("", {
+      lines: [
+        { index: 1, translation: "How are you today, fine thank God", literal: "how-you today praise to-God well" },
+        { index: 2, translation: "And you? Fine. Where are you off to now?", literal: "and-you news-your by-God fine now where going" },
+        { index: 3, translation: "To the market, for the house. Okay, God bless", literal: "I-go the-market I-buy things for-the-house okay God bless-you" },
+      ],
+    });
+  const result = await call({ videoId: VIDEO }, backend({
+    analyze: () => json({ success: true, result: aResult({ lines: [LONG_TRANSLATED] }) }),
+    extra: {
+      "api.soniox.com": sonioxHearsLongLine,
+      "openrouter.ai": drafted,
+      "generativelanguage.googleapis.com/v1beta/openai": drafted,
+    },
+  }));
+  const lines = lastPatchWith(result, "transcript_lines")?.transcript_lines as Array<{
+    id: string; arabic: string; translation: string; literal?: string; needs_review?: boolean; startMs: number; endMs: number;
+  }>;
+  assertEquals(lines.map((l) => l.id), ["l1-1", "l1-2", "l1-3"]);
+  assertEquals(lines.map((l) => l.arabic), [
+    LONG_WORDS.slice(0, 5).join(" "),
+    LONG_WORDS.slice(5, 12).join(" "),
+    LONG_WORDS.slice(12).join(" "),
+  ]);
+  assertEquals(lines[0].translation, "How are you today, fine thank God");
+  assertEquals(lines[2].literal, "I-go the-market I-buy things for-the-house okay God bless-you");
+  assert(lines.every((l) => !l.needs_review), "a translated piece is not flagged empty");
+  assertEquals(lines[1].startMs - lines[0].endMs, 1_400);
 });
 
 Deno.test("process-approved-video gives every line a place on the audio timeline", async () => {

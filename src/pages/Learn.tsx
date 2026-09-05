@@ -28,6 +28,7 @@ import { useDialect } from "@/contexts/DialectContext";
 import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import { SoundSpotlight } from "@/components/learn/SoundSpotlight";
 import { LessonPlanSection } from "@/components/learn/LessonPlanSection";
+import { CultureNotes, GrammarNotes, LessonDialogue } from "@/components/learn/LessonNotes";
 import { useLessonProgressFor, useUpsertLessonProgress } from "@/hooks/useLessonProgress";
 import { ListChecks, Mic, Sparkles } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
@@ -506,6 +507,11 @@ const Learn = () => {
       {!isMixedMode && currentIndex === 0 && phase === "intro" && (
         <div className="mb-4 space-y-3">
           <SoundSpotlight entries={topic?.soundSpotlight ?? []} />
+          {/* Curriculum-track sections (grammar pattern, custom, dialogue):
+              seeded from curriculum/tracks/, empty for every other lesson. */}
+          <GrammarNotes notes={topic?.grammarNotes ?? []} />
+          <CultureNotes notes={topic?.cultureNotes ?? []} />
+          <LessonDialogue lines={topic?.dialogue ?? []} />
           <LessonPlanSection
             title="What's in this lesson"
             icon={ListChecks}

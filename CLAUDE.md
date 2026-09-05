@@ -93,6 +93,17 @@ harness.
   drag any global number to a meaningless floor). They're set a couple of
   points under the measured figures and are a ratchet — raise them when the
   real numbers move up.
+- **The Stage 1–3 curriculum is authored in `curriculum/tracks/`, and two
+  more drift guards watch it.** `src/test/curriculumTracks.test.ts` holds every
+  dialect's lesson files to `syllabus.json` (same slugs in order, every target
+  concept realised, stage word minimum, no word introduced twice per dialect,
+  only the six grammar categories) and runs every Arabic string through
+  `detectMsaLeaks` for its dialect; `src/test/curriculumSeed.test.ts` fails
+  when `supabase/migrations/20260905110000_seed_curriculum_tracks.sql` is not
+  what the JSON compiles to. Edit a lesson → `npm run curriculum:check` →
+  `npm run curriculum:seed` → `npm run curriculum:video-needs`. Never edit the
+  seed migration by hand. `curriculum/tracks/SCHEMA.md` is the authoring guide;
+  the README section "The authored tracks" is the writeup.
 - **The lint ratchet has a hard-coded baseline.** `scripts/lint-ratchet.mjs`
   pins `BASELINE` (currently 530 errors). If you legitimately reduce the count,
   lower `BASELINE` in the same commit — the script prints the new number.
@@ -216,7 +227,11 @@ never promotes, only demotes.
 **Curriculum**: stages/lessons in `curriculum_stages`/`lessons`, progress in
 `lesson_progress`, path/gating logic pure and tested in `src/lib/lessonPath.ts`.
 Gating is soft — `unlock_condition` is free-text guidance, not an enforced
-rule. Lesson content is imported from `.xlsx` (`src/lib/parseLessonXlsx.ts`).
+rule. Lesson content comes from two places: the authored dialect tracks in
+`curriculum/tracks/` (Stages 1–3 for Gulf, Egyptian and Yemeni; compiled to a
+seed migration by `src/lib/curriculumSeed.ts`, keyed on `lessons.source_key`)
+and `.xlsx` imports (`src/lib/parseLessonXlsx.ts`). Lessons line up across
+dialects by syllabus slug and concept key, never by Arabic string.
 
 **Access, spend and abuse controls** are cross-cutting concerns every
 model-calling function must respect, not per-function decisions:

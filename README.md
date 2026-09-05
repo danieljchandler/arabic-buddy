@@ -70,6 +70,9 @@ the edge functions are configured in the Supabase dashboard, not committed.
 | `npm run test:e2e:ui` | Run the E2E suite in Playwright's UI mode |
 | `npm run lint:ratchet` | Fail only if lint errors increased (what CI runs) |
 | `npm run check:edge` | Typecheck the Deno edge functions (needs `deno` installed) |
+| `npm run curriculum:check` | Validate `curriculum/tracks/` against the syllabus and the MSA-leak detector |
+| `npm run curriculum:seed` | Regenerate the curriculum seed migration from `curriculum/tracks/` |
+| `npm run curriculum:video-needs` | Regenerate the per-dialect video shopping lists in `curriculum/video-needs/` |
 
 ### Continuous integration
 
@@ -181,6 +184,56 @@ Lesson plans imported from `.xlsx` (`src/lib/parseLessonXlsx.ts` →
 are stored as authoring metadata and have no learner-facing surface. Every
 section renders nothing when empty, so lessons imported before this was wired up
 are unaffected.
+
+### The authored tracks (Stages 1–3, three dialects)
+
+The Pre-A1 → B1 curriculum for Gulf, Egyptian and Yemeni is authored in git,
+not in the admin UI: `curriculum/tracks/`. One dialect-neutral
+`syllabus.json` fixes 38 lesson slots (12 Foundations, 14 Building Blocks, 12
+Bridge) — slug, CEFR target, can-do goals, grammar targets in the six shared
+`grammarTaxonomy` categories, the cultural thread, and the `target_concepts`
+every dialect must realise. Each dialect fills the slots in its own words as
+one JSON file per lesson (`<dialect>/stage-<n>/<nn>-<slug>.json`): vocabulary
+with an example sentence, teaching note, image scene, caption `variants` and a
+`video_hint` per word; grammar notes with dialect examples; culture notes with
+their phrases; a dialogue; sound spotlight; lesson sequence; real-world prompts;
+and `video_needs`. `curriculum/tracks/SCHEMA.md` is the authoring guide.
+
+Lessons line up across dialects by slug and concept key, never by an Arabic
+string — the same idea as `vocab_concepts` → `concept_realizations` in the clip
+pipeline — so a learner switching dialect lands on the same lesson.
+
+Three things are generated from the tracks and committed:
+
+- **The seed migration** `supabase/migrations/20260905110000_seed_curriculum_tracks.sql`
+  (`npm run curriculum:seed`, pure generator in `src/lib/curriculumSeed.ts`).
+  Lessons upsert on `lessons.source_key`, words insert-if-missing then update
+  (never delete — `word_reviews` point at them), grammar concepts land in
+  `curriculum_concepts` + `content_concept_links`, and every word with a
+  `concept_key` becomes a draft `concept_realizations` row so
+  `mine-clip-candidates` can hunt for it. The new lesson columns
+  (`grammar_notes`, `culture_notes`, `dialogue`, `can_do`) render on the first
+  card of `Learn.tsx`; `vocabulary_words.example_*` carry the sentence.
+- **The video shopping list** `curriculum/video-needs/<dialect>.md`
+  (`npm run curriculum:video-needs`): per lesson the scene to look for, the
+  registered channels to mine first, Arabic searches, and every word's caption
+  surfaces. `scripts/curriculum-video-coverage.ts` (needs the service role)
+  matches those surfaces against `discover_videos` transcripts, `caption_lines`
+  and `published_clips` and writes `coverage-<dialect>.md`: which words are
+  already on film, where, and which still need a video.
+- **The Brain's review** `scripts/curriculum-brain.ts` (Deno, needs provider
+  keys) sends each lesson through `askBrain` (CONTENT lineup, draft_critic,
+  native-speaker validator) for a line-by-line native review with proposed
+  replacements, written to `_brain/*.review.json` next to the lesson; `--apply`
+  merges the accepted ones. Nothing it writes bypasses the guards below.
+
+Guards: `src/test/curriculumTracks.test.ts` holds every dialect file to the
+syllabus (slots, concepts, word minimums, no word introduced twice, valid
+grammar categories, script per field) and runs every Arabic string through
+`detectMsaLeaks` for its dialect — a leak inside a lesson is taught, not
+caught. `src/test/curriculumSeed.test.ts` fails when the seed migration is
+stale. `npm run curriculum:check` is the same check for authors, with
+`--dialect`, `--stage` and `--partial` while a stage is half-written.
 
 ## Project layout
 

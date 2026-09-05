@@ -1,0 +1,203 @@
+{
+  "slug": "objects-around-you",
+  "lesson_number": 1,
+  "title": "Objects — The World Around You",
+  "title_arabic": "الأشياء اللي حولك",
+  "description": "Twelve things you can point at right now — a glass of water, the door, your phone — heard and seen until the sound and the thing are one. No reading, no speaking yet.",
+  "cefr_target": "Pre-A1",
+  "duration_minutes": 15,
+  "approach": "GPA Phase 1 — Here & Now. Receptive only: listen, look, tap. No production, no grammar meta-language.",
+  "unlock_condition": "≥9/12 correct on the final listen-and-tap quiz",
+  "icon": "🏠",
+  "can_do": [
+    "Recognise twelve everyday objects by sound and picture",
+    "Match a spoken Gulf word to the thing it names"
+  ],
+  "grammar": [],
+  "culture": [
+    {
+      "title": "Coffee is where the language starts",
+      "note": "In a Gulf home the first thing offered is قهوة — cardamom-scented Arabic coffee poured from a دلة into a tiny handleless cup, followed by dates. It is poured by the youngest, taken with the right hand, and refilled until you gently shake the cup. Learning the word before anything else is not an accident: it is the first thing you will hear a host say.",
+      "phrases": [
+        { "arabic": "تفضل قهوة", "transliteration": "tfaḍḍal gahwa", "english": "Please, have some coffee" },
+        { "arabic": "ماي لو سمحت", "transliteration": "maay law samaḥt", "english": "Water, please" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "ماي",
+      "transliteration": "maay",
+      "english": "water",
+      "category": "Food & drink",
+      "teaching_note": "Universal and unambiguous; every Gulf home has it. Note the Gulf form ماي, not the MSA ماء — the learner will never need the MSA word to be understood.",
+      "image_scene": "Close-up of a clear glass of cold water on a table, condensation on the glass.",
+      "concept_key": "water",
+      "variants": ["الماي", "مويه", "الموية", "موية"],
+      "example": { "arabic": "أبي ماي", "transliteration": "abi maay", "english": "I want water" },
+      "video_hint": "Someone pouring or asking for water; ماي/موية said while the glass is visible."
+    },
+    {
+      "arabic": "قهوة",
+      "transliteration": "gahwa",
+      "english": "coffee",
+      "category": "Food & drink",
+      "teaching_note": "Culturally central. The Gulf ق is a hard g — introduced deliberately in the first lesson through the word learners will hear most.",
+      "image_scene": "Small white Arabic coffee cup (finjan) with a gold rim, a dallah in the background.",
+      "concept_key": "coffee",
+      "variants": ["القهوة", "قهوه", "القهوه"],
+      "example": { "arabic": "تفضل قهوة", "transliteration": "tfaḍḍal gahwa", "english": "Have some coffee" },
+      "video_hint": "Coffee being poured from a dallah in a majlis; the word said as the cup is offered."
+    },
+    {
+      "arabic": "شاي",
+      "transliteration": "shaay",
+      "english": "tea",
+      "category": "Food & drink",
+      "teaching_note": "Gulf tea is served sweet, often with mint or كرك (spiced milk tea). Same word everywhere in the Arab world, so it is a free win.",
+      "image_scene": "A small glass of amber tea with a sprig of mint on a metal tray.",
+      "concept_key": "tea",
+      "variants": ["الشاي", "شاهي", "الشاهي"],
+      "example": { "arabic": "شاي ولا قهوة؟", "transliteration": "shaay walla gahwa?", "english": "Tea or coffee?" },
+      "video_hint": "A tea glass being poured or offered; the host asking 'tea or coffee?'."
+    },
+    {
+      "arabic": "خبز",
+      "transliteration": "khubz",
+      "english": "bread",
+      "category": "Food & drink",
+      "teaching_note": "Concrete staple. Introduces the خ sound in a memorable context. In Saudi you will also hear عيش for bread — the app accepts both.",
+      "image_scene": "Round Arabic flatbread on a wooden board, slightly puffed and warm.",
+      "concept_key": "bread",
+      "variants": ["الخبز", "عيش", "العيش"],
+      "example": { "arabic": "الخبز حار", "transliteration": "il-khubz ḥaar", "english": "The bread is hot" },
+      "video_hint": "Bread on the table or being baked; cooking channels name it as it comes out of the oven."
+    },
+    {
+      "arabic": "كرسي",
+      "transliteration": "kursi",
+      "english": "chair",
+      "category": "Home",
+      "teaching_note": "Furniture is ideal early vocabulary — stable, pointable, unambiguous.",
+      "image_scene": "A simple wooden chair against a plain light wall, nothing else in frame.",
+      "concept_key": "chair",
+      "variants": ["الكرسي", "كراسي", "الكراسي"],
+      "example": { "arabic": "اقعد على الكرسي", "transliteration": "igʿid ʿala l-kursi", "english": "Sit on the chair" },
+      "video_hint": "A chair being pointed at, pulled up or sat on in a room tour."
+    },
+    {
+      "arabic": "باب",
+      "transliteration": "baab",
+      "english": "door",
+      "category": "Home",
+      "teaching_note": "Short, phonetically simple, and it carries the long aa vowel the learner will meet in كتاب too.",
+      "image_scene": "A wooden door slightly ajar with warm light coming through the gap.",
+      "concept_key": "door",
+      "variants": ["الباب", "أبواب"],
+      "example": { "arabic": "الباب مفتوح", "transliteration": "il-baab maftuuḥ", "english": "The door is open" },
+      "video_hint": "Someone at or opening a door; house-tour clips mentioning الباب."
+    },
+    {
+      "arabic": "بيت",
+      "transliteration": "bayt",
+      "english": "house / home",
+      "category": "Home",
+      "teaching_note": "Very high frequency; it returns in dozens of later phrases (بيتي، بيتك، بيت خالي).",
+      "image_scene": "Exterior of a white Gulf house with a flat roof, an arched window and a palm tree.",
+      "concept_key": "house",
+      "variants": ["البيت", "بيوت", "بيتي", "بيتنا"],
+      "example": { "arabic": "هذا بيتي", "transliteration": "haadha bayti", "english": "This is my house" },
+      "video_hint": "A vlogger arriving home or showing the house from outside; بيت/بيتنا in the narration."
+    },
+    {
+      "arabic": "سيارة",
+      "transliteration": "sayyaara",
+      "english": "car",
+      "category": "Outdoor",
+      "teaching_note": "Visually unambiguous. Introduces the doubled letter (يّ). The white SUV is the culturally typical Gulf car.",
+      "image_scene": "A white SUV parked on a quiet Gulf street, seen from the side.",
+      "concept_key": "car",
+      "variants": ["السيارة", "سياره", "سيارتي", "سيايير"],
+      "example": { "arabic": "السيارة برا", "transliteration": "is-sayyaara barra", "english": "The car is outside" },
+      "video_hint": "Getting into or talking about a car; driving vlogs are full of السيارة."
+    },
+    {
+      "arabic": "شجرة",
+      "transliteration": "shayara",
+      "english": "tree",
+      "category": "Outdoor",
+      "teaching_note": "Culturally specific: the date palm is the iconic Gulf tree. Many Gulf speakers say the ج as y (shayara) — the app plays both.",
+      "image_scene": "A date palm against a clear deep-blue sky, full tree visible.",
+      "concept_key": "tree",
+      "variants": ["الشجرة", "شجره", "شجر", "الشجر"],
+      "example": { "arabic": "الشجرة كبيرة", "transliteration": "ish-shayara kibiira", "english": "The tree is big" },
+      "video_hint": "A palm tree or garden shown while named; farm and كشتة vlogs."
+    },
+    {
+      "arabic": "تلفون",
+      "transliteration": "tilifoon",
+      "english": "phone / mobile",
+      "category": "Object",
+      "teaching_note": "A borrowed word, so it is nearly free. You will also hear جوال (Saudi) and موبايل (elsewhere); all three are accepted.",
+      "image_scene": "A smartphone lying face-up on a table, screen lit.",
+      "concept_key": "phone",
+      "variants": ["التلفون", "تليفون", "جوال", "الجوال", "موبايل"],
+      "example": { "arabic": "وين تلفوني؟", "transliteration": "wayn tilifooni?", "english": "Where is my phone?" },
+      "video_hint": "Someone holding up or looking for their phone; جوال is the word to listen for in Saudi clips."
+    },
+    {
+      "arabic": "كتاب",
+      "transliteration": "kitaab",
+      "english": "book",
+      "category": "Object",
+      "teaching_note": "Classic object-lesson word; long aa vowel, and the ك–ت–ب root the learner will meet again in 'write' and 'office'.",
+      "image_scene": "A closed hardback book on a desk, plain cover.",
+      "concept_key": "book",
+      "variants": ["الكتاب", "كتب", "الكتب"],
+      "example": { "arabic": "الكتاب على الكرسي", "transliteration": "il-kitaab ʿala l-kursi", "english": "The book is on the chair" },
+      "video_hint": "A book being held or shown; study vlogs and children's read-alongs."
+    },
+    {
+      "arabic": "مفتاح",
+      "transliteration": "miftaaḥ",
+      "english": "key",
+      "category": "Object",
+      "teaching_note": "Everyday and pocket-sized. Introduces the ح sound at the end of a word, where it is easiest to hear.",
+      "image_scene": "A single metal key on a keyring against a plain background.",
+      "concept_key": "key",
+      "variants": ["المفتاح", "مفاتيح", "المفاتيح"],
+      "example": { "arabic": "المفتاح في السيارة", "transliteration": "il-miftaaḥ fi s-sayyaara", "english": "The key is in the car" },
+      "video_hint": "Keys being picked up or searched for on the way out; 'وين المفتاح؟'."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Host", "arabic": "تفضل، قهوة؟", "transliteration": "tfaḍḍal, gahwa?", "english": "Please — coffee?" },
+    { "speaker": "Guest", "arabic": "ماي لو سمحت", "transliteration": "maay law samaḥt", "english": "Water, please" },
+    { "speaker": "Host", "arabic": "الماي على الكرسي", "transliteration": "il-maay ʿala l-kursi", "english": "The water is on the chair" }
+  ],
+  "sound_spotlight": [
+    { "sound": "ق → g", "example": "قهوة (gahwa)", "explanation": "In Gulf Arabic ق is a hard g, not the formal q of MSA. One of the most distinctive Gulf features, introduced through the word you will hear most." },
+    { "sound": "خ", "example": "خبز (khubz)", "explanation": "A rasping sound at the back of the throat, like the ch in Scottish 'loch'. Heard passively here; production practice starts in Lesson 4." },
+    { "sound": "ح", "example": "مفتاح (miftaaḥ)", "explanation": "A breathy h from deep in the throat — like fogging a mirror. Easiest to hear at the end of a word." },
+    { "sound": "Long aa", "example": "كتاب، باب", "explanation": "Arabic holds some vowels twice as long. Both words carry the long ا; hearing them side by side lets the pattern register before it is ever explained." }
+  ],
+  "lesson_sequence": [
+    { "step": "Welcome", "detail": "A warm Gulf street scene — palm, white house, sun. One line of English: you will start recognising twelve Gulf words. Tap يلّا to begin." },
+    { "step": "Listen & see", "detail": "Each of the 12 words on its own full-screen card: illustration, native audio auto-plays, Arabic large, no English yet. Tap to replay as often as you like." },
+    { "step": "Second pass", "detail": "The same 12 cards, faster, audio auto-plays, English label now shown small and grey underneath." },
+    { "step": "Tap quiz — round 1", "detail": "Audio only; four images in a grid; tap the one you heard. Words 1–6. Distractors come from this lesson." },
+    { "step": "Tap quiz — round 2", "detail": "Same format, words 7–12." },
+    { "step": "Tap quiz — all twelve", "detail": "Random order, audio only. Score screen shows the missed words with image and audio to replay." },
+    { "step": "Lesson complete", "detail": "Words-learned counter rolls up to 12. Nudge: look around you today and find these things." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Look around you right now. Can you spot any of the twelve things from this lesson? Say the Gulf word in your head.", "context": "Shown on the lesson-complete screen. Observation only, no speaking required. Activates all 12 words." },
+    { "prompt": "Every time you make or drink قهوة or ماي over the next few days, say the word once out loud.", "context": "Follow-up notification the next morning (optional). Two of the highest-frequency words, both in every kitchen." },
+    { "prompt": "If you have a tutor session coming up, tell them: 'I just learned these twelve words — can you point at them and say them?'", "context": "The ideal first tutor interaction: the GPA here-and-now game. Receptive reinforcement only." }
+  ],
+  "video_needs": {
+    "queries": ["جولة في بيتنا", "قهوة عربية دلة", "فلوق يومي سعودي بيت"],
+    "channels": ["Moshaya Family", "Saudi Food Eman", "Jana Vlogs", "Bjlife"],
+    "scene": "A host or vlogger naming objects while they are on screen: coffee poured from a dallah, bread on the table, keys and phone picked up on the way to the car."
+  }
+}

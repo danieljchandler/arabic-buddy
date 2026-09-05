@@ -68,6 +68,49 @@ describe("a lesson with a plan", () => {
     expect(result.current.data?.lessonSequence).toEqual(A_SEQUENCE);
   });
 
+  it("returns the curriculum-track sections, dropping rows a renderer could not use", async () => {
+    const { result } = render(lessonId(0), (backend) => {
+      backend.db.seed("lessons", [
+        aLesson({
+          id: lessonId(0),
+          grammar_notes: [
+            {
+              category: "negation",
+              title: "ما before the verb",
+              explanation: "Put ما first.",
+              examples: [{ arabic: "ما أبي", transliteration: "ma abi", english: "I don't want" }, { arabic: "" }],
+            },
+            { title: "", examples: [] },
+            "not a note",
+          ],
+          culture_notes: [
+            { title: "Coffee first", note: "Shake the cup.", phrases: [{ arabic: "تفضل" }] },
+            { note: "no title" },
+          ],
+          dialogue: [{ speaker: "Host", arabic: "تفضل", english: "Please" }, { speaker: "Guest" }],
+          can_do: ["Greet someone", 7, ""],
+        }),
+      ]);
+    });
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data?.grammarNotes).toEqual([
+      {
+        category: "negation",
+        title: "ما before the verb",
+        explanation: "Put ما first.",
+        examples: [{ arabic: "ما أبي", transliteration: "ma abi", english: "I don't want" }],
+      },
+    ]);
+    expect(result.current.data?.cultureNotes).toEqual([
+      { title: "Coffee first", note: "Shake the cup.", phrases: [{ arabic: "تفضل", transliteration: undefined, english: undefined }] },
+    ]);
+    expect(result.current.data?.dialogue).toEqual([
+      { speaker: "Host", arabic: "تفضل", transliteration: undefined, english: "Please" },
+    ]);
+    expect(result.current.data?.canDo).toEqual(["Greet someone"]);
+  });
+
   it("returns the words in teaching order", async () => {
     const { result } = render(lessonId(0), (backend) => {
       backend.db.seed("lessons", [aLesson({ id: lessonId(0) })]);

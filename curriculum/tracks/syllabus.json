@@ -1,0 +1,2853 @@
+{
+  "version": 1,
+  "stages": [
+    {
+      "stage": 1,
+      "name": "Foundations",
+      "cefr": "Pre-A1 → A1",
+      "words_per_lesson": 12,
+      "lessons": [
+        {
+          "slug": "objects-around-you",
+          "lesson_number": 1,
+          "title": "Objects — The World Around You",
+          "theme": "Here & now objects",
+          "cefr_target": "Pre-A1",
+          "can_do": [
+            "Recognise twelve everyday objects by sound and picture",
+            "Match a spoken word to the thing it names"
+          ],
+          "grammar": [],
+          "culture": "Coffee and tea as the first act of hospitality: the cup is where the language starts.",
+          "target_concepts": [
+            {
+              "key": "water",
+              "gloss": "water"
+            },
+            {
+              "key": "coffee",
+              "gloss": "coffee"
+            },
+            {
+              "key": "tea",
+              "gloss": "tea"
+            },
+            {
+              "key": "bread",
+              "gloss": "bread"
+            },
+            {
+              "key": "chair",
+              "gloss": "chair"
+            },
+            {
+              "key": "door",
+              "gloss": "door"
+            },
+            {
+              "key": "house",
+              "gloss": "house"
+            },
+            {
+              "key": "car",
+              "gloss": "car"
+            },
+            {
+              "key": "tree",
+              "gloss": "tree"
+            },
+            {
+              "key": "phone",
+              "gloss": "phone/mobile"
+            },
+            {
+              "key": "book",
+              "gloss": "book"
+            },
+            {
+              "key": "key",
+              "gloss": "key"
+            }
+          ],
+          "video_scene": "Objects shown one at a time while named — a cooking or home-tour clip where the speaker points at or holds the thing."
+        },
+        {
+          "slug": "greetings-and-replies",
+          "lesson_number": 2,
+          "title": "Greetings and Their Replies",
+          "theme": "Greeting rituals",
+          "cefr_target": "Pre-A1",
+          "can_do": [
+            "Greet someone and answer their greeting",
+            "Say good morning, good evening and goodbye",
+            "Ask how someone is and say you are fine"
+          ],
+          "grammar": [],
+          "culture": "Every greeting has a fixed reply; the reply is the lesson. Handshakes, the right hand, and why 'peace be upon you' is answered word for word.",
+          "target_concepts": [
+            {
+              "key": "hello",
+              "gloss": "hello"
+            },
+            {
+              "key": "peace_be_upon_you",
+              "gloss": "peace be upon you"
+            },
+            {
+              "key": "and_upon_you_peace",
+              "gloss": "and upon you peace (the reply)"
+            },
+            {
+              "key": "good_morning",
+              "gloss": "good morning"
+            },
+            {
+              "key": "good_morning_reply",
+              "gloss": "good morning (reply)"
+            },
+            {
+              "key": "good_evening",
+              "gloss": "good evening"
+            },
+            {
+              "key": "how_are_you",
+              "gloss": "how are you"
+            },
+            {
+              "key": "im_fine",
+              "gloss": "I'm fine, thank God"
+            },
+            {
+              "key": "welcome",
+              "gloss": "welcome"
+            },
+            {
+              "key": "goodbye",
+              "gloss": "goodbye"
+            },
+            {
+              "key": "see_you",
+              "gloss": "see you / God willing we meet"
+            },
+            {
+              "key": "whats_new",
+              "gloss": "what's new? / how are things?"
+            }
+          ],
+          "video_scene": "Two people greeting each other at a door or on the street; street-interview intros are ideal."
+        },
+        {
+          "slug": "yes-no-please-thanks",
+          "lesson_number": 3,
+          "title": "Yes, No, Please and Thank You",
+          "theme": "Politeness particles",
+          "cefr_target": "Pre-A1",
+          "can_do": [
+            "Say yes, no, please and thank you and answer thanks",
+            "Apologise and get someone's attention politely",
+            "Use the everyday religious phrases everyone uses"
+          ],
+          "grammar": [],
+          "culture": "God-phrases are grammar, not piety: 'God willing', 'praise God' and 'what God wills' punctuate every conversation whatever the speaker's religiosity.",
+          "target_concepts": [
+            {
+              "key": "yes",
+              "gloss": "yes"
+            },
+            {
+              "key": "no",
+              "gloss": "no"
+            },
+            {
+              "key": "please",
+              "gloss": "please"
+            },
+            {
+              "key": "thank_you",
+              "gloss": "thank you"
+            },
+            {
+              "key": "youre_welcome",
+              "gloss": "you're welcome / reply to thanks"
+            },
+            {
+              "key": "sorry",
+              "gloss": "sorry"
+            },
+            {
+              "key": "excuse_me",
+              "gloss": "excuse me (to get attention)"
+            },
+            {
+              "key": "okay",
+              "gloss": "okay / fine"
+            },
+            {
+              "key": "of_course",
+              "gloss": "of course / sure"
+            },
+            {
+              "key": "god_willing",
+              "gloss": "God willing"
+            },
+            {
+              "key": "praise_god",
+              "gloss": "praise God"
+            },
+            {
+              "key": "no_problem",
+              "gloss": "no problem"
+            }
+          ],
+          "video_scene": "Short exchanges at a shop counter or table: thanks and the reply, an apology, an 'okay'."
+        },
+        {
+          "slug": "me-and-you",
+          "lesson_number": 4,
+          "title": "Me and You",
+          "theme": "Introducing yourself",
+          "cefr_target": "Pre-A1",
+          "can_do": [
+            "Say who you are and where you are from",
+            "Ask someone's name",
+            "Point at yourself, the listener and a third person with the right pronoun"
+          ],
+          "grammar": [
+            {
+              "category": "pronouns",
+              "point": "Subject pronouns: I, you (m/f), he, she"
+            },
+            {
+              "category": "sentence-structure",
+              "point": "Nominal sentence — no verb 'to be' in the present"
+            }
+          ],
+          "culture": "Names and how people address each other: first names, 'father of…', the polite titles you will hear used on you.",
+          "target_concepts": [
+            {
+              "key": "i",
+              "gloss": "I"
+            },
+            {
+              "key": "you_m",
+              "gloss": "you (masculine)"
+            },
+            {
+              "key": "you_f",
+              "gloss": "you (feminine)"
+            },
+            {
+              "key": "he",
+              "gloss": "he"
+            },
+            {
+              "key": "she",
+              "gloss": "she"
+            },
+            {
+              "key": "name",
+              "gloss": "name"
+            },
+            {
+              "key": "my_name_is",
+              "gloss": "my name is…"
+            },
+            {
+              "key": "whats_your_name",
+              "gloss": "what's your name?"
+            },
+            {
+              "key": "from",
+              "gloss": "from"
+            },
+            {
+              "key": "i_am_from",
+              "gloss": "I am from…"
+            },
+            {
+              "key": "nice_to_meet_you",
+              "gloss": "nice to meet you"
+            },
+            {
+              "key": "student",
+              "gloss": "student"
+            }
+          ],
+          "video_scene": "A self-introduction: vloggers introducing themselves, street interviews asking name and origin."
+        },
+        {
+          "slug": "people-and-family",
+          "lesson_number": 5,
+          "title": "People and Family",
+          "theme": "Family and people",
+          "cefr_target": "A1",
+          "can_do": [
+            "Name the members of a family",
+            "Say 'my' and 'your' with family words",
+            "Ask about someone's family politely"
+          ],
+          "grammar": [
+            {
+              "category": "possessives",
+              "point": "Possessive suffixes -i and -ak/-ik (my, your)"
+            }
+          ],
+          "culture": "Family is the first thing people ask about. Which questions are normal, which are not, and why 'how is the family?' rarely wants a real answer.",
+          "target_concepts": [
+            {
+              "key": "mother",
+              "gloss": "mother"
+            },
+            {
+              "key": "father",
+              "gloss": "father"
+            },
+            {
+              "key": "brother",
+              "gloss": "brother"
+            },
+            {
+              "key": "sister",
+              "gloss": "sister"
+            },
+            {
+              "key": "son",
+              "gloss": "son"
+            },
+            {
+              "key": "daughter",
+              "gloss": "daughter"
+            },
+            {
+              "key": "family",
+              "gloss": "family"
+            },
+            {
+              "key": "friend",
+              "gloss": "friend"
+            },
+            {
+              "key": "man",
+              "gloss": "man"
+            },
+            {
+              "key": "woman",
+              "gloss": "woman"
+            },
+            {
+              "key": "boy",
+              "gloss": "boy"
+            },
+            {
+              "key": "girl",
+              "gloss": "girl"
+            }
+          ],
+          "video_scene": "Family vlogs where members are introduced or called by name; a mother naming her children."
+        },
+        {
+          "slug": "numbers-one-to-ten",
+          "lesson_number": 6,
+          "title": "Numbers One to Ten",
+          "theme": "Counting and prices",
+          "cefr_target": "A1",
+          "can_do": [
+            "Count from one to ten",
+            "Ask how much something costs and understand the answer",
+            "Say a phone number digit by digit"
+          ],
+          "grammar": [
+            {
+              "category": "questions",
+              "point": "How much? / how many?"
+            }
+          ],
+          "culture": "The local currency and its small change, and the fact that first prices are rarely final.",
+          "target_concepts": [
+            {
+              "key": "one",
+              "gloss": "one"
+            },
+            {
+              "key": "two",
+              "gloss": "two"
+            },
+            {
+              "key": "three",
+              "gloss": "three"
+            },
+            {
+              "key": "four",
+              "gloss": "four"
+            },
+            {
+              "key": "five",
+              "gloss": "five"
+            },
+            {
+              "key": "six",
+              "gloss": "six"
+            },
+            {
+              "key": "seven",
+              "gloss": "seven"
+            },
+            {
+              "key": "eight",
+              "gloss": "eight"
+            },
+            {
+              "key": "nine",
+              "gloss": "nine"
+            },
+            {
+              "key": "ten",
+              "gloss": "ten"
+            },
+            {
+              "key": "how_much",
+              "gloss": "how much"
+            },
+            {
+              "key": "money",
+              "gloss": "money"
+            }
+          ],
+          "video_scene": "A vendor quoting prices, a phone number being read out, children counting."
+        },
+        {
+          "slug": "food-and-drink",
+          "lesson_number": 7,
+          "title": "Food and Drink",
+          "theme": "Eating at home",
+          "cefr_target": "A1",
+          "can_do": [
+            "Name common foods and drinks",
+            "Say what you want to eat or drink",
+            "Ask for something to be passed"
+          ],
+          "grammar": [
+            {
+              "category": "verb-conjugation",
+              "point": "'I want' + noun — the first verb-like word"
+            }
+          ],
+          "culture": "The three meals, when they actually happen, and the dishes people are proud of. Eating with the right hand and from the shared plate.",
+          "target_concepts": [
+            {
+              "key": "rice",
+              "gloss": "rice"
+            },
+            {
+              "key": "meat",
+              "gloss": "meat"
+            },
+            {
+              "key": "chicken",
+              "gloss": "chicken"
+            },
+            {
+              "key": "fish",
+              "gloss": "fish"
+            },
+            {
+              "key": "milk",
+              "gloss": "milk"
+            },
+            {
+              "key": "sugar",
+              "gloss": "sugar"
+            },
+            {
+              "key": "salt",
+              "gloss": "salt"
+            },
+            {
+              "key": "egg",
+              "gloss": "egg"
+            },
+            {
+              "key": "fruit",
+              "gloss": "fruit"
+            },
+            {
+              "key": "vegetables",
+              "gloss": "vegetables"
+            },
+            {
+              "key": "dates",
+              "gloss": "dates"
+            },
+            {
+              "key": "juice",
+              "gloss": "juice"
+            },
+            {
+              "key": "i_want",
+              "gloss": "I want"
+            },
+            {
+              "key": "give_me",
+              "gloss": "give me"
+            }
+          ],
+          "video_scene": "Cooking channels naming ingredients on screen; a family meal where dishes are named and passed."
+        },
+        {
+          "slug": "this-and-that",
+          "lesson_number": 8,
+          "title": "This and That",
+          "theme": "Pointing and describing",
+          "cefr_target": "A1",
+          "can_do": [
+            "Point at things with 'this' and 'that'",
+            "Ask 'what is this?'",
+            "Describe things as big, small, new, old, good, bad, hot, cold"
+          ],
+          "grammar": [
+            {
+              "category": "pronouns",
+              "point": "Demonstratives: this / that (m/f)"
+            },
+            {
+              "category": "sentence-structure",
+              "point": "Noun + adjective, adjective agrees with the noun"
+            }
+          ],
+          "culture": "Hot and cold are about drinks before weather: which drinks are served hot, which cold, and what to say about them.",
+          "target_concepts": [
+            {
+              "key": "this_m",
+              "gloss": "this (m)"
+            },
+            {
+              "key": "this_f",
+              "gloss": "this (f)"
+            },
+            {
+              "key": "that",
+              "gloss": "that"
+            },
+            {
+              "key": "what_is_this",
+              "gloss": "what is this?"
+            },
+            {
+              "key": "big",
+              "gloss": "big"
+            },
+            {
+              "key": "small",
+              "gloss": "small"
+            },
+            {
+              "key": "new",
+              "gloss": "new"
+            },
+            {
+              "key": "old",
+              "gloss": "old"
+            },
+            {
+              "key": "good",
+              "gloss": "good"
+            },
+            {
+              "key": "bad",
+              "gloss": "bad"
+            },
+            {
+              "key": "hot",
+              "gloss": "hot"
+            },
+            {
+              "key": "cold",
+              "gloss": "cold"
+            }
+          ],
+          "video_scene": "A speaker holding up or pointing at objects and describing them; market stalls, unboxings."
+        },
+        {
+          "slug": "where-is-it",
+          "lesson_number": 9,
+          "title": "Where Is It?",
+          "theme": "Places and location",
+          "cefr_target": "A1",
+          "can_do": [
+            "Ask where something is",
+            "Say here, there, in, on and next to",
+            "Name the places you go every week"
+          ],
+          "grammar": [
+            {
+              "category": "questions",
+              "point": "Where?"
+            },
+            {
+              "category": "sentence-structure",
+              "point": "'There is / there isn't' + location phrases"
+            }
+          ],
+          "culture": "Asking strangers for directions is normal and expected; mosques as landmarks; where you can and cannot walk in.",
+          "target_concepts": [
+            {
+              "key": "where",
+              "gloss": "where"
+            },
+            {
+              "key": "here",
+              "gloss": "here"
+            },
+            {
+              "key": "there",
+              "gloss": "there"
+            },
+            {
+              "key": "in",
+              "gloss": "in"
+            },
+            {
+              "key": "on",
+              "gloss": "on"
+            },
+            {
+              "key": "next_to",
+              "gloss": "next to"
+            },
+            {
+              "key": "market",
+              "gloss": "market"
+            },
+            {
+              "key": "mosque",
+              "gloss": "mosque"
+            },
+            {
+              "key": "school",
+              "gloss": "school"
+            },
+            {
+              "key": "hospital",
+              "gloss": "hospital"
+            },
+            {
+              "key": "street",
+              "gloss": "street"
+            },
+            {
+              "key": "bathroom",
+              "gloss": "bathroom"
+            },
+            {
+              "key": "kitchen",
+              "gloss": "kitchen"
+            },
+            {
+              "key": "there_is",
+              "gloss": "there is"
+            }
+          ],
+          "video_scene": "Someone giving or asking directions; a home or neighbourhood tour naming rooms and places."
+        },
+        {
+          "slug": "daily-time-words",
+          "lesson_number": 10,
+          "title": "Days and Time Words",
+          "theme": "Time",
+          "cefr_target": "A1",
+          "can_do": [
+            "Say today, tomorrow, yesterday and now",
+            "Name the parts of the day and the days that matter",
+            "Ask when something happens"
+          ],
+          "grammar": [
+            {
+              "category": "questions",
+              "point": "When?"
+            },
+            {
+              "category": "sentence-structure",
+              "point": "Time adverbs at the start or end of a sentence"
+            }
+          ],
+          "culture": "The day is shaped by the five prayers and the week by Friday; what 'the weekend' means locally and when shops actually open.",
+          "target_concepts": [
+            {
+              "key": "today",
+              "gloss": "today"
+            },
+            {
+              "key": "tomorrow",
+              "gloss": "tomorrow"
+            },
+            {
+              "key": "yesterday",
+              "gloss": "yesterday"
+            },
+            {
+              "key": "now",
+              "gloss": "now"
+            },
+            {
+              "key": "later",
+              "gloss": "later"
+            },
+            {
+              "key": "morning",
+              "gloss": "morning"
+            },
+            {
+              "key": "night",
+              "gloss": "night"
+            },
+            {
+              "key": "day",
+              "gloss": "day"
+            },
+            {
+              "key": "week",
+              "gloss": "week"
+            },
+            {
+              "key": "always",
+              "gloss": "always"
+            },
+            {
+              "key": "sometimes",
+              "gloss": "sometimes"
+            },
+            {
+              "key": "when",
+              "gloss": "when"
+            },
+            {
+              "key": "friday",
+              "gloss": "friday"
+            }
+          ],
+          "video_scene": "A vlogger narrating their day with time words; morning-routine videos."
+        },
+        {
+          "slug": "i-have-i-dont",
+          "lesson_number": 11,
+          "title": "I Have, I Don't Have",
+          "theme": "Possession and existence",
+          "cefr_target": "A1",
+          "can_do": [
+            "Say what you have and don't have",
+            "Say there is and there isn't",
+            "Ask if someone has something"
+          ],
+          "grammar": [
+            {
+              "category": "negation",
+              "point": "Negating 'have' and 'there is'"
+            },
+            {
+              "category": "possessives",
+              "point": "'With me / with you' and 'have' with suffixes"
+            }
+          ],
+          "culture": "'I don't have a problem' and other no-problem phrases; how 'no' is softened and what 'God willing' means when it answers a request.",
+          "target_concepts": [
+            {
+              "key": "i_have",
+              "gloss": "I have"
+            },
+            {
+              "key": "i_dont_have",
+              "gloss": "I don't have"
+            },
+            {
+              "key": "with_me",
+              "gloss": "with me / on me"
+            },
+            {
+              "key": "there_isnt",
+              "gloss": "there isn't"
+            },
+            {
+              "key": "time",
+              "gloss": "time"
+            },
+            {
+              "key": "work",
+              "gloss": "work"
+            },
+            {
+              "key": "problem",
+              "gloss": "problem"
+            },
+            {
+              "key": "question",
+              "gloss": "question"
+            },
+            {
+              "key": "everything",
+              "gloss": "everything"
+            },
+            {
+              "key": "nothing",
+              "gloss": "nothing"
+            },
+            {
+              "key": "maybe",
+              "gloss": "maybe"
+            },
+            {
+              "key": "a_little",
+              "gloss": "a little"
+            }
+          ],
+          "video_scene": "Someone checking pockets or a bag, asking 'do you have…?' at a counter."
+        },
+        {
+          "slug": "survival-phrases",
+          "lesson_number": 12,
+          "title": "Survival Phrases",
+          "theme": "Getting by as a learner",
+          "cefr_target": "A1",
+          "can_do": [
+            "Say you don't understand and ask for slower repetition",
+            "Ask what a word means and how to say something",
+            "Say you speak a little"
+          ],
+          "grammar": [
+            {
+              "category": "questions",
+              "point": "How do you say…? / What does … mean?"
+            },
+            {
+              "category": "verb-conjugation",
+              "point": "Polite imperatives: speak slowly, say it again"
+            }
+          ],
+          "culture": "How natives react to a learner — the delight, the switch to English, and the phrases that keep them in Arabic.",
+          "target_concepts": [
+            {
+              "key": "i_dont_understand",
+              "gloss": "I don't understand"
+            },
+            {
+              "key": "slowly",
+              "gloss": "slowly"
+            },
+            {
+              "key": "again",
+              "gloss": "again / once more"
+            },
+            {
+              "key": "what_does_it_mean",
+              "gloss": "what does it mean?"
+            },
+            {
+              "key": "how_do_you_say",
+              "gloss": "how do you say…?"
+            },
+            {
+              "key": "do_you_speak_english",
+              "gloss": "do you speak English?"
+            },
+            {
+              "key": "a_little_arabic",
+              "gloss": "I speak a little"
+            },
+            {
+              "key": "i_know",
+              "gloss": "I know"
+            },
+            {
+              "key": "i_dont_know",
+              "gloss": "I don't know"
+            },
+            {
+              "key": "help",
+              "gloss": "help"
+            },
+            {
+              "key": "wait",
+              "gloss": "wait a moment"
+            },
+            {
+              "key": "understood",
+              "gloss": "understood / got it"
+            }
+          ],
+          "video_scene": "A foreigner speaking Arabic on camera and natives helping; language-teacher channels."
+        }
+      ]
+    },
+    {
+      "stage": 2,
+      "name": "Building Blocks",
+      "cefr": "A1 → A2",
+      "words_per_lesson": 14,
+      "lessons": [
+        {
+          "slug": "present-tense-daily-routine",
+          "lesson_number": 1,
+          "title": "My Daily Routine",
+          "theme": "Daily routine verbs",
+          "cefr_target": "A1",
+          "can_do": [
+            "Describe your ordinary day with eight core verbs",
+            "Conjugate the present tense for every person",
+            "Ask what someone does every day"
+          ],
+          "grammar": [
+            {
+              "category": "verb-conjugation",
+              "point": "Present tense — full paradigm of the habitual present"
+            }
+          ],
+          "culture": "The rhythm of a day: dawn prayer, the late lunch, the afternoon lull, the late evening when life starts.",
+          "target_concepts": [
+            {
+              "key": "wake_up",
+              "gloss": "wake up"
+            },
+            {
+              "key": "drink",
+              "gloss": "drink"
+            },
+            {
+              "key": "eat",
+              "gloss": "eat"
+            },
+            {
+              "key": "go",
+              "gloss": "go"
+            },
+            {
+              "key": "work_verb",
+              "gloss": "work (verb)"
+            },
+            {
+              "key": "study",
+              "gloss": "study"
+            },
+            {
+              "key": "sleep",
+              "gloss": "sleep"
+            },
+            {
+              "key": "come_back",
+              "gloss": "come back / return"
+            },
+            {
+              "key": "pray",
+              "gloss": "pray"
+            },
+            {
+              "key": "watch",
+              "gloss": "watch"
+            },
+            {
+              "key": "every_day",
+              "gloss": "every day"
+            },
+            {
+              "key": "usually",
+              "gloss": "usually"
+            }
+          ],
+          "video_scene": "Day-in-the-life vlogs narrated in the present: 'I wake up, I drink coffee, I go to work'."
+        },
+        {
+          "slug": "asking-questions",
+          "lesson_number": 2,
+          "title": "Asking Questions",
+          "theme": "Question words",
+          "cefr_target": "A1",
+          "can_do": [
+            "Ask what, who, why, how, which, how many, when and where",
+            "Answer the small-talk questions everyone asks",
+            "Notice question word order"
+          ],
+          "grammar": [
+            {
+              "category": "questions",
+              "point": "The full question-word set and where it sits in the sentence"
+            }
+          ],
+          "culture": "The small-talk interrogation: where from, married, children, what work — and the polite ways to answer or deflect.",
+          "target_concepts": [
+            {
+              "key": "what",
+              "gloss": "what"
+            },
+            {
+              "key": "who",
+              "gloss": "who"
+            },
+            {
+              "key": "why",
+              "gloss": "why"
+            },
+            {
+              "key": "how",
+              "gloss": "how"
+            },
+            {
+              "key": "which",
+              "gloss": "which"
+            },
+            {
+              "key": "how_many",
+              "gloss": "how many"
+            },
+            {
+              "key": "married",
+              "gloss": "married"
+            },
+            {
+              "key": "children",
+              "gloss": "children"
+            },
+            {
+              "key": "age",
+              "gloss": "age / how old"
+            },
+            {
+              "key": "really",
+              "gloss": "really?"
+            },
+            {
+              "key": "i_mean",
+              "gloss": "I mean… / that is"
+            },
+            {
+              "key": "of_course_not",
+              "gloss": "of course not"
+            }
+          ],
+          "video_scene": "Street interviews (question then answer), quiz shows, kids' Q&A."
+        },
+        {
+          "slug": "negation",
+          "lesson_number": 3,
+          "title": "Saying No: Negation",
+          "theme": "Negation",
+          "cefr_target": "A1",
+          "can_do": [
+            "Negate verbs, nouns and adjectives",
+            "Say never, nothing and nobody",
+            "Refuse politely"
+          ],
+          "grammar": [
+            {
+              "category": "negation",
+              "point": "Negating verbs vs. negating nouns and adjectives"
+            }
+          ],
+          "culture": "Refusal is ritual: a first 'no' to food is expected, and how a real refusal is phrased so nobody loses face.",
+          "target_concepts": [
+            {
+              "key": "not",
+              "gloss": "not (before nouns/adjectives)"
+            },
+            {
+              "key": "dont",
+              "gloss": "don't / doesn't (verb negation)"
+            },
+            {
+              "key": "never",
+              "gloss": "never"
+            },
+            {
+              "key": "nobody",
+              "gloss": "nobody"
+            },
+            {
+              "key": "nothing_at_all",
+              "gloss": "nothing at all"
+            },
+            {
+              "key": "still_not",
+              "gloss": "not yet"
+            },
+            {
+              "key": "only",
+              "gloss": "only / just"
+            },
+            {
+              "key": "but",
+              "gloss": "but"
+            },
+            {
+              "key": "enough",
+              "gloss": "enough / that's it"
+            },
+            {
+              "key": "impossible",
+              "gloss": "impossible / no way"
+            },
+            {
+              "key": "i_dont_want",
+              "gloss": "I don't want"
+            },
+            {
+              "key": "not_important",
+              "gloss": "it doesn't matter"
+            }
+          ],
+          "video_scene": "Someone declining, arguing or saying 'no way' — comedy skits are full of it."
+        },
+        {
+          "slug": "my-house-and-home",
+          "lesson_number": 4,
+          "title": "My House and Home",
+          "theme": "Home",
+          "cefr_target": "A1",
+          "can_do": [
+            "Name the rooms and main furniture",
+            "Use the full set of possessive suffixes",
+            "Say where things are in a room"
+          ],
+          "grammar": [
+            {
+              "category": "possessives",
+              "point": "Possessive suffixes — full paradigm — and the 'belonging to' word"
+            }
+          ],
+          "culture": "The guest room and the sitting room: who sits where, shoes at the door, and where guests are never taken.",
+          "target_concepts": [
+            {
+              "key": "room",
+              "gloss": "room"
+            },
+            {
+              "key": "living_room",
+              "gloss": "sitting room / guest room"
+            },
+            {
+              "key": "bedroom",
+              "gloss": "bedroom"
+            },
+            {
+              "key": "window",
+              "gloss": "window"
+            },
+            {
+              "key": "table",
+              "gloss": "table"
+            },
+            {
+              "key": "bed",
+              "gloss": "bed"
+            },
+            {
+              "key": "roof",
+              "gloss": "roof"
+            },
+            {
+              "key": "garden",
+              "gloss": "garden"
+            },
+            {
+              "key": "floor",
+              "gloss": "floor / ground"
+            },
+            {
+              "key": "in_front_of",
+              "gloss": "in front of"
+            },
+            {
+              "key": "behind",
+              "gloss": "behind"
+            },
+            {
+              "key": "belonging_to",
+              "gloss": "belonging to / of"
+            },
+            {
+              "key": "our",
+              "gloss": "our"
+            },
+            {
+              "key": "their",
+              "gloss": "their"
+            }
+          ],
+          "video_scene": "House tours; room-by-room narration; furniture named while shown."
+        },
+        {
+          "slug": "shopping-at-the-souq",
+          "lesson_number": 5,
+          "title": "Shopping at the Souq",
+          "theme": "Shopping",
+          "cefr_target": "A2",
+          "can_do": [
+            "Buy something and ask the price",
+            "Count from eleven to a hundred",
+            "Say expensive, cheap and ask for a discount"
+          ],
+          "grammar": [
+            {
+              "category": "sentence-structure",
+              "point": "Numbers with counted nouns: 3–10 plural, 11+ singular"
+            },
+            {
+              "category": "questions",
+              "point": "How much is this? / How much for…?"
+            }
+          ],
+          "culture": "The bargaining script from opening price to walking away, and when not to bargain at all.",
+          "target_concepts": [
+            {
+              "key": "buy",
+              "gloss": "buy"
+            },
+            {
+              "key": "sell",
+              "gloss": "sell"
+            },
+            {
+              "key": "expensive",
+              "gloss": "expensive"
+            },
+            {
+              "key": "cheap",
+              "gloss": "cheap"
+            },
+            {
+              "key": "discount",
+              "gloss": "discount"
+            },
+            {
+              "key": "kilo",
+              "gloss": "kilo"
+            },
+            {
+              "key": "bag",
+              "gloss": "bag"
+            },
+            {
+              "key": "price",
+              "gloss": "price"
+            },
+            {
+              "key": "shop",
+              "gloss": "shop"
+            },
+            {
+              "key": "twenty",
+              "gloss": "twenty"
+            },
+            {
+              "key": "hundred",
+              "gloss": "hundred"
+            },
+            {
+              "key": "half",
+              "gloss": "half"
+            },
+            {
+              "key": "change",
+              "gloss": "change (money)"
+            },
+            {
+              "key": "i_need",
+              "gloss": "I need"
+            },
+            {
+              "key": "too_much",
+              "gloss": "too much"
+            }
+          ],
+          "video_scene": "Market walk-throughs with prices; haggling; grocery hauls."
+        },
+        {
+          "slug": "food-ordering-at-a-cafe",
+          "lesson_number": 6,
+          "title": "Ordering at a Café",
+          "theme": "Eating out",
+          "cefr_target": "A2",
+          "can_do": [
+            "Order food and drink",
+            "Ask for the bill",
+            "Say something is delicious, spicy or sweet"
+          ],
+          "grammar": [
+            {
+              "category": "verb-conjugation",
+              "point": "Imperative + object suffix: bring me, give us"
+            }
+          ],
+          "culture": "Café culture: who pays, the fight over the bill, tea and coffee orders with their sugar levels, and tipping.",
+          "target_concepts": [
+            {
+              "key": "order",
+              "gloss": "order / ask for"
+            },
+            {
+              "key": "bring_me",
+              "gloss": "bring me"
+            },
+            {
+              "key": "bill",
+              "gloss": "bill"
+            },
+            {
+              "key": "delicious",
+              "gloss": "delicious"
+            },
+            {
+              "key": "spicy",
+              "gloss": "spicy"
+            },
+            {
+              "key": "sweet",
+              "gloss": "sweet"
+            },
+            {
+              "key": "without",
+              "gloss": "without"
+            },
+            {
+              "key": "with",
+              "gloss": "with"
+            },
+            {
+              "key": "menu",
+              "gloss": "menu"
+            },
+            {
+              "key": "waiter",
+              "gloss": "waiter"
+            },
+            {
+              "key": "cup",
+              "gloss": "cup"
+            },
+            {
+              "key": "plate",
+              "gloss": "plate"
+            },
+            {
+              "key": "full",
+              "gloss": "I'm full"
+            },
+            {
+              "key": "restaurant",
+              "gloss": "restaurant"
+            }
+          ],
+          "video_scene": "Café and restaurant scenes: ordering, the waiter, the bill; food-review channels."
+        },
+        {
+          "slug": "getting-around",
+          "lesson_number": 7,
+          "title": "Getting Around",
+          "theme": "Transport and directions",
+          "cefr_target": "A2",
+          "can_do": [
+            "Take a taxi or bus and say where you want to go",
+            "Give and follow simple directions",
+            "Say near, far, right, left, straight"
+          ],
+          "grammar": [
+            {
+              "category": "verb-conjugation",
+              "point": "Imperatives for directions: go, turn, stop"
+            }
+          ],
+          "culture": "Taxi etiquette: fixing the fare first, where to sit, and the local shared minibus.",
+          "target_concepts": [
+            {
+              "key": "taxi",
+              "gloss": "taxi"
+            },
+            {
+              "key": "bus",
+              "gloss": "bus"
+            },
+            {
+              "key": "right",
+              "gloss": "right"
+            },
+            {
+              "key": "left",
+              "gloss": "left"
+            },
+            {
+              "key": "straight_ahead",
+              "gloss": "straight ahead"
+            },
+            {
+              "key": "stop_here",
+              "gloss": "stop here"
+            },
+            {
+              "key": "far",
+              "gloss": "far"
+            },
+            {
+              "key": "near",
+              "gloss": "near"
+            },
+            {
+              "key": "station",
+              "gloss": "station"
+            },
+            {
+              "key": "airport",
+              "gloss": "airport"
+            },
+            {
+              "key": "ticket",
+              "gloss": "ticket"
+            },
+            {
+              "key": "turn",
+              "gloss": "turn"
+            },
+            {
+              "key": "driver",
+              "gloss": "driver"
+            },
+            {
+              "key": "road",
+              "gloss": "road"
+            }
+          ],
+          "video_scene": "Taxi rides filmed from inside, directions being given, driving vlogs."
+        },
+        {
+          "slug": "past-tense-what-i-did",
+          "lesson_number": 8,
+          "title": "What I Did Yesterday",
+          "theme": "Past tense",
+          "cefr_target": "A2",
+          "can_do": [
+            "Say what you did yesterday and last week",
+            "Conjugate regular past-tense verbs",
+            "Tell a short sequence of past events"
+          ],
+          "grammar": [
+            {
+              "category": "verb-conjugation",
+              "point": "Past tense — full paradigm of regular verbs"
+            }
+          ],
+          "culture": "The weekend: which days it falls on, family visits, and the question 'what did you do on the weekend?'",
+          "target_concepts": [
+            {
+              "key": "went",
+              "gloss": "went"
+            },
+            {
+              "key": "ate",
+              "gloss": "ate"
+            },
+            {
+              "key": "saw",
+              "gloss": "saw"
+            },
+            {
+              "key": "bought",
+              "gloss": "bought"
+            },
+            {
+              "key": "said",
+              "gloss": "said"
+            },
+            {
+              "key": "came",
+              "gloss": "came"
+            },
+            {
+              "key": "did",
+              "gloss": "did / made"
+            },
+            {
+              "key": "last_week",
+              "gloss": "last week"
+            },
+            {
+              "key": "weekend",
+              "gloss": "weekend"
+            },
+            {
+              "key": "visit",
+              "gloss": "visit"
+            },
+            {
+              "key": "then",
+              "gloss": "then / after that"
+            },
+            {
+              "key": "before",
+              "gloss": "before"
+            },
+            {
+              "key": "after",
+              "gloss": "after"
+            },
+            {
+              "key": "trip",
+              "gloss": "trip"
+            }
+          ],
+          "video_scene": "Vlog recaps in the past tense; 'what I did today' summaries."
+        },
+        {
+          "slug": "weather-and-seasons",
+          "lesson_number": 9,
+          "title": "Weather and Seasons",
+          "theme": "Weather",
+          "cefr_target": "A2",
+          "can_do": [
+            "Talk about the weather",
+            "Name the seasons and say what they are like",
+            "Make weather small talk"
+          ],
+          "grammar": [
+            {
+              "category": "sentence-structure",
+              "point": "Adjective sentences: 'the weather is hot', 'it is cold today'"
+            }
+          ],
+          "culture": "Heat as a way of life: the summer exodus, air conditioning, and the joy of rain.",
+          "target_concepts": [
+            {
+              "key": "weather",
+              "gloss": "weather"
+            },
+            {
+              "key": "rain",
+              "gloss": "rain"
+            },
+            {
+              "key": "sun",
+              "gloss": "sun"
+            },
+            {
+              "key": "wind",
+              "gloss": "wind"
+            },
+            {
+              "key": "dust",
+              "gloss": "dust"
+            },
+            {
+              "key": "humid",
+              "gloss": "humid"
+            },
+            {
+              "key": "summer",
+              "gloss": "summer"
+            },
+            {
+              "key": "winter",
+              "gloss": "winter"
+            },
+            {
+              "key": "degree",
+              "gloss": "degree"
+            },
+            {
+              "key": "cloudy",
+              "gloss": "cloudy"
+            },
+            {
+              "key": "nice_weather",
+              "gloss": "nice / pleasant weather"
+            },
+            {
+              "key": "warm",
+              "gloss": "warm"
+            },
+            {
+              "key": "very",
+              "gloss": "very"
+            },
+            {
+              "key": "cool",
+              "gloss": "cool"
+            }
+          ],
+          "video_scene": "Weather chat at the start of vlogs; outdoor scenes commenting on heat or rain."
+        },
+        {
+          "slug": "work-and-study",
+          "lesson_number": 10,
+          "title": "Work and Study",
+          "theme": "Jobs and study",
+          "cefr_target": "A2",
+          "can_do": [
+            "Say what you do and where",
+            "Name common jobs",
+            "Say you are busy or on holiday"
+          ],
+          "grammar": [
+            {
+              "category": "verb-conjugation",
+              "point": "'I work as…' and the progressive 'I am (currently) doing'"
+            }
+          ],
+          "culture": "The working week, public-sector prestige, and how foreigners' jobs are asked about.",
+          "target_concepts": [
+            {
+              "key": "job",
+              "gloss": "job"
+            },
+            {
+              "key": "engineer",
+              "gloss": "engineer"
+            },
+            {
+              "key": "teacher",
+              "gloss": "teacher"
+            },
+            {
+              "key": "doctor",
+              "gloss": "doctor"
+            },
+            {
+              "key": "driver",
+              "gloss": "driver"
+            },
+            {
+              "key": "office",
+              "gloss": "office"
+            },
+            {
+              "key": "company",
+              "gloss": "company"
+            },
+            {
+              "key": "salary",
+              "gloss": "salary"
+            },
+            {
+              "key": "busy",
+              "gloss": "busy"
+            },
+            {
+              "key": "holiday",
+              "gloss": "holiday"
+            },
+            {
+              "key": "university",
+              "gloss": "university"
+            },
+            {
+              "key": "meeting",
+              "gloss": "meeting"
+            },
+            {
+              "key": "colleague",
+              "gloss": "colleague"
+            },
+            {
+              "key": "boss",
+              "gloss": "boss"
+            }
+          ],
+          "video_scene": "Career or workplace vlogs; people describing their jobs in interviews."
+        },
+        {
+          "slug": "health-and-body",
+          "lesson_number": 11,
+          "title": "Health and the Body",
+          "theme": "Health",
+          "cefr_target": "A2",
+          "can_do": [
+            "Name the main parts of the body",
+            "Say what hurts and that you are sick",
+            "Go to a pharmacy or doctor"
+          ],
+          "grammar": [
+            {
+              "category": "possessives",
+              "point": "'I have' with symptoms: 'I have a headache'"
+            }
+          ],
+          "culture": "'Your safety!' and its reply; visiting the sick as an obligation; home remedies people swear by.",
+          "target_concepts": [
+            {
+              "key": "head",
+              "gloss": "head"
+            },
+            {
+              "key": "hand",
+              "gloss": "hand"
+            },
+            {
+              "key": "stomach",
+              "gloss": "stomach"
+            },
+            {
+              "key": "sick",
+              "gloss": "sick"
+            },
+            {
+              "key": "pain",
+              "gloss": "pain"
+            },
+            {
+              "key": "pharmacy",
+              "gloss": "pharmacy"
+            },
+            {
+              "key": "medicine",
+              "gloss": "medicine"
+            },
+            {
+              "key": "tired",
+              "gloss": "tired"
+            },
+            {
+              "key": "headache",
+              "gloss": "headache"
+            },
+            {
+              "key": "fever",
+              "gloss": "fever"
+            },
+            {
+              "key": "get_well",
+              "gloss": "get well / your safety"
+            },
+            {
+              "key": "better",
+              "gloss": "better"
+            },
+            {
+              "key": "eye",
+              "gloss": "eye"
+            },
+            {
+              "key": "foot",
+              "gloss": "foot"
+            }
+          ],
+          "video_scene": "Pharmacy or clinic scenes; someone describing symptoms; home-remedy videos."
+        },
+        {
+          "slug": "future-plans",
+          "lesson_number": 12,
+          "title": "Plans and the Future",
+          "theme": "Future",
+          "cefr_target": "A2",
+          "can_do": [
+            "Say what you will do tomorrow and next week",
+            "Use the future marker",
+            "Make and accept an invitation"
+          ],
+          "grammar": [
+            {
+              "category": "verb-conjugation",
+              "point": "The future marker + present tense"
+            }
+          ],
+          "culture": "'God willing' attached to every plan, and how to tell a real commitment from a polite one.",
+          "target_concepts": [
+            {
+              "key": "will",
+              "gloss": "will (future marker)"
+            },
+            {
+              "key": "next_week",
+              "gloss": "next week"
+            },
+            {
+              "key": "plan",
+              "gloss": "plan"
+            },
+            {
+              "key": "travel",
+              "gloss": "travel"
+            },
+            {
+              "key": "meet",
+              "gloss": "meet"
+            },
+            {
+              "key": "invite",
+              "gloss": "invite"
+            },
+            {
+              "key": "later_on",
+              "gloss": "later"
+            },
+            {
+              "key": "soon",
+              "gloss": "soon"
+            },
+            {
+              "key": "next_year",
+              "gloss": "next year"
+            },
+            {
+              "key": "promise",
+              "gloss": "promise"
+            },
+            {
+              "key": "ready",
+              "gloss": "ready"
+            },
+            {
+              "key": "together",
+              "gloss": "together"
+            }
+          ],
+          "video_scene": "Someone announcing plans: 'tomorrow we'll go…', travel-prep vlogs."
+        },
+        {
+          "slug": "describing-people",
+          "lesson_number": 13,
+          "title": "Describing People",
+          "theme": "Description and comparison",
+          "cefr_target": "A2",
+          "can_do": [
+            "Describe someone's looks and character",
+            "Compare two people or things",
+            "Say someone is taller or better"
+          ],
+          "grammar": [
+            {
+              "category": "sentence-structure",
+              "point": "Comparatives and superlatives: bigger than, the best"
+            }
+          ],
+          "culture": "Compliments carry the evil eye: why 'what God wills' follows every nice thing said about a person.",
+          "target_concepts": [
+            {
+              "key": "tall",
+              "gloss": "tall"
+            },
+            {
+              "key": "short",
+              "gloss": "short"
+            },
+            {
+              "key": "kind",
+              "gloss": "kind"
+            },
+            {
+              "key": "funny",
+              "gloss": "funny"
+            },
+            {
+              "key": "young",
+              "gloss": "young"
+            },
+            {
+              "key": "hair",
+              "gloss": "hair"
+            },
+            {
+              "key": "eyes",
+              "gloss": "eyes"
+            },
+            {
+              "key": "bigger_than",
+              "gloss": "bigger than"
+            },
+            {
+              "key": "the_best",
+              "gloss": "the best"
+            },
+            {
+              "key": "smart",
+              "gloss": "smart"
+            },
+            {
+              "key": "strong",
+              "gloss": "strong"
+            },
+            {
+              "key": "quiet",
+              "gloss": "quiet"
+            },
+            {
+              "key": "same",
+              "gloss": "the same"
+            },
+            {
+              "key": "different",
+              "gloss": "different"
+            }
+          ],
+          "video_scene": "People describing friends or family; 'who is taller?' comparisons; comedy on character types."
+        },
+        {
+          "slug": "hospitality-and-visiting",
+          "lesson_number": 14,
+          "title": "Hospitality and Visiting",
+          "theme": "Being a guest and a host",
+          "cefr_target": "A2",
+          "can_do": [
+            "Welcome a guest and be welcomed",
+            "Offer and accept food and drink",
+            "Leave politely"
+          ],
+          "grammar": [
+            {
+              "category": "verb-conjugation",
+              "point": "Polite imperatives with suffixes: come in, sit down, have some"
+            }
+          ],
+          "culture": "The complete visit: the greeting at the door, coffee or tea first, the three refusals, standing up when someone enters, the leaving ritual.",
+          "target_concepts": [
+            {
+              "key": "come_in",
+              "gloss": "come in / go ahead"
+            },
+            {
+              "key": "sit_down",
+              "gloss": "sit down"
+            },
+            {
+              "key": "have_some",
+              "gloss": "have some / help yourself"
+            },
+            {
+              "key": "guest",
+              "gloss": "guest"
+            },
+            {
+              "key": "host",
+              "gloss": "host"
+            },
+            {
+              "key": "honoured",
+              "gloss": "you honoured us"
+            },
+            {
+              "key": "stay",
+              "gloss": "stay"
+            },
+            {
+              "key": "tea_or_coffee",
+              "gloss": "tea or coffee?"
+            },
+            {
+              "key": "thank_you_for_hospitality",
+              "gloss": "thanks for the hospitality"
+            },
+            {
+              "key": "my_pleasure",
+              "gloss": "the pleasure was ours"
+            },
+            {
+              "key": "neighbour",
+              "gloss": "neighbour"
+            },
+            {
+              "key": "gift",
+              "gloss": "gift"
+            }
+          ],
+          "video_scene": "Home visits filmed: greeting at the door, coffee being poured, guests being urged to eat."
+        }
+      ]
+    },
+    {
+      "stage": 3,
+      "name": "The Bridge",
+      "cefr": "A2 → B1",
+      "words_per_lesson": 14,
+      "lessons": [
+        {
+          "slug": "telling-stories-in-the-past",
+          "lesson_number": 1,
+          "title": "Telling a Story",
+          "theme": "Narrating the past",
+          "cefr_target": "A2",
+          "can_do": [
+            "Tell what happened with 'was' + verb",
+            "Sequence events with then, after that, while",
+            "Use the most common irregular past verbs"
+          ],
+          "grammar": [
+            {
+              "category": "verb-conjugation",
+              "point": "'Was' + present/past for background; irregular (hollow, weak) past verbs"
+            }
+          ],
+          "culture": "Storytelling as social currency: the punchline, the exaggeration, and the listener's expected reactions.",
+          "target_concepts": [
+            {
+              "key": "was",
+              "gloss": "was / were"
+            },
+            {
+              "key": "while",
+              "gloss": "while"
+            },
+            {
+              "key": "suddenly",
+              "gloss": "suddenly"
+            },
+            {
+              "key": "story",
+              "gloss": "story"
+            },
+            {
+              "key": "happened",
+              "gloss": "happened"
+            },
+            {
+              "key": "told",
+              "gloss": "told"
+            },
+            {
+              "key": "found",
+              "gloss": "found"
+            },
+            {
+              "key": "forgot",
+              "gloss": "forgot"
+            },
+            {
+              "key": "remember",
+              "gloss": "remember"
+            },
+            {
+              "key": "laughed",
+              "gloss": "laughed"
+            },
+            {
+              "key": "afraid",
+              "gloss": "afraid"
+            },
+            {
+              "key": "at_the_end",
+              "gloss": "in the end"
+            }
+          ],
+          "video_scene": "Someone recounting a story to camera or friends; storytime vlogs; comedy anecdotes."
+        },
+        {
+          "slug": "because-and-so",
+          "lesson_number": 2,
+          "title": "Because, So and But",
+          "theme": "Connectors",
+          "cefr_target": "A2",
+          "can_do": [
+            "Give a reason and a consequence",
+            "Join sentences with but, although, in order to",
+            "Make an excuse politely"
+          ],
+          "grammar": [
+            {
+              "category": "sentence-structure",
+              "point": "Clause connectors: because, so that, but, although, therefore"
+            }
+          ],
+          "culture": "Excuses and face: 'never mind', 'circumstances', and why the reason offered is often not the reason.",
+          "target_concepts": [
+            {
+              "key": "because",
+              "gloss": "because"
+            },
+            {
+              "key": "so_that",
+              "gloss": "so that / in order to"
+            },
+            {
+              "key": "therefore",
+              "gloss": "therefore"
+            },
+            {
+              "key": "although",
+              "gloss": "although"
+            },
+            {
+              "key": "however",
+              "gloss": "however"
+            },
+            {
+              "key": "reason",
+              "gloss": "reason"
+            },
+            {
+              "key": "excuse",
+              "gloss": "excuse"
+            },
+            {
+              "key": "circumstances",
+              "gloss": "circumstances"
+            },
+            {
+              "key": "never_mind",
+              "gloss": "never mind"
+            },
+            {
+              "key": "late",
+              "gloss": "late"
+            },
+            {
+              "key": "traffic",
+              "gloss": "traffic"
+            },
+            {
+              "key": "honestly",
+              "gloss": "honestly"
+            }
+          ],
+          "video_scene": "Explanations and excuses in vlogs and skits: 'I was late because…'."
+        },
+        {
+          "slug": "if-and-when",
+          "lesson_number": 3,
+          "title": "If and When",
+          "theme": "Conditionals",
+          "cefr_target": "B1",
+          "can_do": [
+            "Say what you would do if",
+            "Use 'when' for future events",
+            "Express a wish"
+          ],
+          "grammar": [
+            {
+              "category": "sentence-structure",
+              "point": "Conditionals: if (real / unreal) and when-clauses"
+            }
+          ],
+          "culture": "Hypothetical politeness: invitations phrased as conditions, and the wish formulas people use daily.",
+          "target_concepts": [
+            {
+              "key": "if",
+              "gloss": "if"
+            },
+            {
+              "key": "if_hypothetical",
+              "gloss": "if (unreal)"
+            },
+            {
+              "key": "whenever",
+              "gloss": "when (future)"
+            },
+            {
+              "key": "i_wish",
+              "gloss": "I wish"
+            },
+            {
+              "key": "possible",
+              "gloss": "possible"
+            },
+            {
+              "key": "then_result",
+              "gloss": "then (result)"
+            },
+            {
+              "key": "otherwise",
+              "gloss": "otherwise"
+            },
+            {
+              "key": "in_case",
+              "gloss": "in case"
+            },
+            {
+              "key": "would",
+              "gloss": "would"
+            },
+            {
+              "key": "would_have",
+              "gloss": "would have"
+            },
+            {
+              "key": "depends",
+              "gloss": "it depends"
+            },
+            {
+              "key": "chance",
+              "gloss": "chance"
+            }
+          ],
+          "video_scene": "Wishes and hypotheticals: 'if I had money…', 'when I travel…'."
+        },
+        {
+          "slug": "opinions-and-feelings",
+          "lesson_number": 4,
+          "title": "Opinions and Feelings",
+          "theme": "Opinions",
+          "cefr_target": "B1",
+          "can_do": [
+            "Give your opinion and agree or disagree",
+            "Say how you feel",
+            "Say you like or hate something"
+          ],
+          "grammar": [
+            {
+              "category": "sentence-structure",
+              "point": "'I think that…' with the complementiser; opinion verbs"
+            }
+          ],
+          "culture": "Disagreeing without conflict: the softeners, 'in my opinion', and the topics best left alone.",
+          "target_concepts": [
+            {
+              "key": "i_think",
+              "gloss": "I think"
+            },
+            {
+              "key": "in_my_opinion",
+              "gloss": "in my opinion"
+            },
+            {
+              "key": "agree",
+              "gloss": "agree"
+            },
+            {
+              "key": "disagree",
+              "gloss": "disagree"
+            },
+            {
+              "key": "happy",
+              "gloss": "happy"
+            },
+            {
+              "key": "angry",
+              "gloss": "angry"
+            },
+            {
+              "key": "bored",
+              "gloss": "bored"
+            },
+            {
+              "key": "worried",
+              "gloss": "worried"
+            },
+            {
+              "key": "i_like",
+              "gloss": "I like"
+            },
+            {
+              "key": "i_hate",
+              "gloss": "I hate"
+            },
+            {
+              "key": "feel",
+              "gloss": "feel"
+            },
+            {
+              "key": "opinion",
+              "gloss": "opinion"
+            },
+            {
+              "key": "frankly",
+              "gloss": "frankly / honestly"
+            },
+            {
+              "key": "wrong",
+              "gloss": "wrong"
+            }
+          ],
+          "video_scene": "Opinion vlogs, reaction videos, debates on light topics."
+        },
+        {
+          "slug": "relative-clauses-the-one-who",
+          "lesson_number": 5,
+          "title": "The One Who…",
+          "theme": "Relative clauses",
+          "cefr_target": "B1",
+          "can_do": [
+            "Describe people and things with 'who / that' clauses",
+            "Say 'the one that I…'",
+            "Identify people by what they do"
+          ],
+          "grammar": [
+            {
+              "category": "sentence-structure",
+              "point": "The relative marker for definite nouns; no marker after indefinite nouns"
+            }
+          ],
+          "culture": "Identifying people by role and relation — 'the one who works with your uncle' — in a world where everybody knows everybody.",
+          "target_concepts": [
+            {
+              "key": "who_that",
+              "gloss": "who / that (relative)"
+            },
+            {
+              "key": "the_one_who",
+              "gloss": "the one who"
+            },
+            {
+              "key": "the_thing_that",
+              "gloss": "the thing that"
+            },
+            {
+              "key": "person",
+              "gloss": "person"
+            },
+            {
+              "key": "place",
+              "gloss": "place"
+            },
+            {
+              "key": "thing",
+              "gloss": "thing"
+            },
+            {
+              "key": "someone",
+              "gloss": "someone"
+            },
+            {
+              "key": "anyone",
+              "gloss": "anyone"
+            },
+            {
+              "key": "everyone",
+              "gloss": "everyone"
+            },
+            {
+              "key": "type",
+              "gloss": "type / kind"
+            },
+            {
+              "key": "whoever",
+              "gloss": "whoever"
+            },
+            {
+              "key": "wherever",
+              "gloss": "wherever"
+            }
+          ],
+          "video_scene": "Descriptions of people and places: 'the guy who…', 'the place that…'."
+        },
+        {
+          "slug": "verbs-with-objects-and-people",
+          "lesson_number": 6,
+          "title": "Him, Her, Them: Object Pronouns",
+          "theme": "Object suffixes",
+          "cefr_target": "B1",
+          "can_do": [
+            "Attach object pronouns to verbs",
+            "Use prepositions with pronoun suffixes",
+            "Say 'tell him', 'give it to me', 'with them'"
+          ],
+          "grammar": [
+            {
+              "category": "pronouns",
+              "point": "Object suffixes on verbs and prepositions — full paradigm"
+            }
+          ],
+          "culture": "Talking about people not in the room, and how gossip stays polite.",
+          "target_concepts": [
+            {
+              "key": "him",
+              "gloss": "him"
+            },
+            {
+              "key": "her",
+              "gloss": "her"
+            },
+            {
+              "key": "them",
+              "gloss": "them"
+            },
+            {
+              "key": "me_object",
+              "gloss": "me (object)"
+            },
+            {
+              "key": "us",
+              "gloss": "us"
+            },
+            {
+              "key": "tell",
+              "gloss": "tell"
+            },
+            {
+              "key": "give",
+              "gloss": "give"
+            },
+            {
+              "key": "take",
+              "gloss": "take"
+            },
+            {
+              "key": "send",
+              "gloss": "send"
+            },
+            {
+              "key": "show",
+              "gloss": "show"
+            },
+            {
+              "key": "call",
+              "gloss": "call"
+            },
+            {
+              "key": "ask",
+              "gloss": "ask"
+            },
+            {
+              "key": "answer",
+              "gloss": "answer"
+            },
+            {
+              "key": "about",
+              "gloss": "about"
+            }
+          ],
+          "video_scene": "Instructions and requests: 'give it to me', 'tell her', 'send it to us'."
+        },
+        {
+          "slug": "ability-permission-obligation",
+          "lesson_number": 7,
+          "title": "Can, Must, Should",
+          "theme": "Modals",
+          "cefr_target": "B1",
+          "can_do": [
+            "Say what you can and cannot do",
+            "Say what you must and should do",
+            "Ask for and give permission"
+          ],
+          "grammar": [
+            {
+              "category": "verb-conjugation",
+              "point": "Modal words + present tense: can, must, should, may"
+            }
+          ],
+          "culture": "Rules of the road, of the house and of religion as they surface in everyday speech; asking permission before photographing anyone.",
+          "target_concepts": [
+            {
+              "key": "can",
+              "gloss": "can"
+            },
+            {
+              "key": "cannot",
+              "gloss": "cannot"
+            },
+            {
+              "key": "must",
+              "gloss": "must"
+            },
+            {
+              "key": "should",
+              "gloss": "should"
+            },
+            {
+              "key": "allowed",
+              "gloss": "allowed / permitted"
+            },
+            {
+              "key": "forbidden",
+              "gloss": "forbidden"
+            },
+            {
+              "key": "need",
+              "gloss": "need"
+            },
+            {
+              "key": "try",
+              "gloss": "try"
+            },
+            {
+              "key": "able",
+              "gloss": "able"
+            },
+            {
+              "key": "permission",
+              "gloss": "permission"
+            },
+            {
+              "key": "rule",
+              "gloss": "rule"
+            },
+            {
+              "key": "obligatory",
+              "gloss": "obligatory"
+            }
+          ],
+          "video_scene": "Rules explained on camera; 'you have to…', 'you can't…'; permission asked."
+        },
+        {
+          "slug": "phone-and-messages",
+          "lesson_number": 8,
+          "title": "Phones and Messages",
+          "theme": "Phone",
+          "cefr_target": "B1",
+          "can_do": [
+            "Make and answer a phone call",
+            "Send and reply to messages",
+            "Read common chat abbreviations"
+          ],
+          "grammar": [
+            {
+              "category": "negation",
+              "point": "Negative imperatives: don't call, don't forget"
+            }
+          ],
+          "culture": "Voice notes over text, greetings that fill the first minute of every call, and the etiquette of the group chat.",
+          "target_concepts": [
+            {
+              "key": "call_verb",
+              "gloss": "call (phone)"
+            },
+            {
+              "key": "message",
+              "gloss": "message"
+            },
+            {
+              "key": "send_message",
+              "gloss": "send"
+            },
+            {
+              "key": "reply",
+              "gloss": "reply"
+            },
+            {
+              "key": "number",
+              "gloss": "number"
+            },
+            {
+              "key": "busy_line",
+              "gloss": "busy / engaged"
+            },
+            {
+              "key": "voice_note",
+              "gloss": "voice note"
+            },
+            {
+              "key": "missed_call",
+              "gloss": "missed call"
+            },
+            {
+              "key": "charge",
+              "gloss": "charge (battery)"
+            },
+            {
+              "key": "battery",
+              "gloss": "battery"
+            },
+            {
+              "key": "hello_phone",
+              "gloss": "hello (on the phone)"
+            },
+            {
+              "key": "later_call",
+              "gloss": "I'll call you later"
+            },
+            {
+              "key": "group_chat",
+              "gloss": "group chat"
+            },
+            {
+              "key": "screenshot",
+              "gloss": "screenshot"
+            }
+          ],
+          "video_scene": "Phone calls in skits and vlogs; people reading and reacting to messages."
+        },
+        {
+          "slug": "celebrations-and-condolences",
+          "lesson_number": 9,
+          "title": "Celebrations and Condolences",
+          "theme": "Occasions",
+          "cefr_target": "B1",
+          "can_do": [
+            "Congratulate someone and answer congratulations",
+            "Offer condolences and reply",
+            "Talk about Ramadan, Eid and weddings"
+          ],
+          "grammar": [
+            {
+              "category": "sentence-structure",
+              "point": "Set-phrase structures and their fixed replies"
+            }
+          ],
+          "culture": "The full occasions thread: Eid greetings and replies, wedding customs, birth, the condolence formula, and the gifts that go with each.",
+          "target_concepts": [
+            {
+              "key": "eid",
+              "gloss": "eid"
+            },
+            {
+              "key": "ramadan",
+              "gloss": "ramadan"
+            },
+            {
+              "key": "wedding",
+              "gloss": "wedding"
+            },
+            {
+              "key": "congratulations",
+              "gloss": "congratulations"
+            },
+            {
+              "key": "congratulations_reply",
+              "gloss": "reply to congratulations"
+            },
+            {
+              "key": "condolences",
+              "gloss": "condolences"
+            },
+            {
+              "key": "condolences_reply",
+              "gloss": "reply to condolences"
+            },
+            {
+              "key": "birth",
+              "gloss": "birth"
+            },
+            {
+              "key": "bride",
+              "gloss": "bride"
+            },
+            {
+              "key": "groom",
+              "gloss": "groom"
+            },
+            {
+              "key": "gift_occasion",
+              "gloss": "gift / present"
+            },
+            {
+              "key": "blessed",
+              "gloss": "blessed"
+            },
+            {
+              "key": "fasting",
+              "gloss": "fasting"
+            },
+            {
+              "key": "breaking_fast",
+              "gloss": "breaking the fast"
+            },
+            {
+              "key": "celebrate",
+              "gloss": "celebrate"
+            }
+          ],
+          "video_scene": "Eid and wedding footage; Ramadan vlogs; congratulation exchanges."
+        },
+        {
+          "slug": "money-banking-and-housing",
+          "lesson_number": 10,
+          "title": "Money, Rent and Bills",
+          "theme": "Money and housing",
+          "cefr_target": "B1",
+          "can_do": [
+            "Rent a flat and discuss the contract",
+            "Pay bills and talk about salary",
+            "Count in hundreds and thousands"
+          ],
+          "grammar": [
+            {
+              "category": "sentence-structure",
+              "point": "Large numbers, currency and prices in full sentences"
+            }
+          ],
+          "culture": "Cash culture, informal money transfer, the landlord relationship and what a lease really covers.",
+          "target_concepts": [
+            {
+              "key": "rent",
+              "gloss": "rent"
+            },
+            {
+              "key": "apartment",
+              "gloss": "apartment"
+            },
+            {
+              "key": "contract",
+              "gloss": "contract"
+            },
+            {
+              "key": "bill_utility",
+              "gloss": "bill (electricity, water)"
+            },
+            {
+              "key": "transfer",
+              "gloss": "transfer (money)"
+            },
+            {
+              "key": "bank",
+              "gloss": "bank"
+            },
+            {
+              "key": "deposit",
+              "gloss": "deposit"
+            },
+            {
+              "key": "landlord",
+              "gloss": "landlord"
+            },
+            {
+              "key": "electricity",
+              "gloss": "electricity"
+            },
+            {
+              "key": "thousand",
+              "gloss": "thousand"
+            },
+            {
+              "key": "monthly",
+              "gloss": "monthly"
+            },
+            {
+              "key": "cash",
+              "gloss": "cash"
+            },
+            {
+              "key": "account",
+              "gloss": "account"
+            },
+            {
+              "key": "expensive_area",
+              "gloss": "expensive area"
+            }
+          ],
+          "video_scene": "Apartment tours with prices; salary and cost-of-living talk; bank or bill-paying scenes."
+        },
+        {
+          "slug": "social-media-and-slang",
+          "lesson_number": 11,
+          "title": "Social Media and Slang",
+          "theme": "Informal reading",
+          "cefr_target": "B1",
+          "can_do": [
+            "Read informal posts and captions",
+            "Recognise the most common slang and laughter",
+            "Understand dialect spelling conventions and Arabizi"
+          ],
+          "grammar": [
+            {
+              "category": "sentence-structure",
+              "point": "Participles used as tenses; dropped words in informal text"
+            }
+          ],
+          "culture": "Humour online: memes, laughter spelled out, emoji use, and the slang that marks a speaker's age.",
+          "target_concepts": [
+            {
+              "key": "post",
+              "gloss": "post"
+            },
+            {
+              "key": "like",
+              "gloss": "like (social)"
+            },
+            {
+              "key": "share",
+              "gloss": "share"
+            },
+            {
+              "key": "follow",
+              "gloss": "follow"
+            },
+            {
+              "key": "comment",
+              "gloss": "comment"
+            },
+            {
+              "key": "trending",
+              "gloss": "trending"
+            },
+            {
+              "key": "funny_slang",
+              "gloss": "funny / hilarious (slang)"
+            },
+            {
+              "key": "awesome_slang",
+              "gloss": "awesome (slang)"
+            },
+            {
+              "key": "lol",
+              "gloss": "lol (spelled laughter)"
+            },
+            {
+              "key": "joke",
+              "gloss": "joke"
+            },
+            {
+              "key": "photo",
+              "gloss": "photo"
+            },
+            {
+              "key": "video",
+              "gloss": "video"
+            },
+            {
+              "key": "story_social",
+              "gloss": "story (social media)"
+            },
+            {
+              "key": "follower",
+              "gloss": "follower"
+            }
+          ],
+          "video_scene": "Reaction videos, meme explainers, influencers reading comments."
+        },
+        {
+          "slug": "bridge-review-a-conversation",
+          "lesson_number": 12,
+          "title": "The Bridge: A Real Conversation",
+          "theme": "Review and handoff",
+          "cefr_target": "B1",
+          "can_do": [
+            "Hold a five-minute conversation on a familiar topic",
+            "Follow a two-minute authentic clip and get the gist",
+            "Self-assess and choose the next stage"
+          ],
+          "grammar": [
+            {
+              "category": "verb-conjugation",
+              "point": "Review: tenses in one conversation"
+            },
+            {
+              "category": "questions",
+              "point": "Review: keeping a conversation going with questions"
+            }
+          ],
+          "culture": "Joining the conversation: the sitting-room and café topics that welcome an outsider, and how to hold the floor.",
+          "target_concepts": [
+            {
+              "key": "conversation",
+              "gloss": "conversation"
+            },
+            {
+              "key": "topic",
+              "gloss": "topic"
+            },
+            {
+              "key": "understand_all",
+              "gloss": "I understood everything"
+            },
+            {
+              "key": "repeat_please",
+              "gloss": "could you repeat"
+            },
+            {
+              "key": "gist",
+              "gloss": "the gist / the idea"
+            },
+            {
+              "key": "fluent",
+              "gloss": "fluent"
+            },
+            {
+              "key": "practice",
+              "gloss": "practice"
+            },
+            {
+              "key": "mistake",
+              "gloss": "mistake"
+            },
+            {
+              "key": "improve",
+              "gloss": "improve"
+            },
+            {
+              "key": "continue",
+              "gloss": "continue"
+            },
+            {
+              "key": "level",
+              "gloss": "level"
+            },
+            {
+              "key": "confident",
+              "gloss": "confident"
+            }
+          ],
+          "video_scene": "A natural two-person conversation on a familiar topic, 2–3 minutes, clear audio."
+        }
+      ]
+    }
+  ]
+}

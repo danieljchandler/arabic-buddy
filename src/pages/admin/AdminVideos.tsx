@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { usePipelineResume } from "@/hooks/usePipelineResume";
+import { EdgeBuildBanner } from "@/components/admin/EdgeBuildBanner";
 import {
   useAdminDiscoverVideos,
   useBackfillThumbnails,
@@ -294,6 +295,10 @@ const AdminVideos = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8 space-y-4">
+        {/* Deployed-backend check: see EdgeBuildBanner. First thing on the page
+            because a stale backend makes everything below it misleading. */}
+        <EdgeBuildBanner enabled={canManage} />
+
         {/* The review queue's lens over the same list: how much of each video a
             native speaker has actually checked. */}
         <div className="flex flex-wrap items-center gap-2">

@@ -2,6 +2,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { EDGE_BUILD } from "../_shared/edgeBuild.ts";
 import { requireContentManager } from "../_shared/requireRole.ts";
 import {
   SONIOX_MODEL,
@@ -319,8 +320,17 @@ function envInt(name: string, fallback: number): number {
   return Number.isFinite(raw) && raw > 0 ? raw : fallback;
 }
 
-/** Starts of analyze-gulf-arabic allowed per run before the row is failed. */
-const MAX_ANALYZE_ATTEMPTS = 3;
+/**
+ * Starts of analyze-gulf-arabic allowed per run before the row is failed.
+ *
+ * Two, not three. Each start that ends in a worker teardown costs a full wall
+ * clock of waiting, so a third only turns a fourteen-minute spinner into a
+ * twenty-minute one. The analysis now budgets itself and saves a usable
+ * transcript before its optional stages, so a start that produces nothing at
+ * all is a real fault rather than a slow success, and repeating it a third
+ * time is not what fixes it.
+ */
+const MAX_ANALYZE_ATTEMPTS = 2;
 /**
  * How long an analysis can possibly still be running after it was started:
  * the platform's wall-clock limit. Until then a missing result means "not
@@ -329,7 +339,22 @@ const MAX_ANALYZE_ATTEMPTS = 3;
 const ANALYZE_MAX_RUN_MS = envInt("PIPELINE_ANALYZE_MAX_RUN_MS", 400_000);
 /** The gateway answers 504 at 150s regardless; waiting longer on the socket buys nothing. */
 const ANALYZE_FETCH_TIMEOUT_MS = Math.min(150_000, ANALYZE_MAX_RUN_MS);
-const POLL_INTERVAL_MS = envInt("PIPELINE_POLL_INTERVAL_MS", 10_000);
+const POLL_INTERVAL_MS = envInt("PIPELINE_POLL_INTERVAL_MS", 5_000);
+
+/**
+ * How long the ASR fan-out waits for its stragglers.
+ *
+ * Six engines run in parallel and the run takes the slowest, so one engine
+ * having a bad day sets the pace for the whole stage — up to the per-engine
+ * ceiling, whatever the other five did in twenty seconds. The merge downstream
+ * arbitrates between whichever transcripts it is given and does not need all
+ * six, so past this point the stragglers are dropped and the run moves on.
+ *
+ * Only ever applied when at least one engine has already produced text: with
+ * nothing in hand there is nothing to move on with, and waiting is strictly
+ * better than failing the run for want of patience.
+ */
+const ASR_FANOUT_DEADLINE_MS = envInt("PIPELINE_ASR_FANOUT_MS", 120_000);
 /**
  * While waiting on the analysis the row is touched this often so its
  * `updated_at` keeps moving: the reaper reads a row that has not moved for
@@ -351,7 +376,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  * anything yet. Bump it whenever this file changes in a way worth telling
  * apart in production.
  */
-const PIPELINE_BUILD = "staged-2026-09-04";
+const PIPELINE_BUILD = EDGE_BUILD;
 
 /**
  * Say where the run has got to, on the row itself.
@@ -1470,9 +1495,42 @@ async function runAsrStage(ctx: PipelineContext, cp: Checkpoint): Promise<void> 
       }
     })();
 
-    const [scribeResult, fanarResult, sonioxResult, munsitResult, azureResult, cohereResult] = await Promise.all([
-      scribePromise, fanarPromise, sonioxPromise, munsitPromise, azurePromise, coherePromise,
-    ]);
+    // Take what the engines have when the deadline passes, rather than the
+    // slowest of six. Each leg already catches its own failures and resolves
+    // to a result, so tracking them as they settle costs nothing and is what
+    // makes "whatever arrived" a complete answer rather than a partial one.
+    const legs = [
+      ["scribe", scribePromise], ["fanar", fanarPromise], ["soniox", sonioxPromise],
+      ["munsit", munsitPromise], ["azure", azurePromise], ["cohere", coherePromise],
+    ] as const;
+    const settledLegs = new Map<string, AsrLegResult>();
+    const tracked = legs.map(([name, leg]) =>
+      leg.then((result) => { settledLegs.set(name, result); return result; }),
+    );
+    const noResult: AsrLegResult = { text: null, words: [], latencyMs: 0, error: "fanout_deadline" };
+    const hasText = () => [...settledLegs.values()].some((r) => (r?.text ?? "").trim().length > 0);
+
+    const fanoutDeadline = new Promise<"deadline">((resolve) =>
+      setTimeout(() => resolve("deadline"), ASR_FANOUT_DEADLINE_MS),
+    );
+    if (await Promise.race([Promise.all(tracked).then(() => "all" as const), fanoutDeadline]) === "deadline") {
+      if (hasText()) {
+        const late = legs.map(([name]) => name).filter((name) => !settledLegs.has(name));
+        console.warn(`[pipeline] ASR fan-out deadline reached; continuing without ${late.join(", ") || "nobody"}`);
+        await recordProgress(ctx, { note: `transcribed; ${late.length} slow engine(s) dropped` });
+      } else {
+        // Nothing to go on yet. Patience beats failing the run outright.
+        console.warn("[pipeline] ASR fan-out deadline reached with no transcript yet; waiting for the engines");
+        await Promise.all(tracked);
+      }
+    }
+
+    const scribeResult = settledLegs.get("scribe") ?? noResult;
+    const fanarResult = settledLegs.get("fanar") ?? noResult;
+    const sonioxResult = settledLegs.get("soniox") ?? noResult;
+    const munsitResult = settledLegs.get("munsit") ?? noResult;
+    const azureResult = settledLegs.get("azure") ?? noResult;
+    const cohereResult = settledLegs.get("cohere") ?? noResult;
 
     const scribeText = scribeResult?.text || "";
     const fanarText = fanarResult?.text || "";
@@ -2089,7 +2147,7 @@ serve(async (req) => {
     `[handler] authorized ${gate.viaServiceRole ? "internal service-role call" : `user ${gate.userId}`}`,
   );
 
-  let body: { videoId?: string; stage?: string; resume?: boolean } | null = null;
+  let body: { videoId?: string; stage?: string; resume?: boolean; probe?: boolean } | null = null;
   try {
     body = await req.json();
   } catch (e) {
@@ -2099,6 +2157,18 @@ serve(async (req) => {
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
+  // "Which build is actually deployed?" — asked by the admin pages so a
+  // backend running behind the repository is visible as a banner rather than
+  // discovered by debugging a bug that was already fixed. Answered before any
+  // other argument is read, and before anything is touched, so it costs a
+  // round trip and nothing else.
+  if (body?.probe) {
+    return new Response(
+      JSON.stringify({ success: true, build: PIPELINE_BUILD }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+
   const { videoId, stage: requestedStage, resume } = body ?? {};
   console.log(`[handler] videoId=${videoId} stage=${requestedStage ?? "-"} resume=${!!resume}`);
   if (!videoId) {

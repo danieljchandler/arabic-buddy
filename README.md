@@ -74,14 +74,62 @@ the edge functions are configured in the Supabase dashboard, not committed.
 ### Continuous integration
 
 `.github/workflows/ci.yml` runs on every push to `main` and every pull request,
-in three jobs so a failure names its own kind:
+in jobs split so a failure names its own kind:
 
 - **Typecheck, lint & unit tests** — `tsc` over `src/`, the lint ratchet, Vitest,
   and the production build.
 - **Typecheck edge functions (Deno)** — `deno check` over
   `supabase/functions/**`. See below.
+- **Migration replay** — every migration against a stock `postgres:16`.
 - **End-to-end** — Playwright. A failed run uploads its HTML report as an
   artifact.
+- **Deploy edge functions** — on `main` only, after the first two pass. See
+  below.
+
+**Edge functions deploy from CI, because merging is not deploying.** They do not
+ship with the app: a merge changed the repository and left production serving
+the previous copy, which is the worst kind of difference because it is
+invisible. The code says one thing, the running system does another, and every
+symptom debugged in between belongs to code nobody is looking at. That is not
+hypothetical — it cost several rounds of chasing a transcription bug that had
+already been fixed, twice.
+
+Redeploying all 119 functions on every merge is the blunt version, and slow
+enough that someone eventually turns it off. So
+`scripts/edge-functions-to-deploy.mjs` works out the smallest correct set from
+the push's own diff: a change under `supabase/functions/<name>/` deploys that
+function, and a change under `_shared/` deploys every function whose imports
+*reach* it, followed transitively — a module three hops down is still bundled
+into whatever imports it, and missing that is exactly how a function gets left
+behind. `_test/` changes deploy nothing. `src/test/edgeDeployTargets.test.ts`
+covers the resolver, including against the real functions tree, so a regex that
+quietly stopped matching fails the suite rather than shipping an empty deploy.
+
+Deploying needs one secret, `SUPABASE_ACCESS_TOKEN`, added under **Settings >
+Secrets and variables > Actions** from a token minted at
+<https://supabase.com/dashboard/account/tokens>. **A project managed by Lovable
+Cloud does not give you one** — the project is not in an account you can mint
+tokens for — so without the secret the job *skips* rather than failing, warning
+which functions were left on their previous version. A permanently red `main`
+would be worse than no check: it trains everyone to ignore the one signal that
+matters. Set the secret and the job takes over. The project ref is read from
+`supabase/config.toml` rather than duplicated as a second secret. To deploy by
+hand — after changing a secret, say, when no code changed — run the workflow
+from the Actions tab: leave the input blank for the last commit's functions,
+name specific ones space-separated, or pass `all`.
+
+**When you cannot deploy from CI, the app says so instead.**
+`supabase/functions/_shared/edgeBuild.ts` holds one `EDGE_BUILD` marker that
+both halves compile in. The deployed function reports it — `{ probe: true }` to
+`process-approved-video`, answered before it reads any other argument — and
+`EdgeBuildBanner` on the Manage Videos pages compares that against the value in
+the frontend bundle, which *does* redeploy on merge. When they differ, a content
+manager sees a banner naming both builds, with the deploy request to paste. That
+is the check that ends the failure mode this all came from: a fix that had
+already landed looking like it did nothing, for three rounds, because the
+backend was still serving the previous copy. **Bump `EDGE_BUILD` whenever an
+edge function changes in a way worth telling apart in production** — leaving it
+alone is what makes the check quietly stop working.
 
 **The edge functions need their own typecheck.** They are Deno, they import over
 `https://`, and `tsc` cannot resolve those specifiers — so `tsconfig.app.json`
@@ -833,6 +881,53 @@ Three readings and what each rules out:
 
 The build marker also rides on every HTTP reply the function sends, so the
 same question can be answered from a single call without opening a video.
+
+#### The analysis has its own wall clock
+
+`analyze-gulf-arabic` is the long pole, and it used to persist exactly once,
+after every optional stage had run: the merge, a translation ensemble, a Fusha
+waterfall that walks several models in turn, up to four sequential 30-second
+Shaheen arbitration calls, an analysis retry, then vocabulary and gloss
+enrichment. That chain can outlast the 400-second wall clock, and a worker torn
+down inside it wrote nothing at all — every model call paid for, and the
+pipeline left waiting on a row that would never change. This was the actual
+cause of "stuck on waiting for the analysis at 400 seconds".
+
+Two changes, and the second is the one that matters:
+
+- **A budget.** `ANALYZE_BUDGET_MS` (300s by default, against the platform's
+  400s) is set when the request starts working, and every optional stage asks
+  `haveTimeFor` before it begins. The Fusha waterfall, the arbitration loop and
+  the enrichment all yield rather than start work they cannot finish, and each
+  skip is logged with the time remaining — a transcript that comes back without
+  its Fusha row has to say why, or the next person reads a deliberate skip as a
+  broken feature.
+- **A save before the embellishments.** Once the merge, translations, grammar
+  and context are settled, the row is written with `analysis_complete` before
+  the enrichment runs. Everything after that point improves a result that
+  already exists, so a teardown costs the enrichment rather than the run. The
+  pipeline is polling that row, so a run that dies immediately afterwards still
+  completes, with plainer vocabulary.
+
+The two interact, which the late write has to know about: the early save can be
+picked up and finalised by the pipeline while the enrichment is still running,
+and those lines then carry audio timings this function does not have. So the
+final write checks the row first and, on one already `completed`, updates only
+what the enrichment improved rather than pushing a finished row back into a
+working state.
+
+For the same reason the pipeline now allows two analysis starts rather than
+three: each start that ends in a teardown costs a full wall clock of waiting,
+so a third only turns a fourteen-minute spinner into a twenty-minute one.
+
+The ASR stage has the same shape of problem in miniature. Six engines run in
+parallel and the stage takes the slowest, so one engine having a bad day set
+the pace for the whole run — up to its own 150-second ceiling, whatever the
+other five managed in twenty. `PIPELINE_ASR_FANOUT_MS` (120s) drops the
+stragglers, since the merge arbitrates between whatever transcripts it is
+given and has never needed all six. The one case where it does not apply is
+when no engine has produced text yet: with nothing in hand there is nothing to
+move on with, and waiting beats failing the run for want of patience.
 
 ## Trending (free social harvest)
 

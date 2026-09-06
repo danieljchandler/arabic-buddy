@@ -36,6 +36,11 @@ export const FIXTURE_ENV: Record<string, string> = {
   GEMINI_API_KEY: "fixture-gemini",
   OPENAI_API_KEY: "fixture-openai",
   FANAR_API_KEY: "fixture-fanar",
+  // The key, but deliberately not RUNPOD_JAIS_ENDPOINT_ID: a key alone leaves
+  // Jais unconfigured (`tryChatRoute` returns null without a URL), which is
+  // the state every test that does not care about it should run in. Tests
+  // that do want the RunPod route opt in with an endpoint id of their own.
+  RUNPOD_API_KEY: "fixture-runpod",
   HUGGINGFACE_API_KEY: "fixture-hf",
 
   AZURE_SPEECH_KEY: "fixture-azure",

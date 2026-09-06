@@ -134,9 +134,16 @@ harness.
   entry left on the allow-list after it was fixed. Which *provider*
   serves a model is `_shared/aiGateway.ts`'s decision, off the vendor prefix:
   `google/*` → Google (`GEMINI_API_KEY`), `openai/*` → OpenAI
-  (`OPENAI_API_KEY`), `Fanar-*` → QCRI (`FANAR_API_KEY`), everything else →
-  OpenRouter (`OPENROUTER_API_KEY`). Fanar is the one vendor with no OpenRouter
-  twin, so it never falls back there — `canFallBack` is what encodes that.
+  (`OPENAI_API_KEY`), `Fanar-*` → QCRI (`FANAR_API_KEY`), `runpod/*` → our own
+  RunPod Serverless worker (`RUNPOD_API_KEY` + `RUNPOD_JAIS_ENDPOINT_ID`),
+  everything else → OpenRouter (`OPENROUTER_API_KEY`). Fanar and Jais 2 are the
+  two vendors with no OpenRouter twin, so neither falls back there —
+  `canFallBack` is what encodes that. `runpod/` is a routing signal rather than
+  a vendor namespace: it says the model runs on hardware this project rents, and
+  the prefix is stripped on the wire to match the worker's
+  `--served-model-name`. It is also the one provider that can be *half*
+  configured — a key is not an address — so a missing endpoint id leaves
+  `tryChatRoute` null (unconfigured, skipped silently) rather than erroring.
   Registry ids stay in OpenRouter's `vendor/model` form because that is the one
   namespace all three can be addressed from; aiGateway strips the prefix for the
   vendors whose own APIs don't use it. Call models with `chatFetch` /

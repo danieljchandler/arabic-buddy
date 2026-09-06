@@ -80,6 +80,18 @@ export const MODEL_IDS = {
   // bare 'Fanar' alias (silently tracks gen 1, 4k ctx) and never use
   // 'Fanar-Sadiq' for non-religious content — it is the Islamic-RAG model.
   FANAR: 'Fanar-C-2-27B',
+  // Jais 2 (70B chat) — Arabic-native, and the only model here that runs on
+  // hardware this project rents rather than a vendor's catalogue. It is not on
+  // OpenRouter at all, so like Fanar it has no twin to fall back to and
+  // `aiGateway.canFallBack` deliberately leaves it alone.
+  //
+  // The `runpod/` prefix is a routing signal rather than a vendor namespace;
+  // the worker is started with `--served-model-name jais-2-70b-chat`, which is
+  // this id minus the prefix. Weights are gated and 144GB, so the endpoint
+  // scales to zero and a cold call can take minutes — every caller of this id
+  // must therefore treat "no answer" as normal, which is why its one use today
+  // is the dialect validator's tie-breaker rather than any generation path.
+  JAIS2: 'runpod/jais-2-70b-chat',
 } as const;
 
 // ---- Named lineups (preferred entry point) ---------------------------------
@@ -183,6 +195,7 @@ const REASONING_FLOOR: Record<string, 'none' | 'minimal' | 'low'> = {
   [MODEL_IDS.QWEN_FAST]: 'none',      // hybrid; answers directly unless asked to think
   [MODEL_IDS.GEMINI_FLASH]: 'low',    // mandatory; Gemini 3.7 Flash offers low/medium/high
   [MODEL_IDS.GEMINI_PRO]: 'low',      // mandatory; same three levels
+  [MODEL_IDS.JAIS2]: 'none',          // not a reasoning model; plain vLLM takes no effort field
 };
 
 /**

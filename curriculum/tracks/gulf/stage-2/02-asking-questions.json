@@ -1,0 +1,270 @@
+{
+  "slug": "asking-questions",
+  "lesson_number": 2,
+  "title": "Asking Questions",
+  "title_arabic": "الأسئلة: شنو، منو، ليش",
+  "description": "What, who, why, how, which, how many — the full Gulf question set, plus the small-talk questions every new acquaintance will ask you (where from? married? kids?) and the friendly ways to answer them.",
+  "cefr_target": "A1",
+  "duration_minutes": 20,
+  "approach": "GPA Phase 2 — question-and-answer drills built from street interviews: hear the question, see the answer, then ask it back.",
+  "unlock_condition": "≥12/16 on the question-word matching quiz and one recorded five-question interview",
+  "icon": "❓",
+  "can_do": [
+    "Ask what, who, why, how, which, how many, when and where",
+    "Answer the small-talk questions everyone asks",
+    "Notice that Gulf question words can sit at the front or in place"
+  ],
+  "grammar": [
+    {
+      "category": "questions",
+      "title": "Question words: at the front, or right where the answer goes",
+      "explanation": "Gulf Arabic has no special word for yes/no questions — you say the sentence and let your voice rise at the end: إنت كويتي؟ 'Are you Kuwaiti?'. For open questions, the question word can go at the start or stay in the place the answer would fill; وين تسكن؟ and تسكن وين؟ are both natural, and the second is actually more common in casual speech. Kuwaitis, Bahrainis and Emiratis often shrink شنو to a single شـ glued to the verb: شتبي؟ 'what do you want?', شتسوي؟ 'what are you doing?'. Saudis say the whole word: وش تبي؟. The formal words هل، ماذا، أين، لماذا، كيف حالك are never said — if you use them people will understand you, but it sounds like reading the news.",
+      "examples": [
+        { "arabic": "وين تسكن؟ / تسكن وين؟", "transliteration": "wayn tiskin? / tiskin wayn?", "english": "Where do you live? (both orders)" },
+        { "arabic": "شنو اسمك؟", "transliteration": "shinu ismak?", "english": "What is your name?" },
+        { "arabic": "إنت متزوج؟", "transliteration": "inta mitzawwij?", "english": "Are you married? (intonation only)" },
+        { "arabic": "شتبي تشرب؟", "transliteration": "sh-tabi tishrab?", "english": "What do you want to drink? (شـ glued on)" },
+        { "arabic": "كم عمر ولدك؟", "transliteration": "kam ʿumur wildak?", "english": "How old is your son?" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "The friendly interrogation",
+      "note": "Within two minutes of meeting you, a Gulf acquaintance will ask where you are from, whether you are married, how many children you have and what you do for work. This is not nosiness; it is how people place you, and the same questions are being asked of everyone in the room. Answer briefly and return each question with وإنت؟. If you are not married, the expected reply is لا، للحين ('not yet') and everyone will add إن شاء الله قريب. When children are mentioned — yours or theirs — say ما شاء الله, and never ask a man about his wife by name; ask about الأهل, the family, instead.",
+      "phrases": [
+        { "arabic": "متزوج؟ — لا، للحين", "transliteration": "mitzawwij? — la, lil-ḥiin", "english": "Married? — Not yet" },
+        { "arabic": "إن شاء الله قريب", "transliteration": "in shaaʾ allah gariib", "english": "God willing, soon" },
+        { "arabic": "ما شاء الله عليهم", "transliteration": "ma shaaʾ allah ʿalayhum", "english": "Bless them (said of children)" },
+        { "arabic": "وإنت؟", "transliteration": "w-inta?", "english": "And you?" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "شنو",
+      "transliteration": "shinu",
+      "english": "what",
+      "category": "Question word",
+      "teaching_note": "Four cities, one question: شنو in Kuwait, Bahrain and Qatar; وش in Riyadh; شو in the UAE; إيش in Jeddah. All are the same word job and all are understood everywhere — pick the one your teacher or favourite channel uses. Kuwaitis and Emiratis also glue a bare شـ onto verbs: شتبي؟. Never ماذا.",
+      "image_scene": "A large question mark over an open hand gesturing at an unidentified object under a cloth.",
+      "concept_key": "what",
+      "variants": ["وش", "شو", "إيش", "ايش", "وشو", "شنهو", "شـ"],
+      "example": { "arabic": "شنو تشتغل؟", "transliteration": "shinu tishtaghil?", "english": "What do you do for work?" },
+      "video_hint": "An interviewer opening with شنو / وش / شو; the answer follows on screen."
+    },
+    {
+      "arabic": "منو",
+      "transliteration": "minu",
+      "english": "who",
+      "category": "Question word",
+      "teaching_note": "منو is Kuwait, Bahrain, Qatar and the UAE; Saudis use the short من (min) and Jeddah says مين. Whose? is حق منو or لمن.",
+      "image_scene": "A silhouette of a person with a question mark for a face, others pointing at them.",
+      "concept_key": "who",
+      "variants": ["من", "مين", "منهو", "منو هذا"],
+      "example": { "arabic": "منو هذا؟", "transliteration": "minu haadha?", "english": "Who is this?" },
+      "video_hint": "Someone pointing at a person in a photo or across a room and asking منو."
+    },
+    {
+      "arabic": "ليش",
+      "transliteration": "laysh",
+      "english": "why",
+      "category": "Question word",
+      "teaching_note": "Universal in the Gulf and one of the surest signs of dialect — لماذا is never said. ليش لا؟ 'why not?' is the standard cheerful acceptance of a suggestion.",
+      "image_scene": "A child looking up at a parent with palms turned upward, a puzzled expression.",
+      "concept_key": "why",
+      "variants": ["ليه", "وليش", "ليش لا", "ليش؟"],
+      "example": { "arabic": "ليش تعبان؟", "transliteration": "laysh taʿbaan?", "english": "Why are you tired?" },
+      "video_hint": "A comedy sketch where one character demands ليش؟ and the other explains."
+    },
+    {
+      "arabic": "شلون",
+      "transliteration": "shloon",
+      "english": "how",
+      "category": "Question word",
+      "teaching_note": "Literally 'what colour'. Kuwait, Qatar, Bahrain and eastern Saudi say شلون; Riyadh and Jeddah more often كيف; the UAE uses شحال only in the greeting. As a real question — how do I get there? — شلون and كيف are both fine.",
+      "image_scene": "A person holding a phone map, looking around a street junction with a puzzled face.",
+      "concept_key": "how",
+      "variants": ["كيف", "شحال", "وشلون", "اشلون", "شلون؟"],
+      "example": { "arabic": "شلون أروح المطار؟", "transliteration": "shloon aruuḥ il-maṭaar?", "english": "How do I get to the airport?" },
+      "video_hint": "Someone asking how to do or reach something; the explanation follows."
+    },
+    {
+      "arabic": "أي",
+      "transliteration": "ayy",
+      "english": "which",
+      "category": "Question word",
+      "teaching_note": "Same as MSA but said flat and short: ayy. Usually followed by واحد 'one': أي واحد؟. In shops you will hear أي لون؟ 'which colour?'.",
+      "image_scene": "Two identical mugs of different colours side by side, a hand hovering between them.",
+      "concept_key": "which",
+      "variants": ["اي", "أي واحد", "أي وحدة", "ياهو"],
+      "example": { "arabic": "أي واحد تبي؟", "transliteration": "ayy waaḥid tabi?", "english": "Which one do you want?" },
+      "video_hint": "A shopkeeper or friend offering a choice — أي واحد؟ — with the options on screen."
+    },
+    {
+      "arabic": "كم",
+      "transliteration": "kam",
+      "english": "how many",
+      "category": "Question word",
+      "teaching_note": "كم + a singular noun: كم ولد؟ 'how many boys?' — never a plural after it. The price question is بكم (with a بـ) which you know from Stage 1; Kuwaitis say چم for both.",
+      "image_scene": "A hand counting on fingers in front of a row of small figures.",
+      "concept_key": "how_many",
+      "variants": ["چم", "كم واحد", "شكثر", "شقد", "كم؟"],
+      "example": { "arabic": "كم ولد عندك؟", "transliteration": "kam walad ʿindak?", "english": "How many kids do you have?" },
+      "video_hint": "Someone asking a count — كم واحد؟ كم سنة؟ — with a numeric answer."
+    },
+    {
+      "arabic": "متزوج",
+      "transliteration": "mitzawwij",
+      "english": "married",
+      "category": "Adjective — people",
+      "teaching_note": "The small-talk question you will get first. Masculine متزوج, feminine متزوجة. A newly married man is a معرس; 'single' is عزابي (m) / عزبة (f).",
+      "image_scene": "A couple's hands with wedding rings resting together on a table.",
+      "concept_key": "married",
+      "variants": ["متزوجة", "متزوجين", "متزوج؟", "معرس", "مزوج"],
+      "example": { "arabic": "إنت متزوج ولا لا؟", "transliteration": "inta mitzawwij walla la?", "english": "Are you married or not?" },
+      "video_hint": "A street interview where the host asks متزوج؟ and the guest answers."
+    },
+    {
+      "arabic": "عيال",
+      "transliteration": "ʿyaal",
+      "english": "children / kids",
+      "category": "Noun — people",
+      "teaching_note": "The safe pan-Gulf word for 'kids'; Kuwait and the UAE also say يهال. Formal أطفال is only for babies or signage. عيالي = my kids. Always followed by ما شاء الله when they are mentioned.",
+      "image_scene": "Three children of different ages playing in a courtyard, a football between them.",
+      "concept_key": "children",
+      "variants": ["العيال", "عيالي", "عيالك", "يهال", "أطفال", "أولاد"],
+      "example": { "arabic": "عندك عيال؟", "transliteration": "ʿindak ʿyaal?", "english": "Do you have kids?" },
+      "video_hint": "Family vlogs where the parent refers to العيال while the children are on screen."
+    },
+    {
+      "arabic": "عمر",
+      "transliteration": "ʿumur",
+      "english": "age",
+      "category": "Noun — people",
+      "teaching_note": "Two syllables in Gulf: ʿu-mur. 'How old are you?' is كم عمرك؟ — literally 'how much is your age'. The reply is just the number: عمري ثلاثين.",
+      "image_scene": "A birthday cake with the number 30 in candles, a person about to blow them out.",
+      "concept_key": "age",
+      "variants": ["عمرك", "عمري", "عمره", "عمرها", "العمر", "كم عمرك"],
+      "example": { "arabic": "كم عمرك؟", "transliteration": "kam ʿumrak?", "english": "How old are you?" },
+      "video_hint": "The question كم عمرك؟ in an interview or kids' Q&A, with the number answered."
+    },
+    {
+      "arabic": "صدق",
+      "transliteration": "ṣidg",
+      "english": "really? / is that true?",
+      "category": "Reaction",
+      "teaching_note": "Said with a rising tone it means 'seriously?'. Saudis say صدق (ṣidg); Kuwaitis say the same word as صج (ṣij) because their ق goes soft. Youth everywhere also say عن جد. The Egyptian بجد is not Gulf.",
+      "image_scene": "A person with wide eyes and raised eyebrows, hand to chest, reacting to news.",
+      "concept_key": "really",
+      "variants": ["صدق؟", "صج", "صج؟", "عن جد", "عنجد", "والله؟"],
+      "example": { "arabic": "صدق؟ ما أدري!", "transliteration": "ṣidg? ma adri!", "english": "Really? I had no idea!" },
+      "video_hint": "A reaction shot — صدق؟ / صج؟ / والله؟ — after someone shares news."
+    },
+    {
+      "arabic": "يعني",
+      "transliteration": "yaʿni",
+      "english": "I mean… / that is",
+      "category": "Discourse word",
+      "teaching_note": "The most common filler in Arabic; literally 'it means'. Use it to buy time, to explain, or to soften. يعني شنو؟ = 'meaning what?'. Said flat, with ع in the middle.",
+      "image_scene": "A speaker mid-sentence with a thought bubble containing three dots, hand raised to explain.",
+      "concept_key": "i_mean",
+      "variants": ["يعني شنو", "يعني؟", "يعني…", "يعنى"],
+      "example": { "arabic": "يعني، ما أبي أروح اليوم", "transliteration": "yaʿni, ma abi aruuḥ il-yoom", "english": "I mean, I don't want to go today" },
+      "video_hint": "Any unscripted speech — count the يعني in a single answer; there will be several."
+    },
+    {
+      "arabic": "لا طبعاً",
+      "transliteration": "la ṭabʿan",
+      "english": "of course not",
+      "category": "Reaction",
+      "teaching_note": "لا first, طبعاً second, in one breath. Also heard the other way, طبعاً لا, and as أكيد لا. Strong ط at the start of طبعاً.",
+      "image_scene": "A person shaking their head with a small amused smile, one hand waving 'no'.",
+      "concept_key": "of_course_not",
+      "variants": ["طبعاً لا", "طبعا لا", "أكيد لا", "لا أبد", "لا طبعا"],
+      "example": { "arabic": "إنت زعلان؟ لا طبعاً!", "transliteration": "inta zaʿlaan? la ṭabʿan!", "english": "Are you upset? Of course not!" },
+      "video_hint": "A quick denial in a sketch or interview — لا طبعاً — with a head shake."
+    },
+    {
+      "arabic": "شفيك",
+      "transliteration": "shfiik",
+      "english": "what's wrong with you? / what's up?",
+      "category": "Question phrase",
+      "teaching_note": "شـ + في + ك: 'what is in you'. Concern or annoyance depending on tone. To a woman شفيج (Kuwait, UAE) or شفيك (Saudi); Saudis also say وش فيك. The reply for 'nothing' is ما فيني شي.",
+      "image_scene": "A friend leaning toward another who looks upset, hand on their shoulder.",
+      "concept_key": "whats_wrong",
+      "variants": ["وش فيك", "شو فيك", "شفيج", "شفيكم", "ايش فيك"],
+      "example": { "arabic": "شفيك ساكت؟", "transliteration": "shfiik saakit?", "english": "What's wrong, why so quiet?" },
+      "video_hint": "One character noticing another's mood — شفيك؟ — in a family vlog or sketch."
+    },
+    {
+      "arabic": "شصار",
+      "transliteration": "shṣaar",
+      "english": "what happened?",
+      "category": "Question phrase",
+      "teaching_note": "شـ + صار 'became'. The question after any bad or surprising news. Saudi وش صار, UAE شو صار. The answer often starts with ولا شي 'nothing' or a story.",
+      "image_scene": "A person on the phone looking alarmed, a broken vase on the floor in the background.",
+      "concept_key": "what_happened",
+      "variants": ["وش صار", "شو صار", "شصار؟", "ايش صار", "وشصار"],
+      "example": { "arabic": "شصار أمس؟", "transliteration": "shṣaar ams?", "english": "What happened yesterday?" },
+      "video_hint": "A vlog recap opening with شصار / وش صار before the story is told."
+    },
+    {
+      "arabic": "من وين",
+      "transliteration": "min wayn",
+      "english": "where from",
+      "category": "Question phrase",
+      "teaching_note": "من 'from' + وين 'where' — the first question strangers ask. Squeezed to منين in fast speech. Answer with من + the city or country; Gulf people usually give the city.",
+      "image_scene": "A globe with a pin in the Gulf and a question mark above it.",
+      "concept_key": "where_from",
+      "variants": ["منين", "من وين إنت", "من وين انت", "من وين إنتي"],
+      "example": { "arabic": "من وين إنت؟ من الكويت؟", "transliteration": "min wayn inta? min il-kwayt?", "english": "Where are you from? Kuwait?" },
+      "video_hint": "The opening of a street interview — من وين؟ — and the city in the reply."
+    },
+    {
+      "arabic": "الساعة كم",
+      "transliteration": "is-saaʿa kam",
+      "english": "what time is it?",
+      "category": "Question phrase",
+      "teaching_note": "Literally 'the hour, how much'. The number comes straight back: الساعة خمس. Also heard as كم الساعة. Same phrase to ask when something is: الغدا الساعة كم؟",
+      "image_scene": "A wristwatch being checked, the face showing five o'clock.",
+      "concept_key": "what_time",
+      "variants": ["الساعة كم؟", "كم الساعة", "كم الساعة؟", "الساعه كم"],
+      "example": { "arabic": "الساعة كم الحين؟", "transliteration": "is-saaʿa kam il-ḥiin?", "english": "What time is it now?" },
+      "video_hint": "Someone checking a phone or watch and asking الساعة كم؟, the time visible."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Hessa", "arabic": "من وين إنتي؟", "transliteration": "min wayn inti?", "english": "Where are you from?" },
+    { "speaker": "Maryam", "arabic": "من الدمام. وإنتي؟", "transliteration": "min id-dammaam. w-inti?", "english": "From Dammam. And you?" },
+    { "speaker": "Hessa", "arabic": "من الكويت. متزوجة؟", "transliteration": "min il-kwayt. mitzawwija?", "english": "From Kuwait. Married?" },
+    { "speaker": "Maryam", "arabic": "إي، وعندي ولد وبنت", "transliteration": "ii, w-ʿindi walad w-bint", "english": "Yes, and I have a boy and a girl" },
+    { "speaker": "Hessa", "arabic": "ما شاء الله! كم عمرهم؟", "transliteration": "ma shaaʾ allah! kam ʿumurhum?", "english": "Ma shaa Allah! How old are they?" },
+    { "speaker": "Maryam", "arabic": "الولد سبع سنين والبنت خمس", "transliteration": "il-walad sabʿ sniin wil-bint khams", "english": "The boy is seven and the girl five" },
+    { "speaker": "Hessa", "arabic": "وشنو تشتغلين؟", "transliteration": "w-shinu tishtaghliin?", "english": "And what do you do?" },
+    { "speaker": "Maryam", "arabic": "مدرّسة. يعني، أشتغل بمدرسة", "transliteration": "mudarrisa. yaʿni, ashtaghil b-madrasa", "english": "A teacher. I mean, I work at a school" }
+  ],
+  "sound_spotlight": [
+    { "sound": "شـ glued to the verb", "example": "شتبي؟ (sh-tabi)، شتسوي؟ (sh-tsawwi)، شفيك؟ (shfiik)", "explanation": "In Kuwait, Bahrain, Qatar and the UAE 'what' shrinks to a single sh- stuck on the front of the verb. Listen for a word that starts with sht- or shf- — it is a question." },
+    { "sound": "ولا = 'or' in questions", "example": "شاي ولا قهوة؟ (shaay walla gahwa?)", "explanation": "The 'or' of a question is walla, with a doubled l, not the أو of formal Arabic. When the same word is said flat in a statement it means 'nor / not even'; the rising tone tells you which." },
+    { "sound": "Rising tone only", "example": "إنت كويتي؟ (inta kwayti?)", "explanation": "Yes/no questions are the statement with the pitch lifted on the last word. Practise saying the same three words as a statement and then as a question; nothing changes but the tune." }
+  ],
+  "lesson_sequence": [
+    { "step": "Street-interview warm-up", "detail": "Three 20-second clips of a host asking passers-by من وين إنت؟ / شنو تشتغل؟ — no captions. The learner just notices the rhythm: question, answer, وإنت؟." },
+    { "step": "Question cards", "detail": "Sixteen cards with illustration and audio; question words first, then the small-talk words. Tap a question word to hear the Saudi, Kuwaiti and Emirati versions side by side." },
+    { "step": "Front or in place", "detail": "Grammar card: the same question shown twice (وين تسكن؟ / تسكن وين؟) with audio; then a drag exercise where the learner places the question word in either legal slot." },
+    { "step": "Match the answer", "detail": "Quiz: hear a question, tap the answer that fits (a place, a number, a name, a reason). Sixteen items covering every question word." },
+    { "step": "The interrogation", "detail": "Role-play: the app plays the nosy acquaintance and asks five questions in a row; the learner answers each aloud, then swaps roles and asks." },
+    { "step": "Lesson complete", "detail": "Score screen; the learner's five recorded questions are played back. Nudge: ask someone من وين إنت؟ today." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Next time you meet someone new who speaks Arabic, ask them من وين إنت؟ and follow with وإنت متزوج؟ — then answer the same questions about yourself.", "context": "Shown on the lesson-complete screen. Activates the small-talk script end to end." },
+    { "prompt": "Watch a Gulf street interview and pause after each question. Which question word did the host use — شنو, وش or شو? That tells you their city.", "context": "Homework card. Trains the learner to hear the variant table as a signal, not a problem." },
+    { "prompt": "Reply to three messages today with a one-word question: ليش؟ صدق؟ شصار؟", "context": "Chat-practice nudge. The three reaction questions are the ones that keep a conversation alive." }
+  ],
+  "video_needs": {
+    "queries": ["أسئلة للناس في الشارع الكويت", "مقابلات الشارع الرياض", "سؤال وجواب في الشارع سعودي", "من وين إنت مقابلة"],
+    "channels": ["Belmokhba", "Sowt Afkari", "Hitham Channel", "Thamaniyeh"],
+    "scene": "A host asking a stranger where they are from, what they do and whether they are married — the question audible, then the answer; quiz shows and kids' Q&A also work."
+  }
+}

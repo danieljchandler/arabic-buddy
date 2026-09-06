@@ -1,0 +1,226 @@
+{
+  "slug": "yes-no-please-thanks",
+  "lesson_number": 3,
+  "title": "Yes, No, Please and Thank You",
+  "title_arabic": "إي، لا، لو سمحت وشكراً",
+  "description": "The small words that carry every exchange at a counter or a table: the Sanaa yes إي, no, please, thanks and its reply, sorry, okay — and the God-phrases that punctuate every sentence whoever is speaking.",
+  "cefr_target": "Pre-A1",
+  "duration_minutes": 18,
+  "approach": "GPA Phase 1 — receptive first, then the first tiny productions: a learner can say إي, لا and شكراً within minutes. Politeness particles are taught with their expected replies.",
+  "unlock_condition": "≥9/12 on the final listen-and-tap quiz",
+  "icon": "🙏",
+  "can_do": [
+    "Say yes, no, please and thank you and answer thanks",
+    "Apologise and get someone's attention politely",
+    "Use the everyday religious phrases everyone uses"
+  ],
+  "grammar": [
+    {
+      "category": "sentence-structure",
+      "title": "Noticing: God-phrases are grammar",
+      "explanation": "In Yemen إن شاء الله, الحمد لله and ما شاء الله are not signs of piety; they are the ordinary way of talking about the future, the present and something admirable. Ask a shopkeeper if he has bread tomorrow and the yes is إن شاء الله. Say you are fine and it is الحمد لله. Praise someone's baby without ما شاء الله and an older relative may quietly add it for you. Nothing to memorise beyond the phrases themselves — just notice where they fall in a sentence.",
+      "examples": [
+        { "arabic": "بكرة إن شاء الله", "transliteration": "bukra in shaa allaah", "english": "Tomorrow, God willing" },
+        { "arabic": "الخبز زين، ما شاء الله", "transliteration": "il-khubz zayn, maa shaa allaah", "english": "The bread is good, God be praised" },
+        { "arabic": "الحمد لله، كل شي تمام", "transliteration": "il-ḥamdu lillaah, kull shi tamaam", "english": "Praise God, everything is fine" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "God-phrases everyone uses",
+      "note": "Whatever a Yemeni's own religiosity, these phrases are how the language is spoken. إن شاء الله answers any question about the future, from 'will you come?' to 'is the bus at nine?' — and it can mean a warm yes or a gentle probably-not, which you learn to read from the tone. الحمد لله answers 'how are you', ends a meal and greets good news. ما شاء الله is what you say about a child, a car, a house, anything admirable, to keep the evil eye off it. Use them freely: nobody will ever think you are pretending.",
+      "phrases": [
+        { "arabic": "إن شاء الله", "transliteration": "in shaa allaah", "english": "God willing" },
+        { "arabic": "ما شاء الله", "transliteration": "maa shaa allaah", "english": "What God wills (said of something admirable)" },
+        { "arabic": "الحمد لله على السلامة", "transliteration": "il-ḥamdu lillaah ʿala s-salaama", "english": "Thank God for your safe arrival" }
+      ]
+    },
+    {
+      "title": "Thanks and its reply",
+      "note": "شكراً is fine, but Yemenis thank each other with blessings more often than with the plain word: تسلم 'may you be kept safe', الله يبارك فيك 'may God bless you', يعطيك العافية to anyone who has done work. The reply to any of these is العفو, or a blessing back. Refusing tea or coffee politely takes لا شكراً with the right hand on the chest — and expect to be offered twice more.",
+      "phrases": [
+        { "arabic": "تسلم يا صاحبي", "transliteration": "tislam ya ṣaaḥbi", "english": "Thank you, my friend (lit. may you be safe)" },
+        { "arabic": "الله يبارك فيك", "transliteration": "allaah yibaarik fiik", "english": "God bless you (thanks)" },
+        { "arabic": "لا شكراً، الله يسلمك", "transliteration": "laa shukran, allaah yisallimak", "english": "No thank you, God keep you" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "إي",
+      "transliteration": "ʾii",
+      "english": "yes",
+      "category": "Particle",
+      "teaching_note": "The Sanaa yes — a short, clean ii with a stop in front of it, by far the commonest form in the highlands. ايوه and نعم are also heard everywhere and are safe. The trap is the MSA-only نعم as your only yes: say إي and you sound local.",
+      "image_scene": "A man nodding once with a raised thumb, plain background.",
+      "concept_key": "yes",
+      "variants": ["اي", "ايوه", "ايوا", "أيوه", "نعم", "ايه"],
+      "example": { "arabic": "إي، الخبز حار", "transliteration": "ʾii, il-khubz ḥaarr", "english": "Yes, the bread is hot" },
+      "video_hint": "Any short yes in a sketch or interview; listen for the clipped إي."
+    },
+    {
+      "arabic": "لا",
+      "transliteration": "laa",
+      "english": "no",
+      "category": "Particle",
+      "teaching_note": "Same everywhere in Arabic. Yemenis soften it with a blessing (لا، الله يسلمك) or with a raised hand and a click of the tongue. On its own it also means 'don't' before a verb, which you will meet later.",
+      "image_scene": "A man shaking his head, palm raised gently, plain background.",
+      "concept_key": "no",
+      "variants": ["لأ", "لاء", "لا لا"],
+      "example": { "arabic": "لا، شكراً", "transliteration": "laa, shukran", "english": "No, thank you" },
+      "video_hint": "Any refusal; a vendor or host being told no."
+    },
+    {
+      "arabic": "لو سمحت",
+      "transliteration": "law samaḥt",
+      "english": "please",
+      "category": "Politeness",
+      "teaching_note": "'If you permit' — the please of requests: هات مي لو سمحت. To a woman, لو سمحتي. من فضلك is understood but sounds bookish in Yemen; لو سمحت is what people say.",
+      "image_scene": "A customer at a shop counter pointing at bread with a polite open hand.",
+      "concept_key": "please",
+      "variants": ["لو سمحتي", "لو سمحتوا", "من فضلك", "لوسمحت"],
+      "example": { "arabic": "شاهي لو سمحت", "transliteration": "shaahi law samaḥt", "english": "Tea, please" },
+      "video_hint": "Ordering at a stall or café; asking a stranger something."
+    },
+    {
+      "arabic": "شكراً",
+      "transliteration": "shukran",
+      "english": "thank you",
+      "category": "Politeness",
+      "teaching_note": "Understood everywhere and always polite, though Yemenis more often thank with a blessing — تسلم, الله يبارك فيك, مشكور. Learn شكراً first, collect the blessings as you hear them.",
+      "image_scene": "A woman receiving a tea glass with her right hand, smiling in thanks.",
+      "concept_key": "thank_you",
+      "variants": ["شكرا", "شكراً جزيلاً", "تسلم", "مشكور", "الله يبارك فيك", "يعطيك العافية"],
+      "example": { "arabic": "شكراً يا حاج", "transliteration": "shukran ya ḥaaj", "english": "Thank you, Hajj" },
+      "video_hint": "Thanks said at a counter or on receiving something; the reply usually follows."
+    },
+    {
+      "arabic": "العفو",
+      "transliteration": "il-ʿafw",
+      "english": "you're welcome",
+      "category": "Reply",
+      "teaching_note": "The standard reply to thanks — 'it is nothing to forgive'. Also heard as عفواً. A blessing back (الله يسلمك) does the same job.",
+      "image_scene": "A shopkeeper waving a hand dismissively with a warm smile, as if to say it was nothing.",
+      "concept_key": "youre_welcome",
+      "variants": ["عفواً", "عفوا", "ولا يهمك", "الله يسلمك"],
+      "example": { "arabic": "شكراً — العفو", "transliteration": "shukran — il-ʿafw", "english": "Thanks — you're welcome" },
+      "video_hint": "The reply right after شكراً in any exchange."
+    },
+    {
+      "arabic": "آسف",
+      "transliteration": "aasif",
+      "english": "sorry",
+      "category": "Politeness",
+      "teaching_note": "A man says آسف, a woman آسفة. For a small bump or slip, Yemenis more often say معليش — 'never mind' — which works both as an apology and as forgiveness.",
+      "image_scene": "A man with a hand on his chest and an apologetic tilt of the head after knocking over a tea glass.",
+      "concept_key": "sorry",
+      "variants": ["اسف", "آسفة", "اسفة", "سامحني", "معليش", "معلش"],
+      "example": { "arabic": "آسف يا صاحبي", "transliteration": "aasif ya ṣaaḥbi", "english": "Sorry, my friend" },
+      "video_hint": "An apology in a sketch — a spill, a late arrival."
+    },
+    {
+      "arabic": "اسمح لي",
+      "transliteration": "ismaḥ-li",
+      "english": "excuse me (to get attention)",
+      "category": "Politeness",
+      "teaching_note": "'Allow me' — how you stop a stranger to ask a question or squeeze past in a crowded souq. Often preceded by a vocative: يا أخي اسمح لي. To a woman: اسمحي لي.",
+      "image_scene": "A man in a busy souq lane touching his chest and leaning toward a vendor to ask something.",
+      "concept_key": "excuse_me",
+      "variants": ["اسمحلي", "اسمحي لي", "عن إذنك", "يا أخي", "لو سمحت يا أخي"],
+      "example": { "arabic": "اسمح لي، وين الجامع؟", "transliteration": "ismaḥ-li, wayn il-jaamiʿ?", "english": "Excuse me, where is the mosque?" },
+      "video_hint": "Someone stopping a passer-by; the moment before a question in street footage."
+    },
+    {
+      "arabic": "طيب",
+      "transliteration": "ṭayyib",
+      "english": "okay / fine",
+      "category": "Particle",
+      "teaching_note": "The most-used okay in Yemen — 'good, alright, well then'. Shortened to طب at the start of a sentence. The ط is voiced in Sanaa, so it sounds close to 'dayyib' to an English ear; that is normal.",
+      "image_scene": "A man giving a small nod and an open palm, as if agreeing to a plan.",
+      "concept_key": "okay",
+      "variants": ["طب", "تمام", "ماشي", "طيب طيب", "اوكي"],
+      "example": { "arabic": "طيب، نشوفك بكرة", "transliteration": "ṭayyib, nshuufak bukra", "english": "Okay, see you tomorrow" },
+      "video_hint": "Agreement in a conversation; the word that closes a plan."
+    },
+    {
+      "arabic": "طبعاً",
+      "transliteration": "ṭabʿan",
+      "english": "of course / sure",
+      "category": "Particle",
+      "teaching_note": "'Naturally.' أكيد 'certainly' does the same job and is just as common. Both are answers to 'can I…?' and 'is it…?'.",
+      "image_scene": "A host spreading both hands wide with an of-course expression.",
+      "concept_key": "of_course",
+      "variants": ["طبعا", "أكيد", "اكيد", "طبعاً طبعاً"],
+      "example": { "arabic": "طبعاً، تفضّل", "transliteration": "ṭabʿan, tfaḍḍal", "english": "Of course, go ahead" },
+      "video_hint": "An emphatic yes to a request."
+    },
+    {
+      "arabic": "إن شاء الله",
+      "transliteration": "in shaa allaah",
+      "english": "God willing",
+      "category": "God-phrase",
+      "teaching_note": "Attaches to anything in the future. Also the softest possible way to say no — a vague إن شاء الله to a request is a maybe at best. Written as one word انشالله online.",
+      "image_scene": "A man looking upward with a hopeful smile, one hand raised palm-up.",
+      "concept_key": "god_willing",
+      "variants": ["انشالله", "ان شاء الله", "إنشالله", "ان شالله"],
+      "example": { "arabic": "نشوفك بكرة إن شاء الله", "transliteration": "nshuufak bukra in shaa allaah", "english": "See you tomorrow, God willing" },
+      "video_hint": "Any mention of tomorrow or a plan; the phrase almost always follows."
+    },
+    {
+      "arabic": "الحمد لله",
+      "transliteration": "il-ḥamdu lillaah",
+      "english": "praise God",
+      "category": "God-phrase",
+      "teaching_note": "The answer to how are you, the word after a meal, the response to good news and — with a shrug — to bad news too. The ll of الله is dark and held.",
+      "image_scene": "A family finishing a meal, the father leaning back with both palms up in thanks.",
+      "concept_key": "praise_god",
+      "variants": ["الحمدلله", "الحمد الله", "الحمد لله رب العالمين"],
+      "example": { "arabic": "كيف حالك؟ — الحمد لله", "transliteration": "kayf ḥaalak? — il-ḥamdu lillaah", "english": "How are you? — Praise God (fine)" },
+      "video_hint": "After كيف حالك; at the end of a meal in cooking vlogs."
+    },
+    {
+      "arabic": "ما فيش مشكلة",
+      "transliteration": "maa fiish mushkila",
+      "english": "no problem",
+      "category": "Phrase",
+      "teaching_note": "'There is no problem' — Yemeni ما فيش, spoken as two words, with the Sanaa alternative مابش. عادي 'normal, no big deal' is the one-word version. Never the Egyptian مفيش.",
+      "image_scene": "A mechanic wiping his hands and waving off a worried customer with a relaxed smile.",
+      "concept_key": "no_problem",
+      "variants": ["مابش مشكلة", "مافي مشكلة", "ما فيه مشكلة", "عادي", "ولا يهمك"],
+      "example": { "arabic": "آسف — ما فيش مشكلة", "transliteration": "aasif — maa fiish mushkila", "english": "Sorry — no problem" },
+      "video_hint": "Reassurance after an apology or a hitch; مابش/ما فيش audible."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Customer", "arabic": "اسمح لي، فيه خبز؟", "transliteration": "ismaḥ-li, fiih khubz?", "english": "Excuse me, is there bread?" },
+    { "speaker": "Vendor", "arabic": "إي، تفضّل", "transliteration": "ʾii, tfaḍḍal", "english": "Yes, here you are" },
+    { "speaker": "Customer", "arabic": "وشاهي لو سمحت", "transliteration": "w-shaahi law samaḥt", "english": "And tea, please" },
+    { "speaker": "Vendor", "arabic": "شاهي؟ لا، آسف، ما فيش", "transliteration": "shaahi? laa, aasif, maa fiish", "english": "Tea? No, sorry, there isn't any" },
+    { "speaker": "Customer", "arabic": "طيب، ما فيش مشكلة. شكراً", "transliteration": "ṭayyib, maa fiish mushkila. shukran", "english": "Okay, no problem. Thanks" },
+    { "speaker": "Vendor", "arabic": "العفو، حياك الله", "transliteration": "il-ʿafw, ḥayyaak allaah", "english": "You're welcome — you're always welcome here" }
+  ],
+  "sound_spotlight": [
+    { "sound": "ح vs ه", "example": "الحمد لله (il-ḥamdu lillaah)", "explanation": "ح is the deep breathy h; ه is the ordinary one. الحمد has the deep one, لله the light one — both in one phrase you say twenty times a day." },
+    { "sound": "Dark L in الله", "example": "إن شاء الله، الحمد لله", "explanation": "The double l of الله is pronounced with the back of the tongue raised, thicker than an English l, and held. Every God-phrase carries it." },
+    { "sound": "Final ش", "example": "ما فيش (maa fiish)", "explanation": "Yemeni negation ends in a sharp -sh. Hear it at the end of فيش now; later it will attach to verbs too." }
+  ],
+  "lesson_sequence": [
+    { "step": "Welcome", "detail": "A bread stall at the edge of the souq. One line of English: these are the small words that carry every purchase and every table." },
+    { "step": "Listen & see", "detail": "Twelve cards, illustration and native audio, Arabic large, no English." },
+    { "step": "Pairs", "detail": "Three call-and-reply pairs replayed as mini scenes: please/thanks/you're welcome, sorry/no problem, question/إن شاء الله." },
+    { "step": "Tap quiz", "detail": "Audio only, four-image grid, all twelve." },
+    { "step": "Say three", "detail": "Record إي, لا and شكراً; compare with native audio. No scoring beyond a play-back." },
+    { "step": "Lesson complete", "detail": "Counter rolls up. Nudge: say الحمد لله after your next meal." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Next time you buy anything, say لو سمحت when you ask and شكراً when you get it — and listen for the reply.", "context": "Shown on the lesson-complete screen. Two productions with a guaranteed feedback loop." },
+    { "prompt": "Count how many times you hear إن شاء الله in your next conversation with a Yemeni. Was any of them really a no?", "context": "Follow-up notification. Trains pragmatic listening on the most-used phrase in the language." },
+    { "prompt": "Tell your tutor something admirable about their city and see if they wait for your ما شاء الله.", "context": "Tutor prompt. Practises the phrase in its real social slot." }
+  ],
+  "video_needs": {
+    "queries": ["مقلب في السوق يمني", "بائع خبز صنعاء", "لو سمحت يا أخي يمني", "كوميديا يمنية دكان"],
+    "channels": ["HMADA", "Roti", "Bisho", "Mulatef Humaidi"],
+    "scene": "Short exchanges at a shop counter or table: thanks and the reply, an apology, an okay, the vendor's إي and إن شاء الله."
+  }
+}

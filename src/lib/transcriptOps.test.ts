@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { avg, splitSegment, mergeSegments, splitSegmentAtCursor, retokenizeSegment } from './transcriptOps';
+import { avg, splitSegment, mergeSegments, splitSegmentAtCursor, retokenizeSegment, ensureLineIds } from './transcriptOps';
 import type { Segment } from '@/types/transcript';
 
 function makeSegment(overrides: Partial<Segment> = {}): Segment {

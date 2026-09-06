@@ -39,7 +39,8 @@ const MODEL_REGISTRY: Record<string, ModelConfig> = {
   "google/gemini-2.5-flash": routed(MODEL_IDS.GEMINI_FAST),
   "google/gemini-2.5-pro": routed(MODEL_IDS.GEMINI_PRO),
   "qwen/qwen3-max": routed(MODEL_IDS.QWEN),
-  "qwen/qwen3-235b-a22b": routed(MODEL_IDS.QWEN),
+  // The 235B alias names the registry's fast workhorse, which is what it was.
+  [MODEL_IDS.QWEN_FAST]: routed(MODEL_IDS.QWEN_FAST),
 };
 
 const DIALECT_CONTEXT: Record<string, string> = {

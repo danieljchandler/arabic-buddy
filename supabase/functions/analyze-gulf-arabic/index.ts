@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { isServiceRoleCall, requireContentManager } from "../_shared/requireRole.ts";
 import {
@@ -31,6 +31,7 @@ import {
   buildFushaSystemPrompt,
 } from "../_shared/fushaBridge.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
+import { EDGE_BUILD } from "../_shared/edgeBuild.ts";
 import { chatFetch, hasAnyProvider, providerForModel, type Provider } from "../_shared/aiGateway.ts";
 import { splitOverlongLines } from "../_shared/transcriptLineSplit.ts";
 import {
@@ -79,8 +80,9 @@ function generateId(): string {
 /**
  * - `ensemble_disagreement` — the three translation models produced clusters
  *   that never reached a winning weight; the fallback priority picked one.
- * - `call2_fallback` — the ensemble returned nothing for this line and the
- *   Qwen analysis pass filled it. Unverified by the ensemble, not disputed.
+ * - `call2_fallback` — the ensemble returned nothing for this line and a
+ *   fallback filled it: the analysis pass's own translation, or the cheap
+ *   per-line translator. Unverified by the ensemble, not disputed.
  * - `empty` — no model produced a translation at all.
  */
 type ReviewReason = 'ensemble_disagreement' | 'call2_fallback' | 'empty';
@@ -883,7 +885,7 @@ type CallAIArgs = {
   userContent: string;
   isRetry?: boolean;
   maxTokens?: number;
-  model?: string; // defaults to the registry's third-leg verifier
+  model?: string; // defaults to the registry's analyser workhorse (QWEN_FAST)
 };
 
 async function callAI({
@@ -891,7 +893,7 @@ async function callAI({
   userContent,
   isRetry = false,
   maxTokens = 4096,
-  model = MODEL_IDS.QWEN,
+  model = MODEL_IDS.QWEN_FAST,
 }: CallAIArgs): Promise<{ content: string | null; error?: string; status?: number }> {
     const controller = new AbortController();
     // Two deadlines on one signal. The first is the wait for headers — a
@@ -1727,8 +1729,10 @@ async function fallbackLineTranslate(arabicLines: string[], dialect?: string): P
   }
 
   try {
+    // The cheap, fast pair — the workhorse rather than the Max tier, which
+    // is what "cheap" meant until the pins were centralised.
     const [qwenText, geminiText] = await Promise.all([
-      callModel(MODEL_IDS.QWEN),
+      callModel(MODEL_IDS.QWEN_FAST),
       callModel(MODEL_IDS.GEMINI_FAST),
     ]);
 
@@ -1828,6 +1832,29 @@ async function recordForPipeline(
   } catch (e) {
     console.error(`[analyze] Could not record the outcome for ${videoId}:`, e instanceof Error ? e.message : String(e));
     return false;
+  }
+}
+
+/**
+ * The row's `engines_used` with `patch` merged over it.
+ *
+ * Read-then-merge, because the pipeline writes its own keys (ASR provenance,
+ * the progress note) into the same column and a blind write would erase them.
+ */
+async function enginesUsedWith(
+  svc: SupabaseClient,
+  videoId: string,
+  patch: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  try {
+    const { data } = await svc.from('discover_videos').select('engines_used').eq('id', videoId).single();
+    const row = (data ?? null) as { engines_used?: unknown } | null;
+    const existing = row?.engines_used && typeof row.engines_used === 'object'
+      ? (row.engines_used as Record<string, unknown>)
+      : {};
+    return { ...existing, ...patch };
+  } catch {
+    return patch;
   }
 }
 
@@ -2459,6 +2486,28 @@ serve(async (req) => {
       const dedicatedLiterals: string[] = ensembleMerge.lines.map((l) => l.literal);
       const ensembleNeedsReview: boolean[] = ensembleMerge.lines.map((l) => l.needs_review);
 
+      // ── CHEAP FILL: lines the ensemble left blank ─────────────────────────
+      // Three models answering nothing for a line used to be the end of it:
+      // "leaving translations empty", and the transcript shipped that way. A
+      // line with no English is worth one more, cheaper call — the numbered
+      // plain-text translator the merge fallback already uses — before it
+      // goes out blank. Filled lines stay on the review queue as unverified.
+      const blankIdx = dedicatedTranslations
+        .map((t, i) => (t.trim() ? -1 : i))
+        .filter((i) => i >= 0);
+      const cheapFilled = new Set<number>();
+      if (blankIdx.length > 0 && haveTimeFor(50_000, `translating ${blankIdx.length} line(s) the ensemble left blank`)) {
+        const english = await fallbackLineTranslate(blankIdx.map((i) => mergedLines[i].arabic), detectedDialect);
+        blankIdx.forEach((lineIdx, k) => {
+          const t = (english[k] ?? '').trim();
+          if (!t) return;
+          dedicatedTranslations[lineIdx] = t;
+          ensembleMerge.lines[lineIdx].translation = t;
+          cheapFilled.add(lineIdx);
+        });
+        console.log(`[ensemble] cheap fill: ${cheapFilled.size}/${blankIdx.length} blank line(s) translated`);
+      }
+
       // ── SHAHEEN-MT TIEBREAK ──────────────────────────────────────────────
       // Only for lines the ensemble couldn't settle (needs_review) or left
       // empty: get a reference translation from Fanar-Shaheen-MT-1, the only
@@ -2619,8 +2668,16 @@ serve(async (req) => {
       // Structured provenance for engines_used.translation
       const translationProvenance = {
         strategy: 'weighted_ensemble',
+        // Which build of this function produced the row. The app's build
+        // banner probes only the pipeline function, so an analyser left behind
+        // by a partial deploy was invisible until this.
+        build: EDGE_BUILD,
+        merge_model: MODEL_IDS.QWEN_FAST,
         degraded: okCount < 3,
         active_models: okCount,
+        lines: mergedLines.length,
+        blank_after_ensemble: blankIdx.length,
+        cheap_fill: cheapFilled.size,
         agreements: ensembleMerge.agreements,
         shaheen: shaheenProvenance,
         tiers: translationCandidates.map((c) => ({
@@ -2766,6 +2823,8 @@ serve(async (req) => {
         // need very different attention.
         const reviewReason: ReviewReason | undefined = !needsReview
           ? undefined
+          : cheapFilled.has(i)
+            ? 'call2_fallback'
           : !dedicatedTranslations[i] && call2Lines[i]?.translation
             ? 'call2_fallback'
             : ensembleTranslation
@@ -2855,6 +2914,11 @@ serve(async (req) => {
             Deno.env.get('SUPABASE_URL')!,
             Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
           );
+          // The translation provenance rides along here too. The final save
+          // below merges it as well, but a worker torn down during the
+          // enrichment used to leave a row whose transcript had no record of
+          // which models answered — exactly the row someone is looking at
+          // when the English is missing.
           const { error: safetyErr } = await svc.from('discover_videos').update({
             transcript_lines: finalLines.map((l) => ({
               ...l,
@@ -2867,6 +2931,11 @@ serve(async (req) => {
             difficulty: detectedDifficulty || 'Intermediate',
             transcription_status: 'analysis_complete',
             transcription_error: null,
+            engines_used: await enginesUsedWith(svc, pipelineVideoId, {
+              translation: translationProvenance,
+              fusha: fushaProvenance,
+              diacritization: diacritizationProvenance,
+            }),
           }).eq('id', pipelineVideoId).neq('transcription_status', 'completed');
           if (safetyErr) {
             console.warn('[analyze] Pre-enrichment save failed (continuing):', safetyErr.message);

@@ -751,6 +751,45 @@ async function splitLongLines(ctx: PipelineContext, lines: PipelineLine[]): Prom
   return out;
 }
 
+/**
+ * Give every line that reached this stage without English one more chance.
+ *
+ * The analysis translates through a three-model ensemble with its own
+ * fallbacks, but it does so inside a 300-second budget shared with the merge
+ * that precedes it, and a slow merge leaves the ensemble seconds — every leg
+ * times out, and the row arrives here with Arabic and no English. This stage
+ * has a fresh budget of its own and the same drafter the Re-sync button uses,
+ * so a blank line is translated here rather than shipped. Best effort: a line
+ * the model cannot translate stays blank and flagged for review, as before.
+ */
+async function translateBlankLines(ctx: PipelineContext, lines: PipelineLine[]): Promise<PipelineLine[]> {
+  const blank = lines.filter((l) =>
+    !hasTranslation(l) && typeof l.id === "string" && String(l.arabic ?? "").trim().length > 0
+  );
+  if (blank.length === 0) return lines;
+  console.log(`[pipeline] ${blank.length} line(s) arrived without English; translating them here`);
+  const drafted = await draftEnglishForPieces(blank, {
+    dialect: ctx.video.dialect,
+    dialect_subvariety: ctx.video.dialect_subvariety,
+  });
+  let filled = 0;
+  const out = lines.map((line) => {
+    const english = typeof line.id === "string" ? drafted.get(line.id) : undefined;
+    if (!english) return line;
+    filled += 1;
+    const next: PipelineLine = { ...line, translation: english.translation };
+    if (english.literal && !String(line.literal ?? "").trim()) next.literal = english.literal;
+    // "Empty" was the reason; it no longer holds. Any other reason stands.
+    if (next.review_reason === "empty") {
+      delete next.needs_review;
+      delete next.review_reason;
+    }
+    return next;
+  });
+  console.log(`[pipeline] Translated ${filled}/${blank.length} blank line(s) at finalize`);
+  return out;
+}
+
 function alignLinesToAudio(
   rawLines: PipelineLine[],
   relativeWords: AsrWord[],
@@ -2043,10 +2082,13 @@ async function runFinalizeStage(ctx: PipelineContext, cp: Checkpoint): Promise<v
       ((asr?.downloadDuration && asr.downloadDuration > 0 ? asr.downloadDuration : 0) * 1000) ||
       ((video.duration_seconds && video.duration_seconds > 0 ? video.duration_seconds : 0) * 1000) ||
       0;
-    const align = (rawLines: PipelineLine[]) =>
-      splitLongLines(
+    const align = async (rawLines: PipelineLine[]) =>
+      translateBlankLines(
         ctx,
-        alignLinesToAudio(rawLines, asr?.alignmentWords ?? [], asr?.alignmentSource ?? "no engine", audioDurationMs),
+        await splitLongLines(
+          ctx,
+          alignLinesToAudio(rawLines, asr?.alignmentWords ?? [], asr?.alignmentSource ?? "no engine", audioDurationMs),
+        ),
       );
     const audio = cp.audio ??
       (cp.httpResult?.noArabicSpeech

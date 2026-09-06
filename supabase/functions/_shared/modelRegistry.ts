@@ -58,6 +58,18 @@ export const MODEL_IDS = {
   // verification, trend triage), never for the ones that write Arabic.
   GEMINI_FAST: 'google/gemini-3.7-flash',
   QWEN: 'qwen/qwen3.8-max',                        // third-leg verifier (weight 0.6)
+  // The transcript analyser's workhorse: the merge of the ASR transcripts, its
+  // stricter retry, the vocabulary-and-grammar pass and the phrase shortcut.
+  // These ran on this model until 2026-08-31, when centralising the pins moved
+  // them onto QWEN above — the 2.4-trillion-parameter Max tier, whose reasoning
+  // is mandatory and cannot go below "minimal". A whole-clip merge that this
+  // model answers in well under a minute takes the Max tier minutes, and the
+  // analyser's 300-second budget is shared with the translation ensemble that
+  // runs after the merge: every second the merge spends is a second the
+  // translations do not get, down to a floor where they time out and the
+  // transcript lands without English. 235B-A22B (22B active) answers directly
+  // unless asked to think, and its 8k output ceiling is exactly the merge's.
+  QWEN_FAST: 'qwen/qwen3-235b-a22b',
   SABA: 'mistralai/mistral-saba',                  // Arabic-native 24B, via OpenRouter
   // Second drafter in generate-story: a non-Google, non-Anthropic voice so the
   // ensemble is not two models with one house style. Luna is the current small
@@ -168,6 +180,7 @@ const REASONING_FLOOR: Record<string, 'none' | 'minimal' | 'low'> = {
   [MODEL_IDS.CLAUDE]: 'none',         // optional; supports low…max when on
   [MODEL_IDS.GPT_MINI]: 'none',       // optional; "none" is in its supported list
   [MODEL_IDS.QWEN]: 'minimal',        // mandatory; minimal is its floor
+  [MODEL_IDS.QWEN_FAST]: 'none',      // hybrid; answers directly unless asked to think
   [MODEL_IDS.GEMINI_FLASH]: 'low',    // mandatory; Gemini 3.7 Flash offers low/medium/high
   [MODEL_IDS.GEMINI_PRO]: 'low',      // mandatory; same three levels
 };

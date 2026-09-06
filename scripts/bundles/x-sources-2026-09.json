@@ -1,0 +1,104 @@
+{
+  "_readme": "A researched, live-verified starter bundle for scripts/discover-x-sources.ts. See docs/x-content-pipeline.md. Every handle here was fetched through the syndication path on 2026-09-06 and its timeline read by a human before being written down; the notes say what it actually posts. Nothing in a bundle can approve itself — these land as candidates for /admin/social-trends.",
+  "sources": [
+    {
+      "handle": "OfficialHenedy",
+      "displayName": "Mohamed Henedy | محمد هنيدي",
+      "dialect": "Egyptian",
+      "country": "Egypt",
+      "notes": "Comedian. 92 Arabic tweets, 66 clear the prefilter (72%). Verified dialect: 'للناس اللي لسة جايه تويتر.. اسمها تويتة مش بوست'. Everyday Egyptian, jokes and asides — the register the app teaches."
+    },
+    {
+      "handle": "ahelmy",
+      "displayName": "Ahmed Helmy | أحمد حلمي",
+      "dialect": "Egyptian",
+      "country": "Egypt",
+      "notes": "Comedian/actor. 92 Arabic tweets, 65 clear the prefilter (71%). Verified dialect: 'تحبوا تفطروا ايه؟ انا طابخ بنفسي.. في رز شايط وملوخيه صايصه'. Food and daily life in plain spoken Egyptian."
+    },
+    {
+      "handle": "RamadanSobhi",
+      "displayName": "Ramadan Sobhi | رمضان صبحي",
+      "dialect": "Egyptian",
+      "country": "Egypt",
+      "notes": "Footballer. 81 Arabic tweets, 71 clear the prefilter (88%) — the highest rate measured. Verified dialect: 'الفوز بالقمة ليه طعم تاني', 'متنساش اللى قلتلك عليه'."
+    },
+    {
+      "handle": "ElSaka",
+      "displayName": "Ahmed El Sakka | أحمد السقا",
+      "dialect": "Egyptian",
+      "country": "Egypt",
+      "notes": "Actor. 97 Arabic tweets, 68 clear the prefilter (70%)."
+    },
+    {
+      "handle": "AmirKarara",
+      "displayName": "Amir Karara | أمير كرارة",
+      "dialect": "Egyptian",
+      "country": "Egypt",
+      "notes": "Actor. 88 Arabic tweets, 47 clear the prefilter (53%). More promo than the comedians; still personal register."
+    },
+    {
+      "handle": "trikaofficial",
+      "displayName": "Mohamed Aboutrika | محمد أبوتريكة",
+      "dialect": "Egyptian",
+      "country": "Egypt",
+      "notes": "Footballer/pundit. 93 Arabic tweets, 50 clear the prefilter (54%)."
+    },
+    {
+      "handle": "husseinelshahat",
+      "displayName": "Hussein El Shahat | حسين الشحات",
+      "dialect": "Egyptian",
+      "country": "Egypt",
+      "notes": "Footballer. 86 Arabic tweets, 45 clear the prefilter (52%)."
+    },
+    {
+      "handle": "NaguibSawiris",
+      "displayName": "Naguib Sawiris | نجيب ساويرس",
+      "dialect": "Egyptian",
+      "country": "Egypt",
+      "notes": "Businessman, argues with people in public. 97 Arabic tweets, 72 clear the prefilter (74%). VERIFY: skews political commentary — read a page before approving."
+    },
+    {
+      "handle": "MustafaHosny",
+      "displayName": "Mustafa Hosny | مصطفى حسني",
+      "dialect": "Egyptian",
+      "country": "Egypt",
+      "notes": "VERIFY — a known prefilter false positive, kept as the worked example. Scores 78% because supplication ('اللهم', 'يا رب') reads as first/second person, but the register is devotional MSA, not dialect: 'اللهم إن الأرضَ أرضُك والسماءَ سماؤك'. The model screen should reject most of it. Reject this source unless a reviewer finds otherwise."
+    },
+    {
+      "handle": "ammaralazakii",
+      "displayName": "Ammar Al-Azki | عمار العزكي",
+      "dialect": "Yemeni",
+      "country": "Yemen",
+      "notes": "Singer. 98 Arabic tweets, 55 clear the prefilter (56%) — by a distance the best Yemeni account found. Verified spoken register: 'خلوها مفتوحة في قلوبكم', 'باقي اليوم وبكرة وبعد بكرة فصوتولي', 'لكل اللي يسألوني'."
+    },
+    {
+      "handle": "afrahnasser",
+      "displayName": "Afrah Nasser | أفراح ناصر",
+      "dialect": "Yemeni",
+      "country": "Yemen",
+      "notes": "VERIFY. Journalist. 41 Arabic tweets of 101 (much of the account is English), 21 clear the prefilter. Thin, but Yemeni personal accounts on X are scarce."
+    },
+    {
+      "handle": "malrubaa",
+      "displayName": "M. Al-Rubaa | الربع",
+      "dialect": "Yemeni",
+      "country": "Yemen",
+      "notes": "VERIFY. 97 Arabic tweets, 27 clear the prefilter (28%). Writes with Egyptian markers as often as Yemeni ('مافيش', 'مش مستبعد') — a reviewer should decide whether that helps or muddies the Yemeni column."
+    },
+    {
+      "handle": "TawakkolKarman",
+      "displayName": "Tawakkol Karman | توكل كرمان",
+      "dialect": "Yemeni",
+      "country": "Yemen",
+      "notes": "VERIFY — probably reject. 99 Arabic tweets, 29 clear the prefilter, but the sampled register is political MSA prose, not speech. Listed so the decision is recorded rather than rediscovered."
+    },
+    {
+      "handle": "RAlmutawakel",
+      "displayName": "R. Al-Mutawakel | المتوكل",
+      "dialect": "Yemeni",
+      "country": "Yemen",
+      "notes": "VERIFY. 42 Arabic tweets of 100, 11 clear the prefilter. Low volume; watch one harvest before approving."
+    }
+  ],
+  "posts": []
+}

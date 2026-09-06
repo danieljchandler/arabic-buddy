@@ -5,9 +5,10 @@ import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
 /**
  * harvest-social-trends — the free-sources social pipeline.
  *
- * The function stitches together three fetch paths that cost nothing (Jina
- * over getdaytrends, t.me channel previews, Reddit's registered-app API) and
- * one thing that costs model tokens: the per-post dialect screen. The screen
+ * The function stitches together four fetch paths that cost nothing (X's own
+ * syndication embed backend, Jina over getdaytrends, t.me channel previews,
+ * Reddit's registered-app API) and one thing that costs model tokens: the
+ * per-post dialect screen. The screen
  * is triage — a pass lands the post in the human review queue as 'screened',
  * never published — so the tests pin the properties the feature stands on:
  * nothing skips the queue, clear MSA is binned rather than queued, an outage
@@ -43,8 +44,34 @@ const REDDIT_LISTING = {
   },
 };
 
+const xTweet = (over: Record<string, unknown> = {}) => ({
+  id_str: "1900000000000000001",
+  full_text: "شلونكم يا جماعة؟ اليوم عندي خبر حلو ابغى اقوله لكم",
+  created_at: "Fri Sep 04 10:00:00 +0000 2026",
+  lang: "ar",
+  favorite_count: 120,
+  retweet_count: 8,
+  user: { screen_name: "gulfvoice" },
+  ...over,
+});
+
+/** What syndication.twitter.com serves: tweets inside a __NEXT_DATA__ blob. */
+const xTimeline = (tweets: Array<Record<string, unknown>>) =>
+  `<html><script id="__NEXT_DATA__" type="application/json">` +
+  JSON.stringify({
+    props: {
+      pageProps: {
+        timeline: {
+          entries: tweets.map((t) => ({ type: "tweet", content: { tweet: t } })),
+        },
+      },
+    },
+  }) +
+  `</script></html>`;
+
 const sourceRows = [
-  { id: "src-x", platform: "x", handle: "saudi-arabia", display_name: "Saudi Arabia trends", dialect: "Gulf", country: "Saudi Arabia" },
+  { id: "src-xt", platform: "x_trends", handle: "saudi-arabia", display_name: "Saudi Arabia trends", dialect: "Gulf", country: "Saudi Arabia" },
+  { id: "src-x", platform: "x", handle: "gulfvoice", display_name: "Gulf Voice", dialect: "Gulf", country: "Kuwait" },
   { id: "src-tg", platform: "telegram", handle: "kuwaitnews", display_name: "Kuwait News", dialect: "Gulf", country: "Kuwait" },
   { id: "src-rd", platform: "reddit", handle: "Kuwait", display_name: "r/Kuwait", dialect: "Gulf", country: "Kuwait" },
 ];
@@ -72,7 +99,7 @@ function caller(
     "/rest/v1/dialect_prompts": () => json([]),
     "/rest/v1/dialect_rules": () => json([]),
     "/rest/v1/social_content_sources": (request) => {
-      if (request.method !== "GET") return json([]);
+      if (request.method !== "GET") return json([], 200);
       const platform = /platform=eq\.(\w+)/.exec(request.url)?.[1];
       return json(sourceRows.filter((s) => s.platform === platform));
     },
@@ -88,6 +115,18 @@ function caller(
       }
       return json([], request.method === "POST" ? 201 : 200);
     },
+    "syndication.twitter.com/srv/timeline-profile": () =>
+      new Response(
+        xTimeline([
+          xTweet(),
+          xTweet({ id_str: "1900000000000000002", full_text: "English only tweet, no Arabic" }),
+          xTweet({
+            id_str: "1900000000000000003",
+            full_text: "وزارة الداخلية تعلن ضبط شبكة تهريب في المنطقة الشرقية أمس",
+          }),
+        ]),
+        { status: 200 },
+      ),
     "https://r.jina.ai/https://getdaytrends.com": () =>
       json({ code: 200, data: { content: TRENDS_MARKDOWN } }),
     "https://t.me/s/": (request) =>
@@ -141,11 +180,15 @@ Deno.test("harvest-social-trends refuses a caller with neither secret nor manage
   // the open internet and a run that spends model tokens on screening.
   assertEquals(status, 403);
   assertEquals(body.error, "content_manager_required");
-  assert(!calls.some((c) => c.url.includes("getdaytrends") || c.url.includes("t.me")));
+  assert(!calls.some((c) =>
+    c.url.includes("getdaytrends") || c.url.includes("t.me") || c.url.includes("syndication")
+  ));
 });
 
 Deno.test("harvest-social-trends stores topics and Arabic posts, queueing passes for human review", async () => {
-  const pending = [{ id: "post-1", arabic_text: "شلونكم يا جماعة؟", dialect: "Gulf" }];
+  const pending = [
+    { id: "post-1", arabic_text: "شلونكم يا جماعة؟ عندي خبر حلو ابغى اقوله لكم", dialect: "Gulf" },
+  ];
   const { status, body, calls } = await call({}, caller(pending));
 
   assertEquals(status, 200);
@@ -154,6 +197,12 @@ Deno.test("harvest-social-trends stores topics and Arabic posts, queueing passes
   const topicUpsert = calls.find((c) => c.url.includes("trending_topics") && c.method === "POST");
   assertStringIncludes(topicUpsert?.body ?? "", "#يوم_الجمعه");
   assertStringIncludes(topicUpsert?.body ?? "", "https://x.com/search?q=");
+
+  // X account timelines are the source of post *bodies* now, not just trend
+  // chips: the Arabic tweet is stored, the English one is not, and neither is
+  // the wire-copy one — the marker prefilter drops it before it can cost a
+  // screening call.
+  assertEquals(body.xPosts, 1);
 
   // The English-only Telegram caption and Reddit thread never become rows.
   assertEquals(body.telegramPosts, 1);
@@ -165,6 +214,9 @@ Deno.test("harvest-social-trends stores topics and Arabic posts, queueing passes
   assertStringIncludes(upserted, "kuwaitnews/101");
   assertStringIncludes(upserted, "t3_arabic");
   assert(!upserted.includes("t3_english"));
+  assertStringIncludes(upserted, "1900000000000000001");
+  assert(!upserted.includes("1900000000000000002"), "English tweet stored");
+  assert(!upserted.includes("1900000000000000003"), "wire-copy tweet stored");
 
   // The pass lands in the review queue — 'screened', never 'approved'. The
   // human on /admin/social-trends is the publisher now.
@@ -177,10 +229,11 @@ Deno.test("harvest-social-trends stores topics and Arabic posts, queueing passes
 
 Deno.test("harvest-social-trends screens each dialect's own queue", async () => {
   const pending = [
-    { id: "post-g", arabic_text: "شلونكم", dialect: "Gulf" },
-    { id: "post-e", arabic_text: "إزيكم", dialect: "Egyptian" },
+    { id: "post-g", arabic_text: "شلونكم يا جماعة عندي سؤال لكم", dialect: "Gulf" },
+    { id: "post-e", arabic_text: "إزيكم يا جماعة انا مش عارف اعمل ايه", dialect: "Egyptian" },
   ];
-  const { body, calls } = await call({ platform: "x", targetPerDialect: 2 }, caller(pending));
+  // x_trends harvests topics only, so this exercises screening on its own.
+  const { body, calls } = await call({ platform: "x_trends", targetPerDialect: 2 }, caller(pending));
 
   // The first cut screened one global pool: whichever dialect harvested most
   // filled the quota and the rest never got a model call. Now each dialect's
@@ -212,9 +265,13 @@ Deno.test("harvest-social-trends pages further back through a thin Telegram chan
 });
 
 Deno.test("harvest-social-trends rejects MSA without queueing it for review", async () => {
-  const pending = [{ id: "post-1", arabic_text: "أعلنت الوزارة اليوم", dialect: "Gulf" }];
+  // Colloquial enough to buy a model call, formal enough that the model calls
+  // it MSA — the case the prefilter cannot and should not decide.
+  const pending = [
+    { id: "post-1", arabic_text: "انا شفت البيان وهذا كلام مهم جدا للجميع", dialect: "Gulf" },
+  ];
   const { body, calls } = await call(
-    { platform: "x", targetPerDialect: 1 },
+    { platform: "x_trends", targetPerDialect: 1 },
     caller(pending, {
       "generativelanguage.googleapis.com/v1beta/openai": () =>
         chatCompletion("", aVerdict({ register: "msa", reason: "Formal news register." })),
@@ -229,9 +286,11 @@ Deno.test("harvest-social-trends rejects MSA without queueing it for review", as
 });
 
 Deno.test("harvest-social-trends leaves posts pending when the screen is down", async () => {
-  const pending = [{ id: "post-1", arabic_text: "شلونكم", dialect: "Gulf" }];
+  const pending = [
+    { id: "post-1", arabic_text: "شلونكم يا جماعة عندي سؤال لكم", dialect: "Gulf" },
+  ];
   const { status, body, calls } = await call(
-    { platform: "x", targetPerDialect: 1 },
+    { platform: "x_trends", targetPerDialect: 1 },
     caller(pending, {
       "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "boom" }, 503),
       "openrouter.ai": () => json({ error: "boom" }, 503),
@@ -261,4 +320,58 @@ Deno.test("harvest-social-trends skips Reddit quietly when no app is registered"
   assertEquals(status, 200);
   assertEquals(body.redditPosts, 0);
   assert(!calls.some((c) => c.url.includes("reddit.com/r/") || c.url.includes("oauth.reddit")));
+});
+
+Deno.test("harvest-social-trends bins wire copy before it costs a model call", async () => {
+  const pending = [
+    {
+      id: "post-wire",
+      arabic_text: "وزارة الداخلية تعلن ضبط شبكة تهريب في المنطقة الشرقية أمس",
+      dialect: "Gulf",
+    },
+  ];
+  const { body, calls } = await call({ platform: "x_trends", targetPerDialect: 1 }, caller(pending));
+
+  // The complaint the prefilter answers: the screen was being spent almost
+  // entirely on rejecting فصحى a word list can recognise for free.
+  assertEquals((body.review as Review).Gulf.screenedThisRun.rejected, 1);
+  assert(
+    !calls.some((c) => c.url.includes("generativelanguage") || c.url.includes("openrouter")),
+    "a model was called on wire copy",
+  );
+  const patch = calls.find((c) => c.url.includes("social_posts") && c.method === "PATCH");
+  assertStringIncludes(patch?.body ?? "", '"status":"rejected"');
+  // The reading travels with the row, so a threshold can be re-tuned over
+  // history rather than re-harvested.
+  assertStringIncludes(patch?.body ?? "", '"prefilter"');
+});
+
+Deno.test("harvest-social-trends records what each X source returned", async () => {
+  const { calls } = await call({ platform: "x", screenLimit: 0 }, caller([]));
+
+  // A handle that has quietly stopped resolving must be visible in the
+  // registry, not just absent from the harvest.
+  const patch = calls.find(
+    (c) => c.url.includes("social_content_sources") && c.method === "PATCH",
+  );
+  assertStringIncludes(patch?.body ?? "", "last_verified_at");
+  assertStringIncludes(patch?.body ?? "", '"tweets":3');
+  assertStringIncludes(patch?.body ?? "", '"prescreenPassed":1');
+});
+
+Deno.test("harvest-social-trends stops the X platform on a syndication throttle", async () => {
+  const { status, body, calls } = await call(
+    { platform: "x", screenLimit: 0 },
+    caller([], {
+      "syndication.twitter.com/srv/timeline-profile": () =>
+        new Response("Too Many Requests", { status: 429 }),
+    }),
+  );
+
+  // Syndication throttles per IP. Once it starts answering 429 the rest of
+  // the source list would fail too, so the run gives the platform up rather
+  // than spending its time budget on nothing.
+  assertEquals(status, 200);
+  assertEquals(body.xPosts, 0);
+  assert(!calls.some((c) => c.url.includes("social_posts") && c.method === "POST"));
 });

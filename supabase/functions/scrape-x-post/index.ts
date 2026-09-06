@@ -1,6 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { enforceAnonymousDailyCap } from "../_shared/usageCap.ts";
+import { parseTweetResult, parseXPostUrl, tweetResultUrl } from "../_shared/xSyndication.ts";
 
 type JinaResponse = {
   data?: { title?: string; description?: string; content?: string };
@@ -10,19 +11,37 @@ type JinaResponse = {
  * An X/Twitter status URL, decided by parsing rather than by substring.
  *
  * Host equality (plus `www.`) and a `/{handle}/status/{id}` path — anything
- * else, including a URL that merely embeds one, is refused.
+ * else, including a URL that merely embeds one, is refused. The parse lives in
+ * `_shared/xSyndication.ts` now, because the harvester and the bundle importer
+ * need exactly the same bar and a second copy of it would drift.
  */
 function isXPostUrl(raw: string): boolean {
-  let parsed: URL;
+  return parseXPostUrl(raw) !== null;
+}
+
+const USER_AGENT =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " +
+  "(KHTML, like Gecko) Chrome/126.0 Safari/537.36";
+
+/**
+ * The tweet body from X's own embed backend: structured JSON, no key, no
+ * markdown to dig the text back out of.
+ *
+ * This is tried before Jina because it is strictly better when it works — it
+ * returns the post text as a field rather than a rendered page, so there is
+ * nothing to mistake a quote-tweet or a reply thread for. Jina stays as the
+ * fallback for the cases syndication refuses (throttles, deleted posts served
+ * as tombstones).
+ */
+async function fetchFromSyndication(id: string): Promise<string | null> {
   try {
-    parsed = new URL(raw);
+    const res = await fetch(tweetResultUrl(id), { headers: { "User-Agent": USER_AGENT } });
+    if (!res.ok) return null;
+    const post = parseTweetResult(await res.json());
+    return post?.text ?? null;
   } catch {
-    return false;
+    return null;
   }
-  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return false;
-  const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
-  if (host !== 'twitter.com' && host !== 'x.com') return false;
-  return /^\/[A-Za-z0-9_]{1,15}\/status\/\d+\/?$/.test(parsed.pathname);
 }
 
 serve(async (req) => {
@@ -63,9 +82,14 @@ serve(async (req) => {
 
     const JINA_API_KEY = Deno.env.get('JINA_API_KEY');
 
-    // Try free tier first, fall back to authenticated if it fails or returns no text
-    console.log('Attempting Jina Reader (free tier)...');
-    let arabicText = await fetchFromJina(url, null);
+    // X's own syndication endpoint first: free, keyless, and structured.
+    let arabicText = await fetchFromSyndication(parseXPostUrl(url)!.id);
+
+    // Then Jina, free tier before authenticated.
+    if (!arabicText) {
+      console.log('Syndication returned no text, attempting Jina Reader (free tier)...');
+      arabicText = await fetchFromJina(url, null);
+    }
 
     if (!arabicText && JINA_API_KEY) {
       console.log('Free tier returned no text, retrying with API key...');

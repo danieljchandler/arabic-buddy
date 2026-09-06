@@ -44,7 +44,12 @@ test.describe("choosing what to do", () => {
     // sequential paths are real — so the doors open, and the alphabet one
     // reports its position, because a path is the one thing on this screen
     // that has one.
-    await expect(page.getByRole("link", { name: /Alphabet Journey/ })).toBeVisible();
+    // Anchored, because the Curriculum card's empty state says "start with the
+    // Alphabet Journey" too — and it only says it once the lessons query has
+    // resolved. An unanchored match is therefore a race: one element while
+    // that query is in flight, two after it settles, and a strict-mode
+    // violation roughly half the time.
+    await expect(page.getByRole("link", { name: /^Alphabet Journey/ })).toBeVisible();
     await expect(page.getByText(/0\/28|\d+\/28/)).toBeVisible();
 
     await page.getByRole("link", { name: /Curriculum/ }).click();

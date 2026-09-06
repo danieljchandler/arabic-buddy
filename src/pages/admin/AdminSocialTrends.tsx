@@ -35,7 +35,7 @@ import {
 } from "lucide-react";
 
 const DIALECTS = ["All", "Gulf", "Egyptian", "Yemeni"];
-const PLATFORMS = ["All", "telegram", "reddit"];
+const PLATFORMS = ["All", "x", "telegram", "reddit"];
 const PLATFORM_LABEL: Record<string, string> = { telegram: "Telegram", reddit: "Reddit", x: "X" };
 
 // Tab order mirrors the pipeline: what needs a human first.
@@ -47,7 +47,7 @@ const STATUS_TABS = [
 ];
 
 function harvestToast(summary: HarvestSummary) {
-  const posts = (summary.telegramPosts ?? 0) + (summary.redditPosts ?? 0);
+  const posts = (summary.xPosts ?? 0) + (summary.telegramPosts ?? 0) + (summary.redditPosts ?? 0);
   const perDialect = Object.entries(summary.review ?? {})
     .map(([dialect, r]) => `${dialect} ${r.have}/${r.target}`)
     .join(" · ");

@@ -3889,10 +3889,12 @@ export type Database = {
           handle: string
           id: string
           last_harvested_at: string | null
+          last_verified_at: string | null
           notes: string | null
           platform: string
           status: string
           updated_at: string
+          verification: Json
         }
         Insert: {
           country?: string | null
@@ -3902,10 +3904,12 @@ export type Database = {
           handle: string
           id?: string
           last_harvested_at?: string | null
+          last_verified_at?: string | null
           notes?: string | null
           platform: string
           status?: string
           updated_at?: string
+          verification?: Json
         }
         Update: {
           country?: string | null
@@ -3915,10 +3919,12 @@ export type Database = {
           handle?: string
           id?: string
           last_harvested_at?: string | null
+          last_verified_at?: string | null
           notes?: string | null
           platform?: string
           status?: string
           updated_at?: string
+          verification?: Json
         }
         Relationships: []
       }

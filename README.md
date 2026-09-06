@@ -1028,12 +1028,17 @@ learner sees it. The design constraint was **zero API spend** — X's API moved
 to pay-per-use in 2026 ($0.005/post read; the Trends endpoint needs the $5k/mo
 Pro tier) — so each platform gets the free route that actually exists:
 
-- **X** — trending *topics* per country, scraped from getdaytrends.com via
-  Jina Reader (the same path `scrape-x-post` uses). Topics only: X search is
-  behind login, so post bodies are unreachable for free. Chips link out to
-  `x.com/search` instead of embedding, which also keeps us inside X's terms.
-  Yemen has no X trend location at all — the Yemeni column deliberately leans
-  on the other two platforms.
+- **X** — account timelines *and* post bodies, through X's own embed backend
+  (`syndication.twitter.com`), free and keyless. The first cut of this feature
+  said bodies were unreachable and shipped X as topic chips only, which is why
+  every word of Arabic in the pipeline came from Telegram news channels. They
+  are reachable; search is not. **See [`docs/x-content-pipeline.md`](docs/x-content-pipeline.md)**
+  for the fetch contract, the rate limits, and the research loop that fills the
+  account registry — that doc is the current source of truth for anything X.
+- **X trends** (platform key `x_trends`) — trending *topics* per country,
+  scraped from getdaytrends.com via Jina Reader. Chips link out to
+  `x.com/search` instead of embedding, which keeps us inside X's terms. Yemen
+  has no X trend location at all.
 - **Telegram** — public channel previews at `t.me/s/<handle>`, no key needed.
   The richest free source for Yemeni content, and where view counts come from.
 - **Reddit** — top-of-day posts from country subreddits through a free
@@ -1045,6 +1050,16 @@ The pipeline is `harvest-social-trends` (edge function) over three tables:
 `social_content_sources` (the curated registry of subreddits/channels/trend
 slugs, per dialect, `candidate → approved → rejected` like `content_channels`),
 `trending_topics` (one row per country/topic/day) and `social_posts`.
+
+**The free filter runs before the paid one.** `_shared/socialPrescreen.ts`
+bins text with no Arabic, text too short to teach anything, and text in which
+nobody is speaking — no dialect evidence, nothing in first or second person,
+and either a newsroom marker or the length of a headline — before any of it
+costs a model call. It composes `dialectMarkers.ts` rather than repeating its
+lists; what it adds is *register*, which is what actually separates a tweet
+from a headline. Measured on live timelines, 81% of a singer's Arabic tweets
+clear it against 27% of a newspaper's, and that ordering falls out of who is
+writing without the filter knowing anything about the accounts.
 
 **A human publishes; the AI only triages.** Post lifecycle:
 `pending` (harvested) → `screened` (passed the askBrain triage, UTILITY
@@ -1066,6 +1081,15 @@ needed — until it has enough posts awaiting review, its queue runs dry, or
 the run's call/time budget (`maxScreenCalls`, 100s) is spent. The response
 reports `review.<dialect> = {target, have, queueEmpty}`, which is the
 add-more-sources signal when a dialect can't fill its quota.
+
+**Sources can be proposed by an agent, never approved by one.** There is no
+free X search, so *which* accounts write Yemeni or Egyptian is a research
+question rather than an API call. `scripts/discover-x-sources.ts` takes a
+bundle of proposed handles and posts (from Claude Code doing the research),
+probes every handle live, and posts the survivors to the `import-x-bundle`
+edge function. Sources land as `candidate` and posts as `pending`; a proposed
+post's text is re-fetched from X rather than believed, and a re-import never
+changes the status of a source a human already judged.
 
 Scheduling follows the clip pipeline's convention: nothing in-repo fires it.
 Call it daily with the `x-harvest-secret` header (`SOCIAL_HARVEST_SECRET`

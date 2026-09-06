@@ -1,0 +1,288 @@
+{
+  "slug": "telling-stories-in-the-past",
+  "lesson_number": 1,
+  "title": "Telling a Story",
+  "title_arabic": "احكي لي ايش حصل",
+  "description": "Turn the past tense you already have into a story: set the scene with كان, keep the listener hooked with لما and فجأة, and land the ending. The irregular verbs a Sanaa storyteller cannot do without.",
+  "cefr_target": "A2",
+  "duration_minutes": 20,
+  "approach": "GPA Phase 3–4 — story-based. The learner hears a two-minute anecdote twice, rebuilds it from picture prompts, then tells their own with the same skeleton.",
+  "unlock_condition": "Retell the six-picture story with at least four of the six events in order, using كان at least once",
+  "icon": "📖",
+  "can_do": [
+    "Tell what happened, setting the scene with 'was' + a verb",
+    "Sequence events with 'while', 'suddenly' and 'in the end'",
+    "Use the most common irregular past verbs in Ṣanʿāni"
+  ],
+  "grammar": [
+    {
+      "category": "verb-conjugation",
+      "title": "كان sets the scene; the short verbs move the story",
+      "explanation": "A Sanaa story opens with كان: كان الجو بارد 'the weather was cold', كنت في السوق 'I was in the market'. Put كان in front of a present-tense verb and you get 'was doing' or 'used to': كنت أمشي 'I was walking', كان يسير كل يوم 'he used to go every day'. Then the events come in the plain past: فجأة وقع، ضحكنا، في الآخر لقيناه. Watch the short verbs — the ones whose middle letter is a long vowel or whose last letter is ي: سار becomes سرت 'I went', قال becomes قلت, شاف becomes شفت, and لقى / نسي / حكى become لقيت / نسيت / حكيت with the ي turning into -ii-. Say the story once with كان at the start and the short verbs doing the rest and it already sounds Yemeni.",
+      "examples": [
+        { "arabic": "كنت أمشي في السوق ولقيت صاحبي", "transliteration": "kunt amshi fis-suug w-ligiit ṣaaḥbi", "english": "I was walking in the market and I found my friend" },
+        { "arabic": "كان يسير المقيل كل يوم", "transliteration": "kaan yasiir il-magyal kull yawm", "english": "He used to go to the qat session every day" },
+        { "arabic": "نسيت المفتاح في البيت", "transliteration": "nisiit il-miftaaḥ fil-bayt", "english": "I forgot the key at home" },
+        { "arabic": "حكى لنا قصة وضحكنا كلنا", "transliteration": "ḥaka lana giṣṣa w-ḍiḥikna kullana", "english": "He told us a story and we all laughed" },
+        { "arabic": "ما كانش فيه أحد في البيت", "transliteration": "maa kaansh fiih aḥad fil-bayt", "english": "There was nobody at home" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "The story is the currency of the mafraj",
+      "note": "In a Sanaa sitting room the afternoon runs on stories, and a good one is worth more than the qat. The teller exaggerates — ten people become a hundred, a fright becomes near death — and nobody checks the facts. What is expected of you as a listener is noise: والله؟ 'really?', لا! 'no!', a loud laugh at the punchline and تصدّق؟ 'would you believe it?' thrown back. Sitting silent reads as boredom. When it is your turn, start with مرة 'one time…' and end with في الآخر so people know the punchline has landed.",
+      "phrases": [
+        { "arabic": "والله؟ ايش حصل بعدها؟", "transliteration": "walla? aysh ḥaṣal baʿdaha?", "english": "Really? What happened after that?" },
+        { "arabic": "تصدّق؟ ما كنت داري", "transliteration": "tṣaddag? maa kunt daari", "english": "Would you believe it? I had no idea" },
+        { "arabic": "مرة كنت في صنعاء القديمة…", "transliteration": "marra kunt fi ṣanʿaa l-gadiima…", "english": "One time I was in Old Sanaa…" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "كان",
+      "transliteration": "kaan",
+      "english": "was / were",
+      "category": "Verb",
+      "teaching_note": "The scene-setter of every story. كنت (I was / you were), كانت (she was), كانو (they were). Before a present verb it means 'was doing' or 'used to'. It also carries the past of 'there is': كان فيه.",
+      "image_scene": "An old photo in a frame on a mafraj cushion, sepia, a hand pointing at it.",
+      "concept_key": "was",
+      "variants": ["كنت", "كانت", "كانو", "كانوا", "كنا", "ما كانش"],
+      "example": { "arabic": "كنت في عدن السنة اللي فاتت", "transliteration": "kunt fi ʿadan is-sana lli faatat", "english": "I was in Aden last year" },
+      "video_hint": "A vlogger recounting yesterday; كان / كنت opening the narration."
+    },
+    {
+      "arabic": "لما",
+      "transliteration": "lamma",
+      "english": "while / when (in a story)",
+      "category": "Connector",
+      "teaching_note": "The natural Yemeni 'when / while' for narration — لما وصلت 'when I arrived', لما كنت أطبخ 'while I was cooking'. Not a question word: for 'when?' you already have متى. Never بينما.",
+      "image_scene": "Split frame: a woman stirring a pot on the left, a door opening on the right, an arrow between them.",
+      "concept_key": "while",
+      "variants": ["ولما", "لمّا"],
+      "example": { "arabic": "لما كنت أطبخ، جا الضيوف", "transliteration": "lamma kunt aṭbukh, jaa ḍ-ḍuyuuf", "english": "While I was cooking, the guests came" },
+      "video_hint": "Any anecdote with two overlapping events; لما marks the background one."
+    },
+    {
+      "arabic": "فجأة",
+      "transliteration": "fajʾa",
+      "english": "suddenly",
+      "category": "Adverb",
+      "teaching_note": "The word that makes everybody look up. Said with a pause before it and a jump in the voice. Spelled فجأة, often typed فجاه online.",
+      "image_scene": "A cat leaping out of a cardboard box, a startled man dropping his tea glass.",
+      "concept_key": "suddenly",
+      "variants": ["فجاه", "وفجأة", "على غفلة"],
+      "example": { "arabic": "فجأة انقطعت الكهرباء", "transliteration": "fajʾa ngaṭaʿat il-kahraba", "english": "Suddenly the electricity cut out" },
+      "video_hint": "Prank and comedy clips; the narrator's فجأة right before the twist."
+    },
+    {
+      "arabic": "قصة",
+      "transliteration": "giṣṣa",
+      "english": "story",
+      "category": "Noun",
+      "teaching_note": "ق is g in Sanaa, so giṣṣa. حكاية is also used for a tale. 'Tell me the story' is احكي لي القصة.",
+      "image_scene": "An open storybook on a carpet, a small lamp, a grandmother's hands.",
+      "concept_key": "story",
+      "variants": ["القصة", "قصص", "حكاية", "الحكاية"],
+      "example": { "arabic": "احكي لي القصة من الأول", "transliteration": "iḥki li l-giṣṣa min il-awwal", "english": "Tell me the story from the beginning" },
+      "video_hint": "Storytime vlogs titled قصة / قصتي; the word said in the intro."
+    },
+    {
+      "arabic": "حصل",
+      "transliteration": "ḥaṣal",
+      "english": "happened",
+      "category": "Verb",
+      "teaching_note": "ايش حصل؟ 'what happened?' is how every story is invited. صار is heard too and means the same; حصل is the safer default in Sanaa.",
+      "image_scene": "A broken vase on a floor, two people looking at it with raised hands.",
+      "concept_key": "happened",
+      "variants": ["حصلت", "يحصل", "صار", "ايش حصل"],
+      "example": { "arabic": "ايش حصل لك أمس؟", "transliteration": "aysh ḥaṣal lak ams?", "english": "What happened to you yesterday?" },
+      "video_hint": "Someone asking ايش حصل on seeing a mess or a shocked face."
+    },
+    {
+      "arabic": "حكى",
+      "transliteration": "ḥaka",
+      "english": "told / recounted",
+      "category": "Verb",
+      "teaching_note": "'Told a story' is حكى, not قال — قال reports words, حكى tells the whole thing. حكى لي 'he told me', حكيت له 'I told him'. Weak verb: the final ى becomes -ii- when you add a suffix.",
+      "image_scene": "An older man gesturing mid-story to three listeners on floor cushions.",
+      "concept_key": "told",
+      "variants": ["حكيت", "حكى لي", "يحكي", "احكي"],
+      "example": { "arabic": "حكى لي كل شي حصل في العرس", "transliteration": "ḥaka li kull shi ḥaṣal fil-ʿurs", "english": "He told me everything that happened at the wedding" },
+      "video_hint": "A creator saying احكي لكم / حكى لي before an anecdote."
+    },
+    {
+      "arabic": "لقى",
+      "transliteration": "liga",
+      "english": "found",
+      "category": "Verb",
+      "teaching_note": "The Yemeni 'find' — ق is g: liga, ligiit 'I found'. Also 'met, came across'. ما لقيتش 'I didn't find (it)'.",
+      "image_scene": "A hand lifting a cushion to reveal a phone underneath, relief on a face.",
+      "concept_key": "found",
+      "variants": ["لقيت", "لقيته", "ما لقيتش", "يلقى"],
+      "example": { "arabic": "لقيت التلفون تحت الكرسي", "transliteration": "ligiit it-tilifoon taḥt il-kursi", "english": "I found the phone under the chair" },
+      "video_hint": "Searching for something, then لقيته with the object held up."
+    },
+    {
+      "arabic": "نسي",
+      "transliteration": "nisi",
+      "english": "forgot",
+      "category": "Verb",
+      "teaching_note": "نسيت 'I forgot' is one of the most-used past verbs in any dialect. Weak verb like لقى: nisiit, nisyat 'she forgot'. Good stories start with a forgotten key.",
+      "image_scene": "A man outside a locked door patting his empty pockets.",
+      "concept_key": "forgot",
+      "variants": ["نسيت", "نسيته", "ينسى", "ما نسيتش"],
+      "example": { "arabic": "نسيت المفتاح جوّا البيت", "transliteration": "nisiit il-miftaaḥ jawwa l-bayt", "english": "I forgot the key inside the house" },
+      "video_hint": "Someone realising they left something; نسيت said with a hand on the forehead."
+    },
+    {
+      "arabic": "تذكّر",
+      "transliteration": "tadhakkar",
+      "english": "remember",
+      "category": "Verb",
+      "teaching_note": "ذ is a real dh in Sanaa — tadhakkar, not tazakkar. تذكرت 'I remembered', تتذكر؟ 'do you remember?' opens a shared memory.",
+      "image_scene": "A woman with a finger raised and a lightbulb glow, an old wedding photo beside her.",
+      "concept_key": "remember",
+      "variants": ["تذكرت", "تتذكر", "أتذكر", "تذكّرت"],
+      "example": { "arabic": "تتذكر لما سرنا الحديدة؟", "transliteration": "titdhakkar lamma sirna l-ḥudayda?", "english": "Do you remember when we went to Hodeidah?" },
+      "video_hint": "Friends reminiscing; تتذكر لما… opening a shared story."
+    },
+    {
+      "arabic": "ضحك",
+      "transliteration": "ḍiḥik",
+      "english": "laughed",
+      "category": "Verb",
+      "teaching_note": "The reaction every story wants. ضحكنا 'we laughed', ضحّكني 'he made me laugh'. ض is the emphatic d.",
+      "image_scene": "Three men in a mafraj doubled over laughing, one slapping his knee.",
+      "concept_key": "laughed",
+      "variants": ["ضحكنا", "ضحكت", "يضحك", "ضحّكني"],
+      "example": { "arabic": "ضحكنا لين وجعتنا بطوننا", "transliteration": "ḍiḥikna liin wijʿatna buṭuunna", "english": "We laughed until our stomachs hurt" },
+      "video_hint": "Comedy channels; the crew laughing and the word ضحك in reaction."
+    },
+    {
+      "arabic": "خايف",
+      "transliteration": "khaayif",
+      "english": "afraid",
+      "category": "Adjective",
+      "teaching_note": "A participle: كنت خايف 'I was afraid'. Feminine خايفة, plural خايفين. خايف من 'afraid of'. Storytellers exaggerate it: كنت خايف موت 'scared to death'.",
+      "image_scene": "A boy hiding behind a door, eyes wide, a dark hallway beyond.",
+      "concept_key": "afraid",
+      "variants": ["خايفة", "خايفين", "خاف", "خفت"],
+      "example": { "arabic": "كنت خايف من الكلب", "transliteration": "kunt khaayif min il-kalb", "english": "I was afraid of the dog" },
+      "video_hint": "Prank reactions; the victim saying خفت / كنت خايف afterwards."
+    },
+    {
+      "arabic": "في الآخر",
+      "transliteration": "fil-aakhir",
+      "english": "in the end",
+      "category": "Connector",
+      "teaching_note": "Signals the punchline is coming. Also بالآخر and آخر شي 'the last thing'. Learners often reach for MSA أخيراً — say في الآخر.",
+      "image_scene": "A finish line with a small flag; a relieved man crossing it.",
+      "concept_key": "at_the_end",
+      "variants": ["بالآخر", "آخر شي", "وفي الآخر"],
+      "example": { "arabic": "في الآخر لقينا السيارة", "transliteration": "fil-aakhir ligiina s-sayyaara", "english": "In the end we found the car" },
+      "video_hint": "The wrap-up of any anecdote; في الآخر before the resolution."
+    },
+    {
+      "arabic": "وقع",
+      "transliteration": "wigiʿ",
+      "english": "fell",
+      "category": "Verb",
+      "teaching_note": "Half of all funny stories involve someone falling. وقعت 'I fell', وقع من فوق 'he fell from above'. Also 'it fell' for objects.",
+      "image_scene": "A man slipping on a wet step, tea glass flying.",
+      "variants": ["وقعت", "يوقع", "وقعوا"],
+      "example": { "arabic": "وقع في الشارع والناس يضحكو", "transliteration": "wigiʿ fish-shaariʿ win-naas yiḍḥaku", "english": "He fell in the street and people were laughing" },
+      "video_hint": "Fail compilations narrated in Yemeni; وقع at the fall."
+    },
+    {
+      "arabic": "هرب",
+      "transliteration": "harab",
+      "english": "ran away",
+      "category": "Verb",
+      "teaching_note": "The exit from every scare story. هربت 'I ran away', هربو 'they fled'.",
+      "image_scene": "A cat sprinting out of a kitchen, a woman with a broom behind it.",
+      "variants": ["هربت", "هربو", "يهرب"],
+      "example": { "arabic": "شاف الكلب وهرب", "transliteration": "shaaf il-kalb w-harab", "english": "He saw the dog and ran away" },
+      "video_hint": "Prank clips where the target bolts; هرب in the voiceover."
+    },
+    {
+      "arabic": "صرخ",
+      "transliteration": "ṣarakh",
+      "english": "screamed / shouted",
+      "category": "Verb",
+      "teaching_note": "صرخت 'I screamed' — the moment of the story where the teller raises their voice to act it out.",
+      "image_scene": "A woman with hands up mid-scream, a cockroach on the wall.",
+      "variants": ["صرخت", "يصرخ", "صرخة"],
+      "example": { "arabic": "صرخت وكل الحارة سمعت", "transliteration": "ṣarakht w-kull il-ḥaara simʿat", "english": "I screamed and the whole neighbourhood heard" },
+      "video_hint": "Reaction and scare clips; صرخ / صرخت in the retelling."
+    },
+    {
+      "arabic": "مرة",
+      "transliteration": "marra",
+      "english": "one time / once",
+      "category": "Adverb",
+      "teaching_note": "The Yemeni 'once upon a time': مرة كنت… 'one time I was…'. The same spelling also means 'very' (حلو مرة) and مَرَه is 'woman' — context decides.",
+      "image_scene": "A calendar with a single day circled, a speech bubble starting a story.",
+      "variants": ["مره", "مرة من المرات", "ذيك المرة"],
+      "example": { "arabic": "مرة كنت في السوق وشفت شي عجيب", "transliteration": "marra kunt fis-suug w-shuft shi ʿajiib", "english": "One time I was in the market and saw something strange" },
+      "video_hint": "Anecdote openers: مرة كنت… on storytime channels."
+    },
+    {
+      "arabic": "تصدّق",
+      "transliteration": "tṣaddag",
+      "english": "would you believe it?",
+      "category": "Expression",
+      "teaching_note": "The storyteller's hook and the listener's reaction in one word. ق is g: tṣaddag. To a woman تصدّقي, to a group تصدّقو.",
+      "image_scene": "A man leaning in with raised eyebrows and an open palm, mid-sentence.",
+      "variants": ["تصدق", "تصدقي", "تصدقو", "تصدقوا"],
+      "example": { "arabic": "تصدّق؟ الكلب رجع البيت لحاله", "transliteration": "tṣaddag? il-kalb rijiʿ il-bayt la-ḥaala", "english": "Would you believe it? The dog came home by itself" },
+      "video_hint": "Comedy hosts addressing the camera with تصدقوا before a reveal."
+    },
+    {
+      "arabic": "زعل",
+      "transliteration": "ziʿil",
+      "english": "got upset",
+      "category": "Verb",
+      "teaching_note": "The emotional turn of a story: زعل مني 'he got upset with me'. زعلان is the state 'upset'. Not quite anger — that comes in Lesson 4.",
+      "image_scene": "A young man with crossed arms turning his face away from a friend.",
+      "variants": ["زعلت", "زعلان", "زعلانة", "يزعل"],
+      "example": { "arabic": "زعلت مني لأني نسيت عيد ميلادها", "transliteration": "ziʿlat minni laʾanni nisiit ʿiid miilaadha", "english": "She got upset with me because I forgot her birthday" },
+      "video_hint": "Family skits; someone sulking as زعل / زعلان is said."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Hamood", "arabic": "تصدّق ايش حصل لي أمس؟", "transliteration": "tṣaddag aysh ḥaṣal li ams?", "english": "Would you believe what happened to me yesterday?" },
+    { "speaker": "Ali", "arabic": "احكي لي، ايش حصل؟", "transliteration": "iḥki li, aysh ḥaṣal?", "english": "Tell me, what happened?" },
+    { "speaker": "Hamood", "arabic": "كنت أمشي في السوق ولما وصلت الباب، نسيت المفتاح", "transliteration": "kunt amshi fis-suug w-lamma wiṣilt il-baab, nisiit il-miftaaḥ", "english": "I was walking in the market and when I got to the door, I'd forgotten the key" },
+    { "speaker": "Ali", "arabic": "لا! وبعدها؟", "transliteration": "laa! w-baʿdaha?", "english": "No! And then?" },
+    { "speaker": "Hamood", "arabic": "فجأة طلع كلب كبير. كنت خايف موت وهربت", "transliteration": "fajʾa ṭiliʿ kalb kabiir. kunt khaayif moot w-harabt", "english": "Suddenly a huge dog appeared. I was scared to death and ran" },
+    { "speaker": "Ali", "arabic": "والله؟ وفي الآخر؟", "transliteration": "walla? w-fil-aakhir?", "english": "Really? And in the end?" },
+    { "speaker": "Hamood", "arabic": "في الآخر لقيت المفتاح في جيبي. ضحكت على نفسي", "transliteration": "fil-aakhir ligiit il-miftaaḥ fi jaybi. ḍiḥikt ʿala nafsi", "english": "In the end I found the key in my pocket. I laughed at myself" },
+    { "speaker": "Ali", "arabic": "هههه، ذي قصة والله", "transliteration": "hahaha, dhi giṣṣa walla", "english": "Haha, now that is a story" }
+  ],
+  "sound_spotlight": [
+    { "sound": "Weak verbs: ـى → ـيت", "example": "لقى → لقيت، نسي → نسيت، حكى → حكيت", "explanation": "When the last letter is ى and you add a suffix, it becomes a long -ii-: ligiit, nisiit, ḥakiit. Hold the ii; a short i sounds like a different verb." },
+    { "sound": "ق → g in liga, giṣṣa, tṣaddag", "example": "لقيت (ligiit)، قصة (giṣṣa)", "explanation": "Story words are full of ق, and in Sanaa every one is a hard g — even in words a learner met as q in class." },
+    { "sound": "Stress in the past", "example": "كَتَب / كَتَبْت (kátab / katábt)", "explanation": "The stress moves to the suffix syllable when you add -t: kátab 'he wrote' but katábt 'I wrote'. Listeners use the stress, not just the ending, to hear who did it." }
+  ],
+  "lesson_sequence": [
+    { "step": "Hook", "detail": "The learner hears Hamood's dog story once at full speed with pictures only. One question: did he find the key?" },
+    { "step": "Story words", "detail": "The 18 words on cards, each with its example sentence and audio; كان and the weak verbs get a second card showing the suffixed forms." },
+    { "step": "Grammar in the story", "detail": "The anecdote replayed line by line; كان + verb lines highlighted in one colour, the plain past events in another. The learner taps which is scene and which is event." },
+    { "step": "Rebuild it", "detail": "Six pictures out of order; the learner drags them into sequence and records one sentence per picture, guided by لما / فجأة / في الآخر prompts." },
+    { "step": "Reaction drill", "detail": "Short audio bursts of a story pause; the learner picks and says the fitting reaction: والله؟ / لا! / تصدّق؟ / hahaha." },
+    { "step": "Your story", "detail": "Record a 30-second story about something you forgot or lost, using كان once and three connectors. The AI checks tense and connectors." },
+    { "step": "Complete", "detail": "Word counter rolls up; nudge to tell the same story to a Yemeni friend and count their reactions." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Next time you are with Yemeni friends, ask ايش حصل؟ about their day and react out loud at least three times.", "context": "Shown on lesson complete. Activates حصل and the listener reactions." },
+    { "prompt": "Tell someone the story of the last thing you forgot or lost. Start with مرة كنت… and end with في الآخر.", "context": "Follow-up notification two days later. Production of the full skeleton." },
+    { "prompt": "Watch a Yemeni comedy sketch and write down every فجأة and لما you hear.", "context": "Video-companion prompt; recognition of the connectors in fast speech." }
+  ],
+  "video_needs": {
+    "queries": ["قصة حصلت لي يمني", "احكي لكم ايش حصل", "مقلب صنعاء ردة فعل", "ستوري تايم يمني"],
+    "channels": ["Mustafa Al-Mawmari", "Ahmed Hajar", "Abdulaleem Al-Wesabi", "HMADA"],
+    "scene": "Someone recounting an anecdote to camera or friends in a mafraj; a prank with the victim retelling what happened afterwards; laughter and reactions audible."
+  }
+}

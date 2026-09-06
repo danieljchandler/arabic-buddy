@@ -1,0 +1,227 @@
+{
+  "slug": "greetings-and-replies",
+  "lesson_number": 2,
+  "title": "Greetings and Their Replies",
+  "title_arabic": "هلا، شلونك؟ — التحية والرد",
+  "description": "Twelve greetings you will hear in the first ten seconds of any Gulf encounter, each heard with its fixed reply before you ever say it. The reply is the lesson.",
+  "cefr_target": "Pre-A1",
+  "duration_minutes": 15,
+  "approach": "GPA Phase 1 — receptive first. Every greeting is heard as a pair (greeting → reply) with two speakers on screen; the learner taps the reply that fits. Production is optional shadowing at the end.",
+  "unlock_condition": "≥9/12 correct on the match-the-reply quiz",
+  "icon": "👋",
+  "can_do": [
+    "Greet someone and answer their greeting",
+    "Say good morning, good evening and goodbye",
+    "Ask how someone is and say you are fine"
+  ],
+  "grammar": [],
+  "culture": [
+    {
+      "title": "The reply is the lesson",
+      "note": "In the Gulf almost every greeting has a fixed answer, and the answer is not optional. السلام عليكم is returned word for word as وعليكم السلام; صباح الخير gets صباح النور; هلا gets هلا فيك or هلا والله. Greetings also come in chains — three or four in a row before anyone says anything else — so the safest habit is to give the reply, then send one greeting back (شلونك؟ … وإنت؟). Silence after a greeting reads as rudeness, not shyness.",
+      "phrases": [
+        { "arabic": "السلام عليكم", "transliteration": "is-salaamu ʿalaykum", "english": "Peace be upon you" },
+        { "arabic": "وعليكم السلام", "transliteration": "w-ʿalaykum is-salaam", "english": "And upon you peace" },
+        { "arabic": "هلا والله", "transliteration": "hala wallah", "english": "Hey there, welcome (warm)" }
+      ]
+    },
+    {
+      "title": "Right hand, then the chain",
+      "note": "Men shake with the right hand, often holding the handshake through the whole greeting chain; close friends add a cheek kiss, and in the Emirates and Qatar men may touch noses. A man greets a woman verbally unless she offers her hand first. Between women, a kiss on each cheek is normal. Whatever the gesture, the words come in the same order: peace greeting, هلا, how are you, how are things — then the actual conversation.",
+      "phrases": [
+        { "arabic": "شلونك؟ شخبارك؟", "transliteration": "shloonak? shkhbaarak?", "english": "How are you? How are things?" },
+        { "arabic": "بخير الحمد لله، وإنت؟", "transliteration": "b-khayr il-ḥamdillaah, w-inta?", "english": "Fine, thank God — and you?" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "هلا",
+      "transliteration": "hala",
+      "english": "hello / hi",
+      "category": "Greeting",
+      "teaching_note": "The everyday Gulf hello — warmer and far more common than مرحبا. Usually doubled or intensified: هلا والله, يا هلا, هلا بك. It also works as the reply to هلا, so it is the one greeting you can never get wrong.",
+      "image_scene": "A smiling young man in a white thobe raising his right hand in greeting at a doorway.",
+      "concept_key": "hello",
+      "variants": ["هلا والله", "يا هلا", "هلا بك", "هلا فيك", "أهلين", "مرحبا"],
+      "example": { "arabic": "هلا والله! شلونك؟", "transliteration": "hala wallah! shloonak?", "english": "Hey there! How are you?" },
+      "video_hint": "The first word out of a host's mouth when a guest appears; vlog intros starting هلا والله."
+    },
+    {
+      "arabic": "السلام عليكم",
+      "transliteration": "is-salaamu ʿalaykum",
+      "english": "peace be upon you (hello)",
+      "category": "Greeting",
+      "teaching_note": "The formal opener used by everyone, religious or not, when entering a room, a shop or a phone call. It is said by the person arriving. Learn it as one sound, not two words.",
+      "image_scene": "A man stepping through an open door into a majlis, hand raised to his chest, others looking up.",
+      "concept_key": "peace_be_upon_you",
+      "variants": ["سلام عليكم", "السلام عليكم ورحمة الله", "سلام"],
+      "example": { "arabic": "السلام عليكم يا أبو خالد", "transliteration": "is-salaamu ʿalaykum ya abu khaalid", "english": "Peace be upon you, Abu Khalid" },
+      "video_hint": "Someone entering a room or starting a video; street-interview openings."
+    },
+    {
+      "arabic": "وعليكم السلام",
+      "transliteration": "w-ʿalaykum is-salaam",
+      "english": "and upon you peace (the reply)",
+      "category": "Greeting",
+      "teaching_note": "The obligatory answer to السلام عليكم. Notice the words swap places. Not replying is a real slight, so this is the single most important reply in the lesson.",
+      "image_scene": "Three men seated on floor cushions in a majlis turning toward the door and nodding in reply.",
+      "concept_key": "and_upon_you_peace",
+      "variants": ["وعليكم السلام ورحمة الله", "وعليكم السلام ورحمة الله وبركاته", "عليكم السلام"],
+      "example": { "arabic": "وعليكم السلام، هلا فيك", "transliteration": "w-ʿalaykum is-salaam, hala fiik", "english": "And upon you peace — welcome!" },
+      "video_hint": "The seated group answering an arrival; the reply is often chorused."
+    },
+    {
+      "arabic": "صباح الخير",
+      "transliteration": "ṣabaaḥ il-khayr",
+      "english": "good morning",
+      "category": "Greeting",
+      "teaching_note": "Used until roughly midday. In Saudi you will also hear the warmer يسعد صباحك (may your morning be happy). The first word carries the emphatic ص — let the a sound dark.",
+      "image_scene": "Sunrise over flat rooftops and a minaret, a man on a balcony with a small coffee cup.",
+      "concept_key": "good_morning",
+      "variants": ["صباح الخير", "يسعد صباحك", "صباح الورد", "صباحو"],
+      "example": { "arabic": "صباح الخير يا جماعة", "transliteration": "ṣabaaḥ il-khayr ya jamaaʿa", "english": "Good morning, everyone" },
+      "video_hint": "Morning-routine vlogs; the opening line said to the camera or family at breakfast."
+    },
+    {
+      "arabic": "صباح النور",
+      "transliteration": "ṣabaaḥ in-nuur",
+      "english": "good morning (reply: morning of light)",
+      "category": "Greeting",
+      "teaching_note": "The fixed reply to صباح الخير. Never answer a good morning with another good morning — you answer with light. Note how الـ becomes in- before ن.",
+      "image_scene": "A woman in the kitchen turning around with a tray of tea glasses, smiling in reply.",
+      "concept_key": "good_morning_reply",
+      "variants": ["صباح النور", "صباح النور والسرور", "يسعد صباحك بالخير"],
+      "example": { "arabic": "صباح النور، تفضل قهوة", "transliteration": "ṣabaaḥ in-nuur, tfaḍḍal gahwa", "english": "Good morning — have some coffee" },
+      "video_hint": "Second speaker in any morning exchange; family breakfast scenes."
+    },
+    {
+      "arabic": "مساء الخير",
+      "transliteration": "masaa il-khayr",
+      "english": "good evening",
+      "category": "Greeting",
+      "teaching_note": "From late afternoon onward — in practice, after the عصر prayer. Its reply is مساء النور, the same pattern as the morning pair, so you get two greetings for the price of one.",
+      "image_scene": "Dusk on a corniche, string lights coming on, two friends meeting by the water.",
+      "concept_key": "good_evening",
+      "variants": ["مساء الخير", "مساء النور", "مسا الخير", "يسعد مساك"],
+      "example": { "arabic": "مساء الخير، شخبارك؟", "transliteration": "masaa il-khayr, shkhbaarak?", "english": "Good evening, how are things?" },
+      "video_hint": "Evening gatherings and majlis arrivals after sunset."
+    },
+    {
+      "arabic": "شلونك",
+      "transliteration": "shloonak",
+      "english": "how are you? (to a man)",
+      "category": "Greeting",
+      "teaching_note": "Literally 'what is your colour'. This is the Kuwait–Bahrain–Qatar–Eastern Saudi form and is understood everywhere. To a woman: شلونك with -ik in Saudi, شلونج shloonich in Kuwait and the Emirates. Riyadh adds a و (وشلونك), the Emirates say شحالك, Jeddah says كيفك — all mean the same and all take the same reply.",
+      "image_scene": "Two men mid-handshake, one leaning in with an inquiring, friendly expression.",
+      "concept_key": "how_are_you",
+      "variants": ["شلونج", "شلونكم", "وشلونك", "شحالك", "شحالج", "كيفك", "كيف حالك"],
+      "example": { "arabic": "شلونك يا خالد؟", "transliteration": "shloonak ya khaalid?", "english": "How are you, Khalid?" },
+      "video_hint": "The second or third line of any greeting chain; listen for -ak vs -ich to hear the country."
+    },
+    {
+      "arabic": "بخير الحمد لله",
+      "transliteration": "b-khayr il-ḥamdillaah",
+      "english": "I'm fine, thank God",
+      "category": "Greeting",
+      "teaching_note": "The standard answer to شلونك. Even someone having a terrible day says this first. The bare الحمد لله on its own is also a complete answer — and it is the reply you will give a hundred times a week.",
+      "image_scene": "A relaxed man giving a small thumbs-up and a nod, hand on chest.",
+      "concept_key": "im_fine",
+      "variants": ["بخير", "الحمد لله بخير", "زين الحمد لله", "تمام الحمد لله", "طيبين"],
+      "example": { "arabic": "بخير الحمد لله، وإنت؟", "transliteration": "b-khayr il-ḥamdillaah, w-inta?", "english": "Fine, thank God — and you?" },
+      "video_hint": "The answer to how-are-you in any interview or vlog greeting; often mumbled fast."
+    },
+    {
+      "arabic": "حياك الله",
+      "transliteration": "ḥayyaak allaah",
+      "english": "welcome (may God give you life)",
+      "category": "Greeting",
+      "teaching_note": "The host's welcome, said as you arrive and again as you are shown to a seat. Also used to mean 'you are welcome to come' when inviting. The reply is الله يحييك. Often shortened to حياك.",
+      "image_scene": "A host at his door, arm extended inward, inviting a guest to enter a lit majlis.",
+      "concept_key": "welcome",
+      "variants": ["حياك", "حياكم الله", "حياك الله", "الله يحييك", "يا هلا ومرحبا", "أهلاً وسهلاً"],
+      "example": { "arabic": "حياك الله، تفضل", "transliteration": "ḥayyaak allaah, tfaḍḍal", "english": "Welcome — come in" },
+      "video_hint": "Hosts receiving guests; hospitality and majlis clips; also said to new viewers in vlog intros."
+    },
+    {
+      "arabic": "مع السلامة",
+      "transliteration": "maʿ is-salaama",
+      "english": "goodbye (go with safety)",
+      "category": "Greeting",
+      "teaching_note": "Said to the person leaving; the person leaving answers الله يسلمك. In practice a Gulf goodbye is a small chain of its own: يالله … مع السلامة … الله يسلمك … في أمان الله. Young speakers also just say يالله باي.",
+      "image_scene": "A man at a car door waving back toward a house where a family stands at the entrance.",
+      "concept_key": "goodbye",
+      "variants": ["مع السلامه", "الله يسلمك", "في أمان الله", "يالله باي", "باي"],
+      "example": { "arabic": "يالله، مع السلامة", "transliteration": "yalla, maʿ is-salaama", "english": "OK then — goodbye" },
+      "video_hint": "End of a visit or a phone call; vlog sign-offs."
+    },
+    {
+      "arabic": "نشوفك على خير",
+      "transliteration": "nshuufak ʿala khayr",
+      "english": "see you (we'll see you well)",
+      "category": "Greeting",
+      "teaching_note": "The friendly 'see you later', almost always with إن شاء الله in front of it. Note the first sound is n-shuuf — 'we see' — the same verb you will meet again in شوف (look).",
+      "image_scene": "Two friends parting on a street corner, one turning back to wave.",
+      "concept_key": "see_you",
+      "variants": ["نشوفكم على خير", "إن شاء الله نشوفك", "نتشاوف", "نشوفك"],
+      "example": { "arabic": "إن شاء الله نشوفك على خير", "transliteration": "in shaaʾ allaah nshuufak ʿala khayr", "english": "God willing, see you soon" },
+      "video_hint": "Closing lines of visits and vlogs; often paired with مع السلامة."
+    },
+    {
+      "arabic": "شخبارك",
+      "transliteration": "shkhbaarak",
+      "english": "what's new? / how are things?",
+      "category": "Greeting",
+      "teaching_note": "Literally 'what is your news'. It follows شلونك in the chain and takes the same reply. Every country has its version — شو الأخبار, وش أخبارك, and the Emirati شو اليديد (what's new) — but شخبارك is understood from Kuwait to Jeddah.",
+      "image_scene": "Two women in abayas greeting each other at a mall entrance, one gesturing as if asking for news.",
+      "concept_key": "whats_new",
+      "variants": ["شخبارج", "شخباركم", "شو الأخبار", "وش أخبارك", "أخبارك", "شو اليديد"],
+      "example": { "arabic": "شخبارك يا أحمد؟", "transliteration": "shkhbaarak ya aḥmad?", "english": "How are things, Ahmed?" },
+      "video_hint": "Third line of a greeting chain; listen for it right after شلونك."
+    },
+    {
+      "arabic": "وإنت",
+      "transliteration": "w-inta",
+      "english": "and you? (to a man)",
+      "category": "Greeting",
+      "teaching_note": "The two-syllable word that keeps the chain going: answer, then hand the question back. To a woman it is وإنتي w-inti. You will hear it before you learn the pronoun on its own in Lesson 4.",
+      "image_scene": "A man pointing back politely at his friend, eyebrows raised, mid-conversation.",
+      "variants": ["وإنتي", "وانت", "وانتي", "وإنتو"],
+      "example": { "arabic": "الحمد لله، وإنت؟", "transliteration": "il-ḥamdillaah, w-inta?", "english": "Thank God — and you?" },
+      "video_hint": "Any two-way greeting; the hand-back after بخير."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Khalid", "arabic": "السلام عليكم", "transliteration": "is-salaamu ʿalaykum", "english": "Peace be upon you" },
+    { "speaker": "Ahmed", "arabic": "وعليكم السلام، هلا والله! حياك الله", "transliteration": "w-ʿalaykum is-salaam, hala wallah! ḥayyaak allaah", "english": "And upon you peace — hey there! Welcome" },
+    { "speaker": "Khalid", "arabic": "شلونك يا أحمد؟", "transliteration": "shloonak ya aḥmad?", "english": "How are you, Ahmed?" },
+    { "speaker": "Ahmed", "arabic": "بخير الحمد لله، وإنت شخبارك؟", "transliteration": "b-khayr il-ḥamdillaah, w-inta shkhbaarak?", "english": "Fine, thank God — and you, how are things?" },
+    { "speaker": "Khalid", "arabic": "الحمد لله. تفضل قهوة؟", "transliteration": "il-ḥamdillaah. tfaḍḍal gahwa?", "english": "Thank God. Here — coffee?" },
+    { "speaker": "Ahmed", "arabic": "مشكور. يالله، مع السلامة", "transliteration": "mashkuur. yalla, maʿ is-salaama", "english": "Thanks. OK then — goodbye" },
+    { "speaker": "Khalid", "arabic": "الله يسلمك، نشوفك على خير", "transliteration": "allaah ysallimk, nshuufak ʿala khayr", "english": "God keep you — see you soon" }
+  ],
+  "sound_spotlight": [
+    { "sound": "ـك vs ـج", "example": "شلونك (shloonak) / شلونج (shloonich)", "explanation": "The same greeting to a man ends in -ak; to a woman it ends in -ik in Saudi and -ich in Kuwait, Bahrain, Qatar and the Emirates. That ch is the single most audible clue to which country a speaker is from — hear it now, produce it later." },
+    { "sound": "ح vs ه", "example": "حياك (ḥayyaak) / هلا (hala)", "explanation": "Two different h sounds. هلا has the ordinary English h. حياك and الحمد لله have the deep, breathy ح made by tightening the throat, like fogging a mirror. Mixing them up changes words, so listen for the difference first." },
+    { "sound": "Greeting melody", "example": "شلونك؟ ← بخير الحمد لله", "explanation": "Gulf questions rise on the last syllable (shloo-NAK?) and the reply falls (il-ḥamdil-LAAH). Hearing the rise-then-fall helps you know when it is your turn to speak in a chain of greetings." }
+  ],
+  "lesson_sequence": [
+    { "step": "Welcome", "detail": "A door opening onto a majlis. One line of English: greetings in the Gulf come in pairs; today you learn twelve and their replies. Tap يلّا." },
+    { "step": "Hear the pairs", "detail": "Six greeting → reply pairs, each acted by two speakers on a split card. Native audio auto-plays greeting then reply; Arabic shown, English small underneath. Tap to replay either half." },
+    { "step": "Which reply?", "detail": "Audio of a greeting plays; three replies appear as cards; tap the one that fits. Wrong taps replay the correct pair. Covers the six pairs plus شخبارك and نشوفك على خير." },
+    { "step": "Chain listening", "detail": "The full dialogue plays with speakers highlighted line by line. Second pass: the learner taps when a turn changes hands." },
+    { "step": "Shadow (optional)", "detail": "Four replies only — وعليكم السلام, صباح النور, بخير الحمد لله, الله يسلمك — played and echoed by the learner with a simple record-and-compare bar. No score." },
+    { "step": "Match quiz", "detail": "Twelve items, audio only: hear the greeting, tap the reply; hear the reply, tap the greeting. Missed items replay with both halves." },
+    { "step": "Lesson complete", "detail": "Words-learned counter rolls to 25. Nudge: say السلام عليكم to the next Arabic speaker you meet and listen for the reply." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Next time you walk into a shop or an office where Arabic is spoken, say السلام عليكم and wait. Notice the reply comes back word for word.", "context": "Lesson-complete screen. Activates the first pair; the reply is guaranteed, so the learner cannot fail." },
+    { "prompt": "Listen to any Gulf vlog intro today and count the greetings before the vlogger says anything else. Two? Three? Four?", "context": "Next-day notification. Builds the expectation of a chain rather than a single hello." },
+    { "prompt": "If a tutor or friend asks شلونك؟, answer بخير الحمد لله and then hand it back with وإنت؟", "context": "Shown before a tutor session or conversation practice. The minimum viable chain: reply plus return." }
+  ],
+  "video_needs": {
+    "queries": ["السلام عليكم شلونكم فلوق", "تعلم اللهجة الإماراتية تحيات", "كيف تقول شلونك بالخليجي", "الرمسة الإماراتية تعلم"],
+    "channels": ["AlRamsa Institute", "Learn Arabic - Kuwaiti", "QTips", "Belmokhba", "Moshaya Family"],
+    "scene": "Two people greeting at a door or on the street: the arrival says the peace greeting, the reply is audible, then شلونك / شخبارك and the handshake. Street-interview intros and hosts receiving guests are ideal."
+  }
+}

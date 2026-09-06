@@ -1,0 +1,238 @@
+{
+  "slug": "greetings-and-replies",
+  "lesson_number": 2,
+  "title": "Greetings and Their Replies",
+  "title_arabic": "التحيات وردودها",
+  "description": "Every Yemeni greeting comes with a fixed reply, and the reply is the lesson. Hear the twelve pairs a Sanaa doorstep runs through — peace, morning, how are you, welcome, goodbye — until the answer arrives before you think.",
+  "cefr_target": "Pre-A1",
+  "duration_minutes": 18,
+  "approach": "GPA Phase 1 — receptive first; every greeting is heard with its reply before it is said. Pairs are always presented together so the reply is learned as one unit with the call.",
+  "unlock_condition": "≥9/12 on the final listen-and-tap quiz, plus one recorded greeting-and-reply pair",
+  "icon": "👋",
+  "can_do": [
+    "Greet someone and answer their greeting",
+    "Say good morning, good evening and goodbye",
+    "Ask how someone is and say you are fine"
+  ],
+  "grammar": [
+    {
+      "category": "pronouns",
+      "title": "-ak or -ish: who you are talking to",
+      "explanation": "Sanaa greetings change their ending for the person in front of you. Talking to a man, the ending is -ak: كيف حالك kayf ḥaalak. Talking to a woman, Sanaa uses -ish: كيف حالش kayf ḥaalish — this -ish is the sound that tells everyone you learned your Arabic in the highlands. In Aden and Taʿizz the woman's ending is -ik instead. You do not need to produce this yet, only to hear the difference.",
+      "examples": [
+        { "arabic": "كيف حالك؟", "transliteration": "kayf ḥaalak?", "english": "How are you? (to a man)" },
+        { "arabic": "كيف حالش؟", "transliteration": "kayf ḥaalish?", "english": "How are you? (to a woman, Sanaa)" },
+        { "arabic": "ايش أخبارك؟", "transliteration": "aysh akhbaarak?", "english": "What's new with you? (to a man)" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "The reply is the lesson",
+      "note": "In Yemen no greeting is left hanging. السلام عليكم is answered word for word with وعليكم السلام, صباح الخير gets صباح النور, and كيف حالك is answered بخير الحمد لله before anything else is discussed. Sanaa men shake right hands and may touch cheeks or noses briefly if they are close; a woman greets a man with words unless she offers her hand first. Elders and strangers are addressed with the plural (كيف حالكم؟ حياكم الله) even when they are alone — it is respect, not confusion.",
+      "phrases": [
+        { "arabic": "السلام عليكم", "transliteration": "is-salaam ʿalaykum", "english": "Peace be upon you" },
+        { "arabic": "وعليكم السلام", "transliteration": "wa-ʿalaykum is-salaam", "english": "And upon you peace" },
+        { "arabic": "كيف حالكم؟", "transliteration": "kayf ḥaalkum?", "english": "How are you? (plural, or respectful to one elder)" }
+      ]
+    },
+    {
+      "title": "Morning, Sanaa style",
+      "note": "Sanaa has a longer morning greeting you will hear from older people and in the old city: صبّحكم الله بالخير — 'may God give you a morning of goodness' — answered with صبّحكم الله بالنور. The short صباح الخير works everywhere, but recognising the long form means you will not freeze when a neighbour uses it. In the evening the same pattern gives مسّيكم الله بالخير.",
+      "phrases": [
+        { "arabic": "صبّحكم الله بالخير", "transliteration": "ṣabbaḥkum allaah bil-khayr", "english": "Good morning (Sanaa long form)" },
+        { "arabic": "مسّيكم الله بالخير", "transliteration": "massaakum allaah bil-khayr", "english": "Good evening (Sanaa long form)" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "مرحبا",
+      "transliteration": "marḥaba",
+      "english": "hello",
+      "category": "Greeting",
+      "teaching_note": "The all-purpose hello, safe with anyone at any hour. Yemenis also say هلا and أهلا, and often double it: مرحبتين 'two hellos' as the reply.",
+      "image_scene": "Two men in Sanaa dress raising a hand in greeting across a stone lane.",
+      "concept_key": "hello",
+      "variants": ["مرحبتين", "هلا", "أهلا", "اهلا", "مرحباً"],
+      "example": { "arabic": "مرحبا يا علي", "transliteration": "marḥaba ya ʿali", "english": "Hello, Ali" },
+      "video_hint": "Two people meeting; the greeting is the first thing said."
+    },
+    {
+      "arabic": "السلام عليكم",
+      "transliteration": "is-salaam ʿalaykum",
+      "english": "peace be upon you",
+      "category": "Greeting",
+      "teaching_note": "The greeting that opens every room, shop and phone call. Said on entering, never answered with anything but its fixed reply. The ع in عليكم is the sound to listen for.",
+      "image_scene": "A man stepping through a doorway into a room, hand on his chest, people inside looking up.",
+      "concept_key": "peace_be_upon_you",
+      "variants": ["سلام عليكم", "السلام عليكم ورحمة الله", "سلام"],
+      "example": { "arabic": "السلام عليكم يا جماعة", "transliteration": "is-salaam ʿalaykum ya jamaaʿa", "english": "Peace be upon you, everyone" },
+      "video_hint": "Anyone entering a room or opening a video; street-interview intros."
+    },
+    {
+      "arabic": "وعليكم السلام",
+      "transliteration": "wa-ʿalaykum is-salaam",
+      "english": "and upon you peace (the reply)",
+      "category": "Reply",
+      "teaching_note": "Automatic and obligatory. The two halves swap order; nothing else changes. Learn it as one breath so it comes out before you think.",
+      "image_scene": "Seated people turning toward a doorway and answering together, hands raised slightly.",
+      "concept_key": "and_upon_you_peace",
+      "variants": ["وعليكم السلام ورحمة الله", "عليكم السلام"],
+      "example": { "arabic": "وعليكم السلام، تفضّل", "transliteration": "wa-ʿalaykum is-salaam, tfaḍḍal", "english": "And upon you peace — come in" },
+      "video_hint": "The reply audible right after someone's سلام; door scenes."
+    },
+    {
+      "arabic": "صباح الخير",
+      "transliteration": "ṣabaaḥ il-khayr",
+      "english": "good morning",
+      "category": "Greeting",
+      "teaching_note": "Used from waking until lunch. The emphatic ص at the start is heavier than an English s. Sanaa elders stretch it to صبّحكم الله بالخير — same meaning, same reply pattern.",
+      "image_scene": "Sunrise over Sanaa rooftops, a man on a doorstep with a tea glass waving to a neighbour.",
+      "concept_key": "good_morning",
+      "variants": ["صباح الخير يا", "صبحكم الله بالخير", "صبّحكم الله بالخير", "صباحو"],
+      "example": { "arabic": "صباح الخير يا حاج", "transliteration": "ṣabaaḥ il-khayr ya ḥaaj", "english": "Good morning, Hajj (respectful to an older man)" },
+      "video_hint": "Morning-routine vlogs; the first words on camera in the morning."
+    },
+    {
+      "arabic": "صباح النور",
+      "transliteration": "ṣabaaḥ in-nuur",
+      "english": "good morning (reply)",
+      "category": "Reply",
+      "teaching_note": "'A morning of light' — the fixed answer to صباح الخير. Notice the article: النور sounds in-nuur, the l melting into the n.",
+      "image_scene": "The neighbour on the opposite doorstep smiling back, morning light on the wall between them.",
+      "concept_key": "good_morning_reply",
+      "variants": ["صبحكم الله بالنور", "صبّحكم الله بالنور", "صباح الورد"],
+      "example": { "arabic": "صباح النور يا أحمد", "transliteration": "ṣabaaḥ in-nuur ya aḥmad", "english": "Good morning to you, Ahmed" },
+      "video_hint": "The reply audible right after صباح الخير."
+    },
+    {
+      "arabic": "مساء الخير",
+      "transliteration": "masaa il-khayr",
+      "english": "good evening",
+      "category": "Greeting",
+      "teaching_note": "From late afternoon on — which in Sanaa is when the qat session breaks up and people are out again. Reply: مساء النور. The long Sanaa form is مسّيكم الله بالخير.",
+      "image_scene": "Dusk in an Old Sanaa lane, lamps lit in the tower-house windows, two friends greeting.",
+      "concept_key": "good_evening",
+      "variants": ["مساء النور", "مسيكم الله بالخير", "مسّيكم الله بالخير", "مساء الخير يا"],
+      "example": { "arabic": "مساء الخير يا جماعة", "transliteration": "masaa il-khayr ya jamaaʿa", "english": "Good evening, everyone" },
+      "video_hint": "Evening street scenes and comedy sketches set at night."
+    },
+    {
+      "arabic": "كيف حالك",
+      "transliteration": "kayf ḥaalak",
+      "english": "how are you? (to a man)",
+      "category": "Greeting",
+      "teaching_note": "Yemen uses كيف, not the Gulf شلون or the Egyptian إزيك. To a woman Sanaa says كيف حالش — that -ish is the Sanaa signature. The shorter كيفك is also common.",
+      "image_scene": "Two men shaking right hands on a pavement, one leaning in with a questioning smile.",
+      "concept_key": "how_are_you",
+      "variants": ["كيف حالش", "كيفك", "كيف الحال", "كيف انت", "كيف حالكم"],
+      "example": { "arabic": "مرحبا، كيف حالك؟", "transliteration": "marḥaba, kayf ḥaalak?", "english": "Hello, how are you?" },
+      "video_hint": "Street interviews: the interviewer's first question after the salaam."
+    },
+    {
+      "arabic": "بخير الحمد لله",
+      "transliteration": "bi-khayr il-ḥamdu lillaah",
+      "english": "I'm fine, thank God",
+      "category": "Reply",
+      "teaching_note": "The only expected answer to كيف حالك, whatever your day was like. Say it, then return the question. The double l in الله is held longer and darker than an English l.",
+      "image_scene": "A smiling man with his right hand on his chest, nodding, in a sunny Sanaa lane.",
+      "concept_key": "im_fine",
+      "variants": ["الحمد لله بخير", "بخير", "تمام الحمد لله", "طيبين الحمد لله"],
+      "example": { "arabic": "بخير الحمد لله، وأنت؟", "transliteration": "bi-khayr il-ḥamdu lillaah, w-ant?", "english": "Fine, thank God — and you?" },
+      "video_hint": "The reply audible right after كيف حالك in an interview or sketch."
+    },
+    {
+      "arabic": "ناهي",
+      "transliteration": "naahi",
+      "english": "fine / good (Sanaa reply)",
+      "category": "Reply",
+      "teaching_note": "The word that marks a Sanaani. Where the rest of Yemen answers زين or طيب, old Sanaa says ناهي — 'fine, all well'. Recognise it now; you will hear it constantly in the old city and in comedy sketches imitating Sanaa speech.",
+      "image_scene": "An elderly Sanaa man in a shawl and janbiya nodding contentedly from a shop doorway.",
+      "variants": ["ناهي الحمد لله", "ناهية", "ناهين"],
+      "example": { "arabic": "كيف حالك؟ — ناهي الحمد لله", "transliteration": "kayf ḥaalak? — naahi l-ḥamdu lillaah", "english": "How are you? — Fine, thank God" },
+      "video_hint": "Sanaa-flavoured sketches; older speakers answering كيف حالك."
+    },
+    {
+      "arabic": "حياك الله",
+      "transliteration": "ḥayyaak allaah",
+      "english": "welcome",
+      "category": "Greeting",
+      "teaching_note": "Literally 'may God give you life' — what a host says as you arrive and what a shopkeeper says as you walk in. Plural حياكم الله to a group or an elder. أهلاً وسهلاً is also heard and is the safe reply when it is said to you.",
+      "image_scene": "A host at an open door gesturing a guest inside with his right hand, warm light behind him.",
+      "concept_key": "welcome",
+      "variants": ["حياكم الله", "أهلا وسهلا", "أهلاً وسهلاً", "يا هلا", "مرحبا بك", "الله يحييك"],
+      "example": { "arabic": "حياك الله، تفضّل", "transliteration": "ḥayyaak allaah, tfaḍḍal", "english": "Welcome — come in" },
+      "video_hint": "A guest arriving at a house or shop; the host's first words."
+    },
+    {
+      "arabic": "مع السلامة",
+      "transliteration": "maʿ is-salaama",
+      "english": "goodbye",
+      "category": "Farewell",
+      "teaching_note": "Said by the person staying to the person leaving — 'go with safety'. The one leaving answers الله يسلمك. The article assimilates: السلامة sounds is-salaama, not il-.",
+      "image_scene": "A man waving from a doorway as a friend walks away down a stone lane.",
+      "concept_key": "goodbye",
+      "variants": ["الله يسلمك", "في أمان الله", "الله معك", "مع السلامه"],
+      "example": { "arabic": "مع السلامة يا صاحبي", "transliteration": "maʿ is-salaama ya ṣaaḥbi", "english": "Goodbye, my friend" },
+      "video_hint": "Ends of vlogs and sketches; someone leaving a room or car."
+    },
+    {
+      "arabic": "نشوفك",
+      "transliteration": "nshuufak",
+      "english": "see you",
+      "category": "Farewell",
+      "teaching_note": "'We'll see you' — the casual goodbye between friends, often followed by بخير or إن شاء الله. To a woman: نشوفش in Sanaa.",
+      "image_scene": "Two young men bumping fists beside a parked car, one already half turned to go.",
+      "concept_key": "see_you",
+      "variants": ["نشوفك بخير", "نشوفش", "نتلاقى", "نشوفكم"],
+      "example": { "arabic": "نشوفك بكرة", "transliteration": "nshuufak bukra", "english": "See you tomorrow" },
+      "video_hint": "Sign-offs at the end of vlogs; friends parting."
+    },
+    {
+      "arabic": "ايش أخبارك",
+      "transliteration": "aysh akhbaarak",
+      "english": "what's new? / how are things?",
+      "category": "Greeting",
+      "teaching_note": "The second question after كيف حالك, and the one that shows you know Yemeni: ايش is the Yemeni 'what', never the Gulf شخبارك. The reply is the same بخير الحمد لله or a simple تمام.",
+      "image_scene": "Two friends sitting on a low wall with tea glasses, one asking with raised eyebrows.",
+      "concept_key": "whats_new",
+      "variants": ["ايش الأخبار", "كيف الأخبار", "ايش أخبارش", "ايش اخبارك", "وش أخبارك"],
+      "example": { "arabic": "ايش أخبارك يا محمد؟", "transliteration": "aysh akhbaarak ya muḥammad?", "english": "What's new, Mohammed?" },
+      "video_hint": "Phone-call openers and street interviews after the first greeting."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Ahmed", "arabic": "السلام عليكم", "transliteration": "is-salaam ʿalaykum", "english": "Peace be upon you" },
+    { "speaker": "Ali", "arabic": "وعليكم السلام، حياك الله", "transliteration": "wa-ʿalaykum is-salaam, ḥayyaak allaah", "english": "And upon you peace — welcome" },
+    { "speaker": "Ahmed", "arabic": "كيف حالك؟ ايش أخبارك؟", "transliteration": "kayf ḥaalak? aysh akhbaarak?", "english": "How are you? What's new?" },
+    { "speaker": "Ali", "arabic": "بخير الحمد لله، وأنت؟", "transliteration": "bi-khayr il-ḥamdu lillaah, w-ant?", "english": "Fine, thank God — and you?" },
+    { "speaker": "Ahmed", "arabic": "ناهي الحمد لله. تفضّل شاهي", "transliteration": "naahi l-ḥamdu lillaah. tfaḍḍal shaahi", "english": "All well, thank God. Have some tea" },
+    { "speaker": "Ali", "arabic": "شكراً. مع السلامة", "transliteration": "shukran. maʿ is-salaama", "english": "Thanks. Goodbye" },
+    { "speaker": "Ahmed", "arabic": "الله يسلمك، نشوفك بكرة", "transliteration": "allaah yisallimak, nshuufak bukra", "english": "God keep you — see you tomorrow" }
+  ],
+  "sound_spotlight": [
+    { "sound": "ع vs ء", "example": "عليكم (ʿalaykum) / إي (ʾii)", "explanation": "ع is a squeeze deep in the throat that colours the vowel after it; ء is a clean stop, like the catch in 'uh-oh'. Sanaa keeps both clearly — hear عليكم against the Sanaa yes إي." },
+    { "sound": "ح", "example": "حالك (ḥaalak)", "explanation": "Breathy h from the throat, no rasp. كيف حالك is the phrase you will say most, so ح is where production starts." },
+    { "sound": "-ish", "example": "حالش (ḥaalish)", "explanation": "The Sanaa 'your (f.)' ending. Heard only, not produced yet — but it is the highland fingerprint, so ears go on it now." }
+  ],
+  "lesson_sequence": [
+    { "step": "Welcome", "detail": "A Sanaa doorstep at morning. One line of English: greetings here always come in pairs — you will learn both halves." },
+    { "step": "Hear the pairs", "detail": "Six greeting-and-reply pairs play as tiny two-line scenes with illustration; Arabic large, audio auto-plays, no English yet." },
+    { "step": "Second pass", "detail": "The same pairs with English shown small underneath; tap either half to replay." },
+    { "step": "Which reply?", "detail": "A greeting plays; two replies are shown as cards; tap the right one. Covers السلام / صباح / كيف حالك / مع السلامة." },
+    { "step": "Tap quiz", "detail": "All twelve items, audio only, four-image grid." },
+    { "step": "Say one pair", "detail": "Record السلام عليكم then كيف حالك and hear yourself next to the native audio. Feedback on ع and ح only." },
+    { "step": "Lesson complete", "detail": "Words-learned counter rolls up. Nudge: greet the next Arabic speaker you meet with السلام عليكم and wait for the reply." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Next time you enter a room with an Arabic speaker, say السلام عليكم and listen for وعليكم السلام coming back.", "context": "Shown on the lesson-complete screen. The lowest-risk first production a learner can attempt." },
+    { "prompt": "Ask a Yemeni friend كيف حالك؟ and try to catch whether they answer بخير, زين, طيب or the Sanaa ناهي.", "context": "Follow-up notification. Trains the ear on the reply variants." },
+    { "prompt": "In your next tutor session, ask them to greet you as a man, then as a woman, and hear the -ak / -ish switch.", "context": "Tutor prompt. Receptive contrast of the Sanaa feminine ending." }
+  ],
+  "video_needs": {
+    "queries": ["كيف حالك يمني", "مقابلات شارع صنعاء", "صبحكم الله بالخير صنعاني", "تحيات يمنية"],
+    "channels": ["Mustafa Al-Mawmari", "HMADA", "Ahmed Hajar", "Hussam Al-Salwi"],
+    "scene": "Two people greeting each other at a door or on the street; the reply audible; street-interview intros where the interviewer opens with the salaam and كيف حالك."
+  }
+}

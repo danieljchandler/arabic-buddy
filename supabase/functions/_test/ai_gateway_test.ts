@@ -220,11 +220,11 @@ Deno.test("an unconfigured Fanar does not silently become another model", async 
 // ── Jais 2 on our own RunPod worker ─────────────────────────────────────────
 
 /** The endpoint id is deployment state, so every RunPod test supplies its own. */
-const DEPLOYED = { RUNPOD_JAIS_ENDPOINT_ID: "test1endpoint" };
+const DEPLOYED = { RUNPOD_JAIS_8B_ENDPOINT_ID: "test1endpoint" };
 
 Deno.test("a Jais model goes to our own worker, with the routing prefix stripped", async () => {
   await withGateway(async (mod, up) => {
-    await mod.chatFetch("runpod/jais-2-70b-chat", { messages: [] });
+    await mod.chatFetch("runpod/jais-2-8b-chat", { messages: [] });
 
     const [call] = up.callsTo("test1endpoint.api.runpod.ai");
     assert(call, "expected the call to reach the RunPod worker");
@@ -232,14 +232,14 @@ Deno.test("a Jais model goes to our own worker, with the routing prefix stripped
     // `runpod/` says where the model lives, not who publishes it. The worker
     // was started with `--served-model-name jais-2-70b-chat` and 404s on any
     // other name, so the prefix must not survive onto the wire.
-    assertEquals(bodyOf(call).model, "jais-2-70b-chat");
-    assertEquals(mod.providerForModel("runpod/jais-2-70b-chat"), "runpod");
+    assertEquals(bodyOf(call).model, "jais-2-8b-chat");
+    assertEquals(mod.providerForModel("runpod/jais-2-8b-chat"), "runpod");
   }, { env: DEPLOYED });
 });
 
 Deno.test("a RunPod outage is never retried on OpenRouter", async () => {
   await withGateway(async (mod, up) => {
-    const response = await mod.chatFetch("runpod/jais-2-70b-chat", { messages: [] });
+    const response = await mod.chatFetch("runpod/jais-2-8b-chat", { messages: [] });
 
     // Same reason as Fanar: Jais 2 is not on OpenRouter's catalogue at all, so
     // the retry would replace one honest failure with a 404 about a model that
@@ -259,9 +259,9 @@ Deno.test("a key with no endpoint deployed is unconfigured, not misrouted", asyn
     // and the error has to name the part that is actually missing rather than
     // send the reader to look at a key that is present.
     await assertRejects(
-      () => mod.chatFetch("runpod/jais-2-70b-chat", { messages: [] }),
+      () => mod.chatFetch("runpod/jais-2-8b-chat", { messages: [] }),
       Error,
-      "RUNPOD_JAIS_ENDPOINT_ID",
+      "RUNPOD_JAIS_8B_ENDPOINT_ID",
     );
     assertEquals(up.calls.length, 0);
   });
@@ -272,13 +272,37 @@ Deno.test("an absent endpoint leaves tryChatRoute null rather than throwing", as
     // This is the property the dialect validator leans on: an undeployed Jais
     // has to be answerable without a request, so the validator can skip it
     // silently instead of turning a quality pass into a failure.
-    assertEquals(mod.tryChatRoute("runpod/jais-2-70b-chat"), null);
+    assertEquals(mod.tryChatRoute("runpod/jais-2-8b-chat"), null);
   });
+});
+
+Deno.test("each Jais size has its own endpoint, and neither borrows the other's", async () => {
+  await withGateway(async (mod, up) => {
+    // Two sizes, two deployments, two addresses. Deploying one must not make
+    // the other look configured: answering a 70B request on the 8B's worker
+    // would silently serve a different model, which is exactly the substitution
+    // the registry exists to prevent.
+    assertEquals(mod.tryChatRoute("runpod/jais-2-70b-chat"), null);
+
+    await mod.chatFetch("runpod/jais-2-8b-chat", { messages: [] });
+    assertEquals(up.callsTo("eightb.api.runpod.ai").length, 1);
+    assertEquals(up.callsTo("seventyb.api.runpod.ai").length, 0);
+  }, { env: { RUNPOD_JAIS_8B_ENDPOINT_ID: "eightb" } });
+});
+
+Deno.test("the 70B routes to its own worker when that one is deployed", async () => {
+  await withGateway(async (mod, up) => {
+    await mod.chatFetch("runpod/jais-2-70b-chat", { messages: [] });
+
+    const [call] = up.callsTo("seventyb.api.runpod.ai");
+    assert(call, "expected the call to reach the 70B worker");
+    assertEquals(bodyOf(call).model, "jais-2-70b-chat");
+  }, { env: { RUNPOD_JAIS_70B_ENDPOINT_ID: "seventyb" } });
 });
 
 Deno.test("asks Jais nothing about reasoning", async () => {
   await withGateway(async (mod, up) => {
-    await mod.chatFetch("runpod/jais-2-70b-chat", { messages: [] });
+    await mod.chatFetch("runpod/jais-2-8b-chat", { messages: [] });
 
     // Jais 2 is not a reasoning model and plain vLLM has no sampler for an
     // effort field, so the default that every OpenRouter call carries must not

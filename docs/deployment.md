@@ -71,8 +71,9 @@ by the runtime and must not be set by hand.
 | `GEMINI_API_KEY` | `google/*` model ids (also Lyria jingles, image generation) |
 | `OPENAI_API_KEY` | `openai/*` ids and the realtime voice call |
 | `FANAR_API_KEY` | `Fanar-*` ids (QCRI; no OpenRouter twin, so no fallback) |
-| `RUNPOD_API_KEY` | `runpod/*` ids — Jais 2 on our own Serverless worker (no OpenRouter twin, so no fallback) |
-| `RUNPOD_JAIS_ENDPOINT_ID` | The worker's endpoint id, which is its address. Without it `runpod/*` is *unconfigured* rather than broken — the dialect validator skips its tie-break and keeps the rule. |
+| `RUNPOD_API_KEY` | `runpod/*` ids — Jais 2 on our own Serverless workers (no OpenRouter twin, and no pay-per-token API anywhere, so no fallback) |
+| `RUNPOD_JAIS_8B_ENDPOINT_ID` | Address of the **8B** worker — the only size any user-facing path may use. Without it `runpod/jais-2-8b-chat` is *unconfigured* rather than broken: the dialect validator skips its tie-break and keeps the rule. |
+| `RUNPOD_JAIS_70B_ENDPOINT_ID` | Address of the **70B** worker. Batch/eval only — a 144GB cold start is minutes, so nothing a learner waits for may name it. Leaving this unset in production is the normal state. |
 | `STRIPE_SECRET_KEY` | `create-checkout`, `check-subscription`, `customer-portal` |
 
 There is no Lovable AI gateway key any more: every model call goes through

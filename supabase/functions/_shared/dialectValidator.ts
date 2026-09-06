@@ -40,15 +40,20 @@ const TIEBREAK_VALIDATOR_MODEL = MODEL_IDS.FANAR;
 /**
  * The Arabic-native specialist that settles a split, in preference order.
  *
- * Jais 2 goes first when its endpoint is deployed. It is the better instrument
- * for this specific question — a 70B trained from scratch on Arabic, judging
+ * Jais 2 goes first when its endpoint is deployed. It is a strong instrument
+ * for this specific question — Arabic-native, trained from scratch, judging
  * whether a line reads as native — and, unlike Fanar, it runs on hardware this
  * project rents, so the quota argument above does not apply to it: there is no
  * daily allowance to spend before lunch.
  *
- * What it has instead is a cold start. The weights are 144GB and the endpoint
- * scales to zero, so a call that arrives at an idle worker will not answer
- * inside the caller's timeout. That is survivable *here* and almost nowhere
+ * Deliberately the **8B** and never the 70B. Both are deployed, but the 70B's
+ * weights are 144GB, so a cold start is a multi-minute download and the model
+ * is only economic as a batch job; the 8B is 16GB on a single GPU and can
+ * actually answer inside a caller's timeout. Naming the 70B here would put a
+ * ten-minute download on a path a learner is waiting for. Size is chosen by
+ * job, not by quality — see `MODEL_IDS` for the full cost argument.
+ *
+ * Even the 8B can be cold, and that is survivable *here* and almost nowhere
  * else in the pipeline: a tie-break that does not answer leaves `verdict` on
  * the "harsher verdict wins" rule, which is exactly what happens today when no
  * tie-breaker is configured at all. So the failure mode of a cold Jais is the
@@ -59,7 +64,7 @@ const TIEBREAK_VALIDATOR_MODEL = MODEL_IDS.FANAR;
  * Returns null when neither is configured; the caller then keeps the rule.
  */
 function tiebreakValidatorModel(): string | null {
-  if (tryChatRoute(MODEL_IDS.JAIS2)) return MODEL_IDS.JAIS2;
+  if (tryChatRoute(MODEL_IDS.JAIS2_8B)) return MODEL_IDS.JAIS2_8B;
   if (tryChatRoute(TIEBREAK_VALIDATOR_MODEL)) return TIEBREAK_VALIDATOR_MODEL;
   return null;
 }

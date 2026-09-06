@@ -171,6 +171,32 @@ outside benchmarks it might be compared with (see
   against it, and for Yemeni the golden set here is the only instrument that
   exists. Treat a Yemeni regression in `eval-dialect-live` as the whole
   evidence, not a hint.
+### Measuring Jais 2 before it judges anything
+
+Jais 2 is deployed on RunPod but is deliberately *not* wired into any live
+path until it has been measured here — its value over Fanar as the validator's
+tie-breaker is a claim, not a finding. The check is the same one a registry
+bump gets:
+
+```sh
+RUNPOD_API_KEY=... RUNPOD_JAIS_8B_ENDPOINT_ID=... FANAR_API_KEY=... \
+  deno run --allow-env --allow-read --allow-net scripts/eval-dialect-live.ts \
+  --model runpod/jais-2-8b-chat --compare Fanar-C-2-27B
+```
+
+Swap in `runpod/jais-2-70b-chat` (with `RUNPOD_JAIS_70B_ENDPOINT_ID`) to see
+what the larger size buys. The 70B is batch-only, and this script *is* batch
+work: one cold start covers the whole golden set, which is the shape that
+makes a 144GB model affordable at all.
+
+Two cautions specific to these runs. The first call after an idle period pays
+the cold start — minutes on the 70B — so a timeout on run one is the worker
+booting, not the model failing; re-run before reading anything into it. And
+the script measures *leak rate in the model's own generation*, which is a
+proxy for judging ability, not the same thing: a model that writes clean
+dialect is likely but not certain to recognise it. Weigh a close result
+against native review rather than shipping on the delta alone.
+
 - AL-QASIDA's **ADI2** score multiplies **ALDi** (a continuous 0–1 level of
   dialectness from the Sentence-ALDi model) by dialect-identification
   confidence. `_shared/aldiSignal.ts` can log ALDi beside

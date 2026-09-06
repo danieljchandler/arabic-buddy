@@ -28,7 +28,7 @@ const OPENROUTER = "openrouter.ai";
 // nothing about routing — the thing this file actually covers.
 const STRONG = MODEL_IDS.GEMINI_PRO;
 const ARABIC = MODEL_IDS.SABA;
-const JAIS = MODEL_IDS.JAIS2;
+const JAIS = MODEL_IDS.JAIS2_8B;
 const FANAR = MODEL_IDS.FANAR;
 
 interface ValidatorLeak {
@@ -374,7 +374,7 @@ Deno.test("a rewrite from either model stands", async () => {
 const RUNPOD = "api.runpod.ai";
 const FANAR_HOST = "api.fanar.qa";
 /** A deployed Jais. Absent everywhere else, so the default is "not deployed". */
-const DEPLOYED = { RUNPOD_JAIS_ENDPOINT_ID: "test1endpoint" };
+const DEPLOYED = { RUNPOD_JAIS_8B_ENDPOINT_ID: "test1endpoint" };
 
 /** A disagreement (lenient Arabic leg, harsh strong leg) plus a tie-breaker's answer. */
 const split = (tiebreakHost: string, tiebreak: Record<string, unknown>) => ({
@@ -412,6 +412,23 @@ Deno.test("Fanar still settles a split when no Jais is deployed", async () => {
     assertEquals(bodyOf(up.callsTo(FANAR_HOST)[0]).model, FANAR);
     assertEquals(result.verdict, "pass");
   }, { upstreams: split(FANAR_HOST, { score: 5 }) });
+});
+
+Deno.test("the 70B is never asked to settle a split, even when deployed", async () => {
+  await withValidator(async (mod, up) => {
+    const result = await mod.validateDialectCrossChecked("x", "Gulf");
+
+    // The sizes are chosen by job, not by quality. A 144GB cold start is a
+    // multi-minute download, so the 70B belongs to batch work; putting it here
+    // would hang a path a learner is waiting for. With only the 70B deployed
+    // the tie-break must behave as though no Jais exists at all.
+    assertEquals(up.callsTo(RUNPOD).length, 0);
+    assertEquals(up.callsTo(FANAR_HOST).length, 1);
+    assertEquals(result.verdict, "pass");
+  }, {
+    env: { RUNPOD_JAIS_70B_ENDPOINT_ID: "seventyb" },
+    upstreams: split(FANAR_HOST, { score: 5 }),
+  });
 });
 
 Deno.test("a cold Jais leaves the harsher verdict standing", async () => {

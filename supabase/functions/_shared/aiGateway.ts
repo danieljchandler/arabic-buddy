@@ -10,7 +10,7 @@
 //
 //   google/*   → Google's Generative Language API   (GEMINI_API_KEY)
 //   openai/*   → OpenAI                              (OPENAI_API_KEY)
-//   runpod/*   → our own RunPod Serverless worker    (RUNPOD_API_KEY)
+//   runpod/*   → our own RunPod Serverless workers   (RUNPOD_API_KEY)
 //   everything → OpenRouter                          (OPENROUTER_API_KEY)
 //
 // Google and OpenAI both expose an OpenAI-shaped `/chat/completions`, which is
@@ -29,7 +29,7 @@
 // it gets its own helper (`generateImage`) rather than a shared body.
 // =============================================================================
 
-import { IMAGE_MODEL_IDS, reasoningFloor, type ReasoningEffort } from './modelRegistry.ts';
+import { IMAGE_MODEL_IDS, MODEL_IDS, reasoningFloor, type ReasoningEffort } from './modelRegistry.ts';
 
 export type Provider = 'google' | 'openai' | 'openrouter' | 'fanar' | 'runpod';
 
@@ -54,12 +54,29 @@ export const FANAR_CHAT_URL = 'https://api.fanar.qa/v1/chat/completions';
  * `RUNPOD_JAIS_BASE_URL` overrides the derived URL — that is the seam the edge
  * tests stub, and the escape hatch if the worker ever moves behind a proxy.
  */
-export function runpodChatUrl(): string | undefined {
-  const explicit = Deno.env.get('RUNPOD_JAIS_BASE_URL')?.trim();
-  const id = Deno.env.get('RUNPOD_JAIS_ENDPOINT_ID')?.trim();
+export function runpodChatUrl(model: string): string | undefined {
+  const suffix = RUNPOD_ENDPOINT_ENV[model];
+  // A `runpod/` id nobody has given an address to. Unknown here rather than
+  // guessed: falling back to another size's endpoint would answer as a
+  // different model, which is the one thing the registry forbids.
+  if (!suffix) return undefined;
+  const explicit = Deno.env.get(`RUNPOD_JAIS_${suffix}_BASE_URL`)?.trim();
+  const id = Deno.env.get(`RUNPOD_JAIS_${suffix}_ENDPOINT_ID`)?.trim();
   const base = explicit || (id ? `https://${id}.api.runpod.ai` : '');
   return base ? `${base.replace(/\/+$/, '')}/v1/chat/completions` : undefined;
 }
+
+/**
+ * Which endpoint serves which id. The two Jais sizes are two deployments with
+ * two addresses and two very different cost profiles — 16GB on one GPU versus
+ * 144GB across two — so they cannot share an env var. Keyed by the registry id
+ * rather than derived from it, so a typo is an unconfigured model instead of a
+ * request to a URL that does not exist.
+ */
+const RUNPOD_ENDPOINT_ENV: Record<string, string> = {
+  [MODEL_IDS.JAIS2_8B]: '8B',
+  [MODEL_IDS.JAIS2_70B]: '70B',
+};
 
 /** Vendors with no first-party account here — they only exist behind OpenRouter. */
 const OPENROUTER_ONLY = /^(anthropic|qwen|meta-llama|mistralai|deepseek|x-ai|nousresearch|cohere)\//;
@@ -198,8 +215,8 @@ const CHAT_URLS: Record<Exclude<Provider, 'runpod'>, string> = {
  * Every provider but one has a fixed URL. RunPod's is deployment state, so it
  * is resolved per call and can legitimately be absent.
  */
-function chatUrlFor(provider: Provider): string | undefined {
-  return provider === 'runpod' ? runpodChatUrl() : CHAT_URLS[provider];
+function chatUrlFor(model: string, provider: Provider): string | undefined {
+  return provider === 'runpod' ? runpodChatUrl(model) : CHAT_URLS[provider];
 }
 
 const KEY_ENV: Record<Provider, string> = {
@@ -214,7 +231,7 @@ const KEY_ENV: Record<Provider, string> = {
 export function tryChatRoute(model: string, provider = providerForModel(model)): ChatRoute | null {
   const apiKey = keyFor(provider);
   if (!apiKey) return null;
-  const url = chatUrlFor(provider);
+  const url = chatUrlFor(model, provider);
   // A key with nowhere to send it is as unconfigured as no key at all.
   if (!url) return null;
   return {
@@ -235,7 +252,7 @@ export function chatRoute(model: string, provider = providerForModel(model)): Ch
     // RunPod can fail this two ways; naming the key when the endpoint id is
     // what is missing sends the reader to the wrong secret.
     const missing = provider === 'runpod' && keyFor(provider)
-      ? 'RUNPOD_JAIS_ENDPOINT_ID'
+      ? `RUNPOD_JAIS_${RUNPOD_ENDPOINT_ENV[model] ?? '<size>'}_ENDPOINT_ID`
       : KEY_ENV[provider];
     throw new GatewayConfigError(
       `${missing} not configured (required for ${model})`,

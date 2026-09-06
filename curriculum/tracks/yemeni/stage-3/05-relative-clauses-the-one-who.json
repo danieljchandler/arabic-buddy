@@ -1,0 +1,286 @@
+{
+  "slug": "relative-clauses-the-one-who",
+  "lesson_number": 5,
+  "title": "The One Who…",
+  "title_arabic": "اللي يشتغل مع عمك",
+  "description": "Point at people and things by what they do: اللي 'who / that', ذاك اللي 'the one who', الشي اللي 'the thing that'. In a city where everybody knows everybody, this is how you say who you mean.",
+  "cefr_target": "B1",
+  "duration_minutes": 20,
+  "approach": "GPA Phase 4 — the learner hears people identified by role and relation, then describes the people in their own life the same way.",
+  "unlock_condition": "Identify three people from a picture using اللي clauses with a resumptive pronoun where needed",
+  "icon": "🧭",
+  "can_do": [
+    "Describe people and things with 'who / that' clauses",
+    "Say 'the one that I…' with the pronoun that points back",
+    "Identify people by what they do and who they belong to"
+  ],
+  "grammar": [
+    {
+      "category": "sentence-structure",
+      "title": "اللي after 'the', nothing after 'a'",
+      "explanation": "When the noun has ال (or is a name or has a possessive ending), the description that follows is introduced by اللي: الرجّال اللي يشتغل مع عمك 'the man who works with your uncle'. When the noun is indefinite there is no اللي at all — رجّال يشتغل مع عمك 'a man who works with your uncle' is just two sentences run together. اللي never changes for gender or number: البنت اللي، الناس اللي. If the person or thing is the object inside the clause, put a pronoun back on the verb or preposition: البيت اللي سكنت فيه 'the house I lived in', الشخص اللي شفته 'the person I saw'. Never الذي / التي — nobody says them.",
+      "examples": [
+        { "arabic": "الرجّال اللي يشتغل مع عمك أخوي", "transliteration": "ir-rajjaal illi yishtaghil maʿ ʿammak akhuuy", "english": "The man who works with your uncle is my brother" },
+        { "arabic": "هذا السائق اللي وصّلنا أمس", "transliteration": "haadha s-saayig illi waṣṣalna ams", "english": "This is the driver who brought us yesterday" },
+        { "arabic": "البيت اللي سكنت فيه كان قديم", "transliteration": "il-bayt illi sakant fiih kaan gadiim", "english": "The house I lived in was old" },
+        { "arabic": "عندي صاحب يعرف كل الحارة", "transliteration": "ʿindi ṣaaḥib yiʿrif kull il-ḥaara", "english": "I have a friend who knows the whole neighbourhood" },
+        { "arabic": "الشي اللي قلته صح", "transliteration": "ish-shi lli gultuh ṣaḥḥ", "english": "The thing you said is right" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "Who is he? The one whose uncle…",
+      "note": "In Yemen a person is placed by relation before by name: ولد عمي 'my cousin', اللي يشتغل مع خالك 'the one who works with your uncle', جماعة الحارة 'the neighbourhood folks'. Expect to be asked من أنت؟ and then من جماعتك؟ — which people are you from — and have an answer ready, even if it is 'the student who lives above the bakery'. When you describe someone, mention the tie that the listener shares: the mosque, the qat seller, the village. It is not gossip; it is how the map of the city is drawn. Asking about a woman by name is avoided — she is بنت فلان or أم فلان.",
+      "phrases": [
+        { "arabic": "من هذا؟ — ذاك اللي يشتغل مع خالك", "transliteration": "man haadha? — dhaak illi yishtaghil maʿ khaalak", "english": "Who's that? — The one who works with your uncle" },
+        { "arabic": "أنا اللي ساكن فوق المخبازة", "transliteration": "ana lli saakin foog il-makhbaaza", "english": "I'm the one who lives above the bakery" },
+        { "arabic": "كل من يعرفه يحبه", "transliteration": "kull man yiʿrifuh yiḥibbuh", "english": "Whoever knows him loves him" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "اللي",
+      "transliteration": "illi",
+      "english": "who / that / which",
+      "category": "Connector",
+      "teaching_note": "One word for who, that and which. Only after a definite noun. The most frequent Yemeni word after بس. Never الذي / التي.",
+      "image_scene": "A crowd of people with one circled and an arrow to a caption box.",
+      "concept_key": "who_that",
+      "variants": ["الي", "واللي", "إللي"],
+      "example": { "arabic": "البنت اللي جات أمس أختي", "transliteration": "il-bint illi jaat ams ukhti", "english": "The girl who came yesterday is my sister" },
+      "video_hint": "Everywhere; اللي after any definite noun in narration."
+    },
+    {
+      "arabic": "ذاك اللي",
+      "transliteration": "dhaak illi",
+      "english": "the one who",
+      "category": "Expression",
+      "teaching_note": "'That one who': ذاك اللي يبيع القات 'the one who sells qat'. For a woman ذيك اللي, for people ذولاك اللي. هو اللي 'he's the one who' when you already named him.",
+      "image_scene": "A man pointing across a market at a specific stall-holder.",
+      "concept_key": "the_one_who",
+      "variants": ["ذيك اللي", "هو اللي", "هي اللي", "ذولاك اللي"],
+      "example": { "arabic": "ذاك اللي يبيع القات صاحبي", "transliteration": "dhaak illi yibiiʿ il-gaat ṣaaḥbi", "english": "The one who sells qat is my friend" },
+      "video_hint": "Someone pointed out in a crowd; ذاك اللي with the gesture."
+    },
+    {
+      "arabic": "الشي اللي",
+      "transliteration": "ish-shi lli",
+      "english": "the thing that",
+      "category": "Expression",
+      "teaching_note": "'The thing that…': الشي اللي قلته 'what you said'. Also used for 'what I mean': الشي اللي أقصده. اللي alone can do this too.",
+      "image_scene": "A hand pointing at a mystery box with a question mark on it.",
+      "concept_key": "the_thing_that",
+      "variants": ["الشي الي", "الشيء اللي", "اللي"],
+      "example": { "arabic": "الشي اللي يعجبني في صنعاء الجو", "transliteration": "ish-shi lli yiʿjibni fi ṣanʿaa j-jaww", "english": "The thing I like about Sanaa is the weather" },
+      "video_hint": "Reviews: 'the thing I liked was…' with الشي اللي."
+    },
+    {
+      "arabic": "شخص",
+      "transliteration": "shakhṣ",
+      "english": "person",
+      "category": "Noun",
+      "teaching_note": "شخص for a person in general; إنسان 'human being' when you praise — إنسان طيب 'a good soul'. Plural أشخاص. In speech واحد 'someone' does most of the work.",
+      "image_scene": "A single silhouetted figure standing in a doorway.",
+      "concept_key": "person",
+      "variants": ["الشخص", "أشخاص", "إنسان", "شخصية"],
+      "example": { "arabic": "هذا الشخص اللي كلمتك عنه", "transliteration": "haadha sh-shakhṣ illi kallamtak ʿannuh", "english": "This is the person I told you about" },
+      "video_hint": "Introductions; شخص / إنسان in a description of someone."
+    },
+    {
+      "arabic": "مكان",
+      "transliteration": "makaan",
+      "english": "place",
+      "category": "Noun",
+      "teaching_note": "المكان اللي 'the place that…'. Plural أماكن. مكانك 'your seat / your place'.",
+      "image_scene": "A map pin on a Sanaa rooftop café with mountains behind.",
+      "concept_key": "place",
+      "variants": ["المكان", "أماكن", "مكانك", "مكانه"],
+      "example": { "arabic": "المكان اللي تغدينا فيه حلو", "transliteration": "il-makaan illi tghaddayna fiih ḥilu", "english": "The place we had lunch in is nice" },
+      "video_hint": "Travel vlogs naming a spot; المكان اللي…"
+    },
+    {
+      "arabic": "شي",
+      "transliteration": "shi",
+      "english": "thing",
+      "category": "Noun",
+      "teaching_note": "The spoken form of شيء — no hamza. كل شي 'everything', ما فيش شي 'nothing', شي حلو 'something nice'. Plural أشياء.",
+      "image_scene": "A small wrapped parcel with a question mark tag.",
+      "concept_key": "thing",
+      "variants": ["شيء", "أشياء", "كل شي", "شي ثاني"],
+      "example": { "arabic": "تشتي شي من السوق؟", "transliteration": "tishti shi min is-suug?", "english": "Do you want anything from the market?" },
+      "video_hint": "Shopping and errand talk; تشتي شي؟"
+    },
+    {
+      "arabic": "أحد",
+      "transliteration": "aḥad",
+      "english": "someone / anyone",
+      "category": "Pronoun",
+      "teaching_note": "فيه أحد؟ 'is anyone there?'; ما فيش أحد 'there's nobody'. In fast Sanaa speech it shrinks to حد. Not the number.",
+      "image_scene": "A man knocking on a door, calling in through a crack.",
+      "concept_key": "someone",
+      "variants": ["احد", "حد", "واحد", "ما حد"],
+      "example": { "arabic": "فيه أحد يعرف الطريق؟", "transliteration": "fiih aḥad yiʿrif iṭ-ṭariig?", "english": "Is there anyone who knows the way?" },
+      "video_hint": "Someone calling into a house or room; فيه أحد؟"
+    },
+    {
+      "arabic": "أي حد",
+      "transliteration": "ayy ḥadd",
+      "english": "anyone (at all)",
+      "category": "Pronoun",
+      "teaching_note": "'Anyone whatsoever': أي حد يقدر 'anyone can'. أي واحد is the same. أي is the 'any / which' word.",
+      "image_scene": "A row of different people all with a raised hand.",
+      "concept_key": "anyone",
+      "variants": ["أي واحد", "اي حد", "أي أحد"],
+      "example": { "arabic": "أي حد يقدر يتعلم العربي", "transliteration": "ayy ḥadd yigdar yitʿallam il-ʿarabi", "english": "Anyone can learn Arabic" },
+      "video_hint": "Motivational or instructional clips; أي حد / أي واحد."
+    },
+    {
+      "arabic": "الكل",
+      "transliteration": "il-kull",
+      "english": "everyone",
+      "category": "Pronoun",
+      "teaching_note": "'Everyone / all of them': الكل يعرفه 'everyone knows him'. كلنا 'all of us', كل الناس 'all the people'.",
+      "image_scene": "A full mafraj, every face turned toward the camera.",
+      "concept_key": "everyone",
+      "variants": ["كلنا", "كلهم", "كل الناس", "الكل"],
+      "example": { "arabic": "الكل في الحارة يعرف بعض", "transliteration": "il-kull fil-ḥaara yiʿrif baʿḍ", "english": "Everyone in the neighbourhood knows each other" },
+      "video_hint": "Wedding and Eid gatherings; الكل / كلنا in the narration."
+    },
+    {
+      "arabic": "نوع",
+      "transliteration": "nooʿ",
+      "english": "type / kind",
+      "category": "Noun",
+      "teaching_note": "أي نوع؟ 'what kind?'. نوع القات، نوع الشغل. Plural أنواع.",
+      "image_scene": "Three baskets of different qat bundles with labels.",
+      "concept_key": "type",
+      "variants": ["النوع", "أنواع", "أي نوع", "نوعية"],
+      "example": { "arabic": "أي نوع قات تشتي؟", "transliteration": "ayy nooʿ gaat tishti?", "english": "What kind of qat do you want?" },
+      "video_hint": "Market clips comparing goods; نوع / أنواع."
+    },
+    {
+      "arabic": "كل من",
+      "transliteration": "kull man",
+      "english": "whoever",
+      "category": "Pronoun",
+      "teaching_note": "'Whoever / everyone who': كل من يجي 'whoever comes'. In relaxed speech اللي يجي says the same.",
+      "image_scene": "An open door with a welcome mat and figures of all sizes walking in.",
+      "concept_key": "whoever",
+      "variants": ["كل اللي", "اللي", "أي حد"],
+      "example": { "arabic": "كل من يجي العرس ياكل", "transliteration": "kull man yiji l-ʿurs yaakul", "english": "Whoever comes to the wedding eats" },
+      "video_hint": "Hospitality talk; كل من before a verb."
+    },
+    {
+      "arabic": "وين ما",
+      "transliteration": "wayn maa",
+      "english": "wherever",
+      "category": "Connector",
+      "teaching_note": "وين 'where' + ما = 'wherever': وين ما تسير 'wherever you go'. Same pattern as متى ما.",
+      "image_scene": "A man with a backpack on a mountain path, arrows in all directions.",
+      "concept_key": "wherever",
+      "variants": ["وينما", "وين ما تسير", "أينما"],
+      "example": { "arabic": "وين ما تسير في اليمن، تلقى كرم", "transliteration": "wayn maa tasiir fil-yaman, talga karam", "english": "Wherever you go in Yemen, you find generosity" },
+      "video_hint": "Travel narration; وين ما تسير…"
+    },
+    {
+      "arabic": "عم",
+      "transliteration": "ʿamm",
+      "english": "paternal uncle",
+      "category": "Family",
+      "teaching_note": "Father's brother — and the respectful address for any older man: يا عم. عمي 'my uncle', ولد عمي 'my cousin'.",
+      "image_scene": "An older man in a thawb and jambiya with a hand on a young man's shoulder.",
+      "variants": ["عمي", "عمك", "أعمام", "يا عم", "ولد عمي"],
+      "example": { "arabic": "عمي اللي يشتغل في البنك", "transliteration": "ʿammi lli yishtaghil fil-bank", "english": "My uncle, the one who works at the bank" },
+      "video_hint": "Family introductions; عمي / يا عم to an elder."
+    },
+    {
+      "arabic": "خال",
+      "transliteration": "khaal",
+      "english": "maternal uncle",
+      "category": "Family",
+      "teaching_note": "Mother's brother, the soft uncle in Yemeni family lore. خالي، خالك، أخوال. Aunt on that side is خالة.",
+      "image_scene": "A smiling man handing sweets to children at a doorway.",
+      "variants": ["خالي", "خالك", "أخوال", "خالة"],
+      "example": { "arabic": "ذاك خالي، اللي عنده دكان", "transliteration": "dhaak khaali, illi ʿinduh dukkaan", "english": "That's my uncle, the one who has a shop" },
+      "video_hint": "Family vlogs; خالي introduced on camera."
+    },
+    {
+      "arabic": "قريب",
+      "transliteration": "gariib",
+      "english": "relative",
+      "category": "Family",
+      "teaching_note": "ق is g. قريبي 'my relative', قرايب 'relatives'. The same word means 'near' — context decides.",
+      "image_scene": "An extended family group photo on a rooftop.",
+      "variants": ["قريبي", "قرايب", "أقارب", "قريبة"],
+      "example": { "arabic": "هو قريبي من جهة أمي", "transliteration": "huu gariibi min jihat ummi", "english": "He's my relative on my mother's side" },
+      "video_hint": "Wedding vlogs: 'all the relatives came' — قرايب."
+    },
+    {
+      "arabic": "ناس",
+      "transliteration": "naas",
+      "english": "people",
+      "category": "Noun",
+      "teaching_note": "الناس اللي 'the people who'. ناس طيبين 'good people'. No singular — that is شخص.",
+      "image_scene": "A busy Old Sanaa lane with people of all ages.",
+      "variants": ["الناس", "ناس كثير", "يا ناس"],
+      "example": { "arabic": "الناس اللي هنا كلهم طيبين", "transliteration": "in-naas illi hina kulluhum ṭayyibiin", "english": "The people here are all kind" },
+      "video_hint": "Street scenes; الناس in the description."
+    },
+    {
+      "arabic": "معروف",
+      "transliteration": "maʿruuf",
+      "english": "well-known",
+      "category": "Adjective",
+      "teaching_note": "معروف في الحارة 'known in the neighbourhood'. Also 'a favour': اعمل لي معروف 'do me a favour'.",
+      "image_scene": "A shopkeeper greeted by everyone passing his stall.",
+      "variants": ["معروفة", "معروفين", "مشهور"],
+      "example": { "arabic": "هذا الدكتور معروف في صنعاء كلها", "transliteration": "haadha d-duktoor maʿruuf fi ṣanʿaa kullaha", "english": "This doctor is well-known in all of Sanaa" },
+      "video_hint": "Descriptions of a famous local; معروف / مشهور."
+    },
+    {
+      "arabic": "جماعة",
+      "transliteration": "jamaaʿa",
+      "english": "folks / group of people",
+      "category": "Noun",
+      "teaching_note": "'Your people': جماعتك means your family and circle. يا جماعة 'hey everyone'. جماعة الحارة 'the neighbourhood crowd'.",
+      "image_scene": "A cluster of men in futas chatting outside a mosque.",
+      "variants": ["جماعتك", "جماعتي", "يا جماعة", "الجماعة"],
+      "example": { "arabic": "أنت من جماعة من؟", "transliteration": "ant min jamaaʿat man?", "english": "Whose people are you from?" },
+      "video_hint": "Addresses to a crowd — يا جماعة — in vlogs and sketches."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Ali", "arabic": "من هذا اللي يسلّم على الكل؟", "transliteration": "man haadha lli ysallim ʿala l-kull?", "english": "Who's that greeting everyone?" },
+    { "speaker": "Salem", "arabic": "ذاك اللي يشتغل مع خالك في البنك", "transliteration": "dhaak illi yishtaghil maʿ khaalak fil-bank", "english": "The one who works with your uncle at the bank" },
+    { "speaker": "Ali", "arabic": "آه، الشخص اللي حكيت لي عنه؟", "transliteration": "aah, ish-shakhṣ illi ḥakiit li ʿannuh?", "english": "Ah, the person you told me about?" },
+    { "speaker": "Salem", "arabic": "إي، هو قريبنا. معروف في الحارة كلها", "transliteration": "ii, huu gariibna. maʿruuf fil-ḥaara kullaha", "english": "Yes, he's our relative. Well-known in the whole neighbourhood" },
+    { "speaker": "Ali", "arabic": "الشي اللي يعجبني فيه إنه يعرف كل الناس", "transliteration": "ish-shi lli yiʿjibni fiih innuh yiʿrif kull in-naas", "english": "The thing I like about him is that he knows everybody" },
+    { "speaker": "Salem", "arabic": "كل من يعرفه يحبه. تعال نسلّم عليه", "transliteration": "kull man yiʿrifuh yiḥibbuh. taʿaal nsallim ʿalayh", "english": "Whoever knows him loves him. Come, let's go and greet him" }
+  ],
+  "sound_spotlight": [
+    { "sound": "اللي after a vowel", "example": "الشي اللي (ish-shi lli)، هو اللي (huu lli)", "explanation": "After a word ending in a vowel, اللي loses its first vowel and becomes lli — the two words fuse. Listen for the doubled l, not a separate word." },
+    { "sound": "The pointing-back pronoun", "example": "البيت اللي سكنت فيه", "explanation": "The -h on فيه is short and unstressed but it is what makes the sentence complete. Leaving it out sounds like English word order pasted onto Arabic." },
+    { "sound": "ق = g in قريب، الحارة", "example": "قريب (gariib)", "explanation": "gariib is both 'near' and 'relative' — same word, same hard g. Only context tells you which." }
+  ],
+  "lesson_sequence": [
+    { "step": "Listen: who is that?", "detail": "The Ali–Salem dialogue once; the learner picks the man being described from four faces." },
+    { "step": "اللي or nothing", "detail": "Ten pairs of sentences (البيت اللي… / بيت …); the learner hears them and taps whether اللي was present and why." },
+    { "step": "Vocabulary", "detail": "The 18 words with images; the family words (عم، خال، قريب، جماعة) grouped as the relation set." },
+    { "step": "Point back", "detail": "Fill-the-gap with the resumptive pronoun: البيت اللي سكنت ___، الشخص اللي شفت___." },
+    { "step": "Who's who", "detail": "A picture of a street with six people; the app names roles and the learner identifies each with ذاك اللي…" },
+    { "step": "Your people", "detail": "Record three sentences describing people in your life with اللي and a relation word." },
+    { "step": "Complete", "detail": "Counter; nudge to ask من جماعتك؟ style questions politely." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Describe your neighbour or colleague to a Yemeni friend without using their name: اللي يشتغل في… / اللي ساكن جنب…", "context": "Lesson-complete screen. Production of relative clauses in a natural identification." },
+    { "prompt": "When someone is pointed out to you, ask من هذا؟ and listen for the ذاك اللي answer.", "context": "Follow-up notification. Recognition of the identification pattern." },
+    { "prompt": "Say what you like about your city with الشي اللي يعجبني في…", "context": "Opinion from Lesson 4 combined with the relative clause." }
+  ],
+  "video_needs": {
+    "queries": ["اللي يشتغل مع مقطع يمني", "الحارة صنعاء القديمة جولة", "من هذا يمني مضحك", "جماعة الحارة يمني"],
+    "channels": ["Mustafa Al-Mawmari", "HMADA", "Roti", "Ahmed Hajar"],
+    "scene": "People described by what they do — the driver who, the guy who — in a neighbourhood or family setting; a tour of an Old Sanaa lane naming shops and their owners."
+  }
+}

@@ -15,7 +15,9 @@ import { SEED_MIGRATION_NAME, buildSeedSql } from "../src/lib/curriculumSeed";
 import { TRACK_DIALECTS, arabicSamples, validateSyllabus, validateTrack } from "../src/lib/curriculumTracks";
 import { loadDialectTracks, loadSyllabus } from "./curriculum/loadTracks";
 
-const partial = process.argv.includes("--partial");
+// The tracks are authored dialect by dialect; the seed always compiles what is
+// on disk. validateTrack still holds every lesson that exists to the syllabus.
+const partial = true;
 const syllabus = loadSyllabus();
 const problems = validateSyllabus(syllabus);
 const tracks = TRACK_DIALECTS.flatMap((dialect) => {

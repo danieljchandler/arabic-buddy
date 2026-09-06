@@ -1,0 +1,306 @@
+{
+  "slug": "my-house-and-home",
+  "lesson_number": 4,
+  "title": "My House and Home",
+  "title_arabic": "بيتنا: الديوان والمفرج",
+  "description": "A tour of a Sanaa tower house — the diwan where guests sit, the mafraj at the top, the roof at night — with every possessive ending (my, your, his, her, our, their) and حق, the one word that says who a thing belongs to.",
+  "cefr_target": "A1",
+  "duration_minutes": 20,
+  "approach": "GPA Phase 2 — a house tour narrated room by room; the possessive endings are heard on the same noun (بيتي، بيتك، بيتنا) before the table appears.",
+  "unlock_condition": "≥10/14 on the room-and-suffix quiz and a recorded four-sentence description of your own home",
+  "icon": "🏠",
+  "can_do": [
+    "Name the rooms and main furniture",
+    "Use the full set of possessive suffixes",
+    "Say where things are in a room"
+  ],
+  "grammar": [
+    {
+      "category": "possessives",
+      "title": "Possessive endings: the whole set",
+      "explanation": "'My', 'your', 'his' and the rest are endings on the noun, not separate words. بيت 'house' becomes بيتي (mine), بيتك (yours, to a man), بيتش (yours, to a woman — the Sanaa -ish), بيته (his — written with ه but often heard as -a), بيتها (hers), بيتنا (ours), بيتكم (yours, all of you), بيتهم (theirs). A noun ending in ة changes that ة to a t sound before the ending: غرفة becomes غرفتي، غرفتنا. Sanaa also has -kin and -hin for groups of women; recognise them, use the -kum and -hum forms.",
+      "examples": [
+        { "arabic": "بيتي، بيتك، بيتش", "transliteration": "bayti, baytak, baytish", "english": "my house, your (m.) house, your (f.) house" },
+        { "arabic": "بيته وبيتها", "transliteration": "baytah w-baytha", "english": "his house and her house" },
+        { "arabic": "بيتنا وبيتكم", "transliteration": "baytna w-baytkum", "english": "our house and your (pl.) house" },
+        { "arabic": "بيتهم كبير", "transliteration": "baythum kabiir", "english": "their house is big" },
+        { "arabic": "غرفتي فوق وغرفتهم تحت", "transliteration": "ghurfati foog w-ghurfathum taḥt", "english": "my room is upstairs and their room is downstairs" }
+      ]
+    },
+    {
+      "category": "possessives",
+      "title": "حق: 'belonging to', one word for every owner",
+      "explanation": "When the ending is awkward or you want to stress who owns something, use حق between the thing and the owner: السيارة حق علي, 'Ali's car'; الكتاب حقي, 'my book'. In Sanaa حق never changes for gender or number. Down in Taizz and Aden you will hear حقت for feminine things — recognise it, but حق alone is always right in the highlands. Never بتاع, which is Egyptian.",
+      "examples": [
+        { "arabic": "السيارة حق علي", "transliteration": "is-sayyaara ḥagg ʿali", "english": "the car is Ali's" },
+        { "arabic": "ذا الكتاب حقي", "transliteration": "dha l-kitaab ḥaggi", "english": "this book is mine" },
+        { "arabic": "الغرفة حقهم فوق", "transliteration": "il-ghurfa ḥagghum foog", "english": "their room is upstairs" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "Who sits where",
+      "note": "Shoes come off at the door of the sitting room — you will see a heap of sandals and add yours to it. The ديوان is where guests are received, on long floor cushions against the walls; the place of honour is the far end, away from the door, or by the window. Everyone stands when someone older enters. Guests are never taken into the family rooms or the kitchen, and a male guest does not wander upstairs unless led there for the afternoon session in the mafraj.",
+      "phrases": [
+        { "arabic": "تفضّل الديوان", "transliteration": "tfaḍḍal id-diiwaan", "english": "Please, into the sitting room" },
+        { "arabic": "خلّي النعال عند الباب", "transliteration": "khalli n-niʿaal ʿind il-baab", "english": "Leave your sandals at the door" },
+        { "arabic": "اقعد هنا جنب الطاقة", "transliteration": "igʿud hina janb iṭ-ṭaaga", "english": "Sit here by the window" }
+      ]
+    },
+    {
+      "title": "The tower house",
+      "note": "An Old Sanaa house is five to eight storeys of stone and brick with white gypsum tracery. Storage and once animals at the bottom, the diwan and kitchen in the middle, bedrooms above, and at the very top the mafraj — the bright sitting room with the half-moon stained-glass windows (قمرية) where the afternoon qat session happens. The flat roof is for summer nights. Learning the rooms means learning the floors.",
+      "phrases": [
+        { "arabic": "البيت خمسة أدوار", "transliteration": "il-bayt khamsa adwaar", "english": "The house is five floors" },
+        { "arabic": "المفرج فوق، في آخر دور", "transliteration": "il-mafraj foog, fi aakhir dawr", "english": "The mafraj is upstairs, on the top floor" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "غرفة",
+      "transliteration": "ghurfa",
+      "english": "room",
+      "category": "Home",
+      "teaching_note": "The general word for a room; plural غرف. Note the change when an ending is added: غرفتي, ghurfati — the ة turns into t.",
+      "image_scene": "A simple whitewashed room with a rug, floor cushions and one arched window.",
+      "concept_key": "room",
+      "variants": ["غرفة", "غرفه", "الغرفة", "غرف", "الغرف"],
+      "example": { "arabic": "غرفتي فوق", "transliteration": "ghurfati foog", "english": "My room is upstairs" },
+      "video_hint": "Room-by-room house tours: 'this is my room'."
+    },
+    {
+      "arabic": "ديوان",
+      "transliteration": "diiwaan",
+      "english": "sitting room / guest room",
+      "category": "Home",
+      "teaching_note": "The reception room where guests are seated. Yemenis also say صالة or مجلس; in Sanaa الديوان is the word for the big guest hall. The mafraj (a separate word below) is the top-floor sitting room.",
+      "image_scene": "A long Sanaa guest room lined with red floor cushions and armrests, a tray of tea in the middle.",
+      "concept_key": "living_room",
+      "variants": ["ديوان", "الديوان", "صالة", "مجلس", "الصالة"],
+      "example": { "arabic": "الضيوف في الديوان", "transliteration": "iḍ-ḍuyuuf fid-diiwaan", "english": "The guests are in the sitting room" },
+      "video_hint": "Guests being shown into the diwan; the room named in a house tour."
+    },
+    {
+      "arabic": "غرفة النوم",
+      "transliteration": "ghurfat in-nawm",
+      "english": "bedroom",
+      "category": "Home",
+      "teaching_note": "'Room of sleep' — you know النوم from أنام. The ة of غرفة is pronounced t inside the phrase. Private space: a guest is not shown it.",
+      "image_scene": "A bedroom with a low bed, folded blankets and a small window with stained glass.",
+      "concept_key": "bedroom",
+      "variants": ["غرفة النوم", "غرفة نوم", "غرفه النوم"],
+      "example": { "arabic": "غرفة النوم حقنا صغيرة", "transliteration": "ghurfat in-nawm ḥaggana ṣaghiira", "english": "Our bedroom is small" },
+      "video_hint": "House tours that name the bedroom; furniture-shop vlogs."
+    },
+    {
+      "arabic": "طاقة",
+      "transliteration": "ṭaaga",
+      "english": "window",
+      "category": "Home",
+      "teaching_note": "The Yemeni word for a window; in MSA it means 'energy', so this is a real dialect marker. شباك is understood everywhere. The ق is a hard g: ṭaaga.",
+      "image_scene": "A Sanaa window with a white gypsum frame and a half-moon of coloured glass above it.",
+      "concept_key": "window",
+      "variants": ["طاقة", "طاقه", "الطاقة", "طاقات", "شباك", "الشباك"],
+      "example": { "arabic": "افتح الطاقة شوي", "transliteration": "iftaḥ iṭ-ṭaaga shway", "english": "Open the window a bit" },
+      "video_hint": "Someone opening or pointing at a window; the stained-glass qamariya in Old Sanaa tours."
+    },
+    {
+      "arabic": "طاولة",
+      "transliteration": "ṭaawila",
+      "english": "table",
+      "category": "Home",
+      "teaching_note": "Yemeni homes eat on the floor, so a table is for the office or a café; ميز (from Aden) is the other word. Long aa after the emphatic ṭ.",
+      "image_scene": "A low wooden table with a tea tray on it in a bright room.",
+      "concept_key": "table",
+      "variants": ["طاولة", "طاوله", "الطاولة", "ميز", "الميز"],
+      "example": { "arabic": "الشاهي على الطاولة", "transliteration": "ish-shaahi ʿala ṭ-ṭaawila", "english": "The tea is on the table" },
+      "video_hint": "A table in shot while named — office, café, furniture tour."
+    },
+    {
+      "arabic": "سرير",
+      "transliteration": "sariir",
+      "english": "bed",
+      "category": "Home",
+      "teaching_note": "A bed frame. Many Yemeni homes sleep on a فراش — a mattress laid on the floor and folded away by day — so you will hear both words.",
+      "image_scene": "A single bed with a patterned blanket against a plain wall.",
+      "concept_key": "bed",
+      "variants": ["سرير", "السرير", "سراير", "فراش", "الفراش"],
+      "example": { "arabic": "السرير جنب الطاقة", "transliteration": "is-sariir janb iṭ-ṭaaga", "english": "The bed is next to the window" },
+      "video_hint": "Bedroom tours; someone making a bed or laying out a mattress."
+    },
+    {
+      "arabic": "سطح",
+      "transliteration": "saṭḥ",
+      "english": "roof",
+      "category": "Home",
+      "teaching_note": "The flat roof is a room in summer: people sit, sleep and hang washing there. Plural سطوح. Emphatic ṭ then ḥ — a hard ending.",
+      "image_scene": "A flat rooftop at dusk with a water tank, cushions and Old Sanaa's towers beyond.",
+      "concept_key": "roof",
+      "variants": ["سطح", "السطح", "سطوح", "السطوح"],
+      "example": { "arabic": "بالليل نقعد على السطح", "transliteration": "bil-layl nigʿud ʿala s-saṭḥ", "english": "At night we sit on the roof" },
+      "video_hint": "Rooftop scenes over Sanaa; 'let's go up to the roof'."
+    },
+    {
+      "arabic": "حوش",
+      "transliteration": "ḥawsh",
+      "english": "yard / garden",
+      "category": "Home",
+      "teaching_note": "The walled yard of a house, where children play and the car is parked. A green garden is حديقة; Old Sanaa's famous walled gardens are بساتين. حوش is what a family calls its own outside space.",
+      "image_scene": "A walled courtyard with a small tree, a parked car and children kicking a ball.",
+      "concept_key": "garden",
+      "variants": ["حوش", "الحوش", "حديقة", "الحديقة", "بستان"],
+      "example": { "arabic": "الجهّال يلعبو في الحوش", "transliteration": "ij-jahhaal yilʿabu fil-ḥawsh", "english": "The kids are playing in the yard" },
+      "video_hint": "A courtyard or garden in a house tour; kids playing outside."
+    },
+    {
+      "arabic": "أرض",
+      "transliteration": "arḍ",
+      "english": "floor / ground",
+      "category": "Home",
+      "teaching_note": "The same word as 'earth' and 'land'. Since meals and guests are on the floor, على الأرض is heard constantly. Final ض is emphatic.",
+      "image_scene": "A patterned carpet on a floor with a large round tray of food on it.",
+      "concept_key": "floor",
+      "variants": ["ارض", "أرض", "الأرض", "على الأرض"],
+      "example": { "arabic": "نتغدى على الأرض", "transliteration": "nitghadda ʿala l-arḍ", "english": "We eat lunch on the floor" },
+      "video_hint": "A meal laid out on the floor; something dropped 'on the ground'."
+    },
+    {
+      "arabic": "قدّام",
+      "transliteration": "guddaam",
+      "english": "in front of",
+      "category": "Position",
+      "teaching_note": "Hard g plus a doubled د. Takes an ending like a noun: قدّامي 'in front of me', قدّام البيت 'in front of the house'.",
+      "image_scene": "A car parked directly in front of a house door.",
+      "concept_key": "in_front_of",
+      "variants": ["قدام", "قدّام", "قدامي", "قدامك", "قدام البيت"],
+      "example": { "arabic": "السيارة قدّام البيت", "transliteration": "is-sayyaara guddaam il-bayt", "english": "The car is in front of the house" },
+      "video_hint": "Directions and descriptions: 'in front of the mosque', 'in front of me'."
+    },
+    {
+      "arabic": "ورا",
+      "transliteration": "wara",
+      "english": "behind",
+      "category": "Position",
+      "teaching_note": "The pair of قدّام. Takes endings too: وراي، وراك. Short and easy — the trap is the MSA خلف, which nobody says.",
+      "image_scene": "A yard visible behind a house, seen from the street.",
+      "concept_key": "behind",
+      "variants": ["ورا", "وراء", "وراي", "وراك", "ورا البيت"],
+      "example": { "arabic": "الحوش ورا البيت", "transliteration": "il-ḥawsh wara l-bayt", "english": "The yard is behind the house" },
+      "video_hint": "'Behind the…' in directions or a house tour."
+    },
+    {
+      "arabic": "حق",
+      "transliteration": "ḥagg",
+      "english": "belonging to / of",
+      "category": "Possessive",
+      "teaching_note": "Sanaa's possessive word, invariable: حق علي، حقي، حقنا. Hard g, doubled. It also means 'right' and 'true' — context sorts it out.",
+      "image_scene": "A hand holding up a set of keys with a name tag attached.",
+      "concept_key": "belonging_to",
+      "variants": ["حق", "حقي", "حقك", "حقش", "حقه", "حقها", "حقنا", "حقكم", "حقهم", "حقت"],
+      "example": { "arabic": "ذا البيت حق جدّي", "transliteration": "dha l-bayt ḥagg jaddi", "english": "This house is my grandfather's" },
+      "video_hint": "Ownership statements: 'this is Ali's', 'the shop is mine'."
+    },
+    {
+      "arabic": "ـنا",
+      "transliteration": "-na",
+      "english": "our",
+      "category": "Possessive ending",
+      "teaching_note": "Attach to any noun: بيتنا، غرفتنا، حقنا. Same ending as 'us' on a verb (شافنا 'he saw us') and on عند (عندنا 'we have').",
+      "image_scene": "A family standing together in front of their house, all pointing at it.",
+      "concept_key": "our",
+      "variants": ["نا", "بيتنا", "حقنا", "غرفتنا"],
+      "example": { "arabic": "بيتنا في صنعاء القديمة", "transliteration": "baytna fi ṣanʿaa l-gadiima", "english": "Our house is in Old Sanaa" },
+      "video_hint": "'Our house', 'our room' in family vlogs."
+    },
+    {
+      "arabic": "ـهم",
+      "transliteration": "-hum",
+      "english": "their",
+      "category": "Possessive ending",
+      "teaching_note": "Attach to a noun: بيتهم، غرفتهم. For a group of women Sanaa has ـهن; for two people it is still ـهم.",
+      "image_scene": "Neighbours' children waving from the doorway of the house next door.",
+      "concept_key": "their",
+      "variants": ["هم", "بيتهم", "حقهم", "غرفتهم"],
+      "example": { "arabic": "بيتهم ورا الجامع", "transliteration": "baythum wara j-jaamiʿ", "english": "Their house is behind the mosque" },
+      "video_hint": "'Their house', 'their car' when a vlogger talks about neighbours or relatives."
+    },
+    {
+      "arabic": "مفرج",
+      "transliteration": "mafraj",
+      "english": "mafraj (top-floor sitting room)",
+      "category": "Home",
+      "teaching_note": "The best room in the house, at the top, with the view and the stained glass — where the qat session happens. A Sanaa word with no English equivalent; keep it as it is.",
+      "image_scene": "A sunlit top-floor room with cushions along the walls and half-moon stained-glass windows.",
+      "variants": ["مفرج", "المفرج", "مفرج البيت"],
+      "example": { "arabic": "المفرج حق البيت فوق", "transliteration": "il-mafraj ḥagg il-bayt foog", "english": "The house's mafraj is upstairs" },
+      "video_hint": "Any mafraj scene — qat session, wedding gathering, house tour ending at the top."
+    },
+    {
+      "arabic": "درج",
+      "transliteration": "daraj",
+      "english": "stairs",
+      "category": "Home",
+      "teaching_note": "A tower house is mostly stairs — steep stone ones with a rope rail. One step is درجة, which you will meet again as 'degree' in the weather lesson.",
+      "image_scene": "A narrow stone staircase spiralling up inside a Sanaa house.",
+      "variants": ["درج", "الدرج", "درجة", "سلالم"],
+      "example": { "arabic": "البيت فيه درج طويل", "transliteration": "il-bayt fiih daraj ṭawiil", "english": "The house has a long staircase" },
+      "video_hint": "Climbing the stairs in an Old Sanaa house tour."
+    },
+    {
+      "arabic": "فوق",
+      "transliteration": "foog",
+      "english": "upstairs / above",
+      "category": "Position",
+      "teaching_note": "Hard g at the end: foog. Both 'on top of' and 'upstairs'. Takes endings: فوقنا 'above us'.",
+      "image_scene": "An arrow pointing up a staircase to a bright room.",
+      "variants": ["فوق", "الفوق", "من فوق", "فوقنا"],
+      "example": { "arabic": "المفرج فوق والمطبخ تحت", "transliteration": "il-mafraj foog wil-maṭbakh taḥt", "english": "The mafraj is upstairs and the kitchen is downstairs" },
+      "video_hint": "'Upstairs' in a house tour; 'on top' in cooking videos."
+    },
+    {
+      "arabic": "تحت",
+      "transliteration": "taḥt",
+      "english": "downstairs / under",
+      "category": "Position",
+      "teaching_note": "The pair of فوق. 'Under the table' and 'downstairs' are the same word. ḥ before t — breathe it.",
+      "image_scene": "A key lying under a table, seen from floor level.",
+      "variants": ["تحت", "التحت", "من تحت", "تحتنا"],
+      "example": { "arabic": "المفتاح تحت الطاولة", "transliteration": "il-miftaaḥ taḥt iṭ-ṭaawila", "english": "The key is under the table" },
+      "video_hint": "'Under', 'downstairs' when something is looked for or a floor is named."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Ali", "arabic": "تفضّل، ذا بيتنا.", "transliteration": "tfaḍḍal, dha baytna.", "english": "Come in — this is our house." },
+    { "speaker": "Omar", "arabic": "ما شاء الله! والديوان وين؟", "transliteration": "maa shaa allaah! wid-diiwaan wayn?", "english": "Wonderful! And where's the sitting room?" },
+    { "speaker": "Ali", "arabic": "الديوان هنا تحت، والمفرج فوق.", "transliteration": "id-diiwaan hina taḥt, wil-mafraj foog.", "english": "The sitting room is here downstairs, and the mafraj is upstairs." },
+    { "speaker": "Omar", "arabic": "وذي غرفة مين؟", "transliteration": "w-dhi ghurfat miin?", "english": "And whose room is this?" },
+    { "speaker": "Ali", "arabic": "ذي غرفة النوم حق الجهّال. غرفتنا ورا.", "transliteration": "dhi ghurfat in-nawm ḥagg ij-jahhaal. ghurfatna wara.", "english": "This is the kids' bedroom. Our room is behind." },
+    { "speaker": "Omar", "arabic": "والسطح؟", "transliteration": "wis-saṭḥ?", "english": "And the roof?" },
+    { "speaker": "Ali", "arabic": "من الدرج، فوق المفرج. بالليل نقعد هناك.", "transliteration": "min id-daraj, foog il-mafraj. bil-layl nigʿud hunaak.", "english": "Up the stairs, above the mafraj. At night we sit there." }
+  ],
+  "sound_spotlight": [
+    { "sound": "قدّام", "example": "قدّام (guddaam)", "explanation": "Hard g, then a doubled d you hold, then a long aa. Three things to get right in one word — it is the lesson's tongue-twister." },
+    { "sound": "بيتش vs بيتك", "example": "baytish / baytak", "explanation": "'Your house' to a woman ends in -ish, to a man in -ak. Listen for the sh; it is the Sanaa ending you heard in عمرش." },
+    { "sound": "ة becomes t", "example": "غرفة → غرفتي (ghurfa → ghurfati)", "explanation": "The silent feminine ending wakes up as a t the moment anything is attached after it, including النوم in غرفة النوم." }
+  ],
+  "lesson_sequence": [
+    { "step": "The tour", "detail": "Ali walks through the house: each room card auto-plays its name with a picture, bottom floor to roof. No English yet." },
+    { "step": "Rooms and things", "detail": "Second pass with English; then the furniture and position words (طاقة، سرير، قدّام، ورا، فوق، تحت) placed on a cutaway drawing of the house." },
+    { "step": "Whose is it?", "detail": "Hear بيتي / بيتك / بيتها / بيتنا / بيتهم and tap the right owner in a picture. The table appears after the drill." },
+    { "step": "Say it with حق", "detail": "Given a thing and an owner, say the sentence: السيارة حق علي. The app listens for ḥagg." },
+    { "step": "Where is it?", "detail": "Place the key, the tea and the cat in the drawing as the audio says — قدّام، ورا، فوق، تحت." },
+    { "step": "Lesson complete", "detail": "Counter rolls up; nudge to describe your own home in four sentences." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Walk through your own home and name each room in Arabic; add حقي to the things that are yours.", "context": "Shown on completion. Activates room names and حق." },
+    { "prompt": "Say where five things are right now: فوق، تحت، قدّام، ورا، جنب.", "context": "Position-word prompt for the next day." },
+    { "prompt": "If you visit a Yemeni home, notice where the shoes are and where you are seated — then say the sentence in your head: أنا في الديوان.", "context": "Cultural observation task tied to the seating note." }
+  ],
+  "video_needs": {
+    "queries": ["جولة في بيتي صنعاء", "بيت صنعاني قديم من الداخل", "المفرج الصنعاني"],
+    "channels": ["Ahmed Hajar", "Mustafa Al-Mawmari", "Hussam Al-Salwi"],
+    "scene": "A house tour narrated room by room — the diwan, the stairs, the bedrooms, the mafraj at the top and the roof — with furniture named as it is shown."
+  }
+}

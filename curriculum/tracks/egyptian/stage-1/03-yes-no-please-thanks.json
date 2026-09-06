@@ -1,0 +1,494 @@
+{
+  "slug": "yes-no-please-thanks",
+  "lesson_number": 3,
+  "title": "Yes, No, Please and Thank You",
+  "title_arabic": "أيوه، لأ، لو سمحت وشكراً",
+  "description": "The words that make you polite before you can make a sentence — yes, no, please, thanks and their replies — plus the God-phrases every Egyptian uses whether or not they pray.",
+  "cefr_target": "Pre-A1",
+  "duration_minutes": 15,
+  "approach": "GPA Phase 1 — receptive first, with short acted exchanges at a shop counter. Each particle is heard in a two-line scene before its card appears. Optional shadowing of the four replies.",
+  "unlock_condition": "≥9/12 correct on the scene quiz (hear the exchange, tap the missing word)",
+  "icon": "🙏",
+  "can_do": [
+    "Say yes, no, please and thank you and answer thanks",
+    "Apologise and get someone's attention politely",
+    "Use the everyday religious phrases everyone uses"
+  ],
+  "grammar": [
+    {
+      "category": "pronouns",
+      "title": "من فضلك، من فضلكِ — the same ending again",
+      "explanation": "You met -ak and -ik on إزيك in Lesson 2. They turn up again on please and sorry: من فضلك to a man (min faḍlak), من فضلكِ to a woman (min faḍlik); لو سمحت to a man, لو سمحتي to a woman. And a woman saying sorry says آسفة, with an -a on the end, where a man says آسف. Nothing to build yet — just hear which one is used and copy it.",
+      "examples": [
+        {
+          "arabic": "من فضلك يا أستاذ",
+          "transliteration": "min faḍlak ya ustaaz",
+          "english": "Please, sir"
+        },
+        {
+          "arabic": "لو سمحتي يا مدام",
+          "transliteration": "law samaḥti ya madaam",
+          "english": "Excuse me, madam"
+        },
+        {
+          "arabic": "آسفة، معلش",
+          "transliteration": "asfa, maʿlish",
+          "english": "Sorry — never mind (a woman speaking)"
+        }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "God-phrases are grammar, not piety",
+      "note": "إن شاء الله ('God willing') goes on anything in the future — a plan, a promise, a bus arriving — and Egyptians of every religion say it. الحمد لله ('praise God') answers how-are-you, follows a meal, and greets good news. ما شاء الله is said at anything admirable — a baby, a new car, your Arabic — to ward off the evil eye; compliment without it and an Egyptian grandmother will add it for you. Use them freely: leaving them out sounds colder than putting them in.",
+      "phrases": [
+        {
+          "arabic": "بكره إن شاء الله",
+          "transliteration": "bukra in shaaʾ allaah",
+          "english": "Tomorrow, God willing"
+        },
+        {
+          "arabic": "ما شاء الله عليك",
+          "transliteration": "ma shaaʾ allaah ʿaleek",
+          "english": "Well done — God has willed it (on you)"
+        },
+        {
+          "arabic": "الحمد لله على السلامة",
+          "transliteration": "el-ḥamdu lillaah ʿala s-salaama",
+          "english": "Thank God you arrived safely (welcome back)"
+        }
+      ]
+    },
+    {
+      "title": "معلش — the word that runs Cairo",
+      "note": "معلش means 'never mind', 'sorry', 'it's nothing' and 'excuse me' all at once. Bump into someone: معلش. Someone bumps into you: معلش. The waiter is late: معلش. It defuses almost anything, and hearing it with a shrug is the sound of the city forgiving itself. The reply to thanks is العفو, or the warmer ربنا يخليك ('may God keep you'), which itself is also a way of saying thank you.",
+      "phrases": [
+        {
+          "arabic": "معلش، مفيش مشكلة",
+          "transliteration": "maʿlish, mafiish mushkila",
+          "english": "Never mind, no problem"
+        },
+        {
+          "arabic": "ربنا يخليك",
+          "transliteration": "rabbina ykhalliik",
+          "english": "May God keep you (thank you / you're welcome)"
+        }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "أيوه",
+      "transliteration": "aywa",
+      "english": "yes",
+      "category": "Particle",
+      "teaching_note": "The Egyptian yes, and the word you will use most. نعم is for answering when someone calls your name, or on the phone — not for 'yes'. Gulf إي and Yemeni forms will not sound Egyptian.",
+      "image_scene": "A man nodding with a thumbs-up, a clear green tick above him.",
+      "concept_key": "yes",
+      "variants": [
+        "ايوه",
+        "أيوة",
+        "ايوا",
+        "آه"
+      ],
+      "example": {
+        "arabic": "أيوه، شاي لو سمحت",
+        "transliteration": "aywa, shaay law samaḥt",
+        "english": "Yes, tea please"
+      },
+      "video_hint": "Any yes answer; a nod plus أيوه is common in interviews."
+    },
+    {
+      "arabic": "لأ",
+      "transliteration": "laʾ",
+      "english": "no",
+      "category": "Particle",
+      "teaching_note": "Egyptian no ends in a sharp catch in the throat: laʾ, not a drawn-out laa. Often softened: لأ شكراً, or لأ معلش. A tongue-click with a small chin-lift means the same thing without a word.",
+      "image_scene": "A woman shaking her head with a raised palm, a red cross above her.",
+      "concept_key": "no",
+      "variants": [
+        "لا",
+        "لاء",
+        "لأه",
+        "لا شكراً"
+      ],
+      "example": {
+        "arabic": "لأ، شكراً",
+        "transliteration": "laʾ, shukran",
+        "english": "No, thanks"
+      },
+      "video_hint": "A refusal at a counter or table; the head-shake or tongue-click alongside it."
+    },
+    {
+      "arabic": "من فضلك",
+      "transliteration": "min faḍlak",
+      "english": "please (to a man)",
+      "category": "Politeness",
+      "teaching_note": "Please when asking for something: to a woman من فضلكِ (min faḍlik). It shares the job with لو سمحت — Egyptians use both, and either makes a bare request polite. Note ض: a heavy d.",
+      "image_scene": "A customer at a bakery counter pointing at a loaf with an open, polite hand.",
+      "concept_key": "please",
+      "variants": [
+        "من فضلكِ",
+        "من فضلكم",
+        "من فضلك يا أستاذ"
+      ],
+      "example": {
+        "arabic": "عيش من فضلك",
+        "transliteration": "ʿeesh min faḍlak",
+        "english": "Bread, please"
+      },
+      "video_hint": "Ordering at a counter; the word is usually at the end of the request."
+    },
+    {
+      "arabic": "لو سمحت",
+      "transliteration": "law samaḥt",
+      "english": "excuse me / please (to get attention)",
+      "category": "Politeness",
+      "teaching_note": "Literally 'if you permit'. This is how you call a waiter, stop a stranger, or get past someone — and it also means please. To a woman: لو سمحتي (law samaḥti). The single most useful politeness word in Cairo.",
+      "image_scene": "A woman raising a hand to catch a waiter's eye across a busy café.",
+      "concept_key": "excuse_me",
+      "variants": [
+        "لو سمحتي",
+        "لو سمحتوا",
+        "لوسمحت",
+        "بعد إذنك"
+      ],
+      "example": {
+        "arabic": "لو سمحت، الحساب",
+        "transliteration": "law samaḥt, el-ḥisaab",
+        "english": "Excuse me — the bill"
+      },
+      "video_hint": "Someone calling a waiter or asking a stranger; the phrase opens the exchange."
+    },
+    {
+      "arabic": "شكراً",
+      "transliteration": "shukran",
+      "english": "thank you",
+      "category": "Politeness",
+      "teaching_note": "Universal Arabic and perfectly Egyptian. Warmer options you will hear: متشكر / متشكرة (mutshakkir), and ربنا يخليك. Egyptians often put a hand on the chest as they say it.",
+      "image_scene": "A young man with his right hand flat on his chest, giving a small nod of thanks.",
+      "concept_key": "thank_you",
+      "variants": [
+        "شكرا",
+        "متشكر",
+        "متشكرة",
+        "شكراً جزيلاً",
+        "ألف شكر"
+      ],
+      "example": {
+        "arabic": "شكراً يا أستاذ",
+        "transliteration": "shukran ya ustaaz",
+        "english": "Thank you, sir"
+      },
+      "video_hint": "Thanks at the end of any exchange; the hand-on-heart gesture is the visual cue."
+    },
+    {
+      "arabic": "العفو",
+      "transliteration": "el-ʿafw",
+      "english": "you're welcome",
+      "category": "Reply",
+      "teaching_note": "The standard reply to شكراً. Also heard: عفواً, and the friendlier ولا يهمك ('don't mention it'). Say something — leaving thanks unanswered is odd.",
+      "image_scene": "A shopkeeper waving a hand as if to say 'it's nothing', smiling.",
+      "concept_key": "youre_welcome",
+      "variants": [
+        "عفواً",
+        "عفوا",
+        "ولا يهمك",
+        "العفو يا فندم"
+      ],
+      "example": {
+        "arabic": "العفو، اتفضل",
+        "transliteration": "el-ʿafw, itfaḍḍal",
+        "english": "You're welcome — here you are"
+      },
+      "video_hint": "The reply to a thank-you at a counter or door."
+    },
+    {
+      "arabic": "آسف",
+      "transliteration": "aasif",
+      "english": "sorry (a man speaking)",
+      "category": "Politeness",
+      "teaching_note": "A real apology, for when you were actually wrong. A woman says آسفة (asfa). For small bumps and delays Egyptians reach for معلش instead — آسف on its own can sound a bit heavy.",
+      "image_scene": "A man with palms pressed together at his chest, head slightly bowed, apologetic face.",
+      "concept_key": "sorry",
+      "variants": [
+        "اسف",
+        "آسفة",
+        "اسفة",
+        "آسف جداً",
+        "أنا آسف"
+      ],
+      "example": {
+        "arabic": "آسف، معلش",
+        "transliteration": "aasif, maʿlish",
+        "english": "Sorry — never mind"
+      },
+      "video_hint": "An apology after a mistake; sitcom scenes are full of أنا آسف."
+    },
+    {
+      "arabic": "ماشي",
+      "transliteration": "maashi",
+      "english": "okay / fine",
+      "category": "Particle",
+      "teaching_note": "Literally 'walking' — 'that works'. The everyday Egyptian okay for agreeing to a plan or a price. Also طيب (well then) and تمام (perfect). Never Gulf زين.",
+      "image_scene": "A woman giving an easy okay gesture with her hand, thumb and finger in a circle.",
+      "concept_key": "okay",
+      "variants": [
+        "ماشى",
+        "ماشي الحال",
+        "طيب",
+        "تمام",
+        "أوكي"
+      ],
+      "example": {
+        "arabic": "ماشي، بكره",
+        "transliteration": "maashi, bukra",
+        "english": "Okay, tomorrow"
+      },
+      "video_hint": "Agreement to a plan or a price; often the last word of a negotiation."
+    },
+    {
+      "arabic": "طبعاً",
+      "transliteration": "ṭabʿan",
+      "english": "of course",
+      "category": "Particle",
+      "teaching_note": "'Naturally' — the Egyptian of course, said with a little shrug. أكيد ('sure') does the same job. First contact with ط, a heavy t.",
+      "image_scene": "A man spreading his hands with an easy 'obviously' expression.",
+      "concept_key": "of_course",
+      "variants": [
+        "طبعا",
+        "أكيد",
+        "اكيد",
+        "طبعاً أكيد"
+      ],
+      "example": {
+        "arabic": "طبعاً، اتفضل",
+        "transliteration": "ṭabʿan, itfaḍḍal",
+        "english": "Of course, go ahead"
+      },
+      "video_hint": "An emphatic yes to a request or invitation."
+    },
+    {
+      "arabic": "إن شاء الله",
+      "transliteration": "in shaaʾ allaah",
+      "english": "God willing",
+      "category": "God-phrase",
+      "teaching_note": "Goes on every future plan and every promise. It also does the work of a soft 'maybe' or even a polite 'no' — if a taxi driver says بكره إن شاء الله about fixing something, do not hold your breath.",
+      "image_scene": "A man looking up with an open palm, a calendar page showing tomorrow on the wall behind.",
+      "concept_key": "god_willing",
+      "variants": [
+        "ان شاء الله",
+        "إنشالله",
+        "انشالله",
+        "إن شالله"
+      ],
+      "example": {
+        "arabic": "أشوفك بكره إن شاء الله",
+        "transliteration": "ashuufak bukra in shaaʾ allaah",
+        "english": "See you tomorrow, God willing"
+      },
+      "video_hint": "Any mention of a plan or the future; listen for it at the end of the sentence."
+    },
+    {
+      "arabic": "الحمد لله",
+      "transliteration": "el-ḥamdu lillaah",
+      "english": "praise God / thank God",
+      "category": "God-phrase",
+      "teaching_note": "The answer to how-are-you, the word after a meal, the reaction to good news. Said by everyone. Alone it is a complete, polite answer.",
+      "image_scene": "A woman with her hand on her heart looking relieved, a finished plate on the table.",
+      "concept_key": "praise_god",
+      "variants": [
+        "الحمدلله",
+        "الحمد لله",
+        "حمد لله",
+        "الحمد لله على كل حال"
+      ],
+      "example": {
+        "arabic": "إزيك؟ الحمد لله",
+        "transliteration": "izzayyak? el-ḥamdu lillaah",
+        "english": "How are you? Thank God (fine)"
+      },
+      "video_hint": "Reply in greeting scenes; said after eating in cooking and family vlogs."
+    },
+    {
+      "arabic": "مفيش مشكلة",
+      "transliteration": "mafiish mushkila",
+      "english": "no problem",
+      "category": "Reply",
+      "teaching_note": "Literally 'there is no problem'. The reassuring reply to an apology or a request. ولا يهمك ('don't let it bother you') is the warmer cousin.",
+      "image_scene": "A shopkeeper waving both hands loosely, smiling — 'it's nothing'.",
+      "concept_key": "no_problem",
+      "variants": [
+        "مافيش مشكلة",
+        "مفيش مشاكل",
+        "ولا يهمك",
+        "مفيش حاجة"
+      ],
+      "example": {
+        "arabic": "آسف! — مفيش مشكلة",
+        "transliteration": "aasif! — mafiish mushkila",
+        "english": "Sorry! — No problem"
+      },
+      "video_hint": "The reply to an apology; often paired with معلش."
+    },
+    {
+      "arabic": "ما شاء الله",
+      "transliteration": "ma shaaʾ allaah",
+      "english": "how wonderful (God has willed it)",
+      "category": "God-phrase",
+      "teaching_note": "Said at anything admirable to admire without envy — a child, a house, a skill. Say it whenever you compliment; an unprotected compliment makes people uneasy.",
+      "image_scene": "A grandmother admiring a baby with a wide smile, hand raised in blessing.",
+      "variants": [
+        "ماشاء الله",
+        "ماشاءالله",
+        "ما شاء الله عليك"
+      ],
+      "example": {
+        "arabic": "ما شاء الله، بيت كبير",
+        "transliteration": "ma shaaʾ allaah, beet kibiir",
+        "english": "How wonderful — a big house"
+      },
+      "video_hint": "Reactions to a baby, a car or a house; the visual is admiration."
+    },
+    {
+      "arabic": "اتفضل",
+      "transliteration": "itfaḍḍal",
+      "english": "go ahead / here you are / come in",
+      "category": "Politeness",
+      "teaching_note": "The word for handing something over, inviting someone in, or telling them to sit or start. To a woman: اتفضلي; to a group: اتفضلوا. You will hear it a dozen times a day.",
+      "image_scene": "A host holding a door open with an open-palm gesture toward the room inside.",
+      "variants": [
+        "إتفضل",
+        "اتفضلي",
+        "اتفضلوا",
+        "تفضل"
+      ],
+      "example": {
+        "arabic": "اتفضل، الشاي",
+        "transliteration": "itfaḍḍal, esh-shaay",
+        "english": "Here you are — the tea"
+      },
+      "video_hint": "A host or waiter handing something over or inviting someone in."
+    }
+  ],
+  "dialogue": [
+    {
+      "speaker": "Customer",
+      "arabic": "لو سمحت، عيش من فضلك",
+      "transliteration": "law samaḥt, ʿeesh min faḍlak",
+      "english": "Excuse me — bread, please"
+    },
+    {
+      "speaker": "Baker",
+      "arabic": "اتفضل",
+      "transliteration": "itfaḍḍal",
+      "english": "Here you are"
+    },
+    {
+      "speaker": "Customer",
+      "arabic": "شكراً",
+      "transliteration": "shukran",
+      "english": "Thanks"
+    },
+    {
+      "speaker": "Baker",
+      "arabic": "العفو. شاي؟",
+      "transliteration": "el-ʿafw. shaay?",
+      "english": "You're welcome. Tea?"
+    },
+    {
+      "speaker": "Customer",
+      "arabic": "لأ، شكراً. معلش",
+      "transliteration": "laʾ, shukran. maʿlish",
+      "english": "No, thanks. Sorry"
+    },
+    {
+      "speaker": "Baker",
+      "arabic": "مفيش مشكلة. أشوفك بكره إن شاء الله",
+      "transliteration": "mafiish mushkila. ashuufak bukra in shaaʾ allaah",
+      "english": "No problem. See you tomorrow, God willing"
+    },
+    {
+      "speaker": "Customer",
+      "arabic": "إن شاء الله، مع السلامة",
+      "transliteration": "in shaaʾ allaah, maʿa s-salaama",
+      "english": "God willing — goodbye"
+    }
+  ],
+  "sound_spotlight": [
+    {
+      "sound": "ع vs ء",
+      "example": "العفو (el-ʿafw) vs أيوه (aywa)",
+      "explanation": "Both are made in the throat, but ع is a squeeze with the voice on — like the start of a groan — while ء is a clean stop, the gap in 'uh-oh'. معلش and العفو have ع; أيوه and لأ have ء. Say ع as 'a' with a tightened throat and you will be understood."
+    },
+    {
+      "sound": "ض",
+      "example": "من فضلك (min faḍlak)، اتفضل (itfaḍḍal)",
+      "explanation": "A heavy d: tongue pressed flat and pulled back, so the vowels around it darken. Heard passively here in two of the politest words in the lesson."
+    },
+    {
+      "sound": "ط",
+      "example": "طبعاً (ṭabʿan)",
+      "explanation": "A heavy t, made the same way as ض but without the voice. Compare it with the plain ت in اتفضل — the ط sounds thicker."
+    }
+  ],
+  "lesson_sequence": [
+    {
+      "step": "Welcome",
+      "detail": "A bakery window at dusk, a queue for baladi bread. One line of English: today you learn the words that make you polite before you can make a sentence. Tap يلا."
+    },
+    {
+      "step": "Scenes first",
+      "detail": "Seven two-line exchanges acted at the counter (please/thanks/reply, sorry/no problem, yes, no, excuse me). Audio auto-plays; Arabic on screen; English small and grey."
+    },
+    {
+      "step": "Cards",
+      "detail": "Fifteen word cards with illustration and native audio, grouped: replies, particles, God-phrases. Tap to replay."
+    },
+    {
+      "step": "Fill the gap",
+      "detail": "A scene replays with one line silenced; four cards appear; tap the word that belongs there. Distractors are from this lesson."
+    },
+    {
+      "step": "God-phrase spotting",
+      "detail": "Three short authentic clips; the learner taps every time they hear إن شاء الله, الحمد لله or ما شاء الله. Counts shown afterwards."
+    },
+    {
+      "step": "Shadow (optional)",
+      "detail": "The four replies — العفو, مفيش مشكلة, الحمد لله, إن شاء الله — played and echoed with a record-and-compare bar. No score."
+    },
+    {
+      "step": "Scene quiz and complete",
+      "detail": "Twelve gap-fill items, audio only. Counter rolls to 41 words. Nudge: thank someone in Arabic today and wait for the reply."
+    }
+  ],
+  "real_world_prompts": [
+    {
+      "prompt": "Say شكراً to an Arabic speaker today — a shopkeeper, a colleague, a friend — and listen for العفو or ربنا يخليك coming back.",
+      "context": "Lesson-complete screen. One-word production with a predictable reply."
+    },
+    {
+      "prompt": "Next time you mention a plan to an Egyptian friend, add إن شاء الله at the end and watch them relax.",
+      "context": "Follow-up notification. Practises the most frequent God-phrase in its natural position."
+    },
+    {
+      "prompt": "Tell your tutor: 'Say something to me and I'll answer only with أيوه, لأ, ماشي or معلش.' Keep it going for a minute.",
+      "context": "Tutor prompt. A yes/no/okay listening game that forces recognition of questions before the learner can form them."
+    }
+  ],
+  "video_needs": {
+    "queries": [
+      "إن شاء الله ما شاء الله استخدام مصري",
+      "كلمات مصرية معلش يعني إيه",
+      "ربنا يخليك يعني إيه",
+      "لو سمحت من فضلك شكراً بالمصري"
+    ],
+    "channels": [
+      "Ali Gamal",
+      "Egyptoon",
+      "Easy Arabic"
+    ],
+    "scene": "Short exchanges at a shop counter or table: thanks and the reply, an apology answered with معلش, an 'okay' closing a small negotiation."
+  }
+}

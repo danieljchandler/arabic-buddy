@@ -1,0 +1,570 @@
+{
+  "slug": "because-and-so",
+  "lesson_number": 2,
+  "title": "Because, So and But",
+  "title_arabic": "عشان كده",
+  "description": "Join your sentences the way Cairo does: give a reason with عشان and لأن, a consequence with علشان كده, a concession with مع إن — and learn the art of the excuse, where the reason offered is rarely the reason.",
+  "cefr_target": "A2",
+  "duration_minutes": 20,
+  "approach": "Skit-driven — a two-minute comedy sketch of someone arriving late supplies every connector; learners mark reasons and consequences, then produce their own polite excuse.",
+  "unlock_condition": "Write and record a four-sentence excuse using عشان, علشان كده and مع إن; ≥8/10 on the connector quiz",
+  "icon": "🔗",
+  "can_do": [
+    "Give a reason and its consequence",
+    "Join sentences with but, although and in order to",
+    "Make an excuse politely and accept one gracefully"
+  ],
+  "grammar": [
+    {
+      "category": "sentence-structure",
+      "title": "Reasons, results and 'although': the connectors",
+      "explanation": "عشان does two jobs: before a noun or a sentence it means because (مجتش عشان الزحمة — I didn't come because of the traffic), and before a bare verb it means in order to (جيت عشان أشوفك — I came to see you). لأن is the other 'because', and it likes a pronoun stuck on: لأني (because I), لأنه (because he). For the result, say علشان كده (that's why / so): كنت تعبان، علشان كده نمت بدري. For 'although', use مع إن plus a pronoun: مع إني تعبان، جيت (although I'm tired, I came). بس is the everyday 'but'; لكن is the same thing with a slightly more serious face. None of these change the verb — Egyptian joins sentences with a word, not a new tense.",
+      "examples": [
+        {
+          "arabic": "اتأخرت عشان الزحمة",
+          "transliteration": "itʾakhkhart ʿashaan iz-zaḥma",
+          "english": "I was late because of the traffic"
+        },
+        {
+          "arabic": "رحت السوق عشان أشتري خضار",
+          "transliteration": "ruḥt is-suuʾ ʿashaan ashtiri khuḍaar",
+          "english": "I went to the market to buy vegetables"
+        },
+        {
+          "arabic": "ما نمتش كويس لأني كنت قلقان",
+          "transliteration": "ma-nimtish kuwayyis laʾinni kunt ʾalʾaan",
+          "english": "I didn't sleep well because I was worried"
+        },
+        {
+          "arabic": "الجو حر، علشان كده قاعدين في البيت",
+          "transliteration": "ig-gaww ḥarr, ʿalashaan kida ʾaʿdiin fil-beet",
+          "english": "It's hot, so we're staying at home"
+        },
+        {
+          "arabic": "مع إنه غالي، اشتريته",
+          "transliteration": "maʿa innu ghaali, ishtareetu",
+          "english": "Although it's expensive, I bought it"
+        }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "The excuse is not the reason — and everybody knows",
+      "note": "In Cairo, lateness is a given and the excuse is a ritual, not a confession. You lead with the traffic (الزحمة), the circumstances (الظروف), or a family matter, and you say والله (honestly) at least once. The listener's job is to wave it away with معلش or ولا يهمك before you finish; pressing for the real reason is rude, and so is arriving with no excuse at all. Face is the point: the excuse says 'I respect you enough to explain', and the acceptance says 'I respect you enough not to check'. If you really are at fault, add بجد آسف (seriously, sorry) and move on — long apologies make everyone uncomfortable.",
+      "phrases": [
+        {
+          "arabic": "معلش، الظروف",
+          "transliteration": "maʿlish, iẓ-ẓuruuf",
+          "english": "Sorry — circumstances"
+        },
+        {
+          "arabic": "ولا يهمك",
+          "transliteration": "wala yhimmak",
+          "english": "Don't worry about it"
+        },
+        {
+          "arabic": "والله كنت جاي",
+          "transliteration": "wallaahi kunt gayy",
+          "english": "Honestly, I was on my way"
+        },
+        {
+          "arabic": "مفيش مشكلة، المهم إنك جيت",
+          "transliteration": "mafiish mushkila, il-muhimm innak geet",
+          "english": "No problem, what matters is you came"
+        }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "لأن",
+      "transliteration": "laʾinn",
+      "english": "because",
+      "category": "Connector",
+      "teaching_note": "The 'because' that takes a pronoun: لأني (because I), لأنك، لأنه، لأنها، لأننا، لأنهم. Use it when the reason is a full sentence with a subject. Trap: in MSA it is laʾanna with a different vowel; in Cairo it is always laʾinn.",
+      "image_scene": "A speech bubble with an arrow pointing back from a wet umbrella to a rain cloud.",
+      "concept_key": "because",
+      "variants": [
+        "لأني",
+        "لأنك",
+        "لأنه",
+        "لأنها",
+        "لأننا",
+        "لأنهم",
+        "لان"
+      ],
+      "example": {
+        "arabic": "مجتش لأني كنت تعبان",
+        "transliteration": "magitsh laʾinni kunt taʿbaan",
+        "english": "I didn't come because I was tired"
+      },
+      "video_hint": "An explanation beginning لأن / لأني in a vlog or skit."
+    },
+    {
+      "arabic": "عشان",
+      "transliteration": "ʿashaan",
+      "english": "so that / in order to (also: because)",
+      "category": "Connector",
+      "teaching_note": "The all-purpose reason word, and the most Egyptian one. Before a bare verb it is 'so that / to': عشان أوصل بدري (so I arrive early). Before a noun it is 'because of': عشان الزحمة. Also spelled علشان — same word, same meaning. Trap: لكي and حتى in this sense are MSA; nobody in Cairo says them.",
+      "image_scene": "A man setting an alarm clock, with a thought bubble of himself arriving at an office on time.",
+      "concept_key": "so_that",
+      "variants": [
+        "علشان",
+        "عشانك",
+        "عشاني",
+        "عشان كده"
+      ],
+      "example": {
+        "arabic": "صحيت بدري عشان أوصل قبل الزحمة",
+        "transliteration": "ṣiḥiit badri ʿashaan awṣal ʾabl iz-zaḥma",
+        "english": "I got up early to arrive before the traffic"
+      },
+      "video_hint": "عشان + verb of purpose in a vlog: عشان أشتري / عشان نروح."
+    },
+    {
+      "arabic": "علشان كده",
+      "transliteration": "ʿalashaan kida",
+      "english": "that's why / therefore",
+      "category": "Connector",
+      "teaching_note": "Literally 'because of this'. Egyptian's everyday 'therefore' — لذلك lives only in written Arabic. Say it after the reason, before the result, usually with a small pause: كان عيان، علشان كده ما جاش.",
+      "image_scene": "A domino toppling into a second domino, an arrow from the first to the second.",
+      "concept_key": "therefore",
+      "variants": [
+        "عشان كده",
+        "علشان كدة",
+        "عشان كدا",
+        "وعلشان كده"
+      ],
+      "example": {
+        "arabic": "النت كان قاطع، علشان كده ما ردتش",
+        "transliteration": "in-nett kaan ʾaaṭiʿ, ʿalashaan kida ma-radditsh",
+        "english": "The internet was down, that's why I didn't reply"
+      },
+      "video_hint": "Someone concluding an explanation with علشان كده…"
+    },
+    {
+      "arabic": "مع إن",
+      "transliteration": "maʿa inn",
+      "english": "although / even though",
+      "category": "Connector",
+      "teaching_note": "مع (with) plus إن (that) plus a pronoun: مع إني، مع إنك، مع إنه. Both halves of the sentence are said normally; the surprise is carried by the word alone. Trap: رغم أن is written Arabic — you may see it in a caption but you will hear مع إن.",
+      "image_scene": "A woman in a raincoat smiling and holding an ice cream in the rain.",
+      "concept_key": "although",
+      "variants": [
+        "مع إني",
+        "مع إنه",
+        "مع إنها",
+        "مع ان",
+        "مع إنك"
+      ],
+      "example": {
+        "arabic": "مع إني جعان، مش هاكل دلوقتي",
+        "transliteration": "maʿa inni gaʿaan, mish haakul dilwaʾti",
+        "english": "Although I'm hungry, I won't eat now"
+      },
+      "video_hint": "A contrast sentence in a review or complaint: مع إن الأكل حلو…"
+    },
+    {
+      "arabic": "إنما",
+      "transliteration": "innama",
+      "english": "however / but rather",
+      "category": "Connector",
+      "teaching_note": "Contrastive: it sets what follows against what came before, heavier than بس and less final than لكن (which you met as plain 'but'). Very common in speech when someone concedes a point and then pushes back.",
+      "image_scene": "A road forking, one branch sunny and one branch with a 'closed' sign.",
+      "concept_key": "however",
+      "variants": [
+        "انما"
+      ],
+      "example": {
+        "arabic": "الأكل حلو، إنما غالي شوية",
+        "transliteration": "el-akl ḥelw, innama ghaali shwayya",
+        "english": "The food is nice, however it is a bit expensive"
+      },
+      "video_hint": "لكن between two clauses in an explanation or an apology."
+    },
+    {
+      "arabic": "سبب",
+      "transliteration": "sabab",
+      "english": "reason",
+      "category": "Noun",
+      "teaching_note": "السبب إيه؟ (what's the reason?), من غير سبب (for no reason), بسبب (because of, a bit formal). Plural أسباب. The word behind every excuse — and the question you do not ask too insistently.",
+      "image_scene": "A question mark above a broken vase with a cat looking innocent next to it.",
+      "concept_key": "reason",
+      "variants": [
+        "السبب",
+        "أسباب",
+        "بسبب",
+        "من غير سبب"
+      ],
+      "example": {
+        "arabic": "السبب إيه إنك اتأخرت؟",
+        "transliteration": "is-sabab eeh innak itʾakhkhart?",
+        "english": "What's the reason you were late?"
+      },
+      "video_hint": "Someone asking or giving a reason: السبب إيه؟ / السبب إن…"
+    },
+    {
+      "arabic": "عذر",
+      "transliteration": "ʿuzr",
+      "english": "excuse",
+      "category": "Noun",
+      "teaching_note": "A legitimate excuse is a عذر; a flimsy one is a حجة (ḥigga). عندي عذر (I have an excuse), مفيش عذر (there's no excuse). Note ذ said as z here — a learned word, so it keeps the z sound rather than turning into d.",
+      "image_scene": "A note with a doctor's stamp being handed across a desk.",
+      "concept_key": "excuse",
+      "variants": [
+        "العذر",
+        "أعذار",
+        "عندي عذر",
+        "مفيش عذر"
+      ],
+      "example": {
+        "arabic": "معلش، كان عندي عذر",
+        "transliteration": "maʿlish, kaan ʿandi ʿuzr",
+        "english": "Sorry, I had an excuse"
+      },
+      "video_hint": "A skit where someone invents an excuse; the word عذر / حجة in the caption."
+    },
+    {
+      "arabic": "ظروف",
+      "transliteration": "ẓuruuf",
+      "english": "circumstances",
+      "category": "Noun",
+      "teaching_note": "The most elegant excuse in the language: الظروف (circumstances) explains everything and specifies nothing. ظروفي صعبة (my situation is hard), لو الظروف سمحت (if circumstances allow). Singular ظرف also means envelope.",
+      "image_scene": "A man shrugging with open palms, storm clouds on one side and a traffic jam on the other.",
+      "concept_key": "circumstances",
+      "variants": [
+        "الظروف",
+        "ظرف",
+        "ظروفي",
+        "الظروف صعبة"
+      ],
+      "example": {
+        "arabic": "ظروفي مش سامحة النهارده",
+        "transliteration": "ẓuruufi mish samḥa n-naharda",
+        "english": "My circumstances don't allow it today"
+      },
+      "video_hint": "An excuse using الظروف in a skit or a phone call."
+    },
+    {
+      "arabic": "معلش",
+      "transliteration": "maʿlish",
+      "english": "never mind / sorry / it's okay",
+      "category": "Expression",
+      "teaching_note": "The most Egyptian word there is. Said by the one who slipped (sorry), by the one forgiving (never mind), and by anyone consoling anyone (it's okay). Tone does the work: a soft rising معلش forgives, a flat one apologises. Foreigners often complain it is used to shrug off problems — that is exactly its job.",
+      "image_scene": "Two people shaking hands, one with a hand on heart, the other smiling and waving it off.",
+      "concept_key": "never_mind",
+      "variants": [
+        "معليش",
+        "معلهش",
+        "ما علش",
+        "معلش يا"
+      ],
+      "example": {
+        "arabic": "معلش، مش مشكلة",
+        "transliteration": "maʿlish, mish mushkila",
+        "english": "Never mind, it's not a problem"
+      },
+      "video_hint": "Any skit with a small mishap; معلش said by either side."
+    },
+    {
+      "arabic": "متأخر",
+      "transliteration": "mitʾakhkhar",
+      "english": "late",
+      "category": "Adjective",
+      "teaching_note": "Agrees: متأخر / متأخرة / متأخرين. The verb is اتأخر: اتأخرت (I was late), ما تتأخرش (don't be late). Trap: بدري (early) is its opposite — and both are used as adverbs too: جه متأخر (he came late).",
+      "image_scene": "A woman running toward a departing bus, glancing at her watch.",
+      "concept_key": "late",
+      "variants": [
+        "متأخرة",
+        "متأخرين",
+        "متاخر",
+        "اتأخر",
+        "اتأخرت",
+        "ما تتأخرش"
+      ],
+      "example": {
+        "arabic": "آسف، أنا متأخر عشان الزحمة",
+        "transliteration": "aasif, ana mitʾakhkhar ʿashaan iz-zaḥma",
+        "english": "Sorry, I'm late because of the traffic"
+      },
+      "video_hint": "A late arrival with آسف اتأخرت / متأخر in the first line."
+    },
+    {
+      "arabic": "زحمة",
+      "transliteration": "zaḥma",
+      "english": "traffic / crowd",
+      "category": "Noun",
+      "teaching_note": "Cairo's national topic and universal excuse. Both a noun (الزحمة فظيعة — the traffic is terrible) and an adjective (الشارع زحمة — the street is crowded). Trap: it covers crowds of people as well as cars — المحل زحمة means the shop is packed.",
+      "image_scene": "A Cairo street bumper-to-bumper with cars, microbuses and a donkey cart.",
+      "concept_key": "traffic",
+      "variants": [
+        "الزحمة",
+        "زحمه",
+        "زحمة أوي",
+        "زحمة فظيعة"
+      ],
+      "example": {
+        "arabic": "الزحمة فظيعة النهارده",
+        "transliteration": "iz-zaḥma faẓiiʿa n-naharda",
+        "english": "The traffic is terrible today"
+      },
+      "video_hint": "Cairo traffic footage with زحمة in the narration; a driver complaining."
+    },
+    {
+      "arabic": "والله",
+      "transliteration": "wallaahi",
+      "english": "honestly / I swear",
+      "category": "Expression",
+      "teaching_note": "Literally 'by God', but in daily speech it is 'honestly' or just emphasis, and it opens most excuses: والله كنت جاي. Said by everyone, religious or not. A rising والله؟ on its own means 'really?'. Trap: do not use it in a courtroom sense — it is far lighter than an English oath.",
+      "image_scene": "A man with a hand raised and the other on his heart, mid-explanation.",
+      "concept_key": "honestly",
+      "variants": [
+        "والله العظيم",
+        "والله؟",
+        "ووالله",
+        "بجد"
+      ],
+      "example": {
+        "arabic": "والله ما كنت أعرف",
+        "transliteration": "wallaahi ma-kuntish aʿraf",
+        "english": "Honestly, I didn't know"
+      },
+      "video_hint": "والله at the start of an excuse or a claim; والله؟ as a surprised reply."
+    },
+    {
+      "arabic": "اتأخر",
+      "transliteration": "itʾakhkhar",
+      "english": "was late / got delayed",
+      "category": "Verb",
+      "teaching_note": "The verb behind متأخر. اتأخرت (I was late), اتأخرنا (we were delayed), القطر اتأخر (the train was delayed). The اتـ prefix marks that it happened to the subject, not that they chose it — which is exactly the excuse-maker's point.",
+      "image_scene": "A train on a platform with a departure board showing a delay.",
+      "variants": [
+        "اتأخرت",
+        "اتأخرنا",
+        "بيتأخر",
+        "هيتأخر",
+        "اتاخر"
+      ],
+      "example": {
+        "arabic": "الأوتوبيس اتأخر نص ساعة",
+        "transliteration": "il-otobiis itʾakhkhar nuṣṣ saaʿa",
+        "english": "The bus was half an hour late"
+      },
+      "video_hint": "A delay reported: اتأخر / هيتأخر in a station or a phone call."
+    },
+    {
+      "arabic": "أصل",
+      "transliteration": "aṣl",
+      "english": "the thing is… / you see, because…",
+      "category": "Connector",
+      "teaching_note": "The softest way to start an explanation: أصل الزحمة كانت فظيعة (the thing is, the traffic was terrible). Literally 'the origin'. Take a pronoun: أصلي (it's just that I…), أصله. A Cairo signature — heard fifty times a day and in no textbook of MSA.",
+      "image_scene": "A man leaning in confidentially, one hand raised as if beginning an explanation.",
+      "variants": [
+        "أصلي",
+        "أصله",
+        "أصلها",
+        "اصل"
+      ],
+      "example": {
+        "arabic": "أصلي كنت مشغول أوي",
+        "transliteration": "aṣli kunt mashghuul ʾawi",
+        "english": "The thing is, I was really busy"
+      },
+      "video_hint": "An explanation opening with أصل… in a skit or vlog."
+    },
+    {
+      "arabic": "حجة",
+      "transliteration": "ḥigga",
+      "english": "pretext / flimsy excuse",
+      "category": "Noun",
+      "teaching_note": "The excuse nobody believes. دي حجة (that's a pretext), بيدور على حجة (he's looking for an excuse). Compare عذر, the excuse that is accepted. Plural حجج.",
+      "image_scene": "A boy with a sheepish grin holding up a paper that says 'the dog ate it'.",
+      "variants": [
+        "الحجة",
+        "حجج",
+        "دي حجة",
+        "حجة بايخة"
+      ],
+      "example": {
+        "arabic": "دي حجة بايخة",
+        "transliteration": "di ḥigga baykha",
+        "english": "That's a lame excuse"
+      },
+      "video_hint": "A comedy skit of bad excuses; حجة in the caption or punchline."
+    },
+    {
+      "arabic": "بدل ما",
+      "transliteration": "badal ma",
+      "english": "instead of",
+      "category": "Connector",
+      "teaching_note": "بدل (instead) plus ما before a verb: بدل ما تتكلم، اشتغل (instead of talking, work). Before a noun drop the ما: بدل الشاي (instead of tea). One of the ما connectors, like قبل ما and بعد ما.",
+      "image_scene": "A hand pushing away a plate of sweets and pulling a bowl of fruit closer.",
+      "variants": [
+        "بدل",
+        "بدال ما",
+        "بدل من"
+      ],
+      "example": {
+        "arabic": "خد المترو بدل ما تركب تاكسي",
+        "transliteration": "khud il-metro badal ma tirkab taksi",
+        "english": "Take the metro instead of taking a taxi"
+      },
+      "video_hint": "Advice contrasting two options with بدل ما."
+    },
+    {
+      "arabic": "غصب عني",
+      "transliteration": "ghaṣb ʿanni",
+      "english": "I couldn't help it / against my will",
+      "category": "Expression",
+      "teaching_note": "The excuse that ends the discussion: it was out of my hands. Change the pronoun: غصب عنك، غصب عنه. Often paired with a shrug and والله. Literally 'by force over me'.",
+      "image_scene": "A man with palms up and shoulders raised, a flat tyre behind him.",
+      "variants": [
+        "غصب عنه",
+        "غصب عنها",
+        "غصب عنك",
+        "غصبن عني"
+      ],
+      "example": {
+        "arabic": "والله غصب عني، العربية باظت",
+        "transliteration": "wallaahi ghaṣb ʿanni, il-ʿarabiyya baaẓit",
+        "english": "Honestly it was out of my hands, the car broke down"
+      },
+      "video_hint": "An apology with غصب عني in a skit or vlog."
+    },
+    {
+      "arabic": "مقصدش",
+      "transliteration": "maʾṣadtish",
+      "english": "I didn't mean to",
+      "category": "Expression",
+      "teaching_note": "From قصد (to intend): ما قصدتش, said as one word. The apology for accidents and for words that came out wrong: مقصدش أزعلك (I didn't mean to upset you). قصدك إيه؟ (what do you mean?) is the same root.",
+      "image_scene": "A woman with a hand over her mouth, a spilled glass on the table in front of a friend.",
+      "variants": [
+        "ما قصدتش",
+        "مقصدتش",
+        "مش قصدي",
+        "قصدي"
+      ],
+      "example": {
+        "arabic": "مقصدش، آسف بجد",
+        "transliteration": "maʾṣadtish, aasif bigadd",
+        "english": "I didn't mean to, I'm really sorry"
+      },
+      "video_hint": "An apology after a slip: مقصدش / مش قصدي."
+    }
+  ],
+  "dialogue": [
+    {
+      "speaker": "Hoda",
+      "arabic": "إنت فين؟ بقالي ساعة مستنية!",
+      "transliteration": "inta feen? baʾaali saaʿa mistanniyya!",
+      "english": "Where are you? I've been waiting an hour!"
+    },
+    {
+      "speaker": "Tamer",
+      "arabic": "معلش، والله اتأخرت عشان الزحمة.",
+      "transliteration": "maʿlish, wallaahi tʾakhkhart ʿashaan iz-zaḥma.",
+      "english": "Sorry, honestly I was late because of the traffic."
+    },
+    {
+      "speaker": "Hoda",
+      "arabic": "الزحمة؟ دي حجة بايخة يا تامر.",
+      "transliteration": "iz-zaḥma? di ḥigga baykha ya taamir.",
+      "english": "Traffic? That's a lame excuse, Tamer."
+    },
+    {
+      "speaker": "Tamer",
+      "arabic": "أصل العربية باظت، علشان كده ركبت مترو.",
+      "transliteration": "aṣl il-ʿarabiyya baaẓit, ʿalashaan kida rikibt metro.",
+      "english": "The thing is, the car broke down, so I took the metro."
+    },
+    {
+      "speaker": "Hoda",
+      "arabic": "طيب، ولا يهمك. المهم إنك جيت.",
+      "transliteration": "ṭayyib, wala yhimmak. il-muhimm innak geet.",
+      "english": "Okay, don't worry about it. What matters is you came."
+    },
+    {
+      "speaker": "Tamer",
+      "arabic": "مع إني متأخر، جبت لك جاتوه.",
+      "transliteration": "maʿa inni mitʾakhkhar, gibtilik gatoo.",
+      "english": "Even though I'm late, I brought you cake."
+    }
+  ],
+  "sound_spotlight": [
+    {
+      "sound": "ظ as an emphatic z",
+      "example": "ظروف (ẓuruuf), مظبوط (maẓbuuṭ)",
+      "explanation": "In learned words the Cairo ظ is a heavy, dark z — the tongue is flat and the vowel around it darkens. It is not the th of MSA and not a plain z."
+    },
+    {
+      "sound": "Doubled consonant in لأن + pronoun",
+      "example": "لأني (laʾinni), لأنه (laʾinnu)",
+      "explanation": "The ن doubles when a pronoun is added: hold it a beat longer — laʾin-ni. The same happens with إن: إني (inni), إنه (innu)."
+    },
+    {
+      "sound": "Dropping the first vowel after a vowel",
+      "example": "والله اتأخرت → wallaahi tʾakhkhart",
+      "explanation": "When a word ending in a vowel meets a word beginning with ا, the ا vanishes: والله اتأخرت runs together as wallaahi-tʾakhkhart. Listen for it in every excuse."
+    }
+  ],
+  "lesson_sequence": [
+    {
+      "step": "Watch the sketch",
+      "detail": "A two-minute comedy skit of someone arriving late, played once without subtitles. Question: how many excuses did they give?"
+    },
+    {
+      "step": "Mark reasons and results",
+      "detail": "Second viewing with the transcript: tap every reason word (عشان، لأن، أصل) in blue and every result word (علشان كده) in orange."
+    },
+    {
+      "step": "Grammar note",
+      "detail": "The connector note, each example lifted from the sketch, with a drag-the-connector exercise."
+    },
+    {
+      "step": "Word cards",
+      "detail": "The 18 words with audio; the excuse words (معلش، ظروف، غصب عني، مقصدش) grouped so their tone can be heard side by side."
+    },
+    {
+      "step": "Build an excuse",
+      "detail": "Pick a situation (late, forgot, can't come), choose three connectors, and write a four-sentence excuse. The app checks for عشان, علشان كده and مع إن."
+    },
+    {
+      "step": "Say it",
+      "detail": "Record the excuse; then record the other side — accepting it with معلش / ولا يهمك."
+    },
+    {
+      "step": "Lesson complete",
+      "detail": "Words counter rolls up. Nudge: notice the next excuse you hear and what the listener says back."
+    }
+  ],
+  "real_world_prompts": [
+    {
+      "prompt": "The next time you are late for anything, explain it in Egyptian: آسف، اتأخرت عشان… علشان كده…",
+      "context": "Lesson-complete screen. Activates the two core connectors and متأخر."
+    },
+    {
+      "prompt": "Reply to someone's apology today with معلش or ولا يهمك — before they finish the sentence.",
+      "context": "Follow-up notification. Practises the acceptance half of the ritual."
+    },
+    {
+      "prompt": "Ask your tutor to give you three bad excuses and grade each one حجة or عذر.",
+      "context": "Tutor prompt. Trains the distinction and the humour around it."
+    }
+  ],
+  "video_needs": {
+    "queries": [
+      "اتأخرت عشان الزحمة كوميدي",
+      "أعذار المصريين كوميدي",
+      "زحمة القاهرة فلوج",
+      "معلش الظروف"
+    ],
+    "channels": [
+      "Egyptoon",
+      "Fatma Abd Alsalam",
+      "Ola Roshdy",
+      "Hesham Afifi"
+    ],
+    "scene": "A skit or vlog of someone explaining why they are late or why something didn't happen — عشان and علشان كده audible, the other person waving it off with معلش."
+  }
+}

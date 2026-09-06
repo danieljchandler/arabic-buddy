@@ -1,0 +1,240 @@
+{
+  "slug": "numbers-one-to-ten",
+  "lesson_number": 6,
+  "title": "Numbers One to Ten",
+  "title_arabic": "من واحد لين عشرة — بكم هذا؟",
+  "description": "Count to ten, ask how much something costs, understand the answer, and read a phone number digit by digit — the Gulf way, with the short forms people actually say in front of nouns.",
+  "cefr_target": "A1",
+  "duration_minutes": 20,
+  "approach": "Counting with fingers on screen, then prices: every number is heard alone, then in a price, then in a phone number. Production from the first minute — numbers are the safest words to say aloud.",
+  "unlock_condition": "≥10/12 on the hear-the-price quiz and a recorded count from one to ten",
+  "icon": "🔢",
+  "can_do": [
+    "Count from one to ten",
+    "Ask how much something costs and understand the answer",
+    "Say a phone number digit by digit"
+  ],
+  "grammar": [
+    {
+      "category": "questions",
+      "title": "بكم؟ and كم؟ — how much, how many",
+      "explanation": "For a price you ask بكم؟ — literally 'with how much' — and put the thing before or after: بكم هذا؟, بكم القهوة؟. The answer comes back with the same بـ: بخمسة ريال (for five riyals). To ask how many of something, use كم with the thing in the singular: كم ولد؟ how many boys. You will hear Kuwaitis say بچم with a ch — same word. Neither question needs any extra grammar: the question word and the noun are the whole sentence.",
+      "examples": [
+        { "arabic": "بكم هذا؟", "transliteration": "bikam haadha?", "english": "How much is this?" },
+        { "arabic": "بكم الشاي؟ — بريالين", "transliteration": "bikam ish-shaay? — b-riyaalayn", "english": "How much is the tea? — Two riyals" },
+        { "arabic": "كم ولد عندك؟ — ثلاثة", "transliteration": "kam walad ʿindak? — thalaatha", "english": "How many boys do you have? — Three" },
+        { "arabic": "هذا بعشرة ريال", "transliteration": "haadha b-ʿashra riyaal", "english": "This is ten riyals" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "Riyal, dirham, dinar — and the small change",
+      "note": "Saudi Arabia and Qatar count in ريال, the Emirates in درهم, Kuwait and Bahrain in دينار — and a Kuwaiti dinar is worth about twelve Saudi riyals, so the numbers you hear in a Kuwaiti vlog are much smaller. Small change is هللة in Saudi and فلس in Kuwait, Bahrain and the Emirates. Cards and phone payment are everywhere now, but a corner shop (بقالة) still expects you to know the price as a spoken number, and a taxi driver will say it once, fast.",
+      "phrases": [
+        { "arabic": "بكم هذا؟", "transliteration": "bikam haadha?", "english": "How much is this?" },
+        { "arabic": "خمسة ريال", "transliteration": "khamsa riyaal", "english": "Five riyals" },
+        { "arabic": "عشرة دراهم", "transliteration": "ʿashra daraahim", "english": "Ten dirhams" }
+      ]
+    },
+    {
+      "title": "The first price is rarely the last",
+      "note": "In a traditional souq — المباركية in Kuwait, سوق واقف in Doha, البلد in Jeddah — a first price is an opening. The polite move is not to argue but to say غالي (expensive) with a smile and ask for a little off: رخّص شوي. In a mall or supermarket the price on the tag is the price, and bargaining would be strange. Either way, thank the seller with يعطيك العافية as you leave.",
+      "phrases": [
+        { "arabic": "غالي!", "transliteration": "ghaali!", "english": "Expensive!" },
+        { "arabic": "رخّص شوي لو سمحت", "transliteration": "rakhkhiṣ shway law samaḥt", "english": "Bring it down a little, please" },
+        { "arabic": "آخر سعر؟", "transliteration": "aakhir siʿir?", "english": "Last price?" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "واحد",
+      "transliteration": "waaḥid",
+      "english": "one",
+      "category": "Number",
+      "teaching_note": "The only number that comes after the noun: بيت واحد (one house), بنت وحدة (one girl — the feminine is وحدة waḥda). On its own it also means 'someone': فيه واحد بالباب.",
+      "image_scene": "A single hand holding up one finger, one date on a plate beside it.",
+      "concept_key": "one",
+      "variants": ["وحدة", "الواحد", "واحدة", "وحده"],
+      "example": { "arabic": "قهوة وحدة لو سمحت", "transliteration": "gahwa waḥda law samaḥt", "english": "One coffee, please" },
+      "video_hint": "Ordering one of something; counting on fingers; children's counting songs."
+    },
+    {
+      "arabic": "ثنين",
+      "transliteration": "thnayn",
+      "english": "two",
+      "category": "Number",
+      "teaching_note": "Said thnayn, without the MSA initial i. Feminine ثنتين thintayn. With a noun, Gulf uses the dual ending -ayn instead: بيتين two houses, ريالين two riyals, قهوتين two coffees. Also the name of Monday (الاثنين).",
+      "image_scene": "A hand holding up two fingers, two small coffee cups on a tray beside it.",
+      "concept_key": "two",
+      "variants": ["اثنين", "إثنين", "ثنتين", "الاثنين"],
+      "example": { "arabic": "أبي شاي ثنين", "transliteration": "abi shaay thnayn", "english": "I want two teas" },
+      "video_hint": "Ordering two of something; the -ayn dual on nouns in prices."
+    },
+    {
+      "arabic": "ثلاث",
+      "transliteration": "thalaath",
+      "english": "three",
+      "category": "Number",
+      "teaching_note": "From three to ten Gulf speakers use the short form before a noun — ثلاث كتب, ثلاث بنات — and the long form ثلاثة when counting or saying a price on its own. Do not drill the MSA gender-flip; Gulf speech is relaxed about it.",
+      "image_scene": "A hand holding up three fingers, three books stacked beside it.",
+      "concept_key": "three",
+      "variants": ["ثلاثة", "ثلاثه", "ثلث"],
+      "example": { "arabic": "عندي ثلاث خوات", "transliteration": "ʿindi thalaath khawaat", "english": "I have three sisters" },
+      "video_hint": "Counting items in a challenge; prices of three riyals/dirhams."
+    },
+    {
+      "arabic": "أربع",
+      "transliteration": "arbaʿ",
+      "english": "four",
+      "category": "Number",
+      "teaching_note": "Ends in ع — the squeezed throat sound — as do seven, nine and ten. Long form أربعة arbaʿa. Also in الأربعا, Wednesday.",
+      "image_scene": "A hand holding up four fingers, four chairs around a small table beside it.",
+      "concept_key": "four",
+      "variants": ["أربعة", "اربع", "اربعة", "أربعه"],
+      "example": { "arabic": "أربع كراسي", "transliteration": "arbaʿ karaasi", "english": "Four chairs" },
+      "video_hint": "Counting seats or people; prices of four."
+    },
+    {
+      "arabic": "خمس",
+      "transliteration": "khams",
+      "english": "five",
+      "category": "Number",
+      "teaching_note": "Starts with the rasping خ from خبز. Long form خمسة khamsa — the number you will hear most in prices, because five riyals and five dirhams buy a lot of small things.",
+      "image_scene": "An open hand showing five fingers, a five-riyal banknote beside it.",
+      "concept_key": "five",
+      "variants": ["خمسة", "خمسه", "الخمسة"],
+      "example": { "arabic": "هذا بخمسة ريال", "transliteration": "haadha b-khamsa riyaal", "english": "This is five riyals" },
+      "video_hint": "A vendor saying خمسة; the five-note in a shopping vlog."
+    },
+    {
+      "arabic": "ست",
+      "transliteration": "sitt",
+      "english": "six",
+      "category": "Number",
+      "teaching_note": "A doubled t: sitt. Long form ستة sitta. Do not confuse with the Egyptian ست (lady) — in the Gulf a lady is حرمة.",
+      "image_scene": "Six eggs in a carton, a hand showing five fingers plus one beside it.",
+      "concept_key": "six",
+      "variants": ["ستة", "سته", "الستة"],
+      "example": { "arabic": "ست بيضات", "transliteration": "sitt bayḍaat", "english": "Six eggs" },
+      "video_hint": "Counting eggs or items in a cooking clip; prices of six."
+    },
+    {
+      "arabic": "سبع",
+      "transliteration": "sabʿ",
+      "english": "seven",
+      "category": "Number",
+      "teaching_note": "Ends in ع again. Long form سبعة sabʿa. Before a word starting with a vowel you may hear سبعت — سبعت أيام, seven days.",
+      "image_scene": "A hand and two fingers of another hand making seven, seven dates in a row.",
+      "concept_key": "seven",
+      "variants": ["سبعة", "سبعه", "سبعت"],
+      "example": { "arabic": "سبع أيام", "transliteration": "sabʿ ayyaam", "english": "Seven days" },
+      "video_hint": "Days of a trip counted; seven riyals/dirhams."
+    },
+    {
+      "arabic": "ثمان",
+      "transliteration": "thimaan",
+      "english": "eight",
+      "category": "Number",
+      "teaching_note": "The odd one: the short form ends in n, the long form ثمانية thimaanya. Starts with ث, the 'think' sound the Gulf keeps.",
+      "image_scene": "Eight small tea glasses on a round tray.",
+      "concept_key": "eight",
+      "variants": ["ثمانية", "ثمانيه", "ثمن", "ثمانه"],
+      "example": { "arabic": "ثمان ساعات", "transliteration": "thimaan saaʿaat", "english": "Eight hours" },
+      "video_hint": "Working hours or a time of day; prices of eight."
+    },
+    {
+      "arabic": "تسع",
+      "transliteration": "tisʿ",
+      "english": "nine",
+      "category": "Number",
+      "teaching_note": "Short i, final ع. Long form تسعة tisʿa. Keep it apart from سبع (seven): tisʿ starts with t, sabʿ with s.",
+      "image_scene": "Nine oranges arranged in a three-by-three square.",
+      "concept_key": "nine",
+      "variants": ["تسعة", "تسعه", "التسعة"],
+      "example": { "arabic": "تسع ريالات", "transliteration": "tisʿ riyaalaat", "english": "Nine riyals" },
+      "video_hint": "Phone numbers read out; prices of nine."
+    },
+    {
+      "arabic": "عشر",
+      "transliteration": "ʿashar",
+      "english": "ten",
+      "category": "Number",
+      "teaching_note": "Said ʿashar with a helping vowel; long form عشرة ʿashra. Both start with ع. The ten-note is the everyday banknote across the Gulf, so عشرة is the price you will hear second-most after five.",
+      "image_scene": "Two open hands showing ten fingers, a ten-riyal note between them.",
+      "concept_key": "ten",
+      "variants": ["عشرة", "عشره", "العشرة"],
+      "example": { "arabic": "بكم؟ — عشرة", "transliteration": "bikam? — ʿashra", "english": "How much? — Ten" },
+      "video_hint": "A vendor saying عشرة; the ten-note changing hands."
+    },
+    {
+      "arabic": "بكم",
+      "transliteration": "bikam",
+      "english": "how much (does it cost)?",
+      "category": "Question",
+      "teaching_note": "The price question, everywhere in the Gulf. Kuwaitis say بچم bicham. Add the thing: بكم هذا؟, بكم القهوة؟. The answer repeats the بـ: بعشرة.",
+      "image_scene": "A shopper holding up a small item toward a stallholder with a questioning face.",
+      "concept_key": "how_much",
+      "variants": ["بچم", "بكم هذا", "بكم ذا", "كم سعره", "بكام"],
+      "example": { "arabic": "بكم التمر؟", "transliteration": "bikam it-tamar?", "english": "How much are the dates?" },
+      "video_hint": "Souq and market vlogs; price challenges; the moment before a vendor answers."
+    },
+    {
+      "arabic": "فلوس",
+      "transliteration": "fluus",
+      "english": "money",
+      "category": "Noun",
+      "teaching_note": "The plural of فلس (a small coin) is the ordinary word for money in every Gulf country — never نقود. Emiratis also say بيزات. Watch the long uu.",
+      "image_scene": "A hand holding a fan of Gulf banknotes of different colours.",
+      "concept_key": "money",
+      "variants": ["الفلوس", "فلوسي", "فلوسك", "بيزات", "مصاري"],
+      "example": { "arabic": "معك فلوس؟", "transliteration": "maʿak fluus?", "english": "Do you have money on you?" },
+      "video_hint": "Budget challenges; someone checking a wallet."
+    },
+    {
+      "arabic": "ريال",
+      "transliteration": "riyaal",
+      "english": "riyal (Saudi and Qatari currency)",
+      "category": "Noun",
+      "teaching_note": "Learn the currency of the country you are aiming at: ريال in Saudi Arabia and Qatar, درهم dirham in the Emirates, دينار diinaar in Kuwait and Bahrain. After a number the singular is used: خمسة ريال, عشرة درهم.",
+      "image_scene": "A Saudi banknote and a few coins on a shop counter.",
+      "variants": ["ريالات", "الريال", "ريالين", "درهم", "دراهم", "دينار", "دنانير"],
+      "example": { "arabic": "الشاي بريال", "transliteration": "ish-shaay b-riyaal", "english": "The tea is one riyal" },
+      "video_hint": "Prices quoted in a shop; banknotes on screen."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Sara", "arabic": "لو سمحت، بكم التمر؟", "transliteration": "law samaḥt, bikam it-tamar?", "english": "Excuse me, how much are the dates?" },
+    { "speaker": "Vendor", "arabic": "بعشرة ريال", "transliteration": "b-ʿashra riyaal", "english": "Ten riyals" },
+    { "speaker": "Sara", "arabic": "عشرة؟ غالي! ثمانية؟", "transliteration": "ʿashra? ghaali! thimaanya?", "english": "Ten? Expensive! Eight?" },
+    { "speaker": "Vendor", "arabic": "طيب، تسعة، وقهوة وحدة هدية", "transliteration": "ṭayyib, tisʿa, w-gahwa waḥda hadiyya", "english": "OK, nine — and one coffee as a gift" },
+    { "speaker": "Sara", "arabic": "أكيد؟ مشكور! تفضل الفلوس", "transliteration": "akiid? mashkuur! tfaḍḍal il-fluus", "english": "Really? Thanks! Here is the money" },
+    { "speaker": "Vendor", "arabic": "العفو. تلفونك كم؟", "transliteration": "il-ʿafu. tilifoonak kam?", "english": "You're welcome. What's your phone number?" },
+    { "speaker": "Sara", "arabic": "خمسة خمسة ثنين — أربعة ثلاثة سبعة واحد", "transliteration": "khamsa khamsa thnayn — arbaʿa thalaatha sabʿa waaḥid", "english": "Five five two — four three seven one" }
+  ],
+  "sound_spotlight": [
+    { "sound": "ث", "example": "ثنين، ثلاث، ثمان (thnayn, thalaath, thimaan)", "explanation": "Three of the ten numbers start with the 'think' sound. Gulf keeps it where Cairo says s or t, so if you hear talaata the speaker is not from the Gulf. Practise with the tip of the tongue between the teeth." },
+    { "sound": "ع at the end", "example": "أربع، سبع، تسع، عشر (arbaʿ, sabʿ, tisʿ, ʿashar)", "explanation": "Four numbers carry ع — the throat squeeze. At the end of a word it sounds like a short catch that colours the vowel before it. Say the number, then close the throat for a moment." },
+    { "sound": "ق = g in prices", "example": "قهوة وحدة (gahwa waḥda)", "explanation": "Numbers travel with the things you buy, and the things you buy keep the Gulf hard g: gahwa, suug. Hearing g here confirms you are in the right dialect." }
+  ],
+  "lesson_sequence": [
+    { "step": "Welcome", "detail": "A souq stall with dates and small change. One line of English: today you count and ask the price. Tap يلّا." },
+    { "step": "Count with me", "detail": "Ten cards, fingers on screen; audio plays the short form then the long form. Learner repeats each into the mic; the counter climbs." },
+    { "step": "Hear the price", "detail": "A price plays (بخمسة ريال); the learner taps the right banknote or number. Twelve items across 1–10 with riyal, dirham and dinar." },
+    { "step": "Ask the price", "detail": "Six objects from Lesson 1 appear; the learner records بكم + the object; a native answers with a price; the learner taps what they heard." },
+    { "step": "Phone number", "detail": "A number is read digit by digit; the learner types it. Then the learner records their own number and hears it played back by a native voice." },
+    { "step": "Dialogue and quiz", "detail": "The souq dialogue plays; then twelve audio-only items mixing numbers, prices and بكم." },
+    { "step": "Lesson complete", "detail": "Counter rolls to 78. Nudge: read the price of the next three things you buy out loud, in Arabic." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Count the chairs, cups or people in the room right now: واحد، ثنين، ثلاث…", "context": "Lesson-complete screen. Here-and-now counting with no partner needed." },
+    { "prompt": "Say your own phone number in Arabic, digit by digit, three times today.", "context": "Next-day notification. The one number every learner needs to produce under pressure." },
+    { "prompt": "Ask your tutor to play shopkeeper: you ask بكم هذا؟ for five objects and repeat each price back.", "context": "Before a tutor session. Question plus comprehension loop." }
+  ],
+  "video_needs": {
+    "queries": ["تحدي بـ100 ريال", "تسوق من سوق المباركية", "كم سعر هذا فلوق سوق شعبي", "أرخص وأغلى تحدي"],
+    "channels": ["Saud Brothers", "Moshaya Family", "Bjlife", "BanderitaX"],
+    "scene": "A vendor quoting prices, a phone number being read out, children counting. Budget challenges and souq vlogs where a number is said as the banknote or item is on screen."
+  }
+}

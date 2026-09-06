@@ -227,9 +227,14 @@ Three things are generated from the tracks and committed:
   replacements, written to `_brain/*.review.json` next to the lesson; `--apply`
   merges the accepted ones. Nothing it writes bypasses the guards below.
 
+Authoring is incremental: `curriculum/tracks/STATUS.md` is the slot-by-slot
+table of what is written. Every lesson that exists is complete and validated;
+an unwritten slot is simply absent, and the seed compiles whatever is on disk.
+
 Guards: `src/test/curriculumTracks.test.ts` holds every dialect file to the
 syllabus (slots, concepts, word minimums, no word introduced twice, valid
-grammar categories, script per field) and runs every Arabic string through
+grammar categories, script per field), pins the per-stage lesson counts as a
+ratchet so a lesson cannot vanish, and runs every Arabic string through
 `detectMsaLeaks` for its dialect — a leak inside a lesson is taught, not
 caught. `src/test/curriculumSeed.test.ts` fails when the seed migration is
 stale. `npm run curriculum:check` is the same check for authors, with

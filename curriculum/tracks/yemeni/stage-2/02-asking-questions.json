@@ -1,0 +1,282 @@
+{
+  "slug": "asking-questions",
+  "lesson_number": 2,
+  "title": "Asking Questions",
+  "title_arabic": "الأسئلة: ايش، مين، ليش",
+  "description": "The full set of question words — what, who, why, how, which, how many — and the questions every Yemeni will ask you in the first five minutes: where from, married, children, how old. With the polite ways to answer and to deflect.",
+  "cefr_target": "A1",
+  "duration_minutes": 20,
+  "approach": "GPA Phase 2 — question and answer pairs heard whole before the question words are isolated; the learner answers before they ask.",
+  "unlock_condition": "≥10/14 on the question-word match and a recorded exchange answering the four small-talk questions",
+  "icon": "❓",
+  "can_do": [
+    "Ask what, who, why, how, which, how many, when and where",
+    "Answer the small-talk questions everyone asks",
+    "Notice question word order"
+  ],
+  "grammar": [
+    {
+      "category": "questions",
+      "title": "Question words: in front, or where the answer would go",
+      "explanation": "Yemeni question words can stand at the front of the sentence, as in English, or stay exactly where the answer will sit: أنت من وين؟ literally 'you from where?'. Both are natural; the end position is warmer and more conversational. The Sanaa word for 'who' is من, said man — which looks like 'from' on the page, so this app teaches the clearer مين and you recognise both. For 'why', ليش is what you will say; older Sanaa speakers also have للمه.",
+      "examples": [
+        { "arabic": "ايش تشتغل؟", "transliteration": "aysh tishtaghil?", "english": "What do you do (for work)?" },
+        { "arabic": "أنت من وين؟", "transliteration": "ant min wayn?", "english": "Where are you from?" },
+        { "arabic": "كم عمرك؟", "transliteration": "kam ʿumrak?", "english": "How old are you?" },
+        { "arabic": "ليش تدرس عربي؟", "transliteration": "laysh tidrus ʿarabi?", "english": "Why do you study Arabic?" },
+        { "arabic": "مين ذا اللي معك؟", "transliteration": "miin dha lli maʿak?", "english": "Who's that with you?" }
+      ]
+    },
+    {
+      "category": "questions",
+      "title": "Yes/no questions are just a rising voice",
+      "explanation": "There is no word for turning a statement into a yes/no question. Say the statement and let your voice rise at the end: أنت متزوج؟ 'You're married?'. The Sanaa 'yes' is إي — short and very common — and 'no' is لا. To offer two choices use ولا: شاهي ولا قهوة؟",
+      "examples": [
+        { "arabic": "أنت متزوج؟", "transliteration": "ant mitzawwij?", "english": "Are you married?" },
+        { "arabic": "عندك جهّال؟ — إي، ثلاثة", "transliteration": "ʿindak jahhaal? — ii, thalaatha", "english": "Do you have kids? — Yes, three" },
+        { "arabic": "تشتي شاهي ولا قهوة؟", "transliteration": "tishti shaahi walla gahwa?", "english": "Do you want tea or coffee?" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "The friendly interrogation",
+      "note": "Within minutes of meeting you, a Yemeni will ask where you are from, whether you are married, how many children you have, what you do and — quite possibly — what you earn. None of it is rude; it is how a stranger is placed. Answer briefly and ask the same back: it is a conversation, not a form. If you are unmarried, 'not yet, God willing' is the expected reply, and a smile plus إن شاء الله deflects almost anything.",
+      "phrases": [
+        { "arabic": "متزوج؟ — عاد لا، إن شاء الله", "transliteration": "mitzawwij? — ʿaad laa, in shaa allaah", "english": "Married? — Not yet, God willing" },
+        { "arabic": "ايش تشتغل؟ — أدرس عربي هنا", "transliteration": "aysh tishtaghil? — adrus ʿarabi hina", "english": "What do you do? — I study Arabic here" },
+        { "arabic": "وأنت، من وين؟", "transliteration": "w-ant, min wayn?", "english": "And you, where are you from?" }
+      ]
+    },
+    {
+      "title": "Say yes the Sanaa way: إي",
+      "note": "The everyday 'yes' in Sanaa is إي, a short open sound — you will hear it hundreds of times a day, on its own or as إي والله. ايوه and نعم are understood but sound imported or formal. Say إي and people relax.",
+      "phrases": [
+        { "arabic": "إي، أنا من صنعاء", "transliteration": "ii, ana min ṣanʿaa", "english": "Yes, I'm from Sanaa" },
+        { "arabic": "إي والله", "transliteration": "ii wallaah", "english": "Yes, really" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "ايش",
+      "transliteration": "aysh",
+      "english": "what",
+      "category": "Question word",
+      "teaching_note": "The Yemeni 'what', from Sanaa to Aden. One syllable: aysh. Older Sanaa keeps classical ما in a few fixed questions (ما اسمك؟); شو and وش are heard from Gulf-facing speakers. Never ماذا.",
+      "image_scene": "A large question mark over an open hand pointing at an unlabelled box.",
+      "concept_key": "what",
+      "variants": ["ايش", "إيش", "أيش", "ما", "وش", "شو"],
+      "example": { "arabic": "ايش تشتي تشرب؟", "transliteration": "aysh tishti tishrab?", "english": "What do you want to drink?" },
+      "video_hint": "Any 'what' question in a skit or interview; ايش is usually the first word."
+    },
+    {
+      "arabic": "مين",
+      "transliteration": "miin",
+      "english": "who",
+      "category": "Question word",
+      "teaching_note": "Sanaa's own 'who' is من (man), identical on the page to 'from' — so the app teaches مين, which every Yemeni uses too and nobody mishears. 'Who's this?' is مين ذا؟",
+      "image_scene": "A silhouette of a person with a question mark for a face.",
+      "concept_key": "who",
+      "variants": ["مين", "من", "منو", "من ذا"],
+      "example": { "arabic": "مين ذا؟ — ذا أخوي", "transliteration": "miin dha? — dha akhuuy", "english": "Who's this? — That's my brother" },
+      "video_hint": "Someone pointing at a person in a photo or doorway: 'who's that?'."
+    },
+    {
+      "arabic": "ليش",
+      "transliteration": "laysh",
+      "english": "why",
+      "category": "Question word",
+      "teaching_note": "The one to say. The Sanaa oldies' للمه (lilmah) is worth recognising; ليه is Taizz and Egyptian media. Never لماذا.",
+      "image_scene": "A child with arms spread wide, asking, in front of a closed shop.",
+      "concept_key": "why",
+      "variants": ["ليش", "للمه", "لمه", "ليه"],
+      "example": { "arabic": "ليش ما جيتش أمس؟", "transliteration": "laysh maa jiitsh ams?", "english": "Why didn't you come yesterday?" },
+      "video_hint": "Complaints and arguments in comedy skits: 'why didn't you…?'."
+    },
+    {
+      "arabic": "كيف",
+      "transliteration": "kayf",
+      "english": "how",
+      "category": "Question word",
+      "teaching_note": "You met it inside كيف حالك; alone it asks how something is done or what it is like. شلون exists in Yemen but كيف is the default.",
+      "image_scene": "A person shrugging with palms up beside a map route.",
+      "concept_key": "how",
+      "variants": ["كيف", "كيفك", "كيف حالك", "شلون"],
+      "example": { "arabic": "كيف تسير الشغل؟", "transliteration": "kayf tsiir ish-shughl?", "english": "How do you get to work?" },
+      "video_hint": "'How do you…?' questions in cooking or how-to videos."
+    },
+    {
+      "arabic": "أي",
+      "transliteration": "ayy",
+      "english": "which",
+      "category": "Question word",
+      "teaching_note": "Pronounced ayy with a doubled y, straight before the noun: أي واحد؟ 'which one?'. أيهم is 'which of them'.",
+      "image_scene": "Three glasses of tea in a row, a finger hovering over them.",
+      "concept_key": "which",
+      "variants": ["اي", "أي", "أيّ", "أي واحد", "أيهم"],
+      "example": { "arabic": "أي واحد تشتي؟", "transliteration": "ayy waaḥid tishti?", "english": "Which one do you want?" },
+      "video_hint": "A choice being offered: 'which one?', 'which colour?'."
+    },
+    {
+      "arabic": "كم",
+      "transliteration": "kam",
+      "english": "how many",
+      "category": "Question word",
+      "teaching_note": "Followed by a singular noun, not a plural: كم جاهل؟ 'how many children?'. For a price it becomes بكم (with بـ). Also asks age and time: كم عمرك؟ الساعة كم؟",
+      "image_scene": "A row of children of different heights with a question mark above them.",
+      "concept_key": "how_many",
+      "variants": ["كم", "كم واحد", "بكم"],
+      "example": { "arabic": "كم جاهل عندك؟", "transliteration": "kam jaahil ʿindak?", "english": "How many children do you have?" },
+      "video_hint": "Counting questions: 'how many people', 'how many years'."
+    },
+    {
+      "arabic": "متزوج",
+      "transliteration": "mitzawwij",
+      "english": "married",
+      "category": "Adjective — people",
+      "teaching_note": "Question number two in any first conversation. Feminine متزوجة. The Sanaa word معرّس is also common for a man who has married.",
+      "image_scene": "A couple's two hands with gold rings, henna on the bride's.",
+      "concept_key": "married",
+      "variants": ["متزوج", "متزوّج", "متزوجة", "متزوجه", "معرّس"],
+      "example": { "arabic": "أنت متزوج ولا أعزب؟", "transliteration": "ant mitzawwij walla aʿzab?", "english": "Are you married or single?" },
+      "video_hint": "Street interviews asking about marriage; wedding-season vlogs."
+    },
+    {
+      "arabic": "جهّال",
+      "transliteration": "jahhaal",
+      "english": "children (kids)",
+      "category": "Noun — people",
+      "teaching_note": "The Yemeni word for children: one جاهل, many جهّال — from a root meaning 'not yet knowing'. عيال and أولاد are heard too. Doubled ه.",
+      "image_scene": "Three small children playing football in a dusty Sanaa alley.",
+      "concept_key": "children",
+      "variants": ["جهال", "جهّال", "جاهل", "عيال", "أولاد"],
+      "example": { "arabic": "عندي ثلاثة جهّال", "transliteration": "ʿindi thalaatha jahhaal", "english": "I have three kids" },
+      "video_hint": "Family vlogs; the question 'do you have kids?' and its answer."
+    },
+    {
+      "arabic": "عمر",
+      "transliteration": "ʿumr",
+      "english": "age",
+      "category": "Noun — people",
+      "teaching_note": "'How old are you?' is literally 'how much is your age?': كم عمرك؟ (to a woman كم عمرش؟). Answer with عمري + number + سنة.",
+      "image_scene": "A birthday cake with numeral candles reading 30.",
+      "concept_key": "age",
+      "variants": ["عمر", "عمرك", "عمرش", "عمري", "كم عمرك"],
+      "example": { "arabic": "كم عمرك؟ — عمري ثلاثين سنة", "transliteration": "kam ʿumrak? — ʿumri thalaathiin sana", "english": "How old are you? — I'm thirty" },
+      "video_hint": "Kids' Q&A and interviews where age is asked."
+    },
+    {
+      "arabic": "صحيح؟",
+      "transliteration": "ṣaḥiiḥ?",
+      "english": "really?",
+      "category": "Reaction",
+      "teaching_note": "The surprised 'really?', said with a rise. صح alone works too. والله؟ is the stronger version; use it sparingly.",
+      "image_scene": "A listener's face with raised eyebrows and a hand to the chest.",
+      "concept_key": "really",
+      "variants": ["صحيح", "صح", "والله", "عاد"],
+      "example": { "arabic": "صحيح؟ أنت من عدن؟", "transliteration": "ṣaḥiiḥ? ant min ʿadan?", "english": "Really? You're from Aden?" },
+      "video_hint": "Surprised reactions in conversation; often the whole reply."
+    },
+    {
+      "arabic": "يعني",
+      "transliteration": "yaʿni",
+      "english": "I mean… / that is",
+      "category": "Reaction",
+      "teaching_note": "The filler that buys thinking time and the connector that rephrases. Yemenis use it constantly; so can you, and it hides every pause.",
+      "image_scene": "A speaker mid-sentence, one hand circling as they search for the word.",
+      "concept_key": "i_mean",
+      "variants": ["يعني", "يعني ايش", "يعنى"],
+      "example": { "arabic": "أنا يعني مش من هنا، أنا من تعز", "transliteration": "ana yaʿni mish min hina, ana min taʿizz", "english": "I mean, I'm not from here, I'm from Taizz" },
+      "video_hint": "Almost every unscripted clip; listen for it as a pause-filler."
+    },
+    {
+      "arabic": "طبعاً لا",
+      "transliteration": "ṭabʿan laa",
+      "english": "of course not",
+      "category": "Reaction",
+      "teaching_note": "طبعاً keeps its -an ending. 'Of course' alone is طبعاً or أكيد; add لا for the firm denial. Said lightly it is a joke, said flat it closes the subject.",
+      "image_scene": "A person laughing and waving a hand 'no'.",
+      "concept_key": "of_course_not",
+      "variants": ["طبعا لا", "لا طبعاً", "أكيد لا"],
+      "example": { "arabic": "أنت متزوج؟ — طبعاً لا، عادني صغير", "transliteration": "ant mitzawwij? — ṭabʿan laa, ʿaadni ṣaghiir", "english": "Married? — Of course not, I'm still young" },
+      "video_hint": "Denials in skits: a laugh and 'of course not'."
+    },
+    {
+      "arabic": "من وين",
+      "transliteration": "min wayn",
+      "english": "where from",
+      "category": "Question phrase",
+      "teaching_note": "Question number one. Sanaa's older form is من أين (min ayn) — real and respected, but وين is what you will hear from most people. Answer with من + place.",
+      "image_scene": "A globe with a pin in Yemen and a second pin far away.",
+      "variants": ["من وين", "من أين", "منين"],
+      "example": { "arabic": "أنت من وين؟ — من صنعاء", "transliteration": "ant min wayn? — min ṣanʿaa", "english": "Where are you from? — From Sanaa" },
+      "video_hint": "The first question in any street interview."
+    },
+    {
+      "arabic": "ساكن",
+      "transliteration": "saakin",
+      "english": "living (in), resident",
+      "category": "Adjective — people",
+      "teaching_note": "'Where do you live?' uses this rather than a verb: وين ساكن؟ Feminine ساكنة, plural ساكنين. The answer is ساكن في + place.",
+      "image_scene": "A person standing at the door of a Sanaa house, keys in hand.",
+      "variants": ["ساكن", "ساكنة", "ساكنين", "تسكن"],
+      "example": { "arabic": "وين ساكن ذلحين؟", "transliteration": "wayn saakin dhalḥiin?", "english": "Where do you live now?" },
+      "video_hint": "'Where do you live?' in interviews; house-tour openings."
+    },
+    {
+      "arabic": "أعزب",
+      "transliteration": "aʿzab",
+      "english": "single (unmarried)",
+      "category": "Adjective — people",
+      "teaching_note": "The answer to متزوج؟ when the answer is no. Feminine عزباء is formal; women more often say مش متزوجة. Also عزابي.",
+      "image_scene": "A young man alone at a café table with one glass of tea.",
+      "variants": ["اعزب", "أعزب", "عزابي", "عزباء"],
+      "example": { "arabic": "أخوي عاده أعزب", "transliteration": "akhuuy ʿaadah aʿzab", "english": "My brother is still single" },
+      "video_hint": "Marriage talk in skits; 'still single' as the punchline."
+    },
+    {
+      "arabic": "بلاد",
+      "transliteration": "bilaad",
+      "english": "home region / country",
+      "category": "Noun — place",
+      "teaching_note": "Yemenis ask بلادك وين؟ — your 'country' meaning your home district or village, not your nation. Everyone is 'from' somewhere in the mountains even if born in Sanaa.",
+      "image_scene": "Terraced green mountains with a stone village on the ridge.",
+      "variants": ["بلاد", "البلاد", "بلادك", "بلادي"],
+      "example": { "arabic": "بلادك وين يا خال؟", "transliteration": "bilaadak wayn ya khaal?", "english": "Where's your home area, uncle?" },
+      "video_hint": "Villages and countryside vlogs; 'my bilaad' in the narration."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Um Ahmad", "arabic": "أنتي من وين يا سارة؟", "transliteration": "anti min wayn ya saara?", "english": "Where are you from, Sarah?" },
+    { "speaker": "Sarah", "arabic": "أنا من أمريكا، بس ساكنة في صنعاء ذلحين.", "transliteration": "ana min amriika, bass saakina fi ṣanʿaa dhalḥiin.", "english": "I'm from America, but I live in Sanaa now." },
+    { "speaker": "Um Ahmad", "arabic": "متزوجة؟ عندش جهّال؟", "transliteration": "mitzawwija? ʿindish jahhaal?", "english": "Married? Do you have kids?" },
+    { "speaker": "Sarah", "arabic": "طبعاً لا! عادني أدرس.", "transliteration": "ṭabʿan laa! ʿaadni adrus.", "english": "Of course not! I'm still studying." },
+    { "speaker": "Um Ahmad", "arabic": "صحيح؟ وكم عمرش؟", "transliteration": "ṣaḥiiḥ? w-kam ʿumrish?", "english": "Really? And how old are you?" },
+    { "speaker": "Sarah", "arabic": "يعني… ثنين وعشرين. وأنتي كم عمرش؟", "transliteration": "yaʿni… thnayn w-ʿishriin. w-anti kam ʿumrish?", "english": "Well… twenty-two. And how old are you?" },
+    { "speaker": "Um Ahmad", "arabic": "هههه، ليش تسألي؟", "transliteration": "hahaha, laysh tisʾali?", "english": "Ha! Why do you ask?" }
+  ],
+  "sound_spotlight": [
+    { "sound": "ايش", "example": "ايش (aysh)", "explanation": "One syllable with the ay diphthong, like English 'I' plus sh. Don't stretch it into two." },
+    { "sound": "-ش to a woman", "example": "عمرش، عندش (ʿumrish, ʿindish)", "explanation": "Addressing a woman, Sanaa turns the -ak ending into -ish. It is the most audible marker of the highland dialect; in Aden it stays -ik." },
+    { "sound": "Rising intonation", "example": "أنت متزوج؟", "explanation": "A yes/no question is the statement with the voice rising on the last syllable. Practise the same sentence as statement and question." }
+  ],
+  "lesson_sequence": [
+    { "step": "Questions first", "detail": "Six short Q&A exchanges play as audio with pictures; the learner hears each question answered before any word is isolated." },
+    { "step": "The question words", "detail": "ايش، مين، ليش، كيف، أي، كم on cards with audio and an example question each; English shown on the second pass." },
+    { "step": "Match the answer", "detail": "Hear a question, tap the answer that fits (a place, a number, a person, a reason)." },
+    { "step": "The interrogation", "detail": "Um Ahmad asks the four small-talk questions; the learner picks or records an answer to each." },
+    { "step": "Turn it around", "detail": "Given an answer, say the question. The app checks for the question word and the rise." },
+    { "step": "Lesson complete", "detail": "Counter rolls up; nudge to ask a real person three of these questions this week." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Ask a Yemeni friend or your tutor three questions from this lesson — and answer theirs without hesitating over 'married?'.", "context": "Shown on completion. Activates the small-talk set in both directions." },
+    { "prompt": "Listen for يعني in the next Yemeni video you watch and count how many times it appears in one minute.", "context": "Listening task; normalises the filler so the learner starts using it." },
+    { "prompt": "Say إي instead of 'yes' for a whole day.", "context": "Habit prompt for the Sanaa 'yes'." }
+  ],
+  "video_needs": {
+    "queries": ["مقابلات شارع صنعاء اسئلة", "سؤال وجواب يمني كوميدي", "ايش تشتغل مقابلة يمن"],
+    "channels": ["Mustafa Al-Mawmari", "Mister Momen", "Roti"],
+    "scene": "Street interviews and skits where a question is asked and answered on camera: where from, married, how many children, what work."
+  }
+}

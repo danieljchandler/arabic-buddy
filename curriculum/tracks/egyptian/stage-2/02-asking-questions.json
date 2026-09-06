@@ -1,0 +1,507 @@
+{
+  "slug": "asking-questions",
+  "lesson_number": 2,
+  "title": "Asking Questions",
+  "title_arabic": "إيه؟ مين؟ ليه؟ إزاي؟",
+  "description": "The full Egyptian question-word set — إيه، مين، ليه، إزاي، أنهي، كام — and the one rule that makes them sound Egyptian: the question word sits where the answer will go, usually at the end.",
+  "cefr_target": "A1",
+  "duration_minutes": 20,
+  "approach": "GPA Phase 2 — question-and-answer pairs from street interviews. Every question is heard with its answer first; then the learner builds questions by dropping the word into the answer's slot.",
+  "unlock_condition": "≥10/12 on the which-question-word listening quiz and one recorded five-question 'interview' with the right word order",
+  "icon": "❓",
+  "can_do": [
+    "Ask what, who, why, how, which, how many, when and where",
+    "Answer the small-talk questions everyone asks",
+    "Notice that the question word comes last in Egyptian"
+  ],
+  "grammar": [
+    {
+      "category": "questions",
+      "title": "The question word goes where the answer goes",
+      "explanation": "In English the question word jumps to the front: 'What is your name?'. In Egyptian it stays in the place the answer will fill, which is usually the end: اسمك إيه؟ (your name — what?), ساكن فين؟ (living — where?), رايح إزاي؟ (going — how?). So say the sentence as if you were answering it, and put the question word in the gap. The set is إيه (what), مين (who), فين (where), إمتى (when), ليه (why), إزاي (how), كام (how many / what number) and أنهي (which); بكام is how much something costs. A yes/no question has no extra word at all — just raise your voice at the end: إنت مصري؟ Never use هل, and never كيف or ماذا: those belong to the news, not to the street.",
+      "examples": [
+        {
+          "arabic": "بتشتغل إيه؟",
+          "transliteration": "bitishtaghal eeh?",
+          "english": "What do you do (for work)?"
+        },
+        {
+          "arabic": "الراجل ده مين؟",
+          "transliteration": "er-raagil da miin?",
+          "english": "Who is this man?"
+        },
+        {
+          "arabic": "بتتعلم عربي ليه؟",
+          "transliteration": "bititʿallim ʿarabi leeh?",
+          "english": "Why are you learning Arabic?"
+        },
+        {
+          "arabic": "عايز أنهي واحد؟",
+          "transliteration": "ʿaayiz anhi waaḥid?",
+          "english": "Which one do you want?"
+        },
+        {
+          "arabic": "عندك كام سنة؟",
+          "transliteration": "ʿandak kaam sana?",
+          "english": "How old are you?"
+        }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "The friendly interrogation",
+      "note": "Within five minutes of meeting an Egyptian you will be asked where you are from, whether you are married, how many children you have and what you do — sometimes what you earn. None of it is rude; it is how people place you and decide how to look after you. Answer with the same warmth and ask back: الحمد لله is a complete answer to almost anything. To deflect, smile and say لسه (not yet) to the marriage question, or ربنا يسهل (God will make it easy). ما شاء الله is what you say when the answer is children — always.",
+      "phrases": [
+        {
+          "arabic": "إنت متجوز؟ — لسه",
+          "transliteration": "inta mitgawwiz? — lissa",
+          "english": "Are you married? — Not yet"
+        },
+        {
+          "arabic": "عندك عيال؟ — أيوه، اتنين، ما شاء الله",
+          "transliteration": "ʿandak ʿiyaal? — aywa, itneen, ma shaaʾ allaah",
+          "english": "Do you have kids? — Yes, two, God be praised"
+        },
+        {
+          "arabic": "ربنا يسهل",
+          "transliteration": "rabbina ysahhil",
+          "english": "God will make it easy (a soft deflection)"
+        }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "إيه",
+      "transliteration": "eeh",
+      "english": "what",
+      "category": "Question word",
+      "teaching_note": "The most Egyptian word there is — one long ee. It comes last: عايز إيه؟ بتعمل إيه؟. Never ماذا; and note that in Gulf speech the same sound means 'yes', which will confuse you the other way.",
+      "image_scene": "A large question mark over an open hand, palm up, fingers spread in the Egyptian 'what?' gesture.",
+      "concept_key": "what",
+      "variants": [
+        "ايه",
+        "إيه ده",
+        "عايز إيه",
+        "بتعمل إيه"
+      ],
+      "example": {
+        "arabic": "بتشرب إيه؟",
+        "transliteration": "bitishrab eeh?",
+        "english": "What will you drink?"
+      },
+      "video_hint": "Any street interview; the interviewer's question ending in إيه with the reply immediately after."
+    },
+    {
+      "arabic": "مين",
+      "transliteration": "miin",
+      "english": "who",
+      "category": "Question word",
+      "teaching_note": "Long ii. Sits at the end like the others: ده مين؟ (who is this?). On the phone مين معايا؟ ('who is with me?') is how you ask who is calling.",
+      "image_scene": "A silhouette of a person with a question mark for a face, another person pointing at them.",
+      "concept_key": "who",
+      "variants": [
+        "مين ده",
+        "مين معايا",
+        "بتاع مين"
+      ],
+      "example": {
+        "arabic": "الست دي مين؟",
+        "transliteration": "es-sitt di miin?",
+        "english": "Who is this woman?"
+      },
+      "video_hint": "Someone asking who a person is — ده مين؟ — with the answer naming them."
+    },
+    {
+      "arabic": "ليه",
+      "transliteration": "leeh",
+      "english": "why",
+      "category": "Question word",
+      "teaching_note": "Never لماذا. ليه on its own, with a rising tone, is the whole question 'why?'. The answer starts with عشان (because) — learn them as a pair.",
+      "image_scene": "A child looking up at a parent with palms open in a 'but why?' pose.",
+      "concept_key": "why",
+      "variants": [
+        "ليه كده",
+        "ليه بقى",
+        "وليه"
+      ],
+      "example": {
+        "arabic": "بتصحى بدري ليه؟ — عشان الشغل",
+        "transliteration": "bitiṣḥa badri leeh? — ʿashaan esh-shughl",
+        "english": "Why do you wake up early? — Because of work"
+      },
+      "video_hint": "Comedy skits built on ليه؟ — the question and its عشان answer within a few seconds."
+    },
+    {
+      "arabic": "إزاي",
+      "transliteration": "izzaay",
+      "english": "how",
+      "category": "Question word",
+      "teaching_note": "The Egyptian 'how' — related to إزيك, which is literally 'how are you'. Never كيف in Cairo. بتقول إزاي بالمصري؟ is the learner's best friend.",
+      "image_scene": "Hands turning the pages of an instruction manual, a puzzled face.",
+      "concept_key": "how",
+      "variants": [
+        "ازاي",
+        "إزاي كده",
+        "بتقول إزاي"
+      ],
+      "example": {
+        "arabic": "بتروح الشغل إزاي؟ — بالمترو",
+        "transliteration": "bitruuḥ esh-shughl izzaay? — bil-metro",
+        "english": "How do you get to work? — By metro"
+      },
+      "video_hint": "Someone asking how to do or get to something — إزاي؟ — and being shown."
+    },
+    {
+      "arabic": "أنهي",
+      "transliteration": "anhi",
+      "english": "which",
+      "category": "Question word",
+      "teaching_note": "Egyptian 'which' is أنهي (or أنهو with a masculine noun, أنهي with a feminine one — most people just say أنهي). It can come before the noun or after it: أنهي كتاب؟ / كتاب أنهي؟. MSA أي is heard only in formal speech.",
+      "image_scene": "Two identical cups on a counter, a hand hovering between them.",
+      "concept_key": "which",
+      "variants": [
+        "أنهو",
+        "انهي",
+        "انهو",
+        "أنهي واحد"
+      ],
+      "example": {
+        "arabic": "إنت ساكن في أنهي شارع؟",
+        "transliteration": "inta saakin fi anhi shaariʿ?",
+        "english": "Which street do you live on?"
+      },
+      "video_hint": "A choice being offered — أنهي واحد؟ — with two objects on screen."
+    },
+    {
+      "arabic": "كام",
+      "transliteration": "kaam",
+      "english": "how many / what number",
+      "category": "Question word",
+      "teaching_note": "كام asks for a number and the noun after it is always singular: كام سنة؟ كام واحد؟ الساعة كام؟. With بـ in front, بكام, it asks a price. Long aa.",
+      "image_scene": "A hand counting on raised fingers, a question mark above.",
+      "concept_key": "how_many",
+      "variants": [
+        "كام واحد",
+        "كام سنة",
+        "الساعة كام",
+        "كام مرة"
+      ],
+      "example": {
+        "arabic": "عندك كام أخ؟",
+        "transliteration": "ʿandak kaam akhkh?",
+        "english": "How many brothers do you have?"
+      },
+      "video_hint": "Someone asking a count — عندك كام…؟ — with the number answered."
+    },
+    {
+      "arabic": "متجوز",
+      "transliteration": "mitgawwiz",
+      "english": "married (of a man)",
+      "category": "Adjective — life",
+      "teaching_note": "The Egyptian root is جوز (husband = جوز, wife = مرات): متجوز for a man, متجوزة for a woman. The MSA متزوج is heard only on forms. It is the second question anyone asks you.",
+      "image_scene": "A couple's hands with wedding rings, side by side on a table.",
+      "concept_key": "married",
+      "variants": [
+        "متجوزة",
+        "متجوزين",
+        "اتجوز",
+        "اتجوزت",
+        "جواز"
+      ],
+      "example": {
+        "arabic": "إنت متجوز ولا لأ؟",
+        "transliteration": "inta mitgawwiz walla laʾ?",
+        "english": "Are you married or not?"
+      },
+      "video_hint": "Street interview or comedy where someone is asked متجوز؟ and answers."
+    },
+    {
+      "arabic": "عيال",
+      "transliteration": "ʿiyaal",
+      "english": "children / kids",
+      "category": "Noun — family",
+      "teaching_note": "The everyday word for one's kids; أولاد is a touch more neutral and أطفال means small children in general. عندك عيال؟ is the third question in the interrogation — answer with ما شاء الله ready.",
+      "image_scene": "Three children of different ages playing on a balcony, a parent watching.",
+      "concept_key": "children",
+      "variants": [
+        "العيال",
+        "أولاد",
+        "الأولاد",
+        "أطفال",
+        "عيالي"
+      ],
+      "example": {
+        "arabic": "عندي عيال، تلاتة ما شاء الله",
+        "transliteration": "ʿandi ʿiyaal, talaata ma shaaʾ allaah",
+        "english": "I have kids, three, God be praised"
+      },
+      "video_hint": "Family vlogs where a parent says العيال about their children on screen."
+    },
+    {
+      "arabic": "عندك كام سنة؟",
+      "transliteration": "ʿandak kaam sana?",
+      "english": "how old are you? (age)",
+      "category": "Phrase — question",
+      "teaching_note": "Age in Egyptian is something you 'have': literally 'you have how many years?'. To a woman: عندك كام سنة؟ sounds the same but is written عندكي. The word for age itself is سن, as in سنه كام؟, but this phrase is what people actually say.",
+      "image_scene": "A birthday cake with candles being counted by a child.",
+      "concept_key": "age",
+      "variants": [
+        "عندكي كام سنة",
+        "عنده كام سنة",
+        "سن",
+        "سنك كام",
+        "عندي تلاتين سنة"
+      ],
+      "example": {
+        "arabic": "عندك كام سنة؟ — عندي خمسة وعشرين",
+        "transliteration": "ʿandak kaam sana? — ʿandi khamsa wi-ʿishriin",
+        "english": "How old are you? — I'm twenty-five"
+      },
+      "video_hint": "Kids' Q&A or street interviews where age is asked and answered."
+    },
+    {
+      "arabic": "بجد",
+      "transliteration": "bigadd",
+      "english": "really? / seriously",
+      "category": "Reaction",
+      "teaching_note": "With a rising tone it is 'really?!'; flat, it means 'seriously, honestly' (بجد أنا تعبان). The ج is a hard g and the د is doubled. You will hear it fifty times a day.",
+      "image_scene": "A person leaning forward with raised eyebrows and an open mouth of surprise.",
+      "variants": [
+        "بجد؟",
+        "بجد والله",
+        "بجد بجد"
+      ],
+      "concept_key": "really",
+      "example": {
+        "arabic": "اتجوزت؟ بجد؟",
+        "transliteration": "itgawwizt? bigadd?",
+        "english": "You got married? Really?"
+      },
+      "video_hint": "A surprised reaction in any vlog or skit — بجد؟ — right after news is delivered."
+    },
+    {
+      "arabic": "يعني",
+      "transliteration": "yaʿni",
+      "english": "I mean… / that is / so-so",
+      "category": "Discourse word",
+      "teaching_note": "The filler that holds Egyptian speech together: it buys thinking time, rephrases, and on its own with a shrug answers 'how are you?' with 'so-so'. Use it and you instantly sound less like a textbook.",
+      "image_scene": "A speaker mid-sentence with a hand tilting side to side in the 'so-so' gesture.",
+      "concept_key": "i_mean",
+      "variants": [
+        "يعنى",
+        "يعني إيه",
+        "يعني كده"
+      ],
+      "example": {
+        "arabic": "الشغل كويس؟ — يعني…",
+        "transliteration": "esh-shughl kuwayyis? — yaʿni…",
+        "english": "Is work good? — So-so…"
+      },
+      "video_hint": "Any unscripted Egyptian speech; يعني as a hesitation before the real answer."
+    },
+    {
+      "arabic": "طبعاً لأ",
+      "transliteration": "ṭabʿan laʾ",
+      "english": "of course not",
+      "category": "Reaction",
+      "teaching_note": "طبعاً (of course) plus لأ (no). The ط is emphatic, the ع is held, and the final لأ has a sharp glottal stop. Said with a laugh it is friendly; said flat it closes the topic.",
+      "image_scene": "A person shaking their head with a small smile and a raised palm.",
+      "concept_key": "of_course_not",
+      "variants": [
+        "طبعا لأ",
+        "لأ طبعاً",
+        "أكيد لأ"
+      ],
+      "example": {
+        "arabic": "إنت زعلان مني؟ — طبعاً لأ",
+        "transliteration": "inta zaʿlaan minni? — ṭabʿan laʾ",
+        "english": "Are you upset with me? — Of course not"
+      },
+      "video_hint": "A skit where someone denies something firmly — طبعاً لأ — with a head shake."
+    },
+    {
+      "arabic": "قد إيه",
+      "transliteration": "ʾadd eeh",
+      "english": "how much / how long",
+      "category": "Question word",
+      "teaching_note": "For amounts and durations, not counts: بقالك قد إيه في مصر؟ (how long have you been in Egypt?), بتحبه قد إيه؟ (how much do you love him?). The ق is a glottal stop and the د is doubled: ʾadd.",
+      "image_scene": "An hourglass beside a measuring tape, both with question marks.",
+      "variants": [
+        "أد إيه",
+        "قد ايه",
+        "بقالك قد إيه"
+      ],
+      "example": {
+        "arabic": "بقالك قد إيه هنا؟ — سنة",
+        "transliteration": "baʾaalak ʾadd eeh hina? — sana",
+        "english": "How long have you been here? — A year"
+      },
+      "video_hint": "An interviewer asking how long someone has done something — بقالك قد إيه؟"
+    },
+    {
+      "arabic": "ولا",
+      "transliteration": "walla",
+      "english": "or (in a question)",
+      "category": "Question word",
+      "teaching_note": "The 'or' of questions: شاي ولا قهوة؟ متجوز ولا لأ؟. Doubled ل. It is the same letters as 'and not' — context and the rising tone tell you it is a choice being offered.",
+      "image_scene": "A tray with a glass of tea on one side and a coffee cup on the other, a hand hovering between.",
+      "variants": [
+        "ولا لأ",
+        "ولا إيه"
+      ],
+      "example": {
+        "arabic": "إنت طالب ولا بتشتغل؟",
+        "transliteration": "inta ṭaalib walla bitishtaghal?",
+        "english": "Are you a student or do you work?"
+      },
+      "video_hint": "A host offering a choice — شاي ولا قهوة؟ — with both drinks visible."
+    },
+    {
+      "arabic": "عازب",
+      "transliteration": "ʿaazib",
+      "english": "single / unmarried",
+      "category": "Adjective — life",
+      "teaching_note": "The polite answer to متجوز؟ when the answer is no; for a woman عزبا or the softer لسه (not yet). Egyptians will reply عقبالك — 'your turn next' — so have a smile ready.",
+      "image_scene": "A single person sitting with a coffee at a café table set for one.",
+      "variants": [
+        "عزبا",
+        "عازبة",
+        "أعزب",
+        "لسه معرفتش"
+      ],
+      "example": {
+        "arabic": "أنا عازب لسه",
+        "transliteration": "ana ʿaazib lissa",
+        "english": "I'm still single"
+      },
+      "video_hint": "Someone answering the marriage question with عازب and the friendly عقبالك that follows."
+    }
+  ],
+  "dialogue": [
+    {
+      "speaker": "Uncle Sayed",
+      "arabic": "إنت منين يا ابني؟",
+      "transliteration": "inta mineen ya-bni?",
+      "english": "Where are you from, son?"
+    },
+    {
+      "speaker": "Tom",
+      "arabic": "من إنجلترا، بس ساكن هنا في الدقي",
+      "transliteration": "min ingiltera, bass saakin hina fid-duʾʾi",
+      "english": "From England, but I live here in Dokki"
+    },
+    {
+      "speaker": "Uncle Sayed",
+      "arabic": "بتشتغل إيه؟",
+      "transliteration": "bitishtaghal eeh?",
+      "english": "What do you do?"
+    },
+    {
+      "speaker": "Tom",
+      "arabic": "مدرس إنجليزي",
+      "transliteration": "mudarris ingliizi",
+      "english": "An English teacher"
+    },
+    {
+      "speaker": "Uncle Sayed",
+      "arabic": "وإنت متجوز ولا لأ؟",
+      "transliteration": "w-inta mitgawwiz walla laʾ?",
+      "english": "And are you married or not?"
+    },
+    {
+      "speaker": "Tom",
+      "arabic": "لسه، عازب",
+      "transliteration": "lissa, ʿaazib",
+      "english": "Not yet, single"
+    },
+    {
+      "speaker": "Uncle Sayed",
+      "arabic": "بجد؟ عندك كام سنة؟",
+      "transliteration": "bigadd? ʿandak kaam sana?",
+      "english": "Really? How old are you?"
+    },
+    {
+      "speaker": "Tom",
+      "arabic": "تلاتين. — يعني… ربنا يسهل!",
+      "transliteration": "talatiin. — yaʿni… rabbina ysahhil!",
+      "english": "Thirty. — Well… God will make it easy!"
+    }
+  ],
+  "sound_spotlight": [
+    {
+      "sound": "The long ee of إيه، ليه، فين",
+      "example": "إيه (eeh)، ليه (leeh)",
+      "explanation": "Most Egyptian question words carry the pure long ee that MSA does not have. Hold it flat and long, like the vowel in 'they' without the glide, and let your voice rise at the end."
+    },
+    {
+      "sound": "The rising yes/no question",
+      "example": "إنت مصري؟ (inta maṣri?)",
+      "explanation": "A yes/no question is the plain statement with the pitch rising on the last word. There is no هل. Listen for the melody, not for a word."
+    },
+    {
+      "sound": "Doubled consonants in بجد، ولا، قد",
+      "example": "بجد (bigadd)، ولا (walla)",
+      "explanation": "The shadda is real length: hold the d of bigadd and the l of walla for a beat. Shortening them makes بجد sound like 'my grandfather'."
+    }
+  ],
+  "lesson_sequence": [
+    {
+      "step": "Watch first",
+      "detail": "Forty seconds of an Egyptian street interview, no text: the learner watches question → answer rhythm and the 'what?' hand gesture."
+    },
+    {
+      "step": "Meet the question words",
+      "detail": "Sixteen cards with illustration and audio; each question word plays with one short answer so the pair is learned together."
+    },
+    {
+      "step": "Where does it go?",
+      "detail": "Drag the question word into the gap of an answer sentence: أنا ساكن في المعادي → إنت ساكن ___؟. Eight sentences, immediate feedback."
+    },
+    {
+      "step": "Which question was it?",
+      "detail": "Listening quiz: twelve answers play (بالمترو، عشان الشغل، تلاتة…); the learner picks which question word was asked."
+    },
+    {
+      "step": "Rewatch with captions",
+      "detail": "The same interview with Egyptian captions; the learner taps every question word they hear."
+    },
+    {
+      "step": "Interview a friend",
+      "detail": "The learner records five questions to an imaginary new acquaintance in the right order — from where, work, married, kids, age — and hears a model answer to each."
+    },
+    {
+      "step": "Lesson complete",
+      "detail": "Words-learned counter rolls up. Nudge: next time someone asks إنت منين؟ answer, then ask it back."
+    }
+  ],
+  "real_world_prompts": [
+    {
+      "prompt": "Today, ask one Egyptian إنت منين؟ or بتشتغل إيه؟ — then survive the questions that come back.",
+      "context": "Shown on the lesson-complete screen. Activates the interrogation script in real life with a safe opener."
+    },
+    {
+      "prompt": "Listen for يعني in the next Egyptian conversation you overhear. Count how many times it comes in one minute.",
+      "context": "Follow-up notification the next day. Trains the ear on the discourse word that marks natural speech."
+    },
+    {
+      "prompt": "Tell your tutor: ask me the five small-talk questions fast, and I will answer without stopping.",
+      "context": "Tutor-ready task card. Productive rehearsal of the answers, not just the questions."
+    }
+  ],
+  "video_needs": {
+    "queries": [
+      "اسمك إيه ومنين إنت مقابلات شارع",
+      "مقابلات في الشارع مصر بتشتغل إيه",
+      "أسئلة للأطفال كوميدي مصري",
+      "إنت متجوز ولا لأ"
+    ],
+    "channels": [
+      "Easy Arabic",
+      "Ali Gamal",
+      "Egyptoon"
+    ],
+    "scene": "Street interviews: a question ending in إيه / مين / فين / ليه, then the answer within two seconds; kids' Q&A and quiz shows for كام and أنهي."
+  }
+}

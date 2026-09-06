@@ -1,0 +1,221 @@
+{
+  "slug": "people-and-family",
+  "lesson_number": 5,
+  "title": "People and Family",
+  "title_arabic": "الناس والأهل",
+  "description": "Name the people in a family and the people in the street — mother, father, the Yemeni word for a child, the word for a friend — and attach 'my' and 'your' to them with the endings Sanaa uses.",
+  "cefr_target": "A1",
+  "duration_minutes": 20,
+  "approach": "GPA Phase 2 — family-tree picture as the here-and-now object; the learner points at relatives and produces أمي، أخوك، بنتش with the correct suffix.",
+  "unlock_condition": "≥9/12 on the listen-and-tap quiz and a correct 'my / your' suffix on four family words",
+  "icon": "👨‍👩‍👧",
+  "can_do": [
+    "Name the members of a family",
+    "Say 'my' and 'your' with family words",
+    "Ask about someone's family politely"
+  ],
+  "grammar": [
+    {
+      "category": "possessives",
+      "title": "-i, -ak, -ish: my, your (m), your (f)",
+      "explanation": "To say 'my', add -i to the end of the word: بيت becomes بيتي, أخت becomes أختي. 'Your' to a man is -ak: بيتك, أختك. 'Your' to a woman is -ish in Sanaa: بيتش, أختش — the ending that marks highland speech, where Aden says -ik. A few family words change shape first: أب 'father' becomes أبوي 'my father', أبوك, أبوش; أخ 'brother' becomes أخوي, أخوك, أخوش. 'His' is -a (or -uh) and 'her' is -ha: بيته, بيتها.",
+      "examples": [
+        { "arabic": "ذي أمي وذا أبوي", "transliteration": "dhii ummi w-dhaa abuuy", "english": "This is my mother and this is my father" },
+        { "arabic": "أخوك طالب؟", "transliteration": "akhuuk ṭaalib?", "english": "Is your brother a student? (to a man)" },
+        { "arabic": "أختش من صنعاء؟", "transliteration": "ukhtish min ṣanʿaa?", "english": "Is your sister from Sanaa? (to a woman)" },
+        { "arabic": "بنته اسمها نور", "transliteration": "binta ismaha nuur", "english": "His daughter's name is Nour" },
+        { "arabic": "أهلي في تعز", "transliteration": "ahli fi taʿizz", "english": "My family is in Taʿizz" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "The family question",
+      "note": "After the greetings, the next thing a Yemeni asks is about your family — كيف الأهل؟ 'how is the family?' — and the only answer needed is بخير الحمد لله; it is not a request for news. Asking a man about his children, his brothers or his parents is warm and normal. Asking a man about his wife by name is not: say كيف الأهل or كيف البيت and he will include her. Between women every question is fine. Show a photo of your own family and you will make friends faster than with any grammar.",
+      "phrases": [
+        { "arabic": "كيف الأهل؟", "transliteration": "kayf il-ahl?", "english": "How is the family?" },
+        { "arabic": "كيف البيت؟", "transliteration": "kayf il-bayt?", "english": "How is the household? (polite way to ask after a man's wife and children)" },
+        { "arabic": "ما شاء الله عليهم", "transliteration": "maa shaa allaah ʿalayhum", "english": "God bless them (on seeing or hearing about children)" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "أم",
+      "transliteration": "umm",
+      "english": "mother",
+      "category": "Family",
+      "teaching_note": "Almost always heard with an ending: أمي 'my mother', أمك, أمش. Children say ماما; adults speaking respectfully say الوالدة. A woman with a son is أم + his name, exactly like أبو for a man.",
+      "image_scene": "A mother in a colourful Sanaa house-dress holding a small child on her hip in a sunlit room.",
+      "concept_key": "mother",
+      "variants": ["أمي", "امي", "أمك", "ماما", "الوالدة", "أم أحمد"],
+      "example": { "arabic": "أمي في البيت", "transliteration": "ummi fil-bayt", "english": "My mother is at home" },
+      "video_hint": "Family vlogs where a mother is introduced or called; أمي in the caption."
+    },
+    {
+      "arabic": "أب",
+      "transliteration": "ab",
+      "english": "father",
+      "category": "Family",
+      "teaching_note": "The bare word is rare; what you hear is أبوي 'my father', أبوك 'your father', أبوه 'his father'. Respectful الوالد is common too, and a man is addressed as أبو + his eldest son's name.",
+      "image_scene": "A father in a white thob and Sanaa shawl with a janbiya at his belt, hand on a boy's shoulder.",
+      "concept_key": "father",
+      "variants": ["أبوي", "ابوي", "أبوك", "أبوه", "بابا", "الوالد", "أبو"],
+      "example": { "arabic": "أبوي من صنعاء", "transliteration": "abuuy min ṣanʿaa", "english": "My father is from Sanaa" },
+      "video_hint": "A father shown or spoken about; أبوي / الوالد in narration."
+    },
+    {
+      "arabic": "أخ",
+      "transliteration": "akh",
+      "english": "brother",
+      "category": "Family",
+      "teaching_note": "With endings it takes an extra و: أخوي 'my brother', أخوك, أخوش. Also the word men use to each other in the street — يا أخي 'brother!' — with no family meaning at all.",
+      "image_scene": "Two young men of similar age with arms over each other's shoulders, grinning.",
+      "concept_key": "brother",
+      "variants": ["أخوي", "اخوي", "أخي", "أخوك", "أخوه", "إخوان", "يا أخي"],
+      "example": { "arabic": "ذا أخوي علي", "transliteration": "dhaa akhuuy ʿali", "english": "This is my brother Ali" },
+      "video_hint": "Brothers introduced in a vlog; يا أخي in street speech."
+    },
+    {
+      "arabic": "أخت",
+      "transliteration": "ukht",
+      "english": "sister",
+      "category": "Family",
+      "teaching_note": "Regular with endings: أختي, أختك, أختش. Ends in the خ–ت cluster, good practice for خ before a consonant. Also يا أختي 'sister!' to any woman politely.",
+      "image_scene": "Two young women in bright shawls laughing together on a rooftop, the city behind them.",
+      "concept_key": "sister",
+      "variants": ["أختي", "اختي", "أختك", "أختش", "أخوات", "يا أختي"],
+      "example": { "arabic": "أختي طالبة", "transliteration": "ukhti ṭaaliba", "english": "My sister is a student" },
+      "video_hint": "A sister introduced or addressed; أختي in family content."
+    },
+    {
+      "arabic": "ولد",
+      "transliteration": "walad",
+      "english": "son (also boy)",
+      "category": "Family",
+      "teaching_note": "ولدي 'my son' is what a father says; the same word means a boy generally. Plural أولاد covers children of both sexes when speaking of a family.",
+      "image_scene": "A father with a hand on the head of a boy of about ten, both looking at the camera.",
+      "concept_key": "son",
+      "variants": ["ولدي", "ولدك", "ولده", "أولاد", "الولد", "ابني"],
+      "example": { "arabic": "ولدي اسمه أحمد", "transliteration": "waladi isma aḥmad", "english": "My son's name is Ahmed" },
+      "video_hint": "A parent naming a son; ولدي in family vlogs."
+    },
+    {
+      "arabic": "بنت",
+      "transliteration": "bint",
+      "english": "daughter (also girl)",
+      "category": "Family",
+      "teaching_note": "بنتي 'my daughter'; the same word is 'girl' in general and بنات is the plural. In Hadramawt you will hear بنيت — same word.",
+      "image_scene": "A mother adjusting the shawl of a girl of about ten, both smiling.",
+      "concept_key": "daughter",
+      "variants": ["بنتي", "بنتك", "بنتش", "بنته", "بنات", "البنت"],
+      "example": { "arabic": "بنتي في المدرسة", "transliteration": "binti fil-madrasa", "english": "My daughter is at school" },
+      "video_hint": "A parent naming a daughter; بنتي in family vlogs."
+    },
+    {
+      "arabic": "أهل",
+      "transliteration": "ahl",
+      "english": "family",
+      "category": "Family",
+      "teaching_note": "The Yemeni word for family is أهل — 'my people' — not the bookish عائلة or أسرة. أهلي 'my family', كيف الأهل؟ 'how is the family?'. Also 'the people of' a place: أهل صنعاء.",
+      "image_scene": "An extended family seated on floor cushions around a large shared tray of food.",
+      "concept_key": "family",
+      "variants": ["أهلي", "اهلي", "الأهل", "أهلك", "عائلة", "أسرة", "أهل صنعاء"],
+      "example": { "arabic": "كيف الأهل؟ — بخير الحمد لله", "transliteration": "kayf il-ahl? — bi-khayr il-ḥamdu lillaah", "english": "How is the family? — Fine, thank God" },
+      "video_hint": "Anyone asking or talking about their family; أهلي in narration."
+    },
+    {
+      "arabic": "صاحب",
+      "transliteration": "ṣaaḥib",
+      "english": "friend",
+      "category": "People",
+      "teaching_note": "صاحبي 'my friend' is the everyday word; صديق is understood but more formal. Sanaa also uses ربيع — ربيعي 'my mate' — which you will hear constantly among young men.",
+      "image_scene": "Two friends sitting on the steps of a tower house sharing a bag of qat leaves and laughing.",
+      "concept_key": "friend",
+      "variants": ["صاحبي", "صاحبك", "أصحاب", "صديق", "صديقي", "ربيع", "ربيعي"],
+      "example": { "arabic": "ذا صاحبي سالم", "transliteration": "dhaa ṣaaḥbi saalim", "english": "This is my friend Salem" },
+      "video_hint": "Friends introduced on camera; صاحبي / ربيعي in speech."
+    },
+    {
+      "arabic": "رجّال",
+      "transliteration": "rajjaal",
+      "english": "man",
+      "category": "People",
+      "teaching_note": "Yemeni doubles the j: rajjaal, not the MSA rajul. Plural رجال. In Aden the ج becomes g: riggaal. Also a compliment — رجّال 'a real man'.",
+      "image_scene": "A grown man in a thob, shawl and janbiya standing in a market lane, full figure.",
+      "concept_key": "man",
+      "variants": ["رجال", "الرجال", "رجاجيل", "رجل"],
+      "example": { "arabic": "الرجّال في الجامع", "transliteration": "ir-rajjaal fil-jaamiʿ", "english": "The man is at the mosque" },
+      "video_hint": "A man pointed out or described; رجال in captions."
+    },
+    {
+      "arabic": "مرة",
+      "transliteration": "mara",
+      "english": "woman",
+      "category": "People",
+      "teaching_note": "The Sanaa word for a woman, also 'wife' (مرته 'his wife'). One spelling, three words: mara 'woman', marra 'once', and marra 'very' — the vowel length and doubling tell them apart. Aden says حرمة.",
+      "image_scene": "A woman in a black abaya and a patterned Sanaa shawl carrying a shopping bag in a market.",
+      "concept_key": "woman",
+      "variants": ["مره", "المرة", "مرته", "حرمة", "نسوان", "حريم"],
+      "example": { "arabic": "المرة من تعز", "transliteration": "il-mara min taʿizz", "english": "The woman is from Taʿizz" },
+      "video_hint": "A woman referred to; مرة / حرمة in speech."
+    },
+    {
+      "arabic": "جاهل",
+      "transliteration": "jaahil",
+      "english": "boy / child",
+      "category": "People",
+      "teaching_note": "The Yemeni word for a child — literally 'one who does not know yet'. Not an insult, though the same word is 'ignorant' in MSA. Plural جهّال: عندي ثلاثة جهّال 'I have three kids'. Aden: gaahil.",
+      "image_scene": "A boy of about six in a small thob and cap kicking a ball in a stone lane.",
+      "concept_key": "boy",
+      "variants": ["جهّال", "جهال", "الجاهل", "الجهال"],
+      "example": { "arabic": "الجاهل في الشارع", "transliteration": "il-jaahil fish-shaariʿ", "english": "The boy is in the street" },
+      "video_hint": "Children on screen being called جاهل / جهال; family and street content."
+    },
+    {
+      "arabic": "جاهلة",
+      "transliteration": "jaahila",
+      "english": "girl / little girl",
+      "category": "People",
+      "teaching_note": "The feminine of جاهل — a little girl. The pair shows the feminine ة the learner met in طالب / طالبة. Once she is older she is بنت.",
+      "image_scene": "A girl of about six in a bright dress with braided hair holding a small kitten.",
+      "concept_key": "girl",
+      "variants": ["جاهله", "الجاهلة", "جاهلات", "بنية"],
+      "example": { "arabic": "الجاهلة مع أمها", "transliteration": "il-jaahila maʿ ummaha", "english": "The little girl is with her mother" },
+      "video_hint": "A small girl on screen; جاهلة in family content."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Nour", "arabic": "ذي صورة أهلي", "transliteration": "dhii ṣuurat ahli", "english": "This is a photo of my family" },
+    { "speaker": "Sara", "arabic": "ما شاء الله! من ذا؟", "transliteration": "maa shaa allaah! man dhaa?", "english": "God bless them! Who is this?" },
+    { "speaker": "Nour", "arabic": "ذا أبوي وذي أمي", "transliteration": "dhaa abuuy w-dhii ummi", "english": "This is my father and this is my mother" },
+    { "speaker": "Sara", "arabic": "وذا أخوش؟", "transliteration": "w-dhaa akhuush?", "english": "And this is your brother?" },
+    { "speaker": "Nour", "arabic": "إي، أخوي علي. وذي بنته", "transliteration": "ʾii, akhuuy ʿali. w-dhii binta", "english": "Yes, my brother Ali. And this is his daughter" },
+    { "speaker": "Sara", "arabic": "جاهلة حلوة! كيف الأهل؟", "transliteration": "jaahila ḥilwa! kayf il-ahl?", "english": "A sweet little girl! How is the family?" },
+    { "speaker": "Nour", "arabic": "بخير الحمد لله", "transliteration": "bi-khayr il-ḥamdu lillaah", "english": "Fine, thank God" }
+  ],
+  "sound_spotlight": [
+    { "sound": "Doubled consonants", "example": "رجّال (rajjaal)، جهّال (jahhaal)", "explanation": "A doubled letter is held, not repeated — the tongue stays in place twice as long. Sanaa speech is full of these and they change meaning: mara 'woman' against marra 'very'." },
+    { "sound": "-ish", "example": "أختش (ukhtish)، أخوش (akhuush)", "explanation": "The Sanaa 'your (f.)' ending is produced for the first time here. It is a plain sh — nothing else changes in the word." },
+    { "sound": "خ before a consonant", "example": "أخت (ukht)", "explanation": "The rasping خ runs straight into ت with no vowel between. Practise it as one syllable: ukht, then ukhti." }
+  ],
+  "lesson_sequence": [
+    { "step": "Welcome", "detail": "A family photo on a phone screen. One line of English: you will learn who everyone is and how to say 'my' and 'your'." },
+    { "step": "Point & hear", "detail": "One family-tree illustration; tap each person to hear the word. Mother, father, brother, sister, son, daughter." },
+    { "step": "Listen & see", "detail": "The remaining six cards (family, friend, man, woman, boy, girl) with audio; second pass with English." },
+    { "step": "My or your?", "detail": "The word is shown bare; tap 'my', 'your (m)' or 'your (f)' and hear the suffixed form. The -ish ending gets its own explanation card." },
+    { "step": "Tap quiz", "detail": "All twelve, audio only, four-image grid." },
+    { "step": "Say four", "detail": "Record أمي، أبوي، أخوك، أختش and compare with the model. Feedback on the doubled j and the sh ending." },
+    { "step": "Lesson complete", "detail": "Counter rolls up. Nudge: describe a family photo to yourself in Arabic tonight." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Open a family photo on your phone and point at each person saying ذا أبوي، ذي أمي… out loud.", "context": "Shown on the lesson-complete screen. Here-and-now production with a real object." },
+    { "prompt": "Ask a Yemeni acquaintance كيف الأهل؟ today and notice that the reply is a formula, not a report.", "context": "Follow-up notification. Practises the culturally correct family question." },
+    { "prompt": "Ask your tutor to describe their family and count how many times you hear جاهل or جهّال.", "context": "Tutor prompt. Trains the ear on the Yemeni word for children in natural speech." }
+  ],
+  "video_needs": {
+    "queries": ["فلوق عائلي يمني", "أهلي وأخوي فلوق صنعاء", "جهال يمنيين مضحك", "كيف الأهل يمني"],
+    "channels": ["Mustafa Al-Mawmari", "Abdulaleem Al-Wesabi", "Khobz Yabis", "Roti"],
+    "scene": "Family vlogs where members are introduced or called by name; a mother naming her children; friends introduced as صاحبي."
+  }
+}

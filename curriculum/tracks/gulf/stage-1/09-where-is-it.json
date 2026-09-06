@@ -1,0 +1,264 @@
+{
+  "slug": "where-is-it",
+  "lesson_number": 9,
+  "title": "Where Is It?",
+  "title_arabic": "وين؟ — هني، هناك، بالسوق",
+  "description": "Ask where anything is, say here, there, in, on and next to, and name the places you go every week: the souq, the mosque, the school, the hospital, the bathroom and the kitchen. Plus فيه — the one word that says 'there is'.",
+  "cefr_target": "A1",
+  "duration_minutes": 20,
+  "approach": "A neighbourhood map and a house plan: places light up as they are named; location words are learned by moving a key around the plan; وين and فيه are produced from the first minute.",
+  "unlock_condition": "≥11/14 on the map tap quiz and a recorded وين question with its answer",
+  "icon": "📍",
+  "can_do": [
+    "Ask where something is",
+    "Say here, there, in, on and next to",
+    "Name the places you go every week"
+  ],
+  "grammar": [
+    {
+      "category": "questions",
+      "title": "وين؟ — where, with the thing or the person stuck on",
+      "explanation": "وين is the whole question: وين السوق؟ where is the souq, وين المفتاح؟ where is the key. To ask where a person is, stick the ending you know onto وين: وينك؟ where are you, وينه؟ where is he, وينها؟ where is she. From where is من وين, and to where is لوين. The answer is a place with في or بـ in front of it. The MSA أين is never said.",
+      "examples": [
+        { "arabic": "وين الحمام؟", "transliteration": "wayn il-ḥammaam?", "english": "Where is the bathroom?" },
+        { "arabic": "وينك؟ — أنا بالسوق", "transliteration": "waynak? — ana bis-suug", "english": "Where are you? — I'm at the souq" },
+        { "arabic": "وين أمك؟ — بالمطبخ", "transliteration": "wayn ummak? — bil-maṭbakh", "english": "Where is your mother? — In the kitchen" },
+        { "arabic": "لوين؟ — للمسجد", "transliteration": "li-wayn? — lil-masjid", "english": "Where to? — To the mosque" }
+      ]
+    },
+    {
+      "category": "sentence-structure",
+      "title": "فيه / ما فيه — there is, there isn't, and where",
+      "explanation": "فيه (literally 'in it') means 'there is / there are': فيه قهوة؟ is there coffee. Put ما in front for 'there isn't': ما فيه ماي. After it you can add where, using في or its short twin بـ (both mean in/at — بالبيت and في البيت are the same), على for on, and جنب for next to. Kuwaitis also say أكو / ماكو and Emiratis هست / ما هست; recognise them, but فيه works everywhere.",
+      "examples": [
+        { "arabic": "فيه مسجد جنب البيت", "transliteration": "fiih masjid jamb il-bayt", "english": "There is a mosque next to the house" },
+        { "arabic": "فيه ماي بالثلاجة؟ — إي فيه", "transliteration": "fiih maay bith-thallaaja? — ee fiih", "english": "Is there water in the fridge? — Yes there is" },
+        { "arabic": "ما فيه خبز اليوم", "transliteration": "ma fiih khubz il-yawm", "english": "There is no bread today" },
+        { "arabic": "الكتاب على الكرسي، مو على الطاولة", "transliteration": "il-kitaab ʿala l-kursi, mu ʿala ṭ-ṭaawla", "english": "The book is on the chair, not on the table" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "Ask a stranger — it's expected",
+      "note": "Nobody in the Gulf expects you to find your way alone; asking a passer-by, a shopkeeper or a guard is normal and often ends with them walking you there. Open with لو سمحت يا أخوي (or يا أختي to a woman) and ask وين + the place. Landmarks are mosques, roundabouts and big shops rather than street names — 'next to the mosque' is a real address. Thank the helper with يعطيك العافية.",
+      "phrases": [
+        { "arabic": "لو سمحت، وين المسجد؟", "transliteration": "law samaḥt, wayn il-masjid?", "english": "Excuse me, where is the mosque?" },
+        { "arabic": "هناك، جنب السوق", "transliteration": "hnaak, jamb is-suug", "english": "There, next to the souq" },
+        { "arabic": "يعطيك العافية", "transliteration": "yaʿṭiik il-ʿaafya", "english": "Thanks for your help" }
+      ]
+    },
+    {
+      "title": "Where you can walk in",
+      "note": "A mosque welcomes anyone to look from the door, and many large ones (Sheikh Zayed in Abu Dhabi, the Grand Mosque in Kuwait) run visitor tours; shoes come off at the entrance and prayer times are not visiting times. A shop, a café and a mall are open to all. A private majlis you enter only when invited — and then حياك الله means the door is truly open. Bathrooms are usually signed حمام or دورة المياه; ask for either.",
+      "phrases": [
+        { "arabic": "وين دورة المياه؟", "transliteration": "wayn dawrat il-miyaah?", "english": "Where is the restroom?" },
+        { "arabic": "الحمام هني، على اليمين", "transliteration": "il-ḥammaam hini, ʿala l-yimiin", "english": "The bathroom is here, on the right" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "وين",
+      "transliteration": "wayn",
+      "english": "where",
+      "category": "Question",
+      "teaching_note": "Said wayn everywhere in the Gulf; the MSA أين and the Egyptian فين are never used. Takes suffixes like a noun: وينك؟ وينه؟ وينهم؟. You met it in وين تلفوني؟ back in Lesson 1.",
+      "image_scene": "A man on a street corner with a phone in hand, looking around with a questioning face.",
+      "concept_key": "where",
+      "variants": ["وينك", "وينه", "وينها", "من وين", "لوين", "وينكم"],
+      "example": { "arabic": "وين المفتاح؟", "transliteration": "wayn il-miftaaḥ?", "english": "Where is the key?" },
+      "video_hint": "Someone searching for keys or a phone; asking a passer-by for directions; وينك on the phone."
+    },
+    {
+      "arabic": "هني",
+      "transliteration": "hini",
+      "english": "here",
+      "category": "Location",
+      "teaching_note": "The Kuwait–Bahrain–Qatar–Emirates form; Saudis say هنا, and both are used everywhere. تعال هني — come here. Also هنيه in Bahrain and the Emirates.",
+      "image_scene": "A hand pointing straight down at the ground at the speaker's feet.",
+      "concept_key": "here",
+      "variants": ["هنا", "هنيه", "هنية", "هنيا", "من هني"],
+      "example": { "arabic": "المفتاح هني", "transliteration": "il-miftaaḥ hini", "english": "The key is here" },
+      "video_hint": "تعال هني to a child or friend; pointing at the spot where something is."
+    },
+    {
+      "arabic": "هناك",
+      "transliteration": "hnaak",
+      "english": "there",
+      "category": "Location",
+      "teaching_note": "Said hnaak, with the first vowel almost gone. Pair it with ذاك from Lesson 8: ذاك البيت هناك. Kuwaitis also say غاد for over there.",
+      "image_scene": "A hand pointing into the distance at a building across an open square.",
+      "concept_key": "there",
+      "variants": ["هناكا", "غاد", "هنيك", "من هناك"],
+      "example": { "arabic": "السوق هناك", "transliteration": "is-suug hnaak", "english": "The souq is there" },
+      "video_hint": "Pointing across a distance in tour or directions clips."
+    },
+    {
+      "arabic": "في",
+      "transliteration": "fi",
+      "english": "in / at",
+      "category": "Preposition",
+      "teaching_note": "In or at. Gulf speakers use the short twin بـ just as often — في البيت and بالبيت are the same. Do not confuse في with فيه (there is): the h at the end changes the meaning.",
+      "image_scene": "A key inside a glass bowl, seen from the side, on a table.",
+      "concept_key": "in",
+      "variants": ["بـ", "بال", "في الـ", "فـ"],
+      "example": { "arabic": "أهلي في الكويت", "transliteration": "ahli fil-kuwayt", "english": "My family is in Kuwait" },
+      "video_hint": "Any location statement — في البيت, بالسوق — in vlogs."
+    },
+    {
+      "arabic": "على",
+      "transliteration": "ʿala",
+      "english": "on",
+      "category": "Preposition",
+      "teaching_note": "On top of. Often shortened to ع in speech: عالطاولة for على الطاولة. You met it in على الكرسي (Lesson 1) and على خير (Lesson 2).",
+      "image_scene": "A book lying on top of a chair seat, seen from slightly above.",
+      "concept_key": "on",
+      "variants": ["ع", "عالـ", "على الـ", "فوق"],
+      "example": { "arabic": "التلفون على الكرسي", "transliteration": "it-tilifoon ʿala l-kursi", "english": "The phone is on the chair" },
+      "video_hint": "Something placed on a table or shelf and named."
+    },
+    {
+      "arabic": "جنب",
+      "transliteration": "jamb",
+      "english": "next to / beside",
+      "category": "Preposition",
+      "teaching_note": "Said jamb — the n turns into m before the b. Kuwait and the Emirates also say يم yamm. This is the word that makes a mosque an address: جنب المسجد.",
+      "image_scene": "A small coffee cup placed right beside a dallah on a tray.",
+      "concept_key": "next_to",
+      "variants": ["يم", "بجنب", "جنبك", "جنبي", "صوب", "على جنب"],
+      "example": { "arabic": "البيت جنب المسجد", "transliteration": "il-bayt jamb il-masjid", "english": "The house is next to the mosque" },
+      "video_hint": "Directions given with landmarks; something set down beside another thing."
+    },
+    {
+      "arabic": "سوق",
+      "transliteration": "suug",
+      "english": "market / souq",
+      "category": "Place",
+      "teaching_note": "Gulf g: suug. The traditional market and, loosely, any shopping — رحت السوق can mean the mall. Plural أسواق. It is on the always-allowed list because it appears in half the dialogues you will ever hear.",
+      "image_scene": "A covered souq alley with spice sacks and lanterns, shoppers in thobes and abayas.",
+      "concept_key": "market",
+      "variants": ["السوق", "أسواق", "سوق شعبي", "مول", "المول"],
+      "example": { "arabic": "أمي بالسوق", "transliteration": "ummi bis-suug", "english": "My mother is at the souq" },
+      "video_hint": "Souq and mall vlogs; رحت السوق in daily narration."
+    },
+    {
+      "arabic": "مسجد",
+      "transliteration": "masjid",
+      "english": "mosque",
+      "category": "Place",
+      "teaching_note": "Said masjid, or مسيد masyid up the Gulf. A big Friday mosque is a جامع. The most reliable landmark in any neighbourhood.",
+      "image_scene": "A white mosque with a single minaret and a dome against a blue sky.",
+      "concept_key": "mosque",
+      "variants": ["المسجد", "مسيد", "مساجد", "جامع", "الجامع"],
+      "example": { "arabic": "المسجد قريب من البيت", "transliteration": "il-masjid gariib min il-bayt", "english": "The mosque is close to the house" },
+      "video_hint": "Neighbourhood tours; the call to prayer with the mosque on screen."
+    },
+    {
+      "arabic": "مدرسة",
+      "transliteration": "madrasa",
+      "english": "school",
+      "category": "Place",
+      "teaching_note": "A she-word (ends in ة), so it takes هذي and feminine adjectives: مدرسة كبيرة. Plural مدارس. Stress the middle syllable: mad-RA-sa.",
+      "image_scene": "A school building with a courtyard and a flag, children in uniform at the gate.",
+      "concept_key": "school",
+      "variants": ["المدرسة", "مدارس", "مدرستي", "مدرسه"],
+      "example": { "arabic": "العيال بالمدرسة", "transliteration": "il-ʿyaal bil-madrasa", "english": "The kids are at school" },
+      "video_hint": "School-run mornings in family vlogs; back-to-school shopping."
+    },
+    {
+      "arabic": "مستشفى",
+      "transliteration": "mustashfa",
+      "english": "hospital",
+      "category": "Place",
+      "teaching_note": "Four syllables: mus-TASH-fa. The word you need in an emergency, so say it until it is automatic. Emiratis may also say الصحية for a clinic.",
+      "image_scene": "A hospital entrance with a red crescent sign and an ambulance outside.",
+      "concept_key": "hospital",
+      "variants": ["المستشفى", "مستشفيات", "الصحية", "مستشفا"],
+      "example": { "arabic": "وين المستشفى؟", "transliteration": "wayn il-mustashfa?", "english": "Where is the hospital?" },
+      "video_hint": "Anyone heading to hospital in a vlog; hospital signage on screen."
+    },
+    {
+      "arabic": "شارع",
+      "transliteration": "shaariʿ",
+      "english": "street",
+      "category": "Place",
+      "teaching_note": "Ends in ع. A big road is طريق. Streets are named after people and numbers, but locals give directions by landmark, not street name.",
+      "image_scene": "A wide sunny street lined with palms and white villas, a white SUV driving past.",
+      "concept_key": "street",
+      "variants": ["الشارع", "شوارع", "طريق", "الطريق"],
+      "example": { "arabic": "السيارة بالشارع", "transliteration": "is-sayyaara bish-shaariʿ", "english": "The car is in the street" },
+      "video_hint": "Driving vlogs; children playing in the street."
+    },
+    {
+      "arabic": "حمام",
+      "transliteration": "ḥammaam",
+      "english": "bathroom / toilet",
+      "category": "Place",
+      "teaching_note": "Doubled m and the deep ح. The polite public sign is دورة المياه; تواليت is also understood. The single most-asked وين question for a visitor.",
+      "image_scene": "A bathroom door with a simple pictogram sign, slightly ajar.",
+      "concept_key": "bathroom",
+      "variants": ["الحمام", "دورة المياه", "دورة مياه", "تواليت", "حمامات"],
+      "example": { "arabic": "الحمام جنب المطبخ", "transliteration": "il-ḥammaam jamb il-maṭbakh", "english": "The bathroom is next to the kitchen" },
+      "video_hint": "House tours; asking for the bathroom in a restaurant."
+    },
+    {
+      "arabic": "مطبخ",
+      "transliteration": "maṭbakh",
+      "english": "kitchen",
+      "category": "Place",
+      "teaching_note": "Emphatic ط then خ — two of the throat-and-tongue sounds in one word. Where the vlogs happen: cooking channels start with أنا بالمطبخ.",
+      "image_scene": "A bright kitchen with a pot on the stove and a tray of tea glasses on the counter.",
+      "concept_key": "kitchen",
+      "variants": ["المطبخ", "مطابخ", "مطبخي", "بالمطبخ"],
+      "example": { "arabic": "جدتي بالمطبخ", "transliteration": "jaddati bil-maṭbakh", "english": "My grandmother is in the kitchen" },
+      "video_hint": "Cooking channels; house tours reaching the kitchen."
+    },
+    {
+      "arabic": "فيه",
+      "transliteration": "fiih",
+      "english": "there is / there are",
+      "category": "Structure",
+      "teaching_note": "Not a verb, just a word that says something exists: فيه قهوة؟ Answer إي فيه. Kuwait's أكو and the Emirates' هست mean the same; you will hear them, and فيه is understood by both. The negative ما فيه comes in Lesson 11.",
+      "image_scene": "A hand lifting the lid of a dallah to show coffee inside, steam rising.",
+      "concept_key": "there_is",
+      "variants": ["في", "أكو", "هست", "فيه؟", "فيه فيه"],
+      "example": { "arabic": "فيه شاي بالمطبخ", "transliteration": "fiih shaay bil-maṭbakh", "english": "There is tea in the kitchen" },
+      "video_hint": "Checking a fridge or a pot; فيه ماي؟ at a table."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Sara", "arabic": "لو سمحت يا أخوي، وين السوق؟", "transliteration": "law samaḥt ya akhuuy, wayn is-suug?", "english": "Excuse me brother, where is the souq?" },
+    { "speaker": "Passer-by", "arabic": "السوق هناك، جنب المسجد الكبير", "transliteration": "is-suug hnaak, jamb il-masjid il-kibiir", "english": "The souq is there, next to the big mosque" },
+    { "speaker": "Sara", "arabic": "وفيه مستشفى هني؟", "transliteration": "w-fiih mustashfa hini?", "english": "And is there a hospital here?" },
+    { "speaker": "Passer-by", "arabic": "إي فيه، في الشارع ذاك، جنب المدرسة", "transliteration": "ee fiih, fish-shaariʿ dhaak, jamb il-madrasa", "english": "Yes there is, on that street, next to the school" },
+    { "speaker": "Sara", "arabic": "زين. والحمام؟", "transliteration": "zayn. wil-ḥammaam?", "english": "Good. And the bathroom?" },
+    { "speaker": "Passer-by", "arabic": "بالسوق، على اليمين", "transliteration": "bis-suug, ʿala l-yimiin", "english": "In the souq, on the right" },
+    { "speaker": "Sara", "arabic": "مشكور، يعطيك العافية", "transliteration": "mashkuur, yaʿṭiik il-ʿaafya", "english": "Thanks, God give you strength" },
+    { "speaker": "Passer-by", "arabic": "الله يعافيك، مع السلامة", "transliteration": "allaah yʿaafiik, maʿ is-salaama", "english": "God keep you well — goodbye" }
+  ],
+  "sound_spotlight": [
+    { "sound": "Long و and ي", "example": "وين، سوق (wayn, suug)", "explanation": "Two long vowels side by side in this lesson: the ay of وين and the uu of سوق. Gulf holds them long; clipping them (wen, sug) makes the words hard to catch. Stretch them on purpose." },
+    { "sound": "ق = g", "example": "سوق (suug)", "explanation": "The souq keeps its Gulf g, and because the vowel before it is long and dark, the g is soft at the end — almost a sigh. Compare with the g at the start of قهوة." },
+    { "sound": "ج = j / y in places", "example": "مسجد (masjid) / مسيد (masyid), جنب / يم", "explanation": "The same split, now in place words. Saudis say masjid and jamb; Kuwaitis and Emiratis often say masyid and yamm. Same mosque, same spot beside it." }
+  ],
+  "lesson_sequence": [
+    { "step": "Welcome", "detail": "A neighbourhood map: mosque, souq, school, hospital, a street, a house. One line of English: today you ask where things are. Tap يلّا." },
+    { "step": "Light the map", "detail": "Seven place cards; each lights its building on the map as it plays. Then the house plan: kitchen and bathroom. Tap to replay." },
+    { "step": "Move the key", "detail": "A key is dragged around the house plan; the app says على الكرسي, في المطبخ, جنب الباب. Then audio plays and the learner drops the key where it belongs." },
+    { "step": "Ask وين", "detail": "An object from Lesson 1 disappears; the learner records وين + the object; the native answers with a location; the learner taps it on the plan." },
+    { "step": "فيه or not", "detail": "Six fridge / room scenes: the learner records فيه + item when it is there, taps ما فيه when it is not (heard only, built in Lesson 11)." },
+    { "step": "Dialogue", "detail": "The directions dialogue plays with the map animating; second pass the learner takes Sara's lines." },
+    { "step": "Quiz and complete", "detail": "Fourteen items mixing place tap, location drop and وين questions. Counter rolls to 120. Nudge: ask one وين question this week." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Walk through your home and say where three things are: التلفون على الطاولة، المفتاح بالمطبخ…", "context": "Lesson-complete screen. Here-and-now location practice." },
+    { "prompt": "Next time you are out, ask someone وين + a place — even a bathroom in a café. Listen for هناك and جنب in the answer.", "context": "Next-day notification. The real directions loop, low stakes." },
+    { "prompt": "Hide an object and let your tutor ask وين؟ Answer with في / على / جنب. Then swap.", "context": "Before a tutor session. The GPA hide-and-seek game for prepositions." }
+  ],
+  "video_needs": {
+    "queries": ["جولة في الرياض فلوق", "كيف أروح؟ طريق فلوق سعودي", "جولة في بيتي المطبخ فلوق", "وين الحمام مقطع كوميدي"],
+    "channels": ["Fahad Sal", "Hitham Channel", "Moshaya Family", "Bjlife", "Bin Baz"],
+    "scene": "Someone giving or asking directions with landmarks; a home or neighbourhood tour naming rooms and places as the camera reaches them; وين and فيه audible."
+  }
+}

@@ -1,0 +1,613 @@
+{
+  "slug": "shopping-at-the-souq",
+  "lesson_number": 5,
+  "title": "Shopping at the Souq",
+  "title_arabic": "في السوق: بكم ذا؟",
+  "description": "Buying by the kilo in Sanaa's salt market: asking the price, counting to a hundred, saying it's too much and getting the seller to come down — plus when not to bargain at all.",
+  "cefr_target": "A2",
+  "duration_minutes": 25,
+  "approach": "GPA Phase 2–3 — a bargaining exchange is heard whole, then rebuilt line by line; the number rules are noticed from the prices before they are stated.",
+  "unlock_condition": "≥11/15 on the price-and-number quiz and a recorded bargaining exchange with at least four turns",
+  "icon": "🛒",
+  "can_do": [
+    "Buy something and ask the price",
+    "Count from eleven to a hundred",
+    "Say expensive, cheap and ask for a discount"
+  ],
+  "grammar": [
+    {
+      "category": "sentence-structure",
+      "title": "Counting things: 3–10 plural, 11 and up singular",
+      "explanation": "One and two come after the noun and agree with it: ولد واحد، بنت واحدة, and 'two' is usually just the dual ending -ayn: كيلوين، ريالين. Three to ten go before the noun and the noun is plural: ثلاثة جهّال. From eleven upwards the noun goes back to singular: عشرين كيلو, مية ريال. Money is the exception even under ten — it stays singular: خمسة ريال. The teens end in -aʿsh (حداعش، ثناعش، ثلاثطعش) and the tens in -iin (عشرين، ثلاثين، أربعين… تسعين); 'twenty-one' is واحد وعشرين, one-and-twenty.",
+      "examples": [
+        {
+          "arabic": "ولد واحد، بنت واحدة",
+          "transliteration": "walad waaḥid, bint waaḥida",
+          "english": "one boy, one girl"
+        },
+        {
+          "arabic": "ثلاثة جهّال",
+          "transliteration": "thalaatha jahhaal",
+          "english": "three kids"
+        },
+        {
+          "arabic": "خمسة ريال",
+          "transliteration": "khamsa ryaal",
+          "english": "five riyals (money stays singular)"
+        },
+        {
+          "arabic": "عشرين كيلو",
+          "transliteration": "ʿishriin kiilo",
+          "english": "twenty kilos"
+        },
+        {
+          "arabic": "كيلوين وريالين",
+          "transliteration": "kiilowayn w-ryaalayn",
+          "english": "two kilos and two riyals"
+        }
+      ]
+    },
+    {
+      "category": "questions",
+      "title": "How much? بكم and كم",
+      "explanation": "Price is asked with بكم — 'for how much?' — before or after the thing: بكم ذا؟ الكيلو بكم؟ The answer uses the same بـ: الكيلو بمية ريال, 'the kilo is for a hundred riyals'. Plain كم asks a quantity: كم كيلو تشتي؟ 'how many kilos do you want?' — and the noun after كم is singular.",
+      "examples": [
+        {
+          "arabic": "بكم ذا؟",
+          "transliteration": "bikam dha?",
+          "english": "How much is this?"
+        },
+        {
+          "arabic": "الكيلو بكم؟",
+          "transliteration": "il-kiilo bikam?",
+          "english": "How much is a kilo?"
+        },
+        {
+          "arabic": "الكيلو بمية ريال",
+          "transliteration": "il-kiilo b-miyat ryaal",
+          "english": "A kilo is a hundred riyals"
+        },
+        {
+          "arabic": "كم كيلو تشتي؟",
+          "transliteration": "kam kiilo tishti?",
+          "english": "How many kilos do you want?"
+        }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "The bargaining script",
+      "note": "In the open market the first price is an opening bid, and paying it marks you as a tourist. Ask بكم, react to the answer — a smile and كثير, 'that's a lot' — then offer about two thirds. The seller counters; you ask him to come down (نقّص لي); he names his 'last price'; you either accept or start to walk away, which often brings the price down once more. Keep it good-humoured and short. Do not bargain for bread, at fixed-price supermarkets, in a pharmacy, or over a taxi fare you already agreed. Qat, on the other hand, is bargained hard.",
+      "phrases": [
+        {
+          "arabic": "بكم ذا؟",
+          "transliteration": "bikam dha?",
+          "english": "How much is this?"
+        },
+        {
+          "arabic": "كثير! نقّص لي شوي",
+          "transliteration": "kathiir! naggiṣ li shway",
+          "english": "Too much! Knock a bit off"
+        },
+        {
+          "arabic": "آخر سعر كم؟",
+          "transliteration": "aakhir siʿr kam?",
+          "english": "What's your last price?"
+        },
+        {
+          "arabic": "طيب، خلاص، هات",
+          "transliteration": "ṭayyib, khalaaṣ, haat",
+          "english": "OK, done, give it here"
+        }
+      ]
+    },
+    {
+      "title": "Sanaa's markets and small change",
+      "note": "Old Sanaa's سوق الملح is a maze of specialised lanes — spices, silver, raisins, cloth — and the qat market fills every afternoon. Vegetables are sold by the kilo, spices by the handful. Riyal notes come in large denominations and sellers are often short of change, so keep small notes and expect باقي to be a negotiation of its own. Rounding down a few riyals for a regular customer is normal; tipping a market seller is not.",
+      "phrases": [
+        {
+          "arabic": "ما عندي باقي",
+          "transliteration": "maa ʿindi baagi",
+          "english": "I've no change"
+        },
+        {
+          "arabic": "خلّي الباقي",
+          "transliteration": "khalli l-baagi",
+          "english": "Keep the change"
+        }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "أشتري",
+      "transliteration": "ashtari",
+      "english": "I buy",
+      "category": "Verb — shopping",
+      "teaching_note": "Sanaa also shortens this to أشري, and the past is شريت (Lesson 8). 'I want to buy' is أشتي أشتري — two verbs in a row, both bare.",
+      "image_scene": "A woman handing riyal notes to a vegetable seller over a pile of tomatoes.",
+      "concept_key": "buy",
+      "variants": [
+        "اشتري",
+        "أشتري",
+        "يشتري",
+        "نشتري",
+        "شرى",
+        "يشري"
+      ],
+      "example": {
+        "arabic": "أشتري خبز كل يوم من الدكان",
+        "transliteration": "ashtari khubz kull yawm min id-dukkaan",
+        "english": "I buy bread every day from the shop"
+      },
+      "video_hint": "Grocery hauls and market walks: 'I'm buying…', 'I bought…'."
+    },
+    {
+      "arabic": "يبيع",
+      "transliteration": "yibiiʿ",
+      "english": "he sells",
+      "category": "Verb — shopping",
+      "teaching_note": "Given in the 'he' form because it is the seller who sells. The seller himself is بيّاع. Final ع — feel it.",
+      "image_scene": "A seller behind a stall of onions and peppers, weighing a bag on a hand scale.",
+      "concept_key": "sell",
+      "variants": [
+        "يبيع",
+        "بيع",
+        "باع",
+        "يبيعو",
+        "بياع"
+      ],
+      "example": {
+        "arabic": "ذا الرجّال يبيع خضار",
+        "transliteration": "dha r-rajjaal yibiiʿ khuḍaar",
+        "english": "This man sells vegetables"
+      },
+      "video_hint": "A vendor described or filmed selling; 'what do you sell?' in interviews."
+    },
+    {
+      "arabic": "غالي",
+      "transliteration": "ghaali",
+      "english": "expensive",
+      "category": "Adjective — shopping",
+      "teaching_note": "Also 'dear' in the sense of beloved, so calling a friend غالي is a compliment. Feminine غالية. The bargaining word par excellence.",
+      "image_scene": "A shopper's shocked face at a large handwritten price tag.",
+      "concept_key": "expensive",
+      "variants": [
+        "غالي",
+        "غالية",
+        "غاليه",
+        "الغالي",
+        "أغلى"
+      ],
+      "example": {
+        "arabic": "السعر غالي، نقّص لي",
+        "transliteration": "is-siʿr ghaali, naggiṣ li",
+        "english": "The price is high, lower it for me"
+      },
+      "video_hint": "Price reactions in market videos; 'everything is expensive' complaints."
+    },
+    {
+      "arabic": "رخيص",
+      "transliteration": "rakhiiṣ",
+      "english": "cheap",
+      "category": "Adjective — shopping",
+      "teaching_note": "The pair of غالي. خ then a long ii then the emphatic ص. A seller will insist his goods are رخيص before you have said a word.",
+      "image_scene": "A heap of tomatoes with a small price card and a smiling seller.",
+      "concept_key": "cheap",
+      "variants": [
+        "رخيص",
+        "رخيصة",
+        "رخيصه",
+        "أرخص"
+      ],
+      "example": {
+        "arabic": "الخضار رخيص اليوم",
+        "transliteration": "il-khuḍaar rakhiiṣ il-yawm",
+        "english": "Vegetables are cheap today"
+      },
+      "video_hint": "Sellers advertising low prices; comparisons of markets."
+    },
+    {
+      "arabic": "خصم",
+      "transliteration": "khaṣm",
+      "english": "discount",
+      "category": "Noun — shopping",
+      "teaching_note": "The noun you see on shop signs. In the market you do not ask for a خصم, you tell the seller to نقّص (lower it) — see the next words. تخفيض is the formal sign-word.",
+      "image_scene": "A shop window with a big red sign and a percentage on it.",
+      "concept_key": "discount",
+      "variants": [
+        "خصم",
+        "الخصم",
+        "تخفيض",
+        "تنزيل",
+        "نقص"
+      ],
+      "example": {
+        "arabic": "فيه خصم؟",
+        "transliteration": "fiih khaṣm?",
+        "english": "Is there a discount?"
+      },
+      "video_hint": "Sale signs; a shopkeeper offering a reduction."
+    },
+    {
+      "arabic": "كيلو",
+      "transliteration": "kiilo",
+      "english": "kilo",
+      "category": "Measure",
+      "teaching_note": "Everything fresh is sold by the kilo. The dual كيلوين, 'two kilos', is the form you will use most. نص كيلو for half.",
+      "image_scene": "A hand scale with a one-kilo weight on one side and tomatoes on the other.",
+      "concept_key": "kilo",
+      "variants": [
+        "كيلو",
+        "الكيلو",
+        "كيلوين",
+        "نص كيلو"
+      ],
+      "example": {
+        "arabic": "بكم الكيلو؟",
+        "transliteration": "bikam il-kiilo?",
+        "english": "How much is a kilo?"
+      },
+      "video_hint": "Weighing at a market stall; 'a kilo of…' in shopping lists."
+    },
+    {
+      "arabic": "كيس",
+      "transliteration": "kiis",
+      "english": "bag",
+      "category": "Noun — shopping",
+      "teaching_note": "A plastic or paper bag from a shop; a handbag or suitcase is شنطة. Plural أكياس. Ask for a big one: كيس كبير.",
+      "image_scene": "A black plastic bag full of vegetables being handed over a counter.",
+      "concept_key": "bag",
+      "variants": [
+        "كيس",
+        "الكيس",
+        "كياس",
+        "أكياس",
+        "شنطة"
+      ],
+      "example": {
+        "arabic": "أشتي كيس كبير",
+        "transliteration": "ashti kiis kabiir",
+        "english": "I want a big bag"
+      },
+      "video_hint": "Bags being filled and handed over at a stall or shop."
+    },
+    {
+      "arabic": "سعر",
+      "transliteration": "siʿr",
+      "english": "price",
+      "category": "Noun — shopping",
+      "teaching_note": "Plural أسعار — 'prices have gone up' is the national conversation. آخر سعر, 'last price', is the closing move in bargaining.",
+      "image_scene": "A chalkboard of prices hanging above a vegetable stall.",
+      "concept_key": "price",
+      "variants": [
+        "سعر",
+        "السعر",
+        "أسعار",
+        "الأسعار",
+        "آخر سعر"
+      ],
+      "example": {
+        "arabic": "السعر كثير، نقّص شوي",
+        "transliteration": "is-siʿr kathiir, naggiṣ shway",
+        "english": "The price is too much, lower it a bit"
+      },
+      "video_hint": "'Prices' in news-style vlogs and market reports."
+    },
+    {
+      "arabic": "دكان",
+      "transliteration": "dukkaan",
+      "english": "shop",
+      "category": "Place",
+      "teaching_note": "The corner shop; plural دكاكين. محل is a bigger or newer shop, بقالة a grocery. Doubled ك and long aa.",
+      "image_scene": "A small open-fronted shop stacked with tins, biscuits and water bottles, the owner at the counter.",
+      "concept_key": "shop",
+      "variants": [
+        "دكان",
+        "الدكان",
+        "دكاكين",
+        "محل",
+        "المحل",
+        "بقالة"
+      ],
+      "example": {
+        "arabic": "الدكان قدّام الجامع",
+        "transliteration": "id-dukkaan guddaam ij-jaamiʿ",
+        "english": "The shop is in front of the mosque"
+      },
+      "video_hint": "Corner-shop scenes; 'I'll go to the shop'."
+    },
+    {
+      "arabic": "عشرين",
+      "transliteration": "ʿishriin",
+      "english": "twenty",
+      "category": "Number",
+      "teaching_note": "The first of the tens; all end in -iin. Units come first: واحد وعشرين, خمسة وعشرين. The noun after any of them is singular.",
+      "image_scene": "A twenty-riyal note laid flat with the numeral large.",
+      "concept_key": "twenty",
+      "variants": [
+        "عشرين",
+        "العشرين",
+        "واحد وعشرين",
+        "٢٠"
+      ],
+      "example": {
+        "arabic": "عشرين ريال بس",
+        "transliteration": "ʿishriin ryaal bass",
+        "english": "Only twenty riyals"
+      },
+      "video_hint": "Prices and ages spoken aloud: 'twenty', 'twenty-five'."
+    },
+    {
+      "arabic": "مية",
+      "transliteration": "miya",
+      "english": "hundred",
+      "category": "Number",
+      "teaching_key": "hundred",
+      "teaching_note": "Written مية or مئة, said miya. Before a noun it grows a t: مية ريال is said miyat ryaal. Two hundred is ميتين; three hundred ثلاثمية.",
+      "image_scene": "A hundred-riyal note beside a row of ten ten-riyal coins.",
+      "concept_key": "hundred",
+      "variants": [
+        "مية",
+        "ميه",
+        "مئة",
+        "ميتين",
+        "١٠٠"
+      ],
+      "example": {
+        "arabic": "الكيلو بمية ريال",
+        "transliteration": "il-kiilo b-miyat ryaal",
+        "english": "A kilo is a hundred riyals"
+      },
+      "video_hint": "Prices in the hundreds — the usual range for a kilo of vegetables."
+    },
+    {
+      "arabic": "نص",
+      "transliteration": "nuṣṣ",
+      "english": "half",
+      "category": "Number",
+      "teaching_note": "Doubled emphatic ص; the MSA نصف loses its ف. نص كيلو, and later the time: الساعة ثنتين ونص.",
+      "image_scene": "A watermelon cut cleanly in half on a market table.",
+      "concept_key": "half",
+      "variants": [
+        "نص",
+        "نصف",
+        "النص",
+        "نص كيلو",
+        "ونص"
+      ],
+      "example": {
+        "arabic": "أشتي نص كيلو طماط",
+        "transliteration": "ashti nuṣṣ kiilo ṭamaaṭ",
+        "english": "I want half a kilo of tomatoes"
+      },
+      "video_hint": "'Half a kilo' at a stall; 'half past' in time talk."
+    },
+    {
+      "arabic": "باقي",
+      "transliteration": "baagi",
+      "english": "change (money left over)",
+      "category": "Noun — shopping",
+      "teaching_note": "Literally 'the remaining'. Hard g. Also 'the rest' of anything. Small coins are فكّة; خلّي الباقي is 'keep the change'.",
+      "image_scene": "Coins and a small note being handed back across a counter.",
+      "concept_key": "change",
+      "variants": [
+        "باقي",
+        "الباقي",
+        "فكة",
+        "خرده"
+      ],
+      "example": {
+        "arabic": "وين الباقي؟",
+        "transliteration": "wayn il-baagi?",
+        "english": "Where's my change?"
+      },
+      "video_hint": "Change being counted out; a joke about no change."
+    },
+    {
+      "arabic": "محتاج",
+      "transliteration": "miḥtaaj",
+      "english": "I need",
+      "category": "Adjective — shopping",
+      "teaching_note": "Not a verb but a state: 'I am needing'. Feminine محتاجة. لازم لي does the same job: لازم لي كيلو بصل.",
+      "image_scene": "A shopping list in Arabic held up in a market lane.",
+      "concept_key": "i_need",
+      "variants": [
+        "محتاج",
+        "محتاجة",
+        "محتاجه",
+        "أحتاج",
+        "لازم لي"
+      ],
+      "example": {
+        "arabic": "محتاج كيلو بصل",
+        "transliteration": "miḥtaaj kiilo baṣal",
+        "english": "I need a kilo of onions"
+      },
+      "video_hint": "Shopping lists read aloud: 'we need…'."
+    },
+    {
+      "arabic": "كثير",
+      "transliteration": "kathiir",
+      "english": "a lot / too much",
+      "category": "Quantity",
+      "teaching_note": "Sanaa keeps the ث: kathiir, not kitiir. After a price it means 'too much'; after a noun, 'many'; after an adjective, 'very'. The bargaining reaction.",
+      "image_scene": "A shopper holding up both hands at a price, eyebrows raised.",
+      "concept_key": "too_much",
+      "variants": [
+        "كثير",
+        "كتير",
+        "كثيرة",
+        "كثيّر"
+      ],
+      "example": {
+        "arabic": "ميتين ريال؟ كثير!",
+        "transliteration": "miitayn ryaal? kathiir!",
+        "english": "Two hundred riyals? Too much!"
+      },
+      "video_hint": "Reactions to prices; 'a lot of people' in crowd scenes."
+    },
+    {
+      "arabic": "نقّص",
+      "transliteration": "naggiṣ",
+      "english": "lower (the price)!",
+      "category": "Verb — shopping",
+      "teaching_note": "The command the buyer says: make it less. Hard g doubled, emphatic ص. Add لي: نقّص لي, 'come down for me'.",
+      "image_scene": "A buyer's hand gesturing downward over a price card.",
+      "variants": [
+        "نقص",
+        "نقّص",
+        "نقص لي",
+        "نقصلي",
+        "نقصت"
+      ],
+      "example": {
+        "arabic": "نقّص لي شوي يا حاج",
+        "transliteration": "naggiṣ li shway ya ḥaaj",
+        "english": "Knock a bit off for me, hajji"
+      },
+      "video_hint": "The bargaining turn where the buyer asks for less."
+    },
+    {
+      "arabic": "آخر سعر",
+      "transliteration": "aakhir siʿr",
+      "english": "last (final) price",
+      "category": "Phrase — shopping",
+      "teaching_note": "Ends the bargaining. Either side says it: the seller to close, the buyer to ask for the real number. آخر كلام, 'last word', is the same move.",
+      "image_scene": "A seller holding up fingers for a number with a 'final' expression.",
+      "variants": [
+        "آخر سعر",
+        "اخر سعر",
+        "آخر كلام",
+        "اخر شي"
+      ],
+      "example": {
+        "arabic": "آخر سعر كم؟",
+        "transliteration": "aakhir siʿr kam?",
+        "english": "What's the final price?"
+      },
+      "video_hint": "The closing turn of a haggle."
+    }
+  ],
+  "dialogue": [
+    {
+      "speaker": "Nadia",
+      "arabic": "السلام عليكم يا حاج، بكم كيلو الطماط؟",
+      "transliteration": "is-salaam ʿalaykum ya ḥaaj, bikam kiilo ṭ-ṭamaaṭ?",
+      "english": "Peace be upon you, hajji — how much is a kilo of tomatoes?"
+    },
+    {
+      "speaker": "Abu Saleh",
+      "arabic": "وعليكم السلام. الكيلو بستمية.",
+      "transliteration": "w-ʿalaykum is-salaam. il-kiilo b-sittmiya.",
+      "english": "And upon you. Six hundred a kilo."
+    },
+    {
+      "speaker": "Nadia",
+      "arabic": "ستمية؟ كثير! غالي.",
+      "transliteration": "sittmiya? kathiir! ghaali.",
+      "english": "Six hundred? Too much! Expensive."
+    },
+    {
+      "speaker": "Abu Saleh",
+      "arabic": "ذا طماط بلادي، مش رخيص.",
+      "transliteration": "dha ṭamaaṭ baladi, mish rakhiiṣ.",
+      "english": "This is local tomato, it's not cheap."
+    },
+    {
+      "speaker": "Nadia",
+      "arabic": "نقّص لي شوي. أشتري كيلوين.",
+      "transliteration": "naggiṣ li shway. ashtari kiilowayn.",
+      "english": "Come down a bit. I'll buy two kilos."
+    },
+    {
+      "speaker": "Abu Saleh",
+      "arabic": "طيب، آخر سعر: كيلوين بألف.",
+      "transliteration": "ṭayyib, aakhir siʿr: kiilowayn b-alf.",
+      "english": "Fine, last price: two kilos for a thousand."
+    },
+    {
+      "speaker": "Nadia",
+      "arabic": "خلاص. هات كيس لو سمحت.",
+      "transliteration": "khalaaṣ. haat kiis law samaḥt.",
+      "english": "Done. A bag, please."
+    },
+    {
+      "speaker": "Abu Saleh",
+      "arabic": "تفضّلي، وذا الباقي.",
+      "transliteration": "tfaḍḍali, w-dha l-baagi.",
+      "english": "Here you are — and here's your change."
+    }
+  ],
+  "sound_spotlight": [
+    {
+      "sound": "قّ + ص",
+      "example": "نقّص (naggiṣ)",
+      "explanation": "A doubled hard g followed by an emphatic ṣ. The whole word is low and heavy; that heaviness is what makes it sound like a real request."
+    },
+    {
+      "sound": "ريال",
+      "example": "ريال (ryaal)",
+      "explanation": "One syllable, the y sliding straight into a long aa. Two syllables (ri-yaal) is the MSA reading."
+    },
+    {
+      "sound": "The t of مية",
+      "example": "مية ريال (miyat ryaal)",
+      "explanation": "'Hundred' grows a t before the noun it counts, like غرفة did before النوم. Listen for it in ستمية and ثلاثمية too."
+    }
+  ],
+  "lesson_sequence": [
+    {
+      "step": "Listen to the haggle",
+      "detail": "Nadia and Abu Saleh's exchange plays through once with pictures of the stall; the learner only listens."
+    },
+    {
+      "step": "The words",
+      "detail": "Shopping words on cards with audio and picture; then the numbers 11–100 on a price board, tapped and heard."
+    },
+    {
+      "step": "Singular or plural?",
+      "detail": "Hear a number, tap the right form of the noun (جاهل/جهّال, كيلو/كيلوين). The rule appears after the drill."
+    },
+    {
+      "step": "How much is it?",
+      "detail": "See a price tag, say the question and the answer with بكم and بـ."
+    },
+    {
+      "step": "Your turn to bargain",
+      "detail": "Role-play against Abu Saleh: the app plays the seller, the learner must use كثير، نقّص لي and آخر سعر before accepting."
+    },
+    {
+      "step": "Lesson complete",
+      "detail": "Counter rolls up; nudge to price three things in riyals tomorrow."
+    }
+  ],
+  "real_world_prompts": [
+    {
+      "prompt": "Next time you buy anything, ask بكم ذا؟ out loud — even at a fixed-price shop — and say the number back in Arabic.",
+      "context": "Shown on completion. Activates بكم and the numbers."
+    },
+    {
+      "prompt": "Convert three prices you see today into riyals and say them: ميتين، خمسمية، ألف.",
+      "context": "Number practice in the hundreds."
+    },
+    {
+      "prompt": "At a real market, try one round of bargaining with كثير and نقّص لي — then accept the last price with خلاص.",
+      "context": "The full script, low stakes."
+    }
+  ],
+  "video_needs": {
+    "queries": [
+      "سوق الملح صنعاء",
+      "اسعار الخضار في صنعاء",
+      "جولة سوق يمني اسعار"
+    ],
+    "channels": [
+      "Mustafa Al-Mawmari",
+      "Khobz Yabis",
+      "Roti"
+    ],
+    "scene": "A market walk-through with prices asked and answered on camera — a kilo weighed, a price disputed, change handed over."
+  }
+}

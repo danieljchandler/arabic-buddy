@@ -1,0 +1,297 @@
+{
+  "slug": "if-and-when",
+  "lesson_number": 3,
+  "title": "If and When",
+  "title_arabic": "إذا ولو ولما",
+  "description": "Plans that depend on something, dreams that depend on nothing, and the future 'when': إذا for real conditions, لو for what-ifs, لما for when it happens — plus يا ليت, the wish word, and the polite habit of phrasing an invitation as a condition.",
+  "cefr_target": "B1",
+  "duration_minutes": 25,
+  "approach": "Authentic video with scaffolding — 'if you had a million' street answers and travel-wish vlogs, mined for their إذا/لو/بـ patterns, then a chain game where every plan hangs on a condition.",
+  "unlock_condition": "Produce one real and one unreal condition with the right particle and verb form; ≥8/10 on the إذا/لو/لما sorting quiz",
+  "icon": "🎲",
+  "can_do": [
+    "Say what you would do if something happened",
+    "Use 'when' for future events",
+    "Express a wish and answer a hypothetical question"
+  ],
+  "grammar": [
+    {
+      "category": "sentence-structure",
+      "title": "إذا and لو: real and unreal 'if'",
+      "explanation": "إذا is for conditions that can really happen, and the verb after it is usually in the past even when the meaning is future: إذا جيت الكويت، اتصل فيني (if you come to Kuwait, call me). The result half can be a command, a plain present or a بـ future — بنروح (we'll go). لو is for the hypothetical and the impossible: لو عندي فلوس (if I had money). Its result takes بـ for 'would' — بشتري بيت (I'd buy a house) — or كان plus a past verb for 'would have' — كان اشتريت بيت (I'd have bought a house). Kuwaitis and Bahrainis say چان instead of كان in that last job. In relaxed speech لو also creeps into real conditions (لو تبي، بنروح سوا), so treat the line as a tendency, not a wall.",
+      "examples": [
+        { "arabic": "إذا خلصت بدري، بمر عليك", "transliteration": "idha khallaṣt badri, bamurr ʿalayk", "english": "If I finish early, I'll drop by you" },
+        { "arabic": "إذا ما فيه زحمة، بنوصل بعشر دقايق", "transliteration": "idha ma fiih zaḥma, binooṣal b-ʿashar dagaayig", "english": "If there's no traffic, we'll arrive in ten minutes" },
+        { "arabic": "لو عندي فلوس، بسافر كل شهر", "transliteration": "law ʿindi fluus, basaafir kill shahar", "english": "If I had money, I'd travel every month" },
+        { "arabic": "لو قلت لي، كان جيت", "transliteration": "law gilt li, kaan jayt", "english": "If you'd told me, I'd have come" }
+      ]
+    },
+    {
+      "category": "sentence-structure",
+      "title": "لما and لين: 'when' in the future",
+      "explanation": "For a future 'when' there is no question word — متى is only for asking. Use لما plus a verb: لما تخلص، اتصل (when you finish, call). The verb after لما is present for the future and past for a story (لما شفته، ضحك). لين does the same job with a feeling of 'once / by the time': لين توصل، دق علي (once you arrive, ring me). Both are said quickly and glued to the verb. Trap: عندما is understood but sounds like the news; nobody says it over coffee.",
+      "examples": [
+        { "arabic": "لما تخلص الدوام، اتصل فيني", "transliteration": "lamma tkhalliṣ id-dawaam, ittaṣil fiini", "english": "When you finish work, call me" },
+        { "arabic": "لما أسافر، بجيب لك هدية", "transliteration": "lamma asaafir, bajiib lik hadiyya", "english": "When I travel, I'll bring you a gift" },
+        { "arabic": "لين توصل البيت، دق علي", "transliteration": "layn tooṣal il-bayt, digg ʿalayy", "english": "Once you get home, ring me" },
+        { "arabic": "لما شفته، ما عرفته", "transliteration": "lamma shiftah, ma ʿiraftah", "english": "When I saw him, I didn't recognise him" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "Invitations wear an 'if', and the future wears إن شاء الله",
+      "note": "A Gulf host rarely says 'come on Friday'; they say إذا فاضي الجمعة، تعال تغدى عندنا (if you're free Friday, come and have lunch) — the condition gives you a way out without refusing. You answer with إن شاء الله, which means yes, probably, and we'll see, all at once; a flat لا needs a reason. Wishes follow the same softness: يا ليت (if only) for what you want, عسى (may it be) for what you hope for someone else — عسى الله يوفقك. When someone lists a dream, the reply is الله كريم: God is generous, it may yet happen.",
+      "phrases": [
+        { "arabic": "إذا فاضي الجمعة، تعال تغدى عندنا", "transliteration": "idha faaḍi l-jimʿa, taʿaal tghadda ʿindana", "english": "If you're free Friday, come have lunch with us" },
+        { "arabic": "إن شاء الله، إذا ما صار شي", "transliteration": "in shaa allah, idha ma ṣaar shay", "english": "God willing, if nothing comes up" },
+        { "arabic": "الله كريم", "transliteration": "allah kariim", "english": "God is generous (it may happen yet)" },
+        { "arabic": "عسى الله يوفقك", "transliteration": "ʿasa allah ywaffgak", "english": "May God grant you success" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "إذا",
+      "transliteration": "idha",
+      "english": "if (real)",
+      "category": "Connector",
+      "teaching_note": "The 'if' for things that may really happen. Written اذا online; the verb after it is usually past (إذا جيت) even for the future. Kuwaitis shorten it to إذ before a vowel in fast speech.",
+      "image_scene": "A fork in a desert road with two signposts, one to a beach and one to a city.",
+      "concept_key": "if",
+      "variants": ["اذا", "إذا ما", "اذا ما", "وإذا"],
+      "example": { "arabic": "إذا جيت الرياض، اتصل فيني", "transliteration": "idha jayt ir-riyaaḍ, ittaṣil fiini", "english": "If you come to Riyadh, call me" },
+      "video_hint": "Plans hedged with إذا: إذا فاضي، إذا ما فيه زحمة، إذا الله راد."
+    },
+    {
+      "arabic": "لو",
+      "transliteration": "law",
+      "english": "if (unreal / what if)",
+      "category": "Connector",
+      "teaching_note": "The 'if' of dreams and regrets: لو عندي فلوس، لو كنت مكانك (if I were you). In casual speech it also covers real ifs, but the reverse is not true — إذا never means 'if only'. لو سمحت (please) is the same word frozen into a formula.",
+      "image_scene": "A young man daydreaming on a sofa, a thought bubble showing him at the wheel of a sports car.",
+      "concept_key": "if_hypothetical",
+      "variants": ["ولو", "لو كان", "لو إن", "لو ما"],
+      "example": { "arabic": "لو كنت مكانك، ما رحت", "transliteration": "law kint makaanak, ma riḥt", "english": "If I were you, I wouldn't go" },
+      "video_hint": "Street questions like لو عندك مليون؟ and the hypothetical answers."
+    },
+    {
+      "arabic": "لما",
+      "transliteration": "lamma",
+      "english": "when (not a question)",
+      "category": "Connector",
+      "teaching_note": "The 'when' that joins two sentences: لما توصل (when you arrive). For asking, use متى. Also spelled لمن (limman) in Saudi and Kuwait. Trap: عندما is bookish; it is whitelisted for the Gulf but you will sound like a newsreader.",
+      "image_scene": "A woman at an airport arrivals hall holding up her phone, a plane landing through the window behind her.",
+      "concept_key": "whenever",
+      "variants": ["لمن", "ولما", "لما ما", "لمّا"],
+      "example": { "arabic": "لما توصل، طرش لي رسالة", "transliteration": "lamma tooṣal, ṭarrish li risaala", "english": "When you arrive, send me a message" },
+      "video_hint": "لما/لمن before a future verb in plans: لما أتخرج، لما نسافر."
+    },
+    {
+      "arabic": "يا ليت",
+      "transliteration": "ya layt",
+      "english": "I wish / if only",
+      "category": "Phrase",
+      "teaching_note": "Takes a pronoun ending for the wisher: يا ليتني (if only I…), يا ليته (if only he…). What follows is a present verb or a كان clause: يا ليتني أقدر أجي. Alone, يا ليت! means 'I wish!' as a whole reply.",
+      "image_scene": "A girl at a window looking at a plane in the sky, chin in her hands.",
+      "concept_key": "i_wish",
+      "variants": ["يا ليتني", "ياليت", "ياليتني", "يا ليته", "يا ريت"],
+      "example": { "arabic": "يا ليتني أقدر أسافر معكم", "transliteration": "ya laytni agdar asaafir maʿakum", "english": "I wish I could travel with you" },
+      "video_hint": "A wistful يا ليت in reaction to someone else's trip or car."
+    },
+    {
+      "arabic": "ممكن",
+      "transliteration": "mumkin",
+      "english": "possible / maybe / could",
+      "category": "Adjective",
+      "teaching_note": "Never changes form. As an answer, ممكن means 'possibly'; before a verb it is 'could / may' — ممكن أجي (I might come / may I come?). Negative مو ممكن (not possible / no way).",
+      "image_scene": "A hand tilting flat side to side over a calendar, a question mark above it.",
+      "concept_key": "possible",
+      "variants": ["مو ممكن", "ممكن؟", "يمكن", "ممكن جداً"],
+      "example": { "arabic": "ممكن نروح البحر باكر", "transliteration": "mumkin nruuḥ il-baḥar baachir", "english": "We might go to the sea tomorrow" },
+      "video_hint": "ممكن as a hedge in plans and as a request opener: ممكن تعيد؟"
+    },
+    {
+      "arabic": "عيل",
+      "transliteration": "ʿayil",
+      "english": "then / in that case",
+      "category": "Discourse marker",
+      "teaching_note": "The Kuwaiti, Qatari, Bahraini and Emirati 'so then': عيل نروح (in that case let's go). Saudis say أجل or عجل; Jeddah says طيب. The word that opens the result after someone else's condition.",
+      "image_scene": "Two friends at a café table, one snapping his fingers as if a decision has just been made.",
+      "concept_key": "then_result",
+      "variants": ["أجل", "عجل", "اجل", "عيل يعني", "عاد"],
+      "example": { "arabic": "ما عندك دوام؟ عيل تعال معنا", "transliteration": "ma ʿindak dawaam? ʿayil taʿaal maʿana", "english": "You don't have work? Then come with us" },
+      "video_hint": "عيل / أجل at the start of a decision in Kuwaiti or Saudi dialogue."
+    },
+    {
+      "arabic": "وإلا",
+      "transliteration": "willa",
+      "english": "otherwise / or else",
+      "category": "Connector",
+      "teaching_note": "The same word as ولا in 'tea or coffee?', but stressed and placed at the start of a threat or a warning: روح الحين، وإلا بتتأخر (go now, otherwise you'll be late). Also غير كذا (other than that).",
+      "image_scene": "A mother pointing at the door with one hand and a clock with the other, a boy grabbing his bag.",
+      "concept_key": "otherwise",
+      "variants": ["والا", "ولا", "غير كذا", "وإلا لا"],
+      "example": { "arabic": "روح الحين، وإلا بتفوتك الطيارة", "transliteration": "ruuḥ il-ḥiin, willa bitfuutak iṭ-ṭayyaara", "english": "Go now, otherwise you'll miss the plane" },
+      "video_hint": "A warning sentence with وإلا before the bad outcome."
+    },
+    {
+      "arabic": "احتياط",
+      "transliteration": "iḥtiyaaṭ",
+      "english": "in case / just to be safe",
+      "category": "Adverb",
+      "teaching_note": "Literally 'precaution', used at the end of a sentence: خذ معك جاكيت احتياط (take a jacket in case). The fuller phrase is في حال (in case that…) before a sentence. Spelled احتياطاً in careful writing.",
+      "image_scene": "A packed car boot with an extra water bottle and a jacket on top, a dark cloud in the sky.",
+      "concept_key": "in_case",
+      "variants": ["احتياطاً", "احتياطا", "في حال", "على احتياط"],
+      "example": { "arabic": "خذ ماي معك احتياط", "transliteration": "khudh maay maʿak iḥtiyaaṭ", "english": "Take water with you, just in case" },
+      "video_hint": "Packing or trip-prep vlogs: احتياط after an extra item."
+    },
+    {
+      "arabic": "ودي",
+      "transliteration": "widdi",
+      "english": "I would like to / I'd love to",
+      "category": "Phrase",
+      "teaching_note": "The 'would' of wanting: ودي أروح (I'd love to go), ودك تجي؟ (would you like to come?), ما ودي (I'd rather not). The 'would' inside a conditional result is the بـ prefix you already know from the future: لو عندي وقت، بجي (if I had time, I'd come).",
+      "image_scene": "A man looking longingly at a travel poster of mountains, a coffee in his hand.",
+      "concept_key": "would",
+      "variants": ["ودك", "وده", "ودها", "ما ودي", "ودي أروح"],
+      "example": { "arabic": "ودي أروح البوسنة الصيف", "transliteration": "widdi aruuḥ il-boosna iṣ-ṣayf", "english": "I'd love to go to Bosnia in the summer" },
+      "video_hint": "ودي / ودك in travel wishes and gentle invitations."
+    },
+    {
+      "arabic": "كان جيت",
+      "transliteration": "kaan jayt",
+      "english": "I would have come",
+      "category": "Phrase",
+      "teaching_note": "The 'would have' pattern: كان plus a past verb. كان never changes here — كان جيت، كان رحنا، كان قال. Kuwaitis and Bahrainis use چان (chaan) in this job and keep كان for 'was'. Always paired with لو: لو قلت لي، كان جيت.",
+      "image_scene": "A man looking at a missed-call screen, a party visible through a window behind him.",
+      "concept_key": "would_have",
+      "variants": ["چان جيت", "كان رحت", "كان سويت", "چان"],
+      "example": { "arabic": "لو عرفت، كان جيت من زمان", "transliteration": "law ʿiraft, kaan jayt min zamaan", "english": "If I'd known, I'd have come ages ago" },
+      "video_hint": "Regret sentences: لو… كان… in storytelling and skits."
+    },
+    {
+      "arabic": "على حسب",
+      "transliteration": "ʿala ḥasab",
+      "english": "it depends",
+      "category": "Phrase",
+      "teaching_note": "The whole answer to a yes/no question: بتجي؟ — على حسب. Add what it depends on with the same phrase: على حسب الجو (depending on the weather). Also heard as حسب alone.",
+      "image_scene": "A balance scale with a sun on one pan and a rain cloud on the other.",
+      "concept_key": "depends",
+      "variants": ["حسب", "على حسب الجو", "يعتمد", "على حسب الوقت"],
+      "example": { "arabic": "بتطلعون باكر؟ — على حسب الجو", "transliteration": "bitṭalʿuun baachir? — ʿala ḥasab il-jaw", "english": "Going out tomorrow? — Depends on the weather" },
+      "video_hint": "على حسب as a one-phrase answer in interviews and plans."
+    },
+    {
+      "arabic": "فرصة",
+      "transliteration": "furṣa",
+      "english": "chance / opportunity",
+      "category": "Noun",
+      "teaching_note": "Both 'a chance to' and 'an opportunity': عطني فرصة (give me a chance), فرصة حلوة (a good opportunity), فرصة سعيدة (nice to meet you). Plural فرص.",
+      "image_scene": "An open door with bright light and a path leading out, a person stepping toward it.",
+      "concept_key": "chance",
+      "variants": ["الفرصة", "فرص", "فرصه", "فرصة سعيدة"],
+      "example": { "arabic": "إذا جات الفرصة، بسافر", "transliteration": "idha jaat il-furṣa, basaafir", "english": "If the chance comes, I'll travel" },
+      "video_hint": "Talk of opportunities: فرصة حلوة، ما فيه فرصة، عطني فرصة."
+    },
+    {
+      "arabic": "حتى لو",
+      "transliteration": "ḥatta law",
+      "english": "even if",
+      "category": "Connector",
+      "teaching_note": "لو with حتى in front: حتى لو الجو حر، بنطلع (even if it's hot, we'll go out). The result still takes بـ. Note حتى survives here even though 'until' is لين.",
+      "image_scene": "A family loading a picnic car under a blazing sun, thermometer showing 45.",
+      "variants": ["حتى لو ما", "وحتى لو", "حتى إذا"],
+      "example": { "arabic": "حتى لو تأخرت، تعال", "transliteration": "ḥatta law tʾakhkhart, taʿaal", "english": "Even if you're late, come" },
+      "video_hint": "Determined plans: حتى لو… بنروح."
+    },
+    {
+      "arabic": "عسى",
+      "transliteration": "ʿasa",
+      "english": "hopefully / may it be that",
+      "category": "Phrase",
+      "teaching_note": "A hope, often for someone else: عسى الله يوفقك (may God grant you success), عساك بخير (hope you're well), عسى ما شر؟ (hope nothing's wrong?). Takes pronoun endings: عساك، عساكم. A Gulf marker — you will not hear it in Cairo.",
+      "image_scene": "An elderly man placing a hand on a young man's shoulder, both smiling.",
+      "variants": ["عساك", "عساكم", "عسى الله", "عسى ما شر"],
+      "example": { "arabic": "عسى الله يوفقك بالاختبار", "transliteration": "ʿasa allah ywaffgak bil-ikhtibaar", "english": "May God grant you success in the exam" },
+      "video_hint": "Blessings and greetings with عسى/عساك in family vlogs."
+    },
+    {
+      "arabic": "إلا إذا",
+      "transliteration": "illa idha",
+      "english": "unless",
+      "category": "Connector",
+      "teaching_note": "'Except if': بروح، إلا إذا مطرت (I'll go, unless it rains). Always after the main statement, and the verb after it is past like any إذا. Kuwaitis also say إلا لو.",
+      "image_scene": "A calendar with Friday circled and a small rain cloud drawn in the corner with a question mark.",
+      "variants": ["الا اذا", "إلا لو", "الا لو", "إلا إذا ما"],
+      "example": { "arabic": "بنطلع البر، إلا إذا مطرت", "transliteration": "binṭlaʿ il-barr, illa idha muṭarat", "english": "We'll go to the desert, unless it rains" },
+      "video_hint": "A plan with a single exception: إلا إذا…"
+    },
+    {
+      "arabic": "دام",
+      "transliteration": "daam",
+      "english": "as long as / since (given that)",
+      "category": "Connector",
+      "teaching_note": "Takes a pronoun ending: دامك هني، اقعد (as long as you're here, sit); دامه مسافر (since he's away). A quick Gulf way to state the condition that already holds. Also ما دام.",
+      "image_scene": "A host pulling out a chair for a guest already standing in the doorway with car keys.",
+      "variants": ["دامك", "دامه", "ما دام", "دامني", "دامها"],
+      "example": { "arabic": "دامك فاضي، تعال نتغدى", "transliteration": "daamak faaḍi, taʿaal nitghadda", "english": "Since you're free, come have lunch" },
+      "video_hint": "دام + suffix opening an invitation or a reasoning."
+    },
+    {
+      "arabic": "الله كريم",
+      "transliteration": "allah kariim",
+      "english": "God is generous (it may yet happen)",
+      "category": "Phrase",
+      "teaching_note": "The reply to a wish or a dream — يا ليتني أشتري بيت — الله كريم. Not resignation: it says the door is open. Also said when money is tight and the future uncertain.",
+      "image_scene": "A man opening his palms upward and smiling toward the sky, a half-built house behind him.",
+      "variants": ["الله كريم يا", "ربك كريم", "الله يكرم"],
+      "example": { "arabic": "ما عندي فلوس الحين، بس الله كريم", "transliteration": "ma ʿindi fluus il-ḥiin, bas allah kariim", "english": "I have no money now, but God is generous" },
+      "video_hint": "الله كريم closing a conversation about plans or prices."
+    },
+    {
+      "arabic": "حلم",
+      "transliteration": "ḥilim",
+      "english": "dream",
+      "category": "Noun",
+      "teaching_note": "Two syllables in the Gulf: ḥilim. Both the night kind and the ambition kind: حلمي أفتح مطعم (my dream is to open a restaurant). Plural أحلام; the verb is يحلم.",
+      "image_scene": "A young woman asleep with a thought bubble showing a small café with her name on the sign.",
+      "variants": ["الحلم", "أحلام", "حلمي", "يحلم"],
+      "example": { "arabic": "حلمي أسافر اليابان", "transliteration": "ḥilmi asaafir il-yaabaan", "english": "My dream is to travel to Japan" },
+      "video_hint": "Interviews about ambitions: وش حلمك؟ / شنو حلمك؟"
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Saud", "arabic": "لو عندك مليون ريال، وش بتسوي؟", "transliteration": "law ʿindak milyoon riyaal, wish bitsawwi?", "english": "If you had a million riyals, what would you do?" },
+    { "speaker": "Yousef", "arabic": "بسافر كل شهر. ودي أشوف اليابان", "transliteration": "basaafir kill shahar. widdi ashuuf il-yaabaan", "english": "I'd travel every month. I'd love to see Japan." },
+    { "speaker": "Saud", "arabic": "يا ليت! وإذا ما صار عندك مليون؟", "transliteration": "ya layt! w-idha ma ṣaar ʿindak milyoon?", "english": "I wish! And if you don't get a million?" },
+    { "speaker": "Yousef", "arabic": "على حسب. إذا جات فرصة شغل هناك، بروح", "transliteration": "ʿala ḥasab. idha jaat furṣat shughul hnaak, baruuḥ", "english": "Depends. If a job opportunity comes up there, I'll go." },
+    { "speaker": "Saud", "arabic": "عيل لما تسافر، خذني معك", "transliteration": "ʿayil lamma tsaafir, khudhni maʿak", "english": "Then when you travel, take me with you." },
+    { "speaker": "Yousef", "arabic": "أكيد، حتى لو ما عندك تذكرة. الله كريم", "transliteration": "akiid, ḥatta law ma ʿindak tadhkara. allah kariim", "english": "Sure, even if you don't have a ticket. God is generous." }
+  ],
+  "sound_spotlight": [
+    { "sound": "لو and لما glue to the verb", "example": "لو عندي، لما توصل (law-ʿindi, lamma-tooṣal)", "explanation": "There is no pause after the particle; the stress falls on the verb. Learners who pause after لو sound like they are reading. Say each pair as one breath." },
+    { "sound": "بـ + verb for 'would'", "example": "بسافر، بشتري، بجي (basaafir, bashtiri, baji)", "explanation": "The same بـ you learned as future is 'would' inside a لو sentence. The b clings to the first consonant with only a whisper of a vowel: b-saafir." },
+    { "sound": "The tense ي in عيل", "example": "عيل (ʿayil)", "explanation": "A pharyngeal ع then a quick ay glide — the word is one short syllable and a half. Hear it, then compare Saudi أجل (ajal), which has no ع at all." }
+  ],
+  "lesson_sequence": [
+    { "step": "The million question", "detail": "A 60-second street clip: three people answer لو عندك مليون. Listen for what they would do; tick the plans you hear." },
+    { "step": "Condition cards", "detail": "Eighteen words with audio and examples; إذا and لو cards show their typical result forms side by side." },
+    { "step": "Real or unreal?", "detail": "Twelve spoken sentences; swipe left for إذا-type, right for لو-type. Feedback shows the particle and the verb form each time." },
+    { "step": "Complete the result", "detail": "Given the condition, pick or say the result: إذا خلصت بدري… / لو عندي وقت… Bank of بـ verbs and كان + past." },
+    { "step": "Chain game", "detail": "Three-turn role play: invite with إذا, hedge with إن شاء الله, add a wish with يا ليت, close with الله كريم." },
+    { "step": "When, not if", "detail": "Hear five future plans; repeat each with لما in front, then record two of your own." },
+    { "step": "Lesson complete", "detail": "Word counter rolls up. Nudge: answer the million question yourself in three sentences." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "لو عندك مليون، وش بتسوي؟ Answer with three بـ verbs, then add one يا ليت.", "context": "Shown on the lesson-complete screen. Activates لو with the would-result." },
+    { "prompt": "Invite someone this week the Gulf way: إذا فاضي… تعال… and notice whether their answer is إن شاء الله.", "context": "Next-day notification. Real-world use of the conditional invitation." },
+    { "prompt": "Ask your tutor about a regret: لو رجع الوقت، وش كان سويت؟ and listen for كان / چان.", "context": "Tutor-session card. Receptive check on the would-have pattern." }
+  ],
+  "video_needs": {
+    "queries": ["لو عندك مليون وش بتسوي", "لو كنت غني مقطع سعودي", "لو رجع الوقت مقابلة", "خطتي لو سافرت فلوق"],
+    "channels": ["Thamaniyeh", "Belmokhba", "Sowt Afkari", "Sayood"],
+    "scene": "People answering a hypothetical question on camera or planning a trip aloud: لو… بـ… and إذا… تعال, with a wish or a الله كريم at the end."
+  }
+}

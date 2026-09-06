@@ -1,0 +1,288 @@
+{
+  "slug": "verbs-with-objects-and-people",
+  "lesson_number": 6,
+  "title": "Him, Her, Them: Object Pronouns",
+  "title_arabic": "خبّره وأدّيني وسلّم لي عليهم",
+  "description": "Glue 'me, him, her, us, them' onto verbs and prepositions — the full Ṣanʿāni set, including the -ish for 'you' to a woman — through the verbs of giving, telling, sending and asking.",
+  "cefr_target": "B1",
+  "duration_minutes": 22,
+  "approach": "GPA Phase 4 — the learner hears requests with object suffixes in a family errand scene, drills the paradigm by ear, then gives and relays instructions.",
+  "unlock_condition": "Produce eight commands with a correct object suffix on a verb or on لـ, including one to a woman with -ish",
+  "icon": "🤝",
+  "can_do": [
+    "Attach object pronouns to verbs",
+    "Use prepositions with pronoun suffixes",
+    "Say 'tell him', 'give it to me', 'with them'"
+  ],
+  "grammar": [
+    {
+      "category": "pronouns",
+      "title": "One set of endings for verbs and prepositions",
+      "explanation": "The endings you learned for 'my, your, his' on nouns do the same job on verbs and prepositions, with one change: 'me' is -ni on a verb (شافني 'he saw me') but -i on a preposition (لي 'to me', معي 'with me'). The rest is the same everywhere: -ak 'you (m)', -ish 'you (f)' — the Sanaa form; Aden says -ik — -uh 'him / it', -ha 'her', -na 'us', -kum 'you all', -hum 'them'. So: خبّرني، خبّره، خبّرها، خبّرنا، خبّرهم and لي، لك، لش، له، لها، لنا، لكم، لهم. The verbs 'give', 'tell' and 'show' take the person straight on the verb — أدّيني 'give me' — and the thing follows; with 'send' and 'say', the person goes on لـ: أرسل لي، قل له. مع stretches to معا- before most endings: معاه، معاها، معاهم — but معي and معش stay short.",
+      "examples": [
+        { "arabic": "خبّره إني جاي بعد العصر", "transliteration": "khabbiruh inni jaay baʿd il-ʿaṣr", "english": "Tell him I'm coming in the afternoon" },
+        { "arabic": "أدّيني المفتاح لو سمحت", "transliteration": "addiini l-miftaaḥ law samaḥt", "english": "Give me the key, please" },
+        { "arabic": "ورّيني الصورة اللي أخذتها", "transliteration": "warriini ṣ-ṣuura lli akhadhtiha", "english": "Show me the photo you took (to a woman)" },
+        { "arabic": "سلّم لي عليهم كلهم", "transliteration": "sallim li ʿalayhum kulluhum", "english": "Give them all my greetings" },
+        { "arabic": "ما شفتش بيتش من زمان يا فاطمة", "transliteration": "maa shuftsh baytish min zamaan ya faaṭima", "english": "I haven't seen your house in ages, Fatima" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "Talking about people who are not in the room",
+      "note": "Yemeni conversation is full of third parties — the neighbour, the cousin abroad, the landlord — and there are rules for it. Wish them well before you mention them: الله يحفظه 'God keep him', and never leave a name hanging in criticism without a softener like الله يهديه 'God guide him'. Messages travel through people: سلّم لي عليه 'greet him for me' is said at the end of every visit and is really an instruction, so pass it on. Gossip is tolerated when it is about what someone did, not about their family's honour, and the moment someone says خلّيه 'leave him be' the subject closes. To ask about someone's wife, ask about the family: كيف الأهل؟",
+      "phrases": [
+        { "arabic": "سلّم لي على أمك وأبوك", "transliteration": "sallim li ʿala ummak w-abuuk", "english": "Give my greetings to your mother and father" },
+        { "arabic": "الله يحفظه، ساعدنا كثير", "transliteration": "allah yiḥfaẓuh, saaʿadna kathiir", "english": "God keep him, he helped us a lot" },
+        { "arabic": "خلّيه، ما لناش دخل", "transliteration": "khalliih, maa lanaash dakhl", "english": "Leave him be, it's none of our business" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "له",
+      "transliteration": "luh",
+      "english": "him / to him",
+      "category": "Pronoun",
+      "teaching_note": "The 'him' ending -uh, shown here on لـ: له 'to him'. On a verb it is the same: شافه 'he saw him', خبّره 'tell him'. Written ـه, often heard as -a after a consonant in Sanaa.",
+      "image_scene": "A man handing an envelope to another man, arrow pointing at the receiver.",
+      "concept_key": "him",
+      "variants": ["ـه", "شافه", "خبّره", "معاه", "عنه"],
+      "example": { "arabic": "قل له إن الغدا جاهز", "transliteration": "gul luh inn il-ghada jaahiz", "english": "Tell him lunch is ready" },
+      "video_hint": "Relayed instructions in family scenes; قل له / خبّره."
+    },
+    {
+      "arabic": "لها",
+      "transliteration": "laha",
+      "english": "her / to her",
+      "category": "Pronoun",
+      "teaching_note": "The 'her' ending -ha. On a verb: شافها 'he saw her', أرسل لها 'send to her'. Also 'it' for feminine things: خذها 'take it'.",
+      "image_scene": "A woman receiving a gift bag from another woman.",
+      "concept_key": "her",
+      "variants": ["ـها", "شافها", "خبّرها", "معاها", "عنها"],
+      "example": { "arabic": "أرسل لها الصورة على الواتس", "transliteration": "arsil laha ṣ-ṣuura ʿala l-waats", "english": "Send her the photo on WhatsApp" },
+      "video_hint": "Any message relayed to a woman; لها / خبّرها."
+    },
+    {
+      "arabic": "لهم",
+      "transliteration": "lahum",
+      "english": "them / to them",
+      "category": "Pronoun",
+      "teaching_note": "The 'them' ending -hum: شافهم، معاهم، عليهم. Old Sanaa also keeps a feminine plural -hin for a group of women.",
+      "image_scene": "A boy carrying a tray of tea glasses to a group of guests.",
+      "concept_key": "them",
+      "variants": ["ـهم", "شافهم", "معاهم", "عليهم", "عنهم"],
+      "example": { "arabic": "ودّي لهم الشاهي في المفرج", "transliteration": "waddi lahum ish-shaahi fil-mafraj", "english": "Take the tea to them in the mafraj" },
+      "video_hint": "Hosting scenes; لهم / عليهم when guests are served."
+    },
+    {
+      "arabic": "ـني",
+      "transliteration": "-ni",
+      "english": "me (on a verb)",
+      "category": "Pronoun",
+      "teaching_note": "'Me' is -ni on a verb: شافني 'he saw me', خبّرني 'tell me', ساعدني 'help me'. On a preposition it is just -i: لي، معي، عني. Do not say -ni on لـ.",
+      "image_scene": "A woman pointing at herself, another woman handing her a phone.",
+      "concept_key": "me_object",
+      "variants": ["شافني", "خبّرني", "ساعدني", "أدّيني", "لي"],
+      "example": { "arabic": "خبّرني ايش قال لك", "transliteration": "khabbirni aysh gaal lak", "english": "Tell me what he said to you" },
+      "video_hint": "Requests addressed to camera or a friend; خبّرني / ساعدني."
+    },
+    {
+      "arabic": "لنا",
+      "transliteration": "lana",
+      "english": "us / to us",
+      "category": "Pronoun",
+      "teaching_note": "The 'us' ending -na: شافنا، معانا، أرسل لنا. Same letters as 'our' on a noun (بيتنا), so you already know it.",
+      "image_scene": "A family waving from a doorway as a parcel arrives.",
+      "concept_key": "us",
+      "variants": ["ـنا", "شافنا", "معانا", "علينا", "عنا"],
+      "example": { "arabic": "أرسل لنا موقعك على الواتس", "transliteration": "arsil lana mawgiʿak ʿala l-waats", "english": "Send us your location on WhatsApp" },
+      "video_hint": "Group arrangements; أرسل لنا / تعال معانا."
+    },
+    {
+      "arabic": "خبّر",
+      "transliteration": "khabbar",
+      "english": "tell / inform",
+      "category": "Verb",
+      "teaching_note": "The Yemeni 'tell someone': خبّرني 'tell me', خبّره 'tell him'. Takes the person straight on the verb. حكى is 'tell a story'; قال لـ 'say to'.",
+      "image_scene": "A man cupping his hand to another man's ear with a speech bubble.",
+      "concept_key": "tell",
+      "variants": ["خبّرني", "خبّره", "خبّرها", "يخبّر", "خبر"],
+      "example": { "arabic": "خبّرها إن الموعد بكرة", "transliteration": "khabbirha inn il-mawʿid bukra", "english": "Tell her the appointment is tomorrow" },
+      "video_hint": "Messages passed between characters; خبّر + suffix."
+    },
+    {
+      "arabic": "أدّى",
+      "transliteration": "adda",
+      "english": "give",
+      "category": "Verb",
+      "teaching_note": "The Sanaa 'give': أدّيني 'give me', أدّاه 'he gave him', أدّيه 'give him'. You will also hear أعطى / عطى and هات 'hand over'. The person comes first, then the thing.",
+      "image_scene": "A hand passing a glass of water into another open hand.",
+      "concept_key": "give",
+      "variants": ["أدّيني", "أدّيه", "أدّاني", "أعطى", "عطى", "هات"],
+      "example": { "arabic": "أدّيني الملح لو سمحت", "transliteration": "addiini l-milḥ law samaḥt", "english": "Give me the salt, please" },
+      "video_hint": "Table and shop scenes; أدّيني / هات with the object handed over."
+    },
+    {
+      "arabic": "شلّ",
+      "transliteration": "shall",
+      "english": "take / carry",
+      "category": "Verb",
+      "teaching_note": "The very Sanaa 'take': شلّه 'take it', شلّيت 'I took', يشلّ. Doubled l. خذ 'take' is understood everywhere.",
+      "image_scene": "A man lifting a box of vegetables onto his shoulder.",
+      "concept_key": "take",
+      "variants": ["شلّه", "شلّها", "شلّيت", "يشلّ", "خذ", "خذه"],
+      "example": { "arabic": "شلّ الكيس معك للبيت", "transliteration": "shall il-kiis maʿak lil-bayt", "english": "Take the bag with you home" },
+      "video_hint": "Market and moving scenes; شلّ / خذ as things are picked up."
+    },
+    {
+      "arabic": "بعث",
+      "transliteration": "baʿath",
+      "english": "send (someone / something)",
+      "category": "Verb",
+      "teaching_note": "بعث له 'he sent to him', ابعث لي 'send me'. The person goes on لـ. For messages you will also learn أرسل in Lesson 8.",
+      "image_scene": "A boy being sent off to the shop with a note, a hand pointing the way.",
+      "concept_key": "send",
+      "variants": ["ابعث", "بعث لي", "بعثت", "يبعث", "ودّى"],
+      "example": { "arabic": "ابعث لي ولدك يشلّ القات", "transliteration": "ibʿath li waladak yishill il-gaat", "english": "Send me your son to carry the qat" },
+      "video_hint": "Errands: someone dispatched; ابعث / بعثت."
+    },
+    {
+      "arabic": "ورّى",
+      "transliteration": "warra",
+      "english": "show",
+      "category": "Verb",
+      "teaching_note": "ورّيني 'show me', ورّيه 'show him', ورّيتها 'I showed her'. The person on the verb, the thing after. Doubled r.",
+      "image_scene": "A woman holding up a phone screen to a friend.",
+      "concept_key": "show",
+      "variants": ["ورّيني", "وريني", "ورّيه", "ورّيتك", "يورّي"],
+      "example": { "arabic": "ورّيني وين البيت على الخريطة", "transliteration": "warriini wayn il-bayt ʿala l-khariiṭa", "english": "Show me where the house is on the map" },
+      "video_hint": "Anyone showing something on a screen; ورّيني / ورّيكم."
+    },
+    {
+      "arabic": "نادى",
+      "transliteration": "naada",
+      "english": "call (someone over)",
+      "category": "Verb",
+      "teaching_note": "ناديه 'call him', ناديها 'call her'. For a phone call you will learn اتّصل in Lesson 8. صوّت له 'shout for him' is also heard.",
+      "image_scene": "A mother at a window calling a boy in from the lane.",
+      "concept_key": "call",
+      "variants": ["ناديه", "ناديها", "ناديني", "ينادي", "صوّت له"],
+      "example": { "arabic": "نادي أخوك، الغدا جاهز", "transliteration": "naadi akhuuk, il-ghada jaahiz", "english": "Call your brother, lunch is ready" },
+      "video_hint": "Someone summoned from another room; نادي / ناديه."
+    },
+    {
+      "arabic": "سأل",
+      "transliteration": "saʾal",
+      "english": "ask",
+      "category": "Verb",
+      "teaching_note": "اسأله 'ask him', سألني 'he asked me', اسألها. The person straight on the verb, the topic with عن.",
+      "image_scene": "A man with a raised finger asking a shopkeeper, question mark above.",
+      "concept_key": "ask",
+      "variants": ["اسأله", "اسألها", "سألني", "يسأل", "اسأل"],
+      "example": { "arabic": "اسأله عن السعر قبل ما تشتري", "transliteration": "isʾaluh ʿan is-siʿr gabl maa tishtari", "english": "Ask him about the price before you buy" },
+      "video_hint": "Market clips; اسأله / سألته."
+    },
+    {
+      "arabic": "جاوب",
+      "transliteration": "jaawab",
+      "english": "answer",
+      "category": "Verb",
+      "teaching_note": "جاوبني 'answer me', ما جاوبش 'he didn't answer'. For answering a phone or a message, ردّ is the word (Lesson 8).",
+      "image_scene": "A student with a raised hand answering, a teacher listening.",
+      "concept_key": "answer",
+      "variants": ["جاوبني", "جاوبه", "يجاوب", "ما جاوبش"],
+      "example": { "arabic": "سألته وما جاوبنيش", "transliteration": "saʾaltuh w-maa jaawabniish", "english": "I asked him and he didn't answer me" },
+      "video_hint": "Q&A moments; جاوب / جاوبني."
+    },
+    {
+      "arabic": "عن",
+      "transliteration": "ʿan",
+      "english": "about",
+      "category": "Preposition",
+      "teaching_note": "عنه 'about him', عنها 'about her', عنهم 'about them', عني 'about me'. After اسأل، حكى، كلّم.",
+      "image_scene": "Two women chatting with a thought bubble showing a third person.",
+      "concept_key": "about",
+      "variants": ["عنه", "عنها", "عنهم", "عني", "عنك"],
+      "example": { "arabic": "حكى لي عنك كثير", "transliteration": "ḥaka li ʿannak kathiir", "english": "He told me a lot about you" },
+      "video_hint": "Third-party talk; عنه / عنها."
+    },
+    {
+      "arabic": "ساعد",
+      "transliteration": "saaʿad",
+      "english": "help (someone)",
+      "category": "Verb",
+      "teaching_note": "ساعدني 'help me', ساعده 'help him', ساعدنا 'he helped us'. Person on the verb.",
+      "image_scene": "A young man helping an old woman carry a water can up steps.",
+      "variants": ["ساعدني", "ساعده", "ساعدنا", "يساعد"],
+      "example": { "arabic": "ساعدها تشلّ الأكياس", "transliteration": "saaʿidha tshill il-akyaas", "english": "Help her carry the bags" },
+      "video_hint": "Helping scenes; ساعدني / ساعده."
+    },
+    {
+      "arabic": "وصّل",
+      "transliteration": "waṣṣal",
+      "english": "give a lift / deliver",
+      "category": "Verb",
+      "teaching_note": "وصّلني 'drop me off', وصّله البيت 'take him home', وصّل الرسالة 'deliver the message'. Doubled ṣ.",
+      "image_scene": "A man opening a car door for a friend, a house in the distance.",
+      "variants": ["وصّلني", "وصّله", "وصّلها", "يوصّل", "وصلني"],
+      "example": { "arabic": "وصّلني الجامعة لو سمحت", "transliteration": "waṣṣilni j-jaamiʿa law samaḥt", "english": "Drop me at the university, please" },
+      "video_hint": "Taxi and lift scenes; وصّلني + place."
+    },
+    {
+      "arabic": "خلّى",
+      "transliteration": "khalla",
+      "english": "let / leave (someone)",
+      "category": "Verb",
+      "teaching_note": "خلّيه 'leave him / let him', خلّيني 'let me', خلّيك 'stay'. Also 'let' before a verb: خلّيه يجي 'let him come'.",
+      "image_scene": "A man raising a hand to stop a friend from following someone.",
+      "variants": ["خلّيه", "خلّيني", "خلّيك", "خلّيها", "خل"],
+      "example": { "arabic": "خلّيه ينام، تعبان", "transliteration": "khalliih yinaam, taʿbaan", "english": "Let him sleep, he's tired" },
+      "video_hint": "Family scenes; خلّيه / خلّيني."
+    },
+    {
+      "arabic": "سلّم على",
+      "transliteration": "sallam ʿala",
+      "english": "greet / say hi to",
+      "category": "Verb",
+      "teaching_note": "سلّم لي عليه 'greet him for me' — the sentence that closes every visit. سلّم عليهم 'he greeted them'. The لي is 'on my behalf'.",
+      "image_scene": "A man raising his hand in greeting to a group across a street.",
+      "variants": ["سلّم لي عليه", "سلّم عليهم", "يسلّم", "سلم"],
+      "example": { "arabic": "سلّم لي على أهلك", "transliteration": "sallim li ʿala ahlak", "english": "Give my greetings to your family" },
+      "video_hint": "Farewells; سلّم لي على…"
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Um Salem", "arabic": "يا سالم، نادي أختك وخبّرها إن الغدا جاهز", "transliteration": "ya saalim, naadi ukhtak w-khabbirha inn il-ghada jaahiz", "english": "Salem, call your sister and tell her lunch is ready" },
+    { "speaker": "Salem", "arabic": "ناديتها، بس ما جاوبتنيش", "transliteration": "naadaytaha, bass maa jaawabatniish", "english": "I called her, but she didn't answer me" },
+    { "speaker": "Um Salem", "arabic": "طيب أدّيني التلفون، شاتصل بها", "transliteration": "ṭayyib addiini t-tilifoon, sha-ttaṣil biha", "english": "OK, give me the phone, I'll call her" },
+    { "speaker": "Salem", "arabic": "خذيه. وأبعث لخالي ولا لا؟ الجيران سألوني عنه", "transliteration": "khudhiih. w-abʿath li-khaali walla laa? ij-jiiraan saʾaluuni ʿannuh", "english": "Take it. And should I send for my uncle or not? The neighbours asked me about him" },
+    { "speaker": "Um Salem", "arabic": "خلّيه اليوم، هو مشغول. بس سلّم لي عليهم", "transliteration": "khalliih il-yawm, huu mashghuul. bass sallim li ʿalayhum", "english": "Leave him today, he's busy. But give them my greetings" },
+    { "speaker": "Salem", "arabic": "إن شاء الله. ورّيني وين حطيتي الأكياس، شاشلّها للمطبخ", "transliteration": "in shaa allah. warriini wayn ḥaṭṭayti l-akyaas, sha-shillha lil-maṭbakh", "english": "God willing. Show me where you put the bags, I'll carry them to the kitchen" }
+  ],
+  "sound_spotlight": [
+    { "sound": "-ish for 'you' to a woman", "example": "بيتش، عندش، لش، شفتش (baytish, ʿindish, lish, shuftish)", "explanation": "The Sanaa feminine 'your / you' is a sh. It is the sound that marks a northern speaker; Aden and Taiz say -ik. Note the negative -sh on a verb is a different thing: شفتش can be 'I saw you (f)' — context and stress separate them." },
+    { "sound": "معا- before endings", "example": "معاه، معاها، معاهم (maʿaah, maʿaaha, maʿaahum)", "explanation": "مع grows a long aa before most suffixes but not before -i and -ish: maʿi, maʿish. Hear the length; it carries the word." },
+    { "sound": "Stress shifts with a suffix", "example": "خبّر → خبّرني → خبّرناهم", "explanation": "Adding endings pushes the stress rightward: khábbar, khabbírni, khabbarnáahum. Yemeni listeners track the ending by where the stress lands." }
+  ],
+  "lesson_sequence": [
+    { "step": "Listen: lunch is ready", "detail": "The Um Salem dialogue once; the learner counts how many different people are referred to by endings alone." },
+    { "step": "The ending chart by ear", "detail": "One verb (خبّر) and one preposition (لـ) with all eight endings, audio first, then the chart revealed; -ni vs -i highlighted." },
+    { "step": "Vocabulary", "detail": "The verbs of giving, telling and asking on cards, each with the suffixed imperative as the example." },
+    { "step": "Who gets it?", "detail": "Audio commands (أدّيه، أدّيها، أدّيهم…); the learner taps the right recipient in a family picture." },
+    { "step": "Relay the message", "detail": "The AI gives an instruction about a third person; the learner passes it on with the right ending: قال خبّرها إن…" },
+    { "step": "To a woman", "detail": "Ten commands to convert from -ak to -ish, recorded and checked." },
+    { "step": "Complete", "detail": "Counter; nudge to end the next visit with سلّم لي على…" }
+  ],
+  "real_world_prompts": [
+    { "prompt": "End your next chat with a Yemeni friend with سلّم لي على أهلك and notice the reply.", "context": "Lesson-complete screen. Activates the greeting-relay formula." },
+    { "prompt": "Ask for three things at a table using أدّيني + the thing.", "context": "Follow-up notification. Production of give + me + object." },
+    { "prompt": "Listen to a family sketch and write down every ending you hear on خبّر, ورّى and أدّى.", "context": "Video-companion; recognition of object suffixes in fast speech." }
+  ],
+  "video_needs": {
+    "queries": ["اديني مقطع يمني", "خبرني ايش صار يمني", "وريني صنعاني", "سلم لي عليهم يمني"],
+    "channels": ["Mustafa Al-Mawmari", "Khobz Yabis", "Mulatef Humaidi", "Hussam Al-Salwi"],
+    "scene": "A household errand scene — give it to me, tell her, call him — with the objects handed over on camera; farewells with greetings relayed to absent family."
+  }
+}

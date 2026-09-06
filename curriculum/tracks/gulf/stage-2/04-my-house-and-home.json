@@ -1,0 +1,267 @@
+{
+  "slug": "my-house-and-home",
+  "lesson_number": 4,
+  "title": "My House and Home",
+  "title_arabic": "بيتي وأهلي",
+  "description": "The rooms of a Gulf house — majlis, family room, roof, courtyard — with the full set of possessive endings (my, your, his, her, our, their) and the word حق that says who something belongs to.",
+  "cefr_target": "A1",
+  "duration_minutes": 20,
+  "approach": "GPA Phase 2 — house-tour video. Rooms are named as they are shown, then the possessive endings are heard on the same nouns; the learner ends by giving a tour of their own home.",
+  "unlock_condition": "≥12/16 on the room-and-suffix listening quiz and a recorded four-sentence home tour",
+  "icon": "🏡",
+  "can_do": [
+    "Name the rooms and main furniture of a Gulf home",
+    "Use the full set of possessive suffixes",
+    "Say where things are in a room"
+  ],
+  "grammar": [
+    {
+      "category": "possessives",
+      "title": "-i, -ak, -ik, -ah, -ha, -na, -kum, -hum — and حق",
+      "explanation": "Gulf Arabic does not have a separate word for 'my' or 'your'; the owner is glued onto the end of the noun. بيت 'house' becomes بيتي 'my house', بيتك 'your house' (said baytak to a man, baytik to a woman — Kuwaitis and Emiratis say baytich), بيته 'his', بيتها 'her', بيتنا 'our', بيتكم 'your (all)', بيتهم 'their'. A noun ending in ة grows a t before the ending: سيارة → سيارتي، غرفة → غرفتنا. To say that something belongs to someone by name, or to ask whose it is, use حق: هذا الجوال حق خالد, حق منو؟ Kuwaitis and Emiratis use مال for the same job; both are understood everywhere. Never the Egyptian بتاع.",
+      "examples": [
+        { "arabic": "هذا بيتنا وهذاك بيتهم", "transliteration": "haadha baytna w-hadhaak bayt-hum", "english": "This is our house and that one is theirs" },
+        { "arabic": "سيارتي قدام الباب", "transliteration": "sayyaarti giddaam il-baab", "english": "My car is in front of the door" },
+        { "arabic": "غرفتك فوق", "transliteration": "ghurfatik foog", "english": "Your (f) room is upstairs" },
+        { "arabic": "هذا الجوال حق منو؟ — حقي", "transliteration": "haadha l-jawwaal ḥagg minu? — ḥaggi", "english": "Whose phone is this? — Mine" },
+        { "arabic": "أمي وأبوي بالمجلس", "transliteration": "ummi w-abuuy bil-majlis", "english": "My mum and dad are in the majlis" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "The majlis is for you; the rest of the house is not",
+      "note": "A Gulf house is built around one rule: guests never see the family. The مجلس is the guest room, placed right by the front door with its own entrance where possible, so you walk in and sit without passing anything private. Shoes come off at its door. Cushions run along the walls; the seat furthest from the door is the seat of honour, so let the host place you. Men's and women's guests are received in separate rooms, and you will not be shown the kitchen, the bedrooms or the family room (الصالة) unless you are family. If a host says البيت بيتك — 'the house is yours' — it is warmth, not an invitation to explore.",
+      "phrases": [
+        { "arabic": "تفضل المجلس", "transliteration": "tfaḍḍal il-majlis", "english": "Please, into the majlis" },
+        { "arabic": "خلّ جوتيك برا", "transliteration": "khall juutik barra", "english": "Leave your shoes outside" },
+        { "arabic": "اقعد هني، عندك", "transliteration": "igʿid hini, ʿindak", "english": "Sit here, right here (the host placing you)" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "غرفة",
+      "transliteration": "ghurfa",
+      "english": "room",
+      "category": "Home",
+      "teaching_note": "The general word for any room; in Kuwait you will also hear حجرة. The ة turns to t before an ending: غرفتي my room, غرفتنا our room — the pattern this whole lesson runs on.",
+      "image_scene": "A simple room seen from the doorway: a rug, a lamp, a window with light coming in.",
+      "concept_key": "room",
+      "variants": ["الغرفة", "غرف", "غرفتي", "غرفتك", "حجرة", "غرفه"],
+      "example": { "arabic": "الغرفة كبيرة وفيها دريشة", "transliteration": "il-ghurfa kibiira w-fiiha diriisha", "english": "The room is big and has a window" },
+      "video_hint": "A house tour naming each room — هذي غرفة… — as the camera enters."
+    },
+    {
+      "arabic": "مجلس",
+      "transliteration": "majlis",
+      "english": "sitting room / guest room (majlis)",
+      "category": "Home",
+      "teaching_note": "The room the whole culture of hospitality happens in. Kuwaitis and Emiratis say the ج as y: maylis. Also the word for a gathering itself — a Kuwaiti evening gathering is a ديوانية. The Western 'living room' idea splits into مجلس (for guests) and صالة (for family).",
+      "image_scene": "A long room with floor cushions along the walls, a coffee pot on a tray in the middle, no chairs.",
+      "concept_key": "living_room",
+      "variants": ["المجلس", "مجالس", "مجلسنا", "مجلس الرجال", "ديوانية", "صالون"],
+      "example": { "arabic": "الضيوف بالمجلس", "transliteration": "iḍ-ḍyuuf bil-majlis", "english": "The guests are in the majlis" },
+      "video_hint": "A majlis shown during a home visit or a design vlog; the word said as guests enter."
+    },
+    {
+      "arabic": "غرفة النوم",
+      "transliteration": "ghurfat in-noom",
+      "english": "bedroom",
+      "category": "Home",
+      "teaching_note": "'Room of sleeping'. The t between the two words is the same t that appears before a suffix. Bedrooms are upstairs (فوق) in most Gulf villas, which is why house tours say فوق so often.",
+      "image_scene": "A bedroom with a double bed, a wardrobe and a curtained window, viewed from the door.",
+      "concept_key": "bedroom",
+      "variants": ["غرفة نوم", "غرف النوم", "غرفة نومي", "غرفة النوم الرئيسية"],
+      "example": { "arabic": "غرفة النوم فوق", "transliteration": "ghurfat in-noom foog", "english": "The bedroom is upstairs" },
+      "video_hint": "Upstairs in a house tour; غرفة النوم named as the door opens."
+    },
+    {
+      "arabic": "دريشة",
+      "transliteration": "diriisha",
+      "english": "window",
+      "category": "Home",
+      "teaching_note": "A word that marks a Gulf speaker instantly (borrowed from Persian). Kuwait, Bahrain, Qatar, the UAE and eastern Saudi say دريشة; Riyadh says شباك. The formal نافذة is for signs only. Plural دراريش.",
+      "image_scene": "An arched window with a wooden frame, sunlight and a palm visible through it.",
+      "concept_key": "window",
+      "variants": ["الدريشة", "دريشه", "دراريش", "شباك", "الشباك", "نافذة"],
+      "example": { "arabic": "افتح الدريشة لو سمحت", "transliteration": "iftaḥ id-diriisha law samaḥt", "english": "Open the window, please" },
+      "video_hint": "Someone opening or pointing at a window; the word دريشة or شباك said aloud."
+    },
+    {
+      "arabic": "طاولة",
+      "transliteration": "ṭaawla",
+      "english": "table",
+      "category": "Home",
+      "teaching_note": "Emphatic ط at the start, long aa. Older Gulf speakers also say ميز (from Portuguese 'mesa'). Many meals are still eaten on a floor cloth, so the table is mostly a dining-room or office object.",
+      "image_scene": "A round wooden table with a coffee tray on it, two chairs pushed in.",
+      "concept_key": "table",
+      "variants": ["الطاولة", "طاولات", "طاوله", "ميز", "الميز", "طاولتنا"],
+      "example": { "arabic": "الأكل على الطاولة", "transliteration": "il-akil ʿala ṭ-ṭaawla", "english": "The food is on the table" },
+      "video_hint": "A table being set or pointed at in a home or restaurant vlog."
+    },
+    {
+      "arabic": "سرير",
+      "transliteration": "siriir",
+      "english": "bed",
+      "category": "Home",
+      "teaching_note": "Two long i sounds. The bedding on the floor for guests is a فراش, which some people use for the bed itself. Plural سراير.",
+      "image_scene": "A neatly made single bed with a white cover and one pillow, nothing else in frame.",
+      "concept_key": "bed",
+      "variants": ["السرير", "سراير", "سريري", "فراش", "الفراش"],
+      "example": { "arabic": "سريري جنب الدريشة", "transliteration": "siriiri jamb id-diriisha", "english": "My bed is next to the window" },
+      "video_hint": "A bedroom tour; the bed shown as سرير is said."
+    },
+    {
+      "arabic": "سطح",
+      "transliteration": "saṭḥ",
+      "english": "roof",
+      "category": "Home",
+      "teaching_note": "Gulf roofs are flat and used: families sit on them on cool evenings, and older houses slept there in summer. Emphatic ط then a throaty ح at the end — practise the ending on its own.",
+      "image_scene": "A flat white rooftop at dusk with cushions, a water tank and a satellite dish.",
+      "concept_key": "roof",
+      "variants": ["السطح", "سطوح", "على السطح", "سطح البيت"],
+      "example": { "arabic": "بالليل نقعد على السطح", "transliteration": "bil-layl nigʿad ʿala s-saṭḥ", "english": "At night we sit on the roof" },
+      "video_hint": "A rooftop scene — evening gathering, a view — with السطح named."
+    },
+    {
+      "arabic": "حديقة",
+      "transliteration": "ḥadiiga",
+      "english": "garden",
+      "category": "Home",
+      "teaching_note": "ق as g: ḥadiiga. A garden is a luxury in the desert climate, so it is something people show off in tours. The bare-earth yard inside the wall is the حوش, taught below.",
+      "image_scene": "A small walled garden with a patch of grass, a palm and a plastic children's slide.",
+      "concept_key": "garden",
+      "variants": ["الحديقة", "حدايق", "حديقتنا", "حديقه", "حديقة البيت"],
+      "example": { "arabic": "عندنا حديقة صغيرة ورا البيت", "transliteration": "ʿindana ḥadiiga ṣaghiira wara l-bayt", "english": "We have a small garden behind the house" },
+      "video_hint": "A garden shown from a doorway in a house tour or a rainy-day family vlog."
+    },
+    {
+      "arabic": "أرض",
+      "transliteration": "arḍ",
+      "english": "floor / ground",
+      "category": "Home",
+      "teaching_note": "Both the floor of a room and the ground outside. Gulf speakers pronounce the ض like a heavy ظ — the two letters have merged in speech. Things 'on the floor' are على الأرض; a storey of a building is a دور.",
+      "image_scene": "A patterned rug on a tiled floor with a phone and a book lying on it.",
+      "concept_key": "floor",
+      "variants": ["الأرض", "على الأرض", "الارض", "أرضية", "الدور"],
+      "example": { "arabic": "الكتاب على الأرض", "transliteration": "il-kitaab ʿala l-arḍ", "english": "The book is on the floor" },
+      "video_hint": "Something dropped or placed on the floor with على الأرض said."
+    },
+    {
+      "arabic": "قدام",
+      "transliteration": "giddaam",
+      "english": "in front of",
+      "category": "Position word",
+      "teaching_note": "ق as g and a doubled d: giddaam. Formal أمام is never said. Takes the suffixes too — قدامي 'in front of me', قدامك 'in front of you' — and doubles as 'straight ahead' in directions.",
+      "image_scene": "A white SUV parked directly in front of a house gate, seen from the street.",
+      "concept_key": "in_front_of",
+      "variants": ["جدام", "قدامي", "قدامك", "قدّام", "قدامنا"],
+      "example": { "arabic": "السيارة قدام البيت", "transliteration": "is-sayyaara giddaam il-bayt", "english": "The car is in front of the house" },
+      "video_hint": "Someone pointing ahead — قدام — at a car, a shop, a building."
+    },
+    {
+      "arabic": "ورا",
+      "transliteration": "wara",
+      "english": "behind",
+      "category": "Position word",
+      "teaching_note": "Short and spoken: wara, never the formal خلف. With endings: وراي 'behind me', وراك 'behind you'. In a car, وراك means 'behind you' — the shout you hear in a car park.",
+      "image_scene": "A cat peeking out from behind a sofa, only ears and eyes visible.",
+      "concept_key": "behind",
+      "variants": ["وراي", "وراك", "ورى", "وراه", "وراها", "من ورا"],
+      "example": { "arabic": "المطبخ ورا المجلس", "transliteration": "il-maṭbakh wara l-majlis", "english": "The kitchen is behind the majlis" },
+      "video_hint": "A tour saying what is behind what, or someone hiding ورا a door."
+    },
+    {
+      "arabic": "حق",
+      "transliteration": "ḥagg",
+      "english": "belonging to / of",
+      "category": "Possession word",
+      "teaching_note": "The word that answers 'whose?': حق خالد 'Khalid's', حقي 'mine', حقك 'yours'. Saudi, Qatar and Bahrain say حق; Kuwait and the UAE say مال (مالي، مالك). For a feminine object some speakers say حقت. Never the Egyptian بتاع or the Levantine تبع.",
+      "image_scene": "Two phones on a table, a hand pointing at one, a name tag on it.",
+      "concept_key": "belonging_to",
+      "variants": ["حقي", "حقك", "حقه", "حقها", "حقت", "مال", "مالي", "مالك"],
+      "example": { "arabic": "هذا الجوال حق منو؟", "transliteration": "haadha l-jawwaal ḥagg minu?", "english": "Whose phone is this?" },
+      "video_hint": "A dispute over whose thing something is — حق منو؟ حقي! — in a family vlog or sketch."
+    },
+    {
+      "arabic": "ـنا",
+      "transliteration": "-na",
+      "english": "our (ending)",
+      "category": "Possessive ending",
+      "teaching_note": "Glue -na to any noun: بيتنا our house, سيارتنا our car (with the t of the ة), أهلنا our family. It is the same -na that means 'us' on a verb — one ending, learned once.",
+      "image_scene": "A family of five standing in front of their house, all pointing at it together.",
+      "concept_key": "our",
+      "variants": ["بيتنا", "سيارتنا", "أهلنا", "غرفتنا", "مجلسنا"],
+      "example": { "arabic": "بيتنا قريب من السوق", "transliteration": "baytna gariib min is-suug", "english": "Our house is near the market" },
+      "video_hint": "A vlogger saying بيتنا / سيارتنا while the house or car is on screen."
+    },
+    {
+      "arabic": "ـهم",
+      "transliteration": "-hum",
+      "english": "their (ending)",
+      "category": "Possessive ending",
+      "teaching_note": "-hum on a noun is 'their': بيتهم, عيالهم. Careful with the neighbour: ـه is 'his' (بيته baytah) and ـهم is 'their' — only the m at the end separates them, so listen for it.",
+      "image_scene": "The house next door with three people outside it, our own family pointing at it.",
+      "concept_key": "their",
+      "variants": ["بيتهم", "سيارتهم", "أهلهم", "عيالهم", "مجلسهم"],
+      "example": { "arabic": "بيتهم جنب بيتنا", "transliteration": "bayt-hum jamb baytna", "english": "Their house is next to ours" },
+      "video_hint": "Talking about the neighbours' or relatives' house — بيتهم — in a family vlog."
+    },
+    {
+      "arabic": "حوش",
+      "transliteration": "ḥoosh",
+      "english": "courtyard / yard",
+      "category": "Home",
+      "teaching_note": "The walled open space inside the gate where children play, cars park and sheep are kept at Eid — every Gulf house has one. No English word quite fits; Gulf speakers use حوش even when speaking English.",
+      "image_scene": "A walled paved yard with a parked car, a football and a bicycle against the wall.",
+      "variants": ["الحوش", "أحواش", "حوشنا", "بالحوش", "حوش البيت"],
+      "example": { "arabic": "العيال يلعبون بالحوش", "transliteration": "il-ʿyaal yilʿabuun bil-ḥoosh", "english": "The kids play in the yard" },
+      "video_hint": "Children or a barbecue in the yard; الحوش named in a family vlog."
+    },
+    {
+      "arabic": "صالة",
+      "transliteration": "ṣaala",
+      "english": "family sitting room / hall",
+      "category": "Home",
+      "teaching_note": "Where the family actually lives — TV, sofas, the late dinner. Guests do not see it. Emphatic ص, long aa. The pair مجلس / صالة is how a Gulf home is divided; learn them together.",
+      "image_scene": "A family room with a big sofa, a TV on the wall and children's toys on the carpet.",
+      "variants": ["الصالة", "صالات", "صاله", "صالتنا", "الصاله"],
+      "example": { "arabic": "نشوف التلفزيون بالصالة", "transliteration": "nshuuf it-tilifizyoon biṣ-ṣaala", "english": "We watch TV in the family room" },
+      "video_hint": "The family room in a house tour — الصالة — with the TV and sofas visible."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Abdullah", "arabic": "تفضل، هذا بيتنا", "transliteration": "tfaḍḍal, haadha baytna", "english": "Come in, this is our house" },
+    { "speaker": "Nasser", "arabic": "ما شاء الله، كبير!", "transliteration": "ma shaaʾ allah, kibiir!", "english": "Ma shaa Allah, it's big!" },
+    { "speaker": "Abdullah", "arabic": "هذا المجلس، والصالة وراه", "transliteration": "haadha l-majlis, wiṣ-ṣaala waraah", "english": "This is the majlis, and the family room is behind it" },
+    { "speaker": "Nasser", "arabic": "وغرف النوم؟", "transliteration": "w-ghuraf in-noom?", "english": "And the bedrooms?" },
+    { "speaker": "Abdullah", "arabic": "فوق. غرفتي عند الدريشة الكبيرة", "transliteration": "foog. ghurfati ʿind id-diriisha l-kibiira", "english": "Upstairs. My room is by the big window" },
+    { "speaker": "Nasser", "arabic": "والحديقة حقكم كبيرة!", "transliteration": "wil-ḥadiiga ḥaggkum kibiira!", "english": "And your garden is big!" },
+    { "speaker": "Abdullah", "arabic": "إي، العيال يلعبون فيها كل يوم", "transliteration": "ii, il-ʿyaal yilʿabuun fiiha kill yoom", "english": "Yes, the kids play in it every day" }
+  ],
+  "sound_spotlight": [
+    { "sound": "The t that appears before an ending", "example": "سيارة → سيارتي (sayyaarti)، غرفة → غرفتنا (ghurfatna)", "explanation": "A silent ة wakes up as a t the moment you add an owner. Listen for it: it is how you know a suffix is coming on a feminine noun." },
+    { "sound": "ـه 'his' = -ah", "example": "بيته (baytah)، مجلسه (majlisah)", "explanation": "The 'his' ending is a breathy -ah, not the -uhu of formal Arabic. Because the h is soft, بيته and بيتها 'her' can sound close — the final aa of 'her' is your clue." },
+    { "sound": "-ak / -ik / -ich: who you are talking to", "example": "بيتك (baytak / baytik / baytich)", "explanation": "The same spelling ـك is said -ak to a man and -ik to a woman; in Kuwait, Bahrain, Qatar and the UAE the feminine turns into -ich and is often written ـج. Same word, and the ear tells you the city." }
+  ],
+  "lesson_sequence": [
+    { "step": "House tour, no words", "detail": "A 60-second Gulf house tour plays muted with the room names appearing as labels only — the learner sees the layout: majlis by the door, family room behind, bedrooms upstairs, the yard." },
+    { "step": "Room cards", "detail": "Sixteen cards with illustration and native audio; position words (قدام، ورا) are shown with an object moving in front of or behind another." },
+    { "step": "Add the owner", "detail": "Grammar card: بيت builds into بيتي، بيتك، بيته، بيتها، بيتنا، بيتكم، بيتهم with audio; then the learner taps the right ending for eight prompted pictures (my car, their house, our garden…)." },
+    { "step": "Whose is it?", "detail": "Listening quiz: hear حق منو؟ and an answer; tap the person it belongs to. Then the reverse — see the owner, say the answer aloud." },
+    { "step": "Rewatch with sound", "detail": "The same house tour with Gulf audio and captions; the learner taps every room word and every possessive ending they hear." },
+    { "step": "Your own tour", "detail": "Four prompts (the room you are in, what is in front of you, what is behind you, whose house it is); the learner records one sentence each." },
+    { "step": "Lesson complete", "detail": "Counter rolls up. Nudge: walk through your home once today naming each room in Gulf." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Walk through your home and name each room out loud: هذا المطبخ، هذي غرفتي، هذي الصالة. Then say where two things are with قدام and ورا.", "context": "Shown on the lesson-complete screen. The GPA here-and-now game moved to the learner's own space." },
+    { "prompt": "Pick up three things around you and say whose they are: هذا حقي، هذا حق أختي، هذا حقنا.", "context": "Next-day nudge. Drills حق and the endings on real objects." },
+    { "prompt": "Watch a Gulf house-tour vlog and note which room comes first. Is it the majlis? It nearly always is — that is the culture note in action.", "context": "Homework card. Links the vocabulary to the guest/family split." }
+  ],
+  "video_needs": {
+    "queries": ["جولة في بيتنا فلوق", "جولة في بيتي الجديد فلوق سعودي", "تصميم مجلس فلوق", "بيتنا الجديد جولة كويتي"],
+    "channels": ["Moshaya Family", "Saud Brothers", "Bjlife", "AlRamsa Institute"],
+    "scene": "A room-by-room house tour with each room named as the camera enters — the majlis first, then the family room, upstairs to the bedrooms, out to the yard."
+  }
+}

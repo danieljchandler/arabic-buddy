@@ -136,6 +136,59 @@ guessed handles, well over half returned an empty timeline — wrong handle,
 protected account, or no syndication cache. That is exactly why stage 2 exists
 and why nothing is approved on a hunch.
 
+### Mention mining beats web search
+
+Web search is bad at this. Asking it for "Yemeni comedians on X" returns TikTok
+listicles and Wikipedia pages with no handles on them; a run of that produced
+almost nothing usable. X's own graph is far better, and the harvest already
+carries it: each tweet's `entities.user_mentions` names accounts the source
+talks to, and those accounts are, by construction, in the same language
+community.
+
+Take a seed account that already works, collect the handles it mentions,
+rank by frequency, and probe the top of that list. Measured on three Egyptian
+seeds, it produced nine reachable accounts at 52–88% prefilter pass, including
+two comedians whose feeds are exactly the register this app teaches. The same
+run over Yemeni seeds is the honest counter-example below.
+
+It only works on accounts that *talk to people*: three Yemeni news accounts
+mentioned nobody at all across 299 tweets. Seed it with a person.
+
+### What this actually found
+
+A researched, live-verified starter bundle ships at
+[`scripts/bundles/x-sources-2026-09.json`](../scripts/bundles/x-sources-2026-09.json)
+— run it as-is. Every handle in it was fetched and every timeline read before
+being written down. Two things it is worth being straight about:
+
+**Egyptian is now solved-ish.** Comedians, actors and footballers pass the
+prefilter at 52–88%, and the text is plainly what the app teaches:
+
+> `تحبوا تفطروا ايه؟ انا طابخ بنفسي.. في رز شايط وملوخيه صايصه` — @ahelmy
+>
+> `للناس اللي لسة جايه تويتر.. اسمها تويتة مش بوست` — @OfficialHenedy
+
+**Yemeni is genuinely thin on X, and no amount of pipeline fixes that.** Of
+every Yemeni account reached, one — `ammaralazakii`, a singer — writes in
+spoken register at any volume (56%). The rest are news desks (7–9%) or
+political prose in MSA. If the Yemeni column matters, X is a supporting source
+for it and Telegram or another platform has to carry the weight. That is a
+finding about Yemeni X, not a gap in the tooling.
+
+### The prefilter has a known false positive: devotional register
+
+`MustafaHosny` scores 78% — higher than either comedian — and is almost
+entirely MSA supplication:
+
+> `اللهم إن الأرضَ أرضُك والسماءَ سماؤك وأنت نعم المولى ونعم النصير`
+
+`اللهم` and `يا رب` are first and second person, so "someone is speaking" fires
+exactly as designed; the register just isn't dialect. The model screen should
+catch it and a reviewer certainly will, which is why the account is in the
+bundle marked `VERIFY — probably reject` rather than quietly dropped. If this
+class of source ever becomes common, the fix is a devotional-register list, not
+a lower personal-marker weight.
+
 ## Stage 2: probe and import
 
 ```sh

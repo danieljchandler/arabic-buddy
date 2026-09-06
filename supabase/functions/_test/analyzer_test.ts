@@ -827,3 +827,107 @@ Deno.test("translates the rule-split fallback line by line", async () => {
     fn.restore();
   }
 });
+
+Deno.test("fills the lines the ensemble left blank with the cheap translator", async () => {
+  // The merge and the analysis answer; all three translation models answer
+  // with something that is not JSON. That used to be "leaving translations
+  // empty". Now the numbered plain-text translator gets one try at the blanks,
+  // and a line it fills is marked as filled by a fallback, not as verified.
+  const models: UpstreamHandler = async (request) => {
+    const body = await request.clone().text();
+    if (body.includes("Translate these Gulf Arabic lines")) {
+      return chatCompletion("1. How are you today\n2. Fine, thank God");
+    }
+    if (body.includes('{"translations"')) {
+      return chatCompletion("I'd rather not answer in JSON today.");
+    }
+    return analysisReply();
+  };
+  const fn = await loadFunction("analyze-gulf-arabic", {
+    env: { FANAR_API_KEY: undefined },
+    upstreams: allowed({
+      "openrouter.ai": models,
+      "generativelanguage.googleapis.com": models,
+    }),
+  });
+  try {
+    const response = await fn.handler(jsonRequest("analyze-gulf-arabic", {
+      transcript: "شلونك اليوم الحمد لله بخير",
+    }));
+    assertEquals(response.status, 200);
+    const body = await response.json() as {
+      result?: { lines?: Array<{ translation: string; needs_review?: boolean; review_reason?: string }> };
+    };
+    const lines = body.result?.lines ?? [];
+    assertEquals(lines.map((l) => l.translation), ["How are you today", "Fine, thank God"]);
+    assert(lines.every((l) => l.needs_review === true), "a fallback fill stays on the review queue");
+    assert(lines.every((l) => l.review_reason === "call2_fallback"), "and says a fallback filled it");
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("records which build and merge model produced the translation, on the row", async () => {
+  const fn = await loadFunction("analyze-gulf-arabic", {
+    env: { FANAR_API_KEY: undefined },
+    upstreams: allowed({
+      "openrouter.ai": () => analysisReply(),
+      "generativelanguage.googleapis.com": () => analysisReply(),
+      "/rest/v1/discover_videos": (request) =>
+        request.method === "GET"
+          ? json({ transcription_status: "processing", engines_used: { asr: { soniox: { ok: true } } } }, 200)
+          : json([{ id: PIPELINE_VIDEO }], 200),
+      "/rest/v1/processed_videos": () => json({}, 201),
+      "/functions/v1/process-approved-video": () => json({ success: true }, 202),
+    }),
+  });
+  try {
+    const response = await fn.handler(jsonRequest("analyze-gulf-arabic", {
+      transcript: "شلونك اليوم الحمد لله بخير",
+      videoId: PIPELINE_VIDEO,
+    }, { jwt: SERVICE_ROLE_KEY }));
+    assertEquals(response.status, 200);
+    await fn.background();
+    // The first save — the one that survives a worker torn down during the
+    // enrichment — already carries the provenance, merged over what the
+    // pipeline wrote rather than replacing it.
+    const first = fn.calls.find((c) => c.url.includes("discover_videos") && c.method === "PATCH" && c.body?.includes("analysis_complete"));
+    assert(first, "expected the pre-enrichment save");
+    const patch = JSON.parse(first.body ?? "{}") as {
+      engines_used: { asr?: unknown; translation?: { build?: string; merge_model?: string; active_models?: number; tiers?: unknown[] } };
+    };
+    assert(patch.engines_used.asr, "the pipeline's ASR provenance survives the merge");
+    const translation = patch.engines_used.translation;
+    assert(translation, "expected translation provenance on the first save");
+    assert(typeof translation.build === "string" && translation.build.length > 0);
+    assertEquals(translation.merge_model, "qwen/qwen3-235b-a22b");
+    assertEquals(translation.tiers?.length, 3);
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("runs the merge and the analysis on the fast workhorse, not the Max tier", async () => {
+  const fn = await loadFunction("analyze-gulf-arabic", {
+    env: { FANAR_API_KEY: undefined },
+    upstreams: allowed({
+      "openrouter.ai": () => analysisReply(),
+      "generativelanguage.googleapis.com": () => analysisReply(),
+    }),
+  });
+  try {
+    await fn.handler(jsonRequest("analyze-gulf-arabic", { transcript: "شلونك اليوم الحمد لله بخير" }));
+    const models = fn.calls
+      .filter((c) => c.url.includes("openrouter.ai"))
+      .map((c) => (JSON.parse(c.body ?? "{}") as { model?: string }).model);
+    // The merge, its analysis pass and every other default call.
+    assert(models.includes("qwen/qwen3-235b-a22b"), `expected the workhorse among ${models.join(", ")}`);
+    // The Max tier still serves as the ensemble's third leg — and nowhere else.
+    const maxCalls = fn.calls.filter((c) =>
+      c.url.includes("openrouter.ai") && (c.body ?? "").includes('"qwen/qwen3.8-max"')
+    );
+    assert(maxCalls.every((c) => (c.body ?? "").includes('{\\"translations\\"')), "Qwen 3.8 Max only translates");
+  } finally {
+    fn.restore();
+  }
+});

@@ -19,6 +19,7 @@ import { TranscriptDraftBanner } from "@/components/admin/TranscriptDraftBanner"
 import { useTranscriptDraft } from "@/hooks/useTranscriptDraft";
 import { usePipelineResume } from "@/hooks/usePipelineResume";
 import { EdgeBuildBanner } from "@/components/admin/EdgeBuildBanner";
+import { TranslationProvenancePanel } from "@/components/admin/TranslationProvenancePanel";
 import { describePipelineProgress, describeQuietFor } from "@/lib/pipelineProgress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -2054,6 +2055,7 @@ const AdminVideoForm = () => {
                   </div>
                 );
               })()}
+              <TranslationProvenancePanel enginesUsed={existingVideo?.engines_used} />
               {!stableAudioUrl && !canManage && (
                 <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
                   No audio is staged for this video, so the per-line playback controls have

@@ -1,13 +1,14 @@
 /**
- * transcriptPieceTranslation — English for the pieces a line split produced.
+ * transcriptPieceTranslation — English for lines that have none.
  *
  * `_shared/transcriptLineSplit.ts` cuts an over-long line at the speaker's
  * pauses, and a translation described the whole line it was written for, so
- * the pieces arrive blank. Both places that split — the Re-sync timing button
- * and the pipeline's finalize stage — need the same answer to that: one call
- * that drafts natural and literal English for every piece, best effort. A
- * model that is down or slow costs the pieces their English, never the
- * caller's own work; the caller decides what to do with a piece left blank.
+ * the pieces arrive blank; and the analysis itself can leave a line blank when
+ * every model in its ensemble failed it. The Re-sync timing button and the
+ * pipeline's finalize stage both need the same answer to that: one call that
+ * drafts natural and literal English for every line handed to it, best effort.
+ * A model that is down or slow costs the lines their English, never the
+ * caller's own work; the caller decides what to do with a line left blank.
  */
 import { askBrain } from "./aiBrain.ts";
 import { getLineup } from "./modelRegistry.ts";
@@ -66,9 +67,9 @@ export async function draftEnglishForPieces(
       budgetMs: 45_000,
       callTimeoutMs: 40_000,
       userPrompt:
-        `These are consecutive lines of a spoken ${dialect} Arabic transcript. They were ` +
-        `just cut from longer lines at the speaker's pauses, so each one is a clause or ` +
-        `a short sentence and the ones next to it are its context.\n\n` +
+        `These are lines of a spoken ${dialect} Arabic transcript, in the order they were ` +
+        `said. Each is a clause or a short sentence, and the ones next to it are its ` +
+        `context.\n\n` +
         (variety ? `The reviewer has identified this clip as: ${variety}\n\n` : "") +
         `For every numbered line give a natural, plain English translation for a learner ` +
         `and a word-for-word literal gloss that keeps the Arabic word order. Translate ` +

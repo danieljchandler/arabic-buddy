@@ -1014,6 +1014,61 @@ Deno.test("process-approved-video splits a long translated line once its pieces 
   assertEquals(lines[1].startMs - lines[0].endMs, 1_400);
 });
 
+Deno.test("process-approved-video translates the lines the analysis left blank", async () => {
+  // The analysis ran out of time for its translation ensemble and saved the
+  // transcript with Arabic only. This stage has a budget of its own and the
+  // same drafter the Re-sync button uses, so the English is drawn here rather
+  // than shipped missing.
+  const drafted = () =>
+    chatCompletion("", {
+      lines: [
+        { index: 1, translation: "How are you today", literal: "what-condition-your today" },
+        { index: 2, translation: "Fine, thank God", literal: "the-praise to-God well" },
+      ],
+    });
+  const result = await call({ videoId: VIDEO }, backend({
+    analyze: () => json({
+      success: true,
+      result: aResult({
+        lines: [
+          { id: "l1", arabic: "شلونك اليوم", translation: "", needs_review: true, review_reason: "empty" },
+          { id: "l2", arabic: "الحمد لله بخير", translation: "" },
+        ],
+      }),
+    }),
+    extra: {
+      "openrouter.ai": drafted,
+      "generativelanguage.googleapis.com/v1beta/openai": drafted,
+    },
+  }));
+  const lines = lastPatchWith(result, "transcript_lines")?.transcript_lines as Array<{
+    id: string; translation: string; literal?: string; needs_review?: boolean; review_reason?: string;
+  }>;
+  assertEquals(lines.map((l) => l.translation), ["How are you today", "Fine, thank God"]);
+  assertEquals(lines[0].literal, "what-condition-your today");
+  assertEquals(lines[0].needs_review, undefined);
+  assertEquals(lines[0].review_reason, undefined);
+  assertEquals(finalStatus(result), "completed");
+});
+
+Deno.test("process-approved-video leaves a blank line blank when no model can translate it", async () => {
+  // The default model fixture answers with plain text: the drafter gets
+  // nothing usable, and the line goes out as it came — flagged, not invented.
+  const result = await call({ videoId: VIDEO }, backend({
+    analyze: () => json({
+      success: true,
+      result: aResult({ lines: [{ id: "l1", arabic: "شلونك اليوم", translation: "", needs_review: true, review_reason: "empty" }] }),
+    }),
+  }));
+  const lines = lastPatchWith(result, "transcript_lines")?.transcript_lines as Array<{
+    translation: string; needs_review?: boolean; review_reason?: string;
+  }>;
+  assertEquals(lines[0].translation, "");
+  assertEquals(lines[0].needs_review, true);
+  assertEquals(lines[0].review_reason, "empty");
+  assertEquals(finalStatus(result), "completed");
+});
+
 Deno.test("process-approved-video gives every line a place on the audio timeline", async () => {
   const result = await call({ videoId: VIDEO }, backend());
   const lines = lastPatchWith(result, "transcript_lines")?.transcript_lines as

@@ -696,6 +696,29 @@ line by line and untranslated. A line with no translation is split freely. The
 analyser's rule-split fallback now also translates its lines with one cheap
 call, so even a failed merge no longer arrives without English.
 
+Three more things stand between a clip and a transcript with no English at
+all, because that is what kept happening once the line splitter was fixed.
+The analyser's merge, its retry and its vocabulary pass run on
+`MODEL_IDS.QWEN_FAST` (`qwen/qwen3-235b-a22b`), the model they ran on until
+2026-08-31; centralising the pins had moved them onto the 2.4-trillion-parameter
+`QWEN` tier, whose reasoning is mandatory, and a merge that took minutes there
+starved the translation ensemble that shares its 300-second budget until every
+leg timed out. When the ensemble still leaves a line blank, the numbered
+plain-text translator (`fallbackLineTranslate`) gets one cheap try at the
+blanks, and a line it fills is marked `review_reason: "call2_fallback"` —
+filled by a fallback, unverified, not disputed. And the pipeline's finalize
+stage, which has a budget of its own, hands any line that still arrives without
+English to the same drafter the Re-sync button uses
+(`_shared/transcriptPieceTranslation.ts`) before writing the row. What each
+model did is recorded in `engines_used.translation` — status, latency, the
+error text of a failed leg, the fill counts, the merge model and the build of
+the analyser that ran — saved with the *first* write of the transcript so a
+worker torn down during enrichment cannot lose it, and shown on the video's
+edit page by `TranslationProvenancePanel`. The panel also flags an analyser
+running an older build than the app: the build banner probes only the
+pipeline function, so an analyser left behind by a partial deploy was
+otherwise invisible.
+
 Why the merge failed in the first place is worth recording, because two
 rounds of timeout tuning treated it as a timing problem. The lineup refresh of
 2026-08-31 moved the pipeline onto models that **reason before answering by

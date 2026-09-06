@@ -342,6 +342,12 @@ verify_jwt = false
 [functions.harvest-social-trends]
 verify_jwt = false
 
+# The research loop's way in: a bundle of proposed X accounts and posts,
+# gated by the same shared secret the harvest automation uses so
+# scripts/discover-x-sources.ts can post one without a session.
+[functions.import-x-bundle]
+verify_jwt = false
+
 # Nightly word-frequency derivation for the decks (docs/language-learning-
 # plan-2026-09.md, Phase 3). The scheduler calls it with the
 # FREQUENCY_DERIVE_SECRET header; there is no human caller, so no JWT.

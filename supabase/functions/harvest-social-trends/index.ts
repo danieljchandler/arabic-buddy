@@ -3,10 +3,14 @@
 // Pulls "what the Arab world is posting right now" from the three free
 // sources the registry (social_content_sources) knows about:
 //
-//   x         per-country trending topics scraped from getdaytrends.com via
-//             Jina Reader (the scrape-x-post fetch path). Topics only — X
-//             search is behind login, so there is no free route to post
-//             bodies, and the paid API starts at $0.005/read.
+//   x         X/Twitter account timelines, through X's own embed backend
+//             (syndication.twitter.com) — free, unauthenticated, and the
+//             thing the first cut said was impossible. Per-account only:
+//             there is no free search, so which accounts are in the registry
+//             is the whole game. See docs/x-content-pipeline.md.
+//   x_trends  per-country trending topics scraped from getdaytrends.com via
+//             Jina Reader (the scrape-x-post fetch path). Topics only, and a
+//             separate platform key from 'x' now that 'x' carries bodies.
 //   reddit    top-of-day posts from country subreddits. Reddit blocks
 //             anonymous datacenter fetches, so this uses a free registered
 //             app (REDDIT_CLIENT_ID/SECRET, client_credentials grant) and
@@ -14,8 +18,11 @@
 //   telegram  public channel previews at t.me/s/<handle> — no key at all.
 //             Fetched direct, with Jina as fallback for blocked egress.
 //
-// Every harvested post lands as status='pending' and goes through an askBrain
-// screen (UTILITY lineup, solo, forced tool call). The screen is TRIAGE, not
+// Every harvested post lands as status='pending'. Before it costs a model
+// call it must clear the marker prefilter in _shared/socialPrescreen.ts — the
+// free half of the screen, which bins wire copy (several newsroom markers, not
+// one colloquial word), text with no Arabic, and text too short to teach
+// anything. What survives goes through an askBrain screen (UTILITY lineup, solo, forced tool call). The screen is TRIAGE, not
 // the publisher: a pass moves the post to status='screened', where a content
 // manager on /admin/social-trends makes the actual approve/reject call — only
 // clear MSA and non-Arabic are binned without a human look. The same call
@@ -49,6 +56,13 @@ import {
   type ScreenVerdict,
   xSearchUrl,
 } from "../_shared/socialTrendsCore.ts";
+import { colloquialScore, prescreen } from "../_shared/socialPrescreen.ts";
+import {
+  parseSyndicationTimeline,
+  summariseTimeline,
+  SYNDICATION_PACING_MS,
+  timelineProfileUrl,
+} from "../_shared/xSyndication.ts";
 
 const FEATURE = "harvest-social-trends";
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -137,7 +151,7 @@ async function touchSources(ids: string[]): Promise<void> {
 // ---------- x: trending topics ----------
 
 async function harvestTrends(): Promise<number> {
-  const sources = await approvedSources("x");
+  const sources = await approvedSources("x_trends");
   let stored = 0;
   for (const source of sources) {
     const started = Date.now();
@@ -154,6 +168,8 @@ async function harvestTrends(): Promise<number> {
     });
     if (topics.length === 0) continue;
     const rows = topics.map((t) => ({
+      // trending_topics only ever holds X trends, so its platform column
+      // stays 'x' even though the *source* row is now 'x_trends'.
       platform: "x",
       country: source.country ?? source.display_name,
       dialect: source.dialect,
@@ -167,6 +183,93 @@ async function harvestTrends(): Promise<number> {
       .upsert(rows as never, { onConflict: "country,topic,captured_on" });
     if (error) throw new Error(`trending_topics upsert failed: ${error.message}`);
     stored += rows.length;
+  }
+  await touchSources(sources.map((s) => s.id));
+  return stored;
+}
+
+// ---------- x: account timelines ----------
+
+const USER_AGENT =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 " +
+  "(KHTML, like Gecko) Chrome/126.0 Safari/537.36";
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * One account's timeline. `rateLimited` is separated from every other failure
+ * because it is the one that must stop the whole platform loop: syndication
+ * throttles per IP, and once it starts answering 429 the remaining sources
+ * would all fail too, spending the run's time budget on nothing.
+ */
+async function fetchXTimeline(
+  handle: string,
+): Promise<{ posts: HarvestedPost[]; rateLimited: boolean }> {
+  try {
+    const res = await fetch(timelineProfileUrl(handle), {
+      headers: { "User-Agent": USER_AGENT },
+    });
+    if (res.status === 429) return { posts: [], rateLimited: true };
+    if (!res.ok) return { posts: [], rateLimited: false };
+    return { posts: parseSyndicationTimeline(await res.text()), rateLimited: false };
+  } catch {
+    return { posts: [], rateLimited: false };
+  }
+}
+
+/**
+ * Harvest every approved X account.
+ *
+ * Two things separate this from the Telegram path. Timelines are paced
+ * (`SYNDICATION_PACING_MS`) and abandon the platform on the first 429 rather
+ * than hammering through a throttle. And what a source returns is written back
+ * onto the source row as `verification`, so a handle that has quietly stopped
+ * resolving is visible in the registry instead of just contributing nothing.
+ *
+ * Freshness is deliberately not a filter. Syndication serves some accounts a
+ * live timeline and others an engagement-ranked cached set that can be months
+ * old; for a dialect corpus the cached set is often the better half, because
+ * high-engagement Arabic is more idiomatic than the routine posting around it.
+ */
+async function harvestXAccounts(perSource: number): Promise<number> {
+  const sources = await approvedSources("x");
+  let stored = 0;
+  let index = 0;
+  for (const source of sources) {
+    if (index++ > 0) await sleep(SYNDICATION_PACING_MS);
+    const started = Date.now();
+    const { posts, rateLimited } = await fetchXTimeline(source.handle);
+    const summary = summariseTimeline(posts);
+
+    // Rank before truncating: what the screening budget sees first should be
+    // the most colloquial of what came back, not the top of the timeline.
+    const usable = posts
+      .filter((p) => hasArabic(p.text) && prescreen(p.text).worthScreening)
+      .sort((a, b) => colloquialScore(b.text, source.dialect) - colloquialScore(a.text, source.dialect));
+
+    await admin()
+      .from("social_content_sources")
+      .update({
+        last_verified_at: new Date().toISOString(),
+        verification: { ...summary, prescreenPassed: usable.length, rateLimited },
+      } as never)
+      .eq("id", source.id);
+
+    emitMetric({
+      feature: FEATURE,
+      event: "x_fetch",
+      dialect: source.dialect,
+      status: rateLimited ? "error" : usable.length > 0 ? "ok" : "warn",
+      durationMs: Date.now() - started,
+      count: usable.length,
+      meta: { handle: source.handle, ...summary, rateLimited },
+    });
+
+    stored += await storePosts(source, usable, perSource);
+    if (rateLimited) {
+      emitMetric({ feature: FEATURE, event: "x_rate_limited", status: "error" });
+      break;
+    }
   }
   await touchSources(sources.map((s) => s.id));
   return stored;
@@ -388,6 +491,39 @@ async function screenPending(dialect: string, limit: number): Promise<Record<str
   const outcomes: Record<string, number> = {};
   for (const row of rows) {
     const started = Date.now();
+
+    // The free half of the screen. Rows that reach here from an older harvest
+    // (or from a platform whose fetch path does not prefilter) can still be
+    // wire copy, and rejecting those for nothing is what the model call was
+    // being spent on. Only the clear cases are refused here — see
+    // socialPrescreen.prescreen.
+    const pre = prescreen(row.arabic_text);
+    if (!pre.worthScreening) {
+      const { error: preErr } = await admin()
+        .from("social_posts")
+        .update({
+          status: "rejected",
+          screen: {
+            prefilter: pre.reason,
+            markers: pre.profile,
+            outcome: `prefilter:${pre.reason}`,
+            decidedAt: new Date().toISOString(),
+          },
+        } as never)
+        .eq("id", row.id);
+      if (preErr) throw new Error(`social_posts update failed: ${preErr.message}`);
+      emitMetric({
+        feature: FEATURE,
+        event: "post_prefiltered",
+        dialect: row.dialect,
+        status: "ok",
+        durationMs: Date.now() - started,
+        meta: { reason: pre.reason },
+      });
+      outcomes.rejected = (outcomes.rejected ?? 0) + 1;
+      continue;
+    }
+
     const { verdict, error: screenError } = await screenPost(row.arabic_text, row.dialect);
     const outcome = decideScreenOutcome(verdict, row.dialect);
     // A pending outcome means the screen itself was down — leave the row
@@ -442,7 +578,7 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const platform = ["x", "reddit", "telegram", "all"].includes(body.platform)
+    const platform = ["x", "x_trends", "reddit", "telegram", "all"].includes(body.platform)
       ? (body.platform as string)
       : "all";
     const perSource = Math.max(1, Math.min(30, Number(body.perSource) || 15));
@@ -457,8 +593,11 @@ Deno.serve(async (req) => {
 
     const started = Date.now();
     const summary: Record<string, unknown> = {};
-    if (platform === "x" || platform === "all") {
+    if (platform === "x_trends" || platform === "all") {
       summary.topics = await harvestTrends();
+    }
+    if (platform === "x" || platform === "all") {
+      summary.xPosts = await harvestXAccounts(perSource);
     }
     if (platform === "telegram" || platform === "all") {
       summary.telegramPosts = await harvestPosts("telegram", perSource);

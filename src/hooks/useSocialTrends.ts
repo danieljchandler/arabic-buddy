@@ -172,6 +172,7 @@ export function useSetSocialPostStatus() {
 
 export interface HarvestSummary {
   topics?: number;
+  xPosts?: number;
   telegramPosts?: number;
   redditPosts?: number;
   screenCalls?: number;

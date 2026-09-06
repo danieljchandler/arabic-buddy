@@ -1,0 +1,293 @@
+{
+  "slug": "present-tense-daily-routine",
+  "lesson_number": 1,
+  "title": "My Daily Routine",
+  "title_arabic": "ايش أعمل كل يوم",
+  "description": "A Sanaa day from the dawn prayer to the late-night series, told in the first person: I wake up, I drink, I go, I chew. Every present-tense form for every person, and the بـ that means 'right now'.",
+  "cefr_target": "A1",
+  "duration_minutes": 20,
+  "approach": "GPA Phase 2 — the learner narrates their own day. Each verb is heard in the first person ('I wake up') before the paradigm is shown; the table comes last, as a summary of what has already been said.",
+  "unlock_condition": "≥10/14 on the conjugation fill-in and a recorded one-minute 'my day' with at least six of the verbs",
+  "icon": "⏰",
+  "can_do": [
+    "Describe your ordinary day with eight core verbs",
+    "Conjugate the present tense for every person",
+    "Ask what someone does every day"
+  ],
+  "grammar": [
+    {
+      "category": "verb-conjugation",
+      "title": "The present tense: one verb, every person",
+      "explanation": "The person is carried by the beginning of the verb, and sometimes its end. أ- is 'I', تـ is 'you' and 'she', يـ is 'he', نـ is 'we'. Talking to a woman adds -i at the end (تشربي); talking to a group or about a group adds -u (تشربو، يشربو) with no final n. Sanaa still has separate forms for a group of women (تشربين، يشربين) — you will hear them from older speakers, and nobody minds if you use the -u forms instead. Learn one verb this way and you have learned them all.",
+      "examples": [
+        { "arabic": "أنا أشرب شاهي", "transliteration": "ana ashrab shaahi", "english": "I drink tea" },
+        { "arabic": "أنت تشرب، أنتي تشربي", "transliteration": "ant tishrab, anti tishrabi", "english": "you (m.) drink, you (f.) drink" },
+        { "arabic": "هو يشرب وهي تشرب", "transliteration": "huu yishrab w-hii tishrab", "english": "he drinks and she drinks" },
+        { "arabic": "إحنا نشرب قهوة", "transliteration": "iḥna nishrab gahwa", "english": "we drink coffee" },
+        { "arabic": "أنتو تشربو وهم يشربو", "transliteration": "antu tishrabu w-hum yishrabu", "english": "you (pl.) drink and they drink" }
+      ]
+    },
+    {
+      "category": "verb-conjugation",
+      "title": "بـ: right now — and, in Sanaa, increasingly always",
+      "explanation": "The plain verb describes what you do in general: أشتغل في مكتب, 'I work in an office'. Put بـ on the front and it means it is happening now: هو بيشتغل, 'he is working (at the moment)'. In today's Sanaa you will hear بـ on habits too, so it is never wrong in a main clause. What stays bare is the verb after 'want', 'must' or 'can': أشتي أنام, 'I want to sleep'. Down south in Aden بـ means the future instead, so a southerner's بأسير is 'I'll go' — a note to file away for now.",
+      "examples": [
+        { "arabic": "هو بيشتغل ذلحين", "transliteration": "huu bi-yishtaghil dhalḥiin", "english": "he is working right now" },
+        { "arabic": "الجهّال بيدرسو في الغرفة", "transliteration": "ij-jahhaal bi-yidrusu fil-ghurfa", "english": "the kids are studying in the room" },
+        { "arabic": "أشتي أرجع البيت", "transliteration": "ashti arjaʿ il-bayt", "english": "I want to go back home" },
+        { "arabic": "أشتغل في مكتب في صنعاء", "transliteration": "ashtaghil fi maktab fi ṣanʿaa", "english": "I work in an office in Sanaa" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "The shape of a Sanaa day",
+      "note": "The day starts with the dawn call to prayer, and many people go straight back to sleep after it. Breakfast is bread with tea, milk tea or a bowl of fatta. The big meal is lunch, around two o'clock — saltah or a rice dish — and everything closes for it. After lunch comes the afternoon lull: the مقيل, when men (and women, separately) sit in the mafraj chewing qat until the sunset prayer. Life starts again after that; dinner is late and light, and the streets and shops are busy until midnight. If you are invited 'in the afternoon', the invitation is to chew.",
+      "phrases": [
+        { "arabic": "الغدا جاهز", "transliteration": "il-ghada jaahiz", "english": "Lunch is ready" },
+        { "arabic": "تخزّن معنا العصر؟", "transliteration": "tkhazzin maʿna l-ʿaṣr?", "english": "Will you chew with us this afternoon?" },
+        { "arabic": "بعد الفجر أنام شوي", "transliteration": "baʿd il-fajr anaam shway", "english": "After the dawn prayer I sleep a little" }
+      ]
+    },
+    {
+      "title": "Asking about someone's day",
+      "note": "Asking 'what do you do every day?' is a normal way to get to know someone, and the answer is expected to mention prayer times, since the day is told by them: 'after Fajr', 'before Asr', 'after Maghrib'. Answer the same way and you will sound local at once. Nobody says a clock time when a prayer name will do.",
+      "phrases": [
+        { "arabic": "ايش تعمل كل يوم؟", "transliteration": "aysh tiʿmal kull yawm?", "english": "What do you do every day?" },
+        { "arabic": "أرجع البيت بعد العصر", "transliteration": "arjaʿ il-bayt baʿd il-ʿaṣr", "english": "I come back home after Asr" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "أصحى",
+      "transliteration": "aṣḥa",
+      "english": "I wake up",
+      "category": "Verb — daily routine",
+      "teaching_note": "The first verb of the day and the first 'I' form: the أ- at the front is you. Yemeni uses صحى/يصحى for waking; you will also hear أقوم, 'I get up'. Not the MSA أستيقظ.",
+      "image_scene": "A person sitting up in bed stretching, early light through a stained-glass window.",
+      "concept_key": "wake_up",
+      "variants": ["اصحى", "أصحى", "يصحى", "تصحى", "نصحى", "أقوم"],
+      "example": { "arabic": "أصحى الفجر كل يوم", "transliteration": "aṣḥa l-fajr kull yawm", "english": "I wake up at dawn every day" },
+      "video_hint": "A morning vlog opening — the vlogger in bed or just up, saying 'I wake up at…'."
+    },
+    {
+      "arabic": "أشرب",
+      "transliteration": "ashrab",
+      "english": "I drink",
+      "category": "Verb — daily routine",
+      "teaching_note": "The model verb for this lesson's table: أشرب، تشرب، يشرب، نشرب. Note the i in the 'you/he/we' forms (tishrab, yishrab) — Sanaa pronounces the prefix vowel clearly.",
+      "image_scene": "A hand lifting a glass of milk tea to the lips, steam rising.",
+      "concept_key": "drink",
+      "variants": ["اشرب", "يشرب", "تشرب", "نشرب", "بيشرب"],
+      "example": { "arabic": "أشرب شاهي حليب الصباح", "transliteration": "ashrab shaahi ḥaliib iṣ-ṣabaaḥ", "english": "I drink milk tea in the morning" },
+      "video_hint": "Someone drinking tea or qishr on camera while narrating; the verb said as the glass is raised."
+    },
+    {
+      "arabic": "آكل",
+      "transliteration": "aakul",
+      "english": "I eat",
+      "category": "Verb — daily routine",
+      "teaching_note": "The 'I' form starts with a long aa (the أ of 'I' plus the أ of the verb). He eats is ياكل, we eat ناكل. The imperative 'eat!' is just كل — you will hear it from every host.",
+      "image_scene": "A person eating from a shared platter of rice and meat with the right hand.",
+      "concept_key": "eat",
+      "variants": ["اكل", "آكل", "ياكل", "يأكل", "تاكل", "ناكل"],
+      "example": { "arabic": "آكل الغدا الساعة ثنتين", "transliteration": "aakul il-ghada s-saaʿa thintayn", "english": "I eat lunch at two o'clock" },
+      "video_hint": "A meal on screen with the speaker saying what or when they eat."
+    },
+    {
+      "arabic": "أسير",
+      "transliteration": "asiir",
+      "english": "I go",
+      "category": "Verb — daily routine",
+      "teaching_note": "Sanaa's own word for 'go' is سار/يسير, which in MSA means 'walk'. أروح is heard too and is fine, but أسير marks you as having learned the highland dialect. No preposition is needed before the place: أسير السوق.",
+      "image_scene": "A man in a zanna and jambiya walking out of a doorway into a sunlit Sanaa lane.",
+      "concept_key": "go",
+      "variants": ["اسير", "يسير", "تسير", "نسير", "أروح", "يروح"],
+      "example": { "arabic": "أسير الشغل الساعة ثمان", "transliteration": "asiir ish-shughl is-saaʿa thamaan", "english": "I go to work at eight" },
+      "video_hint": "The vlogger leaving the house or heading somewhere: 'now I'm going to…'."
+    },
+    {
+      "arabic": "أشتغل",
+      "transliteration": "ashtaghil",
+      "english": "I work",
+      "category": "Verb — daily routine",
+      "teaching_note": "From the same root as شغل, 'work' (the noun you already know). The 'I' form sounds like ash-TA-ghil; the middle vowel is short. In Sanaa بيشتغل is 'he's working right now'.",
+      "image_scene": "A woman at a desk with a laptop and a cup of tea in a small office.",
+      "concept_key": "work_verb",
+      "variants": ["اشتغل", "يشتغل", "تشتغل", "نشتغل", "بيشتغل"],
+      "example": { "arabic": "أشتغل من ثمان لين ثنتين", "transliteration": "ashtaghil min thamaan layn thintayn", "english": "I work from eight to two" },
+      "video_hint": "Workplace footage with narration; 'ayš tishtaghil?' in street interviews."
+    },
+    {
+      "arabic": "أدرس",
+      "transliteration": "adrus",
+      "english": "I study",
+      "category": "Verb — daily routine",
+      "teaching_note": "A u-verb: أدرس، يدرس (adrus, yidrus). It is also the verb for 'learn' at a class or with a tutor, so 'I study Arabic' is exactly what you will say about this app.",
+      "image_scene": "A student at a low table with an open Arabic textbook and a notebook.",
+      "concept_key": "study",
+      "variants": ["ادرس", "يدرس", "تدرس", "ندرس", "بيدرس"],
+      "example": { "arabic": "أدرس عربي كل يوم", "transliteration": "adrus ʿarabi kull yawm", "english": "I study Arabic every day" },
+      "video_hint": "Study or exam-season vlogs; a student explaining their timetable."
+    },
+    {
+      "arabic": "أنام",
+      "transliteration": "anaam",
+      "english": "I sleep",
+      "category": "Verb — daily routine",
+      "teaching_note": "Long aa in every form: أنام، ينام، ننام. Also 'go to bed'. The noun النوم, 'sleep', gives you غرفة النوم, 'bedroom', next lesson.",
+      "image_scene": "A person asleep under a blanket, a lamp switched off beside them.",
+      "concept_key": "sleep",
+      "variants": ["انام", "ينام", "تنام", "ننام"],
+      "example": { "arabic": "أنام الساعة عشر بالليل", "transliteration": "anaam is-saaʿa ʿashir bil-layl", "english": "I sleep at ten at night" },
+      "video_hint": "Night-routine vlogs; the closing line of a day-in-the-life."
+    },
+    {
+      "arabic": "أرجع",
+      "transliteration": "arjaʿ",
+      "english": "I come back / return",
+      "category": "Verb — daily routine",
+      "teaching_note": "Ends in ع — feel it in the throat. 'Come back home' takes no preposition: أرجع البيت. The past 'I came back' (رجعت) arrives in Lesson 8.",
+      "image_scene": "Someone coming in through a front door with shopping bags, greeted by a child.",
+      "concept_key": "come_back",
+      "variants": ["ارجع", "يرجع", "ترجع", "نرجع", "رجع"],
+      "example": { "arabic": "أرجع البيت العصر", "transliteration": "arjaʿ il-bayt il-ʿaṣr", "english": "I come back home in the afternoon" },
+      "video_hint": "The vlogger arriving back home: 'we're back', 'I come back at…'."
+    },
+    {
+      "arabic": "أصلّي",
+      "transliteration": "aṣalli",
+      "english": "I pray",
+      "category": "Verb — daily routine",
+      "teaching_note": "The day in Yemen is told by the five prayers, so this verb comes with the prayer names: أصلّي الفجر، أصلّي العصر. Hold the doubled ل. The noun is صلاة.",
+      "image_scene": "Rows of men praying in a whitewashed Sanaa mosque, dawn light.",
+      "concept_key": "pray",
+      "variants": ["اصلي", "أصلي", "يصلي", "تصلي", "نصلي", "صلاة"],
+      "example": { "arabic": "أصلّي الفجر في الجامع", "transliteration": "aṣalli l-fajr fij-jaamiʿ", "english": "I pray the dawn prayer at the mosque" },
+      "video_hint": "The call to prayer or a mosque in a vlog; 'after we pray…' in narration."
+    },
+    {
+      "arabic": "أتفرج",
+      "transliteration": "atfarraj",
+      "english": "I watch",
+      "category": "Verb — daily routine",
+      "teaching_note": "Watching TV, a series or a match. Many Yemenis simply say أشوف ('I see') for the same thing — both are accepted. Doubled ر in the middle.",
+      "image_scene": "A family on floor cushions watching a Ramadan series on a wall-mounted TV.",
+      "concept_key": "watch",
+      "variants": ["اتفرج", "يتفرج", "تتفرج", "نتفرج", "أشوف"],
+      "example": { "arabic": "أتفرج مسلسل بالليل", "transliteration": "atfarraj musalsal bil-layl", "english": "I watch a series at night" },
+      "video_hint": "Someone in front of a TV or phone screen; reactions to a series or match."
+    },
+    {
+      "arabic": "كل يوم",
+      "transliteration": "kull yawm",
+      "english": "every day",
+      "category": "Time expression",
+      "teaching_note": "كل + a singular noun = 'every'. كل يوم جمعة is 'every Friday'. It usually sits at the end of the sentence.",
+      "image_scene": "A wall calendar with every day ticked in green.",
+      "concept_key": "every_day",
+      "variants": ["كل يوم", "كليوم", "يومياً", "كل الأيام"],
+      "example": { "arabic": "أشرب قهوة كل يوم", "transliteration": "ashrab gahwa kull yawm", "english": "I drink coffee every day" },
+      "video_hint": "Any routine narration — 'every day I…' — is the anchor for this phrase."
+    },
+    {
+      "arabic": "عادةً",
+      "transliteration": "ʿaadatan",
+      "english": "usually",
+      "category": "Time expression",
+      "teaching_note": "Said with the -an ending kept, unlike most classical endings. Goes at the front or straight after the subject. غالباً, 'mostly', is the common alternative.",
+      "image_scene": "A clock at two o'clock and a plate of saltah on a table, repeated three times across the frame.",
+      "concept_key": "usually",
+      "variants": ["عادة", "عادتاً", "غالباً", "أغلب الوقت"],
+      "example": { "arabic": "عادةً أتغدى الساعة ثنتين", "transliteration": "ʿaadatan atghadda s-saaʿa thintayn", "english": "I usually have lunch at two" },
+      "video_hint": "'Usually I…' in a routine or Q&A video."
+    },
+    {
+      "arabic": "أصطبح",
+      "transliteration": "aṣṭabaḥ",
+      "english": "I have breakfast",
+      "category": "Verb — daily routine",
+      "teaching_note": "A Sanaa verb from صباح, 'morning'. Two emphatic letters in a row (ص then ط) — say them low and full. Breakfast itself is الصبوح or الفطور.",
+      "image_scene": "A breakfast spread: flatbread, a bowl of beans, a glass of tea with milk.",
+      "variants": ["اصطبح", "يصطبح", "تصطبح", "نصطبح", "صبوح"],
+      "example": { "arabic": "أصطبح خبز وشاهي", "transliteration": "aṣṭabaḥ khubz w-shaahi", "english": "I have bread and tea for breakfast" },
+      "video_hint": "Breakfast vlogs and street-food mornings: fuul, fatta, tea."
+    },
+    {
+      "arabic": "أتغدى",
+      "transliteration": "atghadda",
+      "english": "I have lunch",
+      "category": "Verb — daily routine",
+      "teaching_note": "From الغدا, 'lunch', the main meal. 'Have lunch with us' — تغدّى معنا — is the most common invitation you will hear. Doubled د.",
+      "image_scene": "A family seated on the floor around a large tray of saltah and bread.",
+      "variants": ["اتغدى", "يتغدى", "تتغدى", "نتغدى", "غدا", "الغدا"],
+      "example": { "arabic": "نتغدى سلتة كل يوم جمعة", "transliteration": "nitghadda salta kull yawm jumʿa", "english": "We have saltah every Friday" },
+      "video_hint": "Lunch scenes; the host saying 'come and have lunch'."
+    },
+    {
+      "arabic": "أخزّن",
+      "transliteration": "akhazzin",
+      "english": "I chew qat",
+      "category": "Verb — daily routine",
+      "teaching_note": "Literally 'I store' — the leaves are kept in the cheek for hours. The verb for the afternoon session, which structures the second half of a Yemeni day. Doubled ز.",
+      "image_scene": "Men reclining on cushions in a bright mafraj, a bundle of green qat leaves in front of each.",
+      "variants": ["اخزن", "يخزن", "تخزن", "نخزن", "تخزين", "مقيل"],
+      "example": { "arabic": "بعد الغدا أخزّن مع الأصحاب", "transliteration": "baʿd il-ghada akhazzin maʿ il-aṣḥaab", "english": "After lunch I chew qat with friends" },
+      "video_hint": "A qat session filmed in a mafraj; the qat market; 'let's go chew'."
+    },
+    {
+      "arabic": "الفجر",
+      "transliteration": "il-fajr",
+      "english": "dawn / the dawn prayer",
+      "category": "Time expression",
+      "teaching_note": "The first fixed point of the day and the way people say 'very early'. 'At dawn' needs no preposition: أصحى الفجر. The ج is a full j in Sanaa.",
+      "image_scene": "Sanaa's tower houses against a pale pink dawn sky, a minaret lit up.",
+      "variants": ["فجر", "الفجر", "صلاة الفجر", "أذان الفجر"],
+      "example": { "arabic": "أصحى قبل الفجر", "transliteration": "aṣḥa gabl il-fajr", "english": "I wake up before dawn" },
+      "video_hint": "The dawn call to prayer over Sanaa; 'after Fajr' in a routine."
+    },
+    {
+      "arabic": "العصر",
+      "transliteration": "il-ʿaṣr",
+      "english": "the afternoon (from the Asr prayer)",
+      "category": "Time expression",
+      "teaching_note": "The afternoon is named after its prayer. In Yemen it is qat time: 'I'll see you in the afternoon' means at the session. The ع and ص together are a workout — go slowly.",
+      "image_scene": "Late-afternoon golden light on a Sanaa street, shops reopening.",
+      "variants": ["عصر", "العصر", "بعد العصر", "صلاة العصر"],
+      "example": { "arabic": "العصر كل الناس في المقيل", "transliteration": "il-ʿaṣr kull in-naas fil-magyal", "english": "In the afternoon everyone is at the qat session" },
+      "video_hint": "Afternoon footage; 'this afternoon' in a plan or invitation."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Bilqis", "arabic": "ايش تعمل كل يوم يا صلاح؟", "transliteration": "aysh tiʿmal kull yawm ya ṣalaaḥ?", "english": "What do you do every day, Salah?" },
+    { "speaker": "Salah", "arabic": "أصحى الفجر، أصلّي، وبعدين أصطبح.", "transliteration": "aṣḥa l-fajr, aṣalli, w-baʿdayn aṣṭabaḥ.", "english": "I wake up at dawn, pray, then have breakfast." },
+    { "speaker": "Bilqis", "arabic": "وتسير الشغل الساعة كم؟", "transliteration": "w-tsiir ish-shughl is-saaʿa kam?", "english": "And what time do you go to work?" },
+    { "speaker": "Salah", "arabic": "الساعة ثمان. أشتغل لين الساعة ثنتين وأرجع أتغدى.", "transliteration": "is-saaʿa thamaan. ashtaghil layn is-saaʿa thintayn w-arjaʿ atghadda.", "english": "At eight. I work until two and come back for lunch." },
+    { "speaker": "Bilqis", "arabic": "والعصر؟", "transliteration": "wil-ʿaṣr?", "english": "And in the afternoon?" },
+    { "speaker": "Salah", "arabic": "العصر عادةً أخزّن مع الأصحاب، وبالليل أتفرج مسلسل وأنام.", "transliteration": "il-ʿaṣr ʿaadatan akhazzin maʿ il-aṣḥaab, w-bil-layl atfarraj musalsal w-anaam.", "english": "In the afternoon I usually chew qat with friends, and at night I watch a series and sleep." }
+  ],
+  "sound_spotlight": [
+    { "sound": "بـ + يـ", "example": "بيشتغل (bi-yishtaghil)", "explanation": "The 'right now' prefix and the 'he' prefix glide together into one syllable, biy-. Don't insert a pause between them." },
+    { "sound": "Vowel drop", "example": "تشربي (tishrabi → tishrbi)", "explanation": "Sanaa speech squeezes unstressed short vowels. In fast speech the a of tishrabi almost disappears; listen for the consonants and the stressed syllable." },
+    { "sound": "ص + ط", "example": "أصطبح (aṣṭabaḥ)", "explanation": "Two emphatic consonants back to back. The whole word sits low in the mouth; the a vowels sound almost like o." }
+  ],
+  "lesson_sequence": [
+    { "step": "My day, heard", "detail": "Salah's day plays through as a picture story: eight cards, each with the 'I' form of a verb auto-playing, Arabic large, no English." },
+    { "step": "Second pass with meaning", "detail": "Same eight cards with English shown; then the time words (كل يوم، عادةً، الفجر، العصر) placed on a clock face." },
+    { "step": "Whose verb is it?", "detail": "Listen to a form (تشربي، يدرس، نخزّن) and tap the person it belongs to. The table appears only after this." },
+    { "step": "Now or always?", "detail": "Pairs of sentences with and without بـ; tap 'right now' or 'in general'." },
+    { "step": "Build a day", "detail": "Drag the verbs onto a timeline from الفجر to بالليل and hear the sentence the app builds for each." },
+    { "step": "Say your own", "detail": "Record 'my day' in six sentences; the app checks the verbs it hears against the checklist." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Tonight, before you sleep, say your day in Arabic in your head: أصحى… أشرب… أسير… أرجع… أنام.", "context": "Shown on the lesson-complete screen. Activates the 'I' forms in order." },
+    { "prompt": "Ask a Yemeni friend or your tutor: ايش تعمل كل يوم؟ — and listen for which prayer names they use as clock times.", "context": "Next-day notification. Activates the question and the prayer-name time words." },
+    { "prompt": "Next time you see someone doing something, say it with بـ: هو بيشرب، هي بتدرس.", "context": "Observation prompt for the 'right now' prefix." }
+  ],
+  "video_needs": {
+    "queries": ["يومي في صنعاء فلوق", "روتيني اليومي يمني", "يوم كامل معي صنعاء"],
+    "channels": ["Mustafa Al-Mawmari", "Ahmed Hajar", "HMADA"],
+    "scene": "A day-in-the-life vlog narrated in the first person: waking, tea, going to work, the two o'clock lunch, the afternoon qat session, the evening series."
+  }
+}

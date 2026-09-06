@@ -1,0 +1,241 @@
+{
+  "slug": "people-and-family",
+  "lesson_number": 5,
+  "title": "People and Family",
+  "title_arabic": "الأهل — أمي وأبوي وأخوي",
+  "description": "The family words you will be asked about in the first five minutes of any conversation, and the little endings -i and -ak/-ik that turn 'mother' into 'my mother' and 'your mother'.",
+  "cefr_target": "A1",
+  "duration_minutes": 20,
+  "approach": "Here-and-now with a family tree: every word is heard while a figure on the tree lights up; the possessive endings are taught by moving a 'my' and 'your' token onto the tree.",
+  "unlock_condition": "≥10/13 on the family-tree tap quiz and one recorded line about your own family",
+  "icon": "👨‍👩‍👧‍👦",
+  "can_do": [
+    "Name the members of a family",
+    "Say 'my' and 'your' with family words",
+    "Ask about someone's family politely"
+  ],
+  "grammar": [
+    {
+      "category": "possessives",
+      "title": "-i, -ak, -ik: my and your, stuck on the end",
+      "explanation": "Arabic does not have a separate word for 'my' or 'your'. You add an ending to the noun: -i means my (بيتي my house, أختي my sister), -ak means your when talking to a man (بيتك, أختك), and -ik when talking to a woman (in Kuwait, Bahrain, Qatar and the Emirates this -ik becomes -ich, spelled ـج: أختج). Two family words end in a vowel and take a y instead: أبوي my father, أخوي my brother. You already did this in اسمي and اسمك without noticing.",
+      "examples": [
+        { "arabic": "أمي وأبوي بالبيت", "transliteration": "ummi w-abuuy bil-bayt", "english": "My mother and father are at home" },
+        { "arabic": "هذا أخوي خالد", "transliteration": "haadha akhuuy khaalid", "english": "This is my brother Khalid" },
+        { "arabic": "أختك طالبة؟", "transliteration": "ukhtak ṭaalba?", "english": "Is your (m) sister a student?" },
+        { "arabic": "شلون أهلك؟", "transliteration": "shloon ahlak?", "english": "How is your family?" },
+        { "arabic": "بنتك حلوة ما شاء الله", "transliteration": "bintik ḥilwa maa shaaʾ allaah", "english": "Your (f) daughter is lovely, mashallah" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "How is the family? — the question that wants no answer",
+      "note": "After شلونك the next question is almost always شلون الأهل؟ or شخبار الأهل؟ — how is the family — and the expected answer is بخير الحمد لله, not news. Asking a man about his children, parents and brothers is warm and normal; asking a man about his wife by name is not, so ask about الأهل or البيت instead. Between women the same questions are asked freely. Whether you are married and have children will be asked early and directly — it is interest, not intrusion.",
+      "phrases": [
+        { "arabic": "شلون الأهل؟", "transliteration": "shloon il-ahal?", "english": "How is the family?" },
+        { "arabic": "بخير، يسلمون عليك", "transliteration": "b-khayr, ysallimuun ʿalayk", "english": "Fine, they send their greetings" },
+        { "arabic": "عندك عيال؟", "transliteration": "ʿindak ʿyaal?", "english": "Do you have children?" },
+        { "arabic": "ما شاء الله عليهم", "transliteration": "maa shaaʾ allaah ʿalayhum", "english": "Mashallah, bless them" }
+      ]
+    },
+    {
+      "title": "Abu and Umm: called by your child's name",
+      "note": "Once a couple has a son, everyone calls them أبو and أم + his name — أبو فهد, أم فهد — and in the Gulf أبو shortens to بو in address: يا بو فهد. It is respectful and affectionate at the same time, so it is the safe way to address a peer or an elder whose son you know. Older men are also addressed as عمي (my uncle) and older women as خالتي (my aunt) by anyone younger, family or not.",
+      "phrases": [
+        { "arabic": "هلا يا بو فهد", "transliteration": "hala ya bu fahad", "english": "Hi, Abu Fahad" },
+        { "arabic": "شلونك يا عمي؟", "transliteration": "shloonak ya ʿammi?", "english": "How are you, uncle? (to any older man)" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "أم",
+      "transliteration": "umm",
+      "english": "mother",
+      "category": "Family",
+      "teaching_note": "With the ending: أمي ummi (my mother). Calling to her, Gulf children say يمّه yumma — you will hear it constantly in family vlogs. ماما is also universal at home. Also the first half of the kunya أم فهد.",
+      "image_scene": "A mother in a colourful house dress holding a toddler on her hip in a bright kitchen.",
+      "concept_key": "mother",
+      "variants": ["أمي", "الأم", "أمك", "أمه", "يمه", "يمّه", "ماما", "الوالدة"],
+      "example": { "arabic": "أمي بالمطبخ", "transliteration": "ummi bil-maṭbakh", "english": "My mother is in the kitchen" },
+      "video_hint": "Children calling يمّه; a vlogger introducing أمي on camera."
+    },
+    {
+      "arabic": "أبو",
+      "transliteration": "abu",
+      "english": "father",
+      "category": "Family",
+      "teaching_note": "The Gulf form ends in a vowel, so 'my father' is أبوي abuuy and 'your father' أبوك abuuk. The same word starts every kunya: أبو محمد. At home children say بابا or يبه yuba. The MSA أب is never used in speech.",
+      "image_scene": "A father in a white thobe and ghutra sitting cross-legged with a child on his knee.",
+      "concept_key": "father",
+      "variants": ["أبوي", "أبوك", "أبوه", "بو", "بابا", "يبه", "الوالد", "ابو"],
+      "example": { "arabic": "أبوي بالمجلس", "transliteration": "abuuy bil-majlis", "english": "My father is in the majlis" },
+      "video_hint": "A father addressed as يبه or بابا; anyone called أبو / بو + name."
+    },
+    {
+      "arabic": "أخ",
+      "transliteration": "akh",
+      "english": "brother",
+      "category": "Family",
+      "teaching_note": "Like أبو it grows a vowel before the ending: أخوي akhuuy (my brother), أخوك akhuuk (your brother). يا أخوي — brother — is also the everyday friendly address to any man, related or not. Plural إخوان.",
+      "image_scene": "Two young men with matching features standing shoulder to shoulder, one arm over the other's shoulder.",
+      "concept_key": "brother",
+      "variants": ["أخوي", "أخوك", "أخوه", "خوي", "إخوان", "الأخ", "اخوي"],
+      "example": { "arabic": "هذا أخوي الكبير", "transliteration": "haadha akhuuy il-kibiir", "english": "This is my big brother" },
+      "video_hint": "Sibling introductions in family vlogs; يا أخوي between friends."
+    },
+    {
+      "arabic": "أخت",
+      "transliteration": "ukht",
+      "english": "sister",
+      "category": "Family",
+      "teaching_note": "Regular: أختي ukhti, أختك ukhtak / ukhtik. Plural خوات khawaat, a very Gulf form. يا أختي is the polite way to address a woman you do not know.",
+      "image_scene": "Two young women in abayas laughing together on a sofa, clearly sisters.",
+      "concept_key": "sister",
+      "variants": ["أختي", "أختك", "أختج", "خوات", "الأخت", "اختي"],
+      "example": { "arabic": "أختي طالبة في الجامعة", "transliteration": "ukhti ṭaalba fil-jaamiʿa", "english": "My sister is a student at university" },
+      "video_hint": "A vlogger mentioning أختي; يا أختي to a woman in a shop."
+    },
+    {
+      "arabic": "ابن",
+      "transliteration": "ibin",
+      "english": "son",
+      "category": "Family",
+      "teaching_note": "Pronounced ibin in the Gulf. In everyday speech most people say ولدي (my boy) for 'my son', so you will hear ابن mostly in ابني and in phrases like ابن عمي (my cousin). Learn both.",
+      "image_scene": "A father with his hand on the shoulder of a teenage boy in a thobe, both smiling at the camera.",
+      "concept_key": "son",
+      "variants": ["ابني", "ابنك", "ابنه", "ولدي", "الابن", "ابن عمي"],
+      "example": { "arabic": "هذا ابني محمد", "transliteration": "haadha ibni mḥammad", "english": "This is my son Mohammed" },
+      "video_hint": "Parents introducing a son; ابن عم / ابن خال for cousins."
+    },
+    {
+      "arabic": "بنت",
+      "transliteration": "bint",
+      "english": "daughter",
+      "category": "Family",
+      "teaching_note": "بنتي is my daughter. The same word means 'girl' in general, so context decides. Plural بنات. Also in بنت عمي (my cousin, f) and the polite يا بنت الناس.",
+      "image_scene": "A mother brushing the hair of a small girl in a party dress.",
+      "concept_key": "daughter",
+      "variants": ["بنتي", "بنتك", "بنتها", "بنات", "البنت", "بنت عمي"],
+      "example": { "arabic": "بنتي صغيرة", "transliteration": "binti ṣighiira", "english": "My daughter is small" },
+      "video_hint": "Parents naming a daughter; بناتي in family vlogs."
+    },
+    {
+      "arabic": "أهل",
+      "transliteration": "ahal",
+      "english": "family (one's people)",
+      "category": "Family",
+      "teaching_note": "The word people actually use: أهلي my family, شلون أهلك؟ how is your family. عائلة (family as a unit) exists but is more formal. Also means 'the people of' a place: أهل الكويت.",
+      "image_scene": "An extended family of three generations seated together on floor cushions around a large tray.",
+      "concept_key": "family",
+      "variants": ["أهلي", "أهلك", "الأهل", "عائلة", "عايلة", "العائلة", "اهلي"],
+      "example": { "arabic": "أهلي في الكويت", "transliteration": "ahli fil-kuwayt", "english": "My family is in Kuwait" },
+      "video_hint": "Family gatherings; the greeting شخبار الأهل."
+    },
+    {
+      "arabic": "صديق",
+      "transliteration": "ṣidiig",
+      "english": "friend",
+      "category": "People",
+      "teaching_note": "Said ṣidiig in the Gulf (ق = g). صديقي my friend, صديقتي my friend (f). For your group of friends Gulf speakers say ربع rabʿ — ربعي, 'my gang' — and Kuwaitis also say رفيج. Between men, أخوي and يا أخوي are just as common.",
+      "image_scene": "Two young men in thobes sharing a laugh over tea glasses at a café table.",
+      "concept_key": "friend",
+      "variants": ["صديقي", "صديقتي", "الصديق", "أصدقاء", "ربع", "ربعي", "رفيج", "صاحبي"],
+      "example": { "arabic": "هذا صديقي أحمد", "transliteration": "haadha ṣidiigi aḥmad", "english": "This is my friend Ahmed" },
+      "video_hint": "Friends introduced on camera; ربعي in outing and camping vlogs."
+    },
+    {
+      "arabic": "رجال",
+      "transliteration": "rajjaal",
+      "english": "man",
+      "category": "People",
+      "teaching_note": "A doubled j: rajjaal. In Kuwait, Bahrain, Qatar and the Emirates the ج becomes y — ريّال rayyaal — and that is how they write it too. Plural رجاجيل / رياييل. The MSA رجل is not used.",
+      "image_scene": "A middle-aged man in a white thobe and red-checked shemagh standing in a doorway.",
+      "concept_key": "man",
+      "variants": ["رجّال", "ريال", "ريّال", "الرجال", "رجاجيل", "رياييل"],
+      "example": { "arabic": "هذا الرجال أبو خالد", "transliteration": "haadha r-rajjaal abu khaalid", "english": "This man is Abu Khalid" },
+      "video_hint": "Someone pointing out a man; listen for rajjaal vs rayyaal to place the speaker."
+    },
+    {
+      "arabic": "حرمة",
+      "transliteration": "ḥurma",
+      "english": "woman",
+      "category": "People",
+      "teaching_note": "The everyday Gulf word for woman, also used by a man for his wife (حرمتي). Plural حريم. مرة is a blunter alternative. Avoid the MSA امرأة, which nobody says. Starts with the deep ح.",
+      "image_scene": "A woman in a black abaya and shayla carrying shopping bags in a mall.",
+      "concept_key": "woman",
+      "variants": ["الحرمة", "حريم", "حرمتي", "مرة", "نسوان", "حرمه"],
+      "example": { "arabic": "الحرمة من البحرين", "transliteration": "il-ḥurma min il-baḥrayn", "english": "The woman is from Bahrain" },
+      "video_hint": "Someone describing a woman; حريم for the women's side of a gathering."
+    },
+    {
+      "arabic": "ولد",
+      "transliteration": "walad",
+      "english": "boy",
+      "category": "People",
+      "teaching_note": "Boy, and by extension son (ولدي). Plural أولاد or the very Gulf عيال (kids), which you heard in عندك عيال؟. Also a friendly address to a younger man: يا ولد.",
+      "image_scene": "A boy of about eight in a small white thobe kicking a football in a yard.",
+      "concept_key": "boy",
+      "variants": ["الولد", "أولاد", "ولدي", "ولدك", "عيال", "يا ولد"],
+      "example": { "arabic": "الولد بالشارع", "transliteration": "il-walad bish-shaariʿ", "english": "The boy is in the street" },
+      "video_hint": "Children playing; a parent calling a son."
+    },
+    {
+      "arabic": "بنية",
+      "transliteration": "bnayya",
+      "english": "girl",
+      "category": "People",
+      "teaching_note": "The Gulf word for a girl or young woman, especially in Kuwait, Bahrain and the Emirates; بنوتة is the affectionate Saudi form and بنت works everywhere. Choosing بنية here keeps 'girl' and 'daughter' apart on the flashcards.",
+      "image_scene": "A girl of about eight in a bright dress holding a balloon at a park.",
+      "concept_key": "girl",
+      "variants": ["بنيّة", "بنوتة", "البنية", "بنات", "بنيه"],
+      "example": { "arabic": "البنية صغيرة", "transliteration": "il-bnayya ṣighiira", "english": "The girl is small" },
+      "video_hint": "Children in family vlogs; بنية / بنوتة said of a small girl."
+    },
+    {
+      "arabic": "جدة",
+      "transliteration": "jadda",
+      "english": "grandmother",
+      "category": "Family",
+      "teaching_note": "جدتي my grandmother. Kuwait and the Emirates say يدّة yadda (ج → y) and this shows the split clearly. Grandmothers are the centre of Friday lunch, so the word comes up every week.",
+      "image_scene": "An elderly woman in a headscarf seated on cushions, pouring tea for grandchildren.",
+      "variants": ["جدتي", "يدة", "يدتي", "الجدة", "جده"],
+      "example": { "arabic": "جدتي بالبيت", "transliteration": "jaddati bil-bayt", "english": "My grandmother is at home" },
+      "video_hint": "Visits to a grandmother; زيارة جدتي vlogs."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Fahad", "arabic": "هلا خالد، شلون الأهل؟", "transliteration": "hala khaalid, shloon il-ahal?", "english": "Hi Khalid, how is the family?" },
+    { "speaker": "Khalid", "arabic": "بخير الحمد لله. هذا أخوي محمد", "transliteration": "b-khayr il-ḥamdillaah. haadha akhuuy mḥammad", "english": "Fine, thank God. This is my brother Mohammed" },
+    { "speaker": "Fahad", "arabic": "هلا والله، تشرفنا. أنا فهد، صديق خالد", "transliteration": "hala wallah, tsharrafna. ana fahad, ṣidiig khaalid", "english": "Hey, nice to meet you. I am Fahad, Khalid's friend" },
+    { "speaker": "Mohammed", "arabic": "هلا فيك يا بو سعود. أبوي وأمي بالمجلس", "transliteration": "hala fiik ya bu saʿuud. abuuy w-ummi bil-majlis", "english": "Hi, Abu Saud. My father and mother are in the majlis" },
+    { "speaker": "Fahad", "arabic": "وأختك؟", "transliteration": "w-ukhtak?", "english": "And your sister?" },
+    { "speaker": "Khalid", "arabic": "أختي بالمطبخ مع جدتي", "transliteration": "ukhti bil-maṭbakh maʿ jaddati", "english": "My sister is in the kitchen with my grandmother" },
+    { "speaker": "Fahad", "arabic": "ما شاء الله، بيت عامر", "transliteration": "maa shaaʾ allaah, bayt ʿaamir", "english": "Mashallah — a full house" }
+  ],
+  "sound_spotlight": [
+    { "sound": "ج = j / y", "example": "جدة (jadda) / يدّة (yadda), رجال / ريّال", "explanation": "One letter, two voices. Saudis say j; Kuwait, Bahrain, Qatar and the Emirates say y in inherited words like جدة and رجال. The app plays both. Listen for it and you can place a speaker in seconds; the meaning never changes." },
+    { "sound": "ك → ch (listening only)", "example": "أختك (ukhtik) / أختج (ukhtich)", "explanation": "The feminine your ending is -ik in Saudi and -ich further up the Gulf. You are not asked to say the ch yet — only to recognise أختج and بنتج as the same word as أختك and بنتك." },
+    { "sound": "ث and ذ kept", "example": "ثلاث، هذا", "explanation": "Unlike Cairo or Beirut, the Gulf keeps the th sounds: ث as in 'think', ذ as in 'this'. هذا has the second one. Next lesson's numbers are full of the first." }
+  ],
+  "lesson_sequence": [
+    { "step": "Welcome", "detail": "A family tree drawn on a majlis wall. One line of English: today you name the people around you and say whose they are. Tap يلّا." },
+    { "step": "Light the tree", "detail": "Thirteen cards; as each word plays, the matching figure on the family tree lights up. Arabic large, English small. Tap any figure to hear its word again." },
+    { "step": "My and your", "detail": "A token labelled -i and one labelled -ak/-ik are dragged onto tree figures; the app says the suffixed form (أمي, أختك). Then the learner hears a suffixed form and drags the right token." },
+    { "step": "Whose family?", "detail": "Audio only: أخوي / أخوك / أختي / أختك; the learner taps 'mine' or 'yours' and the gender of the listener when it is -ik/-ich." },
+    { "step": "Record", "detail": "The learner records one line about their own family from a menu: أمي وأبوي في …, عندي أخ / أخت. Speech check marks the ending." },
+    { "step": "Dialogue and quiz", "detail": "The dialogue plays with figures highlighted; then thirteen tap items on the tree with audio only." },
+    { "step": "Lesson complete", "detail": "Counter rolls to 65. Nudge: next time someone asks شلون الأهل؟ answer بخير الحمد لله without thinking." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Open your phone's family photos and name each person out loud: أمي، أبوي، أخوي، أختي.", "context": "Lesson-complete screen. Here-and-now practice with the learner's own people." },
+    { "prompt": "Ask an Arabic-speaking friend شلون الأهل؟ today. Expect بخير الحمد لله — and give the same when it comes back.", "context": "Next-day notification. The most common second question in any Gulf conversation." },
+    { "prompt": "Tell your tutor about three people in your family in three short sentences: أخوي طالب. أمي من …. أبوي بالبيت.", "context": "Before a tutor session. Recycles Lesson 4 sentence shape with Lesson 5 words." }
+  ],
+  "video_needs": {
+    "queries": ["يوم مع عائلتي فلوق سعودي", "عيالي وأهلي فلوق", "زيارة جدتي فلوق", "أمي وأبوي فلوق كويتي"],
+    "channels": ["Moshaya Family", "Saud Brothers", "Bjlife", "Jana Vlogs"],
+    "scene": "Family vlogs where members are introduced or called by name: a mother naming her children, a vlogger saying هذا أخوي, children shouting يمّه — the person visible when the word is said."
+  }
+}

@@ -172,3 +172,20 @@ describe("coverageMarkdown", () => {
     expect(markdown).toContain("?:??–?:??");
   });
 });
+
+describe("degenerate inputs", () => {
+  it("names no dialect when there are no tracks", () => {
+    // Both writers are called per dialect from a loop over what is on disk. A
+    // dialect with nothing authored yet must produce an empty manifest, not a
+    // crash on tracks[0].
+    expect(videoNeedsMarkdown(syllabus, [])).toContain("# Video needs — ");
+    const { markdown, summary } = coverageMarkdown([], [], "2026-09-06");
+    expect(summary).toEqual({ dialect: "", words: 0, covered: 0, lines: 0 });
+    expect(markdown).toContain("**0 of 0 words**");
+  });
+
+  it("leaves the stage name blank when the syllabus has no such stage", () => {
+    const orphan = { ...track, stage: 7 };
+    expect(videoNeedsMarkdown(syllabus, [orphan])).toContain("## Stage 7 —  ()");
+  });
+});

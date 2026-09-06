@@ -415,6 +415,62 @@ describe("validateTrack", () => {
   });
 });
 
+describe("validateTrack on malformed author input", () => {
+  it("reports every missing section instead of throwing", () => {
+    // Lesson files are hand-written JSON. An author who omits a section (or
+    // whose editor eats one) must get a list of what is missing, not a
+    // TypeError from the validator — every array is optional-chained for
+    // exactly this case, and this is the test that keeps them that way.
+    const bare = { slug: "objects", lesson_number: 1 } as unknown as TrackLesson;
+    const issues = validateTrack(track([bare]), MINI_SYLLABUS, new Map(), { allowPartial: true });
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("title missing"),
+        expect.stringContaining("title_arabic missing"),
+        expect.stringContaining("duration_minutes must be positive"),
+        expect.stringContaining("can_do empty"),
+        expect.stringContaining("culture notes missing"),
+        expect.stringContaining("0 words, stage minimum is 2"),
+        expect.stringContaining("target concept water (water) has no word"),
+        expect.stringContaining("dialogue needs at least two lines"),
+        expect.stringContaining("lesson_sequence missing"),
+        expect.stringContaining("real_world_prompts missing"),
+        expect.stringContaining("video_needs.queries missing"),
+        expect.stringContaining("video_needs.scene missing"),
+      ]),
+    );
+  });
+
+  it("reports a row that is missing or not an object rather than throwing", () => {
+    const broken = lesson({
+      grammar: [{ category: "negation", title: "t", explanation: "e", examples: [undefined as never, "not a line" as never] }],
+      dialogue: [undefined as never, { speaker: "B", ...line("تفضل") }],
+    });
+    const issues = validateTrack(track([broken]), MINI_SYLLABUS, new Map(), { allowPartial: true });
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("grammar[0].examples[0]: missing"),
+        expect.stringContaining("grammar[0].examples[1]: missing"),
+        expect.stringContaining("dialogue[0]: missing"),
+        expect.stringContaining("dialogue[0]: speaker missing"),
+      ]),
+    );
+  });
+
+  it("holds a lesson to the shared rules even when the syllabus has no slot for it", () => {
+    // allowPartial lets an unknown slug through with one complaint; everything
+    // else about the lesson is still checked, and the concept and grammar
+    // checks that need a slot simply do not fire.
+    const issues = validateTrack(
+      track([lesson({ slug: "extra", vocabulary: [word("ماي", "water"), word("قهوة", "coffee")] })]),
+      MINI_SYLLABUS,
+      new Map(),
+      { allowPartial: true },
+    );
+    expect(issues).toEqual([expect.stringContaining("not in the syllabus: extra")]);
+  });
+});
+
 describe("helpers", () => {
   it("builds the source key the seed upserts on", () => {
     expect(lessonSourceKey("Egyptian", 2, 7)).toBe("egyptian/s2/l07");

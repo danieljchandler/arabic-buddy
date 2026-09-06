@@ -301,11 +301,11 @@ export function validateTrack(
 
     (lesson.grammar ?? []).forEach((g, i) => {
       const gp = `${path}.grammar[${i}]`;
-      if (!TRACK_GRAMMAR_CATEGORIES.includes(g.category)) issues.push(`${gp}: unknown category ${g.category}`);
-      if (!nonEmpty(g.title)) issues.push(`${gp}: title missing`);
-      if (!nonEmpty(g.explanation)) issues.push(`${gp}: explanation missing`);
-      if (!Array.isArray(g.examples) || g.examples.length === 0) issues.push(`${gp}: needs examples`);
-      (g.examples ?? []).forEach((ex, j) => checkLine(ex, `${gp}.examples[${j}]`, issues));
+      if (!TRACK_GRAMMAR_CATEGORIES.includes(g?.category)) issues.push(`${gp}: unknown category ${g?.category}`);
+      if (!nonEmpty(g?.title)) issues.push(`${gp}: title missing`);
+      if (!nonEmpty(g?.explanation)) issues.push(`${gp}: explanation missing`);
+      if (!Array.isArray(g?.examples) || g.examples.length === 0) issues.push(`${gp}: needs examples`);
+      (g?.examples ?? []).forEach((ex, j) => checkLine(ex, `${gp}.examples[${j}]`, issues));
     });
     if (slot && slot.grammar.length > 0 && (lesson.grammar ?? []).length === 0) {
       issues.push(`${path}: syllabus targets grammar but the lesson has no grammar notes`);
@@ -313,9 +313,9 @@ export function validateTrack(
 
     (lesson.culture ?? []).forEach((c, i) => {
       const cp = `${path}.culture[${i}]`;
-      if (!nonEmpty(c.title)) issues.push(`${cp}: title missing`);
-      if (!nonEmpty(c.note)) issues.push(`${cp}: note missing`);
-      (c.phrases ?? []).forEach((ph, j) => checkLine(ph, `${cp}.phrases[${j}]`, issues));
+      if (!nonEmpty(c?.title)) issues.push(`${cp}: title missing`);
+      if (!nonEmpty(c?.note)) issues.push(`${cp}: note missing`);
+      (c?.phrases ?? []).forEach((ph, j) => checkLine(ph, `${cp}.phrases[${j}]`, issues));
     });
     if ((lesson.culture ?? []).length === 0) issues.push(`${path}: culture notes missing`);
 
@@ -328,19 +328,19 @@ export function validateTrack(
     words.forEach((w, i) => {
       const wp = `${path}.vocabulary[${i}]`;
       checkLine(w, wp, issues);
-      if (!nonEmpty(w.category)) issues.push(`${wp}: category missing`);
-      if (!nonEmpty(w.teaching_note)) issues.push(`${wp}: teaching_note missing`);
-      if (!nonEmpty(w.image_scene)) issues.push(`${wp}: image_scene missing`);
-      checkLine(w.example, `${wp}.example`, issues);
-      if (w.concept_key !== undefined) {
+      if (!nonEmpty(w?.category)) issues.push(`${wp}: category missing`);
+      if (!nonEmpty(w?.teaching_note)) issues.push(`${wp}: teaching_note missing`);
+      if (!nonEmpty(w?.image_scene)) issues.push(`${wp}: image_scene missing`);
+      checkLine(w?.example, `${wp}.example`, issues);
+      if (w?.concept_key !== undefined) {
         if (!/^[a-z0-9]+(_[a-z0-9]+)*$/.test(w.concept_key)) issues.push(`${wp}: concept_key must be snake_case`);
         if (realised.has(w.concept_key)) issues.push(`${wp}: concept ${w.concept_key} realised twice in one lesson`);
         realised.add(w.concept_key);
       }
-      for (const v of w.variants ?? []) {
+      for (const v of w?.variants ?? []) {
         if (!ARABIC_LETTER.test(v)) issues.push(`${wp}: variant ${JSON.stringify(v)} must be Arabic script`);
       }
-      const key = nonEmpty(w.arabic) ? w.arabic.trim() : "";
+      const key = nonEmpty(w?.arabic) ? w.arabic.trim() : "";
       if (key) {
         if (inLesson.has(key)) issues.push(`${wp}: ${key} listed twice in this lesson`);
         inLesson.add(key);
@@ -355,20 +355,20 @@ export function validateTrack(
 
     (lesson.dialogue ?? []).forEach((line, i) => {
       checkLine(line, `${path}.dialogue[${i}]`, issues);
-      if (!nonEmpty(line.speaker)) issues.push(`${path}.dialogue[${i}]: speaker missing`);
+      if (!nonEmpty(line?.speaker)) issues.push(`${path}.dialogue[${i}]: speaker missing`);
     });
     if ((lesson.dialogue ?? []).length < 2) issues.push(`${path}: dialogue needs at least two lines`);
 
     (lesson.sound_spotlight ?? []).forEach((s, i) => {
-      if (!nonEmpty(s.sound)) issues.push(`${path}.sound_spotlight[${i}]: sound missing`);
-      if (!nonEmpty(s.explanation)) issues.push(`${path}.sound_spotlight[${i}]: explanation missing`);
+      if (!nonEmpty(s?.sound)) issues.push(`${path}.sound_spotlight[${i}]: sound missing`);
+      if (!nonEmpty(s?.explanation)) issues.push(`${path}.sound_spotlight[${i}]: explanation missing`);
     });
     (lesson.lesson_sequence ?? []).forEach((s, i) => {
-      if (!nonEmpty(s.step) || !nonEmpty(s.detail)) issues.push(`${path}.lesson_sequence[${i}]: step and detail required`);
+      if (!nonEmpty(s?.step) || !nonEmpty(s?.detail)) issues.push(`${path}.lesson_sequence[${i}]: step and detail required`);
     });
     if ((lesson.lesson_sequence ?? []).length === 0) issues.push(`${path}: lesson_sequence missing`);
     (lesson.real_world_prompts ?? []).forEach((p, i) => {
-      if (!nonEmpty(p.prompt) || !nonEmpty(p.context)) issues.push(`${path}.real_world_prompts[${i}]: prompt and context required`);
+      if (!nonEmpty(p?.prompt) || !nonEmpty(p?.context)) issues.push(`${path}.real_world_prompts[${i}]: prompt and context required`);
     });
     if ((lesson.real_world_prompts ?? []).length === 0) issues.push(`${path}: real_world_prompts missing`);
 

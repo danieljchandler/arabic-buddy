@@ -34,6 +34,7 @@ import type { LineReviewSlot } from "@/components/TranscriptEditor";
 import { useTranscriptReview } from "@/hooks/useTranscriptReview";
 import { reviewProgress, reviewStateFor } from "@/lib/reviewStatus";
 import { linesEqual } from "@/lib/transcriptDraft";
+import { ensureLineIds } from "@/lib/transcriptOps";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -222,7 +223,7 @@ const AdminVideoForm = () => {
    * anything unpublished to warn about or to keep safe.
    */
   const publishedLines = useMemo(
-    () => ((existingVideo?.transcript_lines as unknown as TranscriptLine[]) ?? []),
+    () => ensureLineIds((existingVideo?.transcript_lines as unknown as TranscriptLine[]) ?? []),
     [existingVideo],
   );
 
@@ -709,7 +710,7 @@ const AdminVideoForm = () => {
       setIsMeme(Boolean((existingVideo as any).is_meme) || memeQueryFlag);
       setCulturalContext(existingVideo.cultural_context || "");
       if (!transcriptEdited.current) {
-        setTranscriptLines(((existingVideo.transcript_lines as any[]) ?? []) as TranscriptLine[]);
+        setTranscriptLines(ensureLineIds(((existingVideo.transcript_lines as any[]) ?? []) as TranscriptLine[]));
       }
       setVocabulary(((existingVideo.vocabulary as any[]) ?? []) as any[]);
       setGrammarPoints(((existingVideo.grammar_points as any[]) ?? []) as any[]);

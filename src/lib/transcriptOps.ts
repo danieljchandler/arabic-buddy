@@ -251,3 +251,35 @@ export function retokenizeSegment(segment: Segment, newText: string): Segment {
     confidence: words.length > 0 ? avg(words.map(w => w.confidence)) : segment.confidence,
   };
 }
+
+/**
+ * Fill in a line id wherever a stored transcript is missing one.
+ *
+ * The pipeline has written transcript rows whose lines carry no `id` (a split
+ * or a merge upstream of the editor dropped it), and `transcript-review`
+ * rightly refuses to save those — a revision log keyed on a line id cannot be
+ * written for a line that has no identity. Refusing the *save* leaves a
+ * reviewer permanently stuck on that video, so the identity is minted here,
+ * once, on the way into the editor.
+ *
+ * The minted id is derived from position and audio span rather than random, so
+ * the same stored transcript yields the same ids on every load: reviews,
+ * comments and the unpublished-draft comparison all key off them.
+ */
+export function ensureLineIds<T extends { id?: string; startMs?: number; endMs?: number }>(
+  lines: T[],
+): T[] {
+  if (!Array.isArray(lines)) return [];
+  const seen = new Set<string>();
+  return lines.map((line, index) => {
+    const existing = typeof line.id === "string" ? line.id.trim() : "";
+    if (existing && !seen.has(existing)) {
+      seen.add(existing);
+      return line;
+    }
+    let id = `line-${index}-${Math.round(line.startMs ?? 0)}`;
+    while (seen.has(id)) id = `${id}-b`;
+    seen.add(id);
+    return { ...line, id };
+  });
+}

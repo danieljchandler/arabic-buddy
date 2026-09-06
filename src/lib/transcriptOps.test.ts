@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { avg, splitSegment, mergeSegments, splitSegmentAtCursor, retokenizeSegment } from './transcriptOps';
+import { avg, splitSegment, mergeSegments, splitSegmentAtCursor, retokenizeSegment, ensureLineIds } from './transcriptOps';
 import type { Segment } from '@/types/transcript';
 
 function makeSegment(overrides: Partial<Segment> = {}): Segment {
@@ -281,5 +281,26 @@ describe('retokenizeSegment', () => {
     expect(seg.start).toBe(original.start);
     expect(seg.end).toBe(original.end);
     expect(seg.translation).toBe(original.translation);
+  });
+});
+
+describe('ensureLineIds', () => {
+  it('leaves lines that already have an id alone', () => {
+    const lines = [{ id: 'a', startMs: 0 }, { id: 'b', startMs: 10 }];
+    expect(ensureLineIds(lines)).toEqual(lines);
+  });
+
+  it('mints a deterministic id for a line stored without one', () => {
+    const stored = [{ startMs: 1200 }, { id: '', startMs: 4300 }];
+    const first = ensureLineIds(stored);
+    expect(first.map((l) => l.id)).toEqual(['line-0-1200', 'line-1-4300']);
+    // Same input, same ids — reviews and comments key off them.
+    expect(ensureLineIds(stored)).toEqual(first);
+  });
+
+  it('breaks a duplicated identity so no two lines share one', () => {
+    const out = ensureLineIds([{ id: 'dup', startMs: 0 }, { id: 'dup', startMs: 900 }]);
+    expect(out[0].id).toBe('dup');
+    expect(out[1].id).toBe('line-1-900');
   });
 });

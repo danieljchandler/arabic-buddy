@@ -1,5 +1,9 @@
 # Authoring status
 
+Paused deliberately at 54 of 114 slots. `docs/curriculum-resume.md` says what is
+unfinished and how to pick it up; `docs/curriculum-research/` holds the dialect
+briefs and the authoring prompts that produced these lessons.
+
 54 of 114 lesson slots written (38 slots × 3 dialects). Regenerate this table by
 eye when you finish a stage; `npm run curriculum:check` prints the live word counts, and
 `src/test/curriculumTracks.test.ts` pins the per-stage counts so a lesson cannot silently vanish.

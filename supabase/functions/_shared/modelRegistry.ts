@@ -80,25 +80,23 @@ export const MODEL_IDS = {
   // bare 'Fanar' alias (silently tracks gen 1, 4k ctx) and never use
   // 'Fanar-Sadiq' for non-religious content — it is the Islamic-RAG model.
   FANAR: 'Fanar-C-2-27B',
-  // Jais 2 — Arabic-native, and the only models here running on hardware this
-  // project rents rather than a vendor's catalogue. Neither size is on
-  // OpenRouter, or on any pay-per-token API at all, so like Fanar they have no
-  // twin and `aiGateway.canFallBack` deliberately leaves them alone.
+  // Jais 2 — Arabic-native, and the only model here running on hardware this
+  // project rents rather than a vendor's catalogue. It is not on OpenRouter,
+  // or on any pay-per-token API at all, so like Fanar it has no twin and
+  // `aiGateway.canFallBack` deliberately leaves it alone.
   //
   // The `runpod/` prefix is a routing signal rather than a vendor namespace;
-  // each worker is started with `--served-model-name` set to this id minus the
-  // prefix. The two sizes are two deployments, chosen by *job* rather than by
-  // quality, because the cold start is the whole cost model:
+  // the worker is started with `--served-model-name` set to this id minus the
+  // prefix. Only the 8B is carried: 16GB of weights on one 24GB GPU at
+  // ~$0.69/hr while active, so a cold start is a 16GB pull and can still
+  // answer inside a live request's timeout.
   //
-  //   8B   16GB, one 24GB GPU, ~$0.69/hr while active. A cold start is a
-  //        16GB pull, so it can answer inside a live request's timeout. This
-  //        is the only size any user-facing path may name.
-  //   70B  144GB across two GPUs, ~$6.98/hr while active. A cold start is a
-  //        144GB pull — minutes — so it belongs to batch work only, where one
-  //        start is amortised over thousands of calls. Never put it on a path
-  //        a learner waits for.
+  // Upstream also publishes a 70B. It is deliberately absent: 144GB across two
+  // GPUs at ~$6.98/hr, with a cold start measured in minutes, which is only
+  // economic amortised over batch work. Adding it back is an id here plus an
+  // entry in aiGateway's RUNPOD_ENDPOINT_ENV — and it must never land on a
+  // path a learner waits for.
   JAIS2_8B: 'runpod/jais-2-8b-chat',
-  JAIS2_70B: 'runpod/jais-2-70b-chat',
 } as const;
 
 // ---- Named lineups (preferred entry point) ---------------------------------
@@ -203,7 +201,6 @@ const REASONING_FLOOR: Record<string, 'none' | 'minimal' | 'low'> = {
   [MODEL_IDS.GEMINI_FLASH]: 'low',    // mandatory; Gemini 3.7 Flash offers low/medium/high
   [MODEL_IDS.GEMINI_PRO]: 'low',      // mandatory; same three levels
   [MODEL_IDS.JAIS2_8B]: 'none',       // not a reasoning model; plain vLLM takes no effort field
-  [MODEL_IDS.JAIS2_70B]: 'none',      // same
 };
 
 /**

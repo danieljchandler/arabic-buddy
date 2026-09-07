@@ -414,14 +414,15 @@ Deno.test("Fanar still settles a split when no Jais is deployed", async () => {
   }, { upstreams: split(FANAR_HOST, { score: 5 }) });
 });
 
-Deno.test("the 70B is never asked to settle a split, even when deployed", async () => {
+Deno.test("deploying a size the tie-break does not name changes nothing", async () => {
   await withValidator(async (mod, up) => {
     const result = await mod.validateDialectCrossChecked("x", "Gulf");
 
-    // The sizes are chosen by job, not by quality. A 144GB cold start is a
-    // multi-minute download, so the 70B belongs to batch work; putting it here
-    // would hang a path a learner is waiting for. With only the 70B deployed
-    // the tie-break must behave as though no Jais exists at all.
+    // Sizes are chosen by job, not by quality: a 144GB cold start is a
+    // multi-minute download, so the 70B belongs to batch work and putting it
+    // here would hang a path a learner waits for. Deploying one is therefore
+    // not consent to use it in this slot — the tie-break names the 8B, and
+    // with only some other size up it must behave as though no Jais exists.
     assertEquals(up.callsTo(RUNPOD).length, 0);
     assertEquals(up.callsTo(FANAR_HOST).length, 1);
     assertEquals(result.verdict, "pass");
@@ -436,7 +437,7 @@ Deno.test("a cold Jais leaves the harsher verdict standing", async () => {
     const result = await mod.validateDialectCrossChecked("x", "Gulf");
 
     // This is the whole reason Jais is allowed in this slot and nowhere else.
-    // Its weights are 144GB and the endpoint scales to zero, so a call landing
+    // Its weights are 16GB and the endpoint scales to zero, so a call landing
     // on an idle worker does not answer — and the caller must be no worse off
     // than it was with no tie-breaker at all. A non-answer is not a casting
     // vote: the rule stands, and the harsher verdict wins.

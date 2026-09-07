@@ -46,12 +46,12 @@ const TIEBREAK_VALIDATOR_MODEL = MODEL_IDS.FANAR;
  * project rents, so the quota argument above does not apply to it: there is no
  * daily allowance to spend before lunch.
  *
- * Deliberately the **8B** and never the 70B. Both are deployed, but the 70B's
- * weights are 144GB, so a cold start is a multi-minute download and the model
- * is only economic as a batch job; the 8B is 16GB on a single GPU and can
- * actually answer inside a caller's timeout. Naming the 70B here would put a
- * ten-minute download on a path a learner is waiting for. Size is chosen by
- * job, not by quality — see `MODEL_IDS` for the full cost argument.
+ * Deliberately the **8B**. Upstream's 70B scores better, but its weights are
+ * 144GB, so a cold start is a multi-minute download and the model is only
+ * economic amortised over batch work — which is why it is not carried in the
+ * registry at all. The 8B is 16GB on a single GPU and can actually answer
+ * inside a caller's timeout. Size is chosen by job, not by quality; see
+ * `MODEL_IDS` for the full cost argument.
  *
  * Even the 8B can be cold, and that is survivable *here* and almost nowhere
  * else in the pipeline: a tie-break that does not answer leaves `verdict` on

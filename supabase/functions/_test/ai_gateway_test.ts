@@ -230,7 +230,7 @@ Deno.test("a Jais model goes to our own worker, with the routing prefix stripped
     assert(call, "expected the call to reach the RunPod worker");
     assertEquals(call.headers.authorization, "Bearer fixture-runpod");
     // `runpod/` says where the model lives, not who publishes it. The worker
-    // was started with `--served-model-name jais-2-70b-chat` and 404s on any
+    // was started with `--served-model-name jais-2-8b-chat` and 404s on any
     // other name, so the prefix must not survive onto the wire.
     assertEquals(bodyOf(call).model, "jais-2-8b-chat");
     assertEquals(mod.providerForModel("runpod/jais-2-8b-chat"), "runpod");
@@ -276,28 +276,19 @@ Deno.test("an absent endpoint leaves tryChatRoute null rather than throwing", as
   });
 });
 
-Deno.test("each Jais size has its own endpoint, and neither borrows the other's", async () => {
+Deno.test("a runpod id with no address of its own never borrows a deployed worker", async () => {
   await withGateway(async (mod, up) => {
-    // Two sizes, two deployments, two addresses. Deploying one must not make
-    // the other look configured: answering a 70B request on the 8B's worker
-    // would silently serve a different model, which is exactly the substitution
-    // the registry exists to prevent.
+    // Each size is its own deployment at its own address, so a `runpod/` id
+    // nobody has mapped is unroutable — never answered by whichever worker
+    // happens to be up. Serving a 70B request on the 8B's worker would return
+    // a different model under the requested name, the one substitution the
+    // registry exists to prevent. The 70B is the live case: it is a real
+    // upstream model deliberately not carried here.
     assertEquals(mod.tryChatRoute("runpod/jais-2-70b-chat"), null);
 
     await mod.chatFetch("runpod/jais-2-8b-chat", { messages: [] });
     assertEquals(up.callsTo("eightb.api.runpod.ai").length, 1);
-    assertEquals(up.callsTo("seventyb.api.runpod.ai").length, 0);
   }, { env: { RUNPOD_JAIS_8B_ENDPOINT_ID: "eightb" } });
-});
-
-Deno.test("the 70B routes to its own worker when that one is deployed", async () => {
-  await withGateway(async (mod, up) => {
-    await mod.chatFetch("runpod/jais-2-70b-chat", { messages: [] });
-
-    const [call] = up.callsTo("seventyb.api.runpod.ai");
-    assert(call, "expected the call to reach the 70B worker");
-    assertEquals(bodyOf(call).model, "jais-2-70b-chat");
-  }, { env: { RUNPOD_JAIS_70B_ENDPOINT_ID: "seventyb" } });
 });
 
 Deno.test("asks Jais nothing about reasoning", async () => {

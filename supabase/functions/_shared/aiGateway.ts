@@ -67,15 +67,15 @@ export function runpodChatUrl(model: string): string | undefined {
 }
 
 /**
- * Which endpoint serves which id. The two Jais sizes are two deployments with
- * two addresses and two very different cost profiles — 16GB on one GPU versus
- * 144GB across two — so they cannot share an env var. Keyed by the registry id
- * rather than derived from it, so a typo is an unconfigured model instead of a
- * request to a URL that does not exist.
+ * Which endpoint serves which id. Each Jais size is its own deployment at its
+ * own address with its own cost profile, so sizes cannot share an env var —
+ * only the 8B is deployed today, and a second size is one entry here. Keyed by
+ * the registry id rather than derived from it, so a typo is an unconfigured
+ * model instead of a request to a URL that does not exist, and an id with no
+ * entry is unroutable rather than answered by whichever worker is up.
  */
 const RUNPOD_ENDPOINT_ENV: Record<string, string> = {
   [MODEL_IDS.JAIS2_8B]: '8B',
-  [MODEL_IDS.JAIS2_70B]: '70B',
 };
 
 /** Vendors with no first-party account here — they only exist behind OpenRouter. */

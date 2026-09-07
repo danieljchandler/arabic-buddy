@@ -184,14 +184,15 @@ RUNPOD_API_KEY=... RUNPOD_JAIS_8B_ENDPOINT_ID=... FANAR_API_KEY=... \
   --model runpod/jais-2-8b-chat --compare Fanar-C-2-27B
 ```
 
-Swap in `runpod/jais-2-70b-chat` (with `RUNPOD_JAIS_70B_ENDPOINT_ID`) to see
-what the larger size buys. The 70B is batch-only, and this script *is* batch
-work: one cold start covers the whole golden set, which is the shape that
-makes a 144GB model affordable at all.
+Only the 8B is deployed. If you ever want to know what the 70B buys, this
+script is the right place to find out and the only one — it *is* batch work,
+so one cold start covers the whole golden set, which is the shape that makes a
+144GB model affordable at all. That needs an id in the registry and an entry in
+aiGateway's `RUNPOD_ENDPOINT_ENV`; measure, then take it back out.
 
 Two cautions specific to these runs. The first call after an idle period pays
-the cold start — minutes on the 70B — so a timeout on run one is the worker
-booting, not the model failing; re-run before reading anything into it. And
+the cold start, so a timeout on run one is the worker booting, not the model
+failing; re-run before reading anything into it. And
 the script measures *leak rate in the model's own generation*, which is a
 proxy for judging ability, not the same thing: a model that writes clean
 dialect is likely but not certain to recognise it. Weigh a close result

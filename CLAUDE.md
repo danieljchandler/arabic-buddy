@@ -84,6 +84,15 @@ harness.
     entry in the `NO_LINK_NEEDED` allow-list with a written reason.
   - `grammarTaxonomy` parses a migration; `typesDrift` checks the
     generated-types drift allow-list against the migrations that caused it.
+  - `brandSpelling` — the app is **Hikaya**; no file may carry the old
+    `Hakiya` spelling unless it matches an allow-listed pattern with a written
+    reason. Unlike the others it scans *every* tracked text file, `.js`, `.mjs`
+    and `.svg` included, because the rename that prompted it was missed twice:
+    once by matching case-sensitively, once by a file filter that never opened
+    those extensions. The allow-list is where the old name is still correct —
+    the `hakiya.app` domain, `hakiya*` localStorage keys, service-worker cache
+    names, the `HAKIYA` header literal `parseLessonXlsx` matches in workbooks
+    authored before the rename.
   These checks are deliberately *shallow* — a name in a test file is a claim
   someone looked at it. Don't satisfy them with an empty test; depth is what
   review is for.

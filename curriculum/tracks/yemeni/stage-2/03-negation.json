@@ -1,0 +1,283 @@
+{
+  "slug": "negation",
+  "lesson_number": 3,
+  "title": "Saying No: Negation",
+  "title_arabic": "لا، مش، ما…ش",
+  "description": "Two kinds of 'no': ما…ش wrapped around a verb, مش in front of everything else. Never, nobody, not yet and nothing at all — and the art of refusing a plate of food three times without offending anyone.",
+  "cefr_target": "A1",
+  "duration_minutes": 20,
+  "approach": "GPA Phase 2 — every negative is heard as the reply to a positive first (تشتي شاهي؟ — ما اشتيش), so the shape is learned as a response before it is analysed.",
+  "unlock_condition": "≥10/14 on the make-it-negative drill and a recorded polite refusal",
+  "icon": "🚫",
+  "can_do": [
+    "Negate verbs, nouns and adjectives",
+    "Say never, nothing and nobody",
+    "Refuse politely"
+  ],
+  "grammar": [
+    {
+      "category": "negation",
+      "title": "Two kinds of no: ما…ش for verbs, مش for everything else",
+      "explanation": "A verb is negated by putting ما before it and hanging -ش on the end: ما أعرفش, 'I don't know'; ما سرتش, 'I didn't go'. The same wrapper goes round عندي and فيه: ما عنديش، ما فيش. Anything that is not a verb — a noun, an adjective, a place — takes مش in front and nothing on the end: هو مش مهندس, الجو مش بارد. Sanaa also says ماش for the same thing, and you will hear مو from Gulf-facing speakers. Never ليس.",
+      "examples": [
+        { "arabic": "ما أعرفش", "transliteration": "maa aʿrafsh", "english": "I don't know" },
+        { "arabic": "ما سرتش السوق أمس", "transliteration": "maa sirtsh is-suug ams", "english": "I didn't go to the market yesterday" },
+        { "arabic": "هو مش مهندس، هو مدرّس", "transliteration": "huu mish muhandis, huu mudarris", "english": "He's not an engineer, he's a teacher" },
+        { "arabic": "الجو مش بارد اليوم", "transliteration": "ij-jaww mish baarid il-yawm", "english": "The weather isn't cold today" },
+        { "arabic": "ما عندناش قات", "transliteration": "maa ʿindanaash gaat", "english": "We haven't got any qat" }
+      ]
+    },
+    {
+      "category": "negation",
+      "title": "Don't do it: just لا",
+      "explanation": "Telling someone not to do something needs only لا and the 'you' form of the verb — no ما, no -ش: لا تجي بكرة, 'don't come tomorrow'. To a woman the verb ends in -i, to a group in -u. Said with a smile it is advice; said sharp it is an order.",
+      "examples": [
+        { "arabic": "لا تجي بكرة", "transliteration": "laa tiji bukra", "english": "Don't come tomorrow" },
+        { "arabic": "لا تشربي ذا، بارد", "transliteration": "laa tishrabi dha, baarid", "english": "Don't drink that (f.), it's cold" },
+        { "arabic": "لا تخافو", "transliteration": "laa tkhaafu", "english": "Don't be afraid (pl.)" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "The first no is not a no",
+      "note": "When food or a second helping is offered, the guest refuses; the host insists; the guest refuses again; the host insists harder. Only the third refusal counts, and a host who gives up after one thinks you are unhappy. So your first لا should be soft — والله شبعت, 'honestly I'm full' — and if you really mean it, add the blessing: الله يعافيكم. To accept, just stop refusing. Never say مستحيل about food; that word is for prices and plans.",
+      "phrases": [
+        { "arabic": "لا والله، شبعت", "transliteration": "laa wallaah, shibiʿt", "english": "No really, I'm full" },
+        { "arabic": "ما اشتيش زيادة، الله يعافيكم", "transliteration": "maa ashtiish ziyaada, allaah yiʿaafiikum", "english": "I don't want more, bless you" },
+        { "arabic": "خلاص، كفاية", "transliteration": "khalaaṣ, kifaaya", "english": "That's it, enough" }
+      ]
+    },
+    {
+      "title": "Saying no without saying no",
+      "note": "A direct refusal of a request or invitation makes someone lose face, so real refusals are wrapped: 'God willing', 'we'll see', 'maybe later', or a reason that is nobody's fault. إن شاء الله with no time attached is a gentle no; an apology with معليش softens a definite one. Learn to hear these as well as say them.",
+      "phrases": [
+        { "arabic": "نشوف، إن شاء الله", "transliteration": "nshuuf, in shaa allaah", "english": "We'll see, God willing" },
+        { "arabic": "ما أقدرش اليوم، معليش", "transliteration": "maa agdarsh il-yawm, maʿliish", "english": "I can't today, sorry" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "مش",
+      "transliteration": "mish",
+      "english": "not (before nouns and adjectives)",
+      "category": "Negation",
+      "teaching_note": "The 'not' that goes in front of anything that is not a verb. Sanaa also says ماش (maash); مو is Gulf-flavoured but heard. Never ليس — a learner who says it sounds like a newsreader.",
+      "image_scene": "A plate crossed out in red beside an identical plate untouched.",
+      "concept_key": "not",
+      "variants": ["مش", "ماش", "مو", "ماهو", "ماهي"],
+      "example": { "arabic": "أنا مش جوعان", "transliteration": "ana mish jawʿaan", "english": "I'm not hungry" },
+      "video_hint": "Any 'I'm not…', 'it's not…' in dialogue; usually followed by an adjective."
+    },
+    {
+      "arabic": "ما…ش",
+      "transliteration": "maa…sh",
+      "english": "don't / doesn't (verb negation)",
+      "category": "Negation",
+      "teaching_note": "A wrapper, not a word: ما goes before the verb and -ش glues to its end. The -ش is optional in careful speech but nearly everyone uses it. Before ولا ('nor / at all') the -ش is dropped: ما أكلت ولا حاجة.",
+      "image_scene": "A person shaking their head while pushing away a glass of tea.",
+      "concept_key": "dont",
+      "variants": ["ما", "ـش", "ما اشتيش", "ما اعرفش", "ما سرتش"],
+      "example": { "arabic": "ما أشربش قهوة بالليل", "transliteration": "maa ashrabsh gahwa bil-layl", "english": "I don't drink coffee at night" },
+      "video_hint": "Negated verbs in speech; the -sh is audible at the end of the verb."
+    },
+    {
+      "arabic": "أبداً",
+      "transliteration": "abadan",
+      "english": "never / not at all",
+      "category": "Negation",
+      "teaching_note": "Goes with a negated verb to mean never, or stands alone as 'not at all!' in reply to thanks or apology. Keeps its -an ending. عمري ما, 'in my life I haven't', is the other way to say never.",
+      "image_scene": "A calendar with every day crossed out in red.",
+      "concept_key": "never",
+      "variants": ["ابدا", "أبداً", "ابداً", "عمري ما"],
+      "example": { "arabic": "ما أخزّنش أبداً", "transliteration": "maa akhazzinsh abadan", "english": "I never chew qat" },
+      "video_hint": "Emphatic denials; 'never!' as a standalone reply."
+    },
+    {
+      "arabic": "محّد",
+      "transliteration": "maḥḥad",
+      "english": "nobody",
+      "category": "Negation",
+      "teaching_note": "ما أحد squeezed into one word with a doubled ح — very Sanaa. It stands as the subject with no further negation: محّد يعرفني هنا. Hold the double ḥ or it becomes 'mahad'.",
+      "image_scene": "An empty mafraj with cushions and no one in it.",
+      "concept_key": "nobody",
+      "variants": ["محد", "محّد", "ما أحد", "ما فيش أحد", "ولا واحد"],
+      "example": { "arabic": "محّد في البيت", "transliteration": "maḥḥad fil-bayt", "english": "Nobody's home" },
+      "video_hint": "An empty room or unanswered door: 'there's nobody'."
+    },
+    {
+      "arabic": "ولا حاجة",
+      "transliteration": "wala ḥaaja",
+      "english": "nothing at all",
+      "category": "Negation",
+      "teaching_note": "Literally 'and not a thing'. Yemenis use حاجة for 'thing' alongside شي, so ولا شي is just as common. Note the verb before it loses its -ش: ما أكلت ولا حاجة.",
+      "image_scene": "Two empty open hands held out over an empty table.",
+      "concept_key": "nothing_at_all",
+      "variants": ["ولا حاجة", "ولا حاجه", "ولا شي", "ولاشي"],
+      "example": { "arabic": "ما أكلت ولا حاجة اليوم", "transliteration": "maa akalt wala ḥaaja l-yawm", "english": "I haven't eaten a thing today" },
+      "video_hint": "'I didn't do anything', 'there's nothing' in skits."
+    },
+    {
+      "arabic": "عاد ما",
+      "transliteration": "ʿaad maa",
+      "english": "not yet / still not",
+      "category": "Negation",
+      "teaching_note": "Sanaa's 'still' is عاد, and it takes a pronoun: عادني ('I'm still'), عادك, عاده. With a negative verb after it, it means 'not yet': عادني ما تغدّيت. لسه ما is the imported alternative.",
+      "image_scene": "A clock face and an empty lunch plate, someone checking their watch.",
+      "concept_key": "still_not",
+      "variants": ["عاد ما", "عادني ما", "عادك ما", "عاده ما", "لسه ما"],
+      "example": { "arabic": "عادني ما تغدّيت", "transliteration": "ʿaadni maa tghaddayt", "english": "I haven't had lunch yet" },
+      "video_hint": "'Not yet' answers: 'has he come?' — 'not yet'."
+    },
+    {
+      "arabic": "بس",
+      "transliteration": "bass",
+      "english": "only / just",
+      "category": "Connector",
+      "teaching_note": "The most frequent word in Yemeni speech. After a noun it means 'only' (شاهي بس); at the start of a clause it means 'but'; alone, with a raised hand, it means 'enough!'. One word, three jobs.",
+      "image_scene": "A single glass of tea on an otherwise empty tray.",
+      "concept_key": "only",
+      "variants": ["بس", "بس شوي", "وبس"],
+      "example": { "arabic": "أشتي شاهي بس", "transliteration": "ashti shaahi bass", "english": "I just want tea" },
+      "video_hint": "Everywhere; listen for it closing an order or a sentence."
+    },
+    {
+      "arabic": "لكن",
+      "transliteration": "laakin",
+      "english": "but",
+      "category": "Connector",
+      "teaching_note": "The clear 'but' for contrasting two things. بس does the same job more casually; لكن is a touch more deliberate. Long aa in the first syllable.",
+      "image_scene": "A beautiful house with a large price tag hanging on the door.",
+      "concept_key": "but",
+      "variants": ["لكن", "لاكن", "بس"],
+      "example": { "arabic": "البيت حلو لكن غالي", "transliteration": "il-bayt ḥilu laakin ghaali", "english": "The house is nice but expensive" },
+      "video_hint": "Contrasts in reviews and complaints: 'nice, but…'."
+    },
+    {
+      "arabic": "خلاص",
+      "transliteration": "khalaaṣ",
+      "english": "enough / that's it / done",
+      "category": "Reaction",
+      "teaching_note": "Closes a subject: the food, the argument, the bargaining. Also 'it's settled' or 'finished'. Emphatic ص at the end; the aa is long.",
+      "image_scene": "A hand held palm-out over a plate, the eater leaning back.",
+      "concept_key": "enough",
+      "variants": ["خلاص", "خلص", "كفاية", "بس خلاص"],
+      "example": { "arabic": "خلاص، شبعت!", "transliteration": "khalaaṣ, shibiʿt!", "english": "That's it, I'm full!" },
+      "video_hint": "Ending a meal, a deal or a quarrel with one word."
+    },
+    {
+      "arabic": "مستحيل",
+      "transliteration": "mustaḥiil",
+      "english": "impossible / no way",
+      "category": "Reaction",
+      "teaching_note": "The flat 'no way' — for a price, a plan, a claim. Too strong for food or a person's invitation. ما يمكن, 'can't be', is the milder cousin.",
+      "image_scene": "A man throwing both hands up in front of a price board.",
+      "concept_key": "impossible",
+      "variants": ["مستحيل", "مستحيلة", "ما يمكن", "محال"],
+      "example": { "arabic": "أسير عدن اليوم؟ مستحيل!", "transliteration": "asiir ʿadan il-yawm? mustaḥiil!", "english": "Go to Aden today? Impossible!" },
+      "video_hint": "Outraged reactions in comedy; bargaining breakdowns."
+    },
+    {
+      "arabic": "ما اشتيش",
+      "transliteration": "maa ashtiish",
+      "english": "I don't want",
+      "category": "Negation",
+      "teaching_note": "The verb you know, اشتي, wrapped in ما…ش. Add the thing (ما اشتيش سكر) or a verb (ما اشتيش أسير). Softer with شكراً after it.",
+      "image_scene": "A hand gently covering the top of a tea glass as sugar is offered.",
+      "concept_key": "i_dont_want",
+      "variants": ["ما اشتيش", "ما أشتيش", "مااشتيش", "ما نشتيش", "ما اشتي"],
+      "example": { "arabic": "ما اشتيش سكر، شكراً", "transliteration": "maa ashtiish sukkar, shukran", "english": "I don't want sugar, thank you" },
+      "video_hint": "Refusals at the table or in a shop: 'I don't want…'."
+    },
+    {
+      "arabic": "عادي",
+      "transliteration": "ʿaadi",
+      "english": "it doesn't matter / no big deal",
+      "category": "Reaction",
+      "teaching_note": "Literally 'normal'. The reply that dissolves a problem: no bread? عادي. Late? عادي. ما عليك, 'don't worry about it', and معليش, 'never mind', are the other two in the set.",
+      "image_scene": "A shrug with a relaxed smile, a spilled tea glass on the table.",
+      "concept_key": "not_important",
+      "variants": ["عادي", "عادى", "ما عليك", "ما يهم", "معليش"],
+      "example": { "arabic": "ما فيش خبز؟ عادي", "transliteration": "maa fiish khubz? ʿaadi", "english": "No bread? No problem" },
+      "video_hint": "The shrugging reply to a small mishap."
+    },
+    {
+      "arabic": "ولا",
+      "transliteration": "wala",
+      "english": "nor / neither…nor / or (in questions)",
+      "category": "Connector",
+      "teaching_note": "Three jobs: 'or' in a question (شاهي ولا قهوة؟), 'nor' after a negative, and 'not even one' before a noun (ولا واحد). The verb before it drops its -ش.",
+      "image_scene": "A tray with tea and coffee, both pushed away, a glass of water pulled close.",
+      "variants": ["ولا", "لا…ولا", "ولا واحد"],
+      "example": { "arabic": "لا شاهي ولا قهوة، مي بس", "transliteration": "laa shaahi wala gahwa, mi bass", "english": "Neither tea nor coffee, just water" },
+      "video_hint": "Either/or offers and 'neither' replies."
+    },
+    {
+      "arabic": "كفاية",
+      "transliteration": "kifaaya",
+      "english": "enough (quantity)",
+      "category": "Reaction",
+      "teaching_note": "Enough of an amount — sugar, rice, talk. خلاص closes the subject; كفاية measures it. Often paired: بس كفاية.",
+      "image_scene": "A spoon held up to stop more sugar going into a glass.",
+      "variants": ["كفاية", "كفايه", "يكفي", "بس كفاية"],
+      "example": { "arabic": "كفاية، حبتين سكر بس", "transliteration": "kifaaya, ḥabbatayn sukkar bass", "english": "Enough, just two sugars" },
+      "video_hint": "Someone signalling 'enough' while food or drink is being served."
+    },
+    {
+      "arabic": "أصلاً",
+      "transliteration": "aṣlan",
+      "english": "in the first place / at all",
+      "category": "Connector",
+      "teaching_note": "Sharpens a negative: 'he didn't even come'. Keeps its -an ending. Also 'anyway' at the start of a sentence.",
+      "image_scene": "An empty chair at a dinner table with an untouched plate.",
+      "variants": ["اصلا", "أصلاً", "اصلاً"],
+      "example": { "arabic": "ما جاش أصلاً", "transliteration": "maa jaash aṣlan", "english": "He didn't even come" },
+      "video_hint": "Complaints in skits: 'he didn't even…'."
+    },
+    {
+      "arabic": "مابش",
+      "transliteration": "maabish",
+      "english": "there isn't (Sanaa)",
+      "category": "Negation",
+      "teaching_note": "The highland twin of ما فيش, from به 'there is'. Hearing مابش tells you the speaker is from Sanaa or the north. Write ما فيش as two words when you use that one.",
+      "image_scene": "An empty water jug tipped over a glass, nothing coming out.",
+      "variants": ["مابش", "ما بش", "ما به", "ما فيش"],
+      "example": { "arabic": "مابش مي في البيت", "transliteration": "maabish mi fil-bayt", "english": "There's no water in the house" },
+      "video_hint": "Sanaa speakers saying 'there's no…' — power, water, bread."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Hussein", "arabic": "زيد يا كريم، كل!", "transliteration": "ziid ya kariim, kul!", "english": "Have more, Karim, eat!" },
+    { "speaker": "Karim", "arabic": "لا والله، شبعت. خلاص.", "transliteration": "laa wallaah, shibiʿt. khalaaṣ.", "english": "No really, I'm full. That's it." },
+    { "speaker": "Hussein", "arabic": "مستحيل! ما أكلت ولا حاجة.", "transliteration": "mustaḥiil! maa akalt wala ḥaaja.", "english": "Impossible! You haven't eaten a thing." },
+    { "speaker": "Karim", "arabic": "أكلت كثير، لكن ما اشتيش زيادة.", "transliteration": "akalt kathiir, laakin maa ashtiish ziyaada.", "english": "I ate a lot, but I don't want any more." },
+    { "speaker": "Hussein", "arabic": "طيب، شاهي بس؟", "transliteration": "ṭayyib, shaahi bass?", "english": "Fine — just tea?" },
+    { "speaker": "Karim", "arabic": "إي، شاهي بس، بدون سكر.", "transliteration": "ii, shaahi bass, biduun sukkar.", "english": "Yes, just tea, without sugar." },
+    { "speaker": "Hussein", "arabic": "بدون سكر؟ محّد يشرب شاهي بدون سكر هنا!", "transliteration": "biduun sukkar? maḥḥad yishrab shaahi biduun sukkar hina!", "english": "Without sugar? Nobody drinks tea without sugar here!" },
+    { "speaker": "Karim", "arabic": "عادي، أنا مش من هنا.", "transliteration": "ʿaadi, ana mish min hina.", "english": "No big deal — I'm not from here." }
+  ],
+  "sound_spotlight": [
+    { "sound": "Final -ش", "example": "ما سرتش (maa sirtsh)", "explanation": "The negative -sh is a whispered consonant tacked straight on, not a new syllable. sirt-sh, not sirt-ish." },
+    { "sound": "Doubled ح", "example": "محّد (maḥḥad)", "explanation": "Two ḥ sounds held long in the middle; the doubling is what separates 'nobody' from a name." },
+    { "sound": "مش vs ماش", "example": "مش / ماش", "explanation": "Same word, short or long vowel. Sanaa speakers use both; maash is a touch more emphatic." }
+  ],
+  "lesson_sequence": [
+    { "step": "Yes, then no", "detail": "Each positive sentence from earlier lessons plays with its negative reply: تشتي شاهي؟ — ما اشتيش. Pictures show the refusal." },
+    { "step": "Sort them", "detail": "Drag words into two bins — verb or not-a-verb — and hear the app negate each with ما…ش or مش." },
+    { "step": "Make it negative", "detail": "Hear a sentence, say the negative; the app checks for ما, -ش or مش." },
+    { "step": "Never, nobody, nothing", "detail": "Cards for أبداً، محّد، ولا حاجة، عاد ما with one example each; listen-and-tap." },
+    { "step": "The three refusals", "detail": "Role-play with Hussein: refuse the plate three times with escalating phrases, then accept tea." },
+    { "step": "Lesson complete", "detail": "Counter rolls up; nudge to use عادي once tomorrow." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Next time you are offered food, refuse once with والله شبعت — then watch the host insist, and accept.", "context": "Shown on completion. Activates the refusal ritual and شبعت." },
+    { "prompt": "Say what you don't do: ما أشربش قهوة، ما أخزّنش. Three sentences out loud.", "context": "Production prompt for the ما…ش wrapper." },
+    { "prompt": "When something small goes wrong today, say عادي and mean it.", "context": "Habit prompt for the most useful reaction word in the lesson." }
+  ],
+  "video_needs": {
+    "queries": ["مقطع كوميدي يمني ما اشتي", "مسلسل يمني رفض عزومة", "كوميديا صنعاء ما فيش"],
+    "channels": ["Mustafa Al-Mawmari", "HMADA", "Bisho"],
+    "scene": "Someone declining, arguing or refusing on camera — a guest waving away food, a buyer saying 'no way', a character insisting 'I didn't do anything'."
+  }
+}

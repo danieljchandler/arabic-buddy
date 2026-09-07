@@ -1,0 +1,206 @@
+{
+  "slug": "objects-around-you",
+  "lesson_number": 1,
+  "title": "Objects — The World Around You",
+  "title_arabic": "الأشياء اللي حولك",
+  "description": "Twelve things you can point at right now — a glass of water, the door, your phone — heard in Sanaa Arabic and seen until the sound and the thing are one. No reading, no speaking yet.",
+  "cefr_target": "Pre-A1",
+  "duration_minutes": 15,
+  "approach": "GPA Phase 1 — Here & Now. Receptive only: listen, look, tap. No production, no grammar meta-language. The ق = g of Sanaa lands through قهوة before anyone explains it.",
+  "unlock_condition": "≥9/12 correct on the final listen-and-tap quiz",
+  "icon": "🏠",
+  "can_do": [
+    "Recognise twelve everyday objects by sound and picture",
+    "Match a spoken Sanaa word to the thing it names"
+  ],
+  "grammar": [],
+  "culture": [
+    {
+      "title": "The cup comes first",
+      "note": "Walk into a Sanaa home and before anything else you are handed a glass of شاهي — sweet black tea, in the south often with milk — or a small cup of قهوة. In Yemen قهوة traditionally means قشر, the roasted coffee husk boiled with ginger and cinnamon, even though the beans themselves were shipped to the world from the Yemeni port of Mocha. You sit on the floor cushions of the مفرج, take the cup with your right hand, and are refilled until you say enough. Learning these two words first is not an accident: they are the first thing a host will say to you.",
+      "phrases": [
+        { "arabic": "تفضّل شاهي", "transliteration": "tfaḍḍal shaahi", "english": "Please, have some tea" },
+        { "arabic": "هات مي لو سمحت", "transliteration": "haat mayʾ law samaḥt", "english": "Bring water, please" },
+        { "arabic": "قهوة ولا شاهي؟", "transliteration": "gahwa walla shaahi?", "english": "Coffee or tea?" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "مي",
+      "transliteration": "mayʾ",
+      "english": "water",
+      "category": "Food & drink",
+      "teaching_note": "Universal and unambiguous. Sanaa says mayʾ (often heard as mēʾ) — a short word with a caught breath at the end. Not the MSA ماء; you will also hear مويه in the south and Gulf-flavoured speech, and the app accepts both.",
+      "image_scene": "Close-up of a clear glass of cold water on a low table, condensation on the glass.",
+      "concept_key": "water",
+      "variants": ["المي", "ميه", "ماء", "مياه", "مويه", "موية"],
+      "example": { "arabic": "هات مي", "transliteration": "haat mayʾ", "english": "Bring water" },
+      "video_hint": "Someone pouring or asking for water; مي/مياه said while the glass or bottle is visible."
+    },
+    {
+      "arabic": "قهوة",
+      "transliteration": "gahwa",
+      "english": "coffee",
+      "category": "Food & drink",
+      "teaching_note": "Culturally central and the first place the learner hears the Sanaa ق as a hard g. In Yemen قهوة is often the husk drink قشر rather than espresso-style coffee; بن is the bean. Taʿizz and Aden keep the q sound — the app plays Sanaa.",
+      "image_scene": "A small glass cup of pale reddish qishr coffee next to a brass pot, ginger root on the tray.",
+      "concept_key": "coffee",
+      "variants": ["القهوة", "قهوه", "القهوه", "قشر", "القشر"],
+      "example": { "arabic": "تفضّل قهوة", "transliteration": "tfaḍḍal gahwa", "english": "Have some coffee" },
+      "video_hint": "Qishr or coffee being poured for a guest; the word said as the cup is offered."
+    },
+    {
+      "arabic": "شاهي",
+      "transliteration": "shaahi",
+      "english": "tea",
+      "category": "Food & drink",
+      "teaching_note": "The Yemeni form has an extra h: شاهي, not شاي. Tea is the everyday drink of the whole country — sweet, black in Sanaa, with milk (شاهي حليب) in Aden and Taʿizz.",
+      "image_scene": "A small glass of dark amber tea on a metal tray, a sugar bowl beside it.",
+      "concept_key": "tea",
+      "variants": ["الشاهي", "شاي", "الشاي", "شاهي حليب"],
+      "example": { "arabic": "شاهي ولا قهوة؟", "transliteration": "shaahi walla gahwa?", "english": "Tea or coffee?" },
+      "video_hint": "A tea glass being poured or offered; the host asking 'tea or coffee?'."
+    },
+    {
+      "arabic": "خبز",
+      "transliteration": "khubz",
+      "english": "bread",
+      "category": "Food & drink",
+      "teaching_note": "Concrete staple that introduces the خ sound. Yemen has a dozen breads — روتي (the soft loaf), كدم (the dense Sanaa roll), ملوج and لحوح — and خبز is the word that covers them all.",
+      "image_scene": "A round Yemeni flatbread, blistered from a clay oven, on a woven straw mat.",
+      "concept_key": "bread",
+      "variants": ["الخبز", "روتي", "الروتي", "كدم", "ملوج"],
+      "example": { "arabic": "الخبز حار", "transliteration": "il-khubz ḥaarr", "english": "The bread is hot" },
+      "video_hint": "Bread on the table or coming out of a tannur; cooking channels name it as it is served."
+    },
+    {
+      "arabic": "كرسي",
+      "transliteration": "kursi",
+      "english": "chair",
+      "category": "Home",
+      "teaching_note": "Furniture is ideal early vocabulary — stable, pointable, unambiguous. In a traditional مفرج people sit on floor cushions, so a chair is what you find in the kitchen, the office or the shop.",
+      "image_scene": "A simple wooden chair against a plain whitewashed wall, nothing else in frame.",
+      "concept_key": "chair",
+      "variants": ["الكرسي", "كراسي", "الكراسي"],
+      "example": { "arabic": "اجلس على الكرسي", "transliteration": "ijlis ʿala l-kursi", "english": "Sit on the chair" },
+      "video_hint": "A chair being pointed at, pulled up or sat on in a room tour or shop scene."
+    },
+    {
+      "arabic": "باب",
+      "transliteration": "baab",
+      "english": "door",
+      "category": "Home",
+      "teaching_note": "Short, phonetically simple, and it carries the long aa the learner will meet in كتاب too. Sanaa's famous gate is باب اليمن — the learner will see the word on every map of the old city.",
+      "image_scene": "A carved wooden door in a stone wall, slightly ajar, with a brass knocker.",
+      "concept_key": "door",
+      "variants": ["الباب", "أبواب", "باب اليمن"],
+      "example": { "arabic": "الباب مفتوح", "transliteration": "il-baab maftuuḥ", "english": "The door is open" },
+      "video_hint": "Someone at or opening a door; Old Sanaa tours passing through باب اليمن."
+    },
+    {
+      "arabic": "بيت",
+      "transliteration": "bayt",
+      "english": "house / home",
+      "category": "Home",
+      "teaching_note": "Very high frequency; it returns in dozens of later phrases (بيتي، بيتك، بيتش، بيت أهلي). The Sanaa tower house — five or six storeys of stone and mud brick with white gypsum tracery — is what the illustration shows.",
+      "image_scene": "Exterior of an Old Sanaa tower house: tall brown brick, white gypsum patterns around the windows, a blue sky.",
+      "concept_key": "house",
+      "variants": ["البيت", "بيوت", "بيتي", "بيتنا"],
+      "example": { "arabic": "ذا بيتي", "transliteration": "dhaa bayti", "english": "This is my house" },
+      "video_hint": "A vlogger arriving home or showing the house from outside; بيت/بيتنا in the narration."
+    },
+    {
+      "arabic": "سيارة",
+      "transliteration": "sayyaara",
+      "english": "car",
+      "category": "Outdoor",
+      "teaching_note": "Visually unambiguous and introduces the doubled letter (يّ). Sanaa says سيارة; in Aden you will hear the old loan بابور and in Hadramawt موتر — the app accepts all three.",
+      "image_scene": "A white pick-up truck parked on a stone street below a tower house.",
+      "concept_key": "car",
+      "variants": ["السيارة", "سياره", "سيارتي", "سيارات", "بابور", "موتر"],
+      "example": { "arabic": "السيارة برّا", "transliteration": "is-sayyaara barra", "english": "The car is outside" },
+      "video_hint": "Getting into or talking about a car; driving vlogs are full of السيارة."
+    },
+    {
+      "arabic": "شجرة",
+      "transliteration": "shajara",
+      "english": "tree",
+      "category": "Outdoor",
+      "teaching_note": "Sanaa keeps ج as j — unlike the Gulf y or the Taʿizz/Aden g. The highland tree everyone knows is the قات bush on its terrace; the coast has palms.",
+      "image_scene": "A single leafy green tree on a stone-walled mountain terrace, blue sky behind.",
+      "concept_key": "tree",
+      "variants": ["الشجرة", "شجره", "شجر", "الشجر", "أشجار"],
+      "example": { "arabic": "الشجرة كبيرة", "transliteration": "ish-shajara kabiira", "english": "The tree is big" },
+      "video_hint": "A tree or terrace farm shown while named; village and farm vlogs."
+    },
+    {
+      "arabic": "تلفون",
+      "transliteration": "tilifoon",
+      "english": "phone / mobile",
+      "category": "Object",
+      "teaching_note": "A borrowed word, so it is nearly free. Yemenis also say جوال and موبايل for the mobile; all three are accepted and all three appear in captions.",
+      "image_scene": "A smartphone lying face-up on a table, screen lit.",
+      "concept_key": "phone",
+      "variants": ["التلفون", "تليفون", "جوال", "الجوال", "موبايل", "الموبايل"],
+      "example": { "arabic": "وين تلفوني؟", "transliteration": "wayn tilifooni?", "english": "Where is my phone?" },
+      "video_hint": "Someone holding up or hunting for their phone; جوال/تلفون in the caption."
+    },
+    {
+      "arabic": "كتاب",
+      "transliteration": "kitaab",
+      "english": "book",
+      "category": "Object",
+      "teaching_note": "Classic object-lesson word: long aa vowel, and the ك–ت–ب root the learner will meet again in 'write' and 'office'. Same word in every dialect.",
+      "image_scene": "A closed hardback book on a low table, plain dark cover.",
+      "concept_key": "book",
+      "variants": ["الكتاب", "كتب", "الكتب"],
+      "example": { "arabic": "الكتاب على الكرسي", "transliteration": "il-kitaab ʿala l-kursi", "english": "The book is on the chair" },
+      "video_hint": "A book being held or shown; study vlogs and children's read-alongs."
+    },
+    {
+      "arabic": "مفتاح",
+      "transliteration": "miftaaḥ",
+      "english": "key",
+      "category": "Object",
+      "teaching_note": "Everyday and pocket-sized. Introduces the ح sound at the end of a word, where it is easiest to hear.",
+      "image_scene": "A single metal key on a keyring against a plain background.",
+      "concept_key": "key",
+      "variants": ["المفتاح", "مفاتيح", "المفاتيح"],
+      "example": { "arabic": "المفتاح في السيارة", "transliteration": "il-miftaaḥ fi s-sayyaara", "english": "The key is in the car" },
+      "video_hint": "Keys being picked up or searched for on the way out; 'وين المفتاح؟'."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Host", "arabic": "تفضّل، شاهي ولا قهوة؟", "transliteration": "tfaḍḍal, shaahi walla gahwa?", "english": "Please — tea or coffee?" },
+    { "speaker": "Guest", "arabic": "شاهي لو سمحت", "transliteration": "shaahi law samaḥt", "english": "Tea, please" },
+    { "speaker": "Host", "arabic": "والخبز حار، تفضّل", "transliteration": "wil-khubz ḥaarr, tfaḍḍal", "english": "And the bread is hot — help yourself" },
+    { "speaker": "Guest", "arabic": "وين المي؟", "transliteration": "wayn il-mayʾ?", "english": "Where is the water?" },
+    { "speaker": "Host", "arabic": "المي على الكرسي، جنب الباب", "transliteration": "il-mayʾ ʿala l-kursi, janb il-baab", "english": "The water is on the chair, next to the door" }
+  ],
+  "sound_spotlight": [
+    { "sound": "ق → g", "example": "قهوة (gahwa)", "explanation": "In Sanaa ق is a hard g, not the formal q — the single loudest 'I am from Sanaa' signal. Taʿizz and Aden keep the q. Heard here through the word a host says first." },
+    { "sound": "ج = j", "example": "شجرة (shajara)", "explanation": "Sanaa keeps ج as the j of 'jam'. Down south (Taʿizz, Aden) it becomes a hard g, and in the Gulf a y — hearing the Sanaa value early stops the learner importing either." },
+    { "sound": "خ", "example": "خبز (khubz)", "explanation": "A rasping sound at the back of the throat, like the ch in Scottish 'loch'. Heard passively here; production practice starts in Lesson 4." },
+    { "sound": "ح", "example": "مفتاح (miftaaḥ)", "explanation": "A breathy h from deep in the throat — like fogging a mirror. Easiest to hear at the end of a word." }
+  ],
+  "lesson_sequence": [
+    { "step": "Welcome", "detail": "A warm Old Sanaa street scene — tower houses, a stone lane, morning sun. One line of English: you will start recognising twelve Sanaa words. Tap يلّا to begin." },
+    { "step": "Listen & see", "detail": "Each of the 12 words on its own full-screen card: illustration, native audio auto-plays, Arabic large, no English yet. Tap to replay as often as you like." },
+    { "step": "Second pass", "detail": "The same 12 cards, faster, audio auto-plays, English label now shown small and grey underneath." },
+    { "step": "Tap quiz — round 1", "detail": "Audio only; four images in a grid; tap the one you heard. Words 1–6. Distractors come from this lesson." },
+    { "step": "Tap quiz — round 2", "detail": "Same format, words 7–12." },
+    { "step": "Tap quiz — all twelve", "detail": "Random order, audio only. Score screen shows the missed words with image and audio to replay." },
+    { "step": "Lesson complete", "detail": "Words-learned counter rolls up to 12. Nudge: look around you today and find these things." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Look around you right now. Can you spot any of the twelve things from this lesson? Say the Sanaa word in your head.", "context": "Shown on the lesson-complete screen. Observation only, no speaking required. Activates all 12 words." },
+    { "prompt": "Every time you make or drink شاهي or مي over the next few days, say the word once out loud — with the extra h in shaahi.", "context": "Follow-up notification the next morning (optional). Two of the highest-frequency words, both in every kitchen." },
+    { "prompt": "If you have a tutor session coming up, tell them: 'I just learned these twelve words — can you point at them and say them?'", "context": "The ideal first tutor interaction: the GPA here-and-now game. Receptive reinforcement only." }
+  ],
+  "video_needs": {
+    "queries": ["جولة في بيتنا صنعاء", "طريقة القشر اليمني", "فلوق يومي يمني بيت", "خبز يمني في التنور"],
+    "channels": ["Yemen Cooks", "Our Yemeni Kitchen", "Mustafa Al-Mawmari", "Sheba Yemeni Food"],
+    "scene": "A host or vlogger naming objects while they are on screen: qishr poured for a guest, bread out of the tannur, keys and phone picked up on the way to the car."
+  }
+}

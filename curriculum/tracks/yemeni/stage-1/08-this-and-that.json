@@ -1,0 +1,231 @@
+{
+  "slug": "this-and-that",
+  "lesson_number": 8,
+  "title": "This and That",
+  "title_arabic": "ذا وذاك",
+  "description": "Point at things with the short Sanaa words ذا and ذي, ask ايش هذا؟, and describe what you see as big or small, new or old, good or bad, hot or cold — with the adjective agreeing with the thing.",
+  "cefr_target": "A1",
+  "duration_minutes": 20,
+  "approach": "GPA Phase 2 — pairs of contrasting objects on screen; the learner points with ذا / ذي and produces noun + adjective, hearing the feminine ة appear on the adjective.",
+  "unlock_condition": "≥9/12 on the listen-and-tap quiz and four correct noun + adjective pairs",
+  "icon": "👉",
+  "can_do": [
+    "Point at things with 'this' and 'that'",
+    "Ask 'what is this?'",
+    "Describe things as big, small, new, old, good, bad, hot, cold"
+  ],
+  "grammar": [
+    {
+      "category": "pronouns",
+      "title": "ذا، ذي، هذاك: pointing the Sanaa way",
+      "explanation": "Sanaa points with two short words: ذا for a masculine thing and ذي for a feminine one — ذا كتاب 'this is a book', ذي سيارة 'this is a car'. The longer هذا and هذي mean exactly the same and are what people write online; you will hear both. For something further away, هذاك (masculine) and هذيك (feminine). For several things, ذول. Put the pointing word before a bare noun and the sentence is complete; put it before a noun with الـ and you are naming that particular thing: ذا الكتاب 'this book'.",
+      "examples": [
+        { "arabic": "ذا كتاب وذي سيارة", "transliteration": "dhaa kitaab w-dhii sayyaara", "english": "This is a book and this is a car" },
+        { "arabic": "ايش هذا؟", "transliteration": "aysh haadha?", "english": "What is this?" },
+        { "arabic": "هذاك بيت أخوي", "transliteration": "hadhaak bayt akhuuy", "english": "That is my brother's house" },
+        { "arabic": "ذول جهّال الجيران", "transliteration": "dhool jahhaal il-jiiraan", "english": "These are the neighbours' kids" }
+      ]
+    },
+    {
+      "category": "sentence-structure",
+      "title": "Thing first, then the describing word",
+      "explanation": "The describing word comes after the thing: بيت كبير 'a big house', شاهي حار 'hot tea'. If the thing is feminine — almost always a word ending in ة — the describing word takes ة too: سيارة كبيرة, قهوة حارة. With الـ on the thing and nothing on the describing word, you get a whole sentence: البيت كبير 'the house is big'. No word for 'is' is needed, just as in Lesson 4.",
+      "examples": [
+        { "arabic": "البيت كبير", "transliteration": "il-bayt kabiir", "english": "The house is big" },
+        { "arabic": "السيارة جديدة", "transliteration": "is-sayyaara jadiida", "english": "The car is new" },
+        { "arabic": "ذا شاهي حار", "transliteration": "dhaa shaahi ḥaarr", "english": "This is hot tea" },
+        { "arabic": "المي باردة", "transliteration": "il-mayʾ baarida", "english": "The water is cold" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "Hot and cold are about drinks",
+      "note": "In Sanaa 'hot' and 'cold' are said about what is in your hand long before the weather. Tea and qishr are served scalding — شاهي حار is praise, not a warning — and lukewarm tea is sent back. Water, by contrast, should be cold: مي بارد is what you ask for on a hot day, and the fridge in a shop is where the cold ones are. Buttermilk with saltah is drunk cold, and the fenugreek foam on top of the pot is what makes the dish حار in the other sense — spicy — so listen for which حار is meant.",
+      "phrases": [
+        { "arabic": "الشاهي حار، زين", "transliteration": "ish-shaahi ḥaarr, zayn", "english": "The tea is hot — good" },
+        { "arabic": "هات مي بارد", "transliteration": "haat mayʾ baarid", "english": "Bring cold water" },
+        { "arabic": "ذا حار قوي!", "transliteration": "dhaa ḥaarr gawi!", "english": "This is really hot!" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "ذا",
+      "transliteration": "dhaa",
+      "english": "this (m)",
+      "category": "Pointer",
+      "teaching_note": "The short Sanaa 'this' — a clean interdental dh and a long aa. The written form هذا is the same word with ha- in front; the app plays both so the learner recognises either.",
+      "image_scene": "A hand pointing at a book on a table close by, the book clearly in focus.",
+      "concept_key": "this_m",
+      "variants": ["هذا", "هاذا", "ذا الـ"],
+      "example": { "arabic": "ذا كتابي", "transliteration": "dhaa kitaabi", "english": "This is my book" },
+      "video_hint": "Someone holding up or pointing at an object and naming it; ذا / هذا audible."
+    },
+    {
+      "arabic": "ذي",
+      "transliteration": "dhii",
+      "english": "this (f)",
+      "category": "Pointer",
+      "teaching_note": "For feminine things — the ة-words like سيارة، قهوة، مدرسة. Also written هذي online; the MSA هذه is understood but not how Sanaa speaks.",
+      "image_scene": "A hand pointing at a car close by, the car clearly in focus.",
+      "concept_key": "this_f",
+      "variants": ["هذي", "هاذي", "هذه"],
+      "example": { "arabic": "ذي سيارتي", "transliteration": "dhii sayyaarti", "english": "This is my car" },
+      "video_hint": "Someone pointing at a feminine object (car, cup, house-room) and naming it."
+    },
+    {
+      "arabic": "هذاك",
+      "transliteration": "hadhaak",
+      "english": "that",
+      "category": "Pointer",
+      "teaching_note": "'That one over there' — ذا with a -k on the end for distance. Feminine هذيك. Both also appear without the ha-: ذاك, ذيك.",
+      "image_scene": "A hand pointing across a lane at a distant house, the house small in the background.",
+      "concept_key": "that",
+      "variants": ["ذاك", "هذيك", "ذيك", "هاذاك"],
+      "example": { "arabic": "هذاك بيت صاحبي", "transliteration": "hadhaak bayt ṣaaḥbi", "english": "That is my friend's house" },
+      "video_hint": "Pointing at something further away; ذاك / هذاك in the narration."
+    },
+    {
+      "arabic": "ايش هذا",
+      "transliteration": "aysh haadha",
+      "english": "what is this?",
+      "category": "Question",
+      "teaching_note": "The learner's most useful question — ask it and someone will name the thing. ايش is the Yemeni 'what'. Said with the short pointer it is ايش ذا؟, and for a feminine thing ايش هذي؟.",
+      "image_scene": "A puzzled man holding up an unfamiliar object and looking at the person opposite.",
+      "concept_key": "what_is_this",
+      "variants": ["ايش ذا", "ايش هذي", "ايش ذي", "ما هذا", "ايش هذا يا"],
+      "example": { "arabic": "ايش هذا؟ — ذا قشر", "transliteration": "aysh haadha? — dhaa gishr", "english": "What is this? — This is qishr" },
+      "video_hint": "Unboxings, taste tests and market clips where someone asks what a thing is."
+    },
+    {
+      "arabic": "كبير",
+      "transliteration": "kabiir",
+      "english": "big",
+      "category": "Adjective",
+      "teaching_note": "Feminine كبيرة. Also 'old' of a person and 'important' — الجامع الكبير is the Great Mosque of Sanaa. Sanaa says kabiir with a short first vowel.",
+      "image_scene": "A very large clay water jar next to a tiny one, the big one filling the frame.",
+      "concept_key": "big",
+      "variants": ["كبيرة", "كبيره", "الكبير", "كبار"],
+      "example": { "arabic": "البيت كبير", "transliteration": "il-bayt kabiir", "english": "The house is big" },
+      "video_hint": "Size described — a big house, a big pot, the Great Mosque."
+    },
+    {
+      "arabic": "صغير",
+      "transliteration": "ṣaghiir",
+      "english": "small",
+      "category": "Adjective",
+      "teaching_note": "Feminine صغيرة. Old Sanaa says زغير, with a z — you will hear it from older speakers and in sketches. Also 'young' of a person.",
+      "image_scene": "A tiny coffee cup beside a large one, the small one in focus.",
+      "concept_key": "small",
+      "variants": ["صغيرة", "صغيره", "زغير", "زغيرة", "صغار"],
+      "example": { "arabic": "الكرسي صغير", "transliteration": "il-kursi ṣaghiir", "english": "The chair is small" },
+      "video_hint": "Size contrasted; a small child, a small cup; زغير in Sanaa speech."
+    },
+    {
+      "arabic": "جديد",
+      "transliteration": "jadiid",
+      "english": "new",
+      "category": "Adjective",
+      "teaching_note": "Sanaa j: jadiid; Taʿizz and Aden say gidiid. Feminine جديدة. The first thing said about a car or a phone.",
+      "image_scene": "A brand-new smartphone still in its open box, protective film half peeled.",
+      "concept_key": "new",
+      "variants": ["جديدة", "جديده", "الجديد", "جدد"],
+      "example": { "arabic": "التلفون جديد", "transliteration": "it-tilifoon jadiid", "english": "The phone is new" },
+      "video_hint": "Unboxings and new purchases; جديد in the excitement."
+    },
+    {
+      "arabic": "قديم",
+      "transliteration": "gadiim",
+      "english": "old",
+      "category": "Adjective",
+      "teaching_note": "The ق is a g in Sanaa: gadiim. Of things, not people — صنعاء القديمة is Old Sanaa, the walled city. Feminine قديمة.",
+      "image_scene": "An old brass coffee pot, dented and darkened, on a stone shelf.",
+      "concept_key": "old",
+      "variants": ["قديمة", "قديمه", "القديم", "صنعاء القديمة"],
+      "example": { "arabic": "البيت قديم", "transliteration": "il-bayt gadiim", "english": "The house is old" },
+      "video_hint": "Old Sanaa tours; anything described as قديم."
+    },
+    {
+      "arabic": "زين",
+      "transliteration": "zayn",
+      "english": "good",
+      "category": "Adjective",
+      "teaching_note": "The pan-Yemeni 'good, fine, nice' — of tea, people, weather, and as a one-word reply. Feminine زينة. Sanaa also has its own ناهي from Lesson 2. Never the Gulf خوش.",
+      "image_scene": "A man tasting tea and giving a thumbs-up with a satisfied nod.",
+      "concept_key": "good",
+      "variants": ["زينة", "زينه", "زينين", "ناهي", "طيب"],
+      "example": { "arabic": "الشاهي زين", "transliteration": "ish-shaahi zayn", "english": "The tea is good" },
+      "video_hint": "Approval of food or a thing; زين as a response token."
+    },
+    {
+      "arabic": "خايس",
+      "transliteration": "khaayis",
+      "english": "bad",
+      "category": "Adjective",
+      "teaching_note": "Bad, rotten, no good — of food, a road, a phone. Feminine خايسة. Yemenis just as often say مش زين 'not good', which is gentler; both are in the app.",
+      "image_scene": "A wrinkled, mouldy tomato next to a firm red one, the bad one in focus.",
+      "concept_key": "bad",
+      "variants": ["خايسة", "خايسه", "مش زين", "سيء"],
+      "example": { "arabic": "الخبز خايس", "transliteration": "il-khubz khaayis", "english": "The bread is bad" },
+      "video_hint": "Complaints about food or a product; خايس / مش زين audible."
+    },
+    {
+      "arabic": "حار",
+      "transliteration": "ḥaarr",
+      "english": "hot",
+      "category": "Adjective",
+      "teaching_note": "Hot to touch and hot-spicy — the same word. Feminine حارة. For hot drinks Sanaa also says حامي and سخن. Doubled r at the end: hold it.",
+      "image_scene": "A glass of tea with steam rising thickly from it.",
+      "concept_key": "hot",
+      "variants": ["حارة", "حاره", "حامي", "سخن", "حر"],
+      "example": { "arabic": "الشاهي حار", "transliteration": "ish-shaahi ḥaarr", "english": "The tea is hot" },
+      "video_hint": "Steam off a pot or cup; someone warning حار."
+    },
+    {
+      "arabic": "بارد",
+      "transliteration": "baarid",
+      "english": "cold",
+      "category": "Adjective",
+      "teaching_note": "Feminine باردة. Cold of water, weather and Sanaa nights, which are cold even in summer at 2,300 metres. The noun 'cold' is برد.",
+      "image_scene": "A bottle of water beaded with condensation, fresh from a fridge.",
+      "concept_key": "cold",
+      "variants": ["باردة", "بارده", "برد", "بردان"],
+      "example": { "arabic": "المي بارد", "transliteration": "il-mayʾ baarid", "english": "The water is cold" },
+      "video_hint": "Cold drinks from a fridge; cold weather in Sanaa; بارد / برد audible."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Tom", "arabic": "ايش هذا؟", "transliteration": "aysh haadha?", "english": "What is this?" },
+    { "speaker": "Salem", "arabic": "ذا قشر. قهوة يمنية", "transliteration": "dhaa gishr. gahwa yamaniyya", "english": "This is qishr. Yemeni coffee" },
+    { "speaker": "Tom", "arabic": "حار؟", "transliteration": "ḥaarr?", "english": "Hot?" },
+    { "speaker": "Salem", "arabic": "إي، حار قوي. وذي مي باردة", "transliteration": "ʾii, ḥaarr gawi. w-dhii mayʾ baarida", "english": "Yes, very hot. And this is cold water" },
+    { "speaker": "Tom", "arabic": "القشر زين! وهذاك؟", "transliteration": "il-gishr zayn! w-hadhaak?", "english": "The qishr is good! And that?" },
+    { "speaker": "Salem", "arabic": "هذاك بيت قديم. صنعاء القديمة", "transliteration": "hadhaak bayt gadiim. ṣanʿaa l-gadiima", "english": "That is an old house. Old Sanaa" },
+    { "speaker": "Tom", "arabic": "كبير! ما شاء الله", "transliteration": "kabiir! maa shaa allaah", "english": "It's big! Wonderful" }
+  ],
+  "sound_spotlight": [
+    { "sound": "ذ", "example": "ذا، ذي، هذاك", "explanation": "The th of English 'this' — tongue between the teeth and voiced. Sanaa keeps it in every pointing word; Aden turns it into d (da, dahiin). All three pointers drill it." },
+    { "sound": "ق → g again", "example": "قديم (gadiim)، قشر (gishr)", "explanation": "Two more everyday words with the Sanaa hard g. gadiim against jadiid is a minimal pair for g and j — Old Sanaa versus new." },
+    { "sound": "The feminine ة", "example": "كبيرة، باردة (kabiira, baarida)", "explanation": "On a describing word ة sounds as -a (in Sanaa often closer to -eh). Hearing kabiir then kabiira side by side is how agreement is learned before it is explained." }
+  ],
+  "lesson_sequence": [
+    { "step": "Welcome", "detail": "A table with a hot glass of tea, a cold bottle of water, an old coffee pot and a new phone. One line of English: you will point at things and describe them." },
+    { "step": "Point & hear", "detail": "The four pointers as tap targets on one scene: near thing (m), near thing (f), far thing, and the question ايش هذا." },
+    { "step": "Opposites", "detail": "Four contrast pairs — big/small, new/old, good/bad, hot/cold — as split cards; tap each side to hear it." },
+    { "step": "Match the ending", "detail": "A noun appears (بيت or سيارة); tap the right form of the adjective (كبير or كبيرة); hear the pair spoken." },
+    { "step": "Tap quiz", "detail": "All twelve, audio only, four-image grid." },
+    { "step": "Describe four", "detail": "Record ذا بيت كبير، ذي سيارة جديدة، الشاهي حار، المي بارد. Feedback on ذ and ق." },
+    { "step": "Lesson complete", "detail": "Counter rolls up. Nudge: point at three things around you and describe them." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Pick up three things near you and say ذا … or ذي … with one describing word each.", "context": "Shown on the lesson-complete screen. Here-and-now production with real objects." },
+    { "prompt": "Next hot drink you hold, say الشاهي حار or القهوة حارة out loud — and notice the ة on حارة.", "context": "Follow-up notification. Anchors agreement to a physical sensation." },
+    { "prompt": "Play ايش هذا؟ with your tutor: they hold up or name five things you have not learned, and you answer with the pointer and a describing word.", "context": "Tutor prompt. Uses the question to acquire new nouns, the core GPA move." }
+  ],
+  "video_needs": {
+    "queries": ["ايش هذا يمني مضحك", "فتح صندوق يمني", "جولة صنعاء القديمة", "سوق يمني حار بارد"],
+    "channels": ["Mister Momen", "Bisho", "HMADA", "Mustafa Al-Mawmari"],
+    "scene": "A speaker holding up or pointing at objects and describing them; market stalls, unboxings, Old Sanaa tours with كبير / قديم / جديد in the narration."
+  }
+}

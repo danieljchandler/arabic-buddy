@@ -1,0 +1,300 @@
+{
+  "slug": "opinions-and-feelings",
+  "lesson_number": 4,
+  "title": "Opinions and Feelings",
+  "title_arabic": "رأيك إيه؟",
+  "description": "Say what you think and how you feel the Cairo way: أفتكر إن… with the little إن that carries a pronoun, في رأيي and بصراحة to open, موافق or مش موافق to answer, and the feeling words — مبسوط، زعلان، زهقان، قلقان — that everyone asks about.",
+  "cefr_target": "B1",
+  "duration_minutes": 20,
+  "approach": "Opinion vlogs and a light debate — learners hear two people disagree about a Ramadan series politely, mark every softener, then take a side themselves.",
+  "unlock_condition": "Record a 45-second opinion with أفتكر إن, في رأيي and one softener; ≥8/10 on the feelings quiz",
+  "icon": "💬",
+  "can_do": [
+    "Give your opinion and agree or disagree politely",
+    "Say how you feel and ask how someone feels",
+    "Say you like or hate something"
+  ],
+  "grammar": [
+    {
+      "category": "sentence-structure",
+      "title": "أفتكر إن…: the little إن that carries the opinion",
+      "explanation": "After a thinking or saying word, Egyptian puts إن (that) before the opinion, and إن takes a pronoun for whoever the opinion is about: أفتكر إنه غالي (I think it's expensive), بصراحة أظن إنك غلطان (honestly I think you're wrong), بيقولوا إن الفيلم حلو (they say the film is good). The forms are إني، إنك، إنكي، إنه، إنها، إننا، إنكم، إنهم. The same إن works after حاسس (feeling) and شكله (it seems): حاسس إني تعبان. Without a pronoun, إن sits directly before a noun: أفتكر إن الأكل غالي. Trap: MSA أنّ with a case ending, and بأن, are never heard.",
+      "examples": [
+        { "arabic": "أفتكر إن الفيلم ده ممل", "transliteration": "aftikir inn il-film da mumill", "english": "I think this film is boring" },
+        { "arabic": "بصراحة أفتكر إنك معاك حق", "transliteration": "bi-ṣaraaḥa aftikir innak maʿaak ḥaʾʾ", "english": "Honestly, I think you're right" },
+        { "arabic": "حاسس إني زهقان", "transliteration": "ḥaasis inni zahʾaan", "english": "I feel bored" },
+        { "arabic": "شكله إنه زعلان منك", "transliteration": "shaklu innu zaʿlaan minnak", "english": "It seems he's upset with you" },
+        { "arabic": "في رأيي إن المسلسل ده أحسن حاجة السنة دي", "transliteration": "fi raʾyi inn il-musalsal da aḥsan ḥaaga s-sana di", "english": "In my opinion this series is the best thing this year" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "Disagreeing without a fight",
+      "note": "Cairo argues loudly about football, series and food, and almost never about a person's family, religion or how much they earn — those three are off the table with anyone you are not close to. Even in a loud argument the disagreement is wrapped: في رأيي (in my opinion), بصراحة (frankly) and يمكن أنا غلطان بس… (maybe I'm wrong, but…) come before the blow, and معاك حق بس… (you're right, but…) concedes first. Saying مش موافق flat, with nothing before it, sounds like a challenge. And feelings are asked about directly and often — مالك؟ (what's wrong?) is a caring question, not nosiness; the expected answer is مفيش، شوية تعبان (nothing, a bit tired), not the full story.",
+      "phrases": [
+        { "arabic": "معاك حق، بس…", "transliteration": "maʿaak ḥaʾʾ, bass…", "english": "You're right, but…" },
+        { "arabic": "يمكن أنا غلطان، بس…", "transliteration": "yimkin ana ghalṭaan, bass…", "english": "Maybe I'm wrong, but…" },
+        { "arabic": "مالك؟", "transliteration": "maalak?", "english": "What's wrong (with you)?" },
+        { "arabic": "مفيش، شوية تعبان", "transliteration": "mafiish, shwayya taʿbaan", "english": "Nothing, a bit tired" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "أفتكر",
+      "transliteration": "aftikir",
+      "english": "I think (that) / I reckon",
+      "category": "Verb",
+      "teaching_note": "The everyday 'I think', followed by إن: أفتكر إن… It is the same verb as 'remember' (افتكرت — I remembered), and context tells you which. Also أظن (aẓunn) for a softer 'I suppose'. Trap: أعتقد is heard but sounds like a newsreader; MSA أظنّ with the doubled ending is never said.",
+      "image_scene": "A woman with a thought bubble containing a lightbulb, one finger raised.",
+      "concept_key": "i_think",
+      "variants": ["افتكر", "أفتكر إن", "بفتكر", "أظن", "تفتكر"],
+      "example": { "arabic": "أفتكر إن المطعم ده غالي", "transliteration": "aftikir inn il-maṭʿam da ghaali", "english": "I think this restaurant is expensive" },
+      "video_hint": "An opinion beginning أفتكر إن… in a review or debate; تفتكر…؟ as a question."
+    },
+    {
+      "arabic": "في رأيي",
+      "transliteration": "fi raʾyi",
+      "english": "in my opinion",
+      "category": "Expression",
+      "teaching_note": "The standard opener before a view: في رأيي، الأكل أحسن في إسكندرية. Change the pronoun to ask or report: في رأيك؟ (in your opinion?), في رأيه. Said with a small pause after it.",
+      "image_scene": "A man tapping his chest with one hand while speaking to a group.",
+      "concept_key": "in_my_opinion",
+      "variants": ["في رأيك", "في رأيه", "برأيي", "من وجهة نظري"],
+      "example": { "arabic": "في رأيي المترو أحسن من التاكسي", "transliteration": "fi raʾyi l-metro aḥsan min it-taksi", "english": "In my opinion the metro is better than a taxi" },
+      "video_hint": "في رأيي / في رأيك opening an answer in a street interview."
+    },
+    {
+      "arabic": "موافق",
+      "transliteration": "muwaafiʾ",
+      "english": "I agree / agreed",
+      "category": "Participle",
+      "teaching_note": "A participle, so it agrees: موافق / موافقة / موافقين. Alone it is 'agreed / deal'. Egyptians also say أنا معاك (I'm with you) for agreement with a person. The verb is وافق: وافقت (I agreed).",
+      "image_scene": "Two people shaking hands across a café table, both nodding.",
+      "concept_key": "agree",
+      "variants": ["موافقة", "موافقين", "أنا معاك", "وافقت", "موافق تمام"],
+      "example": { "arabic": "أنا موافق معاك في النقطة دي", "transliteration": "ana muwaafiʾ maʿaak fin-nuʾṭa di", "english": "I agree with you on this point" },
+      "video_hint": "موافق / أنا معاك as a reply in a debate or a deal."
+    },
+    {
+      "arabic": "مش موافق",
+      "transliteration": "mish muwaafiʾ",
+      "english": "I disagree",
+      "category": "Expression",
+      "teaching_note": "مش before the participle, like any non-verb: مش موافق / مش موافقة / مش موافقين. Softer versions: مش معاك في دي (I'm not with you on this), مش متأكد (I'm not sure). Trap: said bare it is a challenge — put معاك حق بس or بصراحة in front.",
+      "image_scene": "A woman shaking her head gently with an open palm raised, still smiling.",
+      "concept_key": "disagree",
+      "variants": ["مش موافقة", "مش موافقين", "أنا مش معاك", "مش متأكد", "معترض"],
+      "example": { "arabic": "بصراحة أنا مش موافق", "transliteration": "bi-ṣaraaḥa ana mish muwaafiʾ", "english": "Honestly, I disagree" },
+      "video_hint": "A polite disagreement: مش موافق / مش معاك في دي in a debate."
+    },
+    {
+      "arabic": "مبسوط",
+      "transliteration": "mabsuuṭ",
+      "english": "happy / pleased",
+      "category": "Adjective",
+      "teaching_note": "The everyday 'happy': مبسوط / مبسوطة / مبسوطين. مبسوط من (pleased with). Also 'enjoying oneself': انبسطنا أوي (we had a great time). Trap: سعيد is 'happy' on a greetings card; مبسوط is happy on a Tuesday.",
+      "image_scene": "A man grinning with a bag of hot ta'miyya sandwiches in one hand.",
+      "concept_key": "happy",
+      "variants": ["مبسوطة", "مبسوطين", "انبسطت", "انبسطنا", "مبسوط أوي"],
+      "example": { "arabic": "أنا مبسوط أوي النهارده", "transliteration": "ana mabsuuṭ ʾawi n-naharda", "english": "I'm really happy today" },
+      "video_hint": "Someone declaring مبسوط / انبسطنا after a good day or meal."
+    },
+    {
+      "arabic": "زعلان",
+      "transliteration": "zaʿlaan",
+      "english": "upset / angry (with someone)",
+      "category": "Adjective",
+      "teaching_note": "Egypt's all-purpose bad-feeling word — sad, hurt and angry at once: زعلان منك (upset with you), زعلانة ليه؟ (why are you upset?). The verb is زعل: زعلت (I got upset), ما تزعلش (don't be upset). For hot anger you will also hear متعصب.",
+      "image_scene": "A young woman with folded arms and a hurt frown, turned half away.",
+      "concept_key": "angry",
+      "variants": ["زعلانة", "زعلانين", "زعلت", "ما تزعلش", "متعصب"],
+      "example": { "arabic": "هو زعلان منك ليه؟", "transliteration": "huwwa zaʿlaan minnak leeh?", "english": "Why is he upset with you?" },
+      "video_hint": "A sulk or a quarrel in a skit: زعلان / ما تزعلش."
+    },
+    {
+      "arabic": "زهقان",
+      "transliteration": "zahʾaan",
+      "english": "bored / fed up",
+      "category": "Adjective",
+      "teaching_note": "The Cairo word for bored and fed up in one: زهقان / زهقانة / زهقانين. The verb is زهق: زهقت (I've had enough). Trap: ممل is 'boring' — the thing; زهقان is 'bored' — the person.",
+      "image_scene": "A teenager slumped on a sofa, remote in hand, staring at the ceiling.",
+      "concept_key": "bored",
+      "variants": ["زهقانة", "زهقانين", "زهقت", "زهق", "زهقان أوي"],
+      "example": { "arabic": "زهقت من الشغل ده", "transliteration": "zihiʾt min ish-shughl da", "english": "I'm fed up with this job" },
+      "video_hint": "Someone complaining زهقان / زهقت in a comedy skit or vlog."
+    },
+    {
+      "arabic": "قلقان",
+      "transliteration": "ʾalʾaan",
+      "english": "worried",
+      "category": "Adjective",
+      "teaching_note": "قلقان / قلقانة / قلقانين, with على for the person you worry about: قلقانة على ابنها. Both ق are glottal stops: ʾalʾaan. ما تقلقش (don't worry) is the reflex reply.",
+      "image_scene": "A mother at a window at night, phone in hand, looking down the street.",
+      "concept_key": "worried",
+      "variants": ["قلقانة", "قلقانين", "قلقت", "ما تقلقش", "قلق"],
+      "example": { "arabic": "أنا قلقان على الامتحان", "transliteration": "ana ʾalʾaan ʿala l-imtiḥaan", "english": "I'm worried about the exam" },
+      "video_hint": "A worry voiced: قلقان / قلقانة, followed by ما تقلقش."
+    },
+    {
+      "arabic": "بحب",
+      "transliteration": "baḥibb",
+      "english": "I like / I love",
+      "category": "Verb",
+      "teaching_note": "One verb for liking and loving: بحب الكشري (I like koshari), بحب أسافر (I like to travel — verb follows directly, no 'to'). Forms: بتحب، بيحب، بنحب. Trap: يعجبني (I like it — it pleases me) exists too, mostly for things you just met: عجبني الفيلم.",
+      "image_scene": "A heart-shaped thought bubble over a plate of koshari.",
+      "concept_key": "i_like",
+      "variants": ["بتحب", "بيحب", "بنحب", "بحب أوي", "عجبني"],
+      "example": { "arabic": "بحب أقعد على النيل بالليل", "transliteration": "baḥibb aʾʿud ʿan-niil bil-leel", "english": "I like sitting by the Nile at night" },
+      "video_hint": "بحب + noun or verb in a vlog about favourite things."
+    },
+    {
+      "arabic": "بكره",
+      "transliteration": "bakrah",
+      "english": "I hate",
+      "category": "Verb",
+      "teaching_note": "Direct and rarely said about people; Egyptians prefer مش طايق (can't stand) for a person. Same letters as بكرة (tomorrow) but different vowels: bakrah versus bukra — the ه ending is what's written, listen for the a. Forms: بتكره، بيكره.",
+      "image_scene": "A man pushing away a plate with a grimace.",
+      "concept_key": "i_hate",
+      "variants": ["بتكره", "بيكره", "كرهت", "مش طايق"],
+      "example": { "arabic": "بكره الزحمة أوي", "transliteration": "bakrah iz-zaḥma ʾawi", "english": "I really hate traffic" },
+      "video_hint": "A rant: بكره… / مش طايق… in a comedy or opinion vlog."
+    },
+    {
+      "arabic": "حاسس",
+      "transliteration": "ḥaasis",
+      "english": "feel / feeling",
+      "category": "Participle",
+      "teaching_note": "The state of feeling: حاسس / حاسة / حاسين. With إن for a full sentence (حاسس إني تعبان), with بـ for a thing (حاسس بصداع — I feel a headache). The verb is حس: حسيت (I felt). Also حاسس بيك (I feel for you).",
+      "image_scene": "A man with a hand on his chest, eyes closed, listening inward.",
+      "concept_key": "feel",
+      "variants": ["حاسة", "حاسين", "حسيت", "حاسس إن", "حاسس بـ"],
+      "example": { "arabic": "حاسس إني عايز أنام", "transliteration": "ḥaasis inni ʿaayiz anaam", "english": "I feel like I want to sleep" },
+      "video_hint": "حاسس إن… / حاسة بـ… in a feelings or health vlog."
+    },
+    {
+      "arabic": "رأي",
+      "transliteration": "raʾy",
+      "english": "opinion",
+      "category": "Noun",
+      "teaching_note": "رأيك إيه؟ (what's your opinion?) is the question that opens every debate. رأيي، رأيك، رأيه. Plural آراء. The hamza is a small catch: raʾy.",
+      "image_scene": "Two speech bubbles facing each other, each with a different colour.",
+      "concept_key": "opinion",
+      "variants": ["رأيك", "رأيه", "رأيها", "الرأي", "رأيك إيه"],
+      "example": { "arabic": "رأيك إيه في المسلسل ده؟", "transliteration": "raʾyak eeh fil-musalsal da?", "english": "What's your opinion of this series?" },
+      "video_hint": "The question رأيك إيه؟ in a street interview or a reaction video."
+    },
+    {
+      "arabic": "بصراحة",
+      "transliteration": "bi-ṣaraaḥa",
+      "english": "frankly / honestly",
+      "category": "Adverb",
+      "teaching_note": "Signals that an honest opinion is coming, and softens it: بصراحة، مش عاجبني (frankly, I don't like it). Sisters: الصراحة (to be frank), بأمانة (in all honesty). The word everyone uses before the sentence they really mean.",
+      "image_scene": "A woman leaning forward with an open hand on the table, about to say something candid.",
+      "concept_key": "frankly",
+      "variants": ["الصراحة", "بصراحه", "بأمانة", "بصراحة كده"],
+      "example": { "arabic": "بصراحة الأكل مش حلو", "transliteration": "bi-ṣaraaḥa l-akl mish ḥilw", "english": "Frankly, the food isn't good" },
+      "video_hint": "بصراحة opening a review verdict or a disagreement."
+    },
+    {
+      "arabic": "غلط",
+      "transliteration": "ghalaṭ",
+      "english": "wrong",
+      "category": "Adjective",
+      "teaching_note": "Both 'wrong' (ده غلط — that's wrong) and 'a mistake' as a noun. For a person, غلطان (you're wrong — mistaken): إنت غلطان. The opposite is صح. Never said to an elder bluntly — wrap it with معلش or يمكن.",
+      "image_scene": "A red cross next to a wrong sum on a blackboard.",
+      "concept_key": "wrong",
+      "variants": ["غلطان", "غلطانة", "ده غلط", "بالغلط", "غلطة"],
+      "example": { "arabic": "لأ، ده غلط", "transliteration": "laʾ, da ghalaṭ", "english": "No, that's wrong" },
+      "video_hint": "غلط / غلطان in a debate or a correction."
+    },
+    {
+      "arabic": "صح",
+      "transliteration": "ṣaḥḥ",
+      "english": "right / correct",
+      "category": "Adjective",
+      "teaching_note": "The opposite of غلط, and a whole answer: صح! (right!). Also as a tag: صح؟ (right?). The doubled ḥ is held: ṣaḥḥ. Cousins: صحيح (true / by the way), مظبوط (exactly right).",
+      "image_scene": "A green tick next to a sum on a blackboard.",
+      "variants": ["صح؟", "صح كده", "مظبوط", "صحيح"],
+      "example": { "arabic": "كلامك صح", "transliteration": "kalaamak ṣaḥḥ", "english": "What you're saying is right" },
+      "video_hint": "صح / مظبوط as agreement in a conversation."
+    },
+    {
+      "arabic": "معاك حق",
+      "transliteration": "maʿaak ḥaʾʾ",
+      "english": "you're right",
+      "category": "Expression",
+      "teaching_note": "Literally 'the right is with you'. Change the pronoun: معاكي حق، معاه حق، معاهم حق. The polite way to concede — and the polite way to start disagreeing: معاك حق، بس…",
+      "image_scene": "A man nodding and tapping the table in agreement with a friend.",
+      "variants": ["معاكي حق", "معاه حق", "معاها حق", "عندك حق"],
+      "example": { "arabic": "معاك حق، الجو حر أوي", "transliteration": "maʿaak ḥaʾʾ, ig-gaww ḥarr ʾawi", "english": "You're right, it's really hot" },
+      "video_hint": "معاك حق as a concession in a debate."
+    },
+    {
+      "arabic": "ممل",
+      "transliteration": "mumill",
+      "english": "boring",
+      "category": "Adjective",
+      "teaching_note": "The thing is ممل; the person is زهقان. ممل / مملة / مملين. Its opposite in reviews is ممتع (enjoyable). Doubled ل: mumill.",
+      "image_scene": "A cinema screen with a sleeping audience in silhouette.",
+      "variants": ["مملة", "مملين", "ممل أوي", "ممتع"],
+      "example": { "arabic": "الفيلم كان ممل أوي", "transliteration": "il-film kaan mumill ʾawi", "english": "The film was really boring" },
+      "video_hint": "A review verdict: ممل / ممتع."
+    },
+    {
+      "arabic": "مضايق",
+      "transliteration": "middaayiʾ",
+      "english": "annoyed / bothered",
+      "category": "Adjective",
+      "teaching_note": "Milder than زعلان — irritated, bothered: مضايق من الصوت (annoyed by the noise). مضايق / مضايقة / مضايقين. The verb ضايق means to bother: ما تضايقنيش (don't bother me).",
+      "image_scene": "A man with a tight-lipped frown covering one ear against a loud speaker.",
+      "variants": ["مضايقة", "مضايقين", "متضايق", "ضايقني", "ما تضايقنيش"],
+      "example": { "arabic": "أنا مضايق من الدوشة دي", "transliteration": "ana middaayiʾ min id-dawsha di", "english": "I'm annoyed by this noise" },
+      "video_hint": "مضايق / متضايق in a complaint or a skit about noise."
+    },
+    {
+      "arabic": "شكله",
+      "transliteration": "shaklu",
+      "english": "it seems / it looks like",
+      "category": "Expression",
+      "teaching_note": "Literally 'its shape'. شكله هيمطر (looks like it'll rain), شكلها زعلانة (she seems upset), شكلك تعبان (you look tired). Change the pronoun to match what you're judging. The hedge that lets you comment on anyone without claiming to know.",
+      "image_scene": "A man squinting at a grey sky and reaching for an umbrella.",
+      "variants": ["شكلها", "شكلك", "شكلهم", "شكله كده", "شكل"],
+      "example": { "arabic": "شكله مش مبسوط", "transliteration": "shaklu mish mabsuuṭ", "english": "He doesn't seem happy" },
+      "video_hint": "شكله / شكلها as a guess about someone's mood or the weather."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Nour", "arabic": "رأيك إيه في المسلسل الجديد؟", "transliteration": "raʾyik eeh fil-musalsal ig-gidiid?", "english": "What's your opinion of the new series?" },
+    { "speaker": "Dina", "arabic": "بصراحة أفتكر إنه ممل شوية.", "transliteration": "bi-ṣaraaḥa aftikir innu mumill shwayya.", "english": "Frankly I think it's a bit boring." },
+    { "speaker": "Nour", "arabic": "مش موافقة! في رأيي أحسن حاجة السنة دي.", "transliteration": "mish muwafʾa! fi raʾyi aḥsan ḥaaga s-sana di.", "english": "I disagree! In my opinion it's the best thing this year." },
+    { "speaker": "Dina", "arabic": "معاكي حق إن التمثيل حلو، بس القصة بطيئة.", "transliteration": "maʿaaki ḥaʾʾ inn it-tamsiil ḥilw, bass il-ʾiṣṣa baṭiiʾa.", "english": "You're right that the acting is good, but the story is slow." },
+    { "speaker": "Nour", "arabic": "مالك النهارده؟ شكلك مضايقة.", "transliteration": "maalik in-naharda? shaklik middayʾa.", "english": "What's up with you today? You seem annoyed." },
+    { "speaker": "Dina", "arabic": "مفيش، شوية زهقانة من الشغل.", "transliteration": "mafiish, shwayya zahʾaana min ish-shughl.", "english": "Nothing, a bit fed up with work." }
+  ],
+  "sound_spotlight": [
+    { "sound": "Feminine participles drop a vowel", "example": "زهقان → زهقانة (zahʾaana), موافق → موافقة (muwafʾa)", "explanation": "Adding ـة to a participle often deletes the vowel before it: muwaafiʾ becomes muwafʾa, not muwaafiʾa. The long vowel shortens too. Listen for the shorter, tighter word." },
+    { "sound": "Doubled ن in إن + pronoun", "example": "إني (inni), إنه (innu), إنك (innak)", "explanation": "The ن of إن doubles when a pronoun is added — hold it. This is the sound that tells the listener an opinion is coming." },
+    { "sound": "ʾ ʾ: two glottal stops in one word", "example": "قلقان (ʾalʾaan), حق (ḥaʾʾ)", "explanation": "Cairo turns both ق of قلقان into catches: ʾal-ʾaan. In حق the doubled ق becomes one held catch: ḥaʾʾ. Practise slowly, then at speed." }
+  ],
+  "lesson_sequence": [
+    { "step": "Two opinions", "detail": "A 90-second clip of two friends disagreeing about a Ramadan series, played once. Question: who liked it?" },
+    { "step": "Mark the softeners", "detail": "Second viewing with transcript: tap every في رأيي، بصراحة، معاك حق بس، يمكن. Count them — the number surprises learners." },
+    { "step": "Grammar note", "detail": "The إن note, examples from the clip, with a pronoun-on-إن drill." },
+    { "step": "Word cards", "detail": "The 20 words with audio; the four feeling adjectives shown as faces, masculine and feminine forms both played." },
+    { "step": "How do they feel?", "detail": "Six short clips of people; tap the feeling word that fits and say it in the right gender." },
+    { "step": "Take a side", "detail": "Record a 45-second opinion on a film, a dish or a neighbourhood using أفتكر إن، في رأيي and one softener." },
+    { "step": "Lesson complete", "detail": "Words counter rolls up. Nudge: ask someone رأيك إيه؟ today and disagree politely." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Ask an Egyptian friend رأيك إيه في…؟ about a film or a café, then answer with في رأيي… yourself.", "context": "Lesson-complete screen. Activates رأي, في رأيي, أفتكر إن." },
+    { "prompt": "Tell someone how you feel right now in one Egyptian word — مبسوط، زهقان، قلقان، تعبان — with the right gender.", "context": "Evening notification. Activates the feeling adjectives." },
+    { "prompt": "Ask your tutor to disagree with everything you say for five minutes, and answer each time with معاك حق بس…", "context": "Tutor prompt. Practises the concession-then-disagreement move." }
+  ],
+  "video_needs": {
+    "queries": ["رأيك إيه في مسلسلات رمضان", "ريفيو فيلم مصري بصراحة", "مقابلات شارع رأيك", "أنا زهقان كوميدي"],
+    "channels": ["Hesham Afifi", "AJ+ Kibreet", "Easy Arabic", "Fatma Abd Alsalam"],
+    "scene": "Opinion vlogs, reaction videos and street interviews — رأيك إيه؟ asked, أفتكر إن / في رأيي / بصراحة in the answers, and a feeling word said with its gender."
+  }
+}

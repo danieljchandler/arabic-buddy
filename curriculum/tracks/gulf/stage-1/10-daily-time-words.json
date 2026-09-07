@@ -1,0 +1,274 @@
+{
+  "slug": "daily-time-words",
+  "lesson_number": 10,
+  "title": "Days and Time Words",
+  "title_arabic": "اليوم، باكر، أمس — متى؟",
+  "description": "Today, tomorrow, yesterday and now; the parts of the day people actually use; the day that matters (Friday); and متى — the question that puts everything on a clock.",
+  "cefr_target": "A1",
+  "duration_minutes": 20,
+  "approach": "A day strip and a week strip on screen: each time word highlights its slot as it is heard; the learner then narrates a simple day (morning, noon, night) and answers متى؟ with the words.",
+  "unlock_condition": "≥11/15 on the timeline tap quiz and a recorded answer to متى؟",
+  "icon": "🕰️",
+  "can_do": [
+    "Say today, tomorrow, yesterday and now",
+    "Name the parts of the day and the days that matter",
+    "Ask when something happens"
+  ],
+  "grammar": [
+    {
+      "category": "questions",
+      "title": "متى؟ — when",
+      "explanation": "متى asks when, and it works with a thing as well as a verb: متى الغدا؟ when is lunch, متى الدوام؟ when is work. The answer is one of this lesson's words, often with إن شاء الله attached if it is in the future: باكر إن شاء الله. For clock time you ask الساعة كم؟ — how much is the hour — and answer with a number from Lesson 6: الساعة خمسة.",
+      "examples": [
+        { "arabic": "متى الغدا؟ — الظهر", "transliteration": "mita l-ghada? — iẕ-ẕuhur", "english": "When is lunch? — At noon" },
+        { "arabic": "متى نشوفك؟ — باكر إن شاء الله", "transliteration": "mita nshuufak? — baakir in shaaʾ allaah", "english": "When will we see you? — Tomorrow, God willing" },
+        { "arabic": "الساعة كم؟ — الساعة سبعة", "transliteration": "is-saaʿa kam? — is-saaʿa sabʿa", "english": "What time is it? — Seven o'clock" },
+        { "arabic": "متى الدوام؟ — الصبح", "transliteration": "mita d-dawaam? — iṣ-ṣubḥ", "english": "When is work? — In the morning" }
+      ]
+    },
+    {
+      "category": "sentence-structure",
+      "title": "Time words go first or last — not in the middle",
+      "explanation": "A time word sits at the front of the sentence or at the very end, and the sentence is the same either way: اليوم أنا بالبيت or أنا بالبيت اليوم. Putting it first makes the time the topic (as for today…); putting it last just adds it. Fixed times take the article — الصبح, الليل, الجمعة — and the prayer-anchored ones are used like clock times: بعد المغرب is a perfectly normal appointment.",
+      "examples": [
+        { "arabic": "اليوم الجو حار", "transliteration": "il-yawm il-jaww ḥaar", "english": "Today the weather is hot" },
+        { "arabic": "أنا بالسوق الحين", "transliteration": "ana bis-suug il-ḥiin", "english": "I'm at the souq now" },
+        { "arabic": "الجمعة الغدا عند جدتي", "transliteration": "il-jumʿa l-ghada ʿind jaddati", "english": "On Friday lunch is at my grandmother's" },
+        { "arabic": "نشوفك بعد المغرب", "transliteration": "nshuufak baʿd il-maghrib", "english": "See you after sunset prayer" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "The day is shaped by five prayers",
+      "note": "People tell time by the prayers as much as by the clock: الفجر (dawn), الظهر (noon), العصر (afternoon), المغرب (sunset), العشا (night). 'After maghrib' is an ordinary time to meet, and evening visits begin then. In Saudi shops used to close briefly at every prayer; most now stay open, but a cashier may still step away. Lunch is late (2–4pm) and the evening starts late (9pm is early for a visit), so a Gulf 'morning' is the only early part of the day.",
+      "phrases": [
+        { "arabic": "نشوفك بعد المغرب", "transliteration": "nshuufak baʿd il-maghrib", "english": "See you after maghrib" },
+        { "arabic": "الغدا الظهر", "transliteration": "il-ghada ẕ-ẕuhur", "english": "Lunch is at noon" },
+        { "arabic": "من الصبح لين الليل", "transliteration": "min iṣ-ṣubḥ layn il-layl", "english": "From morning till night" }
+      ]
+    },
+    {
+      "title": "Friday is the week",
+      "note": "The week turns on الجمعة: Friday prayer at noon, then the big family lunch, usually at the grandparents'. The weekend is Friday and Saturday everywhere in the Gulf now (it used to be Thursday–Friday, and older people still say it). The working week starts Sunday, so 'Monday morning' feelings arrive on الأحد. Shops open late in the morning and stay open late at night; the busiest hours of a mall are after 9pm.",
+      "phrases": [
+        { "arabic": "الجمعة عند جدتي", "transliteration": "il-jumʿa ʿind jaddati", "english": "Friday at my grandmother's" },
+        { "arabic": "الدوام من الأحد", "transliteration": "id-dawaam min il-aḥad", "english": "Work starts from Sunday" },
+        { "arabic": "جمعة مباركة", "transliteration": "jumʿa mbaaraka", "english": "Blessed Friday (a Friday greeting)" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "اليوم",
+      "transliteration": "il-yawm",
+      "english": "today",
+      "category": "Time",
+      "teaching_note": "Literally 'the day' — the article makes it 'today'. Gulf also says هاليوم (this day). Never the Egyptian النهاردة. Stress on the last syllable: il-YAWM.",
+      "image_scene": "A wall calendar with today's date circled in red, sunlight on it.",
+      "concept_key": "today",
+      "variants": ["هاليوم", "اليوم", "اليومين"],
+      "example": { "arabic": "اليوم عندي دوام", "transliteration": "il-yawm ʿindi dawaam", "english": "Today I have work" },
+      "video_hint": "Vlog openings: اليوم بنروح…; the day's plan announced."
+    },
+    {
+      "arabic": "باكر",
+      "transliteration": "baakir",
+      "english": "tomorrow",
+      "category": "Time",
+      "teaching_note": "Kuwait, Bahrain, Qatar and the Emirates say باكر — and pronounce it baachir with the ch. Saudis say بكرة bukra. Both are accepted; you will hear both in the first week of video. Nearly always followed by إن شاء الله.",
+      "image_scene": "A calendar page being turned to the next day, a sunrise icon on it.",
+      "concept_key": "tomorrow",
+      "variants": ["بكرة", "بكره", "باچر", "بكرا", "باكر إن شاء الله"],
+      "example": { "arabic": "نشوفك باكر إن شاء الله", "transliteration": "nshuufak baakir in shaaʾ allaah", "english": "See you tomorrow, God willing" },
+      "video_hint": "Plans for the next day at the end of a vlog; باكر / بكرة with إن شاء الله."
+    },
+    {
+      "arabic": "أمس",
+      "transliteration": "ams",
+      "english": "yesterday",
+      "category": "Time",
+      "teaching_note": "Short and universal in the Gulf. البارحة (last night / yesterday) is the other common word; Jeddah says أمبارح. Never امبارح in the Egyptian sense of a habit — just recognise it.",
+      "image_scene": "A calendar with the previous day crossed off, a faded photo beside it.",
+      "concept_key": "yesterday",
+      "variants": ["امس", "البارحة", "البارح", "أمبارح", "أول أمس"],
+      "example": { "arabic": "أمس كنت بالسوق", "transliteration": "ams kint bis-suug", "english": "Yesterday I was at the souq" },
+      "video_hint": "Recaps at the start of a vlog: أمس رحنا…"
+    },
+    {
+      "arabic": "الحين",
+      "transliteration": "il-ḥiin",
+      "english": "now",
+      "category": "Time",
+      "teaching_note": "Understood from Kuwait to Fujairah: il-ḥiin. Very often هالحين (this now); Jeddah says دحين. The MSA الآن is never said in speech and the Egyptian دلوقتي never in the Gulf.",
+      "image_scene": "A clock face with the hands at the moment, a finger tapping the glass.",
+      "concept_key": "now",
+      "variants": ["هالحين", "الحينه", "دحين", "ذلحين", "الحين الحين"],
+      "example": { "arabic": "أبي قهوة الحين", "transliteration": "abi gahwa l-ḥiin", "english": "I want coffee now" },
+      "video_hint": "الحين / هالحين in any live narration; شتسوي الحين on the phone."
+    },
+    {
+      "arabic": "بعدين",
+      "transliteration": "baʿdayn",
+      "english": "later / then",
+      "category": "Time",
+      "teaching_note": "Later on, or 'then' in a sequence. Kuwait, Bahrain and the Emirates also say عقب; 'in a bit' is بعد شوي. The polite way to put something off: بعدين إن شاء الله.",
+      "image_scene": "A hand gesturing 'later' with a small wave, a clock in the background showing a later hour.",
+      "concept_key": "later",
+      "variants": ["عقب", "عقبين", "بعد شوي", "عقب شوي", "بعدين إن شاء الله"],
+      "example": { "arabic": "الغدا بعدين", "transliteration": "il-ghada baʿdayn", "english": "Lunch is later" },
+      "video_hint": "Deferring something in a sketch; sequences narrated with بعدين."
+    },
+    {
+      "arabic": "الصبح",
+      "transliteration": "iṣ-ṣubḥ",
+      "english": "morning",
+      "category": "Time",
+      "teaching_note": "The morning as a time: الصبح, in the morning. The greeting word صباح is the same root. Emphatic ص makes the u dark. من الصبح — since this morning.",
+      "image_scene": "Early sun over a Gulf skyline, a man with a coffee cup on a balcony.",
+      "concept_key": "morning",
+      "variants": ["صبح", "الصباح", "صباح", "من الصبح", "بالصبح"],
+      "example": { "arabic": "الدوام الصبح", "transliteration": "id-dawaam iṣ-ṣubḥ", "english": "Work is in the morning" },
+      "video_hint": "Morning-routine vlogs; the first line of a day-in-the-life."
+    },
+    {
+      "arabic": "الليل",
+      "transliteration": "il-layl",
+      "english": "night",
+      "category": "Time",
+      "teaching_note": "Night, and 'at night' is بالليل. One night is ليلة. The Gulf evening starts late, so بالليل can mean anything up to two in the morning.",
+      "image_scene": "A quiet street at night with a crescent moon and lit windows.",
+      "concept_key": "night",
+      "variants": ["بالليل", "ليل", "ليلة", "الليلة", "بليل"],
+      "example": { "arabic": "نشوفك بالليل", "transliteration": "nshuufak bil-layl", "english": "See you tonight" },
+      "video_hint": "Night outings; a camp fire; الليلة for tonight."
+    },
+    {
+      "arabic": "يوم",
+      "transliteration": "yawm",
+      "english": "day",
+      "category": "Time",
+      "teaching_note": "A day. كل يوم every day, يومين two days, أيام days. The names of the days are built on it (يوم الجمعة). In Gulf storytelling يوم also means 'when' — a later lesson.",
+      "image_scene": "A sun arcing over a house from sunrise to sunset in one image.",
+      "concept_key": "day",
+      "variants": ["أيام", "يومين", "كل يوم", "يوم يوم", "الأيام"],
+      "example": { "arabic": "كل يوم قهوة الصبح", "transliteration": "kill yawm gahwa ṣ-ṣubḥ", "english": "Every day, coffee in the morning" },
+      "video_hint": "كل يوم in routine vlogs; counting days of a trip."
+    },
+    {
+      "arabic": "أسبوع",
+      "transliteration": "usbuuʿ",
+      "english": "week",
+      "category": "Time",
+      "teaching_note": "Said usbuuʿ, ending in ع. هالأسبوع this week; next week is الأسبوع الجاي. Plural أسابيع.",
+      "image_scene": "A week-view calendar page with seven boxes, Friday highlighted.",
+      "concept_key": "week",
+      "variants": ["الأسبوع", "أسابيع", "اسبوع", "هالأسبوع", "الأسبوع الجاي"],
+      "example": { "arabic": "هالأسبوع عندي دوام", "transliteration": "hal-usbuuʿ ʿindi dawaam", "english": "This week I have work" },
+      "video_hint": "Weekly plans; الأسبوع الجاي at the end of a vlog."
+    },
+    {
+      "arabic": "دايم",
+      "transliteration": "daayim",
+      "english": "always",
+      "category": "Time",
+      "teaching_note": "Gulf says daayim (or دايماً) where MSA has دائماً with a hamza. Also 'permanent': سفرة دايمة — may your table always be laid — the blessing after a meal. على طول can also mean always.",
+      "image_scene": "A repeating loop icon over a daily coffee cup, the same scene four times.",
+      "concept_key": "always",
+      "variants": ["دايماً", "دايما", "على طول", "دوم", "دايم دايم"],
+      "example": { "arabic": "دايم أشرب قهوة الصبح", "transliteration": "daayim ashrab gahwa ṣ-ṣubḥ", "english": "I always drink coffee in the morning" },
+      "video_hint": "Habits described in routine vlogs; دايم as an intensifier."
+    },
+    {
+      "arabic": "أحياناً",
+      "transliteration": "aḥyaanan",
+      "english": "sometimes",
+      "category": "Time",
+      "teaching_note": "Used as-is in Gulf speech, often as أحيان. The more colloquial مرات (some times) does the same job — مرات أروح, sometimes I go. Written with or without the final alif.",
+      "image_scene": "A calendar with a few random days ticked and the rest blank.",
+      "concept_key": "sometimes",
+      "variants": ["احيانا", "أحيان", "مرات", "بعض المرات", "ساعات"],
+      "example": { "arabic": "أحياناً الغدا بالليل", "transliteration": "aḥyaanan il-ghada bil-layl", "english": "Sometimes lunch is at night" },
+      "video_hint": "Habits with exceptions; مرات in casual speech."
+    },
+    {
+      "arabic": "متى",
+      "transliteration": "mita",
+      "english": "when?",
+      "category": "Question",
+      "teaching_note": "The when-question, said mita with a short i. Works with a thing or a verb: متى الغدا؟ متى تروح؟. Some Saudis say امتى. Not to be confused with يوم / لما, which mean 'when' in a story, not a question.",
+      "image_scene": "A man tapping his wrist where a watch would be, eyebrows raised in question.",
+      "concept_key": "when",
+      "variants": ["امتى", "متا", "متى؟", "من متى"],
+      "example": { "arabic": "متى الدوام؟", "transliteration": "mita d-dawaam?", "english": "When is work?" },
+      "video_hint": "Scheduling in dialogues; متى نروح؟ before an outing."
+    },
+    {
+      "arabic": "الجمعة",
+      "transliteration": "il-jumʿa",
+      "english": "Friday",
+      "category": "Time",
+      "teaching_note": "The day of the week that matters: prayer at noon, then the family lunch. Kuwaitis say il-yimʿa (ج → y). The other days: السبت, الأحد, الاثنين, الثلاثاء, الأربعا, الخميس — recognise them now, learn them in Stage 2.",
+      "image_scene": "A large family lunch on a floor sufra, a mosque visible through the window, midday light.",
+      "concept_key": "friday",
+      "variants": ["الجمعه", "يوم الجمعة", "جمعة", "الييمعة", "الجمعة والسبت"],
+      "example": { "arabic": "الجمعة الغدا عند أهلي", "transliteration": "il-jumʿa l-ghada ʿind ahli", "english": "On Friday lunch is at my family's" },
+      "video_hint": "Friday lunch vlogs; جمعة مباركة greetings."
+    },
+    {
+      "arabic": "الظهر",
+      "transliteration": "iẕ-ẕuhur",
+      "english": "noon (the noon prayer time)",
+      "category": "Time",
+      "teaching_note": "Noon, named for the prayer. Said iẕ-ẕuhur with a helping vowel and the heavy ظ. Lunch is 'at ẕuhur' even when it is at three. بعد الظهر — afternoon.",
+      "image_scene": "The sun directly overhead over a mosque courtyard, short shadows.",
+      "variants": ["ظهر", "بعد الظهر", "الظهرية", "وقت الظهر"],
+      "example": { "arabic": "الغدا الظهر", "transliteration": "il-ghada ẕ-ẕuhur", "english": "Lunch is at noon" },
+      "video_hint": "The noon call to prayer; lunch announced."
+    },
+    {
+      "arabic": "المغرب",
+      "transliteration": "il-maghrib",
+      "english": "sunset (the sunset prayer time)",
+      "category": "Time",
+      "teaching_note": "Sunset, and the everyday appointment time: بعد المغرب, after maghrib, is when visits and outings start. Contains غ, the gargled g — different from the خ of خبز.",
+      "image_scene": "An orange sunset behind a minaret, lights coming on in the street.",
+      "variants": ["بعد المغرب", "مغرب", "قبل المغرب", "أذان المغرب"],
+      "example": { "arabic": "نشوفك بعد المغرب", "transliteration": "nshuufak baʿd il-maghrib", "english": "See you after maghrib" },
+      "video_hint": "Sunset call to prayer; plans made for after maghrib."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Khalid", "arabic": "هلا فهد، وينك اليوم؟", "transliteration": "hala fahad, waynak il-yawm?", "english": "Hi Fahad, where are you today?" },
+    { "speaker": "Fahad", "arabic": "الحين بالدوام. أمس كنت بالسوق", "transliteration": "il-ḥiin bid-dawaam. ams kint bis-suug", "english": "Right now at work. Yesterday I was at the souq" },
+    { "speaker": "Khalid", "arabic": "متى نشوفك؟ باكر؟", "transliteration": "mita nshuufak? baakir?", "english": "When will we see you? Tomorrow?" },
+    { "speaker": "Fahad", "arabic": "باكر الصبح عندي دوام. بالليل إن شاء الله", "transliteration": "baakir iṣ-ṣubḥ ʿindi dawaam. bil-layl in shaaʾ allaah", "english": "Tomorrow morning I have work. At night, God willing" },
+    { "speaker": "Khalid", "arabic": "زين، بعد المغرب؟", "transliteration": "zayn, baʿd il-maghrib?", "english": "Good — after maghrib?" },
+    { "speaker": "Fahad", "arabic": "إي، بعد المغرب. والجمعة الغدا عند جدتي", "transliteration": "ee, baʿd il-maghrib. wil-jumʿa l-ghada ʿind jaddati", "english": "Yes, after maghrib. And on Friday lunch is at my grandmother's" },
+    { "speaker": "Khalid", "arabic": "دايم الجمعة عند جدتك! طيب، نشوفك بعدين", "transliteration": "daayim il-jumʿa ʿind jaddatak! ṭayyib, nshuufak baʿdayn", "english": "Friday is always at your grandmother's! OK, see you later" }
+  ],
+  "sound_spotlight": [
+    { "sound": "ظ", "example": "الظهر (iẕ-ẕuhur)", "explanation": "The heavy th — the voiced ذ made with the tongue raised at the back. Gulf uses this sound for both ظ and ض, so once you have it you have two letters. Compare هذا (light) with الظهر (heavy)." },
+    { "sound": "غ vs خ", "example": "المغرب (il-maghrib) / الخميس (il-khamiis)", "explanation": "Two back-of-the-throat sounds: غ is voiced, like gargling; خ is the same place but breathy, like clearing the throat. Sunset has the first; Thursday has the second." },
+    { "sound": "ك → ch in باكر", "example": "باكر (baakir → baachir)", "explanation": "Up the Gulf the k in باكر turns into ch — baachir — and some write it باچر. Saudis avoid the word and say بكرة. Recognise all three as tomorrow." }
+  ],
+  "lesson_sequence": [
+    { "step": "Welcome", "detail": "A day strip (dawn to night) and a week strip with Friday marked. One line of English: today you put things on the clock. Tap يلّا." },
+    { "step": "Light the strip", "detail": "Fifteen cards; each time word highlights its slot on the day or week strip as it plays. Tap any slot to hear its word again." },
+    { "step": "Yesterday, today, tomorrow", "detail": "Three-day carousel; audio plays and the learner swipes to the right day. Then the learner records each word with the day on screen." },
+    { "step": "Answer متى", "detail": "A native asks متى + something (الغدا, الدوام, نشوفك); the learner records an answer from the strip. The speech check listens for the time word." },
+    { "step": "Where does it go?", "detail": "A sentence card with a gap at the front and at the end; the learner drops the time word in either slot and hears both versions." },
+    { "step": "Dialogue", "detail": "The scheduling dialogue plays with the strips animating; second pass the learner takes Khalid's lines." },
+    { "step": "Quiz and complete", "detail": "Fifteen items: slot tap, متى answers, day-of-week recognition. Counter rolls to 135. Nudge: say the time word for whatever you are doing, three times today." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Right now, say الحين + where you are: الحين أنا بالبيت. Then say what is باكر.", "context": "Lesson-complete screen. Here-and-now time framing with known places." },
+    { "prompt": "Tonight, look at the sunset and say المغرب. Tomorrow morning, say الصبح with your first coffee.", "context": "Next-day notification. Ties two prayer-time words to real moments." },
+    { "prompt": "Ask your tutor five متى questions about their week and repeat each answer back.", "context": "Before a tutor session. The question plus its answer set, in real time." }
+  ],
+  "video_needs": {
+    "queries": ["يوم كامل معي فلوق سعودية", "روتيني اليومي فلوق كويتية", "روتين الصباح خليجي", "غدا الجمعة عند جدتي فلوق"],
+    "channels": ["Jana Vlogs", "Bjlife", "Moshaya Family", "Saud Brothers"],
+    "scene": "A vlogger narrating their day with time words — الصبح, الظهر, بعد المغرب, بالليل — and morning-routine videos; اليوم / أمس / باكر in openings and sign-offs."
+  }
+}

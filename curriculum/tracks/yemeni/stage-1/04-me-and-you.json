@@ -1,0 +1,231 @@
+{
+  "slug": "me-and-you",
+  "lesson_number": 4,
+  "title": "Me and You",
+  "title_arabic": "أنا وأنت",
+  "description": "Say who you are and where you are from, ask someone's name, and point at yourself, the listener and a third person with the right pronoun — all without a verb 'to be', because Sanaa Arabic does not use one.",
+  "cefr_target": "Pre-A1",
+  "duration_minutes": 20,
+  "approach": "GPA Phase 1 → 2. First productive lesson: the learner builds two-word sentences (أنا طالب، هو من عدن) from pronoun cards and noun cards, hearing each before saying it.",
+  "unlock_condition": "≥9/12 on the listen-and-tap quiz and one recorded self-introduction (name + origin)",
+  "icon": "🙋",
+  "can_do": [
+    "Say who you are and where you are from",
+    "Ask someone's name",
+    "Point at yourself, the listener and a third person with the right pronoun"
+  ],
+  "grammar": [
+    {
+      "category": "pronouns",
+      "title": "Five people: أنا، أنت، أنتي، هو، هي",
+      "explanation": "Sanaa has a separate 'you' for a man (أنت, said ant with no vowel on the end) and for a woman (أنتي anti). He is هو and she is هي. Aden splits 'I' into أنا for a man and أني for a woman, but Sanaa uses أنا for everyone. For a group you will hear إحنا 'we', أنتو 'you all' and هم 'they' — recognise them now, use them later.",
+      "examples": [
+        { "arabic": "أنا من صنعاء", "transliteration": "ana min ṣanʿaa", "english": "I am from Sanaa" },
+        { "arabic": "أنت من عدن؟", "transliteration": "ant min ʿadan?", "english": "Are you from Aden? (to a man)" },
+        { "arabic": "أنتي طالبة؟", "transliteration": "anti ṭaaliba?", "english": "Are you a student? (to a woman)" },
+        { "arabic": "هو صاحبي وهي أخته", "transliteration": "huu ṣaaḥbi w-hii ukhta", "english": "He is my friend and she is his sister" }
+      ]
+    },
+    {
+      "category": "sentence-structure",
+      "title": "No 'is': pronoun + word makes a sentence",
+      "explanation": "In the present there is no word for 'am', 'is' or 'are'. Put a person next to a name, a place or a describing word and the sentence is finished: أنا طالب 'I am a student', هي من تعز 'she is from Taʿizz', الشاهي حار 'the tea is hot'. To ask a question you simply raise your voice at the end — no extra word is needed. The question word can sit at the end, Sanaa style: أنت من وين؟",
+      "examples": [
+        { "arabic": "أنا طالب", "transliteration": "ana ṭaalib", "english": "I am a student" },
+        { "arabic": "اسمي سالم", "transliteration": "ismi saalim", "english": "My name is Salem" },
+        { "arabic": "هي من تعز", "transliteration": "hii min taʿizz", "english": "She is from Taʿizz" },
+        { "arabic": "أنت من وين؟", "transliteration": "ant min wayn?", "english": "Where are you from?" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "Names, fathers and titles",
+      "note": "A Yemeni introduces himself with his first name, and often his father's and grandfather's after it — محمد علي سالم. Friends call each other by first name; a man with a son is respectfully أبو + the son's name (أبو أحمد), and you may hear people ask for him that way. You will be called by titles before anyone knows your name: يا حاج to an older man, يا شيخ half-jokingly to any man, يا عم or يا خال 'uncle' to someone older, يا أستاذ to anyone educated-looking. Answer to all of them; none is a mistake.",
+      "phrases": [
+        { "arabic": "أنا أبو أحمد", "transliteration": "ana abu aḥmad", "english": "I am Abu Ahmed (Ahmed's father)" },
+        { "arabic": "يا أستاذ، اسمح لي", "transliteration": "ya ustaadh, ismaḥ-li", "english": "Sir, excuse me" },
+        { "arabic": "تشرفنا يا حاج", "transliteration": "tsharrafna ya ḥaaj", "english": "Pleased to meet you, Hajj" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "أنا",
+      "transliteration": "ana",
+      "english": "I",
+      "category": "Pronoun",
+      "teaching_note": "Same word for a man or a woman in Sanaa. Aden women say أني — recognise it, do not copy it. Short a at the end, not the long aa of MSA reading.",
+      "image_scene": "A man pointing at his own chest with his thumb, plain background.",
+      "concept_key": "i",
+      "variants": ["انا", "أني", "اني"],
+      "example": { "arabic": "أنا من صنعاء", "transliteration": "ana min ṣanʿaa", "english": "I am from Sanaa" },
+      "video_hint": "Vloggers introducing themselves: أنا + name."
+    },
+    {
+      "arabic": "أنت",
+      "transliteration": "ant",
+      "english": "you (masculine)",
+      "category": "Pronoun",
+      "teaching_note": "Sanaa says ant with no vowel on the end — the ta closes the word. Used to one man; to a group or respectfully to an elder it becomes أنتو.",
+      "image_scene": "A man pointing forward at a second man, who points back at himself.",
+      "concept_key": "you_m",
+      "variants": ["انت", "إنت", "أنتو", "انتو"],
+      "example": { "arabic": "أنت طالب؟", "transliteration": "ant ṭaalib?", "english": "Are you a student?" },
+      "video_hint": "Street interviews: the interviewer addressing a man."
+    },
+    {
+      "arabic": "أنتي",
+      "transliteration": "anti",
+      "english": "you (feminine)",
+      "category": "Pronoun",
+      "teaching_note": "To one woman. The -i on the end is the same feminine -i the learner heard in لو سمحتي. Its suffix cousin in Sanaa is -ish (اسمش, حالش).",
+      "image_scene": "A woman in a colourful Sanaa shawl being addressed by another woman, who points toward her.",
+      "concept_key": "you_f",
+      "variants": ["انتي", "إنتي", "أنتِ"],
+      "example": { "arabic": "أنتي من وين؟", "transliteration": "anti min wayn?", "english": "Where are you from? (to a woman)" },
+      "video_hint": "A woman being addressed directly; family vlogs."
+    },
+    {
+      "arabic": "هو",
+      "transliteration": "huu",
+      "english": "he",
+      "category": "Pronoun",
+      "teaching_note": "Also 'it' for any masculine thing: الخبز — هو حار. Pronounced huu or huw; some Sanaa speakers say hu with a short vowel.",
+      "image_scene": "Two people looking toward a third man standing a little apart, one pointing at him.",
+      "concept_key": "he",
+      "variants": ["هوه", "هُو"],
+      "example": { "arabic": "هو من عدن", "transliteration": "huu min ʿadan", "english": "He is from Aden" },
+      "video_hint": "Someone talking about a third person visible on screen."
+    },
+    {
+      "arabic": "هي",
+      "transliteration": "hii",
+      "english": "she",
+      "category": "Pronoun",
+      "teaching_note": "Also 'it' for any feminine thing — every word ending in ة: السيارة — هي جديدة. Pronounced hii or hiy.",
+      "image_scene": "Two people looking toward a woman standing a little apart, one gesturing toward her.",
+      "concept_key": "she",
+      "variants": ["هيه", "هِي"],
+      "example": { "arabic": "هي طالبة", "transliteration": "hii ṭaaliba", "english": "She is a student" },
+      "video_hint": "Someone talking about a woman visible on screen."
+    },
+    {
+      "arabic": "اسم",
+      "transliteration": "isim",
+      "english": "name",
+      "category": "Noun",
+      "teaching_note": "Two syllables in Sanaa: i-sim. With endings it shrinks: اسمي ismi, اسمك ismak, اسمش ismish (to a woman), اسمه isma.",
+      "image_scene": "A name badge on a shirt pocket, blank except for a line.",
+      "concept_key": "name",
+      "variants": ["الاسم", "اسمه", "اسمها", "أسماء"],
+      "example": { "arabic": "اسمه علي", "transliteration": "isma ʿali", "english": "His name is Ali" },
+      "video_hint": "Introductions: اسمي / اسمه said with a person in frame."
+    },
+    {
+      "arabic": "اسمي",
+      "transliteration": "ismi",
+      "english": "my name is…",
+      "category": "Phrase",
+      "teaching_note": "The whole sentence is just اسمي + your name — no 'is'. This is the first thing a learner produces in front of a native, so it is drilled until automatic.",
+      "image_scene": "A young man with a hand on his chest, mouth open mid-word, a speech bubble with a blank line.",
+      "concept_key": "my_name_is",
+      "variants": ["أنا اسمي", "انا اسمي", "اسمي أنا"],
+      "example": { "arabic": "اسمي سالم، وأنت؟", "transliteration": "ismi saalim, w-ant?", "english": "My name is Salem, and you?" },
+      "video_hint": "The opening of any vlog or interview: اسمي + name."
+    },
+    {
+      "arabic": "ايش اسمك",
+      "transliteration": "aysh ismak",
+      "english": "what's your name?",
+      "category": "Phrase",
+      "teaching_note": "ايش is the Yemeni 'what'. To a woman in Sanaa: ايش اسمش. Older Sanaa speakers keep the classical ما اسمك؟ — recognise it if you hear it. Word order is loose: اسمك ايش؟ is equally natural.",
+      "image_scene": "A man with a questioning expression pointing at the person opposite him.",
+      "concept_key": "whats_your_name",
+      "variants": ["ايش اسمش", "اسمك ايش", "ما اسمك", "وش اسمك", "شو اسمك"],
+      "example": { "arabic": "ايش اسمك يا أخي؟", "transliteration": "aysh ismak ya akhi?", "english": "What's your name, brother?" },
+      "video_hint": "Interviewers asking a passer-by's name."
+    },
+    {
+      "arabic": "من",
+      "transliteration": "min",
+      "english": "from",
+      "category": "Preposition",
+      "teaching_note": "'From' a place: من صنعاء، من تعز، من بريطانيا. Watch the spelling trap: the same letters read man mean 'who?' in Sanaa — context and vowel keep them apart.",
+      "image_scene": "An arrow leaving a small map pin and pointing toward a figure, the pin labelled with a city skyline.",
+      "concept_key": "from",
+      "variants": ["مِن", "من وين"],
+      "example": { "arabic": "الشاهي من عدن", "transliteration": "ish-shaahi min ʿadan", "english": "The tea is from Aden" },
+      "video_hint": "Anyone saying where they or a thing is from."
+    },
+    {
+      "arabic": "أنا من",
+      "transliteration": "ana min",
+      "english": "I am from…",
+      "category": "Phrase",
+      "teaching_note": "Add your city or country and you have introduced yourself. Yemenis will ask this within a minute of meeting you and will want the city, not just the country.",
+      "image_scene": "A young woman pointing to herself and then to a country outline on a small map.",
+      "concept_key": "i_am_from",
+      "variants": ["انا من", "أنا من صنعاء", "أنا من اليمن"],
+      "example": { "arabic": "أنا من لندن، وأنت؟", "transliteration": "ana min landan, w-ant?", "english": "I am from London, and you?" },
+      "video_hint": "Self-introductions naming a hometown; travel vlogs."
+    },
+    {
+      "arabic": "تشرفنا",
+      "transliteration": "tsharrafna",
+      "english": "nice to meet you",
+      "category": "Phrase",
+      "teaching_note": "'We are honoured.' Said after the names are exchanged, with a handshake. فرصة سعيدة also works; the reply to either is الشرف لي 'the honour is mine' or simply the same phrase back.",
+      "image_scene": "Two men shaking hands with their left hands on their chests, both smiling.",
+      "concept_key": "nice_to_meet_you",
+      "variants": ["تشرفت", "فرصة سعيدة", "الشرف لي", "تشرفنا بك"],
+      "example": { "arabic": "تشرفنا يا سالم", "transliteration": "tsharrafna ya saalim", "english": "Nice to meet you, Salem" },
+      "video_hint": "The moment after names are exchanged in an introduction."
+    },
+    {
+      "arabic": "طالب",
+      "transliteration": "ṭaalib",
+      "english": "student",
+      "category": "Noun",
+      "teaching_note": "A man is طالب, a woman طالبة — the first noun the learner sees take the feminine ة. The ط is voiced in Sanaa, so it sounds close to d. Also the word to use for yourself: أنا طالب عربي 'I am a student of Arabic'.",
+      "image_scene": "A young man with a backpack and a book outside a university gate.",
+      "concept_key": "student",
+      "variants": ["طالبة", "الطالب", "طلاب", "الطلاب", "طالبه"],
+      "example": { "arabic": "أنا طالب في صنعاء", "transliteration": "ana ṭaalib fi ṣanʿaa", "english": "I am a student in Sanaa" },
+      "video_hint": "University or school vlogs; someone saying أنا طالب."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Salem", "arabic": "السلام عليكم، أنا سالم", "transliteration": "is-salaam ʿalaykum, ana saalim", "english": "Peace be upon you, I'm Salem" },
+    { "speaker": "Tom", "arabic": "وعليكم السلام، اسمي توم", "transliteration": "wa-ʿalaykum is-salaam, ismi tom", "english": "And upon you peace, my name is Tom" },
+    { "speaker": "Salem", "arabic": "تشرفنا يا توم. أنت من وين؟", "transliteration": "tsharrafna ya tom. ant min wayn?", "english": "Nice to meet you, Tom. Where are you from?" },
+    { "speaker": "Tom", "arabic": "أنا من لندن. وأنت؟", "transliteration": "ana min landan. w-ant?", "english": "I'm from London. And you?" },
+    { "speaker": "Salem", "arabic": "أنا من صنعاء. أنت طالب؟", "transliteration": "ana min ṣanʿaa. ant ṭaalib?", "english": "I'm from Sanaa. Are you a student?" },
+    { "speaker": "Tom", "arabic": "إي، أنا طالب عربي", "transliteration": "ʾii, ana ṭaalib ʿarabi", "english": "Yes, I'm a student of Arabic" },
+    { "speaker": "Salem", "arabic": "ما شاء الله! حياك الله في صنعاء", "transliteration": "maa shaa allaah! ḥayyaak allaah fi ṣanʿaa", "english": "Wonderful! Welcome to Sanaa" }
+  ],
+  "sound_spotlight": [
+    { "sound": "ص", "example": "صنعاء (ṣanʿaa)", "explanation": "An s made with the tongue pulled back and the mouth hollow — it darkens the vowel after it. The city's own name is the anchor: ṣan-, not san-." },
+    { "sound": "ع in the middle", "example": "صنعاء، تعز", "explanation": "Between vowels ع is a squeeze in the throat that the vowels flow through. Both Yemeni cities carry it; say them slowly and feel the throat close." },
+    { "sound": "Short vs long a", "example": "أنا (ana) / باب (baab)", "explanation": "Sanaa keeps vowel length strictly: أنا has two short a's, باب one long aa held twice as long. Hearing them side by side makes the length audible before it is ever explained." }
+  ],
+  "lesson_sequence": [
+    { "step": "Welcome", "detail": "A café table in Sanaa: two strangers about to meet. One line of English: by the end you will introduce yourself." },
+    { "step": "Point & hear", "detail": "The five pronouns as tapping targets on one illustration — tap the speaker, the listener, the man, the woman; audio plays each time." },
+    { "step": "Listen & see", "detail": "The remaining seven cards with illustration and audio; second pass with English." },
+    { "step": "Build a sentence", "detail": "Drag a pronoun card next to a noun or place card (أنا + طالب, هي + من تعز) and hear the sentence spoken. No 'is' to add — the app points this out once." },
+    { "step": "Tap quiz", "detail": "All twelve, audio only, four-image grid." },
+    { "step": "Introduce yourself", "detail": "Record اسمي … أنا من … and hear it next to the model. Feedback on ص and ع only." },
+    { "step": "Lesson complete", "detail": "Counter rolls up. Nudge: introduce yourself in Arabic to the next Arabic speaker you meet." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Say your own introduction out loud once now: اسمي … أنا من … . That is a complete Sanaa conversation opener.", "context": "Shown on the lesson-complete screen. First full production." },
+    { "prompt": "Ask someone ايش اسمك؟ today — a tutor, a shopkeeper, a language partner — and answer their question back with تشرفنا.", "context": "Follow-up notification. Uses the question and the reply in one real exchange." },
+    { "prompt": "Ask your tutor which city they are from and whether they say ant or anta, ana or ani — and where each is heard.", "context": "Tutor prompt. Makes the Sanaa/Aden pronoun difference concrete." }
+  ],
+  "video_needs": {
+    "queries": ["اسمي وأنا من صنعاء فلوق", "تعريف بنفسي يمني", "مقابلات شارع ايش اسمك يمن", "أنا من عدن فلوق"],
+    "channels": ["Mustafa Al-Mawmari", "Ahmed Hajar", "Abdulaleem Al-Wesabi", "Hussam Al-Salwi"],
+    "scene": "A self-introduction: vloggers opening with اسمي and their city, street interviews asking name and origin."
+  }
+}

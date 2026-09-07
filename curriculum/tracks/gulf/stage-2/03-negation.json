@@ -1,0 +1,265 @@
+{
+  "slug": "negation",
+  "lesson_number": 3,
+  "title": "Saying No: Negation",
+  "title_arabic": "لا، ما، مو",
+  "description": "Three little words carry every 'no' in Gulf Arabic — ما before verbs, مو before everything else, لا for commands — plus never, nobody, nothing at all, and the art of refusing a plate of food without offending anyone.",
+  "cefr_target": "A1",
+  "duration_minutes": 20,
+  "approach": "GPA Phase 2 — pattern noticing. Comedy sketches full of refusals are watched first; the three-way split is then made explicit and drilled by sorting, before the learner practises the refusal ritual aloud.",
+  "unlock_condition": "≥13/16 on the ما / مو / لا sorting quiz and a recorded polite refusal",
+  "icon": "🚫",
+  "can_do": [
+    "Negate verbs, nouns and adjectives",
+    "Say never, nothing and nobody",
+    "Refuse politely"
+  ],
+  "grammar": [
+    {
+      "category": "negation",
+      "title": "ما for verbs, مو for everything else, لا for commands",
+      "explanation": "Gulf Arabic splits 'not' three ways. Before a verb — any tense — use ما: ما أشرب 'I don't drink', ما رحت 'I didn't go'. The 'have' words عندي، معي، فيه count as verbs here, so it is ما عندي, ما فيه. Before a noun, an adjective or a pronoun use مو: هو مو هني 'he isn't here', السيارة مو جديدة 'the car isn't new'. Emiratis and Qataris say مب instead of مو; Najdi Saudis sometimes ماهوب — same job, pick one and stay with it. Telling someone not to do something takes لا plus the present verb: لا تروح 'don't go'. The formal ليس and the Egyptian مش are never used.",
+      "examples": [
+        { "arabic": "ما أعرف", "transliteration": "ma aʿarif", "english": "I don't know" },
+        { "arabic": "هو مو هني", "transliteration": "huwa mu hini", "english": "He isn't here" },
+        { "arabic": "السيارة مو جديدة", "transliteration": "is-sayyaara mu jidiida", "english": "The car isn't new" },
+        { "arabic": "لا تروح الحين", "transliteration": "la truuḥ il-ḥiin", "english": "Don't go now" },
+        { "arabic": "ما عندي فلوس", "transliteration": "ma ʿindi fluus", "english": "I don't have money" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "The first no is not a no",
+      "note": "When a Gulf host offers food, the first refusal is part of the offer: the guest says لا، شكراً, the host insists, the guest gives in a little. Refusing once is polite; accepting immediately can look greedy; refusing three times means you actually mean it. So a real 'no' needs more than لا. Add a blessing — الله يخليك, الله يعافيك — and a reason the host cannot argue with: والله شبعت 'I swear I'm full'. The word بس 'enough' with a hand over the cup stops a coffee refill without a word spoken. Nobody loses face, and the host has done their duty.",
+      "phrases": [
+        { "arabic": "لا، الله يخليك، شبعت", "transliteration": "la, allah ykhalliik, shibaʿt", "english": "No, bless you, I'm full" },
+        { "arabic": "والله ما أقدر", "transliteration": "wallah ma agdar", "english": "I really can't" },
+        { "arabic": "خذ لقمة بس", "transliteration": "khudh lugma bas", "english": "Just have one bite (the host's insistence)" },
+        { "arabic": "بس، الله يسلمك", "transliteration": "bas, allah ysallimk", "english": "Enough, thank you (stopping the coffee)" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "مو",
+      "transliteration": "mu",
+      "english": "not (before nouns and adjectives)",
+      "category": "Negation",
+      "teaching_note": "The word that says 'is not' without a verb: هذا مو بيتي. Kuwait, Saudi, Bahrain and Qatar say مو; the UAE says مب. Both are the same word; never mix them in one mouth. It replaces the formal ليس entirely.",
+      "image_scene": "A red cross drawn over a picture of a house, a hand pointing to a different house.",
+      "concept_key": "not",
+      "variants": ["مب", "ماهوب", "مهوب", "مو؟", "موب"],
+      "example": { "arabic": "هذا مو بيتي", "transliteration": "haadha mu bayti", "english": "This isn't my house" },
+      "video_hint": "Someone correcting a mistake — مو هذا، ذاك — with the objects on screen."
+    },
+    {
+      "arabic": "ما",
+      "transliteration": "ma",
+      "english": "don't / doesn't (before verbs)",
+      "category": "Negation",
+      "teaching_note": "The verb negator, said as a short ma glued to the verb: ma-ashrab. It also negates the 'have' words (ما عندي، ما فيه). One word for every tense, so learn it once.",
+      "image_scene": "A hand held up flat in refusal in front of a glass of tea being offered.",
+      "concept_key": "dont",
+      "variants": ["ما", "م", "ماشرب", "مااشرب"],
+      "example": { "arabic": "ما أشرب شاي بالليل", "transliteration": "ma ashrab shaay bil-layl", "english": "I don't drink tea at night" },
+      "video_hint": "A refusal or a denial with ما + verb — ما أبي، ما أعرف، ما رحت."
+    },
+    {
+      "arabic": "أبد",
+      "transliteration": "abad",
+      "english": "never / not at all",
+      "category": "Negation",
+      "teaching_note": "Sits at the end of a ما sentence to make it absolute: ما أروح أبد. Also a one-word answer — أبد! 'not at all!'. Written أبداً in careful spelling. Kuwaitis also say كلش for 'at all'.",
+      "image_scene": "A calendar with every square crossed out in red.",
+      "concept_key": "never",
+      "variants": ["أبداً", "ابدا", "أبدا", "عمري ما", "كلش"],
+      "example": { "arabic": "ما أروح السوق أبد", "transliteration": "ma aruuḥ is-suug abad", "english": "I never go to the market" },
+      "video_hint": "An emphatic denial — أبد! — in a sketch, often with a hand chop."
+    },
+    {
+      "arabic": "محد",
+      "transliteration": "maḥḥad",
+      "english": "nobody",
+      "category": "Negation",
+      "teaching_note": "ما + أحد squeezed into one word with a doubled ḥ. It carries its own 'not', so the verb after it takes no ما: محد جا 'nobody came'. Spelled ما حد or محد online.",
+      "image_scene": "An empty majlis with cushions along the walls and nobody in it.",
+      "concept_key": "nobody",
+      "variants": ["ما حد", "محّد", "ماحد", "ولا واحد", "ما أحد"],
+      "example": { "arabic": "محد بالبيت", "transliteration": "maḥḥad bil-bayt", "english": "Nobody is home" },
+      "video_hint": "Someone arriving to an empty place and saying محد هني / محد جا."
+    },
+    {
+      "arabic": "ولا شي",
+      "transliteration": "wala shay",
+      "english": "nothing at all",
+      "category": "Negation",
+      "teaching_note": "ولا 'not even' + شي 'thing'. Stronger than ما شي; it usually closes a ما sentence: ما أكلت ولا شي. Gulf شي has no hamza — the formal شيء is never said. Also the answer to شصار؟ — ولا شي 'nothing'.",
+      "image_scene": "An empty plate and an empty glass on a table, a person shrugging.",
+      "concept_key": "nothing_at_all",
+      "variants": ["ولاشي", "ما شي", "ولا شي أبد", "ولا شيء"],
+      "example": { "arabic": "ما أكلت ولا شي اليوم", "transliteration": "ma akalt wala shay il-yoom", "english": "I haven't eaten anything at all today" },
+      "video_hint": "The reply ولا شي to a question, or an exaggerated 'I've had nothing all day'."
+    },
+    {
+      "arabic": "للحين ما",
+      "transliteration": "lil-ḥiin ma",
+      "english": "not yet / still not",
+      "category": "Negation",
+      "teaching_note": "للحين 'until now' + ما. Pan-Gulf; Jeddah says لسا ما. Alone, للحين answers 'married?' with 'not yet'. Do not confuse with الحين 'now' — the extra لـ makes it 'still'.",
+      "image_scene": "An hourglass half-run, a person waiting beside an unopened lunchbox.",
+      "concept_key": "still_not",
+      "variants": ["للحين", "لسا ما", "لسه ما", "بعد ما", "لحد الحين ما"],
+      "example": { "arabic": "للحين ما تغديت", "transliteration": "lil-ḥiin ma tghaddayt", "english": "I haven't had lunch yet" },
+      "video_hint": "Someone explaining a task isn't done — للحين ما خلصت — in a vlog."
+    },
+    {
+      "arabic": "بس",
+      "transliteration": "bas",
+      "english": "only / just",
+      "category": "Particle",
+      "teaching_note": "The busiest little word in the dialect. Here it means 'only': أبي بس ماي 'I just want water'. Said sharply on its own it means 'enough!' or 'stop'. It also does duty as the casual 'but' — you will hear it far more than لكن.",
+      "image_scene": "A single glass of water alone on a large empty tray.",
+      "concept_key": "only",
+      "variants": ["بس واحد", "وبس", "بس!", "بسّ"],
+      "example": { "arabic": "أبي بس ماي", "transliteration": "abi bas maay", "english": "I just want water" },
+      "video_hint": "بس with a raised palm to stop a pour, or بس واحد when ordering one item."
+    },
+    {
+      "arabic": "لكن",
+      "transliteration": "laakin",
+      "english": "but",
+      "category": "Connector",
+      "teaching_note": "The clear 'but', used when the contrast matters: nice but expensive. In quick talk most Gulf speakers use بس for the same job, so hear لكن as the emphasised version. Long aa in the first syllable.",
+      "image_scene": "A beautiful watch in a shop window with a very large price tag beside it.",
+      "concept_key": "but",
+      "variants": ["بس", "لاكن", "ولكن", "لكنّ"],
+      "example": { "arabic": "الأكل حلو لكن غالي", "transliteration": "il-akil ḥilu laakin ghaali", "english": "The food is nice but expensive" },
+      "video_hint": "A review or complaint — حلو بس غالي / لكن — with the contrast visible."
+    },
+    {
+      "arabic": "خلاص",
+      "transliteration": "khalaaṣ",
+      "english": "enough / that's it / done",
+      "category": "Discourse word",
+      "teaching_note": "Closes a topic: 'OK, done, no more'. خلاص شبعت ends the food negotiation; خلاص فهمت 'OK, got it'. Emphatic ص at the end. Universal across the Arab world, so a free win.",
+      "image_scene": "A person pushing a finished plate away with both palms up, smiling.",
+      "concept_key": "enough",
+      "variants": ["خلاص!", "خلص", "بس خلاص", "خلاص خلاص"],
+      "example": { "arabic": "خلاص، شبعت", "transliteration": "khalaaṣ, shibaʿt", "english": "That's it, I'm full" },
+      "video_hint": "خلاص closing an argument or a meal in a sketch or family vlog."
+    },
+    {
+      "arabic": "مستحيل",
+      "transliteration": "mustaḥiil",
+      "english": "impossible / no way",
+      "category": "Reaction",
+      "teaching_note": "Same as formal Arabic but very much alive in speech, usually as a shocked one-word reaction. For 'that's not on / can't be done' Gulf speakers prefer ما يصير, taught below.",
+      "image_scene": "A person with both hands up and mouth open in disbelief in front of a giant bill.",
+      "concept_key": "impossible",
+      "variants": ["مستحيلة", "مستحيل!", "ما يمكن", "مستحيييل"],
+      "example": { "arabic": "مستحيل أروح الحين", "transliteration": "mustaḥiil aruuḥ il-ḥiin", "english": "No way I'm going now" },
+      "video_hint": "A shocked مستحيل! reaction to a price, a score or a piece of news."
+    },
+    {
+      "arabic": "ما أبي",
+      "transliteration": "ma abi",
+      "english": "I don't want",
+      "category": "Verb phrase",
+      "teaching_note": "ما + أبي, the Stage 1 'I want'. Riyadh says ما أبغى, the UAE ما أبا; all three are the same verb with a different amount of غ. Follow it with a noun (ما أبي قهوة) or a verb (ما أبي أروح). Never ما أريد.",
+      "image_scene": "A hand gently covering the top of a coffee cup as the pot approaches.",
+      "concept_key": "i_dont_want",
+      "variants": ["مابي", "ما أبغى", "ما ابغى", "ما أبا", "ما نبي", "مابغى"],
+      "example": { "arabic": "ما أبي قهوة، شكراً", "transliteration": "ma abi gahwa, shukran", "english": "I don't want coffee, thanks" },
+      "video_hint": "Declining an offer — ما أبي / ما أبغى — at a table or in a shop."
+    },
+    {
+      "arabic": "ما يهم",
+      "transliteration": "ma yhimm",
+      "english": "it doesn't matter",
+      "category": "Reaction",
+      "teaching_note": "Literally 'it doesn't concern'. Turned to the listener it becomes ولا يهمك 'don't worry about it', the standard reply to an apology. عادي 'normal, no big deal' does a similar job.",
+      "image_scene": "A shrug with a relaxed smile, a spilled cup of tea on the table in front.",
+      "concept_key": "not_important",
+      "variants": ["مو مهم", "ولا يهمك", "ما يهمك", "عادي", "مايهم"],
+      "example": { "arabic": "ما يهم، عادي", "transliteration": "ma yhimm, ʿaadi", "english": "It doesn't matter, no big deal" },
+      "video_hint": "A reassurance after a small mishap — ما يهم / ولا يهمك — in a vlog."
+    },
+    {
+      "arabic": "ما يصير",
+      "transliteration": "ma yṣiir",
+      "english": "that's not on / it can't be done",
+      "category": "Verb phrase",
+      "teaching_note": "صار means 'to become / happen'; ما يصير is 'it doesn't happen' — the Gulf way to say something is not acceptable or not possible. Said with a shake of the head. The question يصير؟ asks 'is that OK?'.",
+      "image_scene": "A shopkeeper shaking his head at a customer holding out too little money.",
+      "variants": ["ما يصير!", "مايصير", "يصير؟", "ما يصير كذا"],
+      "example": { "arabic": "لا، ما يصير كذا", "transliteration": "la, ma yṣiir kidha", "english": "No, that's not on" },
+      "video_hint": "A refusal of a request — ما يصير — in a customer-service sketch."
+    },
+    {
+      "arabic": "ما عاد",
+      "transliteration": "ma ʿaad",
+      "english": "no longer / not anymore",
+      "category": "Negation",
+      "teaching_note": "ما + عاد 'returned' = 'it no longer'. Put a present verb after it: ما عاد أشرب قهوة. Very Gulf; a learner who uses it sounds settled in the dialect.",
+      "image_scene": "A coffee cup with a line through it and a glass of water beside it.",
+      "variants": ["ماعاد", "ما عدت", "ما عادت", "ما عادوا"],
+      "example": { "arabic": "ما عاد أشرب قهوة", "transliteration": "ma ʿaad ashrab gahwa", "english": "I don't drink coffee anymore" },
+      "video_hint": "Someone describing a change of habit — ما عاد أروح / ما عاد آكل."
+    },
+    {
+      "arabic": "مو كذا؟",
+      "transliteration": "mu kidha?",
+      "english": "isn't it? / right?",
+      "category": "Question tag",
+      "teaching_note": "'Not like this?' — the tag that asks for agreement. كذا is Saudi and Qatari; Kuwaitis say مو جذي, Emiratis مب جي. The Egyptian كده is never used in the Gulf.",
+      "image_scene": "Two friends looking at a sunset, one turning to the other with raised eyebrows.",
+      "variants": ["مو جذي؟", "مب جي؟", "مو كذا", "صح؟", "مو چذي"],
+      "example": { "arabic": "الجو حلو اليوم، مو كذا؟", "transliteration": "il-jaww ḥilu il-yoom, mu kidha?", "english": "The weather's nice today, isn't it?" },
+      "video_hint": "A speaker seeking agreement at the end of a sentence — مو كذا؟ / مو جذي؟"
+    },
+    {
+      "arabic": "لا والله",
+      "transliteration": "la wallah",
+      "english": "no, really / no, I swear",
+      "category": "Reaction",
+      "teaching_note": "لا + والله 'by God'. This is the refusal that means it — the oath tells the host you are not just being polite. Also used for surprise: لا والله؟ 'no, really?'.",
+      "image_scene": "A guest with a hand on their heart politely refusing a plate held out to them.",
+      "variants": ["لا والله!", "والله لا", "لا وﷲ", "لا والله؟"],
+      "example": { "arabic": "لا والله، ما أبي", "transliteration": "la wallah, ma abi", "english": "No, really, I don't want any" },
+      "video_hint": "A real refusal at a table — لا والله — with the host finally relenting."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Umm Fahad", "arabic": "تفضلي، كلي زيادة", "transliteration": "tfaḍḍali, kili ziyaada", "english": "Please, eat more" },
+    { "speaker": "Sara", "arabic": "لا والله، شبعت", "transliteration": "la wallah, shibaʿt", "english": "No really, I'm full" },
+    { "speaker": "Umm Fahad", "arabic": "خذي لقمة بس", "transliteration": "khidhi lugma bas", "english": "Just one bite" },
+    { "speaker": "Sara", "arabic": "خلاص، ما أقدر أبد", "transliteration": "khalaaṣ, ma agdar abad", "english": "That's it, I really can't" },
+    { "speaker": "Umm Fahad", "arabic": "قهوة؟", "transliteration": "gahwa?", "english": "Coffee?" },
+    { "speaker": "Sara", "arabic": "ما أشرب قهوة بالليل، لكن شاي زين", "transliteration": "ma ashrab gahwa bil-layl, laakin shaay zayn", "english": "I don't drink coffee at night, but tea is fine" },
+    { "speaker": "Umm Fahad", "arabic": "ما يهم، الشاي جاهز", "transliteration": "ma yhimm, ish-shaay jaahiz", "english": "No problem, the tea is ready" }
+  ],
+  "sound_spotlight": [
+    { "sound": "ما runs into the verb", "example": "ما أشرب (maashrab)", "explanation": "The ma and the a- of the verb merge into one long maa: ma-ashrab sounds like maashrab. In captions you will still see two words; in your ear it is one." },
+    { "sound": "Doubled ḥ in محد", "example": "محد (maḥḥad)", "explanation": "ما + أحد collapses and the ḥ doubles: maḥ-ḥad. Hold the throat sound twice as long as you think you should." },
+    { "sound": "مو / مب — same word, different city", "example": "مو زين (mu zayn) / مب زين (mub zayn)", "explanation": "Kuwait and Saudi end it in a vowel, the UAE and Qatar in a b. You will hear both within one week of Gulf video; treat them as one word." }
+  ],
+  "lesson_sequence": [
+    { "step": "Sketch warm-up", "detail": "A 45-second comedy clip of someone refusing, arguing and saying مستحيل — watched twice, the second time with the negation words highlighted in the captions." },
+    { "step": "Vocabulary cards", "detail": "Sixteen cards with illustration and audio. Each negation word plays inside a short sentence so the position (before verb, before noun, at the end) is heard, not read." },
+    { "step": "Three boxes", "detail": "Grammar card: ما / مو / لا with one example each; then a sort — twenty sentence fragments dragged into the right box, with the verb or noun underlined as the clue." },
+    { "step": "Listen and flip", "detail": "Hear a positive sentence, tap the correct negated version from three options; the wrong options use the wrong particle." },
+    { "step": "The refusal ritual", "detail": "Role-play: the app plays the insisting host three times; the learner refuses each time, escalating from لا شكراً to الله يخليك to والله شبعت." },
+    { "step": "Lesson complete", "detail": "Score screen with missed particles replayed. Nudge: notice today which 'no' you would need — a verb no, a noun no, or a command no." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Next time someone offers you food or coffee, refuse once politely — لا، الله يخليك — and see if they insist. Then accept.", "context": "Shown on the lesson-complete screen. Activates the ritual with a real host; the point is to feel the rhythm, not to refuse for real." },
+    { "prompt": "Say three true sentences about yourself with ما, مو and أبد: what you don't do, what you are not, and what you never do.", "context": "Speaking nudge the following day. Forces the ما / مو choice on the learner's own content." },
+    { "prompt": "Watch a Gulf sketch and count the مو or مب. Which one does the channel use? That is its city.", "context": "Homework card. Trains hearing the variant table as a signal about the speaker." }
+  ],
+  "video_needs": {
+    "queries": ["ليش ما جيت مقطع كوميدي", "مسامير حلقة قصيرة", "لا والله مقطع كوميدي سعودي", "ما أبي مقطع كويتي"],
+    "channels": ["Masameer", "Yarob", "Khambalah", "BluSkits"],
+    "scene": "Someone declining, arguing or saying no way — a guest refusing food, a customer refusing a price, a character insisting ما يصير; comedy skits are full of it."
+  }
+}

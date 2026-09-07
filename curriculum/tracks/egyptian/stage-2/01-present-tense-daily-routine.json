@@ -1,0 +1,277 @@
+{
+  "slug": "present-tense-daily-routine",
+  "lesson_number": 1,
+  "title": "My Daily Routine",
+  "title_arabic": "يومي من الصبح لبالليل",
+  "description": "Wake up, pray, breakfast, work, the late lunch, the long Cairo evening — tell the shape of your ordinary day with the بـ present, and hear one verb change its face for I, you, he, she, we and they.",
+  "cefr_target": "A1",
+  "duration_minutes": 20,
+  "approach": "GPA Phase 2 — first simplified video. A day-in-the-life vlog is watched with pictures only, then the same verbs are heard in the full بـ paradigm, then the learner narrates their own day in five sentences.",
+  "unlock_condition": "Narrate your own day in ≥5 correct بـ-present sentences and score ≥12/16 on the who-is-doing-it listening sort",
+  "icon": "⏰",
+  "can_do": [
+    "Describe your ordinary day with eight core verbs",
+    "Conjugate the Egyptian بـ present for every person",
+    "Ask what someone does every day"
+  ],
+  "grammar": [
+    {
+      "category": "verb-conjugation",
+      "title": "بـ in front, and the verb changes its face",
+      "explanation": "Every Egyptian present-tense verb for a habit or something happening now starts with بـ. After it, the beginning of the verb tells you who: بروح is 'I go' (the بـ swallows the 'I' sound, so it is ba-, never ba-a-), بتروح is 'you' and also 'she', بيروح is 'he', بنروح is 'we'. Two endings finish the set: 'you (to a woman)' adds ـي (بتروحي) and 'you all' and 'they' add ـوا (بتروحوا، بيروحوا) — the alif at the end is written but never said. The same word covers 'I drink coffee' and 'I drink coffee every day', so you do not need a separate form for habits. Leave the بـ off only after words like عايز and لازم (عايز أشرب): a bare verb on its own is not a present tense in Egyptian.",
+      "examples": [
+        { "arabic": "بروح الشغل كل يوم", "transliteration": "baruuḥ esh-shughl kull yoom", "english": "I go to work every day" },
+        { "arabic": "بتشربي قهوة الصبح؟", "transliteration": "bitishrabi ʾahwa eṣ-ṣubḥ?", "english": "Do you (f) drink coffee in the morning?" },
+        { "arabic": "هي بتشتغل في مستشفى", "transliteration": "hiyya bitishtaghal fi mustashfa", "english": "She works at a hospital" },
+        { "arabic": "إحنا بنتغدى الساعة أربعة", "transliteration": "eḥna binitghadda es-saaʿa arbaʿa", "english": "We have lunch at four" },
+        { "arabic": "هم بيناموا متأخر", "transliteration": "humma biynaamu mitʾakhkhar", "english": "They sleep late" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "A Cairo day starts late and ends later",
+      "note": "Ask when something happens and a Cairene often answers with a prayer, not a clock: بعد الفجر، بعد الضهر، بعد العصر، بعد المغرب، بعد العشا. The shape of the day follows: breakfast is often mid-morning, the real meal — الغدا — lands between three and five when people get home, and then comes a nap. Life restarts after sunset: shops stay open until midnight, visits begin at nine, and dinner (العشا) is at ten or later. If you arrange to meet someone بعد العصر you will sound local; if you turn up for dinner at seven you will find an empty table.",
+      "phrases": [
+        { "arabic": "بعد العصر إن شاء الله", "transliteration": "baʿd el-ʿaṣr in shaaʾ allaah", "english": "After the afternoon prayer, God willing" },
+        { "arabic": "الغدا الساعة أربعة", "transliteration": "el-ghada es-saaʿa arbaʿa", "english": "Lunch is at four" },
+        { "arabic": "بالليل بنخرج", "transliteration": "bil-leel binukhrug", "english": "At night we go out" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "بصحى",
+      "transliteration": "baṣḥa",
+      "english": "I wake up",
+      "category": "Verb — routine",
+      "teaching_note": "The first verb of every day-in-the-life vlog. Egyptians say بصحى; you will also hear بقوم ('I get up') for the same moment. The MSA أستيقظ is never said.",
+      "image_scene": "A person sitting up in bed stretching, sunlight through a curtain, a phone alarm showing 7:00.",
+      "concept_key": "wake_up",
+      "variants": ["بصحا", "بيصحى", "بتصحى", "صحيت", "اصحى"],
+      "example": { "arabic": "بصحى الساعة سبعة كل يوم", "transliteration": "baṣḥa es-saaʿa sabʿa kull yoom", "english": "I wake up at seven every day" },
+      "video_hint": "The opening of a morning-routine vlog: alarm, bed, the vlogger saying بصحى / صحيت."
+    },
+    {
+      "arabic": "بشرب",
+      "transliteration": "bashrab",
+      "english": "I drink",
+      "category": "Verb — routine",
+      "teaching_note": "The verb the tea culture runs on. Notice بـ plus the 'I' form gives ba- in one syllable: bashrab, not ba-ashrab. That pattern holds for every verb in this lesson.",
+      "image_scene": "A hand lifting a small glass of red-brown tea to the mouth, steam rising.",
+      "concept_key": "drink",
+      "variants": ["بيشرب", "بتشرب", "بنشرب", "بتشربي", "بيشربوا", "اشرب"],
+      "example": { "arabic": "بشرب شاي بالنعناع بعد الغدا", "transliteration": "bashrab shaay bin-niʿnaaʿ baʿd el-ghada", "english": "I drink mint tea after lunch" },
+      "video_hint": "Someone pouring or sipping tea or coffee while narrating their morning."
+    },
+    {
+      "arabic": "باكل",
+      "transliteration": "baakul",
+      "english": "I eat",
+      "category": "Verb — routine",
+      "teaching_note": "The بـ meets a verb that starts with a hamza and the two melt into a long aa: باكل baakul. 'He eats' is بياكل biyaakul, 'we eat' بناكل — the same stretched vowel every time.",
+      "image_scene": "A person eating fuul and bread from a small plate at a family table.",
+      "concept_key": "eat",
+      "variants": ["بآكل", "بياكل", "بتاكل", "بناكل", "بتاكلي", "بياكلوا"],
+      "example": { "arabic": "باكل مع عيلتي بالليل", "transliteration": "baakul maʿa ʿeelti bil-leel", "english": "I eat with my family at night" },
+      "video_hint": "A family meal in a vlog; the vlogger saying باكل / بناكل as food is on screen."
+    },
+    {
+      "arabic": "بروح",
+      "transliteration": "baruuḥ",
+      "english": "I go",
+      "category": "Verb — routine",
+      "teaching_note": "The most-used verb in the dialect. Egyptian 'go' is راح — the MSA أذهب marks you as reading from a textbook. The place follows directly with no 'to': بروح الشغل، بروح الجامعة.",
+      "image_scene": "A person walking out of an apartment-building door onto a busy Cairo street, bag over shoulder.",
+      "concept_key": "go",
+      "variants": ["بيروح", "بتروح", "بنروح", "بتروحي", "بيروحوا", "رايح"],
+      "example": { "arabic": "بروح الشغل بالمترو", "transliteration": "baruuḥ esh-shughl bil-metro", "english": "I go to work by metro" },
+      "video_hint": "Leaving the house or getting on the metro; بروح / بنروح said as the destination is named."
+    },
+    {
+      "arabic": "بشتغل",
+      "transliteration": "bashtaghal",
+      "english": "I work",
+      "category": "Verb — routine",
+      "teaching_note": "The verb for 'work' is اشتغل; the noun is الشغل. بتشتغل إيه؟ ('what do you do?') and بتشتغل فين؟ are the two questions every new acquaintance asks. Note the غ in the middle — a soft gargled g.",
+      "image_scene": "A person at an office desk typing on a laptop, a lanyard round the neck, Cairo skyline through the window.",
+      "concept_key": "work_verb",
+      "variants": ["بيشتغل", "بتشتغل", "بنشتغل", "بتشتغلي", "بيشتغلوا", "اشتغل"],
+      "example": { "arabic": "بشتغل من تسعة لخمسة", "transliteration": "bashtaghal min tisʿa li-khamsa", "english": "I work from nine to five" },
+      "video_hint": "Workplace or commute footage; the vlogger explaining what they do — بشتغل في…"
+    },
+    {
+      "arabic": "بذاكر",
+      "transliteration": "bazaakir",
+      "english": "I study",
+      "category": "Verb — routine",
+      "teaching_note": "The Egyptian word for studying your lessons is ذاكر — pronounced with a z, not th. Be careful: بدرس in Egypt usually means 'I teach', so a student says بذاكر.",
+      "image_scene": "A student at a desk with open notebooks and a laptop, a university building through the window.",
+      "concept_key": "study",
+      "variants": ["بزاكر", "بيذاكر", "بتذاكر", "بنذاكر", "بتذاكري", "ذاكر", "مذاكرة"],
+      "example": { "arabic": "أختي بتذاكر في الجامعة", "transliteration": "ukhti bitzaakir fig-gamʿa", "english": "My sister studies at university" },
+      "video_hint": "Study-with-me vlogs; a student describing their day at university."
+    },
+    {
+      "arabic": "بنام",
+      "transliteration": "banaam",
+      "english": "I sleep",
+      "category": "Verb — routine",
+      "teaching_note": "Long aa in the middle. The afternoon nap after الغدا is a real institution, so you will hear بنام شوية in the middle of the day, not only at night.",
+      "image_scene": "A person asleep in bed, room dark, a fan turning on the ceiling.",
+      "concept_key": "sleep",
+      "variants": ["بينام", "بتنام", "بننام", "بتنامي", "بيناموا", "نايم", "نام"],
+      "example": { "arabic": "بنام متأخر أوي بالليل", "transliteration": "banaam mitʾakhkhar ʾawi bil-leel", "english": "I sleep very late at night" },
+      "video_hint": "The end of a day-in-the-life vlog; lights off, بنام or تصبحوا على خير."
+    },
+    {
+      "arabic": "برجع",
+      "transliteration": "bargaʿ",
+      "english": "I come back / I return",
+      "category": "Verb — routine",
+      "teaching_note": "The homecoming verb — 'I get back from work' is برجع من الشغل. Ends in ع, the deep throat sound; hold it rather than dropping it. The ج is a hard g: bargaʿ.",
+      "image_scene": "A person walking back in through an apartment door in the late afternoon, keys in hand.",
+      "concept_key": "come_back",
+      "variants": ["بيرجع", "بترجع", "بنرجع", "بترجعي", "بيرجعوا", "راجع", "رجعت"],
+      "example": { "arabic": "برجع البيت الساعة أربعة", "transliteration": "bargaʿ el-beet es-saaʿa arbaʿa", "english": "I come back home at four" },
+      "video_hint": "Arriving home in a vlog; رجعت البيت or برجع as the door opens."
+    },
+    {
+      "arabic": "بصلي",
+      "transliteration": "baṣalli",
+      "english": "I pray",
+      "category": "Verb — routine",
+      "teaching_note": "Five times a day, so it anchors every routine. The prayer name follows directly: بصلي الفجر، بصلي المغرب. Doubled ل — hold it. Christian Egyptians say the same verb for going to church prayers.",
+      "image_scene": "A prayer mat laid out on a living-room floor, a person standing on it in prayer.",
+      "concept_key": "pray",
+      "variants": ["بيصلي", "بتصلي", "بنصلي", "بيصلوا", "صلى", "صلاة", "الصلاة"],
+      "example": { "arabic": "بصلي الفجر وبرجع أنام", "transliteration": "baṣalli el-fagr wi-bargaʿ anaam", "english": "I pray Fajr and go back to sleep" },
+      "video_hint": "A vlogger mentioning prayer as a time marker — بعد ما أصلي — or a mosque visit."
+    },
+    {
+      "arabic": "بتفرج",
+      "transliteration": "batfarrag",
+      "english": "I watch",
+      "category": "Verb — routine",
+      "teaching_note": "Egyptian separates 'watch' from 'see': you watch TV with اتفرج على, you see a friend with شاف. The على is part of the verb — بتفرج على التليفزيون، بتفرج على ماتش.",
+      "image_scene": "A family on a sofa watching a large TV in the evening, tea glasses on the coffee table.",
+      "concept_key": "watch",
+      "variants": ["بتفرج على", "بيتفرج", "بنتفرج", "بتتفرج", "اتفرج", "اتفرجت"],
+      "example": { "arabic": "بالليل بتفرج على مسلسل", "transliteration": "bil-leel batfarrag ʿala musalsal", "english": "At night I watch a series" },
+      "video_hint": "Evening scenes with a TV or phone on; بتفرج / بنتفرج said about a show or match."
+    },
+    {
+      "arabic": "كل يوم",
+      "transliteration": "kull yoom",
+      "english": "every day",
+      "category": "Time expression",
+      "teaching_note": "Put it at the start or the end of the sentence — both are natural. It is the phrase that turns a verb into a habit. يوم has the Egyptian oo vowel, not the MSA yawm.",
+      "image_scene": "A wall calendar with every day of the week ticked in green.",
+      "concept_key": "every_day",
+      "variants": ["كل يوم", "كل الأيام", "يومياً", "يوميا", "كل يوم الصبح"],
+      "example": { "arabic": "كل يوم بشرب شاي الصبح", "transliteration": "kull yoom bashrab shaay eṣ-ṣubḥ", "english": "Every day I drink tea in the morning" },
+      "video_hint": "Routine narration — كل يوم بصحى… — at the start of a day vlog."
+    },
+    {
+      "arabic": "عادةً",
+      "transliteration": "ʿaadatan",
+      "english": "usually",
+      "category": "Time expression",
+      "teaching_note": "Written عادة or عادةً online; said ʿaadatan. Its close cousin غالباً means 'mostly'. Careful: عادي — the same letters minus the ending — means 'normal / no big deal', a very different word you will hear constantly.",
+      "image_scene": "A weekly planner with the same coffee-cup icon drawn in most, but not all, of the mornings.",
+      "concept_key": "usually",
+      "variants": ["عادة", "غالباً", "غالبا", "في العادة"],
+      "example": { "arabic": "عادةً بتغدى الساعة أربعة", "transliteration": "ʿaadatan batghadda es-saaʿa arbaʿa", "english": "Usually I have lunch at four" },
+      "video_hint": "A vlogger explaining a habit — عادةً بروح… — with the activity on screen."
+    },
+    {
+      "arabic": "بفطر",
+      "transliteration": "bafṭar",
+      "english": "I have breakfast",
+      "category": "Verb — meals",
+      "teaching_note": "Breakfast is الفطار and the verb is فطر. فطرت؟ ('have you had breakfast?') works as a mid-morning greeting. In Ramadan the same verb means breaking the fast at sunset.",
+      "image_scene": "A breakfast spread of fuul, ta'miyya, bread, white cheese and a glass of tea on a small table.",
+      "variants": ["فطار", "الفطار", "بيفطر", "بتفطر", "بنفطر", "فطرت", "فطرت؟"],
+      "example": { "arabic": "بفطر فول وطعمية", "transliteration": "bafṭar fuul wi-ṭaʿmiyya", "english": "I have fuul and ta'miyya for breakfast" },
+      "video_hint": "Breakfast in a morning vlog; the word فطار as the food is shown."
+    },
+    {
+      "arabic": "بتغدى",
+      "transliteration": "batghadda",
+      "english": "I have lunch",
+      "category": "Verb — meals",
+      "teaching_note": "Lunch is الغدا, the main meal of the day, and it has its own verb. اتغديت؟ ('have you had lunch?') is a real question at four in the afternoon. Doubled د — hold it.",
+      "image_scene": "A large pot of molokhia, rice and chicken in the middle of a family table in the late afternoon.",
+      "variants": ["غدا", "الغدا", "بيتغدى", "بتتغدى", "بنتغدى", "اتغديت", "اتغدى"],
+      "example": { "arabic": "بتغدى في البيت مع ماما", "transliteration": "batghadda fil-beet maʿa maama", "english": "I have lunch at home with Mum" },
+      "video_hint": "The late-afternoon family meal; الغدا named, or the question اتغديت؟"
+    },
+    {
+      "arabic": "بتعشى",
+      "transliteration": "batʿashsha",
+      "english": "I have dinner",
+      "category": "Verb — meals",
+      "teaching_note": "Dinner is العشا and comes late — ten at night is normal, and it is lighter than lunch. The verb pairs with بتغدى; learn them together. Doubled ش.",
+      "image_scene": "A late-night table with bread, cheese, eggs and a plate of fruit, a clock on the wall showing 10:00.",
+      "variants": ["عشا", "العشا", "بيتعشى", "بتتعشى", "بنتعشى", "اتعشيت", "اتعشى"],
+      "example": { "arabic": "بتعشى متأخر، الساعة عشرة", "transliteration": "batʿashsha mitʾakhkhar, es-saaʿa ʿashara", "english": "I have dinner late, at ten" },
+      "video_hint": "Evening home dinner or a late restaurant scene; العشا said as the food arrives."
+    },
+    {
+      "arabic": "بدري",
+      "transliteration": "badri",
+      "english": "early",
+      "category": "Time expression",
+      "teaching_note": "A true Egyptian marker — MSA has مبكراً, which nobody says. Its opposite, متأخر, you will meet in the examples; both go at the end of the sentence: بصحى بدري، بنام متأخر.",
+      "image_scene": "An alarm clock showing 5:30 next to a window with the first grey light of dawn.",
+      "variants": ["بدرى", "من بدري", "بدري أوي"],
+      "example": { "arabic": "بصحى بدري عشان الشغل", "transliteration": "baṣḥa badri ʿashaan esh-shughl", "english": "I wake up early because of work" },
+      "video_hint": "A vlogger complaining or boasting about the hour — صحيت بدري النهارده."
+    },
+    {
+      "arabic": "بقوم",
+      "transliteration": "baʾuum",
+      "english": "I get up",
+      "category": "Verb — routine",
+      "teaching_note": "The step after waking: بصحى is opening your eyes, بقوم is leaving the bed. The ق is a glottal stop here — baʾuum — the everyday Cairo sound of the letter.",
+      "image_scene": "A person swinging their legs out of bed and standing up, slippers on the floor.",
+      "variants": ["بيقوم", "بتقوم", "بنقوم", "قوم", "قمت"],
+      "example": { "arabic": "بقوم من السرير الساعة سبعة ونص", "transliteration": "baʾuum min es-siriir es-saaʿa sabʿa wi-nuṣṣ", "english": "I get out of bed at half past seven" },
+      "video_hint": "Getting out of bed in a morning-routine vlog; قمت / بقوم as the feet hit the floor."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Mona", "arabic": "بتعمل إيه كل يوم يا كريم؟", "transliteration": "bitiʿmil eeh kull yoom ya kariim?", "english": "What do you do every day, Karim?" },
+    { "speaker": "Karim", "arabic": "بصحى الساعة ستة وبصلي الفجر", "transliteration": "baṣḥa es-saaʿa sitta wi-baṣalli el-fagr", "english": "I wake up at six and pray Fajr" },
+    { "speaker": "Mona", "arabic": "وبعد كده؟", "transliteration": "wi-baʿd kida?", "english": "And after that?" },
+    { "speaker": "Karim", "arabic": "بفطر وبروح الشغل الساعة تمانية", "transliteration": "bafṭar wi-baruuḥ esh-shughl es-saaʿa tamanya", "english": "I have breakfast and go to work at eight" },
+    { "speaker": "Mona", "arabic": "بترجع البيت إمتى؟", "transliteration": "bitirgaʿ el-beet imta?", "english": "When do you get back home?" },
+    { "speaker": "Karim", "arabic": "برجع الساعة أربعة، بتغدى وبنام شوية", "transliteration": "bargaʿ es-saaʿa arbaʿa, batghadda wi-banaam shwayya", "english": "I get back at four, have lunch and sleep a bit" },
+    { "speaker": "Mona", "arabic": "وبالليل؟", "transliteration": "wi-bil-leel?", "english": "And at night?" },
+    { "speaker": "Karim", "arabic": "عادةً بتفرج على مسلسل مع عيلتي", "transliteration": "ʿaadatan batfarrag ʿala musalsal maʿa ʿeelti", "english": "Usually I watch a series with my family" }
+  ],
+  "sound_spotlight": [
+    { "sound": "بـ + 'I' = ba-", "example": "بشرب (bashrab)، بروح (baruuḥ)", "explanation": "The 'I' prefix أ disappears inside the بـ: you say bashrab in two beats, never ba-ashrab. In captions you will see بشرب, sometimes بأشرب — hear them both as ba-." },
+    { "sound": "بي- for 'he'", "example": "بيروح (biyruuḥ)، بيشتغل (biyishtaghal)", "explanation": "'He' keeps its يـ after the بـ, so it sounds like biy-: biyruuḥ. In fast speech the i is tiny — listen for the y that tells 'he' apart from 'you' (bitruuḥ)." },
+    { "sound": "The silent alif of ـوا", "example": "بيروحوا (biyruuḥu)، بيناموا (biynaamu)", "explanation": "'They' and 'you all' end in ـوا, written with an alif that is never pronounced. The vowel is a plain u: biyruuḥu. Do not read it as -uwa." }
+  ],
+  "lesson_sequence": [
+    { "step": "Watch first", "detail": "A 60-second Cairo day-in-the-life clip plays with no text — alarm, prayer mat, fuul breakfast, the metro. One English line: today you learn to tell your day." },
+    { "step": "Meet the verbs", "detail": "Seventeen cards, each with its illustration and native audio in the 'I' form. Tap to hear the 'he' and 'you' forms underneath." },
+    { "step": "One verb, eight faces", "detail": "The paradigm table for بروح builds row by row with audio; then the learner drags pronouns onto blank verb forms for بشرب and بشتغل." },
+    { "step": "Who is doing it?", "detail": "Listening sort: sixteen short clips (بروح، بتروحي، بيناموا…) sorted into I / you / he / she / we / they buckets. Immediate feedback with the prefix and ending highlighted." },
+    { "step": "Rewatch with captions", "detail": "The same 60-second clip now with Egyptian captions; the learner taps every بـ verb they recognise. Recognised verbs light up in the paradigm table." },
+    { "step": "Tell your day", "detail": "Five prompts (wake up, breakfast, go to, come back, night) — the learner records one sentence each. Fluency feedback, no grading beyond verb form." },
+    { "step": "Lesson complete", "detail": "Words-learned counter rolls up. Nudge: tomorrow, narrate your morning in your head in Egyptian as you do it." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Tomorrow morning, say each step out loud as you do it: بصحى… بشرب شاي… بفطر… بروح الشغل.", "context": "Next-morning notification. Activates the routine verbs in the here-and-now while the actions are happening." },
+    { "prompt": "Ask an Egyptian friend or tutor: بتعمل إيه كل يوم؟ — and listen for the prayer times and meals they use as clock markers.", "context": "Shown on the lesson-complete screen; a tutor-ready question that elicits the whole paradigm in the answers." },
+    { "prompt": "Find an Egyptian day-in-the-life vlog and count how many times you hear بروح / بنروح. Write the number down.", "context": "Optional homework card. Passive recognition of the highest-frequency verb in authentic speech." }
+  ],
+  "video_needs": {
+    "queries": ["روتيني اليومي مصري", "يومي من الصبح للليل فلوج", "روتين الصباح مصري", "يوم في حياتي القاهرة"],
+    "channels": ["Sarah Hany", "Kareem Elsayed", "Ola Roshdy"],
+    "scene": "A vlogger narrating their day in the بـ present while the actions are on screen: waking up, praying, fuul for breakfast, the metro to work, the late lunch, a series at night."
+  }
+}

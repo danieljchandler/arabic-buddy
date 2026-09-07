@@ -1,0 +1,268 @@
+{
+  "slug": "getting-around",
+  "lesson_number": 7,
+  "title": "Getting Around",
+  "title_arabic": "المواصلات والطريق",
+  "description": "Tell a taxi driver where to go, understand 'straight, right at the roundabout, stop here', and take a bus or the metro — with the commands you give from the back seat and the small etiquette of fixing the fare first.",
+  "cefr_target": "A2",
+  "duration_minutes": 20,
+  "approach": "GPA Phase 2 — direction-giving from in-car footage. Commands are heard with the turn on screen, then drilled as a route on a map, then given aloud to a virtual driver.",
+  "unlock_condition": "≥12/16 on the follow-the-directions map quiz and a recorded route of four commands",
+  "icon": "🚕",
+  "can_do": [
+    "Take a taxi or bus and say where you want to go",
+    "Give and follow simple directions",
+    "Say near, far, right, left, straight"
+  ],
+  "grammar": [
+    {
+      "category": "verb-conjugation",
+      "title": "Commands for the road: go, turn, stop",
+      "explanation": "Directions are commands, and Gulf commands are short: روح 'go', لف 'turn', وقّف 'stop', كمّل 'keep going', ارجع 'go back'. Add the direction straight after: لف يمين, روح سيدة. To a woman driver add ـي (لفي، وقفي) and to more than one person ـوا (لفوا، وقفوا). To say 'don't', put لا in front of the present form: لا تلف هني 'don't turn here', لا توقف 'don't stop'. Soften any command with لو سمحت or الله يخليك — a Gulf passenger gives orders politely but gives them. The formal اذهب, انعطف and توقف are never said.",
+      "examples": [
+        { "arabic": "روح سيدة", "transliteration": "ruuḥ siida", "english": "Go straight" },
+        { "arabic": "لف يمين عند الإشارة", "transliteration": "liff yimiin ʿind il-ishaara", "english": "Turn right at the traffic light" },
+        { "arabic": "وقّف هنا لو سمحت", "transliteration": "waggif hina law samaḥt", "english": "Stop here, please" },
+        { "arabic": "لا تلف، كمّل", "transliteration": "la tliff, kammil", "english": "Don't turn, keep going" },
+        { "arabic": "ارجعي شوي", "transliteration": "irjaʿi shway", "english": "Go back a bit (to a woman)" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "Fix the fare, then get in",
+      "note": "Everyone in the Gulf drives, so a taxi is for visitors, airports and nights out — and the apps (Careem, Uber) have replaced most street taxis, with the driver called الكابتن. In a street taxi with no meter, agree the price through the window before you sit: بكم للمطار؟ then خلاص، عشرين. Men sit in the front or the back; women sit in the back. Big cities have buses and Dubai and Riyadh have a metro, with women-and-family carriages at one end. Directions are given by landmark, not street name: 'after the mosque, at the second roundabout, next to the pharmacy'. Learn the landmarks and you will never need an address.",
+      "phrases": [
+        { "arabic": "بكم للمطار؟", "transliteration": "bikam lil-maṭaar?", "english": "How much to the airport?" },
+        { "arabic": "خلاص، عشرين", "transliteration": "khalaaṣ, ʿishriin", "english": "OK, twenty (agreeing the fare)" },
+        { "arabic": "بعد المسجد، لف يسار", "transliteration": "baʿd il-masjid, liff yisaar", "english": "After the mosque, turn left" },
+        { "arabic": "الكابتن وصل", "transliteration": "il-kaabtin wiṣal", "english": "The (app) driver has arrived" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "تكسي",
+      "transliteration": "taksi",
+      "english": "taxi",
+      "category": "Transport",
+      "teaching_note": "The English word, written تكسي or تاكسي. Saudis also say ليموزين for the old airport cabs. An app ride is كريم or أوبر and its driver الكابتن.",
+      "image_scene": "A yellow-and-white taxi waiting at a kerb with its roof sign lit.",
+      "concept_key": "taxi",
+      "variants": ["تاكسي", "التكسي", "تكاسي", "ليموزين", "أوبر", "كريم"],
+      "example": { "arabic": "أبي تكسي للمطار", "transliteration": "abi taksi lil-maṭaar", "english": "I want a taxi to the airport" },
+      "video_hint": "Hailing or ordering a taxi in a travel vlog; تكسي or كريم said."
+    },
+    {
+      "arabic": "باص",
+      "transliteration": "baaṣ",
+      "english": "bus",
+      "category": "Transport",
+      "teaching_note": "English 'bus' with a long aa and an emphatic ص at the end: baaṣ. The formal حافلة is on signs only. The stop is موقف الباص.",
+      "image_scene": "A large city bus pulling up to a shaded bus stop, passengers waiting.",
+      "concept_key": "bus",
+      "variants": ["الباص", "باصات", "موقف الباص", "حافلة", "باص المدرسة"],
+      "example": { "arabic": "الباص يجي كل نص ساعة", "transliteration": "il-baaṣ yiji kill nuṣṣ saaʿa", "english": "The bus comes every half hour" },
+      "video_hint": "A bus or bus stop in a city vlog; الباص named as it arrives."
+    },
+    {
+      "arabic": "يمين",
+      "transliteration": "yimiin",
+      "english": "right",
+      "category": "Direction",
+      "teaching_note": "Long ii. Pairs with لف: لف يمين 'turn right'. On its own with a hand gesture it is a full instruction in a taxi. Same in every dialect.",
+      "image_scene": "A large arrow curving to the right on a road sign.",
+      "concept_key": "right",
+      "variants": ["اليمين", "لف يمين", "على اليمين", "يمينك", "يمين!"],
+      "example": { "arabic": "لف يمين بعد الدوار", "transliteration": "liff yimiin baʿd id-duwwaar", "english": "Turn right after the roundabout" },
+      "video_hint": "A passenger pointing right — يمين — from inside a car."
+    },
+    {
+      "arabic": "يسار",
+      "transliteration": "yisaar",
+      "english": "left",
+      "category": "Direction",
+      "teaching_note": "The standard word; many Gulf speakers also say شمال ('north') for left, so accept both. Long aa at the end.",
+      "image_scene": "A large arrow curving to the left on a road sign.",
+      "concept_key": "left",
+      "variants": ["اليسار", "لف يسار", "على اليسار", "شمال", "لف شمال", "يسارك"],
+      "example": { "arabic": "المطعم على اليسار", "transliteration": "il-maṭʿam ʿala l-yisaar", "english": "The restaurant is on the left" },
+      "video_hint": "A direction given — يسار / شمال — with the turn visible."
+    },
+    {
+      "arabic": "سيدة",
+      "transliteration": "siida",
+      "english": "straight ahead",
+      "category": "Direction",
+      "teaching_note": "A Gulf marker: siida 'straight'. Also على طول and, from older Kuwaitis, دغري. Combine with the go-verb: روح سيدة, or say it alone with a chopping hand forward.",
+      "image_scene": "A straight empty highway running to the horizon between sand and palms.",
+      "concept_key": "straight_ahead",
+      "variants": ["سيده", "روح سيدة", "على طول", "علطول", "دغري", "سيدا"],
+      "example": { "arabic": "روح سيدة لين الإشارة", "transliteration": "ruuḥ siida layn il-ishaara", "english": "Go straight until the traffic light" },
+      "video_hint": "A driver told سيدة / على طول with the road ahead on screen."
+    },
+    {
+      "arabic": "وقّف هنا",
+      "transliteration": "waggif hina",
+      "english": "stop here",
+      "category": "Command phrase",
+      "teaching_note": "وقّف 'stop' (ق as g, doubled g) + هنا 'here' — Kuwaitis and Emiratis say هني. The phrase that ends every taxi ride. Also heard as the shorter وقف or the noun موقف for a stopping place.",
+      "image_scene": "A passenger's hand signalling stop, a taxi pulling in beside a shop.",
+      "concept_key": "stop_here",
+      "variants": ["وقف هنا", "وقف هني", "وقّف هني", "وقف", "وقفي هنا", "هنا لو سمحت"],
+      "example": { "arabic": "وقّف هنا لو سمحت، جنب الصيدلية", "transliteration": "waggif hina law samaḥt, jamb iṣ-ṣaydaliyya", "english": "Stop here please, next to the pharmacy" },
+      "video_hint": "The end of a ride — وقف هنا — as the car pulls over."
+    },
+    {
+      "arabic": "بعيد",
+      "transliteration": "biʿiid",
+      "english": "far",
+      "category": "Adjective — distance",
+      "teaching_note": "Long ii, with ع before it. بعيد؟ is the first thing to ask about any destination; the answer 'not far' is مو بعيد. Feminine بعيدة.",
+      "image_scene": "A tiny building far away on the horizon at the end of a long road.",
+      "concept_key": "far",
+      "variants": ["بعيدة", "بعيده", "بعيد واجد", "مو بعيد", "بعيد شوي"],
+      "example": { "arabic": "المطار بعيد؟ — لا، مو بعيد", "transliteration": "il-maṭaar biʿiid? — la, mu biʿiid", "english": "Is the airport far? — No, not far" },
+      "video_hint": "Someone asking or saying a place is بعيد in a travel vlog."
+    },
+    {
+      "arabic": "قريب",
+      "transliteration": "gariib",
+      "english": "near",
+      "category": "Adjective — distance",
+      "teaching_note": "ق as g: gariib. قريب من 'near to'. Also 'relative' (a family member) and 'soon' — context decides. Feminine قريبة.",
+      "image_scene": "Two buildings side by side with a short arrow between them.",
+      "concept_key": "near",
+      "variants": ["قريبة", "قريبه", "قريب من", "قريب واجد", "جريب"],
+      "example": { "arabic": "المحطة قريبة من هنا", "transliteration": "il-maḥaṭṭa gariiba min hina", "english": "The station is near here" },
+      "video_hint": "Someone reassuring قريب / قريب من هنا about a walk or a drive."
+    },
+    {
+      "arabic": "محطة",
+      "transliteration": "maḥaṭṭa",
+      "english": "station",
+      "category": "Place",
+      "teaching_note": "Doubled emphatic ṭ. Any station — metro, bus, train — and also the petrol station: محطة بنزين. Plural محطات.",
+      "image_scene": "A modern metro station entrance with an escalator going down.",
+      "concept_key": "station",
+      "variants": ["المحطة", "محطات", "محطة المترو", "محطة بنزين", "محطة الباص"],
+      "example": { "arabic": "وين محطة المترو؟", "transliteration": "wayn maḥaṭṭat il-mitro?", "english": "Where is the metro station?" },
+      "video_hint": "A metro or bus station in a Dubai or Riyadh vlog; المحطة named."
+    },
+    {
+      "arabic": "مطار",
+      "transliteration": "maṭaar",
+      "english": "airport",
+      "category": "Place",
+      "teaching_note": "Emphatic ط, long aa. The destination every visitor needs first: للمطار 'to the airport'. Plural مطارات.",
+      "image_scene": "An airport terminal from outside, a plane taking off behind it.",
+      "concept_key": "airport",
+      "variants": ["المطار", "للمطار", "مطارات", "مطار الملك خالد", "مطار دبي"],
+      "example": { "arabic": "المطار بعيد عن المدينة", "transliteration": "il-maṭaar biʿiid ʿan il-madiina", "english": "The airport is far from the city" },
+      "video_hint": "An airport arrival or departure vlog; المطار in the opening."
+    },
+    {
+      "arabic": "تذكرة",
+      "transliteration": "tadhkara",
+      "english": "ticket",
+      "category": "Noun — transport",
+      "teaching_note": "The standard word, but in speech Gulf people very often say تكت (from 'ticket'). A metro card is بطاقة or نول in Dubai. Plural تذاكر.",
+      "image_scene": "A metro ticket being tapped on a gate reader.",
+      "concept_key": "ticket",
+      "variants": ["التذكرة", "تذاكر", "تذكره", "تكت", "التكت", "تكتين"],
+      "example": { "arabic": "أبي تذكرة للرياض", "transliteration": "abi tadhkara lir-riyaaḍ", "english": "I want a ticket to Riyadh" },
+      "video_hint": "A ticket bought or checked at a station or airport; تذكرة or تكت said."
+    },
+    {
+      "arabic": "لف",
+      "transliteration": "liff",
+      "english": "turn",
+      "category": "Verb — command",
+      "teaching_note": "Doubled f, said sharp: liff. Always followed by the direction: لف يمين، لف يسار. As a full turn-around it is لف وارجع. Feminine لفي.",
+      "image_scene": "A car mid-turn at a junction, its indicator on.",
+      "concept_key": "turn",
+      "variants": ["لفي", "لفوا", "لف يمين", "لف يسار", "تلف", "لفّ"],
+      "example": { "arabic": "لف يسار عند الدوار الثاني", "transliteration": "liff yisaar ʿind id-duwwaar ith-thaani", "english": "Turn left at the second roundabout" },
+      "video_hint": "A navigator saying لف with the car turning."
+    },
+    {
+      "arabic": "سواق",
+      "transliteration": "sawwaag",
+      "english": "driver",
+      "category": "Noun — people",
+      "teaching_note": "From ساق 'drive': doubled w, ق as g. The neutral word for any driver; an app driver is called الكابتن to his face. Feminine سواقة.",
+      "image_scene": "A driver seen from the back seat, hands on the wheel, rear-view mirror visible.",
+      "concept_key": "driver",
+      "variants": ["السواق", "سواقين", "سواقة", "كابتن", "الكابتن", "سوّاق"],
+      "example": { "arabic": "السواق يعرف الطريق", "transliteration": "is-sawwaag yaʿrif iṭ-ṭariig", "english": "The driver knows the way" },
+      "video_hint": "A taxi ride filmed from inside; the passenger addressing السواق / الكابتن."
+    },
+    {
+      "arabic": "طريق",
+      "transliteration": "ṭariig",
+      "english": "road / way",
+      "category": "Place",
+      "teaching_note": "Emphatic ط, ق as g: ṭariig. Both the road and 'the way': على الطريق 'on the way'. A neighbourhood street is شارع; a highway is طريق سريع. Plural طرق.",
+      "image_scene": "A wide desert highway with a green road sign in Arabic and English.",
+      "concept_key": "road",
+      "variants": ["الطريق", "طرق", "على الطريق", "طريق سريع", "الطريج"],
+      "example": { "arabic": "الطريق للبحر سيدة", "transliteration": "iṭ-ṭariig lil-baḥar siida", "english": "The road to the sea is straight on" },
+      "video_hint": "Driving footage with الطريق named — a road trip vlog."
+    },
+    {
+      "arabic": "دوار",
+      "transliteration": "duwwaar",
+      "english": "roundabout",
+      "category": "Place",
+      "teaching_note": "Gulf cities run on roundabouts, so directions count them: الدوار الأول، الدوار الثاني. Doubled w, long aa. The formal ميدان is not used for this.",
+      "image_scene": "A large landscaped roundabout with a sculpture in the middle and cars circling.",
+      "variants": ["الدوار", "دوارات", "الدوار الأول", "الدوار الثاني", "عند الدوار"],
+      "example": { "arabic": "عند الدوار، لف يمين", "transliteration": "ʿind id-duwwaar, liff yimiin", "english": "At the roundabout, turn right" },
+      "video_hint": "A roundabout approached in dashcam-style footage; الدوار in the directions."
+    },
+    {
+      "arabic": "إشارة",
+      "transliteration": "ishaara",
+      "english": "traffic light",
+      "category": "Place",
+      "teaching_note": "Literally 'signal'. عند الإشارة 'at the lights' is the other great landmark. Plural إشارات. Kuwaitis also say سكنال.",
+      "image_scene": "A traffic light on red over a busy junction, cars waiting.",
+      "variants": ["الإشارة", "الاشارة", "إشارات", "عند الإشارة", "الإشارة حمرا"],
+      "example": { "arabic": "وقّف عند الإشارة، بعدها سيدة", "transliteration": "waggif ʿind il-ishaara, baʿadha siida", "english": "Stop at the lights, then straight on" },
+      "video_hint": "Waiting at a red light in a driving vlog; الإشارة mentioned."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Passenger", "arabic": "السلام عليكم. بكم لسوق المباركية؟", "transliteration": "is-salaamu ʿalaykum. bikam li-suug il-mubaarakiyya?", "english": "Peace be upon you. How much to Mubarakiya souq?" },
+    { "speaker": "Driver", "arabic": "وعليكم السلام. ثلاث دنانير", "transliteration": "w-ʿalaykum is-salaam. thalaath danaaniir", "english": "And upon you peace. Three dinars" },
+    { "speaker": "Passenger", "arabic": "خلاص. بعيد؟", "transliteration": "khalaaṣ. biʿiid?", "english": "OK. Is it far?" },
+    { "speaker": "Driver", "arabic": "لا، قريب. عشر دقايق", "transliteration": "la, gariib. ʿashar dagaayig", "english": "No, near. Ten minutes" },
+    { "speaker": "Passenger", "arabic": "روح سيدة، وعند الدوار لف يمين", "transliteration": "ruuḥ siida, w-ʿind id-duwwaar liff yimiin", "english": "Go straight, and at the roundabout turn right" },
+    { "speaker": "Driver", "arabic": "بعد الإشارة؟", "transliteration": "baʿd il-ishaara?", "english": "After the lights?" },
+    { "speaker": "Passenger", "arabic": "إي. وقّف هني لو سمحت، جنب الدكان", "transliteration": "ii. waggif hini law samaḥt, jamb id-dukkaan", "english": "Yes. Stop here please, next to the shop" },
+    { "speaker": "Driver", "arabic": "تفضل، وصلنا", "transliteration": "tfaḍḍal, wiṣalna", "english": "Here you are, we've arrived" }
+  ],
+  "sound_spotlight": [
+    { "sound": "The command's bare shape", "example": "روح (ruuḥ)، لف (liff)، وقّف (waggif)", "explanation": "Gulf commands are one syllable or two, with no extra vowel at the front: ruuḥ not uruuḥ, liff not ilfif. Say them clipped, like an English 'go!' or 'stop!'." },
+    { "sound": "ق = g in the road words", "example": "طريق (ṭariig)، قريب (gariib)، وقّف (waggif)", "explanation": "Three road words, three hard g's. The formal q would sound out of place in a taxi; keep it g." },
+    { "sound": "لين 'until' in directions", "example": "روح سيدة لين الإشارة (layn il-ishaara)", "explanation": "'Until' in the Gulf is layn, not the formal حتى. It links a command to a landmark: go straight until the lights." }
+  ],
+  "lesson_sequence": [
+    { "step": "Ride along", "detail": "A 60-second in-car clip: a passenger giving directions, the turns visible through the windscreen, no captions. The learner just follows the car." },
+    { "step": "Vocabulary cards", "detail": "Sixteen cards with illustration and audio; direction words play with an arrow animation, commands with the car moving." },
+    { "step": "Go, turn, stop", "detail": "Grammar card: روح / لف / وقّف with the feminine and plural forms and the لا negative; then a tap exercise choosing the right form for a pictured driver." },
+    { "step": "Follow the route", "detail": "Map quiz: hear four commands in a row (سيدة، لف يسار، بعد الدوار، وقف هنا) and drag the car to where it ends up. Twelve routes." },
+    { "step": "Direct the driver", "detail": "Role-play: the app shows a map with a destination; the learner records the fare question and four commands to get there. The driver 'obeys' on screen." },
+    { "step": "Lesson complete", "detail": "Score screen; the learner's route plays back. Nudge: narrate your next journey in Gulf commands." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "On your next journey, say each turn in your head as it happens: سيدة… لف يمين… وقف هنا.", "context": "Shown on the lesson-complete screen. Rehearses the commands on real movement." },
+    { "prompt": "Ask someone how to get somewhere with شلون أروح… ؟ and listen for landmarks — the roundabout, the mosque, the lights — rather than street names.", "context": "Next-day nudge. Activates the question from Lesson 2 and the landmark habit from the culture note." },
+    { "prompt": "Watch a Gulf taxi or driving vlog and count the roundabouts named. Directions here are counted in دوار.", "context": "Homework card. Passive recognition of the landmark vocabulary." }
+  ],
+  "video_needs": {
+    "queries": ["تكسي الكويت فلوق", "مترو دبي فلوق", "كيف أروح؟ طريق فلوق سعودي", "جولة بالسيارة الرياض فلوق"],
+    "channels": ["Fahad Sal", "Hitham Channel", "Bin Baz", "BanderitaX"],
+    "scene": "A taxi ride filmed from inside with the fare agreed and directions given; a metro or bus journey; a driving vlog naming roundabouts and lights as they pass."
+  }
+}

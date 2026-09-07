@@ -1,0 +1,288 @@
+{
+  "slug": "relative-clauses-the-one-who",
+  "lesson_number": 5,
+  "title": "The One Who…",
+  "title_arabic": "اللي",
+  "description": "One word — اللي — lets you point at anyone or anything by what it does: the guy who works with your uncle, the place we ate at, the thing I told you about. Plus the words for people and things in general, and 'whoever' and 'wherever' for when it doesn't matter which.",
+  "cefr_target": "B1",
+  "duration_minutes": 20,
+  "approach": "Authentic video with scaffolding — a lost-and-found sketch and a 'who's that?' family clip, mined for every اللي, then a describe-and-guess game where you may only use relative clauses.",
+  "unlock_condition": "Describe three people and two things using اللي correctly with definite heads; ≥8/10 on the اللي / no-اللي quiz",
+  "icon": "👉",
+  "can_do": [
+    "Describe people and things with 'who / that' clauses",
+    "Say 'the one that I…' and 'the thing that…'",
+    "Identify people by what they do and where they are from"
+  ],
+  "grammar": [
+    {
+      "category": "sentence-structure",
+      "title": "اللي after 'the', nothing after 'a'",
+      "explanation": "Gulf Arabic has one relative word for everyone and everything: اللي. It follows a definite noun — الريال اللي شفته (the man I saw), المطعم اللي رحنا له (the restaurant we went to) — and never changes for gender or number. When the noun is indefinite, there is no اللي at all: ريال يشتغل بالبنك (a man who works at the bank). Inside the clause, the noun is referred to again with a pronoun ending: شفته (I saw him), رحنا له (we went to it) — that little pronoun is not optional. With no noun before it, اللي means 'the one who / whoever': اللي يبي يجي، يجي. Trap: الذي، التي، الذين belong to the news; in the Gulf they are never said.",
+      "examples": [
+        { "arabic": "الريال اللي شفته أمس كويتي", "transliteration": "ir-rayyaal illi shiftah ams kwayti", "english": "The man I saw yesterday is Kuwaiti" },
+        { "arabic": "هذا المطعم اللي قلت لك عنه", "transliteration": "haadha l-maṭʿam illi gilt lik ʿannah", "english": "This is the restaurant I told you about" },
+        { "arabic": "عندي صديق يشتغل بالمطار", "transliteration": "ʿindi ṣadiig yishtaghil bil-maṭaar", "english": "I have a friend who works at the airport" },
+        { "arabic": "اللي يبي يجي، يجي", "transliteration": "illi yabi yiji, yiji", "english": "Whoever wants to come, come" },
+        { "arabic": "سوي اللي تبيه", "transliteration": "sawwi lli tabiih", "english": "Do what you want" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "Everybody knows everybody — by role and relation",
+      "note": "In a Gulf city people are placed, not named: the guy who works with your uncle, the one who married the neighbour's daughter, the one from the Eastern Province. Asking منو هذا؟ (who's that?) gets an answer built entirely out of اللي, and you are expected to keep up. The safe way to describe a woman you do not know is by relation — أخت فلان، حرمة فلان — never by looks. When you cannot place someone, the phrase is ما أعرفه، بس شكله من الكويت (I don't know him, but he looks like he's from Kuwait), and no offence is taken.",
+      "phrases": [
+        { "arabic": "منو هذا؟ — اللي يشتغل مع خالك", "transliteration": "minu haadha? — illi yishtaghil maʿ khaalak", "english": "Who's that? — The one who works with your uncle" },
+        { "arabic": "هذي أخت اللي تزوج أمس", "transliteration": "haadhi ukht illi tzawwaj ams", "english": "That's the sister of the one who got married yesterday" },
+        { "arabic": "شكله من الشرقية", "transliteration": "shiklah min ish-shargiyya", "english": "He looks like he's from the Eastern Province" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "اللي",
+      "transliteration": "illi",
+      "english": "who / which / that (relative)",
+      "category": "Connector",
+      "teaching_note": "One form for all genders and numbers, after a definite noun. Written الي online. Trap: الذي / التي are never spoken; never put اللي after an indefinite noun.",
+      "image_scene": "A woman pointing at one man among several at a bus stop; he is holding a red umbrella.",
+      "concept_key": "who_that",
+      "variants": ["الي", "إللي", "واللي", "باللي"],
+      "example": { "arabic": "الجوال اللي اشتريته غالي", "transliteration": "il-jawwaal illi ishtaraytah ghaali", "english": "The phone I bought is expensive" },
+      "video_hint": "Any اللي in description: الشخص اللي، المكان اللي، الشي اللي."
+    },
+    {
+      "arabic": "ذاك اللي",
+      "transliteration": "dhaak illi",
+      "english": "the one who / that one which",
+      "category": "Phrase",
+      "teaching_note": "'That' plus اللي, for pointing at one of many: ذاك اللي بالثوب الأبيض (the one in the white thobe). Kuwaitis say هذاك اللي, and for a woman ذيك اللي. When you don't point at all, bare اللي does the job: اللي يبي.",
+      "image_scene": "A hand pointing through a crowd at one boy holding a football.",
+      "concept_key": "the_one_who",
+      "variants": ["هذاك اللي", "ذيك اللي", "هذا اللي", "هذي اللي"],
+      "example": { "arabic": "ذاك اللي واقف عند الباب أخوي", "transliteration": "dhaak illi waagif ʿind il-baab akhuuy", "english": "The one standing by the door is my brother" },
+      "video_hint": "Someone picking a person out of a group: ذاك اللي / هذاك اللي."
+    },
+    {
+      "arabic": "الشي اللي",
+      "transliteration": "ish-shay illi",
+      "english": "the thing that",
+      "category": "Phrase",
+      "teaching_note": "The all-purpose head when you cannot or will not name the thing: الشي اللي قلت لك عنه (the thing I told you about). Also الشغلة اللي in Saudi and Kuwait. Note شي, never the MSA شيء.",
+      "image_scene": "A wrapped box on a table with a question mark tag, two people looking at it.",
+      "concept_key": "the_thing_that",
+      "variants": ["الشغلة اللي", "الشي الي", "كل شي اللي", "الشيء اللي"],
+      "example": { "arabic": "هذا الشي اللي أبيه", "transliteration": "haadha sh-shay illi abiih", "english": "This is the thing I want" },
+      "video_hint": "Shopping or unboxing: الشي اللي طلبته / اللي أبيه."
+    },
+    {
+      "arabic": "شخص",
+      "transliteration": "shakhṣ",
+      "english": "person",
+      "category": "Noun",
+      "teaching_note": "The neutral word for a person: شخص واحد (one person), شخص مهم. Plural أشخاص. In casual speech واحد (a guy) and وحدة (a woman) do the same job.",
+      "image_scene": "A simple outline of a single person standing alone against a white wall.",
+      "concept_key": "person",
+      "variants": ["الشخص", "أشخاص", "شخص واحد", "شخصية"],
+      "example": { "arabic": "الشخص اللي اتصل ما عرفته", "transliteration": "ish-shakhṣ illi ittaṣal ma ʿiraftah", "english": "The person who called, I didn't recognise" },
+      "video_hint": "شخص in counts (ثلاث أشخاص) and descriptions."
+    },
+    {
+      "arabic": "مكان",
+      "transliteration": "makaan",
+      "english": "place",
+      "category": "Noun",
+      "teaching_note": "Place in every sense: المكان حلو (the place is nice), مكانك (in your place / instead of you). Plural أماكن. Restaurants and cafés are simply مكان in reviews.",
+      "image_scene": "A map pin dropped on a coastal café with palm trees.",
+      "concept_key": "place",
+      "variants": ["المكان", "أماكن", "مكانك", "مكاني"],
+      "example": { "arabic": "المكان اللي تغدينا فيه أمس حلو", "transliteration": "il-makaan illi tghaddayna fiih ams ḥilu", "english": "The place we had lunch at yesterday is nice" },
+      "video_hint": "Review vlogs: المكان حلو / المكان اللي."
+    },
+    {
+      "arabic": "شي",
+      "transliteration": "shay",
+      "english": "thing",
+      "category": "Noun",
+      "teaching_note": "The Gulf spelling and sound — shay, one syllable — never شيء. أي شي (anything), كل شي (everything), ما شي / ولا شي (nothing). Plural أشياء.",
+      "image_scene": "A tabletop with a phone, keys, a cup and a book scattered on it.",
+      "concept_key": "thing",
+      "variants": ["الشي", "أشياء", "أي شي", "شيء", "شغلة"],
+      "example": { "arabic": "فيه شي غلط بالسيارة", "transliteration": "fiih shay ghalaṭ bis-sayyaara", "english": "There's something wrong with the car" },
+      "video_hint": "شي inside فيه شي / أي شي / كل شي."
+    },
+    {
+      "arabic": "أحد",
+      "transliteration": "aḥad",
+      "english": "someone / anyone",
+      "category": "Pronoun",
+      "teaching_note": "Mostly in questions and negatives: فيه أحد بالبيت؟ (is anyone home?), ما فيه أحد (nobody's there — also محد). Kuwaitis and Emiratis shorten it to حد. For a positive 'someone' people also say واحد (a guy).",
+      "image_scene": "A door slightly open with a shadow of a person visible behind it.",
+      "concept_key": "someone",
+      "variants": ["حد", "واحد", "محد", "أحد ما"],
+      "example": { "arabic": "فيه أحد يعرف الطريق؟", "transliteration": "fiih aḥad yaʿrif iṭ-ṭariig?", "english": "Is there anyone who knows the way?" },
+      "video_hint": "فيه أحد؟ called into a house; محد جا."
+    },
+    {
+      "arabic": "أي أحد",
+      "transliteration": "ayy aḥad",
+      "english": "anyone at all",
+      "category": "Pronoun",
+      "teaching_note": "أي (any) plus أحد: أي أحد يقدر (anyone can). Also أي واحد. The أي is short and the two words run together: ayy-aḥad.",
+      "image_scene": "An open call with many hands raised in a crowd.",
+      "concept_key": "anyone",
+      "variants": ["أي واحد", "اي احد", "أي حد", "أي شخص"],
+      "example": { "arabic": "أي أحد يقدر يجي، الباب مفتوح", "transliteration": "ayy aḥad yigdar yiji, il-baab maftuuḥ", "english": "Anyone can come, the door is open" },
+      "video_hint": "Open invitations: أي أحد / أي واحد يبي."
+    },
+    {
+      "arabic": "الكل",
+      "transliteration": "il-kill",
+      "english": "everyone",
+      "category": "Pronoun",
+      "teaching_note": "'The all': الكل جا (everyone came), الكل يعرفه (everyone knows him). Also كلهم (all of them) and كل الناس. Gulf pronounces it kill with a short i.",
+      "image_scene": "A whole extended family gathered on the steps of a house for a photo.",
+      "concept_key": "everyone",
+      "variants": ["كلهم", "كل الناس", "الكل يعرف", "كلنا"],
+      "example": { "arabic": "الكل يعرف اللي صار", "transliteration": "il-kill yaʿrif illi ṣaar", "english": "Everyone knows what happened" },
+      "video_hint": "الكل / كلهم in gatherings and gossip."
+    },
+    {
+      "arabic": "نوع",
+      "transliteration": "nawʿ",
+      "english": "type / kind",
+      "category": "Noun",
+      "teaching_note": "أي نوع؟ (which kind?), نوع ثاني (another kind), من هالنوع (of this type). Plural أنواع, as in أنواع الناس (types of people), a favourite skit title.",
+      "image_scene": "Three different dates on a plate — one dark, one golden, one wrinkled — with small labels.",
+      "concept_key": "type",
+      "variants": ["النوع", "أنواع", "أي نوع", "نوع ثاني"],
+      "example": { "arabic": "أي نوع تمر تبي؟", "transliteration": "ayy nawʿ tamar tabi?", "english": "Which kind of dates do you want?" },
+      "video_hint": "Shopping: أي نوع؟ / أنواع in skits about types of people."
+    },
+    {
+      "arabic": "كل من",
+      "transliteration": "kill min",
+      "english": "whoever / everyone who",
+      "category": "Phrase",
+      "teaching_note": "'Every who': كل من يشوفه يقول ما شاء الله (whoever sees him says mashallah). In fast speech bare اللي does the same: اللي يبي يجي. Do not confuse with كل من here as 'from every'.",
+      "image_scene": "A stream of people at a gate each receiving a date and a coffee cup from a host.",
+      "concept_key": "whoever",
+      "variants": ["كل اللي", "كل واحد", "اللي يبي", "أي واحد يبي"],
+      "example": { "arabic": "كل من جا العرس أكل", "transliteration": "kill min ja l-ʿirs akal", "english": "Whoever came to the wedding ate" },
+      "video_hint": "كل من / اللي as a general subject in proverbs and hospitality."
+    },
+    {
+      "arabic": "وين ما",
+      "transliteration": "wayn ma",
+      "english": "wherever",
+      "category": "Phrase",
+      "teaching_note": "The question word وين plus ما: وين ما تروح (wherever you go). The same trick makes متى ما (whenever) and كيف ما / شلون ما (however). Said as one word: waynma.",
+      "image_scene": "A camel silhouette walking across three landscapes — desert, city, sea — in one strip.",
+      "concept_key": "wherever",
+      "variants": ["وينما", "متى ما", "كيف ما", "شلون ما"],
+      "example": { "arabic": "وين ما تروح، بتلقى سعوديين", "transliteration": "wayn ma truuḥ, bitilga saʿuudiyyiin", "english": "Wherever you go, you'll find Saudis" },
+      "video_hint": "وين ما in travel talk and proverbs."
+    },
+    {
+      "arabic": "شغلة",
+      "transliteration": "shaghla",
+      "english": "thing / matter",
+      "category": "Noun",
+      "teaching_note": "The Gulf's warm word for 'a thing': شغلة بسيطة (a small matter), فيه شغلة أبي أقولها لك (there's something I want to tell you). Plural شغلات. Different from شغل (work).",
+      "image_scene": "A woman leaning in to whisper to a friend, one hand cupped by her mouth.",
+      "variants": ["الشغلة", "شغلات", "شغلة بسيطة", "شغله"],
+      "example": { "arabic": "فيه شغلة لازم أقولها لك", "transliteration": "fiih shaghla laazim aguulha lik", "english": "There's something I have to tell you" },
+      "video_hint": "شغلة as a vague 'thing' in confidences and lists."
+    },
+    {
+      "arabic": "ثاني",
+      "transliteration": "thaani",
+      "english": "other / another / second",
+      "category": "Adjective",
+      "teaching_note": "واحد ثاني (another one), مرة ثانية (another time), الشي الثاني (the other thing). Feminine ثانية. The Gulf keeps the th sound — thaani, not taani.",
+      "image_scene": "Two identical white cups, one hand reaching for the second.",
+      "variants": ["ثانية", "واحد ثاني", "مرة ثانية", "الثاني"],
+      "example": { "arabic": "عطني واحد ثاني، هذا مكسور", "transliteration": "ʿaṭni waaḥid thaani, haadha maksuur", "english": "Give me another one, this one is broken" },
+      "video_hint": "واحد ثاني / مرة ثانية in shops and cafés."
+    },
+    {
+      "arabic": "ماركة",
+      "transliteration": "maarka",
+      "english": "brand",
+      "category": "Noun",
+      "teaching_note": "A borrowed word everyone uses: أي ماركة؟ (which brand?), ماركة معروفة. Brand talk is a major Gulf pastime — cars, phones, perfume.",
+      "image_scene": "A row of perfume bottles with different logos on a glass shelf.",
+      "variants": ["الماركة", "ماركات", "أي ماركة", "ماركه"],
+      "example": { "arabic": "السيارة اللي تبيها أي ماركة؟", "transliteration": "is-sayyaara lli tabiiha ayy maarka?", "english": "The car you want, which brand?" },
+      "video_hint": "Car and phone talk: ماركة / ماركات."
+    },
+    {
+      "arabic": "لون",
+      "transliteration": "lawn",
+      "english": "colour",
+      "category": "Noun",
+      "teaching_note": "أي لون؟ (which colour?), لونه أبيض (it's white). Plural ألوان. Essential for describing a lost item or a car.",
+      "image_scene": "A paint colour chart fanned out in a hand.",
+      "variants": ["اللون", "ألوان", "لونه", "لونها"],
+      "example": { "arabic": "الشنطة اللي ضاعت لونها أسود", "transliteration": "ish-shanṭa lli ḍaaʿat lawnha aswad", "english": "The bag that got lost is black" },
+      "video_hint": "لون in shopping and lost-item descriptions."
+    },
+    {
+      "arabic": "شكل",
+      "transliteration": "shikil",
+      "english": "shape / looks / appearance",
+      "category": "Noun",
+      "teaching_note": "Two syllables in the Gulf: shikil. شكله (he looks like / it seems) is a whole sentence starter: شكله تعبان (he looks tired), شكلها بتمطر (looks like rain).",
+      "image_scene": "A man squinting at a friend across the room, thinking 'looks tired'.",
+      "variants": ["الشكل", "شكله", "شكلها", "شكلك", "أشكال"],
+      "example": { "arabic": "شكله من الكويت، مو كذا؟", "transliteration": "shiklah min il-kwayt, mu kidha?", "english": "He looks like he's from Kuwait, doesn't he?" },
+      "video_hint": "شكله / شكلها as 'it seems' in commentary."
+    },
+    {
+      "arabic": "ضايع",
+      "transliteration": "ḍaayiʿ",
+      "english": "lost (state)",
+      "category": "Adjective",
+      "teaching_note": "The participle of ضاع: جوالي ضايع (my phone is lost), آنا ضايع (I'm lost / I'm confused). Feminine ضايعة. The lost-and-found desk word.",
+      "image_scene": "A lost-property counter with a phone, a wallet and keys on a tray.",
+      "variants": ["ضايعة", "ضايعين", "ضايع مني", "ضاع"],
+      "example": { "arabic": "المفتاح اللي كان هني ضايع", "transliteration": "il-miftaaḥ illi kaan hini ḍaayiʿ", "english": "The key that was here is lost" },
+      "video_hint": "ضايع in lost-item skits: جوالي ضايع!"
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Employee", "arabic": "هلا، وش الشي اللي ضاع؟", "transliteration": "hala, wish ish-shay illi ḍaaʿ?", "english": "Hello, what's the thing that got lost?" },
+    { "speaker": "Maryam", "arabic": "شنطة سودا، ماركة معروفة، فيها مفاتيح", "transliteration": "shanṭa sawda, maarka maʿruufa, fiiha mafaatiiḥ", "english": "A black bag, a known brand, with keys in it" },
+    { "speaker": "Employee", "arabic": "وين المكان اللي كنتي فيه؟", "transliteration": "wayn il-makaan illi kinti fiih?", "english": "Where's the place you were in?" },
+    { "speaker": "Maryam", "arabic": "المطعم اللي جنب الباب الثاني", "transliteration": "il-maṭʿam illi jamb il-baab ith-thaani", "english": "The restaurant next to the second door" },
+    { "speaker": "Employee", "arabic": "فيه أحد شافها معك؟", "transliteration": "fiih aḥad shaafha maʿich?", "english": "Did anyone see it with you?" },
+    { "speaker": "Maryam", "arabic": "إي، الشخص اللي كان يشتغل هناك", "transliteration": "ee, ish-shakhṣ illi kaan yishtaghil hnaak", "english": "Yes, the person who was working there" },
+    { "speaker": "Employee", "arabic": "هذي اللي لقيناها؟ شكلها نفس الشي", "transliteration": "haadhi lli ligaynaaha? shikilha nafs ish-shay", "english": "Is this the one we found? It looks the same" },
+    { "speaker": "Maryam", "arabic": "إي والله! الله يعطيك العافية", "transliteration": "ee wallah! allah yaʿṭiik il-ʿaafya", "english": "Yes indeed! Thank you (God give you strength)" }
+  ],
+  "sound_spotlight": [
+    { "sound": "اللي loses its vowel after a vowel", "example": "هذي اللي، سوي اللي (haadhi lli, sawwi lli)", "explanation": "After a word ending in a vowel, اللي shrinks to lli and glues on: haadhi-lli. After a consonant it keeps its i: ir-rayyaal illi. Listening for the shrunken form is the key to catching relative clauses at speed." },
+    { "sound": "The resumptive ending", "example": "شفته، رحنا له، قلت لك عنه (shiftah, riḥna lah, gilt lik ʿannah)", "explanation": "The pronoun that points back to the noun is a light -ah or -ha on the end of the verb or preposition. It is always there in Gulf speech, even though English drops it." },
+    { "sound": "ريال not رجال", "example": "ريال، رياييل (rayyaal, rayaayiil)", "explanation": "'Man' has the ج as y in Kuwait, the UAE, Qatar and Bahrain: rayyaal. Saudis say rajjaal. The clips will have both; it is one word." }
+  ],
+  "lesson_sequence": [
+    { "step": "Lost and found", "detail": "A 60-second sketch at a mall desk: someone describes a lost bag. Count the اللي you hear." },
+    { "step": "People and things cards", "detail": "Eighteen words with audio; the relative phrases show a definite head in colour." },
+    { "step": "اللي or nothing?", "detail": "Ten spoken sentence starts (الريال… / ريال…); tap whether اللي follows. Feedback explains definite vs indefinite." },
+    { "step": "Finish the description", "detail": "Given a picture and a head noun, build the clause: الولد اللي… with a verb bank; the app checks the resumptive pronoun." },
+    { "step": "Who's that?", "detail": "A family photo with five people; hear منو هذا؟ and answer with a role: اللي يشتغل… / اللي تزوج…" },
+    { "step": "Describe and guess", "detail": "Pairs game with the app: describe an object in the room using only اللي clauses until it guesses." },
+    { "step": "Lesson complete", "detail": "Word counter rolls up. Nudge: describe your phone to yourself with three اللي sentences." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Describe one person in your life without their name: اللي يشتغل… اللي يسكن… اللي دايم…", "context": "Shown on the lesson-complete screen. Three relative clauses with a human head." },
+    { "prompt": "Pretend you lost your bag: say its colour, brand and the place you last had it — with اللي twice.", "context": "Next-day notification. The lost-item routine." },
+    { "prompt": "Ask your tutor منو الشخص اللي… about a family member and follow their answer with a second اللي question.", "context": "Tutor-session card. Live relative clauses in both directions." }
+  ],
+  "video_needs": {
+    "queries": ["ضيعت جوالي مقطع كوميدي", "وصف شخص كوميدي سعودي", "أنواع الناس مقطع خليجي", "منو هذا فلوق عائلي"],
+    "channels": ["Khambalah", "Ahmed Sharif", "Gudosbros", "Moshaya Family"],
+    "scene": "A person described or an object searched for: 'the one who…', 'the bag that…' with اللي audible and the thing or person visible on screen."
+  }
+}

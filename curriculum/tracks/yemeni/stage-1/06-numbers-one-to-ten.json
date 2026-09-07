@@ -1,0 +1,230 @@
+{
+  "slug": "numbers-one-to-ten",
+  "lesson_number": 6,
+  "title": "Numbers One to Ten",
+  "title_arabic": "الأرقام من واحد إلى عشرة",
+  "description": "Count from one to ten the way Sanaa does — with the th kept in ثنين and ثلاثة — ask how much something costs, understand a price in riyals, and read out a phone number digit by digit.",
+  "cefr_target": "A1",
+  "duration_minutes": 20,
+  "approach": "GPA Phase 2 — objects counted on screen, fingers and coins as the here-and-now. Numbers are drilled as a chant first, then pulled apart for prices and phone numbers.",
+  "unlock_condition": "≥9/12 on the listen-and-tap quiz and a phone number read aloud correctly",
+  "icon": "🔢",
+  "can_do": [
+    "Count from one to ten",
+    "Ask how much something costs and understand the answer",
+    "Say a phone number digit by digit"
+  ],
+  "grammar": [
+    {
+      "category": "questions",
+      "title": "بكم؟ and كم؟ — how much, how many",
+      "explanation": "For a price, Yemen asks بكم — 'for how much': بكم الخبز؟ 'how much is the bread?'. The answer is a number plus ريال: بخمسة ريال 'for five riyals'. For counting things, كم on its own: كم جاهل عندك؟ 'how many kids do you have?' — and the thing counted stays singular after كم. The question word can start the sentence or end it; both are natural in Sanaa.",
+      "examples": [
+        { "arabic": "بكم الخبز؟", "transliteration": "bikam il-khubz?", "english": "How much is the bread?" },
+        { "arabic": "الخبز بخمسة ريال", "transliteration": "il-khubz bi-khamsa riyaal", "english": "The bread is five riyals" },
+        { "arabic": "كم شاهي تشتي؟", "transliteration": "kam shaahi tishti?", "english": "How many teas do you want?" },
+        { "arabic": "ثنين شاهي لو سمحت", "transliteration": "thnayn shaahi law samaḥt", "english": "Two teas, please" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "Riyals, change and the first price",
+      "note": "Yemen's money is the ريال, and after any number the word stays singular: خمسة ريال, عشرة ريال. Coins have all but vanished, so small change means small notes, and a shopkeeper who has none will round in your favour or hand you a sweet. The first price you hear in a souq is an opening, not a verdict: ask بكم, look doubtful, and offer less with a smile — but in a bakery, a bus or a pharmacy the price is the price. Yemenis also count on their fingers starting from the little finger, and hold up the whole hand for five.",
+      "phrases": [
+        { "arabic": "بكم ذا؟", "transliteration": "bikam dhaa?", "english": "How much is this?" },
+        { "arabic": "غالي! بعشرة ريال؟", "transliteration": "ghaali! bi-ʿashara riyaal?", "english": "Expensive! For ten riyals?" },
+        { "arabic": "هات الزلط", "transliteration": "haat iz-zalaṭ", "english": "Hand over the money" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "واحد",
+      "transliteration": "waaḥid",
+      "english": "one",
+      "category": "Number",
+      "teaching_note": "Feminine واحدة for ة-words: بنت واحدة. Comes after the noun, not before: شاهي واحد 'one tea'. Also 'someone': واحد من صنعاء 'a guy from Sanaa'.",
+      "image_scene": "One single tea glass on a plain tray, large numeral 1 beside it.",
+      "concept_key": "one",
+      "variants": ["واحدة", "واحده", "الواحد"],
+      "example": { "arabic": "شاهي واحد لو سمحت", "transliteration": "shaahi waaḥid law samaḥt", "english": "One tea, please" },
+      "video_hint": "A vendor counting out items; واحد held up on a finger."
+    },
+    {
+      "arabic": "ثنين",
+      "transliteration": "thnayn",
+      "english": "two",
+      "category": "Number",
+      "teaching_note": "Sanaa keeps the th: thnayn, not the Aden or Egyptian itneen. Feminine ثنتين. Yemeni also has a 'two' ending on the noun itself — ريالين 'two riyals', شاهيين — which you will hear before you need to say it.",
+      "image_scene": "Two tea glasses side by side on a tray, numeral 2 beside them.",
+      "concept_key": "two",
+      "variants": ["اثنين", "ثنتين", "إثنين", "اتنين"],
+      "example": { "arabic": "ثنين شاهي", "transliteration": "thnayn shaahi", "english": "Two teas" },
+      "video_hint": "Two of anything being ordered or counted; the th audible."
+    },
+    {
+      "arabic": "ثلاثة",
+      "transliteration": "thalaatha",
+      "english": "three",
+      "category": "Number",
+      "teaching_note": "Two th sounds in one word — the clearest place to hear that Sanaa keeps them (Aden says talaata). From three to ten the number comes before the thing: ثلاثة جهّال 'three children'.",
+      "image_scene": "Three flatbreads stacked on a straw mat, numeral 3 beside them.",
+      "concept_key": "three",
+      "variants": ["ثلاثه", "ثلاث", "تلاتة"],
+      "example": { "arabic": "عندي ثلاثة جهّال", "transliteration": "ʿindi thalaatha jahhaal", "english": "I have three children" },
+      "video_hint": "Three items counted; parents saying how many children they have."
+    },
+    {
+      "arabic": "أربعة",
+      "transliteration": "arbaʿa",
+      "english": "four",
+      "category": "Number",
+      "teaching_note": "The ع in the middle is a squeeze in the throat between two a's — ar-ba-ʿa. Four is also the number of cups in a standard pot of qishr.",
+      "image_scene": "Four small coffee cups arranged in a square on a brass tray, numeral 4.",
+      "concept_key": "four",
+      "variants": ["اربعة", "أربعه", "أربع"],
+      "example": { "arabic": "أربعة كتب على الكرسي", "transliteration": "arbaʿa kutub ʿala l-kursi", "english": "Four books on the chair" },
+      "video_hint": "Four items counted; a price of four hundred (أربعمية) is also common."
+    },
+    {
+      "arabic": "خمسة",
+      "transliteration": "khamsa",
+      "english": "five",
+      "category": "Number",
+      "teaching_note": "Starts with خ. The open hand is five, and خمسة is also said to ward off the evil eye — a hand-shaped charm hangs in many shops.",
+      "image_scene": "An open right hand, palm forward, fingers spread, numeral 5 beside it.",
+      "concept_key": "five",
+      "variants": ["خمسه", "خمس"],
+      "example": { "arabic": "الخبز بخمسة ريال", "transliteration": "il-khubz bi-khamsa riyaal", "english": "The bread is five riyals" },
+      "video_hint": "A price of five or fifty quoted; a hand held up."
+    },
+    {
+      "arabic": "ستة",
+      "transliteration": "sitta",
+      "english": "six",
+      "category": "Number",
+      "teaching_note": "Doubled t — hold it. Same word across the Arab world; nothing to unlearn.",
+      "image_scene": "Six eggs in a cardboard carton, numeral 6 beside it.",
+      "concept_key": "six",
+      "variants": ["سته", "ست"],
+      "example": { "arabic": "ستة بيض لو سمحت", "transliteration": "sitta bayḍ law samaḥt", "english": "Six eggs, please" },
+      "video_hint": "Six items counted; ستة in a price or a phone number."
+    },
+    {
+      "arabic": "سبعة",
+      "transliteration": "sabʿa",
+      "english": "seven",
+      "category": "Number",
+      "teaching_note": "The ع is right after the b, so the word is sab-ʿa with the throat closing between the halves. Yemen's phone numbers start with 7, so this digit is heard constantly.",
+      "image_scene": "Seven qat leaves fanned out on a cloth, numeral 7 beside them.",
+      "concept_key": "seven",
+      "variants": ["سبعه", "سبع"],
+      "example": { "arabic": "رقمي سبعة سبعة ثلاثة", "transliteration": "ragmi sabʿa sabʿa thalaatha…", "english": "My number is seven seven three…" },
+      "video_hint": "A phone number read aloud; سبعة is the first digit in Yemen."
+    },
+    {
+      "arabic": "ثمانية",
+      "transliteration": "thamaaniya",
+      "english": "eight",
+      "category": "Number",
+      "teaching_note": "Four syllables and a th at the start: tha-maa-ni-ya. Often clipped to ثمان before a noun and when telling the time: الساعة ثمان 'eight o'clock'.",
+      "image_scene": "Eight dates on a small plate, numeral 8 beside it.",
+      "concept_key": "eight",
+      "variants": ["ثمانيه", "ثمان", "تمانية"],
+      "example": { "arabic": "ثمانية ريال", "transliteration": "thamaaniya riyaal", "english": "Eight riyals" },
+      "video_hint": "Eight in a price or a time; the clipped ثمان before الساعة."
+    },
+    {
+      "arabic": "تسعة",
+      "transliteration": "tisʿa",
+      "english": "nine",
+      "category": "Number",
+      "teaching_note": "tis-ʿa, the ع again before the final a. Yemeni's short i in the first syllable (not tas-) is the giveaway of a native speaker.",
+      "image_scene": "Nine small keys hung on a wooden board, numeral 9 beside it.",
+      "concept_key": "nine",
+      "variants": ["تسعه", "تسع"],
+      "example": { "arabic": "تسعة كراسي", "transliteration": "tisʿa karaasi", "english": "Nine chairs" },
+      "video_hint": "Nine in a price, a time or a phone number."
+    },
+    {
+      "arabic": "عشرة",
+      "transliteration": "ʿashara",
+      "english": "ten",
+      "category": "Number",
+      "teaching_note": "Starts with ع. Clipped to عشر before a noun and in times: الساعة عشر. Ten riyals is the smallest note you will handle.",
+      "image_scene": "Both hands open, palms forward, all ten fingers spread, numeral 10 beside them.",
+      "concept_key": "ten",
+      "variants": ["عشره", "عشر"],
+      "example": { "arabic": "عشرة ريال", "transliteration": "ʿashara riyaal", "english": "Ten riyals" },
+      "video_hint": "A ten-riyal price; both hands held up."
+    },
+    {
+      "arabic": "بكم",
+      "transliteration": "bikam",
+      "english": "how much (price)",
+      "category": "Question",
+      "teaching_note": "'For how much' — the price question, with the بـ built in. Plain كم is 'how many' for counting. Point and say بكم ذا؟ and every vendor in Yemen understands you.",
+      "image_scene": "A customer pointing at a pile of tomatoes with a questioning look at the vendor.",
+      "concept_key": "how_much",
+      "variants": ["بكم ذا", "بكم هذا", "كم", "بكم الكيلو"],
+      "example": { "arabic": "بكم الشاهي؟", "transliteration": "bikam ish-shaahi?", "english": "How much is the tea?" },
+      "video_hint": "Souq footage: a buyer asking a price; the vendor's number answer follows."
+    },
+    {
+      "arabic": "زلط",
+      "transliteration": "zalaṭ",
+      "english": "money",
+      "category": "Noun",
+      "teaching_note": "The Sanaa word for money — the one that marks you as having learned Yemeni rather than textbook Arabic. فلوس is understood everywhere and is what the south says. Both appear in captions.",
+      "image_scene": "A fan of Yemeni riyal banknotes held in a hand.",
+      "concept_key": "money",
+      "variants": ["الزلط", "فلوس", "الفلوس", "زلطي"],
+      "example": { "arabic": "معي زلط", "transliteration": "maʿi zalaṭ", "english": "I have money on me" },
+      "video_hint": "Someone paying or counting notes; زلط / فلوس audible."
+    },
+    {
+      "arabic": "ريال",
+      "transliteration": "riyaal",
+      "english": "riyal (Yemeni currency)",
+      "category": "Noun",
+      "teaching_note": "The unit of every price. Stays singular after a number (خمسة ريال) and takes the two-ending for two: ريالين. Also the name of the Saudi currency, which circulates in parts of Yemen — context says which.",
+      "image_scene": "A single Yemeni banknote lying flat, the numeral large and clear.",
+      "variants": ["الريال", "ريالين", "ريالات", "ريال يمني"],
+      "example": { "arabic": "الكتاب بعشرة ريال", "transliteration": "il-kitaab bi-ʿashara riyaal", "english": "The book is ten riyals" },
+      "video_hint": "Any price quoted in a shop or market."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Customer", "arabic": "السلام عليكم. بكم الخبز؟", "transliteration": "is-salaam ʿalaykum. bikam il-khubz?", "english": "Peace be upon you. How much is the bread?" },
+    { "speaker": "Baker", "arabic": "وعليكم السلام. الواحد بخمسة ريال", "transliteration": "wa-ʿalaykum is-salaam. il-waaḥid bi-khamsa riyaal", "english": "And upon you peace. One is five riyals" },
+    { "speaker": "Customer", "arabic": "طيب، هات ثلاثة", "transliteration": "ṭayyib, haat thalaatha", "english": "Okay, give me three" },
+    { "speaker": "Baker", "arabic": "ثلاثة… عشرة ريال وخمسة. تفضّل", "transliteration": "thalaatha… ʿashara riyaal w-khamsa. tfaḍḍal", "english": "Three… ten riyals and five. Here you are" },
+    { "speaker": "Customer", "arabic": "تفضّل الزلط. شكراً", "transliteration": "tfaḍḍal iz-zalaṭ. shukran", "english": "Here's the money. Thanks" },
+    { "speaker": "Baker", "arabic": "العفو، حياك الله", "transliteration": "il-ʿafw, ḥayyaak allaah", "english": "You're welcome — come again" }
+  ],
+  "sound_spotlight": [
+    { "sound": "ث", "example": "ثنين، ثلاثة، ثمانية", "explanation": "The th of English 'think'. Sanaa keeps it where Aden, Cairo and much of the Gulf turn it into t or s — three of the ten numbers carry it, so counting is the drill." },
+    { "sound": "ع inside a number", "example": "أربعة، سبعة، تسعة، عشرة", "explanation": "Four numbers have ع before the final a. Say each slowly and let the throat close: ar-ba-ʿa, sab-ʿa, tis-ʿa, ʿa-sha-ra." },
+    { "sound": "The dropped -a", "example": "خمسة → الساعة خمس", "explanation": "Before a noun and when telling time, the final -a of a number disappears in Sanaa: خمس ريال, الساعة عشر. Hear it now; use it in the time lesson." }
+  ],
+  "lesson_sequence": [
+    { "step": "Welcome", "detail": "A bakery counter with breads stacked in threes. One line of English: you will count to ten and buy something." },
+    { "step": "Count along", "detail": "Ten cards, one number each, with the objects counted on screen; audio plays as a chant, then one by one." },
+    { "step": "Listen & see", "detail": "The three money cards (بكم، زلط، ريال) with illustration and audio; second pass with English." },
+    { "step": "How many?", "detail": "Objects appear in a group; audio says a number; tap the matching group. Then reversed: see a group, tap the number you hear." },
+    { "step": "Price tags", "detail": "A vendor says a price; tap the right banknote combination. Trains بـ + number + ريال." },
+    { "step": "Read a number", "detail": "A phone number appears digit by digit; record yourself reading it; compare to the model. Feedback on ث and ع." },
+    { "step": "Lesson complete", "detail": "Counter rolls up. Nudge: count something around you to ten in Arabic tonight." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Count the stairs, the plates or the cars outside to ten in Sanaa Arabic — ث in ثنين and ثلاثة, ع in أربعة.", "context": "Shown on the lesson-complete screen. Here-and-now counting with real objects." },
+    { "prompt": "Next time you pay for anything, ask بكم؟ first even if you can see the price, and listen for the number.", "context": "Follow-up notification. Uses the price question in a real exchange." },
+    { "prompt": "Read your own phone number to your tutor digit by digit, then ask them to read theirs back to you.", "context": "Tutor prompt. Two-way number recognition." }
+  ],
+  "video_needs": {
+    "queries": ["بكم الكيلو سوق صنعاء", "سوق الملح صنعاء أسعار", "أسعار السوق اليمن فلوق", "عد الأرقام يمني"],
+    "channels": ["Mustafa Al-Mawmari", "HMADA", "Khobz Yabis", "Yemen Cooks"],
+    "scene": "A vendor quoting prices in riyals, a phone number being read out, children counting — the number said while the coins, notes or items are visible."
+  }
+}

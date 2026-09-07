@@ -1,0 +1,264 @@
+{
+  "slug": "me-and-you",
+  "lesson_number": 4,
+  "title": "Me and You",
+  "title_arabic": "أنا وإنت",
+  "description": "Say who you are and where you are from, ask someone's name, and point at yourself, the person in front of you and a third person with the right word. Your first sentences — with no verb 'to be' to worry about.",
+  "cefr_target": "Pre-A1",
+  "duration_minutes": 20,
+  "approach": "GPA Phase 1 → 2 bridge. Self-introductions are heard from vloggers first, then the learner assembles their own with tap-to-build cards, then records it once.",
+  "unlock_condition": "≥9/12 on the build-a-sentence quiz and one recorded self-introduction (unscored)",
+  "icon": "🙋",
+  "can_do": [
+    "Say who you are and where you are from",
+    "Ask someone's name",
+    "Point at yourself, the listener and a third person with the right pronoun"
+  ],
+  "grammar": [
+    {
+      "category": "pronouns",
+      "title": "أنا، إنت، إنتي، هو، هي — who is doing the talking",
+      "explanation": "Five words cover almost every conversation: أنا (I), إنت (you, to a man), إنتي (you, to a woman), هو (he) and هي (she). The man/woman difference lives in the last vowel of 'you': inta versus inti. Egyptian has no separate polite 'you' like French vous — instead people say حضرتك ('your presence') to be respectful, which you will hear used on you. For a group, إحنا (we), إنتو (you all) and هم (they) are the same for men and women.",
+      "examples": [
+        { "arabic": "أنا مصري", "transliteration": "ana maṣri", "english": "I am Egyptian" },
+        { "arabic": "إنت منين؟", "transliteration": "inta mineen?", "english": "Where are you from? (to a man)" },
+        { "arabic": "إنتي طالبة؟", "transliteration": "inti ṭaliba?", "english": "Are you a student? (to a woman)" },
+        { "arabic": "هو من إسكندرية وهي من القاهرة", "transliteration": "huwwa min iskindiriyya w-hiyya min el-qaahira", "english": "He is from Alexandria and she is from Cairo" }
+      ]
+    },
+    {
+      "category": "sentence-structure",
+      "title": "No word for 'is' or 'am'",
+      "explanation": "To say 'I am a student', Egyptian just puts the two ideas side by side: أنا طالب — 'I student'. There is no 'am', 'is' or 'are' in the present. The same works with places (أنا من لندن, 'I from London') and names (اسمي سارة, 'my name Sara'). Yes/no questions are the same words with a rising voice: إنت طالب؟ 'you student?'. This is why your first sentences are so short — that is not baby talk, that is the grammar.",
+      "examples": [
+        { "arabic": "أنا طالب", "transliteration": "ana ṭaalib", "english": "I am a student" },
+        { "arabic": "اسمي كريم", "transliteration": "ismi kariim", "english": "My name is Karim" },
+        { "arabic": "هي من مصر", "transliteration": "hiyya min maṣr", "english": "She is from Egypt" },
+        { "arabic": "إنت مصري؟", "transliteration": "inta maṣri?", "english": "Are you Egyptian?" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "Names, titles and what people will call you",
+      "note": "Egyptians use first names quickly, but almost always with a title in front: يا أستاذ أحمد for a man, يا مدام هدى for a married woman, يا آنسة for a young unmarried woman. Expect to be addressed as يا أستاذ or يا مدام yourself, and as يا باشا by taxi drivers and waiters — it is friendly flattery, not a rank. Parents are often called by their eldest child's name: أبو أحمد, أم أحمد. When you introduce yourself, say your name and where you are from and then ask back — the exchange is expected to be two-way.",
+      "phrases": [
+        { "arabic": "حضرتك منين؟", "transliteration": "ḥaḍritak mineen?", "english": "Where are you from? (respectful)" },
+        { "arabic": "أنا أم أحمد", "transliteration": "ana umm aḥmad", "english": "I am Ahmed's mother (Umm Ahmed)" },
+        { "arabic": "تشرفنا", "transliteration": "tsharrafna", "english": "Pleased to meet you (we are honoured)" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "أنا",
+      "transliteration": "ana",
+      "english": "I",
+      "category": "Pronoun",
+      "teaching_note": "Same everywhere in Arabic. Egyptians point at their own chest as they say it. It starts more sentences than any other word in this stage.",
+      "image_scene": "A young woman pointing at her own chest with a light smile, plain background.",
+      "concept_key": "i",
+      "variants": ["انا", "وأنا", "أنا كمان"],
+      "example": { "arabic": "أنا من لندن", "transliteration": "ana min landan", "english": "I am from London" },
+      "video_hint": "A vlogger introducing themselves to camera; أنا is the first word."
+    },
+    {
+      "arabic": "إنت",
+      "transliteration": "inta",
+      "english": "you (to a man)",
+      "category": "Pronoun",
+      "teaching_note": "Written the same as the feminine but said inta. Egyptians write it إنت or انت. Used freely between equals; to a stranger or an elder, حضرتك is the softer choice.",
+      "image_scene": "A man pointing an open hand at another man in front of him.",
+      "concept_key": "you_m",
+      "variants": ["انت", "إنتَ", "انتَ", "وإنت"],
+      "example": { "arabic": "إنت طالب؟", "transliteration": "inta ṭaalib?", "english": "Are you a student?" },
+      "video_hint": "Street interviewers turning a question on a man; وإنت؟ at the end of an answer."
+    },
+    {
+      "arabic": "إنتي",
+      "transliteration": "inti",
+      "english": "you (to a woman)",
+      "category": "Pronoun",
+      "teaching_note": "Same word as إنت with the final vowel changed to i — the pattern you met in إزيك / إزيكي. Often written إنتي to make the difference visible.",
+      "image_scene": "A woman pointing an open hand at another woman in front of her.",
+      "concept_key": "you_f",
+      "variants": ["انتي", "إنتِ", "انتِ", "وإنتي"],
+      "example": { "arabic": "إنتي منين؟", "transliteration": "inti mineen?", "english": "Where are you from? (to a woman)" },
+      "video_hint": "An interviewer addressing a woman; the final -i is audible."
+    },
+    {
+      "arabic": "هو",
+      "transliteration": "huwwa",
+      "english": "he",
+      "category": "Pronoun",
+      "teaching_note": "Said huwwa with a doubled w in Cairo — not the two-letter huwa of the textbook. Also used for 'it' when the thing is masculine.",
+      "image_scene": "A woman pointing sideways at a man standing a little apart, who is looking away.",
+      "concept_key": "he",
+      "variants": ["هوه", "هوّ", "وهو"],
+      "example": { "arabic": "هو من مصر", "transliteration": "huwwa min maṣr", "english": "He is from Egypt" },
+      "video_hint": "Someone introducing a third person; a finger or open hand toward them."
+    },
+    {
+      "arabic": "هي",
+      "transliteration": "hiyya",
+      "english": "she",
+      "category": "Pronoun",
+      "teaching_note": "Said hiyya with a doubled y. Also 'it' for feminine things — which is most words ending in ة, so you will hear it about cars and cups as well as people.",
+      "image_scene": "A man pointing sideways at a woman standing a little apart, who is smiling at the camera.",
+      "concept_key": "she",
+      "variants": ["هيه", "هيّ", "وهي"],
+      "example": { "arabic": "هي طالبة", "transliteration": "hiyya ṭaliba", "english": "She is a student" },
+      "video_hint": "Introducing a woman in a group; family vlogs naming a sister or friend."
+    },
+    {
+      "arabic": "اسم",
+      "transliteration": "ism",
+      "english": "name",
+      "category": "Noun",
+      "teaching_note": "Rarely heard bare — almost always with an ending: اسمي (my name), اسمك (your name), اسمه (his name), اسمها (her name). Learn it as the root of those four.",
+      "image_scene": "A blank name badge on a lanyard with a pen beside it, 'name' implied by the badge outline.",
+      "concept_key": "name",
+      "variants": ["الاسم", "اسمه", "اسمها", "أسماء"],
+      "example": { "arabic": "اسمه أحمد", "transliteration": "ismu aḥmad", "english": "His name is Ahmed" },
+      "video_hint": "Someone giving or asking a name; a badge or a form on screen."
+    },
+    {
+      "arabic": "اسمي",
+      "transliteration": "ismi",
+      "english": "my name is…",
+      "category": "Phrase",
+      "teaching_note": "اسم + the ending -i (my). Egyptians say اسمي X, or simply أنا X. The ending -i is the same 'my' you will put on every family word in the next lesson.",
+      "image_scene": "A young man with a hand on his chest, a speech bubble showing a name badge with a heart on it.",
+      "concept_key": "my_name_is",
+      "variants": ["اسمى", "أنا اسمي", "انا اسمي"],
+      "example": { "arabic": "اسمي سارة، وإنت؟", "transliteration": "ismi saara, w-enta?", "english": "My name is Sara — and you?" },
+      "video_hint": "The first line of a self-introduction to camera."
+    },
+    {
+      "arabic": "اسمك إيه",
+      "transliteration": "ismak eeh",
+      "english": "what's your name? (to a man)",
+      "category": "Phrase",
+      "teaching_note": "Literally 'your name what?' — the question word comes at the end, where the answer will go. To a woman: اسمك إيه (ismik eeh), written اسمكِ or اسمك. Never ما اسمك — that is a textbook.",
+      "image_scene": "A woman asking a boy his name at a school gate, leaning down with a smile.",
+      "concept_key": "whats_your_name",
+      "variants": ["اسمك ايه", "اسمكِ إيه", "اسمك إيه يا أستاذ", "حضرتك اسمك إيه"],
+      "example": { "arabic": "اسمك إيه يا حبيبي؟", "transliteration": "ismak eeh ya ḥabiibi?", "english": "What's your name, dear? (to a child)" },
+      "video_hint": "Street interviews opening with the name question; a teacher asking a child."
+    },
+    {
+      "arabic": "من",
+      "transliteration": "min",
+      "english": "from",
+      "category": "Preposition",
+      "teaching_note": "The same word as MSA and every dialect. Short: min. It glues onto the place name: من مصر, من لندن.",
+      "image_scene": "An arrow leaving a map pin marked with a small house icon, pointing outward.",
+      "concept_key": "from",
+      "variants": ["مِن", "من هنا", "من فين"],
+      "example": { "arabic": "هو من إسكندرية", "transliteration": "huwwa min iskindiriyya", "english": "He is from Alexandria" },
+      "video_hint": "Anyone saying where they are from; a map or city name on screen."
+    },
+    {
+      "arabic": "أنا من",
+      "transliteration": "ana min",
+      "english": "I am from…",
+      "category": "Phrase",
+      "teaching_note": "Two words and you have said where you are from — no verb needed. Egyptians will usually follow up with the neighbourhood: من القاهرة؟ منين في القاهرة؟",
+      "image_scene": "A young woman pointing at herself, then at a country outlined on a map behind her.",
+      "concept_key": "i_am_from",
+      "variants": ["انا من", "أنا من هنا", "إحنا من"],
+      "example": { "arabic": "أنا من أمريكا", "transliteration": "ana min amriika", "english": "I am from America" },
+      "video_hint": "A foreigner on camera saying where they are from; interviewers asking منين."
+    },
+    {
+      "arabic": "فرصة سعيدة",
+      "transliteration": "furṣa saʿiida",
+      "english": "nice to meet you",
+      "category": "Phrase",
+      "teaching_note": "Literally 'a happy occasion'. Reply: أنا أسعد ('I am happier'). The more formal تشرفنا ('we are honoured') is also common, answered with الشرف ليا. Either is fine; you will hear both.",
+      "image_scene": "Two people shaking hands for the first time, both smiling, a third person introducing them.",
+      "concept_key": "nice_to_meet_you",
+      "variants": ["فرصه سعيده", "تشرفنا", "أنا أسعد", "الشرف ليا"],
+      "example": { "arabic": "فرصة سعيدة يا أحمد", "transliteration": "furṣa saʿiida ya aḥmad", "english": "Nice to meet you, Ahmed" },
+      "video_hint": "First-meeting handshakes; often followed by أنا أسعد."
+    },
+    {
+      "arabic": "طالب",
+      "transliteration": "ṭaalib",
+      "english": "student (m)",
+      "category": "Noun",
+      "teaching_note": "A woman is طالبة (ṭaliba — the long aa shortens when the ending is added). Plural طلبة. Useful because it answers the second question every Egyptian asks: what do you do?",
+      "image_scene": "A young man with a backpack and a notebook outside a university gate.",
+      "concept_key": "student",
+      "variants": ["طالبة", "طالبه", "طلبة", "طلاب"],
+      "example": { "arabic": "أنا طالب في الجامعة", "transliteration": "ana ṭaalib fil-gamʿa", "english": "I am a student at the university" },
+      "video_hint": "University campus interviews; someone saying أنا طالب."
+    },
+    {
+      "arabic": "منين",
+      "transliteration": "mineen",
+      "english": "where from?",
+      "category": "Question",
+      "teaching_note": "من (from) + فين (where) squeezed into one word. It is the question that follows your name within seconds. Answer with أنا من….",
+      "image_scene": "A man with a puzzled, friendly look pointing at a stranger, a question mark over a map.",
+      "variants": ["منين إنت", "منين حضرتك", "من فين"],
+      "example": { "arabic": "إنت منين؟", "transliteration": "inta mineen?", "english": "Where are you from?" },
+      "video_hint": "Street interviews; the question right after the name."
+    },
+    {
+      "arabic": "مصري",
+      "transliteration": "maṣri",
+      "english": "Egyptian (m)",
+      "category": "Adjective",
+      "teaching_note": "A woman is مصرية (maṣriyya). Note مصر means both Egypt and, for people outside the capital, Cairo. Nationalities follow the same pattern: أمريكي، إنجليزي، ألماني.",
+      "image_scene": "A man in a plain shirt with a small Egyptian flag pin, the Nile and a bridge behind him.",
+      "variants": ["مصرية", "مصريه", "مصريين", "مصر"],
+      "example": { "arabic": "أنا مصري من القاهرة", "transliteration": "ana maṣri min el-qaahira", "english": "I am Egyptian, from Cairo" },
+      "video_hint": "People stating nationality or hometown; the flag or a Cairo landmark in shot."
+    },
+    {
+      "arabic": "حضرتك",
+      "transliteration": "ḥaḍritak",
+      "english": "you (respectful)",
+      "category": "Pronoun",
+      "teaching_note": "Literally 'your presence'. Use it instead of إنت with anyone older, a shopkeeper, an official. It stands alone with no يا. To a woman: حضرتكِ (ḥaḍritik). Being called حضرتك is a compliment.",
+      "image_scene": "A young man speaking to an older gentleman in a suit, hand slightly raised in respect.",
+      "variants": ["حضرتكِ", "حضرتك منين", "حضرتكو"],
+      "example": { "arabic": "حضرتك اسمك إيه؟", "transliteration": "ḥaḍritak ismak eeh?", "english": "What is your name, sir?" },
+      "video_hint": "Formal or service exchanges; a younger speaker addressing an older one."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Sara", "arabic": "أهلاً، اسمي سارة. اسمك إيه؟", "transliteration": "ahlan, ismi saara. ismak eeh?", "english": "Hi, my name is Sara. What's your name?" },
+    { "speaker": "Tom", "arabic": "أنا توم. فرصة سعيدة", "transliteration": "ana tom. furṣa saʿiida", "english": "I'm Tom. Nice to meet you" },
+    { "speaker": "Sara", "arabic": "أنا أسعد. إنت منين يا توم؟", "transliteration": "ana asʿad. inta mineen ya tom?", "english": "Likewise. Where are you from, Tom?" },
+    { "speaker": "Tom", "arabic": "أنا من لندن. وإنتي؟", "transliteration": "ana min landan. w-enti?", "english": "I'm from London. And you?" },
+    { "speaker": "Sara", "arabic": "أنا مصرية من القاهرة. إنت طالب؟", "transliteration": "ana maṣriyya min el-qaahira. inta ṭaalib?", "english": "I'm Egyptian, from Cairo. Are you a student?" },
+    { "speaker": "Tom", "arabic": "أيوه، أنا طالب. وهو كمان طالب", "transliteration": "aywa, ana ṭaalib. w-huwwa kamaan ṭaalib", "english": "Yes, I'm a student. And he is a student too" }
+  ],
+  "sound_spotlight": [
+    { "sound": "إنتَ vs إنتي", "example": "inta / inti", "explanation": "One vowel carries the whole difference between talking to a man and a woman. Egyptians hear it instantly; practise saying the pair back to back until the last vowel is clean." },
+    { "sound": "Doubled و and ي in هو، هي", "example": "huwwa، hiyya", "explanation": "Cairo doubles the middle consonant: huw-wa, hiy-ya. The textbook huwa/hiya sounds foreign. Hold the w and y a beat longer than feels natural." },
+    { "sound": "ق kept as q", "example": "القاهرة (el-qaahira)", "explanation": "You learned that ق is usually a throat-catch (قهوة → ʾahwa). In a handful of formal words — القاهرة, القرآن — Egyptians keep the deep q. The name of the city is the one you need now; hear it with q." },
+    { "sound": "خ", "example": "الخير (el-kheer)", "explanation": "A rasp at the back of the mouth, like the ch in Scottish 'loch'. You have been hearing it since صباح الخير; from here on try producing it — a soft k with the throat open is close enough." }
+  ],
+  "lesson_sequence": [
+    { "step": "Welcome", "detail": "A university gate in Cairo, students passing. One line of English: today you say who you are, where you are from, and ask the same back. Tap يلا." },
+    { "step": "Hear it done", "detail": "Three short self-introductions from three speakers (a Cairo student, an Alexandrian woman, a foreigner). Arabic on screen; the learner taps the name and the place as they hear them." },
+    { "step": "The five pointers", "detail": "أنا، إنت، إنتي، هو، هي as cards with a pointing illustration each. Audio; then a tap game: a voice says a pronoun, the learner taps the person it points at." },
+    { "step": "Build it", "detail": "Tap-to-build: cards أنا / اسمي / من / مصري / طالب plus the learner's own name and country appear; drag them into two sentences. Audio plays the result." },
+    { "step": "Ask back", "detail": "The learner hears اسمك إيه؟ and إنت منين؟ and taps the matching answer; then hears the answer and taps the matching question." },
+    { "step": "Record once", "detail": "Say your own introduction: name, where from, student or not. Recorded, played back, not scored. Optional retake." },
+    { "step": "Quiz and complete", "detail": "Twelve build-a-sentence items. Counter rolls to 56 words. Nudge: introduce yourself in Egyptian to someone this week." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Introduce yourself to an Arabic speaker today in one breath: أنا [name]، أنا من [place]. Then ask وإنت؟", "context": "Lesson-complete screen. First real production of a two-sentence turn." },
+    { "prompt": "When someone asks your name this week, answer with اسمي … even if they asked in English.", "context": "Follow-up notification. Automates the -i ending on اسم." },
+    { "prompt": "Ask your tutor to introduce three imaginary people using هو and هي and point at the pictures; you say back who is who.", "context": "Tutor prompt. Third-person pronouns in a recognition game." }
+  ],
+  "video_needs": {
+    "queries": ["اسمك إيه ومنين إنت مقابلات شارع", "عرّف نفسك بالمصري", "مصري بيتكلم عن نفسه فلوج", "أجنبي بيعرف نفسه بالعربي المصري"],
+    "channels": ["Easy Arabic", "Ali Gamal", "Kareem Elsayed"],
+    "scene": "A self-introduction: vloggers introducing themselves, street interviews asking name and origin, a foreigner answering منين."
+  }
+}

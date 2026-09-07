@@ -1,0 +1,257 @@
+{
+  "slug": "food-and-drink",
+  "lesson_number": 7,
+  "title": "Food and Drink",
+  "title_arabic": "الأكل والشرب — أبي عيش ودجاج",
+  "description": "Twelve foods from a Gulf table plus the two words that get them to you: أبي (I want) and عطني (give me). Your first verb-like word, and the first time you order for yourself.",
+  "cefr_target": "A1",
+  "duration_minutes": 20,
+  "approach": "Here-and-now at a laid table: each food is named as it is placed on the sufra; then أبي and عطني are drilled as chunks with the twelve nouns, and the learner records a three-item order.",
+  "unlock_condition": "≥11/15 on the tap quiz and a recorded order of three items using أبي",
+  "icon": "🍚",
+  "can_do": [
+    "Name common foods and drinks",
+    "Say what you want to eat or drink",
+    "Ask for something to be passed"
+  ],
+  "grammar": [
+    {
+      "category": "verb-conjugation",
+      "title": "أبي + a thing: your first verb-like word",
+      "explanation": "To want something, say أبي and the thing: أبي ماي, أبي قهوة. To ask if someone wants, say تبي (to a man) or تبين (to a woman), and for 'he wants' يبي. Saudis often keep the غ of the old verb — أبغى, تبغى, يبغى — and Emiratis say أبا, تبا; they are the same word and you can answer any of them with أبي. To say you do not want, put ما in front: ما أبي. The MSA أريد is never said; using it marks you as reading from a book.",
+      "examples": [
+        { "arabic": "أبي عيش ودجاج", "transliteration": "abi ʿaysh w-dijaaj", "english": "I want rice and chicken" },
+        { "arabic": "تبي شاي؟ — إي، بشكر", "transliteration": "tabi shaay? — ee, b-shakar", "english": "Do you want tea? — Yes, with sugar" },
+        { "arabic": "تبين عصير؟", "transliteration": "tabiin ʿaṣiir?", "english": "Do you (f) want juice?" },
+        { "arabic": "هو يبي حليب", "transliteration": "huwa yabi ḥaliib", "english": "He wants milk" },
+        { "arabic": "لا، ما أبي ملح", "transliteration": "la, ma abi milḥ", "english": "No, I don't want salt" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "Three meals, and when they really happen",
+      "note": "Breakfast is ريوق in Kuwait, Bahrain and the Emirates and فطور in Saudi — often dates, bread, eggs and كرك tea. Lunch, غدا, is the main meal and comes late, between two and four, when the family is home; a plate of rice with chicken, lamb or fish — كبسة in Saudi, مجبوس further up the Gulf — sits in the middle. Dinner, عشا, is light and late, sometimes after ten. Eat with the right hand, take from the part of the shared dish nearest you, and say الحمد لله when you push back from the table.",
+      "phrases": [
+        { "arabic": "تغديت؟", "transliteration": "tghaddayt?", "english": "Have you had lunch? (a greeting)" },
+        { "arabic": "بالعافية", "transliteration": "bil-ʿaafya", "english": "Enjoy (said to someone eating)" },
+        { "arabic": "الله يعافيك", "transliteration": "allaah yʿaafiik", "english": "(the reply) God keep you well" },
+        { "arabic": "الحمد لله، شبعت", "transliteration": "il-ḥamdillaah, shibaʿt", "english": "Thank God, I'm full" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "عيش",
+      "transliteration": "ʿaysh",
+      "english": "rice",
+      "category": "Food & drink",
+      "teaching_note": "The Gulf marker word: in Kuwait, Bahrain, Qatar, the Emirates and eastern Saudi, rice is عيش. Riyadh says رز; and in Jeddah عيش means bread, which is the trap. Both forms are accepted; hear which one a speaker uses and you know where the kitchen is.",
+      "image_scene": "A large round platter of yellow spiced rice with a roast chicken on top, on a floor mat.",
+      "concept_key": "rice",
+      "variants": ["العيش", "رز", "الرز", "أرز", "عيش أبيض"],
+      "example": { "arabic": "العيش حار", "transliteration": "il-ʿaysh ḥaar", "english": "The rice is hot" },
+      "video_hint": "Cooking channels making kabsa or machbous; the rice platter carried to the sufra."
+    },
+    {
+      "arabic": "لحم",
+      "transliteration": "laḥam",
+      "english": "meat",
+      "category": "Food & drink",
+      "teaching_note": "Meat means lamb unless stated otherwise. Said laḥam with a helping vowel. Learn it with the ح in the middle — a different sound from the خ of خبز.",
+      "image_scene": "Chunks of roasted lamb on a bed of rice, garnished with nuts and raisins.",
+      "concept_key": "meat",
+      "variants": ["اللحم", "لحمة", "لحم غنم", "اللحمة"],
+      "example": { "arabic": "أبي لحم مو دجاج", "transliteration": "abi laḥam mu dijaaj", "english": "I want meat, not chicken" },
+      "video_hint": "Lamb going into a pot or onto a platter; a butcher's stall in a market vlog."
+    },
+    {
+      "arabic": "دجاج",
+      "transliteration": "dijaaj",
+      "english": "chicken",
+      "category": "Food & drink",
+      "teaching_note": "Saudis say dijaaj; Kuwait, Bahrain, Qatar and the Emirates say دياي diyaay with the y — and spell it that way. One chicken is دجاجة / دياية. The most ordered meat in any Gulf restaurant.",
+      "image_scene": "A whole roasted chicken, golden, on a white plate.",
+      "concept_key": "chicken",
+      "variants": ["الدجاج", "دياي", "الدياي", "دجاجة", "دياية"],
+      "example": { "arabic": "عيش ودجاج لو سمحت", "transliteration": "ʿaysh w-dijaaj law samaḥt", "english": "Rice and chicken, please" },
+      "video_hint": "Restaurant orders; chicken named as it is grilled or served."
+    },
+    {
+      "arabic": "سمك",
+      "transliteration": "simak",
+      "english": "fish",
+      "category": "Food & drink",
+      "teaching_note": "Said simak, and up the coast simach with the ch (سمچ). The coastal Gulf lives on fish — هامور and زبيدي are the prized ones — so the word is everywhere in Kuwaiti and Emirati kitchens.",
+      "image_scene": "A whole grilled fish on a platter with lemon halves.",
+      "concept_key": "fish",
+      "variants": ["السمك", "سمچ", "السمچ", "سمكة", "سمچة"],
+      "example": { "arabic": "السمك من البحر", "transliteration": "is-simak min il-baḥar", "english": "The fish is from the sea" },
+      "video_hint": "Fish market vlogs; grilled fish on a Friday lunch table."
+    },
+    {
+      "arabic": "حليب",
+      "transliteration": "ḥaliib",
+      "english": "milk",
+      "category": "Food & drink",
+      "teaching_note": "Fresh milk. The trap: لبن in the Gulf is buttermilk or drinking yoghurt, not milk. شاي حليب is milky tea, and the spiced version is كرك.",
+      "image_scene": "A tall glass of milk next to a carton, on a kitchen counter.",
+      "concept_key": "milk",
+      "variants": ["الحليب", "حليب بارد", "شاي حليب"],
+      "example": { "arabic": "أبي شاي بحليب", "transliteration": "abi shaay b-ḥaliib", "english": "I want tea with milk" },
+      "video_hint": "Milk poured into tea or a glass; supermarket runs."
+    },
+    {
+      "arabic": "شكر",
+      "transliteration": "shakar",
+      "english": "sugar",
+      "category": "Food & drink",
+      "teaching_note": "Gulf says shakar with sh, where MSA has sukkar. Tea comes sweet by default, so the useful phrase is بدون شكر (without sugar) or شكر شوي (a little sugar).",
+      "image_scene": "A small bowl of white sugar with a spoon beside a glass of tea.",
+      "concept_key": "sugar",
+      "variants": ["الشكر", "سكر", "السكر", "بدون شكر", "شكر شوي"],
+      "example": { "arabic": "شاي بدون شكر لو سمحت", "transliteration": "shaay biduun shakar law samaḥt", "english": "Tea without sugar, please" },
+      "video_hint": "Tea being sweetened; a café order specifying sugar."
+    },
+    {
+      "arabic": "ملح",
+      "transliteration": "milḥ",
+      "english": "salt",
+      "category": "Food & drink",
+      "teaching_note": "Short and useful at any table: عطني الملح. Ends in the deep ح, so the word finishes with a breath.",
+      "image_scene": "A small salt shaker on a dining table, a hand reaching for it.",
+      "concept_key": "salt",
+      "variants": ["الملح", "ملح شوي", "يبي ملح"],
+      "example": { "arabic": "عطني الملح لو سمحت", "transliteration": "ʿaṭni l-milḥ law samaḥt", "english": "Pass me the salt, please" },
+      "video_hint": "Salt added in a cooking clip; يبي ملح (needs salt) when tasting."
+    },
+    {
+      "arabic": "بيض",
+      "transliteration": "bayḍ",
+      "english": "eggs",
+      "category": "Food & drink",
+      "teaching_note": "The collective: بيض is eggs in general, بيضة one egg. The ض is heavy — Gulf speakers say it much like ظ. Breakfast staple, usually fried or scrambled with tomato.",
+      "image_scene": "Two fried eggs in a small pan beside flatbread.",
+      "concept_key": "egg",
+      "variants": ["البيض", "بيضة", "بيضه", "بيضات"],
+      "example": { "arabic": "بيض وخبز للريوق", "transliteration": "bayḍ w-khubz lir-ryuug", "english": "Eggs and bread for breakfast" },
+      "video_hint": "Breakfast vlogs; eggs cracked into a pan."
+    },
+    {
+      "arabic": "فواكه",
+      "transliteration": "fawaakih",
+      "english": "fruit",
+      "category": "Food & drink",
+      "teaching_note": "Fruit in general; one fruit is فاكهة. Younger speakers borrow فروتة for a fruit platter. The plate of fruit comes out after lunch and before coffee.",
+      "image_scene": "A platter of cut watermelon, grapes and oranges on a low table.",
+      "concept_key": "fruit",
+      "variants": ["الفواكه", "فاكهة", "الفاكهة", "فروتة"],
+      "example": { "arabic": "الفواكه على الطاولة", "transliteration": "il-fawaakih ʿala ṭ-ṭaawla", "english": "The fruit is on the table" },
+      "video_hint": "Fruit shopping at a market; a platter set down after a meal."
+    },
+    {
+      "arabic": "خضار",
+      "transliteration": "khuḍaar",
+      "english": "vegetables",
+      "category": "Food & drink",
+      "teaching_note": "Vegetables as a group, said khuḍaar; خضرة is the same thing. Starts with خ — the sound of خبز and خمس.",
+      "image_scene": "A crate of tomatoes, cucumbers and peppers at a market stall.",
+      "concept_key": "vegetables",
+      "variants": ["الخضار", "خضرة", "الخضرة", "خضروات"],
+      "example": { "arabic": "أبي خضار من السوق", "transliteration": "abi khuḍaar min is-suug", "english": "I want vegetables from the market" },
+      "video_hint": "Vegetable market vlogs; salad prep in cooking clips."
+    },
+    {
+      "arabic": "تمر",
+      "transliteration": "tamar",
+      "english": "dates",
+      "category": "Food & drink",
+      "teaching_note": "Served with every coffee, so you will eat one before you say the word. تمر is dried dates; fresh soft ones are رطب. Said tamar, two light syllables.",
+      "image_scene": "A small dish of dark glossy dates beside a tiny coffee cup.",
+      "concept_key": "dates",
+      "variants": ["التمر", "تمور", "رطب", "الرطب"],
+      "example": { "arabic": "قهوة وتمر", "transliteration": "gahwa w-tamar", "english": "Coffee and dates" },
+      "video_hint": "The dates dish placed beside the dallah; date-farm and Ramadan vlogs."
+    },
+    {
+      "arabic": "عصير",
+      "transliteration": "ʿaṣiir",
+      "english": "juice",
+      "category": "Food & drink",
+      "teaching_note": "Any juice; add the fruit: عصير برتقال. Juice stalls are everywhere and the word travels with the Gulf ص — a heavy s.",
+      "image_scene": "A tall glass of orange juice with a straw at a juice stall.",
+      "concept_key": "juice",
+      "variants": ["العصير", "عصيرات", "عصير برتقال", "عصير ليمون"],
+      "example": { "arabic": "عصير بارد لو سمحت", "transliteration": "ʿaṣiir baarid law samaḥt", "english": "A cold juice, please" },
+      "video_hint": "Juice stalls; a cold drink named on a hot day."
+    },
+    {
+      "arabic": "أبي",
+      "transliteration": "abi",
+      "english": "I want",
+      "category": "Verb",
+      "teaching_note": "Your first verb-like word. أبي + a thing is a complete request. Saudi أبغى and Emirati أبا are the same word; answer any of them. It is never أريد. Say it politely by adding لو سمحت.",
+      "image_scene": "A customer at a counter pointing at a dish behind the glass, clearly asking for it.",
+      "concept_key": "i_want",
+      "variants": ["أبغى", "أبا", "ابي", "ابغى", "ودي", "أبي أنا"],
+      "example": { "arabic": "أبي قهوة لو سمحت", "transliteration": "abi gahwa law samaḥt", "english": "I want a coffee, please" },
+      "video_hint": "Ordering food; children saying أبي; listen for أبغى in Saudi clips."
+    },
+    {
+      "arabic": "عطني",
+      "transliteration": "ʿaṭni",
+      "english": "give me / pass me",
+      "category": "Verb",
+      "teaching_note": "The polite way to have something passed at a table: عطني الماي. To a woman: عطيني. Add لو سمحت and it is fully polite; Gulf hosts will not find it rude.",
+      "image_scene": "A hand extended across a table toward a water jug, palm up.",
+      "concept_key": "give_me",
+      "variants": ["عطيني", "عطنا", "اعطني", "عطوني", "عطني إياه"],
+      "example": { "arabic": "عطني الخبز لو سمحت", "transliteration": "ʿaṭni l-khubz law samaḥt", "english": "Pass me the bread, please" },
+      "video_hint": "Something handed across a table; a child asking for a phone."
+    },
+    {
+      "arabic": "تبي",
+      "transliteration": "tabi",
+      "english": "do you want? (to a man)",
+      "category": "Verb",
+      "teaching_note": "The question form of أبي: تبي to a man, تبين tabiin to a woman. Hosts ask it constantly — تبي قهوة؟ تبي شاي؟ — so you will answer it long before you ask it. Saudi تبغى and Emirati تبا are the same.",
+      "image_scene": "A host holding out a coffee pot toward a guest, eyebrows raised in offer.",
+      "variants": ["تبين", "تبغى", "تبغين", "تبا", "تبون"],
+      "example": { "arabic": "تبي تمر؟", "transliteration": "tabi tamar?", "english": "Do you want dates?" },
+      "video_hint": "Hosts offering; waiters asking; parents asking children."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Mother", "arabic": "يالله، الغدا! تبي عيش ودجاج؟", "transliteration": "yalla, il-ghada! tabi ʿaysh w-dijaaj?", "english": "Come on, lunch! Do you want rice and chicken?" },
+    { "speaker": "Khalid", "arabic": "إي، أبي عيش. وسمك؟", "transliteration": "ee, abi ʿaysh. w-simak?", "english": "Yes, I want rice. And fish?" },
+    { "speaker": "Mother", "arabic": "لا، اليوم لحم ودجاج. عطني صحنك", "transliteration": "la, il-yawm laḥam w-dijaaj. ʿaṭni ṣaḥnak", "english": "No, today it's meat and chicken. Give me your plate" },
+    { "speaker": "Khalid", "arabic": "تفضلي. عطيني الملح لو سمحتي", "transliteration": "tfaḍḍali. ʿaṭiini l-milḥ law samaḥti", "english": "Here. Pass me the salt, please" },
+    { "speaker": "Mother", "arabic": "تفضل. تبي عصير ولا ماي؟", "transliteration": "tfaḍḍal. tabi ʿaṣiir walla maay?", "english": "Here. Do you want juice or water?" },
+    { "speaker": "Khalid", "arabic": "ماي بارد. الحمد لله، شبعت!", "transliteration": "maay baarid. il-ḥamdillaah, shibaʿt!", "english": "Cold water. Thank God, I'm full!" },
+    { "speaker": "Mother", "arabic": "بالعافية. فواكه وتمر بعدين", "transliteration": "bil-ʿaafya. fawaakih w-tamar baʿdayn", "english": "Enjoy. Fruit and dates later" }
+  ],
+  "sound_spotlight": [
+    { "sound": "ض ≈ ظ", "example": "بيض (bayḍ)", "explanation": "Gulf speakers say ض and ظ the same way — a heavy, throaty th-d. Do not fight to keep them apart; hear the darkness it puts on the vowel next to it and copy that." },
+    { "sound": "ح in the middle", "example": "لحم، حليب (laḥam, ḥaliib)", "explanation": "The breathy ح you met at the end of مفتاح now sits in the middle and at the start of a word. Keep the throat open; it should never sound like the rasp of خ in خبز and خضار." },
+    { "sound": "ج = j / y again", "example": "دجاج (dijaaj) / دياي (diyaay)", "explanation": "The same split as جدة / يدّة: Saudi j, upper-Gulf y. The app plays both. Whichever you hear, the platter is the same." }
+  ],
+  "lesson_sequence": [
+    { "step": "Welcome", "detail": "A floor sufra being laid for Friday lunch. One line of English: today you name the food and ask for it. Tap يلّا." },
+    { "step": "Lay the table", "detail": "Twelve food cards; as each plays, the dish lands on the sufra. Arabic large, English small. Tap to replay." },
+    { "step": "أبي and تبي", "detail": "A host asks تبي …؟ with each food; the learner answers إي، أبي … or لا، ما أبي … by tapping, then by recording. The verb is learned as a chunk, not a table." },
+    { "step": "Pass me", "detail": "The table scene with three items out of reach; the learner records عطني + the item; the item slides over when the speech check accepts it." },
+    { "step": "Order for yourself", "detail": "A counter scene; the learner records a three-item order with أبي and لو سمحت. The native replies with a price from Lesson 6." },
+    { "step": "Dialogue", "detail": "The lunch dialogue plays; second pass the learner takes Khalid's lines." },
+    { "step": "Quiz and complete", "detail": "Fifteen audio-only items: tap the food, tap what was wanted, tap what was passed. Counter rolls to 93. Nudge: order one thing in Arabic this week." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Open your fridge. Say أبي + each thing you can name in Arabic, out loud.", "context": "Lesson-complete screen. Here-and-now with the learner's own food." },
+    { "prompt": "At your next meal, ask someone to pass one thing with عطني … لو سمحت — even if they don't speak Arabic. Then translate.", "context": "Next-day notification. Rehearses the most useful table phrase." },
+    { "prompt": "Tell your tutor: offer me ten foods with تبي؟ and I'll say إي أبي or لا ما أبي.", "context": "Before a tutor session. Runs the verb chunk under real turn-taking." }
+  ],
+  "video_needs": {
+    "queries": ["طريقة الكبسة السعودية", "مجبوس دجاج كويتي", "ريوق إماراتي بلاليط", "أبي أبغى مقطع كوميدي"],
+    "channels": ["Saudi Food Eman", "Vivian Mnafikh Kitchen", "Moshaya Family", "Saud Brothers", "Sayood"],
+    "scene": "Cooking channels naming ingredients as they go into the pot; a family meal where dishes are named and passed; someone ordering with أبي at a counter."
+  }
+}

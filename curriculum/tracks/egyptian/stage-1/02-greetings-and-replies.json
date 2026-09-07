@@ -1,0 +1,249 @@
+{
+  "slug": "greetings-and-replies",
+  "lesson_number": 2,
+  "title": "Greetings and Their Replies",
+  "title_arabic": "التحيات وردودها",
+  "description": "Every Egyptian greeting has a fixed reply, and the reply is the lesson. Twelve greetings heard as pairs — morning, evening, peace, how-are-you — until you know what comes back before it is said.",
+  "cefr_target": "Pre-A1",
+  "duration_minutes": 15,
+  "approach": "GPA Phase 1 — receptive first. Every greeting is heard as a pair (greeting → reply) with two speakers on screen; the learner taps the reply that fits. Production is optional shadowing at the end.",
+  "unlock_condition": "≥9/12 correct on the match-the-reply quiz",
+  "icon": "👋",
+  "can_do": [
+    "Greet someone and answer their greeting",
+    "Say good morning, good evening and goodbye",
+    "Ask how someone is and say you are fine"
+  ],
+  "grammar": [
+    {
+      "category": "pronouns",
+      "title": "-ak or -ik: the ending tells you who you are talking to",
+      "explanation": "Listen to the end of إزيك. To a man it is izzayyak; to a woman it becomes izzayyik (often written إزيكي); to a group it is إزيكو. The same little ending sits on أخبارك (akhbaarak / akhbaarik). You do not need to build these yet — just notice that the last vowel changes with the person in front of you, and copy the one you hear.",
+      "examples": [
+        { "arabic": "إزيك يا أحمد؟", "transliteration": "izzayyak ya aḥmad?", "english": "How are you, Ahmed?" },
+        { "arabic": "إزيك يا منى؟", "transliteration": "izzayyik ya muna?", "english": "How are you, Mona?" },
+        { "arabic": "إزيكو يا جماعة؟", "transliteration": "izzayyuku ya gamaaʿa?", "english": "How are you all, everyone?" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "The reply is the lesson",
+      "note": "Egyptian greetings come in pairs, and the second half is not optional. صباح الخير is answered with صباح النور — or, if the other person likes you, صباح الفل ('morning of jasmine') or صباح القشطة ('morning of cream'): each reply tries to outbid the greeting. السلام عليكم is answered word for word with وعليكم السلام. If someone says أهلاً وسهلاً, answer أهلاً بيك (to a man) or أهلاً بيكي (to a woman). Shake hands with the right hand; between friends of the same gender a kiss on each cheek is normal, but let the Egyptian make that move first.",
+      "phrases": [
+        { "arabic": "صباح الفل", "transliteration": "ṣabaaḥ el-full", "english": "Morning of jasmine (a warm reply to good morning)" },
+        { "arabic": "أهلاً بيك", "transliteration": "ahlan biik", "english": "Welcome to you (reply to أهلاً وسهلاً, to a man)" },
+        { "arabic": "الله يسلمك", "transliteration": "allaah yisallimak", "english": "God keep you safe (reply to goodbye)" }
+      ]
+    },
+    {
+      "title": "How are you? is asked three ways at once",
+      "note": "Do not be surprised when an Egyptian fires إزيك؟ عامل إيه؟ أخبارك إيه؟ at you in one breath and moves on before you answer. The questions are the greeting; the answer is always some version of كويس، الحمد لله, and then you throw وإنت؟ back. Use أخبارك إيه with friends and people your age, not with your boss or someone's grandmother — for them, إزيك حضرتك is the safe form.",
+      "phrases": [
+        { "arabic": "كويس الحمد لله، وإنت؟", "transliteration": "kuwayyis el-ḥamdu lillaah, w-enta?", "english": "Fine, thank God — and you?" },
+        { "arabic": "تمام", "transliteration": "tamaam", "english": "Great / all good" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "أهلاً",
+      "transliteration": "ahlan",
+      "english": "hello / hi",
+      "category": "Greeting",
+      "teaching_note": "The all-purpose Egyptian hello, for anyone at any hour — also the reply when someone greets you first. مرحبا is understood but sounds imported; Egyptians say أهلاً.",
+      "image_scene": "A young man in a doorway raising a hand in greeting, smiling, a Cairo street behind him.",
+      "concept_key": "hello",
+      "variants": ["اهلا", "أهلا", "أهلين", "يا أهلاً"],
+      "example": { "arabic": "أهلاً يا سارة", "transliteration": "ahlan ya saara", "english": "Hi, Sara" },
+      "video_hint": "The first word said when two people meet; street interviews open with it."
+    },
+    {
+      "arabic": "السلام عليكم",
+      "transliteration": "es-salaamu ʿaleekum",
+      "english": "peace be upon you (hello)",
+      "category": "Greeting",
+      "teaching_note": "The greeting for walking into a room, a shop, a taxi. Slightly more formal than أهلاً and used by Egyptians of every religion. Always gets the fixed reply — never answer it with أهلاً.",
+      "image_scene": "A man entering a small shop with his right hand raised slightly, the shopkeeper looking up.",
+      "concept_key": "peace_be_upon_you",
+      "variants": ["سلام عليكم", "السلام عليكو", "سلامو عليكو"],
+      "example": { "arabic": "السلام عليكم يا حاج", "transliteration": "es-salaamu ʿaleekum ya ḥagg", "english": "Peace be upon you, sir (to an older man)" },
+      "video_hint": "Someone entering a room or shop; the greeting is the first thing said."
+    },
+    {
+      "arabic": "وعليكم السلام",
+      "transliteration": "wi-ʿaleekum es-salaam",
+      "english": "and upon you peace (the reply)",
+      "category": "Reply",
+      "teaching_note": "The only correct answer to السلام عليكم. The two halves swap places — hear it as one melody rather than two words. Egyptians often add ورحمة الله.",
+      "image_scene": "The shopkeeper from the previous card answering with a nod and a hand to the chest.",
+      "concept_key": "and_upon_you_peace",
+      "variants": ["وعليكم السلام ورحمة الله", "عليكم السلام", "وعليكو السلام"],
+      "example": { "arabic": "وعليكم السلام، اتفضل", "transliteration": "wi-ʿaleekum es-salaam, itfaḍḍal", "english": "And upon you peace — come in" },
+      "video_hint": "The second speaker in any greeting scene; often overlaps the first greeting."
+    },
+    {
+      "arabic": "صباح الخير",
+      "transliteration": "ṣabaaḥ el-kheer",
+      "english": "good morning",
+      "category": "Greeting",
+      "teaching_note": "Used until around noon. Note the Egyptian vowel in خير — kheer, not khayr. First meeting with ص: a heavier, darker s that colours the whole word.",
+      "image_scene": "A woman opening balcony shutters onto a bright morning street, waving to a neighbour.",
+      "concept_key": "good_morning",
+      "variants": ["صباح الخير يا جماعة", "صباحو", "صباح الخير عليكم"],
+      "example": { "arabic": "صباح الخير يا ماما", "transliteration": "ṣabaaḥ el-kheer ya maama", "english": "Good morning, Mum" },
+      "video_hint": "Morning-routine vlogs; the first line to camera or to a family member."
+    },
+    {
+      "arabic": "صباح النور",
+      "transliteration": "ṣabaaḥ en-nuur",
+      "english": "good morning (reply: morning of light)",
+      "category": "Reply",
+      "teaching_note": "The standard reply. Warmer versions — صباح الفل، صباح القشطة — outbid it and are heard all the time. Learn the pattern: reply with a nicer noun than the one you were given.",
+      "image_scene": "The neighbour from the previous card answering from her own balcony, coffee cup in hand, sun behind her.",
+      "concept_key": "good_morning_reply",
+      "variants": ["صباح الفل", "صباح القشطة", "صباح الورد", "صباح النور يا فندم"],
+      "example": { "arabic": "صباح النور يا أستاذ", "transliteration": "ṣabaaḥ en-nuur ya ustaaz", "english": "Good morning to you, sir" },
+      "video_hint": "Any reply to صباح الخير; listen for the alternatives الفل and القشطة."
+    },
+    {
+      "arabic": "مساء الخير",
+      "transliteration": "masaaʾ el-kheer",
+      "english": "good evening",
+      "category": "Greeting",
+      "teaching_note": "From the afternoon onwards — in Cairo that starts earlier than you would expect, around three. Reply: مساء النور. The hamza at the end of مساء is barely heard.",
+      "image_scene": "Two friends meeting outside a café at dusk, neon signs beginning to light up on the street.",
+      "concept_key": "good_evening",
+      "variants": ["مسا الخير", "مساء النور", "مساء الفل", "مسا الخير عليكم"],
+      "example": { "arabic": "مساء الخير يا دكتور", "transliteration": "masaaʾ el-kheer ya duktoor", "english": "Good evening, doctor" },
+      "video_hint": "Evening scenes: arriving at a gathering, the opening of an evening show."
+    },
+    {
+      "arabic": "إزيك",
+      "transliteration": "izzayyak",
+      "english": "how are you? (to a man)",
+      "category": "Greeting",
+      "teaching_note": "The Egyptian how-are-you, unmistakable to any Arab. To a woman: إزيكي (izzayyik); to a group: إزيكو. Never كيف حالك (a textbook), never شلونك (Gulf). The doubled يّ makes it sound Cairene.",
+      "image_scene": "Two men clasping right hands at a street corner, one leaning in with a broad smile.",
+      "concept_key": "how_are_you",
+      "variants": ["ازيك", "إزيّك", "إزيكي", "ازيكي", "إزيكو", "ازيكو"],
+      "example": { "arabic": "إزيك يا كريم؟", "transliteration": "izzayyak ya kariim?", "english": "How are you, Karim?" },
+      "video_hint": "Two people meeting; the greeting is the first thing said, usually with a handshake."
+    },
+    {
+      "arabic": "كويس الحمد لله",
+      "transliteration": "kuwayyis el-ḥamdu lillaah",
+      "english": "fine, thank God",
+      "category": "Reply",
+      "teaching_note": "The default answer to every how-are-you. A woman says كويسة. الحمد لله alone also works and is said whatever the speaker's religiosity. Then return the question with وإنت؟.",
+      "image_scene": "A woman answering with a relaxed smile and a small nod, hand on her chest.",
+      "concept_key": "im_fine",
+      "variants": ["كويسة الحمد لله", "الحمد لله", "كويس", "كويسه", "تمام الحمد لله"],
+      "example": { "arabic": "كويس الحمد لله، وإنت؟", "transliteration": "kuwayyis el-ḥamdu lillaah, w-enta?", "english": "Fine, thank God — and you?" },
+      "video_hint": "The reply in any greeting scene; often the interviewee's first full sentence."
+    },
+    {
+      "arabic": "أهلاً وسهلاً",
+      "transliteration": "ahlan wa-sahlan",
+      "english": "welcome",
+      "category": "Greeting",
+      "teaching_note": "Said to a guest, a customer, a new arrival. Reply: أهلاً بيك / بيكي / بيكم. Egyptians also welcome you with نورت ('you've lit the place up'), answered by ده نورك.",
+      "image_scene": "A host opening an apartment door wide with both arms out in welcome, guests on the landing.",
+      "concept_key": "welcome",
+      "variants": ["اهلا وسهلا", "أهلاً بيك", "أهلاً بيكي", "أهلاً بيكم", "نورت"],
+      "example": { "arabic": "أهلاً وسهلاً، اتفضل", "transliteration": "ahlan wa-sahlan, itfaḍḍal", "english": "Welcome — please, come in" },
+      "video_hint": "A host greeting arrivals at a door; a shopkeeper greeting customers."
+    },
+    {
+      "arabic": "مع السلامة",
+      "transliteration": "maʿa s-salaama",
+      "english": "goodbye",
+      "category": "Farewell",
+      "teaching_note": "Said by the person staying to the person leaving, and answered الله يسلمك. Between friends a quick سلام or باي does the same job.",
+      "image_scene": "A man waving from a doorway as a friend walks away down the street.",
+      "concept_key": "goodbye",
+      "variants": ["مع السلامه", "سلام", "باي", "يلا سلام"],
+      "example": { "arabic": "مع السلامة يا ماما", "transliteration": "maʿa s-salaama ya maama", "english": "Goodbye, Mum" },
+      "video_hint": "The end of a visit or a phone call; the sign-off of a vlog."
+    },
+    {
+      "arabic": "أشوفك بعدين",
+      "transliteration": "ashuufak baʿdeen",
+      "english": "see you later",
+      "category": "Farewell",
+      "teaching_note": "The friendly Egyptian see-you. To a woman: أشوفكي (ashuufik). Another warm version is أشوفك على خير — 'see you well'. Usually followed by إن شاء الله, which here just means 'hopefully'.",
+      "image_scene": "Two young women parting on a metro platform, one calling back over her shoulder.",
+      "concept_key": "see_you",
+      "variants": ["اشوفك بعدين", "أشوفكي بعدين", "أشوفك على خير", "نتقابل إن شاء الله", "هشوفك بكره"],
+      "example": { "arabic": "أشوفك بعدين إن شاء الله", "transliteration": "ashuufak baʿdeen in shaaʾ allaah", "english": "See you later, God willing" },
+      "video_hint": "Friends parting; the closing seconds of a vlog."
+    },
+    {
+      "arabic": "أخبارك إيه",
+      "transliteration": "akhbaarak eeh",
+      "english": "what's new? / how are things?",
+      "category": "Greeting",
+      "teaching_note": "Literally 'your news is what?'. Casual, for friends and people your age — not for elders or superiors. To a woman: أخباركِ إيه (akhbaarik). Same answer as إزيك: كويس الحمد لله.",
+      "image_scene": "Two friends at a café table leaning in over glasses of tea, one gesturing 'so, what's new?'.",
+      "concept_key": "whats_new",
+      "variants": ["اخبارك ايه", "أخباركِ إيه", "إيه الأخبار", "أخباركو إيه"],
+      "example": { "arabic": "أخبارك إيه يا عمر؟", "transliteration": "akhbaarak eeh ya ʿumar?", "english": "What's new, Omar?" },
+      "video_hint": "Friends catching up; usually the second or third question after إزيك."
+    },
+    {
+      "arabic": "عامل إيه",
+      "transliteration": "ʿaamil eeh",
+      "english": "how are you doing? (to a man)",
+      "category": "Greeting",
+      "teaching_note": "Literally 'doing what?'. Extremely common alongside إزيك. To a woman: عاملة إيه (ʿamla eeh); to a group: عاملين إيه. Same answer: كويس الحمد لله.",
+      "image_scene": "A man on the phone smiling, one hand open in a 'so how are you?' gesture.",
+      "variants": ["عامل ايه", "عاملة إيه", "عامله ايه", "عاملين إيه"],
+      "example": { "arabic": "إزيك، عامل إيه؟", "transliteration": "izzayyak, ʿaamil eeh?", "english": "How are you, how are you doing?" },
+      "video_hint": "Phone-call openers and street interviews; often chained straight after إزيك."
+    },
+    {
+      "arabic": "وإنت",
+      "transliteration": "w-enta",
+      "english": "and you? (to a man)",
+      "category": "Reply",
+      "teaching_note": "The polite return of any how-are-you. To a woman: وإنتي (w-enti). Without it the greeting feels unfinished.",
+      "image_scene": "A woman pointing an open palm back at the person who asked, eyebrows raised.",
+      "variants": ["وانت", "وإنتي", "وانتي", "وإنتو", "وحضرتك"],
+      "example": { "arabic": "الحمد لله، وإنت؟", "transliteration": "el-ḥamdu lillaah, w-enta?", "english": "Thank God — and you?" },
+      "video_hint": "The turn-taking moment in a greeting; the second speaker hands the question back."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Karim", "arabic": "السلام عليكم", "transliteration": "es-salaamu ʿaleekum", "english": "Peace be upon you" },
+    { "speaker": "Mona", "arabic": "وعليكم السلام، أهلاً يا كريم", "transliteration": "wi-ʿaleekum es-salaam, ahlan ya kariim", "english": "And upon you peace — hi, Karim" },
+    { "speaker": "Karim", "arabic": "إزيك يا منى؟ عاملة إيه؟", "transliteration": "izzayyik ya muna? ʿamla eeh?", "english": "How are you, Mona? How are you doing?" },
+    { "speaker": "Mona", "arabic": "كويسة الحمد لله، وإنت؟", "transliteration": "kuwayyisa el-ḥamdu lillaah, w-enta?", "english": "Fine, thank God — and you?" },
+    { "speaker": "Karim", "arabic": "تمام الحمد لله. يلا، أشوفك بعدين", "transliteration": "tamaam el-ḥamdu lillaah. yalla, ashuufik baʿdeen", "english": "All good, thank God. Right — see you later" },
+    { "speaker": "Mona", "arabic": "مع السلامة", "transliteration": "maʿa s-salaama", "english": "Goodbye" },
+    { "speaker": "Karim", "arabic": "الله يسلمك", "transliteration": "allaah yisallimik", "english": "God keep you safe" }
+  ],
+  "sound_spotlight": [
+    { "sound": "ح vs ه", "example": "الحمد لله (el-ḥamdu lillaah) vs أهلاً (ahlan)", "explanation": "Two h-sounds. ه is the ordinary English h of 'hello'. ح is breathier, made by tightening the throat as if fogging a mirror. This lesson has both in its two most repeated words, so you can hear them side by side." },
+    { "sound": "ص", "example": "صباح (ṣabaaḥ)", "explanation": "A heavy s made with the tongue pulled back, which darkens the vowel after it: ṣabaaḥ sounds deeper than a plain sabaaḥ. Heard passively here; you will contrast it with س in Lesson 5." },
+    { "sound": "Doubled يّ", "example": "إزيك (izzayyak)", "explanation": "The y in the middle of إزيك is held twice as long — iz-zay-yak. Doubling a consonant is meaningful in Arabic, and this word is the first place you can feel it." }
+  ],
+  "lesson_sequence": [
+    { "step": "Welcome", "detail": "A door opening onto a Cairo stairwell. One line of English: greetings in Egypt come in pairs; today you learn twelve and their replies. Tap يلا." },
+    { "step": "Hear the pairs", "detail": "Six greeting → reply pairs, each acted by two speakers on a split card. Native audio auto-plays greeting then reply; Arabic shown, English small underneath. Tap to replay either half." },
+    { "step": "Which reply?", "detail": "Audio of a greeting plays; three replies appear as cards; tap the one that fits. Wrong taps replay the correct pair. Covers the six pairs plus أخبارك إيه and أشوفك بعدين." },
+    { "step": "Chain listening", "detail": "The full dialogue plays with speakers highlighted line by line. Second pass: the learner taps when a turn changes hands." },
+    { "step": "Shadow (optional)", "detail": "Four replies only — وعليكم السلام, صباح النور, كويس الحمد لله, الله يسلمك — played and echoed by the learner with a simple record-and-compare bar. No score." },
+    { "step": "Match quiz", "detail": "Twelve items, audio only: hear the greeting, tap the reply; hear the reply, tap the greeting. Missed items replay with both halves." },
+    { "step": "Lesson complete", "detail": "Words-learned counter rolls to 26. Nudge: say السلام عليكم to the next Arabic speaker you meet and listen for the reply." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Next time you walk into a shop or café run by Arabic speakers, say السلام عليكم and wait. The reply will come back word for word.", "context": "Lesson-complete screen. Lowest-risk production task in the course: a fixed phrase with a fixed reply." },
+    { "prompt": "Text an Egyptian friend صباح الخير tomorrow morning and see which reply you get — النور, الفل or القشطة?", "context": "Next-morning notification. Written practice of the reply pattern; primes the learner to notice the outbidding replies." },
+    { "prompt": "In your next tutor session, open with إزيك؟ عامل إيه؟ and answer their questions with كويس الحمد لله، وإنت؟", "context": "Tutor prompt. Rehearses the full three-question greeting chain in one turn." }
+  ],
+  "video_needs": {
+    "queries": ["إزيك عامل إيه تحيات مصري", "مقابلات شارع القاهرة صباح الخير", "طريقة السلام في مصر", "اتعلم التحية بالمصري"],
+    "channels": ["Easy Arabic", "Ali Gamal", "Kareem Elsayed"],
+    "scene": "Two people greeting each other at a door or on the street, the reply clearly audible; Easy Arabic street-interview intros are ideal."
+  }
+}

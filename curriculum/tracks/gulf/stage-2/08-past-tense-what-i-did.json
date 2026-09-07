@@ -1,0 +1,268 @@
+{
+  "slug": "past-tense-what-i-did",
+  "lesson_number": 8,
+  "title": "What I Did Yesterday",
+  "title_arabic": "شسويت أمس؟",
+  "description": "I went, I ate, I saw, I bought, I said, I came, I did — the seven past-tense verbs that tell any story, the endings that say who did it, and the weekend question everyone asks on Sunday morning.",
+  "cefr_target": "A2",
+  "duration_minutes": 25,
+  "approach": "GPA Phase 2 — recap narration. Vlog recaps supply the past tense in sequence; the endings are lifted out and drilled, then the learner tells their own yesterday in order with بعدها.",
+  "unlock_condition": "≥13/16 on the who-did-it listening quiz and a recorded four-sentence account of yesterday",
+  "icon": "📅",
+  "can_do": [
+    "Say what you did yesterday and last week",
+    "Conjugate regular past-tense verbs for every person",
+    "Tell a short sequence of past events"
+  ],
+  "grammar": [
+    {
+      "category": "verb-conjugation",
+      "title": "The past tense: the person goes on the end",
+      "explanation": "In the present the person sits at the front of the verb; in the past it moves to the end. Take كتب 'he wrote' as the bare form: كتبت 'I wrote' and 'you wrote' (same shape, -t), كتبتي 'you (f) wrote', كتبت 'she wrote' (said kitbat, with the middle vowel dropped), كتبنا 'we wrote', كتبتوا 'you all wrote', كتبوا 'they wrote' — and Gulf says that last one kitbaw, not katabuu. The 'he' form carries a Gulf i-vowel: kitab, shirab, simaʿ. Verbs with a long aa in the middle, like راح 'went' and شاف 'saw' and قال 'said', shorten it in the I/you/we forms: رحت riḥt, شفت shift, قلت gilt — but keep it for he/she/they: راح، راحت، راحوا. Negate the whole thing with ما: ما رحت 'I didn't go'.",
+      "examples": [
+        { "arabic": "رحت السوق أمس", "transliteration": "riḥt is-suug ams", "english": "I went to the market yesterday" },
+        { "arabic": "أختي راحت معي", "transliteration": "ukhti raaḥat maʿi", "english": "My sister went with me" },
+        { "arabic": "شفتي الفيلم؟ — لا، ما شفته", "transliteration": "shifti l-film? — la, ma shiftah", "english": "Did you (f) see the film? — No, I didn't" },
+        { "arabic": "أكلنا مندي وشربنا كرك", "transliteration": "akalna mandi w-shirabna karak", "english": "We ate mandi and drank karak" },
+        { "arabic": "الربع جوا وقعدوا لين الفجر", "transliteration": "ir-rabʿ jaw w-giʿdaw layn il-fajir", "english": "The guys came and stayed until dawn" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "The weekend: Friday, family, and the Sunday question",
+      "note": "The Gulf weekend is Friday and Saturday, and Friday has a fixed shape: a late start, the midday Friday prayer for the men, then the big family lunch — often at the grandparents' house, with every uncle and cousin present — and a long afternoon of tea, coffee and talk. Saturday is the free day: the mall, the beach, a desert trip (كشتة) in winter. The Sunday-morning question at work or university is وش سويت بالويكند؟ 'what did you do at the weekend?', and the truthful answer ولا شي، قعدت بالبيت 'nothing, I stayed home' is completely acceptable. If you did something, tell it in order with بعدها 'after that'.",
+      "phrases": [
+        { "arabic": "وش سويت بالويكند؟", "transliteration": "wish sawwayt bil-wiikand?", "english": "What did you do at the weekend?" },
+        { "arabic": "ولا شي، قعدت بالبيت", "transliteration": "wala shay, giʿadt bil-bayt", "english": "Nothing, I stayed home" },
+        { "arabic": "تغدينا عند جدتي يوم الجمعة", "transliteration": "tghaddayna ʿind jaddati yoom il-jumʿa", "english": "We had Friday lunch at my grandmother's" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "رحت",
+      "transliteration": "riḥt",
+      "english": "I went",
+      "category": "Verb — past",
+      "teaching_note": "The 'I' form of راح: the long aa shrinks to a short i and the ending -t is you. Same shape for 'you went'; رحتي to a woman; راح he went, راحت she went, راحوا they went. Never the formal ذهبت.",
+      "image_scene": "A person walking away down a street toward a market, seen from behind, in past-tense sepia.",
+      "concept_key": "went",
+      "variants": ["راح", "راحت", "راحوا", "رحتي", "رحنا", "رحتوا", "ما رحت"],
+      "example": { "arabic": "رحت السوق أمس", "transliteration": "riḥt is-suug ams", "english": "I went to the market yesterday" },
+      "video_hint": "A recap vlog opening — رحت / رحنا — with the place shown."
+    },
+    {
+      "arabic": "أكلت",
+      "transliteration": "akalt",
+      "english": "I ate",
+      "category": "Verb — past",
+      "teaching_note": "Saudis say أكلت; Kuwaitis and Emiratis drop the hamza and say كليت (kalayt). He ate is أكل / كل, they ate أكلوا / كلوا. Both are heard daily; use one.",
+      "image_scene": "An empty plate with a few grains of rice left, a satisfied diner leaning back.",
+      "concept_key": "ate",
+      "variants": ["كليت", "أكل", "كل", "أكلنا", "أكلوا", "كلوا", "أكلتي"],
+      "example": { "arabic": "أكلت كبسة عند خالي", "transliteration": "akalt kabsa ʿind khaali", "english": "I ate kabsa at my uncle's" },
+      "video_hint": "A food-vlog recap — أكلنا / كلينا — after the meal."
+    },
+    {
+      "arabic": "شفت",
+      "transliteration": "shift",
+      "english": "I saw",
+      "category": "Verb — past",
+      "teaching_note": "From شاف; the aa shrinks: shift. Kuwaitis often say chift with their soft ك sound. شفته 'I saw him', شفتها 'I saw her' — the object goes straight on the end.",
+      "image_scene": "A person pointing excitedly at something off-screen, eyes wide.",
+      "concept_key": "saw",
+      "variants": ["شاف", "شافت", "شافوا", "شفتي", "شفنا", "شفته", "چفت"],
+      "example": { "arabic": "شفت صديقي بالمول", "transliteration": "shift ṣadiigi bil-mool", "english": "I saw my friend at the mall" },
+      "video_hint": "A vlogger recounting what they saw — شفت — with the thing shown."
+    },
+    {
+      "arabic": "شريت",
+      "transliteration": "shirayt",
+      "english": "I bought",
+      "category": "Verb — past",
+      "teaching_note": "The Gulf short form of اشتريت; both are said. Ends in -ayt because the verb ends in a vowel (شرى): شريت، شريتي، شرينا. He bought is شرى or اشترى.",
+      "image_scene": "A person holding up a shopping bag with a new pair of shoes visible inside.",
+      "concept_key": "bought",
+      "variants": ["اشتريت", "شرى", "اشترى", "شرت", "شرينا", "شروا", "شريتي"],
+      "example": { "arabic": "شريت جوتي جديد", "transliteration": "shirayt juuti jidiid", "english": "I bought new shoes" },
+      "video_hint": "A shopping-haul recap — شريت / اشتريت — with the item held up."
+    },
+    {
+      "arabic": "قلت",
+      "transliteration": "gilt",
+      "english": "I said",
+      "category": "Verb — past",
+      "teaching_note": "From قال; ق as g and the aa shrinks: gilt. قلت له 'I told him', قال لي 'he told me' — the verb of every story. Never the formal قلتُ with a u.",
+      "image_scene": "A person mid-speech with a speech bubble, another person listening.",
+      "concept_key": "said",
+      "variants": ["قال", "قالت", "قالوا", "قلت له", "قال لي", "قلنا", "قلتي"],
+      "example": { "arabic": "قلت له: ما أقدر أجي", "transliteration": "gilt lah: ma agdar aji", "english": "I told him: I can't come" },
+      "video_hint": "A story being retold — قلت له… قال لي… — in a vlog or podcast."
+    },
+    {
+      "arabic": "جيت",
+      "transliteration": "jiit",
+      "english": "I came",
+      "category": "Verb — past",
+      "teaching_note": "Saudis say jiit; Kuwaitis, Emiratis, Qataris and Bahrainis say yiit and write ييت. He came is جا / يا, she came جات, they came جوا. متى جيت؟ 'when did you get here?' is the greeting to a latecomer.",
+      "image_scene": "A person stepping through a doorway into a room where others are already seated.",
+      "concept_key": "came",
+      "variants": ["ييت", "جا", "يا", "جات", "جوا", "جينا", "جيتي", "جيتوا"],
+      "example": { "arabic": "جيت البيت متأخر", "transliteration": "jiit il-bayt mitʾakhkhir", "english": "I came home late" },
+      "video_hint": "Someone arriving — جيت / جينا — in a recap or greeting."
+    },
+    {
+      "arabic": "سويت",
+      "transliteration": "sawwayt",
+      "english": "I did / I made",
+      "category": "Verb — past",
+      "teaching_note": "From سوّى, the Gulf all-purpose 'do/make' — never فعلت. شسويت؟ / وش سويت؟ 'what did you do?' opens every recap. He did is سوّى, they did سووا.",
+      "image_scene": "A person with a checklist ticking off completed tasks.",
+      "concept_key": "did",
+      "variants": ["سوى", "سوّى", "سوت", "سووا", "سوينا", "سويتي", "شسويت", "وش سويت"],
+      "example": { "arabic": "شسويت أمس؟ — ولا شي", "transliteration": "sh-sawwayt ams? — wala shay", "english": "What did you do yesterday? — Nothing" },
+      "video_hint": "The question وش سويت؟ or the recap سويت… in a vlog."
+    },
+    {
+      "arabic": "الأسبوع اللي فات",
+      "transliteration": "il-usbuuʿ illi faat",
+      "english": "last week",
+      "category": "Time expression",
+      "teaching_note": "Literally 'the week that passed'. The pattern reuses for the month and the year: الشهر اللي فات, السنة اللي فاتت. Also الأسبوع الماضي, slightly more formal.",
+      "image_scene": "A calendar with the previous week's row shaded and an arrow pointing back to it.",
+      "concept_key": "last_week",
+      "variants": ["الأسبوع الماضي", "الاسبوع اللي فات", "الشهر اللي فات", "السنة اللي فاتت", "الأسبوع اللي راح"],
+      "example": { "arabic": "الأسبوع اللي فات رحت الدمام", "transliteration": "il-usbuuʿ illi faat riḥt id-dammaam", "english": "Last week I went to Dammam" },
+      "video_hint": "A weekly recap vlog with الأسبوع اللي فات / الماضي in the intro."
+    },
+    {
+      "arabic": "الويكند",
+      "transliteration": "il-wiikand",
+      "english": "weekend",
+      "category": "Time expression",
+      "teaching_note": "The English word with an Arabic ال, and what young Gulf speakers actually say. The fuller نهاية الأسبوع or آخر الأسبوع is heard from older people and on TV. The weekend is Friday–Saturday.",
+      "image_scene": "A calendar with Friday and Saturday circled, a beach umbrella icon over them.",
+      "concept_key": "weekend",
+      "variants": ["ويكند", "نهاية الأسبوع", "آخر الأسبوع", "بالويكند", "الويك اند"],
+      "example": { "arabic": "بالويكند رحنا البحر", "transliteration": "bil-wiikand riḥna l-baḥar", "english": "At the weekend we went to the beach" },
+      "video_hint": "A weekend vlog — الويكند — with beach, mall or desert on screen."
+    },
+    {
+      "arabic": "زرت",
+      "transliteration": "zirt",
+      "english": "I visited",
+      "category": "Verb — past",
+      "teaching_note": "From زار; short form zirt. The noun زيارة 'a visit' is just as common: رحت زيارة 'I went visiting'. Visiting family is the default weekend activity, so this verb is on every recap.",
+      "image_scene": "A person at a front door being greeted by an older relative with open arms.",
+      "concept_key": "visit",
+      "variants": ["زار", "زارت", "زاروا", "زرنا", "زيارة", "زرتي", "زرت أهلي"],
+      "example": { "arabic": "زرت جدتي يوم الجمعة", "transliteration": "zirt jaddati yoom il-jumʿa", "english": "I visited my grandmother on Friday" },
+      "video_hint": "A family visit in a vlog; زرنا / زيارة said on the way."
+    },
+    {
+      "arabic": "بعدها",
+      "transliteration": "baʿadha",
+      "english": "then / after that",
+      "category": "Connector",
+      "teaching_note": "Literally 'after it' — the word that strings past events into a story: رحت السوق، بعدها رحت البيت. Kuwaitis and Emiratis also say عقبها. بعدين 'later' works too but points less clearly at the previous event.",
+      "image_scene": "Three snapshots in a row connected by arrows: market, café, home.",
+      "concept_key": "then",
+      "variants": ["وبعدها", "عقبها", "بعدين", "وبعدين", "عقب", "بعد كذا"],
+      "example": { "arabic": "تغدينا، بعدها نمنا شوي", "transliteration": "tghaddayna, baʿadha nimna shway", "english": "We had lunch, then slept a bit" },
+      "video_hint": "A recap told in sequence — بعدها / عقبها — between events."
+    },
+    {
+      "arabic": "قبل",
+      "transliteration": "gabil",
+      "english": "before",
+      "category": "Time word",
+      "teaching_note": "ق as g, two syllables: ga-bil. Before a noun (قبل الغدا) or, with لا, before a verb: قبل لا أروح 'before I go'. Also 'ago': قبل سنة 'a year ago'.",
+      "image_scene": "A clock at 12 with an arrow pointing back to 11, a plate of food under the 12.",
+      "concept_key": "before",
+      "variants": ["قبل الغدا", "قبل لا", "قبل ما", "قبل شوي", "قبل سنة", "جبل"],
+      "example": { "arabic": "صليت قبل الغدا", "transliteration": "ṣallayt gabil il-ghada", "english": "I prayed before lunch" },
+      "video_hint": "Sequencing in a vlog — قبل الغدا / قبل ما — with the earlier event shown."
+    },
+    {
+      "arabic": "بعد",
+      "transliteration": "baʿad",
+      "english": "after",
+      "category": "Time word",
+      "teaching_note": "Two syllables in Gulf: ba-ʿad. Before a noun (بعد العشا) or with ما before a verb: بعد ما أكلت 'after I ate'. Kuwait and the UAE also say عقب. Watch the other meaning: بعد alone can mean 'also / still' — آنا بعد 'me too'.",
+      "image_scene": "A clock at 12 with an arrow pointing forward to 1, a cup of tea under the 1.",
+      "concept_key": "after",
+      "variants": ["بعد العشا", "بعد ما", "عقب", "عقب ما", "بعد الغدا", "بعد شوي"],
+      "example": { "arabic": "بعد الغدا شربنا قهوة", "transliteration": "baʿd il-ghada shirabna gahwa", "english": "After lunch we drank coffee" },
+      "video_hint": "Sequencing in a vlog — بعد الغدا / بعد ما — with the later event shown."
+    },
+    {
+      "arabic": "رحلة",
+      "transliteration": "riḥla",
+      "english": "trip",
+      "category": "Noun — travel",
+      "teaching_note": "Any journey, and also a flight (رحلة الطيران). A day out is a طلعة; a desert trip is a كشتة. Plural رحلات. Same word as the taxi verb's root — 'a going'.",
+      "image_scene": "A packed car with luggage on the roof heading out on a desert road.",
+      "concept_key": "trip",
+      "variants": ["الرحلة", "رحلات", "رحلتنا", "رحلة بر", "طلعة", "الرحلة حلوة"],
+      "example": { "arabic": "الرحلة كانت حلوة واجد", "transliteration": "ir-riḥla kaanat ḥilwa waajid", "english": "The trip was really nice" },
+      "video_hint": "A travel recap — الرحلة — with the journey footage."
+    },
+    {
+      "arabic": "البارحة",
+      "transliteration": "il-baarḥa",
+      "english": "last night / yesterday evening",
+      "category": "Time expression",
+      "teaching_note": "The pan-Gulf 'last night', and in the UAE 'yesterday' generally. Pairs with أمس from Stage 1: أمس is the day, البارحة the night. Jeddah says أمبارح.",
+      "image_scene": "A night sky with a crescent moon over a lit-up street, an arrow pointing back.",
+      "variants": ["البارح", "بارحة", "أمبارح", "البارحه", "ليلة البارحة"],
+      "example": { "arabic": "البارحة نمت متأخر", "transliteration": "il-baarḥa nimt mitʾakhkhir", "english": "Last night I slept late" },
+      "video_hint": "A morning-after recap — البارحة — in a vlog."
+    },
+    {
+      "arabic": "كشتة",
+      "transliteration": "kashta",
+      "english": "desert outing / picnic trip",
+      "category": "Noun — travel",
+      "teaching_note": "The Gulf winter institution: driving out to the desert with a fire, tea, meat and the whole family or the whole gang. No English word covers it. Ask a Saudi or Kuwaiti about last weekend in winter and this word will appear.",
+      "image_scene": "A campfire in the desert at dusk with a teapot on it, people on rugs, cars parked behind.",
+      "variants": ["الكشتة", "كشتات", "كشته", "رحنا كشتة", "كشتة بر"],
+      "example": { "arabic": "بالويكند رحنا كشتة بالبر", "transliteration": "bil-wiikand riḥna kashta bil-barr", "english": "At the weekend we went on a desert trip" },
+      "video_hint": "A desert-camping vlog; كشتة said as the fire is lit."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Yousef", "arabic": "شسويت بالويكند؟", "transliteration": "sh-sawwayt bil-wiikand?", "english": "What did you do at the weekend?" },
+    { "speaker": "Turki", "arabic": "يوم الجمعة تغدينا عند جدتي", "transliteration": "yoom il-jumʿa tghaddayna ʿind jaddati", "english": "On Friday we had lunch at my grandmother's" },
+    { "speaker": "Yousef", "arabic": "وبعدها؟", "transliteration": "w-baʿadha?", "english": "And after that?" },
+    { "speaker": "Turki", "arabic": "بعدها رحت المول وشريت جوتي", "transliteration": "baʿadha riḥt il-mool w-shirayt juuti", "english": "Then I went to the mall and bought shoes" },
+    { "speaker": "Yousef", "arabic": "شفت أحد هناك؟", "transliteration": "shift aḥad hnaak?", "english": "Did you see anyone there?" },
+    { "speaker": "Turki", "arabic": "إي، شفت سعود. قال لي عنده كشتة السبت", "transliteration": "ii, shift saʿuud. gaal li ʿindah kashta is-sabt", "english": "Yes, I saw Saud. He told me he had a desert trip on Saturday" },
+    { "speaker": "Yousef", "arabic": "ورحت معهم؟", "transliteration": "w-riḥt maʿaahum?", "english": "And did you go with them?" },
+    { "speaker": "Turki", "arabic": "لا، ما رحت. جيت البيت ونمت", "transliteration": "la, ma riḥt. jiit il-bayt w-nimt", "english": "No, I didn't. I came home and slept" }
+  ],
+  "sound_spotlight": [
+    { "sound": "The shrinking aa", "example": "راح → رحت (raaḥ → riḥt)، شاف → شفت (shaaf → shift)، قال → قلت (gaal → gilt)", "explanation": "Verbs with a long aa in the middle lose it the moment an ending goes on. Hear the pair: raaḥ / riḥt. The vowel that stays is a short i." },
+    { "sound": "The Gulf 'they' ending -aw", "example": "راحوا (raaḥaw)، كتبوا (kitbaw)، جوا (jaw)", "explanation": "Written with و like formal Arabic but said -aw, a short diphthong: raaḥaw, not raaḥuu. It is one of the clearest Gulf markers in the past tense." },
+    { "sound": "She: the dropped middle vowel", "example": "كتبت (kitbat)، شربت (shirbat)، قعدت (giʿdat)", "explanation": "'She wrote' and 'I wrote' are spelled the same; the ear separates them because 'she' squeezes the middle vowel out: kitbat versus kitabt." }
+  ],
+  "lesson_sequence": [
+    { "step": "Recap warm-up", "detail": "A 60-second 'what I did today' vlog recap with no captions; the learner watches the day replayed in order — market, café, home." },
+    { "step": "Vocabulary cards", "detail": "Sixteen cards with illustration and audio; each verb plays in the 'I' form and then in 'he' and 'they' so the shrinking aa and the -aw ending are heard from the first pass." },
+    { "step": "The person goes on the end", "detail": "Grammar card: كتب and راح built out for every person with audio; then the learner drags endings onto blank stems for six verbs." },
+    { "step": "Who did it?", "detail": "Listening quiz: sixteen short past-tense clips sorted into I / you / she / we / they — the middle vowel and the ending are the clues. Feedback highlights them." },
+    { "step": "Rewatch with captions", "detail": "The recap vlog again with Gulf captions; the learner taps every past-tense verb and orders four events using بعدها." },
+    { "step": "Your yesterday", "detail": "Four prompts (where you went, what you ate, who you saw, what you did after) — the learner records one sentence each, linked with بعدها." },
+    { "step": "Lesson complete", "detail": "Counter rolls up. Nudge: tonight, tell your day in four past-tense sentences before you sleep." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Tonight, before bed, say four things you did today: رحت… أكلت… شفت… بعدها…", "context": "Evening notification. The recap habit on the learner's own day, verbs in sequence." },
+    { "prompt": "On Sunday, ask a Gulf friend or tutor وش سويت بالويكند؟ and listen for راح / رحنا / بعدها in the answer.", "context": "Weekly nudge tied to the culture note. The one question that elicits a full past-tense story." },
+    { "prompt": "Watch a Gulf vlog recap and count the words ending in -aw (راحوا، جوا، قعدوا). That is the Gulf 'they'.", "context": "Homework card. Trains the ear on the most distinctive past-tense sound." }
+  ],
+  "video_needs": {
+    "queries": ["وش سويت اليوم فلوق سعودي", "قصة صارت لي فلوق", "سالفة صارت لي", "ويكندي فلوق كويتي"],
+    "channels": ["Fahad Sal", "BanderitaX", "Gudosbros", "Jana Vlogs"],
+    "scene": "A vlogger recapping their day or weekend in the past tense — went, ate, saw, bought — with the events shown as they are named; a story told with بعدها."
+  }
+}

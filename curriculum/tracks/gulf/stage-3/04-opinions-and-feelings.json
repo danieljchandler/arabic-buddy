@@ -1,0 +1,300 @@
+{
+  "slug": "opinions-and-feelings",
+  "lesson_number": 4,
+  "title": "Opinions and Feelings",
+  "title_arabic": "رأيي وشعوري",
+  "description": "Say what you think and how you feel without starting a fight: أظن إن, برأيي, the agree/disagree pair, and the feeling words the Gulf actually uses — مستانس, معصب, طفران — plus the softeners that let you disagree with an elder and keep the coffee coming.",
+  "cefr_target": "B1",
+  "duration_minutes": 20,
+  "approach": "Authentic video with scaffolding — reaction clips and light debates, paused on every opinion verb, then a two-sided mini-debate where you must disagree politely at least twice.",
+  "unlock_condition": "Give an opinion with أظن إن, agree and disagree with a softener, and name four feelings; ≥8/10 on the feelings quiz",
+  "icon": "💬",
+  "can_do": [
+    "Give your opinion and agree or disagree politely",
+    "Say how you feel and why",
+    "Say you like or hate something"
+  ],
+  "grammar": [
+    {
+      "category": "sentence-structure",
+      "title": "أظن إن…: opinion verbs and the little word إن",
+      "explanation": "To report a thought, the Gulf puts a small إن (that) between the opinion verb and the sentence: أظن إن المطعم غالي (I think the restaurant is expensive). إن takes a pronoun ending when the next word is a pronoun — أظن إنه مسافر، أحس إنك تعبان — and stays bare before a noun. The same إن follows أحس (I feel), أعتقد (I believe), أتوقع (I expect), قال (he said) and even ما أدري (ما أدري إذا… for 'whether'). In fast speech the إن is sometimes dropped: أظن راح. برأيي (in my opinion) needs no إن — it just sits at the front. Trap: the MSA أن with fatha and a following accusative are gone; it is one flat inn.",
+      "examples": [
+        { "arabic": "أظن إن الفيلم حلو", "transliteration": "aẕinn inn il-film ḥilu", "english": "I think the film is good" },
+        { "arabic": "أحس إنك زعلان مني", "transliteration": "aḥiss innak zaʿlaan minni", "english": "I feel you're upset with me" },
+        { "arabic": "برأيي، الدوام بدري مرة", "transliteration": "b-raʾyi, id-dawaam badri marra", "english": "In my opinion, work starts far too early" },
+        { "arabic": "قال إنه بيجي بعد المغرب", "transliteration": "gaal innah biyji baʿd il-maghrib", "english": "He said he'll come after sunset prayer" },
+        { "arabic": "ما أدري إذا هو موافق", "transliteration": "ma adri idha huwa muwaafig", "english": "I don't know whether he agrees" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "Disagree with the person's point, never with the person",
+      "note": "In a majlis you can hold any opinion about football, cars or restaurants, but you do not contradict an elder flat out and you do not let a friend lose face. The move is to agree first — معك حق (you're right), صح (true) — then turn with بس (but) and add your view as a feeling, not a fact: بس أحس إن… (but I feel that…). بصراحة (frankly) announces that you are about to be honest and buys you permission for it; مع احترامي (with respect) is the polite way to say no to someone senior. Topics to leave alone with people you do not know well: rulers, religion between sects, and other people's wives.",
+      "phrases": [
+        { "arabic": "معك حق، بس أحس إن…", "transliteration": "maʿak ḥagg, bas aḥiss inn…", "english": "You're right, but I feel that…" },
+        { "arabic": "بصراحة، ما عجبني", "transliteration": "b-ṣaraaḥa, ma ʿijabni", "english": "Frankly, I didn't like it" },
+        { "arabic": "مع احترامي، ما أوافق", "transliteration": "maʿ iḥtiraami, ma awaafig", "english": "With respect, I disagree" },
+        { "arabic": "كل واحد وله رأيه", "transliteration": "kill waaḥid w-lah raʾyah", "english": "Everyone has their own opinion" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "أظن",
+      "transliteration": "aẕinn",
+      "english": "I think (that)",
+      "category": "Verb",
+      "teaching_note": "Followed by إن and a sentence. The ظ is the heavy Gulf dh and the n is doubled: a-ẔINN. Also أعتقد (I believe) and, very commonly, أحس (I feel) for the same job. Written اظن online.",
+      "image_scene": "A woman with a finger to her temple, a thought bubble containing a small restaurant.",
+      "concept_key": "i_think",
+      "variants": ["اظن", "أظن إن", "اظن ان", "تظن", "أعتقد"],
+      "example": { "arabic": "أظن إن المطعم مقفل اليوم", "transliteration": "aẕinn inn il-maṭʿam mgaffal il-yawm", "english": "I think the restaurant is closed today" },
+      "video_hint": "Opinion vlogs: أظن إن / أعتقد إن before a judgement."
+    },
+    {
+      "arabic": "برأيي",
+      "transliteration": "b-raʾyi",
+      "english": "in my opinion",
+      "category": "Phrase",
+      "teaching_note": "رأي (opinion) with بـ and 'my'. Changes with the person: برأيك (in your opinion — also the question 'what do you think?'), برأيه. Sits at the front of the sentence with no إن.",
+      "image_scene": "A man tapping his own chest and pointing at a car, a small speech bubble with a star rating.",
+      "concept_key": "in_my_opinion",
+      "variants": ["برايي", "برأيك", "برايك", "في رأيي", "بنظري"],
+      "example": { "arabic": "برأيي، الشتا أحلى من الصيف", "transliteration": "b-raʾyi, ish-shita aḥla min iṣ-ṣayf", "english": "In my opinion, winter is nicer than summer" },
+      "video_hint": "برأيي / برأيك؟ in debates and review clips."
+    },
+    {
+      "arabic": "موافق",
+      "transliteration": "muwaafig",
+      "english": "I agree / agreed",
+      "category": "Adjective",
+      "teaching_note": "A participle used as a whole reply: موافق؟ — موافق. Feminine موافقة, plural موافقين. The verb أوافق exists but the participle is what people say. The warmer agreement is معك حق (you're right).",
+      "image_scene": "Two men shaking hands across a café table, both nodding.",
+      "concept_key": "agree",
+      "variants": ["موافقة", "موافقين", "أوافق", "موافق؟"],
+      "example": { "arabic": "نروح الساعة خمس؟ — موافق", "transliteration": "nruuḥ is-saaʿa khams? — muwaafig", "english": "Shall we go at five? — Agreed" },
+      "video_hint": "A deal or a plan being sealed with موافق / موافقين."
+    },
+    {
+      "arabic": "ما أوافق",
+      "transliteration": "ma awaafig",
+      "english": "I disagree",
+      "category": "Phrase",
+      "teaching_note": "The verb with ما: ما أوافق عليك (I don't agree with you). Softer options: مو معك (I'm not with you on this) and مع احترامي. Blunt disagreement with an elder is avoided — see the culture note.",
+      "image_scene": "A young woman shaking her head gently with one palm raised, still smiling.",
+      "concept_key": "disagree",
+      "variants": ["ما اوافق", "مو موافق", "مو معك", "ما أوافقك"],
+      "example": { "arabic": "مع احترامي، ما أوافق عليك", "transliteration": "maʿ iḥtiraami, ma awaafig ʿalayk", "english": "With respect, I don't agree with you" },
+      "video_hint": "A polite objection in a debate: مو موافق / ما أوافق."
+    },
+    {
+      "arabic": "مستانس",
+      "transliteration": "mistaanis",
+      "english": "happy / having a good time",
+      "category": "Adjective",
+      "teaching_note": "The Gulf's own word for being happy in the moment: مستانس بالسفرة (having a great time on the trip). فرحان is 'glad' about news; مبسوط is understood but sounds imported. Feminine مستانسة, plural مستانسين; the verb is أستانس.",
+      "image_scene": "Friends around a campfire in the desert, one clapping, all laughing.",
+      "concept_key": "happy",
+      "variants": ["مستانسة", "مستانسين", "فرحان", "مبسوط", "أستانس"],
+      "example": { "arabic": "مستانس وايد بالكشتة", "transliteration": "mistaanis waayid bil-kashta", "english": "I'm having a great time on the desert trip" },
+      "video_hint": "Outing vlogs: مستانسين! said to camera."
+    },
+    {
+      "arabic": "معصب",
+      "transliteration": "mʿaṣṣib",
+      "english": "angry",
+      "category": "Adjective",
+      "teaching_note": "From 'nerves' (أعصاب): معصب is angry in the everyday Gulf sense, stronger than زعلان (upset). Feminine معصبة. ليش معصب؟ (why are you angry?). زعلان is what you say about a sulking friend; معصب is a boss.",
+      "image_scene": "A man with a red face and clenched fists standing over a dented car bumper.",
+      "concept_key": "angry",
+      "variants": ["معصبة", "معصبين", "متعصب", "يعصب"],
+      "example": { "arabic": "أبوي معصب من الصبح", "transliteration": "abuuy mʿaṣṣib min iṣ-ṣubḥ", "english": "My dad has been angry since morning" },
+      "video_hint": "Skits with an angry character: معصب / لا تعصب."
+    },
+    {
+      "arabic": "طفران",
+      "transliteration": "ṭafraan",
+      "english": "bored / fed up",
+      "category": "Adjective",
+      "teaching_note": "The Gulf word for restless boredom — طفران، ما عندي شي أسويه. Feminine طفرانة. The MSA ملل gives ملل (boredom) but nobody says أشعر بالملل; they say طفران. Related: طفر (to get fed up).",
+      "image_scene": "A teenager sprawled on a sofa staring at the ceiling, phone face down on his chest.",
+      "concept_key": "bored",
+      "variants": ["طفرانة", "طفرانين", "طفر", "طفرت"],
+      "example": { "arabic": "طفران، يالله نطلع", "transliteration": "ṭafraan, yalla niṭlaʿ", "english": "I'm bored, come on let's go out" },
+      "video_hint": "Someone declaring طفران before suggesting an outing."
+    },
+    {
+      "arabic": "قلقان",
+      "transliteration": "galgaan",
+      "english": "worried",
+      "category": "Adjective",
+      "teaching_note": "Worried about someone or something: قلقان عليك (worried about you). Two hard g sounds. The idiom شايل هم (carrying worry) is warmer; متوتر is 'tense / nervous' before an exam.",
+      "image_scene": "A mother at a window at night, holding a phone and biting her lip.",
+      "concept_key": "worried",
+      "variants": ["قلقانة", "شايل هم", "متوتر", "قلقان عليك"],
+      "example": { "arabic": "أمي قلقانة علي لأني تأخرت", "transliteration": "ummi galgaana ʿalayy liʾanni tʾakhkhart", "english": "My mum is worried about me because I'm late" },
+      "video_hint": "قلقان / لا تقلق in family scenes and before results."
+    },
+    {
+      "arabic": "يعجبني",
+      "transliteration": "yiʿjibni",
+      "english": "I like it (it pleases me)",
+      "category": "Verb",
+      "teaching_note": "The thing does the liking in Arabic: يعجبني (it pleases me), تعجبني السيارة (I like the car, feminine), يعجبونني (I like them). Past عجبني. Use أحب for people and for habits; يعجبني for things you judge.",
+      "image_scene": "A man giving a thumbs-up at a phone screen in a shop, the salesman smiling.",
+      "concept_key": "i_like",
+      "variants": ["تعجبني", "عجبني", "يعجبك", "ما يعجبني", "عجبتني"],
+      "example": { "arabic": "الجوال الجديد يعجبني", "transliteration": "il-jawwaal il-jadiid yiʿjibni", "english": "I like the new phone" },
+      "video_hint": "Review clips: يعجبني / ما عجبني about a product or a place."
+    },
+    {
+      "arabic": "أكره",
+      "transliteration": "akrah",
+      "english": "I hate",
+      "category": "Verb",
+      "teaching_note": "Strong but common: أكره الزحمة (I hate traffic). Also مو حاب (not keen on) for milder dislike, and ما أطيق (I can't stand). Past كرهت.",
+      "image_scene": "A woman grimacing at a plate of okra, pushing it away with one finger.",
+      "concept_key": "i_hate",
+      "variants": ["اكره", "كرهت", "يكره", "ما أطيق", "أكرهه"],
+      "example": { "arabic": "أكره الحر والرطوبة", "transliteration": "akrah il-ḥarr wir-ruṭuuba", "english": "I hate the heat and the humidity" },
+      "video_hint": "Complaints: أكره… said with feeling in vlogs."
+    },
+    {
+      "arabic": "أحس",
+      "transliteration": "aḥiss",
+      "english": "I feel (that)",
+      "category": "Verb",
+      "teaching_note": "Both physical and mental feeling: أحس بصداع (I feel a headache), أحس إنك تعبان (I feel you're tired). The Gulf's softest opinion verb — أحس إن is how you disagree gently. Doubled s: aḥiss.",
+      "image_scene": "A young man with a hand on his heart, a mixed sun-and-cloud symbol above his head.",
+      "concept_key": "feel",
+      "variants": ["احس", "أحس إن", "تحس", "حسيت", "أحس بـ"],
+      "example": { "arabic": "أحس إن الجو بيتغير", "transliteration": "aḥiss inn il-jaw biytghayyar", "english": "I feel the weather is going to change" },
+      "video_hint": "أحس إن as an opinion opener in reaction videos."
+    },
+    {
+      "arabic": "رأي",
+      "transliteration": "raʾy",
+      "english": "opinion",
+      "category": "Noun",
+      "teaching_note": "وش رأيك؟ / شرايك؟ (what do you think?) is the question that opens every opinion exchange. Kuwaitis fuse it to شرايك. Plural آراء. Written راي / رايك online.",
+      "image_scene": "A speech bubble with a question mark facing a speech bubble with a light bulb.",
+      "concept_key": "opinion",
+      "variants": ["رايك", "وش رايك", "شرايك", "رأيه", "آراء"],
+      "example": { "arabic": "وش رأيك بالمطعم الجديد؟", "transliteration": "wish raʾyak bil-maṭʿam il-jadiid?", "english": "What do you think of the new restaurant?" },
+      "video_hint": "وش رأيك / شرايك؟ asked to camera or to a guest."
+    },
+    {
+      "arabic": "بصراحة",
+      "transliteration": "b-ṣaraaḥa",
+      "english": "frankly / to be honest",
+      "category": "Discourse marker",
+      "teaching_note": "Announces honesty and softens what follows. Also الصراحة (the truth is…) at the front of a sentence. The ص colours the vowels dark: b-ṣa-RAA-ḥa.",
+      "image_scene": "A woman leaning in over a table, one hand flat on it, speaking earnestly.",
+      "concept_key": "frankly",
+      "variants": ["الصراحة", "صراحة", "بصراحه", "بكل صراحة"],
+      "example": { "arabic": "بصراحة، الأكل كان عادي", "transliteration": "b-ṣaraaḥa, il-akil kaan ʿaadi", "english": "Frankly, the food was so-so" },
+      "video_hint": "بصراحة before a verdict in reviews and reaction clips."
+    },
+    {
+      "arabic": "غلط",
+      "transliteration": "ghalaṭ",
+      "english": "wrong",
+      "category": "Adjective",
+      "teaching_note": "Wrong as an idea or an act: هذا غلط (that's wrong), رقم غلط (wrong number). Its opposite is صح. As a noun it is 'a mistake' — غلطة for one specific slip.",
+      "image_scene": "A red X drawn over a wrong turn on a map, the correct arrow beside it.",
+      "concept_key": "wrong",
+      "variants": ["غلطان", "غلطانة", "غلط عليك", "الغلط"],
+      "example": { "arabic": "الجواب غلط، جرب مرة ثانية", "transliteration": "il-jawaab ghalaṭ, jarrib marra thaanya", "english": "The answer is wrong, try again" },
+      "video_hint": "Correction moments: غلط / غلطان in quizzes and arguments."
+    },
+    {
+      "arabic": "صح",
+      "transliteration": "ṣaḥḥ",
+      "english": "right / true / correct",
+      "category": "Adjective",
+      "teaching_note": "One word for 'correct' and 'true': صح؟ (right?) is the tag question after any statement. Kuwaitis also say صج, Saudis صدق, for 'really / true'. Doubled ḥ.",
+      "image_scene": "A green tick beside a maths sum on a whiteboard.",
+      "variants": ["صح؟", "صحيح", "صج", "صدق"],
+      "example": { "arabic": "الدوام باكر عطلة، صح؟", "transliteration": "id-dawaam baachir ʿuṭla, ṣaḥḥ?", "english": "Work is off tomorrow, right?" },
+      "video_hint": "صح؟ as a tag; صح! as a reply."
+    },
+    {
+      "arabic": "معك حق",
+      "transliteration": "maʿak ḥagg",
+      "english": "you're right",
+      "category": "Phrase",
+      "teaching_note": "Literally 'with you is right'. Changes for the person: معج حق (to a woman, east of Saudi), معكم حق. The agreement that precedes a polite disagreement: معك حق، بس…",
+      "image_scene": "An older man nodding and raising his coffee cup slightly toward a younger speaker.",
+      "variants": ["معج حق", "معكم حق", "عندك حق", "معاك حق"],
+      "example": { "arabic": "معك حق، السوق غالي", "transliteration": "maʿak ḥagg, is-suug ghaali", "english": "You're right, the market is expensive" },
+      "video_hint": "معك حق / عندك حق as a concession in dialogue."
+    },
+    {
+      "arabic": "ممل",
+      "transliteration": "mumill",
+      "english": "boring",
+      "category": "Adjective",
+      "teaching_note": "The thing is ممل, the person is طفران — do not confuse them. فيلم ممل، دوام ممل. Feminine مملة.",
+      "image_scene": "An audience yawning in a cinema, one person checking a phone.",
+      "variants": ["مملة", "مملين", "ممل مرة", "ممل وايد"],
+      "example": { "arabic": "الفيلم كان ممل، نمت", "transliteration": "il-film kaan mumill, nimt", "english": "The film was boring, I fell asleep" },
+      "video_hint": "ممل as a verdict in reviews."
+    },
+    {
+      "arabic": "زعلان",
+      "transliteration": "zaʿlaan",
+      "english": "upset / sad",
+      "category": "Adjective",
+      "teaching_note": "Hurt, sad or sulking: زعلان مني؟ (are you upset with me?). Feminine زعلانة. The verb زعل; the fixer is لا تزعل (don't be upset).",
+      "image_scene": "A boy sitting on the stairs with his back to the room, arms crossed.",
+      "variants": ["زعلانة", "زعلانين", "زعل", "لا تزعل", "زعلت"],
+      "example": { "arabic": "لا تزعل، ما قصدت", "transliteration": "la tizʿal, ma gaṣadt", "english": "Don't be upset, I didn't mean it" },
+      "video_hint": "زعلان / لا تزعل in family and friend scenes."
+    },
+    {
+      "arabic": "مرتاح",
+      "transliteration": "mirtaaḥ",
+      "english": "comfortable / at ease",
+      "category": "Adjective",
+      "teaching_note": "Physically and mentally: مرتاح بالشغل (happy at work), الكرسي مرتاح (the chair is comfortable). Feminine مرتاحة. Also the reply to 'how do you feel now?' after illness.",
+      "image_scene": "A man reclining on majlis cushions with a tea glass, eyes half closed.",
+      "variants": ["مرتاحة", "مرتاحين", "مو مرتاح", "ارتحت"],
+      "example": { "arabic": "مرتاح بالبيت الجديد؟", "transliteration": "mirtaaḥ bil-bayt il-jadiid?", "english": "Are you comfortable in the new house?" },
+      "video_hint": "مرتاح as an answer about a job, a house or a car."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Dana", "arabic": "وش رأيك بالمطعم؟", "transliteration": "wish raʾyich bil-maṭʿam?", "english": "What do you think of the restaurant?" },
+    { "speaker": "Latifa", "arabic": "بصراحة، يعجبني المكان بس الأكل عادي", "transliteration": "b-ṣaraaḥa, yiʿjibni l-makaan bas il-akil ʿaadi", "english": "Frankly, I like the place but the food is so-so" },
+    { "speaker": "Dana", "arabic": "معك حق. وأظن إنه غالي بعد", "transliteration": "maʿich ḥagg. w-aẕinn innah ghaali baʿad", "english": "You're right. And I think it's expensive too" },
+    { "speaker": "Latifa", "arabic": "ما أوافق، برأيي السعر عادي", "transliteration": "ma awaafig, b-raʾyi s-siʿr ʿaadi", "english": "I disagree, in my opinion the price is normal" },
+    { "speaker": "Dana", "arabic": "المهم إنك مستانسة، مو معصبة زي أمس", "transliteration": "il-muhimm innich mistaansa, mu mʿaṣṣba zayy ams", "english": "What matters is you're happy, not angry like yesterday" },
+    { "speaker": "Latifa", "arabic": "ههههه أحس إني مرتاحة اليوم", "transliteration": "hhhh aḥiss inni mirtaaḥa l-yawm", "english": "Haha, I feel at ease today" }
+  ],
+  "sound_spotlight": [
+    { "sound": "إن + pronoun", "example": "إنه، إنك، إني (innah, innak, inni)", "explanation": "One flat inn with a doubled n, then the pronoun ending — no MSA anna, no vowel on the end. It leans onto the verb before it: aẕinn-innah." },
+    { "sound": "The feeling words end in -aan", "example": "زعلان، قلقان، طفران (zaʿlaan, galgaan, ṭafraan)", "explanation": "A long aa before the final n, stressed. Add -a for a woman (zaʿlaana) and -iin for a group (zaʿlaaniin). Hearing the pattern lets you guess new ones: جوعان، عطشان، تعبان." },
+    { "sound": "ـج for 'your' to a woman", "example": "رأيج، معج حق (raʾyich, maʿich ḥagg)", "explanation": "In Kuwait, Bahrain, Qatar and the UAE the feminine 'you' ending is ch, written ج or چ. Saudis keep -ik (رأيك). Both appear in this lesson's dialogue between two women." }
+  ],
+  "lesson_sequence": [
+    { "step": "The verdict", "detail": "A 60-second reaction clip: someone rates a restaurant or a phone. Listen for يعجبني / ما عجبني and the reason." },
+    { "step": "Opinion and feeling cards", "detail": "Nineteen words with audio; feeling adjectives show m / f / pl forms on tap." },
+    { "step": "Face match", "detail": "Six faces, six words: مستانس، معصب، طفران، قلقان، زعلان، مرتاح. Audio only, then with text." },
+    { "step": "Build the إن sentence", "detail": "Drag أظن / أحس / قال + إن + a clause. Ten items, feedback highlights the pronoun ending." },
+    { "step": "Agree, then turn", "detail": "Hear five opinions; reply with معك حق، بس… and your own view. Rubric: a softener before every disagreement." },
+    { "step": "Mini-debate", "detail": "Two-minute role play: الرياض ولا جدة؟ You must use بصراحة once and ما أوافق once, politely." },
+    { "step": "Lesson complete", "detail": "Word counter rolls up. Nudge: rate your dinner tonight in one Gulf sentence." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Rate the last thing you watched: بصراحة، أظن إن… and one feeling word for how it left you.", "context": "Shown on the lesson-complete screen. Activates the إن structure and a feeling adjective." },
+    { "prompt": "Ask a friend وش رأيك؟ about anything today and reply to their answer with معك حق، بس…", "context": "Next-day notification. Real agreement-then-turn in conversation." },
+    { "prompt": "Tell your tutor one thing you hate and one you like about your city, and ask their opinion back.", "context": "Tutor-session card. أكره / يعجبني plus a genuine exchange." }
+  ],
+  "video_needs": {
+    "queries": ["وش رأيك مقابلة شارع سعودي", "ردة فعل مقطع خليجي", "الرياض ولا جدة نقاش", "أحس إن بودكاست"],
+    "channels": ["Belmokhba", "Sowt Afkari", "Thamaniyeh", "Saud Brothers"],
+    "scene": "Two or three people giving opinions on a light topic — a restaurant, a car, a city — with أظن إن, بصراحة, معك حق and a visible mood word."
+  }
+}

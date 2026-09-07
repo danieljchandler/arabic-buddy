@@ -1,0 +1,268 @@
+{
+  "slug": "food-ordering-at-a-cafe",
+  "lesson_number": 6,
+  "title": "Ordering at a Café",
+  "title_arabic": "الطلب بالكافيه",
+  "description": "Order a karak, a plate of something, ask for it without onion and with extra sauce, say it's delicious or too spicy, and call for the bill — plus the polite fight over who pays it.",
+  "cefr_target": "A2",
+  "duration_minutes": 20,
+  "approach": "GPA Phase 2 — transactional script with a grammar hook. Café scenes supply the orders; the imperative-plus-suffix pattern (bring me, give us) is lifted out and drilled, then the learner places a full order aloud.",
+  "unlock_condition": "≥12/16 on the menu-and-order listening quiz and a complete recorded order with one modification",
+  "icon": "☕",
+  "can_do": [
+    "Order food and drink",
+    "Ask for the bill",
+    "Say something is delicious, spicy or sweet"
+  ],
+  "grammar": [
+    {
+      "category": "verb-conjugation",
+      "title": "Bring me, give us: a command with the person stuck on the end",
+      "explanation": "Orders are commands with 'me' or 'us' attached. The command comes first — جيب 'bring', عطـ 'give', حط 'put' — then the person: جيب لي 'bring me', عطني 'give me', عطنا 'give us', حط لي 'put for me'. Notice the two shapes: جيب and حط take لي / لنا as a separate little word (جيب لي، حط لنا), while عطـ takes the ending straight on (عطني، عطنا). To a woman the command itself changes: جيبي لي، عطيني; to more than one person, جيبوا لنا، عطونا. Add لو سمحت at the end and the order is polite. Never the formal أحضر لي or هات (which is Egyptian).",
+      "examples": [
+        { "arabic": "جيب لي كرك لو سمحت", "transliteration": "jiib li karak law samaḥt", "english": "Bring me a karak, please" },
+        { "arabic": "عطنا الحساب", "transliteration": "ʿaṭna l-ḥisaab", "english": "Give us the bill" },
+        { "arabic": "حط لي زيادة صوص", "transliteration": "ḥuṭṭ li ziyaada ṣooṣ", "english": "Put extra sauce on mine" },
+        { "arabic": "جيبي لنا ماي بارد", "transliteration": "jiibi lana maay baarid", "english": "Bring us (f) cold water" },
+        { "arabic": "عطوني منيو ثاني", "transliteration": "ʿaṭuuni minyu thaani", "english": "Give me (pl) another menu" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "Who pays, how sweet, and the tip",
+      "note": "When the bill comes there will be a fight — a real one, with hands reaching and voices rising — over who pays. The one who invited (عزم) pays, and everyone else must try at least once; الحساب علي 'the bill's on me' is the opening move, and لا والله، خلها علي the counter-move. Do not just let a Gulf host pay silently; the attempt is the courtesy. Tea and coffee are ordered with their sugar level: سكر زيادة, سكر عادي, سكر خفيف or بدون سكر; the milky spiced كرك is the Gulf café drink and comes sweet unless you say otherwise. Tipping is light — rounding up or a few riyals — and never expected at a street stall.",
+      "phrases": [
+        { "arabic": "الحساب علي", "transliteration": "il-ḥisaab ʿalayy", "english": "The bill's on me" },
+        { "arabic": "لا والله، خلها علي", "transliteration": "la wallah, khallha ʿalayy", "english": "No, really, leave it to me" },
+        { "arabic": "شاي سكر خفيف", "transliteration": "shaay sukkar khafiif", "english": "Tea, light on the sugar" },
+        { "arabic": "كرك بدون سكر", "transliteration": "karak biduun sukkar", "english": "Karak with no sugar" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "أطلب",
+      "transliteration": "aṭlub",
+      "english": "I order / I ask for",
+      "category": "Verb — café",
+      "teaching_note": "Emphatic ط. The noun طلب is 'an order' — طلبك جاهز 'your order is ready' is what you hear at the counter. 'To order delivery' is أطلب دليفري.",
+      "image_scene": "A customer at a counter pointing at a menu board, the cashier taking a note.",
+      "concept_key": "order",
+      "variants": ["يطلب", "تطلب", "نطلب", "طلب", "الطلب", "طلبت", "طلبك"],
+      "example": { "arabic": "شنو تبي تطلب؟", "transliteration": "shinu tabi tuṭlub?", "english": "What do you want to order?" },
+      "video_hint": "Someone ordering at a counter or table; طلب / أطلب said as they choose."
+    },
+    {
+      "arabic": "جيب لي",
+      "transliteration": "jiib li",
+      "english": "bring me",
+      "category": "Verb phrase — command",
+      "teaching_note": "The order phrase: جيب 'bring' + لي 'for me'. Kuwaitis and Emiratis say the ج as y: yiib li. Written as one word (جيبلي) as often as two. Never هات, which is Egyptian.",
+      "image_scene": "A seated customer raising a hand slightly toward a waiter carrying a tray.",
+      "concept_key": "bring_me",
+      "variants": ["جيبلي", "جيبي لي", "جيبوا لي", "جيب لنا", "ييب لي", "جيب"],
+      "example": { "arabic": "جيب لي كرك لو سمحت", "transliteration": "jiib li karak law samaḥt", "english": "Bring me a karak, please" },
+      "video_hint": "An order being placed — جيب لي / جيبلي — with the item named."
+    },
+    {
+      "arabic": "الحساب",
+      "transliteration": "il-ḥisaab",
+      "english": "the bill",
+      "category": "Noun — café",
+      "teaching_note": "Always with the ال. The single word, said to the waiter with a small writing gesture, is enough: الحساب لو سمحت. The bank word 'account' is the same, so context does the work.",
+      "image_scene": "A small folder with a receipt and a pen being placed on a café table.",
+      "concept_key": "bill",
+      "variants": ["حساب", "الحساب لو سمحت", "الفاتورة", "فاتورة", "كم الحساب"],
+      "example": { "arabic": "الحساب لو سمحت", "transliteration": "il-ḥisaab law samaḥt", "english": "The bill, please" },
+      "video_hint": "The bill being asked for or fought over at the end of a restaurant scene."
+    },
+    {
+      "arabic": "لذيذ",
+      "transliteration": "ladhiidh",
+      "english": "delicious",
+      "category": "Adjective — food",
+      "teaching_note": "Two dh sounds, long ii between them. The praise a cook wants to hear; in casual talk حلو covers it too, but لذيذ is specifically about taste. Feminine لذيذة.",
+      "image_scene": "A person tasting a spoonful with closed eyes and a delighted face.",
+      "concept_key": "delicious",
+      "variants": ["لذيذة", "لذيذه", "لذيذ واجد", "حلو", "طعم"],
+      "example": { "arabic": "المندي لذيذ واجد", "transliteration": "il-mandi ladhiidh waajid", "english": "The mandi is really delicious" },
+      "video_hint": "A food reviewer's first bite — لذيذ! — with the dish on screen."
+    },
+    {
+      "arabic": "حراق",
+      "transliteration": "ḥarraag",
+      "english": "spicy (hot with chili)",
+      "category": "Adjective — food",
+      "teaching_note": "Doubled r, ق as g. Gulf speakers also just say حار — the same word as 'hot' from Stage 1 — so if someone asks حار؟ about food they mean spicy. Chili itself is شطة or فلفل.",
+      "image_scene": "A red chili on a plate with a small flame icon, a diner fanning their mouth.",
+      "concept_key": "spicy",
+      "variants": ["حراقة", "حار", "حارة", "سبايسي", "فيه شطة", "حرّاق"],
+      "example": { "arabic": "الأكل حراق شوي", "transliteration": "il-akil ḥarraag shway", "english": "The food is a bit spicy" },
+      "video_hint": "A spicy-food challenge or a diner warning حار / حراق."
+    },
+    {
+      "arabic": "حلو",
+      "transliteration": "ḥilu",
+      "english": "sweet",
+      "category": "Adjective — food",
+      "teaching_note": "Sweet, and by extension 'nice, lovely' — a beautiful place is حلو too. For tea, حلو means too much sugar. Feminine حلوة (ḥilwa); sweets are حلويات.",
+      "image_scene": "A plate of syrupy luqaimat dumplings drizzled with date syrup.",
+      "concept_key": "sweet",
+      "variants": ["حلوة", "حلوه", "حلويات", "حلو واجد", "أحلى"],
+      "example": { "arabic": "الشاي حلو واجد", "transliteration": "ish-shaay ḥilu waajid", "english": "The tea is very sweet" },
+      "video_hint": "Dessert or sweet tea on screen with حلو said about the taste."
+    },
+    {
+      "arabic": "بدون",
+      "transliteration": "biduun",
+      "english": "without",
+      "category": "Preposition",
+      "teaching_note": "The modifier word every order needs: بدون بصل 'no onion', بدون سكر 'no sugar'. Long uu. Older speakers say بلا for the same thing.",
+      "image_scene": "A burger with an onion ring crossed out beside it.",
+      "concept_key": "without",
+      "variants": ["بدون سكر", "بدون بصل", "بلا", "من غير", "بدون شي"],
+      "example": { "arabic": "برقر بدون بصل لو سمحت", "transliteration": "burgar biduun baṣal law samaḥt", "english": "A burger without onion, please" },
+      "video_hint": "A customer customising an order — بدون … — at a counter."
+    },
+    {
+      "arabic": "مع",
+      "transliteration": "maʿ",
+      "english": "with",
+      "category": "Preposition",
+      "teaching_note": "The pair of بدون: شاي مع نعناع 'tea with mint'. You already know it with a person on the end (معي 'with me'); here it stands alone before a thing. Ends in ع — do not swallow it.",
+      "image_scene": "A glass of tea with a sprig of fresh mint in it on a tray.",
+      "concept_key": "with",
+      "variants": ["مع نعناع", "مع حليب", "ومع", "معه", "معاه"],
+      "example": { "arabic": "شاي مع نعناع، لو سمحت", "transliteration": "shaay maʿ naʿnaaʿ, law samaḥt", "english": "Tea with mint, please" },
+      "video_hint": "An order specifying an extra — مع حليب / مع نعناع — at a café."
+    },
+    {
+      "arabic": "منيو",
+      "transliteration": "minyu",
+      "english": "menu",
+      "category": "Noun — café",
+      "teaching_note": "The English word, and what everyone says; قائمة is on the printed cover only. Kuwaitis also say لستة (from 'list'). Ask for it with عطني المنيو or جيب لي المنيو.",
+      "image_scene": "A café menu board with Arabic and English items and prices.",
+      "concept_key": "menu",
+      "variants": ["المنيو", "منيو؟", "قائمة", "القائمة", "لستة", "المنيو لو سمحت"],
+      "example": { "arabic": "ممكن المنيو لو سمحت؟", "transliteration": "mumkin il-minyu law samaḥt?", "english": "Could I have the menu, please?" },
+      "video_hint": "A menu handed over or read aloud in a restaurant review."
+    },
+    {
+      "arabic": "ويتر",
+      "transliteration": "waytar",
+      "english": "waiter",
+      "category": "Noun — people",
+      "teaching_note": "Another English loan. But you rarely address a waiter as ويتر: you catch his eye with لو سمحت, يا أخوي or — in Saudi cafés — يا كابتن. The Egyptian جرسون is understood but sounds foreign.",
+      "image_scene": "A waiter in a black apron carrying a tray of tea glasses between tables.",
+      "concept_key": "waiter",
+      "variants": ["الويتر", "ويترز", "جرسون", "كابتن", "يا أخوي"],
+      "example": { "arabic": "الويتر جاب لنا الشاي بسرعة", "transliteration": "il-waytar jaab lana sh-shaay b-surʿa", "english": "The waiter brought us the tea quickly" },
+      "video_hint": "A waiter at the table in a restaurant scene; the customer calling لو سمحت / كابتن."
+    },
+    {
+      "arabic": "كوب",
+      "transliteration": "kuub",
+      "english": "cup",
+      "category": "Noun — café",
+      "teaching_note": "A mug or paper cup: كوب كرك. The tiny handleless Arabic-coffee cup is a فنجان and a tea glass is a كاسة — three words for three drinks. The Egyptian كوباية is not Gulf.",
+      "image_scene": "A paper takeaway cup of milky tea with a lid, steam rising.",
+      "concept_key": "cup",
+      "variants": ["الكوب", "أكواب", "كوبين", "كاسة", "فنجان", "كوب كرك"],
+      "example": { "arabic": "كوبين كرك، واحد بدون سكر", "transliteration": "kuubayn karak, waaḥid biduun sukkar", "english": "Two cups of karak, one without sugar" },
+      "video_hint": "Cups being handed through a karak stall window; كوب or كاسة said."
+    },
+    {
+      "arabic": "صحن",
+      "transliteration": "ṣaḥan",
+      "english": "plate",
+      "category": "Noun — café",
+      "teaching_note": "Two syllables in Gulf: ṣa-ḥan. Also a portion: صحن مندي 'a plate of mandi' is how you order. Plural صحون. Emphatic ص then a throaty ح.",
+      "image_scene": "A round plate heaped with rice and grilled chicken on a restaurant table.",
+      "concept_key": "plate",
+      "variants": ["الصحن", "صحون", "صحن مندي", "صحن ثاني", "صحنين"],
+      "example": { "arabic": "صحن مندي دجاج لو سمحت", "transliteration": "ṣaḥan mandi dijaaj law samaḥt", "english": "A plate of chicken mandi, please" },
+      "video_hint": "A plate set down in a food vlog; صحن in the order."
+    },
+    {
+      "arabic": "شبعت",
+      "transliteration": "shibaʿt",
+      "english": "I'm full",
+      "category": "Verb phrase",
+      "teaching_note": "Literally 'I have become full' — a past-tense verb, which is why it ends in -t. The only acceptable way to stop a host from serving more: والله شبعت. Feminine and masculine are the same.",
+      "image_scene": "A diner leaning back with a hand on their stomach, an empty plate in front.",
+      "concept_key": "full",
+      "variants": ["شبعت والله", "شبعان", "شبعانة", "شبعنا", "خلاص شبعت"],
+      "example": { "arabic": "خلاص، شبعت، الله يعافيك", "transliteration": "khalaaṣ, shibaʿt, allah yʿaafiik", "english": "That's it, I'm full, thank you" },
+      "video_hint": "The end of a meal — شبعت — often while food is still being pushed across."
+    },
+    {
+      "arabic": "مطعم",
+      "transliteration": "maṭʿam",
+      "english": "restaurant",
+      "category": "Place",
+      "teaching_note": "Emphatic ط then ع back to back — a hard pair; go slowly: maṭ-ʿam. The café is كافيه or كوفي; a street stall is بسطة. Plural مطاعم.",
+      "image_scene": "A restaurant frontage at night with a lit sign, families entering.",
+      "concept_key": "restaurant",
+      "variants": ["المطعم", "مطاعم", "كافيه", "الكافيه", "كوفي", "مطعم شعبي"],
+      "example": { "arabic": "هذا أحسن مطعم بالحي", "transliteration": "haadha aḥsan maṭʿam bil-ḥayy", "english": "This is the best restaurant in the neighbourhood" },
+      "video_hint": "A food-review channel arriving at a restaurant; مطعم in the intro."
+    },
+    {
+      "arabic": "كرك",
+      "transliteration": "karak",
+      "english": "karak (spiced milk tea)",
+      "category": "Food & drink",
+      "teaching_note": "The Gulf's café drink — strong tea boiled with milk, sugar and cardamom, sold from roadside windows for a couple of riyals. Ordering one by name is the fastest way to sound at home.",
+      "image_scene": "A small paper cup of orange-brown milky tea at a roadside stall window.",
+      "variants": ["الكرك", "شاي كرك", "كرك زعفران", "كوب كرك", "چاي كرك"],
+      "example": { "arabic": "نروح نشرب كرك؟", "transliteration": "nruuḥ nishrab karak?", "english": "Shall we go and have a karak?" },
+      "video_hint": "A karak stall in a vlog; the order shouted through the window."
+    },
+    {
+      "arabic": "سفري",
+      "transliteration": "safari",
+      "english": "takeaway",
+      "category": "Noun — café",
+      "teaching_note": "From سفر 'travel' — food that travels. The counter question everywhere: سفري ولا هنا؟ 'takeaway or here?'. The English تيك أواي is heard too.",
+      "image_scene": "A cashier holding up a paper bag with a question mark, a table behind.",
+      "variants": ["سفري؟", "سفري ولا هنا", "تيك أواي", "تيك اواي", "سفري لو سمحت"],
+      "example": { "arabic": "سفري ولا هنا؟ — سفري", "transliteration": "safari walla hina? — safari", "english": "Takeaway or eat in? — Takeaway" },
+      "video_hint": "The counter question سفري ولا هنا؟ in a café scene."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Waiter", "arabic": "هلا، شنو تبون تطلبون؟", "transliteration": "hala, shinu tabuun tuṭlubuun?", "english": "Hi, what would you like to order?" },
+    { "speaker": "Saud", "arabic": "جيب لنا صحن مندي دجاج وكوبين كرك", "transliteration": "jiib lana ṣaḥan mandi dijaaj w-kuubayn karak", "english": "Bring us a plate of chicken mandi and two karaks" },
+    { "speaker": "Waiter", "arabic": "الكرك مع سكر؟", "transliteration": "il-karak maʿ sukkar?", "english": "Karak with sugar?" },
+    { "speaker": "Saud", "arabic": "واحد عادي وواحد بدون سكر", "transliteration": "waaḥid ʿaadi w-waaḥid biduun sukkar", "english": "One normal and one without sugar" },
+    { "speaker": "Waiter", "arabic": "المندي حراق شوي، عادي؟", "transliteration": "il-mandi ḥarraag shway, ʿaadi?", "english": "The mandi is a bit spicy — OK?" },
+    { "speaker": "Saud", "arabic": "عادي، لذيذ كذا", "transliteration": "ʿaadi, ladhiidh kidha", "english": "Fine, it's delicious that way" },
+    { "speaker": "Saud", "arabic": "…خلاص شبعنا. الحساب لو سمحت", "transliteration": "…khalaaṣ shibaʿna. il-ḥisaab law samaḥt", "english": "…We're full. The bill, please" },
+    { "speaker": "Waiter", "arabic": "تفضل، خمسة وأربعين ريال", "transliteration": "tfaḍḍal, khamsa w-arbaʿiin riyaal", "english": "Here you are, forty-five riyals" }
+  ],
+  "sound_spotlight": [
+    { "sound": "لي / لنا after a command", "example": "جيب لي (jiib li)، حط لنا (ḥuṭṭ lana)", "explanation": "'For me' and 'for us' are said as a tiny unstressed word right after the command: jiib-li, ḥuṭṭ-lana. Captions write them apart or together (جيبلي); your ear will hear one word." },
+    { "sound": "ط then ع in مطعم", "example": "مطعم (maṭʿam)", "explanation": "Two deep sounds back to back — an emphatic t followed by the throat squeeze of ع. Say maṭ, stop, then ʿam; speed comes later." },
+    { "sound": "ج = j or y", "example": "جيب لي (jiib li / yiib li)", "explanation": "Saudis say jiib; Kuwaitis, Emiratis, Qataris and Bahrainis say yiib. Same word, and the café will understand either." }
+  ],
+  "lesson_sequence": [
+    { "step": "Café scene", "detail": "A 45-second clip of an order at a Gulf café, no captions: the learner watches the menu, the pointing, the tray arriving." },
+    { "step": "Vocabulary cards", "detail": "Sixteen cards with illustration and audio; food adjectives play in a reaction (لذيذ! حراق!) and the command phrases inside a full order." },
+    { "step": "Bring me, give us", "detail": "Grammar card: جيب لي / عطني / حط لي with the person swapping (me, us, f, pl); then a tap-to-build exercise assembling orders from command + item + modifier." },
+    { "step": "What did they order?", "detail": "Listening quiz: eight spoken orders; the learner ticks the items and modifiers (مع / بدون) on a menu card." },
+    { "step": "Your order", "detail": "Role-play: the app is the waiter; the learner orders a drink with a sugar level, a plate with one change, and asks for the bill. Then the bill fight: the learner must say الحساب علي once." },
+    { "step": "Lesson complete", "detail": "Score screen; the learner's order plays back beside a native one. Nudge: next café visit, order in Gulf." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "At your next café, order in Gulf even if the barista replies in English: جيب لي كرك بدون سكر، سفري.", "context": "Shown on the lesson-complete screen. A low-stakes real transaction using the command + suffix pattern." },
+    { "prompt": "Next time you eat with Arabic speakers, try الحساب علي when the bill arrives — and enjoy the argument.", "context": "Next-day nudge. The culture note turned into an action." },
+    { "prompt": "Watch a Gulf food review and note every adjective: لذيذ، حلو، حراق. Which does the reviewer use most?", "context": "Homework card. Passive recognition of the three taste words in authentic speech." }
+  ],
+  "video_needs": {
+    "queries": ["شاي كرك فلوق", "تقييم مطعم سعودي فلوق", "طلبات الزبون مقطع كوميدي", "أحسن مطعم مندي فلوق"],
+    "channels": ["Saudi Food Eman", "Saud Brothers", "Sayood", "Moshaya Family"],
+    "scene": "Ordering at a café or restaurant: the menu, the waiter, modifications (بدون / مع), the reaction to the first bite, and the bill at the end."
+  }
+}

@@ -52,6 +52,10 @@ const aTopic = (over: Partial<TopicWithWords> = {}): TopicWithWords => ({
   soundSpotlight: [],
   realWorldPrompts: [],
   lessonSequence: [],
+  grammarNotes: [],
+  cultureNotes: [],
+  dialogue: [],
+  canDo: [],
   ...over,
 });
 

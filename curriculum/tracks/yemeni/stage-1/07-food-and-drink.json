@@ -1,0 +1,246 @@
+{
+  "slug": "food-and-drink",
+  "lesson_number": 7,
+  "title": "Food and Drink",
+  "title_arabic": "الأكل والشرب",
+  "description": "Name what is on a Yemeni table — rice, meat, chicken, eggs, dates, juice — say what you want with the Yemeni verb اشتي, and ask for something to be passed with هات.",
+  "cefr_target": "A1",
+  "duration_minutes": 22,
+  "approach": "GPA Phase 2 — a shared tray of food as the here-and-now scene; the learner points, names, and produces اشتي + noun and هات + noun before any verb table appears.",
+  "unlock_condition": "≥11/14 on the listen-and-tap quiz and three recorded اشتي sentences",
+  "icon": "🍛",
+  "can_do": [
+    "Name common foods and drinks",
+    "Say what you want to eat or drink",
+    "Ask for something to be passed"
+  ],
+  "grammar": [
+    {
+      "category": "verb-conjugation",
+      "title": "اشتي + thing: the Yemeni 'I want'",
+      "explanation": "Yemen's word for 'want' is اشتي — not the Egyptian عايز, not the Gulf أبي. Put a food or drink after it and you have ordered: اشتي شاهي 'I want tea'. The person changes at the front of the word: أنا اشتي, أنت تشتي, أنتي تشتي, هو يشتي, هي تشتي, إحنا نشتي. To ask what someone wants: ايش تشتي؟ In Hadramawt and the Gulf you will hear بغيت for the same thing — recognise it, but say اشتي in Sanaa.",
+      "examples": [
+        { "arabic": "اشتي شاهي", "transliteration": "ashti shaahi", "english": "I want tea" },
+        { "arabic": "ايش تشتي؟", "transliteration": "aysh tishti?", "english": "What do you want?" },
+        { "arabic": "تشتي رز ولا خبز؟", "transliteration": "tishti ruzz walla khubz?", "english": "Do you want rice or bread?" },
+        { "arabic": "هو يشتي عصير", "transliteration": "huu yishti ʿaṣiir", "english": "He wants juice" },
+        { "arabic": "نشتي دجاج ورز", "transliteration": "nishti dajaaj w-ruzz", "english": "We want chicken and rice" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "Three meals and the shared tray",
+      "note": "Yemen's big meal is lunch, الغدا, eaten early — around one — because the afternoon belongs to the qat session. Breakfast is light: bread with beans, eggs or honey and tea; dinner is late and small. The dish Sanaa is proudest of is سلتة: a bubbling stone pot of meat broth topped with green fenugreek foam, scooped up with bread, never with a spoon. Food comes on one big tray on the floor; you sit cross-legged, say بسم الله, eat from the part in front of you with your right hand, and say الحمد لله when you lean back. Your host will keep pushing food at you — كل، كل — and a polite refusal takes three tries.",
+      "phrases": [
+        { "arabic": "بسم الله", "transliteration": "bismillaah", "english": "In God's name (said before eating)" },
+        { "arabic": "كل، كل!", "transliteration": "kul, kul!", "english": "Eat, eat!" },
+        { "arabic": "الحمد لله، شبعت", "transliteration": "il-ḥamdu lillaah, shibiʿt", "english": "Praise God, I'm full" },
+        { "arabic": "السلتة حارة", "transliteration": "is-salta ḥaarra", "english": "The saltah is hot" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "رز",
+      "transliteration": "ruzz",
+      "english": "rice",
+      "category": "Food",
+      "teaching_note": "Doubled z, no alif: Yemen says ruzz, not the MSA aruzz. The mountain of rice under a roast — مندي, زربيان, كبسة — is the centre of any celebration tray.",
+      "image_scene": "A large round tray heaped with yellow spiced rice, a few raisins on top.",
+      "concept_key": "rice",
+      "variants": ["الرز", "أرز", "الأرز", "رز مندي"],
+      "example": { "arabic": "اشتي رز", "transliteration": "ashti ruzz", "english": "I want rice" },
+      "video_hint": "A rice dish served or cooked; الرز named as it is plated."
+    },
+    {
+      "arabic": "لحم",
+      "transliteration": "laḥm",
+      "english": "meat",
+      "category": "Food",
+      "teaching_note": "ح in the middle: laḥm. Usually lamb or goat in the highlands. The Sanaa lunch of choice is لحم on the bone slow-cooked in the saltah pot or roasted as مندي.",
+      "image_scene": "Chunks of cooked lamb on the bone on a plate, steam rising.",
+      "concept_key": "meat",
+      "variants": ["اللحم", "لحمة", "لحمه", "لحم غنم"],
+      "example": { "arabic": "اللحم حار", "transliteration": "il-laḥm ḥaarr", "english": "The meat is hot" },
+      "video_hint": "Meat at a butcher or on the tray; لحم named while visible."
+    },
+    {
+      "arabic": "دجاج",
+      "transliteration": "dajaaj",
+      "english": "chicken",
+      "category": "Food",
+      "teaching_note": "Two j's in Sanaa: dajaaj. In Aden both become g. One chicken is دجاجة; the meat is دجاج.",
+      "image_scene": "A whole roast chicken on a bed of rice on a metal tray.",
+      "concept_key": "chicken",
+      "variants": ["الدجاج", "دجاجة", "دجاجه", "دياي"],
+      "example": { "arabic": "تشتي دجاج؟", "transliteration": "tishti dajaaj?", "english": "Do you want chicken?" },
+      "video_hint": "Chicken being cooked or served; دجاج in a restaurant order."
+    },
+    {
+      "arabic": "سمك",
+      "transliteration": "samak",
+      "english": "fish",
+      "category": "Food",
+      "teaching_note": "The pride of the coast: Aden and Hodeidah grill fish flat in a clay oven. Same word everywhere; one fish is سمكة.",
+      "image_scene": "A whole grilled fish, blackened at the edges, on a plate with a wedge of lime.",
+      "concept_key": "fish",
+      "variants": ["السمك", "سمكة", "سمكه", "سمك مشوي"],
+      "example": { "arabic": "السمك من عدن", "transliteration": "is-samak min ʿadan", "english": "The fish is from Aden" },
+      "video_hint": "Fish at a market or grilled at a seaside restaurant."
+    },
+    {
+      "arabic": "حليب",
+      "transliteration": "ḥaliib",
+      "english": "milk",
+      "category": "Drink",
+      "teaching_note": "Fresh milk is حليب; لبن in Yemen is buttermilk — the sour drink served with saltah — so do not use it for milk. شاهي حليب is the milky tea of the south.",
+      "image_scene": "A glass of white milk beside a small jug on a wooden table.",
+      "concept_key": "milk",
+      "variants": ["الحليب", "شاهي حليب", "لبن"],
+      "example": { "arabic": "شاهي حليب لو سمحت", "transliteration": "shaahi ḥaliib law samaḥt", "english": "Milk tea, please" },
+      "video_hint": "Milk poured into tea; حليب in a café order."
+    },
+    {
+      "arabic": "سكر",
+      "transliteration": "sukkar",
+      "english": "sugar",
+      "category": "Food",
+      "teaching_note": "Doubled k: sukkar. Yemeni tea is served already sweet — say بدون سكر 'without sugar' early or it will be. Also the everyday word for diabetes: عنده سكر.",
+      "image_scene": "A small glass bowl of white sugar with a spoon, a tea glass beside it.",
+      "concept_key": "sugar",
+      "variants": ["السكر", "سكّر", "بدون سكر", "سكر زيادة"],
+      "example": { "arabic": "شاهي بدون سكر", "transliteration": "shaahi biduun sukkar", "english": "Tea without sugar" },
+      "video_hint": "Sugar spooned into tea; سكر named in a recipe."
+    },
+    {
+      "arabic": "ملح",
+      "transliteration": "milḥ",
+      "english": "salt",
+      "category": "Food",
+      "teaching_note": "Ends in ح — milḥ. Sanaa's old market is سوق الملح, 'the salt market', which no longer sells much salt but keeps the name.",
+      "image_scene": "A small wooden bowl of coarse salt with a pinch lifted above it.",
+      "concept_key": "salt",
+      "variants": ["الملح", "سوق الملح", "ملح زيادة"],
+      "example": { "arabic": "هات الملح", "transliteration": "haat il-milḥ", "english": "Pass the salt" },
+      "video_hint": "Salt added in a cooking clip; سوق الملح in Sanaa tours."
+    },
+    {
+      "arabic": "بيض",
+      "transliteration": "bayḍ",
+      "english": "egg / eggs",
+      "category": "Food",
+      "teaching_note": "The emphatic ض gives the word its heavy ending. بيض is eggs in general; one is بيضة. Fried with tomato and chilli it is the standard Yemeni breakfast, شكشوكة.",
+      "image_scene": "Three brown eggs in a small basket, one cracked open into a pan behind.",
+      "concept_key": "egg",
+      "variants": ["البيض", "بيضة", "بيضه", "بيض مقلي"],
+      "example": { "arabic": "اشتي بيض وخبز", "transliteration": "ashti bayḍ w-khubz", "english": "I want eggs and bread" },
+      "video_hint": "Eggs cracked or fried in a breakfast clip; بيض named."
+    },
+    {
+      "arabic": "فواكه",
+      "transliteration": "fawaakih",
+      "english": "fruit",
+      "category": "Food",
+      "teaching_note": "The plural is the everyday word; one piece is فاكهة. Yemen grows superb fruit — mangoes and bananas from the Tihama, grapes and pomegranates from the highlands — and the fruit stall is where you will practise numbers.",
+      "image_scene": "A market stall piled with mangoes, bananas, grapes and pomegranates.",
+      "concept_key": "fruit",
+      "variants": ["الفواكه", "فاكهة", "فاكهه", "فواكة"],
+      "example": { "arabic": "الفواكه من الحديدة", "transliteration": "il-fawaakih min il-ḥudayda", "english": "The fruit is from Hodeidah" },
+      "video_hint": "A fruit stall or a fruit tray at a meal; فواكه in captions."
+    },
+    {
+      "arabic": "خضار",
+      "transliteration": "khuḍaar",
+      "english": "vegetables",
+      "category": "Food",
+      "teaching_note": "خ at the start and ض in the middle — two hard sounds in one word. Also خضرة in the south. The vegetable souq is where tomatoes, onions and potatoes are sold by the kilo.",
+      "image_scene": "A vegetable stall with tomatoes, onions, potatoes and green chillies in crates.",
+      "concept_key": "vegetables",
+      "variants": ["الخضار", "خضرة", "خضروات", "الخضرة"],
+      "example": { "arabic": "الخضار في السوق", "transliteration": "il-khuḍaar fis-suug", "english": "The vegetables are in the market" },
+      "video_hint": "A vegetable stall; خضار named while the produce is visible."
+    },
+    {
+      "arabic": "تمر",
+      "transliteration": "tamr",
+      "english": "dates",
+      "category": "Food",
+      "teaching_note": "Dates break the Ramadan fast and come with coffee for guests. تمر is the dried date; fresh ones are رطب. The Yemeni fig, بلس, is the other sweet fruit you will be offered.",
+      "image_scene": "A small plate of dark dates next to a cup of coffee on a tray.",
+      "concept_key": "dates",
+      "variants": ["التمر", "تمرة", "تمره", "رطب"],
+      "example": { "arabic": "تفضّل تمر", "transliteration": "tfaḍḍal tamr", "english": "Have some dates" },
+      "video_hint": "Dates offered with coffee or at iftar; تمر named."
+    },
+    {
+      "arabic": "عصير",
+      "transliteration": "ʿaṣiir",
+      "english": "juice",
+      "category": "Drink",
+      "teaching_note": "ع at the start, emphatic ص in the middle. Juice stalls are everywhere in Yemeni cities — mango, cocktail, sugar cane — and are the easiest place to order in Arabic.",
+      "image_scene": "A tall glass of orange mango juice with a straw on a stall counter.",
+      "concept_key": "juice",
+      "variants": ["العصير", "عصير مانجو", "عصيرات"],
+      "example": { "arabic": "عصير واحد لو سمحت", "transliteration": "ʿaṣiir waaḥid law samaḥt", "english": "One juice, please" },
+      "video_hint": "A juice stall; عصير ordered."
+    },
+    {
+      "arabic": "اشتي",
+      "transliteration": "ashti",
+      "english": "I want",
+      "category": "Verb",
+      "teaching_note": "The Yemeni verb that no other dialect uses this way — the fastest way to sound local. اشتي + noun is a complete request. Never عايز (Egyptian) or أبي (Gulf); بغيت is heard in Hadramawt and is accepted.",
+      "image_scene": "A customer at a food counter pointing at a dish with an open, wanting expression.",
+      "concept_key": "i_want",
+      "variants": ["أشتي", "اشتى", "تشتي", "يشتي", "نشتي", "بغيت"],
+      "example": { "arabic": "اشتي شاهي وخبز", "transliteration": "ashti shaahi w-khubz", "english": "I want tea and bread" },
+      "video_hint": "Anyone ordering or stating a wish; اشتي / تشتي audible."
+    },
+    {
+      "arabic": "هات",
+      "transliteration": "haat",
+      "english": "give me / pass me",
+      "category": "Verb",
+      "teaching_note": "The pass-it-here word at any table: هات الملح. To a woman: هاتي. Softer than it sounds — Yemenis use it with family and friends constantly. أعطني is the formal version.",
+      "image_scene": "A hand reaching across a food tray toward a bowl, palm up.",
+      "concept_key": "give_me",
+      "variants": ["هاتي", "هاتوا", "هات لي", "أعطني", "اعطيني"],
+      "example": { "arabic": "هات الخبز لو سمحت", "transliteration": "haat il-khubz law samaḥt", "english": "Pass the bread, please" },
+      "video_hint": "Food passed at a table; هات heard as a hand reaches."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Mother", "arabic": "بسم الله. ايش تشتي؟ رز ولا خبز؟", "transliteration": "bismillaah. aysh tishti? ruzz walla khubz?", "english": "In God's name. What do you want — rice or bread?" },
+    { "speaker": "Ahmed", "arabic": "اشتي رز ودجاج", "transliteration": "ashti ruzz w-dajaaj", "english": "I want rice and chicken" },
+    { "speaker": "Mother", "arabic": "تفضّل. والسلتة حارة", "transliteration": "tfaḍḍal. wis-salta ḥaarra", "english": "Here you are. And the saltah is hot" },
+    { "speaker": "Ahmed", "arabic": "هات الملح لو سمحتي", "transliteration": "haat il-milḥ law samaḥti", "english": "Pass the salt, please" },
+    { "speaker": "Mother", "arabic": "تفضّل. تشتي عصير؟", "transliteration": "tfaḍḍal. tishti ʿaṣiir?", "english": "Here. Do you want juice?" },
+    { "speaker": "Ahmed", "arabic": "لا، اشتي مي. الحمد لله، شبعت", "transliteration": "laa, ashti mayʾ. il-ḥamdu lillaah, shibiʿt", "english": "No, I want water. Praise God, I'm full" },
+    { "speaker": "Mother", "arabic": "كل، كل! فيه تمر كمان", "transliteration": "kul, kul! fiih tamr kamaan", "english": "Eat, eat! There are dates too" }
+  ],
+  "sound_spotlight": [
+    { "sound": "ص / ض", "example": "عصير (ʿaṣiir)، بيض (bayḍ)", "explanation": "The emphatic s and d: tongue pulled back, mouth hollow, the vowel next to them darkens. Hear ʿaṣiir against the plain s of سمك." },
+    { "sound": "ط as a soft d", "example": "بطاطس (baṭaaṭis)", "explanation": "In Sanaa ط is voiced at the start of a word and between vowels, so 'potatoes' sounds close to badaadis. It is not a mistake — it is the accent." },
+    { "sound": "ح in the middle", "example": "لحم (laḥm)، حليب (ḥaliib)", "explanation": "The breathy h now inside and at the start of a word. laḥm has no vowel after the ḥ — practise it as one closed syllable." }
+  ],
+  "lesson_sequence": [
+    { "step": "Welcome", "detail": "A lunch tray on the floor of a Sanaa home — saltah pot, rice, bread, juice. One line of English: you will name it all and ask for what you want." },
+    { "step": "Point & hear", "detail": "One tray illustration; tap each food or drink to hear it. Twelve nouns." },
+    { "step": "Two verbs", "detail": "اشتي and هات as action cards: a hand reaching, a customer ordering. Audio, then English." },
+    { "step": "Order it", "detail": "Drag a food card after اشتي or هات and hear the sentence. The app adds لو سمحت to every هات." },
+    { "step": "Tap quiz", "detail": "All fourteen, audio only, four-image grid." },
+    { "step": "Say three", "detail": "Record اشتي شاهي، اشتي رز ودجاج، هات الملح. Feedback on ص and ḥ." },
+    { "step": "Lesson complete", "detail": "Counter rolls up. Nudge: say اشتي + whatever you eat next, out loud." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "At your next meal say what is on the table in Sanaa Arabic, then say اشتي and the thing you want most.", "context": "Shown on the lesson-complete screen. Here-and-now naming plus one production." },
+    { "prompt": "Order a tea or juice somewhere with اشتي شاهي / اشتي عصير and لو سمحت — even if the café is not Arabic-speaking, say it under your breath.", "context": "Follow-up notification. Rehearses the ordering frame." },
+    { "prompt": "Ask your tutor to describe a saltah lunch and pass you imaginary dishes with هات — you respond with تفضّل.", "context": "Tutor prompt. Practises هات / تفضّل as a pair." }
+  ],
+  "video_needs": {
+    "queries": ["طريقة السلتة الصنعانية", "غدا يمني فلوق", "مطبخ يمني دجاج ورز", "فطور يمني بيض وخبز"],
+    "channels": ["Yemen Cooks", "Our Yemeni Kitchen", "Sheba Yemeni Food", "Mustafa Al-Mawmari"],
+    "scene": "Cooking channels naming ingredients on screen; a family lunch where dishes are named and passed with هات / تفضّل; someone ordering with اشتي."
+  }
+}

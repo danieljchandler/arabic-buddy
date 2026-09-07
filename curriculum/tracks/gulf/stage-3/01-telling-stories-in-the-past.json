@@ -1,0 +1,321 @@
+{
+  "slug": "telling-stories-in-the-past",
+  "lesson_number": 1,
+  "title": "Telling a Story",
+  "title_arabic": "سالفة صارت لي",
+  "description": "Turn the past tense you know into a story people want to hear: set the scene with كان, move it along with 'first… then… until…', drop in a 'suddenly', and land the ending. The irregular past verbs that every Gulf story runs on come with it.",
+  "cefr_target": "A2",
+  "duration_minutes": 25,
+  "approach": "Authentic video with scaffolding — hear a 60-second storytime clip twice, map its connectors on screen, then rebuild and retell your own story from a six-picture strip.",
+  "unlock_condition": "Retell a six-sentence story using كان plus at least three connectors; ≥8/10 on the irregular-past quiz",
+  "icon": "📖",
+  "can_do": [
+    "Tell what happened using كان to set the scene",
+    "Sequence events with first, then, after, until and while",
+    "Use the most common irregular past verbs (was, said, saw, found, forgot, came)"
+  ],
+  "grammar": [
+    {
+      "category": "verb-conjugation",
+      "title": "كان: setting the scene before anything happens",
+      "explanation": "Every Gulf story opens with the background, and the background is carried by كان (was). Put كان before an adjective or a place to say how things were: كنت تعبان (I was tired), كانت الدنيا حر (it was hot). Put it before a present-tense verb to say what was going on or what used to happen: كنت أروح كل يوم (I used to go every day), كان يسوق (he was driving). كان takes the same endings as any past verb — كنت، كنتي، كان، كانت، كنا، كنتوا، كانوا — and the events themselves then come in the plain past. In Kuwait and Bahrain you will also hear چان (chaan) for the same word.",
+      "examples": [
+        { "arabic": "كنت بالبيت وحدي", "transliteration": "kint bil-bayt waḥdi", "english": "I was at home alone" },
+        { "arabic": "كانت الدنيا حر مرة", "transliteration": "kaanat id-dinya ḥarr marra", "english": "It was really hot" },
+        { "arabic": "كنا نروح البحر كل جمعة", "transliteration": "kinna nruuḥ il-baḥar kill jimʿa", "english": "We used to go to the sea every Friday" },
+        { "arabic": "كان يسوق وآنا نايم", "transliteration": "kaan ysuug w-aana naayim", "english": "He was driving while I was asleep" }
+      ]
+    },
+    {
+      "category": "verb-conjugation",
+      "title": "The short past verbs: قلت، شفت، كنت، لقيت، نسيت",
+      "explanation": "The past verbs a story needs most are the ones that do not follow the plain pattern. Verbs with a long ا in the middle — قال، شاف، كان، راح، جا — lose it in the I and you forms: قلت (I said), شفت (I saw), كنت (I was), رحت (I went), جيت (I came). Verbs that end in ى — نسى، لقى، مشى — end in ـيت for I and you: نسيت (I forgot), لقيت (I found), مشيت (I walked). The 'they' ending is ـوا and is said -aw in the Gulf: راحوا (raaḥaw), ضحكوا (ḍiḥkaw). Say these forms until they feel like single words; nobody thinks about the root while telling a story.",
+      "examples": [
+        { "arabic": "قلت له لا، بس ما سمع", "transliteration": "gilt lah la, bas ma simaʿ", "english": "I told him no, but he didn't listen" },
+        { "arabic": "شفت الربع عند الباب", "transliteration": "shift ir-rabʿ ʿind il-baab", "english": "I saw the guys at the door" },
+        { "arabic": "لقيت الجوال بس نسيت المفتاح", "transliteration": "ligayt il-jawwaal bas nisayt il-miftaaḥ", "english": "I found the phone but forgot the key" },
+        { "arabic": "جوا متأخرين وراحوا بسرعة", "transliteration": "jaw mitʾakhkhriin w-raaḥaw b-surʿa", "english": "They came late and left quickly" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "A story is social currency",
+      "note": "In the majlis and the diwaniyya a good سالفة is what you bring. It is told slowly, with the scene set first (كنت…), a hook (تخيل!), exaggeration that everyone knows is exaggeration (والله من الصبح ما أكلت), and a punchline the teller has been saving. The listener is not silent: you are expected to feed the story with وبعدين؟ (and then?), لا! (no way!), عن جد؟ (seriously?), and to laugh out loud at the end, even if you saw it coming. Interrupting to correct a detail is bad form; asking for more is good form.",
+      "phrases": [
+        { "arabic": "وبعدين؟", "transliteration": "w-baʿdayn?", "english": "And then?" },
+        { "arabic": "عن جد؟", "transliteration": "ʿan jadd?", "english": "Seriously?" },
+        { "arabic": "الله يستر", "transliteration": "allah yistir", "english": "Oh no (God protect us)" },
+        { "arabic": "والله سالفة", "transliteration": "wallah saalfa", "english": "Honestly, quite a story" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "كان",
+      "transliteration": "kaan",
+      "english": "was / were",
+      "category": "Verb",
+      "teaching_note": "The backbone of every story. It takes past endings like any verb (كنت، كانت، كانوا) and sits before an adjective, a place or a present verb. Trap: the present 'am/is/are' has no word at all in Arabic — كان only appears in the past.",
+      "image_scene": "A man pointing at a wall clock showing an earlier hour, with a thought bubble of himself sitting at a desk at work.",
+      "concept_key": "was",
+      "variants": ["كنت", "كانت", "كانوا", "كنا", "چان"],
+      "example": { "arabic": "كنت بالسوق أمس", "transliteration": "kint bis-suug ams", "english": "I was at the market yesterday" },
+      "video_hint": "A vlogger opening a story with كنت/كان before the first event; the scene-setting sentence."
+    },
+    {
+      "arabic": "وآنا",
+      "transliteration": "w-aana",
+      "english": "while I (was)…",
+      "category": "Connector",
+      "teaching_note": "Gulf Arabic has no everyday word for 'while'. Instead you say و plus a pronoun plus what was going on: وآنا رايح (while I was going), وهو نايم (while he was asleep). Works with every pronoun. Trap: بينما belongs to the news bulletin, never to the majlis.",
+      "image_scene": "Split frame: on the left a woman walking with shopping bags, on the right the same moment showing her phone ringing.",
+      "concept_key": "while",
+      "variants": ["وأنا", "وانا", "وهو", "وهي", "وإحنا", "وهم"],
+      "example": { "arabic": "وآنا راجع من الدوام شفت الربع", "transliteration": "w-aana raajiʿ min id-dawaam shift ir-rabʿ", "english": "While I was coming back from work I saw the guys" },
+      "video_hint": "A narrator saying وآنا/وهو followed by a participle (رايح، راجع، نايم) mid-story."
+    },
+    {
+      "arabic": "فجأة",
+      "transliteration": "fajʾa",
+      "english": "suddenly",
+      "category": "Adverb",
+      "teaching_note": "The turning point of every story. Often stretched for effect (فجأااة). Speakers also say على غفلة (on a blind side) in Saudi; both are fine.",
+      "image_scene": "A lit room with a man reading, and a lightning bolt through the window with the light bulb going out.",
+      "concept_key": "suddenly",
+      "variants": ["فجأه", "فجاه", "وفجأة", "على غفلة"],
+      "example": { "arabic": "فجأة سمعنا صوت برا", "transliteration": "fajʾa simaʿna ṣawt barra", "english": "Suddenly we heard a sound outside" },
+      "video_hint": "A storyteller's voice rising on فجأة right before the twist."
+    },
+    {
+      "arabic": "سالفة",
+      "transliteration": "saalfa",
+      "english": "story (something that happened)",
+      "category": "Noun",
+      "teaching_note": "The Gulf word for a real-life story or 'the matter at hand'. Trap: قصة is a story in a book or film; what happened to you last night is a سالفة. Kuwaitis ask شالسالفة؟ and Saudis وش السالفة؟ — 'what's going on?'.",
+      "image_scene": "Three men on floor cushions in a majlis, one gesturing mid-story, the others leaning in.",
+      "concept_key": "story",
+      "variants": ["السالفة", "سالفه", "شالسالفة", "وش السالفة"],
+      "example": { "arabic": "عندي لك سالفة", "transliteration": "ʿindi lik saalfa", "english": "I've got a story for you" },
+      "video_hint": "Someone announcing a story with عندي لك سالفة or asking شالسالفة؟ / وش السالفة؟."
+    },
+    {
+      "arabic": "صار",
+      "transliteration": "ṣaar",
+      "english": "happened / became",
+      "category": "Verb",
+      "teaching_note": "Both 'it happened' and 'it became'. The story question is وش صار؟ (Saudi) or شصار؟ (Kuwait/UAE) — what happened? Also صار الوقت (it's time) and صار له سنة هني (he's been here a year).",
+      "image_scene": "A woman with hands raised in a 'what happened?' gesture looking at a broken vase on the floor.",
+      "concept_key": "happened",
+      "variants": ["صارت", "وش صار", "شصار", "يصير", "صار لي"],
+      "example": { "arabic": "وش صار بعدين؟", "transliteration": "wish ṣaar baʿdayn?", "english": "What happened next?" },
+      "video_hint": "A listener asking وش صار / شصار؟ or the narrator saying صار لي (happened to me)."
+    },
+    {
+      "arabic": "سولف",
+      "transliteration": "soolaf",
+      "english": "told (a story) / chatted",
+      "category": "Verb",
+      "teaching_note": "The verb behind سالفة: to tell a story, to chat. سولف لي (tell me), يسولف (he's telling / chatting), قعدنا نسولف (we sat chatting). A genuine Gulf marker — Egyptians and Levantines don't have it.",
+      "image_scene": "Two friends on a car bonnet at night, one talking with animated hands, the other laughing.",
+      "concept_key": "told",
+      "variants": ["سولفت", "يسولف", "سولف لي", "سولفوا", "نسولف"],
+      "example": { "arabic": "سولف لنا وش صار بالسفرة", "transliteration": "soolaf lana wish ṣaar bis-safra", "english": "He told us what happened on the trip" },
+      "video_hint": "Friends in a majlis or car with يسولف/نسولف in the narration; storytime vlog titles with سولفة."
+    },
+    {
+      "arabic": "لقى",
+      "transliteration": "liga",
+      "english": "found",
+      "category": "Verb",
+      "teaching_note": "Ends in ى, so I/you forms take ـيت: لقيت (I found), لقيته (I found it/him). The Gulf ق is a hard g: liga, ligayt. Trap: وجد is MSA — you will read it, never hear it.",
+      "image_scene": "A hand lifting a sofa cushion to reveal a set of keys underneath, face lit with relief.",
+      "concept_key": "found",
+      "variants": ["لقيت", "لقيته", "لقيتها", "يلقى", "لقينا"],
+      "example": { "arabic": "لقيت المفتاح تحت الكرسي", "transliteration": "ligayt il-miftaaḥ taḥt il-kursi", "english": "I found the key under the chair" },
+      "video_hint": "Someone searching and then holding up the found object with لقيته!"
+    },
+    {
+      "arabic": "نسى",
+      "transliteration": "nisa",
+      "english": "forgot",
+      "category": "Verb",
+      "teaching_note": "Same ى pattern as لقى: نسيت (I forgot), نسيته (I forgot it). The participle ناسي means 'having forgotten' — ناسي اسمه (I've forgotten his name). Negative command: لا تنسى (don't forget).",
+      "image_scene": "A man at his front door patting empty pockets, a phone visible on the table inside through the window.",
+      "concept_key": "forgot",
+      "variants": ["نسيت", "ناسي", "ينسى", "نسيته", "لا تنسى"],
+      "example": { "arabic": "نسيت الجوال بالبيت", "transliteration": "nisayt il-jawwaal bil-bayt", "english": "I forgot my phone at home" },
+      "video_hint": "A vlogger realising they forgot something — نسيت! — often played for comedy."
+    },
+    {
+      "arabic": "أتذكر",
+      "transliteration": "atdhakkar",
+      "english": "I remember",
+      "category": "Verb",
+      "teaching_note": "Usually heard in the present even when the story is past: أتذكر يوم كنا صغار (I remember when we were little). Saudis also say أذكر, and the participle متذكر means 'I do remember'. 'I remembered' is تذكرت.",
+      "image_scene": "An older man with a finger raised, looking up, an old family photograph floating in a thought bubble.",
+      "concept_key": "remember",
+      "variants": ["اتذكر", "متذكر", "أذكر", "تذكرت", "تتذكر"],
+      "example": { "arabic": "أتذكر أول يوم لي بالكويت", "transliteration": "atdhakkar awwal yawm li bil-kwayt", "english": "I remember my first day in Kuwait" },
+      "video_hint": "Nostalgia segments: أتذكر / تتذكر؟ before an old memory or a childhood clip."
+    },
+    {
+      "arabic": "ضحك",
+      "transliteration": "ḍiḥak",
+      "english": "laughed",
+      "category": "Verb",
+      "teaching_note": "Note the Gulf i-vowel: ḍiḥak, not ḍaḥaka. ضحك علي is 'laughed at me'; ضحكوا (ḍiḥkaw) is 'they laughed'. The listener's expected reaction at the end of a سالفة.",
+      "image_scene": "A group around a table with heads thrown back laughing, one slapping the table.",
+      "concept_key": "laughed",
+      "variants": ["ضحكت", "ضحكنا", "ضحكوا", "يضحك", "ضحك علي"],
+      "example": { "arabic": "الكل ضحك علي", "transliteration": "il-kill ḍiḥak ʿalayy", "english": "Everyone laughed at me" },
+      "video_hint": "The room bursting out laughing at a punchline; ضحكنا in the retelling."
+    },
+    {
+      "arabic": "خايف",
+      "transliteration": "khaayif",
+      "english": "afraid / scared",
+      "category": "Adjective",
+      "teaching_note": "A participle, so it describes a state: خايف، خايفة، خايفين. 'Afraid of' is خايف من. The event verb is خاف / خفت (he got scared / I got scared).",
+      "image_scene": "A boy under a blanket with wide eyes, a dark doorway behind him.",
+      "concept_key": "afraid",
+      "variants": ["خايفة", "خايفين", "خفت", "خاف", "خايف من"],
+      "example": { "arabic": "كنت خايف من الظلمة", "transliteration": "kint khaayif min iẕ-ẕalma", "english": "I was afraid of the dark" },
+      "video_hint": "A scary-moment story: كنت خايف / خفت with a matching face."
+    },
+    {
+      "arabic": "بالأخير",
+      "transliteration": "bil-akhiir",
+      "english": "in the end",
+      "category": "Connector",
+      "teaching_note": "Signals the landing of the story. Also في الآخر. Different from أخيراً (finally!), which carries relief — أخيراً وصلنا (we finally arrived).",
+      "image_scene": "A finish-line ribbon with a tired but smiling runner crossing it.",
+      "concept_key": "at_the_end",
+      "variants": ["في الأخير", "بالاخير", "أخيراً", "اخيرا", "وبالأخير"],
+      "example": { "arabic": "بالأخير رجعنا البيت", "transliteration": "bil-akhiir rijaʿna l-bayt", "english": "In the end we went back home" },
+      "video_hint": "The closing beat of a storytime clip: بالأخير / في الآخر before the outcome."
+    },
+    {
+      "arabic": "أول شي",
+      "transliteration": "awwal shay",
+      "english": "first of all / first thing",
+      "category": "Connector",
+      "teaching_note": "The opener of a sequence. أول on its own also means 'before / in the old days': أول كنا نسكن بالكويت. Note شي, never the MSA شيء.",
+      "image_scene": "A numbered list on a notepad with a big '1' circled, a pen beside it.",
+      "variants": ["اول شي", "أول", "أولاً", "اول"],
+      "example": { "arabic": "أول شي رحنا البحر", "transliteration": "awwal shay riḥna l-baḥar", "english": "First we went to the sea" },
+      "video_hint": "A day-in-the-life vlog listing the day: أول شي… بعدين…"
+    },
+    {
+      "arabic": "عقب",
+      "transliteration": "ʿugub",
+      "english": "after / afterwards",
+      "category": "Connector",
+      "teaching_note": "Kuwait, Bahrain, Qatar and the UAE say عقب where Saudis say بعد; both are understood everywhere. Before a verb it becomes عقب ما: عقب ما تغدينا (after we had lunch). Also 'the day after tomorrow' is عقب باكر.",
+      "image_scene": "Two panels: a family eating lunch, then the same family asleep on the sofa with an arrow between the panels.",
+      "variants": ["عقب ما", "عقبها", "عگب", "وعقب", "عقب باكر"],
+      "example": { "arabic": "عقب الغدا نمنا شوي", "transliteration": "ʿugub il-ghada nimna shway", "english": "After lunch we slept a bit" },
+      "video_hint": "Kuwaiti or Emirati narration sequencing with عقب / عقب ما."
+    },
+    {
+      "arabic": "لين",
+      "transliteration": "layn",
+      "english": "until / by the time",
+      "category": "Connector",
+      "teaching_note": "The Gulf word where MSA has حتى. Marks how long something went on: قعدنا لين الفجر (we stayed till dawn). Before a verb: لين وصلت (until I arrived / when I arrived). One of the connectors that most strongly marks Gulf speech.",
+      "image_scene": "A majlis window going from night-blue to dawn-orange, tea glasses on the tray between the men.",
+      "variants": ["لين ما", "الين", "لن", "ولين"],
+      "example": { "arabic": "قعدنا نسولف لين الفجر", "transliteration": "giʿadna nsoolif layn il-fajir", "english": "We sat chatting until dawn" },
+      "video_hint": "لين in a narration marking the end point of an activity: لين الصبح، لين وصلنا."
+    },
+    {
+      "arabic": "المهم",
+      "transliteration": "il-muhimm",
+      "english": "anyway / the point is",
+      "category": "Discourse marker",
+      "teaching_note": "Literally 'the important thing'. The storyteller's tool for skipping the boring part and jumping back to the plot — المهم، وصلنا. Also used to close a digression. You will hear it dozens of times in a single vlog.",
+      "image_scene": "A speaker waving one hand dismissively while pointing forward with the other, a road sign reading 'ahead'.",
+      "variants": ["المهم يعني", "والمهم", "المهم انه"],
+      "example": { "arabic": "المهم، وصلنا المطار متأخرين", "transliteration": "il-muhimm, wiṣalna l-maṭaar mitʾakhkhriin", "english": "Anyway, we got to the airport late" },
+      "video_hint": "المهم opening a sentence after a tangent — vlog narration is full of it."
+    },
+    {
+      "arabic": "تخيل",
+      "transliteration": "takhayyal",
+      "english": "imagine! (you won't believe it)",
+      "category": "Discourse marker",
+      "teaching_note": "A command used as a hook: تخيل، ما فيه بنزين (imagine — no petrol). Feminine تخيلي, plural تخيلوا. It tells the listener the twist is coming and asks for their reaction.",
+      "image_scene": "A woman with raised eyebrows and palms open toward the viewer, a speech bubble with an exclamation mark.",
+      "variants": ["تخيلي", "تخيلوا", "تخيّل", "تصور"],
+      "example": { "arabic": "تخيل، السيارة ما اشتغلت", "transliteration": "takhayyal, is-sayyaara ma ishtaghalat", "english": "Imagine — the car wouldn't start" },
+      "video_hint": "The narrator turning to camera with تخيل / تخيلوا before the surprise."
+    },
+    {
+      "arabic": "ضاع",
+      "transliteration": "ḍaaʿ",
+      "english": "got lost / went missing",
+      "category": "Verb",
+      "teaching_note": "Used for people and things: ضعت (I got lost), ضاع جوالي (my phone went missing). Hollow verb, so the I-form is short: ḍiʿt. The participle ضايع (lost) describes the state afterwards.",
+      "image_scene": "A man holding a phone map, looking lost at a junction of identical white villas.",
+      "variants": ["ضعت", "ضاعت", "ضايع", "ضيعت", "ضعنا"],
+      "example": { "arabic": "ضعنا بالطريق ساعة", "transliteration": "ḍiʿna biṭ-ṭariig saaʿa", "english": "We got lost on the road for an hour" },
+      "video_hint": "Travel or road-trip vlogs: ضعنا / ضاع الجوال as the mishap of the day."
+    },
+    {
+      "arabic": "وصل",
+      "transliteration": "wiṣal",
+      "english": "arrived",
+      "category": "Verb",
+      "teaching_note": "Plain past with the Gulf i-vowel: wiṣal, wiṣalt, wiṣalna. Also a phone formula: وصلت؟ (have you arrived?) and the reply توني واصل (just got here).",
+      "image_scene": "A car pulling up at a house gate at night, headlights on the wall, a hand on the door handle.",
+      "variants": ["وصلت", "وصلنا", "يوصل", "وصلوا", "واصل"],
+      "example": { "arabic": "وصلنا البيت الساعة ثنتين", "transliteration": "wiṣalna l-bayt is-saaʿa thintayn", "english": "We got home at two" },
+      "video_hint": "Arrival shots in travel vlogs with وصلنا; phone check-ins وصلت؟"
+    },
+    {
+      "arabic": "طلع",
+      "transliteration": "ṭilaʿ",
+      "english": "turned out (to be) / went out",
+      "category": "Verb",
+      "teaching_note": "The storyteller's twist verb: طلع الباب مفتوح (turns out the door was open), طلع أخوه (turned out to be his brother). Its everyday meaning is 'went out / went up': طلعت من البيت.",
+      "image_scene": "A man opening a box expecting one thing, a kitten's head popping out instead.",
+      "variants": ["طلعت", "طلعنا", "يطلع", "طلعوا", "طلع انه"],
+      "example": { "arabic": "طلع المفتاح في جيبي", "transliteration": "ṭilaʿ il-miftaaḥ fi jaybi", "english": "Turns out the key was in my pocket" },
+      "video_hint": "The reveal of a story: طلع… with a laugh; also طلعنا (we went out) in outing vlogs."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Salem", "arabic": "وش صار أمس؟ سولف لي", "transliteration": "wish ṣaar ams? soolif li", "english": "What happened yesterday? Tell me." },
+    { "speaker": "Fahad", "arabic": "والله سالفة. كنت راجع من الدوام وآنا تعبان", "transliteration": "wallah saalfa. kint raajiʿ min id-dawaam w-aana taʿbaan", "english": "Honestly, quite a story. I was coming back from work, tired." },
+    { "speaker": "Salem", "arabic": "وبعدين؟", "transliteration": "w-baʿdayn?", "english": "And then?" },
+    { "speaker": "Fahad", "arabic": "فجأة وقفت السيارة. تخيل، ما فيه بنزين", "transliteration": "fajʾa wagfat is-sayyaara. takhayyal, ma fiih banziin", "english": "Suddenly the car stopped. Imagine — no petrol." },
+    { "speaker": "Salem", "arabic": "لا! وكنت خايف؟", "transliteration": "la! w-kint khaayif?", "english": "No! Were you scared?" },
+    { "speaker": "Fahad", "arabic": "شوي. المهم، مشيت لين لقيت محطة", "transliteration": "shway. il-muhimm, mishayt layn ligayt maḥaṭṭa", "english": "A bit. Anyway, I walked until I found a station." },
+    { "speaker": "Salem", "arabic": "ههههه وبالأخير؟", "transliteration": "hhhh w-bil-akhiir?", "english": "Haha, and in the end?" },
+    { "speaker": "Fahad", "arabic": "بالأخير وصلت البيت الساعة عشر، ونسيت المفتاح بالسيارة", "transliteration": "bil-akhiir wiṣalt il-bayt is-saaʿa ʿashar, w-nisayt il-miftaaḥ bis-sayyaara", "english": "In the end I got home at ten — and forgot the key in the car." }
+  ],
+  "sound_spotlight": [
+    { "sound": "Hollow verbs shrink", "example": "قال → قلت، شاف → شفت، كان → كنت (gilt, shift, kint)", "explanation": "Verbs with a long ا in the middle drop it in the I/you forms and the vowel becomes a short i. Hear them as one-syllable words — gilt, shift, kint, riḥt — and the story speeds up." },
+    { "sound": "ـوا said as -aw", "example": "راحوا، ضحكوا، جوا (raaḥaw, ḍiḥkaw, jaw)", "explanation": "The 'they' ending is written ـوا like MSA but pronounced -aw in the Gulf, not -uu. Listen for it at the end of every plural past verb in a story." },
+    { "sound": "ج → y in 'came'", "example": "جا / يا، جيت / ييت (ja / ya, jayt / yayt)", "explanation": "Saudis say ja and jayt; Kuwaitis, Emiratis, Qataris and Bahrainis say ya and yayt for the same verb. Both will appear in the clips — it is one word with two accents." }
+  ],
+  "lesson_sequence": [
+    { "step": "Story first", "detail": "Watch a 60-second storytime clip with Gulf subtitles once for gist. One question: what went wrong?" },
+    { "step": "Scene-setting words", "detail": "The twenty words on cards, audio auto-plays, each shown inside its example sentence. كان and the connectors are highlighted in colour." },
+    { "step": "Map the story", "detail": "Second viewing: tap every connector (أول شي، بعدين، عقب، لين، فجأة، بالأخير) as you hear it; the app builds the timeline on screen." },
+    { "step": "Irregular-past drill", "detail": "Ten items: hear the he-form (قال، شاف، نسى، لقى، جا), say the I-form. Instant native playback for comparison." },
+    { "step": "Build a story", "detail": "Six pictures in order; drag the connectors between them, then record yourself telling it in six sentences. The app checks for كان plus three connectors." },
+    { "step": "Listener's turn", "detail": "Hear a friend's story with pauses; choose the right reaction each time (وبعدين؟ / لا! / عن جد؟ / ههههه)." },
+    { "step": "Lesson complete", "detail": "Word counter rolls up. Nudge: tell someone today what happened yesterday — in Arabic, in your head if need be." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Something small went wrong today. Tell it as a سالفة: كنت… فجأة… المهم… بالأخير.", "context": "Shown on the lesson-complete screen. Activates كان, the connectors and at least two irregular past verbs." },
+    { "prompt": "Next time a friend tells you something, feed the story: وبعدين؟ عن جد؟ لا! Then say ههههه out loud at the end.", "context": "Follow-up notification the next evening. The listener's half of Gulf storytelling, zero production risk." },
+    { "prompt": "With your tutor: ask سولف لي سالفة صارت لك and count the connectors you hear.", "context": "Tutor-session card. Listening focus on لين، عقب، بعدين in natural speech." }
+  ],
+  "video_needs": {
+    "queries": ["سالفة صارت لي", "قصة صارت لي فلوق سعودي", "أسوأ يوم في حياتي مقطع", "سوالف كويتية"],
+    "channels": ["Fahad Sal", "BanderitaX", "Gudosbros", "Ahmed Sharif"],
+    "scene": "One person recounting a real story to camera or to friends in a car or majlis: scene set with كان, a فجأة twist, listeners reacting, a laugh at the end."
+  }
+}

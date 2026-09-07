@@ -1,0 +1,204 @@
+{
+  "slug": "objects-around-you",
+  "lesson_number": 1,
+  "title": "Objects — The World Around You",
+  "title_arabic": "الحاجات اللي حواليك",
+  "description": "Twelve things you can point at right now — a glass of water, the door, your phone — heard in Cairo Arabic and seen until the sound and the thing are one. No reading, no speaking yet.",
+  "cefr_target": "Pre-A1",
+  "duration_minutes": 15,
+  "approach": "GPA Phase 1 — Here & Now. Receptive only: listen, look, tap. No production, no grammar meta-language.",
+  "unlock_condition": "≥9/12 correct on the final listen-and-tap quiz",
+  "icon": "🏠",
+  "can_do": [
+    "Recognise twelve everyday objects by sound and picture",
+    "Match a spoken Egyptian word to the thing it names"
+  ],
+  "grammar": [],
+  "culture": [
+    {
+      "title": "The glass of tea is where the language starts",
+      "note": "Walk into any Egyptian home, shop or office and before anything else you will be asked what you drink. Tea (شاي) is the default — black, strong, and sweet unless you say otherwise — and Turkish-style coffee (قهوة) comes in a small cup, ordered by its sugar level. Say yes the second time you are asked, not the first: the first offer is the ritual, the second is the invitation. Learning these two words before anything else is not an accident; they are the first words a host will say to you.",
+      "phrases": [
+        { "arabic": "تشرب إيه؟ شاي ولا قهوة؟", "transliteration": "tishrab eeh? shaay walla ʾahwa?", "english": "What will you drink? Tea or coffee?" },
+        { "arabic": "مية لو سمحت", "transliteration": "mayya law samaḥt", "english": "Water, please" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "مية",
+      "transliteration": "mayya",
+      "english": "water",
+      "category": "Food & drink",
+      "teaching_note": "Universal and unambiguous. The Egyptian word is مية (mayya), with a doubled y — not the MSA ماء, and not the Gulf ماي. You will hear it a hundred times a day in summer.",
+      "image_scene": "Close-up of a clear glass of cold water on a table, condensation on the glass, a plastic water bottle beside it.",
+      "concept_key": "water",
+      "variants": ["المية", "ميه", "الميه", "مياه"],
+      "example": { "arabic": "المية باردة", "transliteration": "el-mayya barda", "english": "The water is cold" },
+      "video_hint": "Someone pouring or asking for water; مية said while the glass or bottle is on screen."
+    },
+    {
+      "arabic": "قهوة",
+      "transliteration": "ʾahwa",
+      "english": "coffee",
+      "category": "Food & drink",
+      "teaching_note": "Culturally central and the first meeting with the Egyptian ق: it is written ق but said as a catch in the throat, ʾahwa. Learners who say qahwa sound like a newsreader. The same word means the neighbourhood café (الأهوة).",
+      "image_scene": "A small white Turkish-coffee cup on a saucer with thick dark coffee, a long-handled brass kanaka pot behind it.",
+      "concept_key": "coffee",
+      "variants": ["القهوة", "أهوة", "الأهوة", "قهوه"],
+      "example": { "arabic": "قهوة مظبوط لو سمحت", "transliteration": "ʾahwa maẓbuuṭ law samaḥt", "english": "A medium-sweet coffee, please" },
+      "video_hint": "Coffee being made in a kanaka or ordered at a café; the word said as the cup arrives."
+    },
+    {
+      "arabic": "شاي",
+      "transliteration": "shaay",
+      "english": "tea",
+      "category": "Food & drink",
+      "teaching_note": "The national drink, served in a glass, black and sweet. The same word across the Arab world, so it is a free win — and the first ش sound.",
+      "image_scene": "A small glass of dark red-brown tea on a metal tray, a sugar bowl beside it, a sprig of mint on top.",
+      "concept_key": "tea",
+      "variants": ["الشاي", "شاى", "الشاى"],
+      "example": { "arabic": "شاي بالنعناع", "transliteration": "shaay bin-niʿnaaʿ", "english": "Tea with mint" },
+      "video_hint": "A glass of tea being poured or offered; the host asking 'tea or coffee?'."
+    },
+    {
+      "arabic": "عيش",
+      "transliteration": "ʿeesh",
+      "english": "bread",
+      "category": "Food & drink",
+      "teaching_note": "Egyptians call bread عيش — literally 'life'. The MSA and Levantine خبز will be understood but marks you as a foreigner at once. Introduces the ع sound at the start of a word.",
+      "image_scene": "A stack of round puffed Egyptian baladi flatbreads on a wooden board, one torn open to show the pocket.",
+      "concept_key": "bread",
+      "variants": ["العيش", "عيش بلدي", "رغيف"],
+      "example": { "arabic": "العيش سخن", "transliteration": "el-ʿeesh sukhn", "english": "The bread is hot" },
+      "video_hint": "Baladi bread on the table, at the bakery window or being torn to scoop fuul; cooking channels name it constantly."
+    },
+    {
+      "arabic": "كرسي",
+      "transliteration": "kursi",
+      "english": "chair",
+      "category": "Home",
+      "teaching_note": "Furniture is ideal early vocabulary — stable, pointable, unambiguous. Same word everywhere in Arabic.",
+      "image_scene": "A simple wooden chair with a cane seat against a plain light wall, nothing else in frame.",
+      "concept_key": "chair",
+      "variants": ["الكرسي", "كراسي", "الكراسي", "كرسى"],
+      "example": { "arabic": "اقعد على الكرسي", "transliteration": "uʾʿud ʿala l-kursi", "english": "Sit on the chair" },
+      "video_hint": "A chair being pointed at, pulled up or sat on in a home tour or a café scene."
+    },
+    {
+      "arabic": "باب",
+      "transliteration": "baab",
+      "english": "door",
+      "category": "Home",
+      "teaching_note": "Short, phonetically simple, and it carries the long aa the learner will meet again in كتاب. Egyptians knock and call يا باب? — not literally, but the word is everywhere.",
+      "image_scene": "A wooden apartment door slightly ajar with warm light coming through the gap, a brass knocker on it.",
+      "concept_key": "door",
+      "variants": ["الباب", "بيبان", "البيبان"],
+      "example": { "arabic": "الباب مفتوح", "transliteration": "el-baab maftuuḥ", "english": "The door is open" },
+      "video_hint": "Someone at, opening or knocking on a door; flat-tour clips saying الباب."
+    },
+    {
+      "arabic": "بيت",
+      "transliteration": "beet",
+      "english": "house / home",
+      "category": "Home",
+      "teaching_note": "Very high frequency; it returns in dozens of later phrases (بيتي، بيتك، بيتنا). Note the Egyptian vowel: beet, a long ee, not bayt. That ee sound is the most audible mark of a Cairo accent.",
+      "image_scene": "Exterior of a Cairo apartment building in warm light, balconies with washing lines and potted plants, a small shop at street level.",
+      "concept_key": "house",
+      "variants": ["البيت", "بيوت", "بيتي", "بيتنا", "بيتك"],
+      "example": { "arabic": "ده بيتي", "transliteration": "da beeti", "english": "This is my house" },
+      "video_hint": "A vlogger arriving home or showing the building from outside; بيت/بيتنا in the narration."
+    },
+    {
+      "arabic": "عربية",
+      "transliteration": "ʿarabiyya",
+      "english": "car",
+      "category": "Outdoor",
+      "teaching_note": "The everyday Egyptian word for a car is عربية, not سيارة (which is what the sign on a car-hire office says). Confusingly the same word also means 'Arabic' as an adjective — context always tells you which. Doubled يّ.",
+      "image_scene": "A white saloon car parked under a tree on a quiet Cairo side street, seen from the side.",
+      "concept_key": "car",
+      "variants": ["العربية", "عربيه", "عربيتي", "عربيات", "سيارة"],
+      "example": { "arabic": "العربية بره", "transliteration": "el-ʿarabiyya barra", "english": "The car is outside" },
+      "video_hint": "Getting into or talking about a car; driving vlogs and traffic complaints are full of العربية."
+    },
+    {
+      "arabic": "شجرة",
+      "transliteration": "shagara",
+      "english": "tree",
+      "category": "Outdoor",
+      "teaching_note": "The first ج of the course, and in Cairo ج is a hard g: shagara, never shajara. Say it the Cairo way from day one — it is the sound Egyptians notice first in a foreigner. Cairo's streets are lined with ficus and palms, so trees are pointable.",
+      "image_scene": "A tall date palm beside a leafy ficus tree on a Cairo street corner, clear blue sky.",
+      "concept_key": "tree",
+      "variants": ["الشجرة", "شجره", "شجر", "الشجر", "نخلة"],
+      "example": { "arabic": "الشجرة كبيرة", "transliteration": "esh-shagara kibiira", "english": "The tree is big" },
+      "video_hint": "A palm or garden tree shown while named; garden and Nile-side vlogs."
+    },
+    {
+      "arabic": "موبايل",
+      "transliteration": "mobaayl",
+      "english": "phone / mobile",
+      "category": "Object",
+      "teaching_note": "A borrowed word, so nearly free. Egyptians say موبايل for the phone in their hand and تليفون for a call or a landline; both are accepted. Gulf جوال will not be understood in Cairo.",
+      "image_scene": "A smartphone lying face-up on a café table, screen lit, next to a glass of tea.",
+      "concept_key": "phone",
+      "variants": ["الموبايل", "موبيل", "تليفون", "التليفون", "موبايلي"],
+      "example": { "arabic": "الموبايل فين؟", "transliteration": "el-mobaayl feen?", "english": "Where is the phone?" },
+      "video_hint": "Someone holding up, charging or looking for their phone; موبايل is the word to listen for."
+    },
+    {
+      "arabic": "كتاب",
+      "transliteration": "kitaab",
+      "english": "book",
+      "category": "Object",
+      "teaching_note": "Classic object-lesson word; long aa vowel, and the ك–ت–ب root the learner will meet again in 'write' and 'office'. Same word in every dialect.",
+      "image_scene": "A closed hardback book on a desk, plain cover, a pen resting on top.",
+      "concept_key": "book",
+      "variants": ["الكتاب", "كتب", "الكتب", "كتابي"],
+      "example": { "arabic": "الكتاب على الكرسي", "transliteration": "el-kitaab ʿala l-kursi", "english": "The book is on the chair" },
+      "video_hint": "A book being held or shown; study vlogs, bookshop tours, children's read-alongs."
+    },
+    {
+      "arabic": "مفتاح",
+      "transliteration": "muftaaḥ",
+      "english": "key",
+      "category": "Object",
+      "teaching_note": "Everyday and pocket-sized. Introduces the ح sound at the end of a word, where it is easiest to hear. Egyptians say muftaaḥ with u in the first syllable.",
+      "image_scene": "A single metal key on a keyring against a plain background.",
+      "concept_key": "key",
+      "variants": ["المفتاح", "مفاتيح", "المفاتيح", "مفتاحي"],
+      "example": { "arabic": "المفتاح في العربية", "transliteration": "el-muftaaḥ fil-ʿarabiyya", "english": "The key is in the car" },
+      "video_hint": "Keys being picked up or searched for on the way out; 'المفتاح فين؟'."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Host", "arabic": "اتفضل، شاي؟", "transliteration": "itfaḍḍal, shaay?", "english": "Please — tea?" },
+    { "speaker": "Guest", "arabic": "مية لو سمحت", "transliteration": "mayya law samaḥt", "english": "Water, please" },
+    { "speaker": "Host", "arabic": "المية على الكرسي", "transliteration": "el-mayya ʿala l-kursi", "english": "The water is on the chair" },
+    { "speaker": "Guest", "arabic": "شكراً", "transliteration": "shukran", "english": "Thanks" }
+  ],
+  "sound_spotlight": [
+    { "sound": "ج → g", "example": "شجرة (shagara)", "explanation": "In Cairo ج is a hard g as in 'go', never the j of MSA or the Levant. It is the single most recognisable Egyptian sound, and it is introduced through the first word that has it." },
+    { "sound": "ق → ʾ", "example": "قهوة (ʾahwa)", "explanation": "Written ق, but in everyday Cairo speech it is a catch in the throat, like the gap in 'uh-oh'. Learners must learn to read ق and hear ʾ. A handful of learned words keep the q (القرآن، القاهرة) — those come later." },
+    { "sound": "ع", "example": "عيش (ʿeesh)، عربية (ʿarabiyya)", "explanation": "A squeezed sound from deep in the throat, unlike anything in English. Heard passively here in two of the most useful words; production practice starts in Lesson 3." },
+    { "sound": "Long ee", "example": "بيت (beet)، عيش (ʿeesh)", "explanation": "Where other dialects say bayt, Cairo says beet — a long, pure ee. Hearing it in two words side by side lets the pattern register before it is ever explained." }
+  ],
+  "lesson_sequence": [
+    { "step": "Welcome", "detail": "A warm Cairo street scene — balconies, a palm, a tea tray. One line of English: you will start recognising twelve Egyptian words. Tap يلا to begin." },
+    { "step": "Listen & see", "detail": "Each of the 12 words on its own full-screen card: illustration, native Cairo audio auto-plays, Arabic large, no English yet. Tap to replay as often as you like." },
+    { "step": "Second pass", "detail": "The same 12 cards, faster, audio auto-plays, English label now shown small and grey underneath." },
+    { "step": "Tap quiz — round 1", "detail": "Audio only; four images in a grid; tap the one you heard. Words 1–6. Distractors come from this lesson." },
+    { "step": "Tap quiz — round 2", "detail": "Same format, words 7–12." },
+    { "step": "Tap quiz — all twelve", "detail": "Random order, audio only. Score screen shows the missed words with image and audio to replay." },
+    { "step": "Lesson complete", "detail": "Words-learned counter rolls up to 12. Nudge: look around you today and find these things." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Look around you right now. Can you spot any of the twelve things from this lesson? Say the Egyptian word in your head.", "context": "Shown on the lesson-complete screen. Observation only, no speaking required. Activates all 12 words." },
+    { "prompt": "Every time you make or drink شاي or مية over the next few days, say the word once out loud.", "context": "Follow-up notification the next morning (optional). Two of the highest-frequency words, both in every kitchen." },
+    { "prompt": "If you have a tutor session coming up, tell them: 'I just learned these twelve words — can you point at them and say them?'", "context": "The ideal first tutor interaction: the GPA here-and-now game. Receptive reinforcement only." }
+  ],
+  "video_needs": {
+    "queries": ["جولة في شقتي فلوج مصري", "شاي وقهوة على الأهوة", "حاجات في شنطتي مصري", "يوم في بيتنا فلوج القاهرة"],
+    "channels": ["Shawar", "Sarah Hany", "Ola Roshdy", "Kareem Elsayed"],
+    "scene": "A host or vlogger naming objects while they are on screen: tea poured into a glass, baladi bread on the table, keys and phone picked up on the way to the car."
+  }
+}

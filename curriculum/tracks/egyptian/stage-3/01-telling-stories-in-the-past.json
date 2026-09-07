@@ -1,0 +1,299 @@
+{
+  "slug": "telling-stories-in-the-past",
+  "lesson_number": 1,
+  "title": "Telling a Story",
+  "title_arabic": "حكاية حصلت لي",
+  "description": "Turn the past tense you know into a story people lean in for: set the scene with كان, keep it moving with 'as soon as… until… and then', drop a فجأة before the twist, and land the ending. The irregular past verbs every Egyptian story runs on come with it.",
+  "cefr_target": "A2",
+  "duration_minutes": 25,
+  "approach": "Authentic video with scaffolding — hear a 60-second storytime clip twice, map its connectors on screen, then rebuild and retell your own story from a six-picture strip.",
+  "unlock_condition": "Retell a six-sentence story using كان plus at least three connectors; ≥8/10 on the irregular-past quiz",
+  "icon": "📖",
+  "can_do": [
+    "Tell what happened using كان to set the scene",
+    "Sequence events with as soon as, then, until and while",
+    "Use the most common irregular past verbs (was, found, forgot, told, laughed, came)"
+  ],
+  "grammar": [
+    {
+      "category": "verb-conjugation",
+      "title": "كان: the background before anything happens",
+      "explanation": "An Egyptian story opens with how things were, and كان carries that. Put كان before a place or an adjective: كنت في الشغل (I was at work), كانت الدنيا زحمة (it was crowded). Put it before a بـ verb to say what was going on or what you used to do: كنت بشتغل في بنك (I was working / used to work in a bank). Put it before a participle for a state: كان نايم (he was asleep). كان takes the usual past endings — كنت، كنتي، كان، كانت، كنا، كنتوا، كانوا — and the events themselves come in the plain past. Its negative is مكنتش / مكنش.",
+      "examples": [
+        { "arabic": "كنت في البيت لوحدي", "transliteration": "kunt fil-beet li-waḥdi", "english": "I was at home alone" },
+        { "arabic": "كانت الدنيا حر أوي", "transliteration": "kaanit id-dunya ḥarr ʾawi", "english": "It was really hot" },
+        { "arabic": "كنا بنروح إسكندرية كل صيف", "transliteration": "kunna binruuḥ iskindiriyya kull ṣeef", "english": "We used to go to Alexandria every summer" },
+        { "arabic": "كان نايم وأنا بتكلم", "transliteration": "kaan naayim w-ana batkallim", "english": "He was asleep while I was talking" },
+        { "arabic": "مكنتش عارف الطريق", "transliteration": "makuntish ʿaarif iṭ-ṭariiʾ", "english": "I didn't know the way" }
+      ]
+    },
+    {
+      "category": "verb-conjugation",
+      "title": "The short past verbs: قلت، شفت، لقيت، نسيت، جيت",
+      "explanation": "The past verbs a story needs most do not follow the plain كتب pattern. Verbs with a long ا in the middle — قال، شاف، كان، راح، نام — lose it in the I and you forms: قلت (I said), شفت (I saw), رحت (I went), نمت (I slept). Verbs that end in ى — لقى، نسي، حكى، مشي — end in ـيت for I and you: لقيت (I found), نسيت (I forgot), حكيت (I told). 'Come' is its own thing: جه (he came), جت (she came), جم (they came), جيت (I came). The negative wraps the whole word: ما لقيتش، ما جاش. Say these forms until they feel like single words — nobody thinks about the root while telling a story.",
+      "examples": [
+        { "arabic": "قلتله لأ بس ما سمعش", "transliteration": "ʾultilu laʾ bass ma-simiʿsh", "english": "I told him no but he didn't listen" },
+        { "arabic": "لقيت الموبايل بس نسيت المفتاح", "transliteration": "laʾeet il-mobayl bass niseet il-muftaaḥ", "english": "I found the phone but forgot the key" },
+        { "arabic": "جم متأخر وراحوا على طول", "transliteration": "gum mitʾakhkhar wi-raaḥu ʿala ṭuul", "english": "They came late and left straight away" },
+        { "arabic": "ما شفتش حاجة خالص", "transliteration": "ma-shuftish ḥaaga khaaliṣ", "english": "I didn't see anything at all" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "A story is social currency",
+      "note": "On the balcony, at the أهوة, in the microbus — a good حكاية is what you bring. It is told slowly with the scene set first (كنت…), a hook (تخيل!), exaggeration that everyone knows is exaggeration (والله من الصبح ما أكلتش), and a punchline the teller has been saving. The listener is not silent: you feed the story with وبعدين؟ (and then?), بجد؟ (seriously?), يا خبر! (no way!), and you laugh out loud at the end even if you saw it coming. Interrupting to correct a detail is bad form; asking for more is good form.",
+      "phrases": [
+        { "arabic": "وبعدين؟", "transliteration": "wi-baʿdeen?", "english": "And then?" },
+        { "arabic": "يا خبر!", "transliteration": "ya khabar!", "english": "No way! (lit. oh news!)" },
+        { "arabic": "تخيل!", "transliteration": "takhayyal!", "english": "Imagine!" },
+        { "arabic": "يا ساتر", "transliteration": "ya saatir", "english": "God protect us (oh no)" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "كان",
+      "transliteration": "kaan",
+      "english": "was / were",
+      "category": "Verb",
+      "teaching_note": "The backbone of every story. It takes past endings like any verb (كنت، كانت، كانوا) and sits before a place, an adjective, a بـ verb or a participle. Trap: the present 'am / is / are' has no word at all — كان only appears in the past. Negative: مكنتش، مكنش.",
+      "image_scene": "A man pointing at a wall clock showing an earlier hour, with a thought bubble of himself at a desk at work.",
+      "concept_key": "was",
+      "variants": ["كنت", "كانت", "كانوا", "كنا", "مكنش", "مكنتش"],
+      "example": { "arabic": "كنت في السوق إمبارح", "transliteration": "kunt fis-suuʾ imbaariḥ", "english": "I was at the market yesterday" },
+      "video_hint": "A vlogger opening a story with كنت / كان before the first event; the scene-setting sentence."
+    },
+    {
+      "arabic": "وأنا",
+      "transliteration": "w-ana",
+      "english": "while I (was)…",
+      "category": "Connector",
+      "teaching_note": "Egyptian has no everyday word for 'while'. You say و plus a pronoun plus what was going on: وأنا ماشي (while I was walking), وهو نايم (while he was asleep), وإحنا بناكل (while we were eating). Works with every pronoun. Trap: بينما belongs to the news bulletin, never to the balcony.",
+      "image_scene": "Split frame: on the left a woman walking with shopping bags, on the right the same moment showing her phone ringing.",
+      "concept_key": "while",
+      "variants": ["وانا", "وهو", "وهي", "وإحنا", "واحنا", "وهم"],
+      "example": { "arabic": "وأنا راجع من الشغل شفت حادثة", "transliteration": "w-ana raagiʿ min ish-shughl shuft ḥadsa", "english": "While I was coming back from work I saw an accident" },
+      "video_hint": "A narrator saying وأنا / وهو followed by a participle (ماشي، راجع، نايم) mid-story."
+    },
+    {
+      "arabic": "فجأة",
+      "transliteration": "fagʾa",
+      "english": "suddenly",
+      "category": "Adverb",
+      "teaching_note": "The turning point of every story, often stretched for effect (فجأااة). Note the Egyptian ج: fagʾa, not faj'a. Younger speakers also say على غفلة (out of nowhere) and ولا كأنه (as if nothing…) for the same beat.",
+      "image_scene": "A lit room with a man reading, and the light bulb going out with a lightning bolt through the window.",
+      "concept_key": "suddenly",
+      "variants": ["فجأه", "فجاة", "وفجأة", "فجأةً"],
+      "example": { "arabic": "فجأة النور قطع", "transliteration": "fagʾa n-nuur ʾaṭaʿ", "english": "Suddenly the power went out" },
+      "video_hint": "A storyteller's voice rising on فجأة right before the twist."
+    },
+    {
+      "arabic": "حكاية",
+      "transliteration": "ḥikaaya",
+      "english": "story (something that happened)",
+      "category": "Noun",
+      "teaching_note": "The Egyptian word for a real-life story or 'the matter': إيه الحكاية؟ (what's going on?). قصة (ʾiṣṣa) is a story in a book or a film; what happened to you last night is a حكاية. Plural حكايات.",
+      "image_scene": "Three friends at a café table, one gesturing mid-story, the others leaning in.",
+      "concept_key": "story",
+      "variants": ["الحكاية", "حكايه", "حكايات", "إيه الحكاية", "قصة"],
+      "example": { "arabic": "عندي لك حكاية", "transliteration": "ʿandi lak ḥikaaya", "english": "I've got a story for you" },
+      "video_hint": "Someone announcing a story with عندي لك حكاية or asking إيه الحكاية؟."
+    },
+    {
+      "arabic": "حصل",
+      "transliteration": "ḥaṣal",
+      "english": "happened",
+      "category": "Verb",
+      "teaching_note": "The story question is حصل إيه؟ (what happened?). حصل لي (happened to me), حصلت حاجة (something happened), بيحصل (it happens). Trap: حدث is MSA — you will read it in a headline and never hear it in a kitchen.",
+      "image_scene": "A woman with hands raised in a 'what happened?' gesture looking at a broken vase on the floor.",
+      "concept_key": "happened",
+      "variants": ["حصلت", "حصل إيه", "حصلي", "بيحصل", "حصلت حاجة"],
+      "example": { "arabic": "حصل إيه بعدين؟", "transliteration": "ḥaṣal eeh baʿdeen?", "english": "What happened next?" },
+      "video_hint": "A listener asking حصل إيه؟ or the narrator saying حصلي / حصلت حاجة."
+    },
+    {
+      "arabic": "حكى",
+      "transliteration": "ḥaka",
+      "english": "told (a story)",
+      "category": "Verb",
+      "teaching_note": "The verb behind حكاية: to tell a story, to recount. حكيت له (I told him), احكي لي (tell me), بيحكي (he's telling). Ends in ى, so I / you forms take ـيت: حكيت. Use قال for reporting a sentence and حكى for narrating what happened.",
+      "image_scene": "Two friends on a Nile bridge at night, one talking with animated hands, the other laughing.",
+      "concept_key": "told",
+      "variants": ["حكيت", "حكيتله", "احكي", "احكيلي", "بيحكي", "حكت"],
+      "example": { "arabic": "حكى لنا حصل إيه في الرحلة", "transliteration": "ḥaka lina ḥaṣal eeh fir-riḥla", "english": "He told us what happened on the trip" },
+      "video_hint": "A vlogger saying هحكيلكم (I'll tell you) at the start of a storytime; friends saying احكي!"
+    },
+    {
+      "arabic": "لقى",
+      "transliteration": "laʾa",
+      "english": "found",
+      "category": "Verb",
+      "teaching_note": "Ends in ى, so I / you forms take ـيت: لقيت (I found), لقيته (I found it / him). The ق is a glottal stop: laʾa, laʾeet. Present is بيلاقي (bi-ylaaʾi). Trap: وجد is MSA — you will read it, never hear it.",
+      "image_scene": "A hand lifting a sofa cushion to reveal a set of keys underneath, face lit with relief.",
+      "concept_key": "found",
+      "variants": ["لقي", "لقيت", "لقيته", "لقيتها", "بيلاقي", "ما لقيتش"],
+      "example": { "arabic": "لقيت المفتاح تحت الكرسي", "transliteration": "laʾeet il-muftaaḥ taḥt il-kursi", "english": "I found the key under the chair" },
+      "video_hint": "Someone searching and then holding up the found object with لقيته!"
+    },
+    {
+      "arabic": "نسي",
+      "transliteration": "nisi",
+      "english": "forgot",
+      "category": "Verb",
+      "teaching_note": "Same ى pattern as لقى: نسيت (I forgot), نسيته (I forgot it). The participle ناسي means 'having forgotten' — ناسي اسمه (I've forgotten his name). Negative command: ما تنساش (don't forget).",
+      "image_scene": "A man at his front door patting empty pockets, a phone visible on the table inside through the window.",
+      "concept_key": "forgot",
+      "variants": ["نسى", "نسيت", "نسيته", "ناسي", "ما تنساش", "بينسى"],
+      "example": { "arabic": "نسيت الموبايل في التاكسي", "transliteration": "niseet il-mobayl fit-taksi", "english": "I forgot the phone in the taxi" },
+      "video_hint": "Someone realising mid-story that they forgot something: نسيت! or ناسي."
+    },
+    {
+      "arabic": "فاكر",
+      "transliteration": "faakir",
+      "english": "remember (I / you remember)",
+      "category": "Participle",
+      "teaching_note": "Egyptians say 'remember' with a participle, not a verb: فاكر؟ (do you remember?), مش فاكر (I don't remember), فاكرة (she remembers). Agrees like an adjective: فاكر / فاكرة / فاكرين. The verb افتكر (iftakar) is the past: افتكرت (I remembered) — and also means 'I thought that'.",
+      "image_scene": "A woman with a finger raised and a lit light bulb above her head, an old photograph in her other hand.",
+      "concept_key": "remember",
+      "variants": ["فاكرة", "فاكرين", "مش فاكر", "افتكر", "افتكرت"],
+      "example": { "arabic": "فاكر يوم ما اتقابلنا؟", "transliteration": "faakir yoom ma tʾabilna?", "english": "Remember the day we met?" },
+      "video_hint": "A nostalgic clip: فاكر لما…؟ / فاكرين زمان؟ between friends."
+    },
+    {
+      "arabic": "ضحك",
+      "transliteration": "ḍiḥik",
+      "english": "laughed",
+      "category": "Verb",
+      "teaching_note": "The ending every Egyptian story is aiming for. ضحكت (I laughed), ضحكوا (they laughed), بيضحك (he laughs), ضحك عليّا (he tricked me — a second meaning). The noun ضحك (ḍiḥk) is laughter: مت من الضحك (I died laughing).",
+      "image_scene": "A group of friends around a table doubled over laughing, one wiping tears.",
+      "concept_key": "laughed",
+      "variants": ["ضحكت", "ضحكوا", "بيضحك", "ضحكنا", "الضحك", "ضحك عليا"],
+      "example": { "arabic": "كلهم ضحكوا عليّا", "transliteration": "kulluhum ḍiḥku ʿalayya", "english": "They all laughed at me" },
+      "video_hint": "The narrator or the crowd breaking into laughter at the punchline; the word in a caption."
+    },
+    {
+      "arabic": "خايف",
+      "transliteration": "khaayif",
+      "english": "afraid / scared",
+      "category": "Participle",
+      "teaching_note": "A participle, so it agrees: خايف / خايفة / خايفين, and you add من for what you fear: خايف من الكلب. The verb is خاف (khaaf): خفت (I got scared). ما تخافش (don't be afraid) is what people say to calm you.",
+      "image_scene": "A boy with wide eyes hiding behind a curtain, a shadow on the wall.",
+      "concept_key": "afraid",
+      "variants": ["خايفة", "خايفين", "خفت", "خاف", "ما تخافش"],
+      "example": { "arabic": "كنت خايف أوي", "transliteration": "kunt khaayif ʾawi", "english": "I was really scared" },
+      "video_hint": "A scary-moment story: كنت خايف / خفت أوي, or a reassuring ما تخافش."
+    },
+    {
+      "arabic": "في الآخر",
+      "transliteration": "fil-aakhir",
+      "english": "in the end",
+      "category": "Connector",
+      "teaching_note": "Signals the story is landing. Also آخر حاجة (the last thing) and وفي النهاية (and finally). Trap: أخيراً is 'at last / finally' with a sigh of relief, not the neutral story ending.",
+      "image_scene": "A finish line with a runner crossing it, arms raised.",
+      "concept_key": "at_the_end",
+      "variants": ["فى الاخر", "في الاخر", "وفي الآخر", "في النهاية", "آخر حاجة"],
+      "example": { "arabic": "في الآخر لقينا الشقة", "transliteration": "fil-aakhir laʾeena sh-shaʾʾa", "english": "In the end we found the flat" },
+      "video_hint": "The storyteller wrapping up with وفي الآخر…; the closing sentence of a storytime."
+    },
+    {
+      "arabic": "زمان",
+      "transliteration": "zamaan",
+      "english": "long ago / back then",
+      "category": "Adverb",
+      "teaching_note": "Opens any story about the past: زمان كنا… (we used to…). Also 'a long time' — من زمان (for ages), بقالك زمان (it's been a while). Egyptians say زمان كان أحسن (things were better back then) as a reflex.",
+      "image_scene": "A sepia photograph of a Cairo street with old cars and a tram.",
+      "variants": ["من زمان", "زمان كان", "أيام زمان"],
+      "example": { "arabic": "زمان كنا بنلعب في الشارع", "transliteration": "zamaan kunna binilʿab fish-shaariʿ", "english": "Back then we used to play in the street" },
+      "video_hint": "Nostalgia clips: زمان / أيام زمان over old footage."
+    },
+    {
+      "arabic": "لحد ما",
+      "transliteration": "li-ḥadd ma",
+      "english": "until",
+      "category": "Connector",
+      "teaching_note": "لحد (up to) plus ما makes 'until' before a verb: استنيت لحد ما جه (I waited until he came). Before a noun drop the ما: لحد الساعة عشرة (until ten o'clock). Trap: حتى on its own is 'even' in Egyptian.",
+      "image_scene": "A woman at a bus stop looking at her watch, a bus finally arriving in the distance.",
+      "variants": ["لحد", "لغاية ما", "لغاية"],
+      "example": { "arabic": "فضلت أستنى لحد ما رد", "transliteration": "fiḍilt astanna li-ḥadd ma radd", "english": "I kept waiting until he answered" },
+      "video_hint": "A narrator marking the end of a wait: لحد ما…"
+    },
+    {
+      "arabic": "أول ما",
+      "transliteration": "awwil ma",
+      "english": "as soon as",
+      "category": "Connector",
+      "teaching_note": "أول (first) plus ما: أول ما وصلت (as soon as I arrived). The verb after it is a bare past or present, never بـ. Its cousins: كل ما (every time / whenever) and طول ما (as long as).",
+      "image_scene": "A door opening and a dog already leaping up at the person entering.",
+      "variants": ["اول ما", "وأول ما", "كل ما", "طول ما"],
+      "example": { "arabic": "أول ما شافني ضحك", "transliteration": "awwil ma shaafni ḍiḥik", "english": "As soon as he saw me he laughed" },
+      "video_hint": "A story moving fast: أول ما… followed by the next event."
+    },
+    {
+      "arabic": "اتولدت",
+      "transliteration": "itwaladt",
+      "english": "I was born",
+      "category": "Verb",
+      "teaching_note": "The first line of a life story. The اتـ prefix is how Egyptian says 'was done to me': اتولد (he was born), اتولدت (she / I was born). You will be asked اتولدت فين؟ within a minute of meeting anyone's grandmother.",
+      "image_scene": "A newborn in a hospital blanket with a date card next to the cot.",
+      "variants": ["اتولد", "اتولدتي", "اتولدنا", "مولود"],
+      "example": { "arabic": "اتولدت في طنطا وكبرت في القاهرة", "transliteration": "itwaladt fi ṭanṭa wi-kbirt fil-qaahira", "english": "I was born in Tanta and grew up in Cairo" },
+      "video_hint": "A life-story interview: اتولدت في… / أنا من…"
+    },
+    {
+      "arabic": "كبرت",
+      "transliteration": "kibirt",
+      "english": "I grew up",
+      "category": "Verb",
+      "teaching_note": "كبر (kibir) means both 'grew up' and 'got old': كبر في حي شعبي (he grew up in a working-class quarter), أنا كبرت على كده (I was raised like this). Learners mix it with كبير (big) — same root, but كبرت is the verb.",
+      "image_scene": "A height chart on a doorframe with pencil marks climbing year by year.",
+      "variants": ["كبر", "كبرنا", "كبرت في", "اتربيت"],
+      "example": { "arabic": "كبرت في شبرا", "transliteration": "kibirt fi shubra", "english": "I grew up in Shubra" },
+      "video_hint": "Someone describing their childhood neighbourhood: كبرت في…"
+    },
+    {
+      "arabic": "بقالي",
+      "transliteration": "baʾaali",
+      "english": "I've been… for (duration)",
+      "category": "Pseudo-verb",
+      "teaching_note": "The Egyptian way to say how long something has been going on: بقالي سنة في مصر (I've been in Egypt a year), بقاله ساعة بيستنى (he's been waiting an hour). Change the ending for the person: بقالك، بقاله، بقالها، بقالنا، بقالهم. A B1 signature — nothing in MSA looks like it.",
+      "image_scene": "A calendar with a full year of days crossed off and a suitcase in the corner.",
+      "variants": ["بقالك", "بقاله", "بقالها", "بقالنا", "بقالهم", "بقى لي"],
+      "example": { "arabic": "بقالي تلات سنين في القاهرة", "transliteration": "baʾaali talat siniin fil-qaahira", "english": "I've been in Cairo for three years" },
+      "video_hint": "An interviewee stating how long they've lived somewhere or done something: بقالي…"
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Mona", "arabic": "احكي لي، حصل إيه إمبارح؟", "transliteration": "iḥkiili, ḥaṣal eeh imbaariḥ?", "english": "Tell me, what happened yesterday?" },
+    { "speaker": "Karim", "arabic": "كنت راجع من الشغل بالليل، والشارع كان فاضي خالص.", "transliteration": "kunt raagiʿ min ish-shughl bil-leel, wish-shaariʿ kaan faaḍi khaaliṣ.", "english": "I was coming back from work at night, and the street was completely empty." },
+    { "speaker": "Mona", "arabic": "وبعدين؟", "transliteration": "wi-baʿdeen?", "english": "And then?" },
+    { "speaker": "Karim", "arabic": "فجأة سمعت صوت ورايا. كنت خايف أوي.", "transliteration": "fagʾa simiʿt ṣoot waraaya. kunt khaayif ʾawi.", "english": "Suddenly I heard a sound behind me. I was really scared." },
+    { "speaker": "Mona", "arabic": "يا خبر! وكان مين؟", "transliteration": "ya khabar! wi-kaan miin?", "english": "No way! And who was it?" },
+    { "speaker": "Karim", "arabic": "لقيت قطة! في الآخر ضحكت على نفسي.", "transliteration": "laʾeet ʾuṭṭa! fil-aakhir ḍiḥikt ʿala nafsi.", "english": "I found a cat! In the end I laughed at myself." },
+    { "speaker": "Mona", "arabic": "فاكر لما حصل لك نفس الحكاية زمان؟", "transliteration": "faakir lamma ḥaṣal lak nafs il-ḥikaaya zamaan?", "english": "Remember when the same story happened to you ages ago?" }
+  ],
+  "sound_spotlight": [
+    { "sound": "Long vowel shortening", "example": "شاف → شافني (shaafni → shafni)", "explanation": "When a suffix is added, the long vowel before it shortens: شاف (shaaf) but شافني (shafni), قال but قالّي (ʾalli). Listen for it in every story verb with an object." },
+    { "sound": "Silent alif in ـوا", "example": "ضحكوا (ḍiḥku), راحوا (raaḥu)", "explanation": "The 'they' ending is written ـوا but the alif is silent — it is just -u. Nothing is pronounced after it." },
+    { "sound": "ق as a glottal stop inside a word", "example": "لقيت (laʾeet), فجأة (fagʾa)", "explanation": "Mid-word, the Cairo ق is a tiny catch in the throat, like the gap in 'uh-oh'. Do not fill it with a k or a g — that is the Ṣaʿīdi sound." }
+  ],
+  "lesson_sequence": [
+    { "step": "Hear the story", "detail": "A 60-second storytime clip plays at full speed once with no support. One question: what was the twist?" },
+    { "step": "Map it", "detail": "Second listen with the transcript: tap every كان, every connector (أول ما، لحد ما، وبعدين، في الآخر) and the فجأة. The story's skeleton appears on screen." },
+    { "step": "Grammar in context", "detail": "The two notes, each example drawn from the clip: background with كان + بـ / participle, then the short past verbs." },
+    { "step": "Word cards", "detail": "The 18 words with audio and example, story verbs drilled in the 'I' form as well as the 'he' form." },
+    { "step": "Rebuild", "detail": "Six pictures of the clip's story, shuffled. Order them and drag the right connector between each pair." },
+    { "step": "Your story", "detail": "Record a six-sentence story about something that happened to you this week; the app checks for كان plus three connectors." },
+    { "step": "Lesson complete", "detail": "Words counter rolls up. Nudge: tell the same story to an Egyptian friend tonight and count their وبعدين؟s." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Next time something small goes wrong — a late bus, a lost key — tell it as a story in Egyptian to yourself: كنت… وفجأة… في الآخر…", "context": "Shown on the lesson-complete screen. Activates كان, فجأة, في الآخر and the past verbs." },
+    { "prompt": "Ask an Egyptian friend: احكي لي حاجة حصلت لك الأسبوع ده — and feed them وبعدين؟ at least twice.", "context": "Follow-up notification. Practises the listener role from the culture note." },
+    { "prompt": "In your next tutor session, ask them to tell you a childhood story with زمان كنا… and note every كان بـ they use.", "context": "Tutor prompt. Trains the ear for background versus event." }
+  ],
+  "video_needs": {
+    "queries": ["حكاية حصلت لي", "قصة حصلتلي فلوج مصري", "ذكريات الطفولة مصر", "موقف محرج حصلي"],
+    "channels": ["Kareem Elsayed", "Fatma Abd Alsalam", "Easy Arabic", "AJ+ Kibreet"],
+    "scene": "Someone recounting a real story to camera or to friends — the scene set with كان, a فجأة, and listeners reacting with وبعدين؟ and laughter."
+  }
+}

@@ -1,0 +1,243 @@
+{
+  "slug": "me-and-you",
+  "lesson_number": 4,
+  "title": "Me and You",
+  "title_arabic": "أنا وإنت — شسمك؟ من وين؟",
+  "description": "Your first words out loud: who you are, where you are from, and the pronouns for pointing at yourself, the person in front of you and someone else. No verb 'to be' needed — Gulf Arabic just puts the pieces next to each other.",
+  "cefr_target": "Pre-A1",
+  "duration_minutes": 20,
+  "approach": "GPA Phase 2 begins — first production. Pronouns are learned by pointing (at self, at the listener, at a photo), then the self-introduction is built up one chunk at a time and recorded.",
+  "unlock_condition": "Record a three-line self-introduction (name, origin, student/job) that the speech check accepts, plus ≥9/12 on the pronoun tap quiz",
+  "icon": "🙋",
+  "can_do": [
+    "Say who you are and where you are from",
+    "Ask someone's name",
+    "Point at yourself, the listener and a third person with the right pronoun"
+  ],
+  "grammar": [
+    {
+      "category": "pronouns",
+      "title": "أنا، إنت، إنتي، هو، هي — who is who",
+      "explanation": "Five words cover most of what you point at: أنا (I), إنت (you, to a man), إنتي (you, to a woman), هو (he) and هي (she). Gulf Arabic always tells the listener's gender, so there are two words for you — pick إنت or إنتي before you open your mouth. You will often hear أنا stretched to آنا; both are right. The pronoun usually comes first, and it is the only thing you need to start a sentence.",
+      "examples": [
+        { "arabic": "أنا خالد", "transliteration": "ana khaalid", "english": "I am Khalid" },
+        { "arabic": "إنت طالب؟", "transliteration": "inta ṭaalib?", "english": "Are you (m) a student?" },
+        { "arabic": "إنتي من الكويت؟", "transliteration": "inti min il-kuwayt?", "english": "Are you (f) from Kuwait?" },
+        { "arabic": "هو من الرياض وهي من دبي", "transliteration": "huwa min ir-riyaaḍ w-hiya min dubay", "english": "He is from Riyadh and she is from Dubai" }
+      ]
+    },
+    {
+      "category": "sentence-structure",
+      "title": "No word for 'is' — just put the pieces together",
+      "explanation": "To say 'I am a student' you say the two words I and student: أنا طالب. There is no 'am', 'is' or 'are' in the present. The same works with a place (أنا من قطر), a name (هو أحمد) or a description (القهوة حارة). A question is the same sentence with your voice rising at the end — no extra word is added. This one habit unlocks hundreds of sentences with the words you already have.",
+      "examples": [
+        { "arabic": "أنا طالب", "transliteration": "ana ṭaalib", "english": "I am a student" },
+        { "arabic": "هي طالبة من البحرين", "transliteration": "hiya ṭaalba min il-baḥrayn", "english": "She is a student from Bahrain" },
+        { "arabic": "إنت سعودي؟", "transliteration": "inta saʿuudi?", "english": "Are you Saudi?" },
+        { "arabic": "الشاي حار", "transliteration": "ish-shaay ḥaar", "english": "The tea is hot" }
+      ]
+    }
+  ],
+  "culture": [
+    {
+      "title": "First names, and 'father of…'",
+      "note": "People use first names quickly, usually with a title in front: أستاذ for a man, أستاذة for a woman, or يا أخوي / يا أختي (brother / sister) between peers. Once a man has a son he is called أبو + the son's name — أبو محمد, shortened in the Gulf to بو محمد — and a woman أم محمد; friends may even invent a kunya for you before you have children. Expect to be called by your first name with أستاذ or مستر in front, and do not be surprised when the second question after your name is من وين؟ — where are you from.",
+      "phrases": [
+        { "arabic": "شسمك؟", "transliteration": "shismak?", "english": "What's your name?" },
+        { "arabic": "اسمي سارة، من لندن", "transliteration": "ismi saara, min landan", "english": "My name is Sara, from London" },
+        { "arabic": "هلا يا بو خالد", "transliteration": "hala ya bu khaalid", "english": "Hi, Abu Khalid (father of Khalid)" },
+        { "arabic": "تشرفنا", "transliteration": "tsharrafna", "english": "Nice to meet you (we are honoured)" }
+      ]
+    }
+  ],
+  "vocabulary": [
+    {
+      "arabic": "أنا",
+      "transliteration": "ana",
+      "english": "I",
+      "category": "Pronoun",
+      "teaching_note": "The first pronoun. Gulf speakers often lengthen it to آنا aana, and it is written both ways. It is all you need in front of a name, a nationality or a job — no 'am'.",
+      "image_scene": "A young man pointing at his own chest with his thumb, plain background.",
+      "concept_key": "i",
+      "variants": ["آنا", "انا", "أنا بعد"],
+      "example": { "arabic": "أنا أحمد", "transliteration": "ana aḥmad", "english": "I am Ahmed" },
+      "video_hint": "Self-introductions at the start of vlogs and interviews: أنا + name."
+    },
+    {
+      "arabic": "إنت",
+      "transliteration": "inta",
+      "english": "you (to a man)",
+      "category": "Pronoun",
+      "teaching_note": "Used only when speaking to a man or boy. You already heard it inside وإنت؟ in Lesson 2. Written إنت, انت or إنته; the final vowel is short and light.",
+      "image_scene": "A woman pointing with an open hand toward a man facing her, both in profile.",
+      "concept_key": "you_m",
+      "variants": ["انت", "إنته", "أنت", "وإنت"],
+      "example": { "arabic": "إنت من وين؟", "transliteration": "inta min wayn?", "english": "Where are you (m) from?" },
+      "video_hint": "Interviewers addressing a male guest; the وإنت؟ hand-back in greetings."
+    },
+    {
+      "arabic": "إنتي",
+      "transliteration": "inti",
+      "english": "you (to a woman)",
+      "category": "Pronoun",
+      "teaching_note": "The feminine you. The only difference from إنت is the final -i, but the difference is not optional — using إنت to a woman sounds like a mistake, not a simplification. Kuwait and the Emirates sometimes write it إنتِ with a kasra.",
+      "image_scene": "A man pointing with an open hand toward a woman in an abaya facing him, both in profile.",
+      "concept_key": "you_f",
+      "variants": ["انتي", "إنتِ", "أنتي", "وإنتي"],
+      "example": { "arabic": "إنتي طالبة؟", "transliteration": "inti ṭaalba?", "english": "Are you (f) a student?" },
+      "video_hint": "Anyone addressing a woman on camera; family vlogs where a husband speaks to his wife."
+    },
+    {
+      "arabic": "هو",
+      "transliteration": "huwa",
+      "english": "he",
+      "category": "Pronoun",
+      "teaching_note": "Pronounced huwa, often shortened to hu in fast speech. Also used for 'it' when the thing is masculine (most words without ة). Point at a photo of a man to make it stick.",
+      "image_scene": "Two people looking at a framed photo of a man on a table; one points at the photo.",
+      "concept_key": "he",
+      "variants": ["هوّ", "هوه"],
+      "example": { "arabic": "هو أخوي", "transliteration": "huwa akhuuy", "english": "He is my brother" },
+      "video_hint": "Someone introducing a third person on camera: هذا … هو …"
+    },
+    {
+      "arabic": "هي",
+      "transliteration": "hiya",
+      "english": "she",
+      "category": "Pronoun",
+      "teaching_note": "Pronounced hiya, often just hi. Also 'it' for feminine things (words ending in ة like سيارة, قهوة). Notice هو and هي differ only in the final vowel, exactly like إنت and إنتي.",
+      "image_scene": "Two people looking at a framed photo of a woman; one points at the photo.",
+      "concept_key": "she",
+      "variants": ["هيّ", "هيه"],
+      "example": { "arabic": "هي أختي", "transliteration": "hiya ukhti", "english": "She is my sister" },
+      "video_hint": "Introducing a female relative or friend; describing a woman who is not present."
+    },
+    {
+      "arabic": "اسم",
+      "transliteration": "isim",
+      "english": "name",
+      "category": "Noun",
+      "teaching_note": "The base word. In Gulf speech a helping vowel breaks the cluster, so it sounds like isim. You will meet it almost only with an ending attached — اسمي, اسمك — which is why the next two cards exist.",
+      "image_scene": "A blank name badge on a lanyard, the line for the name empty.",
+      "concept_key": "name",
+      "variants": ["الاسم", "اسمه", "اسمها", "أسامي", "الأسامي"],
+      "example": { "arabic": "اسم حلو", "transliteration": "isim ḥilu", "english": "A nice name" },
+      "video_hint": "Baby-naming discussions in family vlogs; a name written on a form or cup."
+    },
+    {
+      "arabic": "اسمي",
+      "transliteration": "ismi",
+      "english": "my name is…",
+      "category": "Phrase",
+      "teaching_note": "اسم + the ending -i (my). No verb needed: اسمي سارة is the whole sentence. This is your first taste of the possessive endings that Lesson 5 explains properly.",
+      "image_scene": "A woman holding up a name badge that reads a clear first name, pointing at it.",
+      "concept_key": "my_name_is",
+      "variants": ["اسمي أنا", "أنا اسمي", "انا اسمي"],
+      "example": { "arabic": "اسمي خالد، وإنت؟", "transliteration": "ismi khaalid, w-inta?", "english": "My name is Khalid — and you?" },
+      "video_hint": "The first sentence of most self-introductions."
+    },
+    {
+      "arabic": "شسمك",
+      "transliteration": "shismak",
+      "english": "what's your name? (to a man)",
+      "category": "Phrase",
+      "teaching_note": "The what-word شـ fused onto اسمك (your name) — one quick word: shismak. To a woman: شسمج shismich in Kuwait, Bahrain, Qatar and the Emirates, شسمك shismik in Saudi. Riyadh also says وش اسمك, Jeddah إيش اسمك, Dubai شو اسمك. All are the same question.",
+      "image_scene": "A man at a reception desk leaning forward with a questioning look at a visitor.",
+      "concept_key": "whats_your_name",
+      "variants": ["شسمج", "وش اسمك", "شو اسمك", "إيش اسمك", "شنو اسمك", "اسمك إيه"],
+      "example": { "arabic": "هلا، شسمك؟", "transliteration": "hala, shismak?", "english": "Hi, what's your name?" },
+      "video_hint": "Street interviews and children being asked their names; the very first question."
+    },
+    {
+      "arabic": "من",
+      "transliteration": "min",
+      "english": "from",
+      "category": "Preposition",
+      "teaching_note": "Short, unstressed, glued to the next word: min il-kuwayt. It also means 'from' in time and 'of' in quantities later on, but for now it introduces where you are from.",
+      "image_scene": "A map of the Gulf with an arrow pointing out from one city toward the viewer.",
+      "concept_key": "from",
+      "variants": ["من", "منين"],
+      "example": { "arabic": "هو من قطر", "transliteration": "huwa min gaṭar", "english": "He is from Qatar" },
+      "video_hint": "Origin questions and answers in interviews; travel vlogs saying where a dish or a guest is from."
+    },
+    {
+      "arabic": "أنا من",
+      "transliteration": "ana min",
+      "english": "I am from…",
+      "category": "Phrase",
+      "teaching_note": "Say it as one breath and add your country or city: أنا من لندن, أنا من أمريكا. Cities take the article when they have one in Arabic (الرياض, الدوحة, الكويت); Dubai, Jeddah and most foreign cities do not.",
+      "image_scene": "A young woman pointing at her own country on a world map, smiling at the camera.",
+      "concept_key": "i_am_from",
+      "variants": ["آنا من", "انا من", "أنا من الـ"],
+      "example": { "arabic": "أنا من الكويت، وإنتي؟", "transliteration": "ana min il-kuwayt, w-inti?", "english": "I am from Kuwait — and you (f)?" },
+      "video_hint": "Guests introducing themselves on talk shows; vloggers stating their city."
+    },
+    {
+      "arabic": "تشرفنا",
+      "transliteration": "tsharrafna",
+      "english": "nice to meet you (we are honoured)",
+      "category": "Phrase",
+      "teaching_note": "Said once names are exchanged. The reply is الشرف لي (the honour is mine) or simply تشرفنا back. Younger speakers also say فرصة سعيدة. Note the sh sound leading straight into a doubled r.",
+      "image_scene": "Two men shaking hands after an introduction, both smiling, a third person looking on.",
+      "concept_key": "nice_to_meet_you",
+      "variants": ["تشرفت", "تشرفت فيك", "الشرف لي", "فرصة سعيدة", "تشرفنا فيك"],
+      "example": { "arabic": "أنا سارة — تشرفنا", "transliteration": "ana saara — tsharrafna", "english": "I am Sara — nice to meet you" },
+      "video_hint": "The closing beat of introductions on talk shows and first meetings in dramas."
+    },
+    {
+      "arabic": "طالب",
+      "transliteration": "ṭaalib",
+      "english": "student (m)",
+      "category": "Noun",
+      "teaching_note": "The first job word, chosen because so many learners are one. A woman is طالبة ṭaalba; the plural is طلاب. Starts with the emphatic ط you heard in طيب.",
+      "image_scene": "A young man with a backpack and a notebook outside a university gate.",
+      "concept_key": "student",
+      "variants": ["طالبة", "الطالب", "طلاب", "الطلاب", "طالبه"],
+      "example": { "arabic": "أنا طالب في جامعة الكويت", "transliteration": "ana ṭaalib fi jaamiʿat il-kuwayt", "english": "I am a student at Kuwait University" },
+      "video_hint": "University day-in-the-life vlogs; people stating what they do in interviews."
+    },
+    {
+      "arabic": "سعودي",
+      "transliteration": "saʿuudi",
+      "english": "Saudi",
+      "category": "Nationality",
+      "teaching_note": "The nationality pattern: country + -i. Feminine adds ة: سعودية. The same ending gives كويتي, قطري, بحريني, إماراتي and بريطاني — learn one and you can recognise them all.",
+      "image_scene": "A man in a red-and-white shemagh and white thobe standing in front of a green flag.",
+      "variants": ["سعودية", "سعوديين", "السعودي", "كويتي", "إماراتي", "قطري", "بحريني"],
+      "example": { "arabic": "هو سعودي من جدة", "transliteration": "huwa saʿuudi min jidda", "english": "He is Saudi, from Jeddah" },
+      "video_hint": "People stating nationality in interviews; national-day content."
+    }
+  ],
+  "dialogue": [
+    { "speaker": "Sara", "arabic": "السلام عليكم، أنا سارة", "transliteration": "is-salaamu ʿalaykum, ana saara", "english": "Peace be upon you — I am Sara" },
+    { "speaker": "Khalid", "arabic": "وعليكم السلام، هلا سارة. أنا خالد", "transliteration": "w-ʿalaykum is-salaam, hala saara. ana khaalid", "english": "And upon you peace, hi Sara. I am Khalid" },
+    { "speaker": "Sara", "arabic": "تشرفنا. إنت من وين؟", "transliteration": "tsharrafna. inta min wayn?", "english": "Nice to meet you. Where are you from?" },
+    { "speaker": "Khalid", "arabic": "أنا من الرياض. وإنتي؟", "transliteration": "ana min ir-riyaaḍ. w-inti?", "english": "I am from Riyadh. And you?" },
+    { "speaker": "Sara", "arabic": "أنا من لندن. أنا طالبة", "transliteration": "ana min landan. ana ṭaalba", "english": "I am from London. I am a student" },
+    { "speaker": "Khalid", "arabic": "ما شاء الله. وهو؟ شسمه؟", "transliteration": "maa shaaʾ allaah. w-huwa? shismah?", "english": "How nice. And him — what's his name?" },
+    { "speaker": "Sara", "arabic": "هو أحمد، طالب بعد", "transliteration": "huwa aḥmad, ṭaalib baʿad", "english": "He is Ahmed, a student too" }
+  ],
+  "sound_spotlight": [
+    { "sound": "Dropped hamza", "example": "أنا → آنا (aana), اسمي (ismi)", "explanation": "The glottal catch at the start of أنا and اسم is barely there in Gulf speech; أنا often opens on a long aa, and اسمي runs straight on from the word before it. Expect words to begin more softly than the spelling suggests." },
+    { "sound": "ـك vs ـج in شسمك", "example": "شسمك (shismak) / شسمج (shismich)", "explanation": "The same ending you met in شلونك: -ak to a man, and to a woman -ik in Saudi or -ich in Kuwait, Bahrain, Qatar and the Emirates. Now you produce it: choose before you speak." },
+    { "sound": "Rising question", "example": "إنت طالب؟ (inta ṭaalib?)", "explanation": "No question word is added for yes-no questions; only the melody changes. Say the statement, then let the last syllable climb. Record it and compare with the native line." }
+  ],
+  "lesson_sequence": [
+    { "step": "Welcome", "detail": "A university courtyard, two students meeting. One line of English: today you say who you are. Tap يلّا." },
+    { "step": "Point and say", "detail": "Five pronoun cards: the illustration shows who is pointed at; audio plays; the learner repeats and taps the matching figure in a three-person scene (me / you / that person). Gender of 'you' is drilled with paired photos." },
+    { "step": "Build your introduction", "detail": "Three chunks appear in order — اسمي …, أنا من …, أنا طالب/طالبة — each heard, then the learner picks their own name, city and role from a small menu and hears the line assembled." },
+    { "step": "Record", "detail": "The learner records the three-line introduction; the speech check compares against the native line and marks the pronoun/gender ending." },
+    { "step": "Ask back", "detail": "شسمك؟ and من وين؟ are drilled as the hand-back: a native asks, the learner answers, then the learner asks the native (record-and-compare)." },
+    { "step": "Dialogue", "detail": "The seven-line dialogue plays; on the second pass the learner takes Sara's lines." },
+    { "step": "Quiz and complete", "detail": "Twelve items: pronoun tap (hear هو/هي/إنت/إنتي, tap the figure) and gap-fill for the phrases. Counter rolls to 52. Nudge: introduce yourself to someone in Arabic this week." }
+  ],
+  "real_world_prompts": [
+    { "prompt": "Introduce yourself to one Arabic speaker this week: اسمي …، أنا من …. Then ask شسمك؟ and listen for the answer.", "context": "Lesson-complete screen. The first real production task; the guaranteed follow-up question is من وين." },
+    { "prompt": "Look at a group photo. Say هو or هي for each person, out loud, quickly.", "context": "Next-day notification. Drills he/she without needing a partner." },
+    { "prompt": "Tell your tutor: ask me my name and where I am from, then ask me about two people in a photo.", "context": "Before a tutor session. Runs the whole lesson as a here-and-now game." }
+  ],
+  "video_needs": {
+    "queries": ["عرف عن نفسك مقابلة سعودي", "مقابلات الشارع الرياض من وين", "أسئلة للناس في الشارع الكويت", "شسمك تعلم كويتي"],
+    "channels": ["Hitham Channel", "Sowt Afkari", "Belmokhba", "Learn Arabic - Kuwaiti", "AlRamsa Institute"],
+    "scene": "A self-introduction on camera: name, city, what they do. Street interviews asking name and origin, and talk-show guests introducing themselves are ideal; the pronoun should be audible at the start of the line."
+  }
+}

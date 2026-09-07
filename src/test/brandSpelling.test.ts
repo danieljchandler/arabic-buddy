@@ -141,6 +141,22 @@ const ALLOWED_PHRASES: ReadonlyArray<{ file: string; phrase: string; reason: str
       "goes stale only if the keys themselves move, which is the change this " +
       "guard wants someone to notice rather than the one it wants to prevent.",
   },
+  {
+    file: "CLAUDE.md",
+    phrase: "`Hakiya` spelling",
+    reason:
+      "CLAUDE.md's entry for this guard. Documentation of a rule against a word " +
+      "has to be able to quote the word — but only here: the rest of the file, " +
+      "the line that says what the app is called included, is still policed.",
+  },
+  {
+    file: "CLAUDE.md",
+    phrase: "`hakiya*` localStorage keys",
+    reason:
+      "The same entry, listing what the allow-list covers. Pinned to the phrase " +
+      "rather than the file so that rewording the paragraph re-opens the " +
+      "question instead of silently inheriting the exemption.",
+  },
 ];
 
 /** The token an occurrence sits in — `hello@hakiya.app`, `hakiya_theme`, `HakiyaStage`. */

@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img">
-  <!-- The Sadu band that frames the Hakiya mark, traced from the artwork it was
+  <!-- The Sadu band that frames the Hikaya mark, traced from the artwork it was
        chosen off. The mark itself is not in here — SaduMark composites it, so
        hakiya-mark.png stays the one source of truth for the logo.
        See docs/mark-framing.md. -->
-  <title>Hakiya</title>
+  <title>Hikaya</title>
   <!-- The ground the mark sits on. Its radius is the band's inner edge. -->
   <circle cx="32" cy="32" r="23.543" fill="#F2E7D5"/>
   <path d="M0.7570000000000014 32A31.243 31.243 0 1 0 63.242999999999995 32A31.243 31.243 0 1 0 0.7570000000000014 32ZM8.607 32A23.393 23.393 0 1 0 55.393 32A23.393 23.393 0 1 0 8.607 32Z" fill="#8A1520" fill-rule="evenodd"/>

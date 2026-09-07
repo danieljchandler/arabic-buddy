@@ -167,7 +167,7 @@ outside benchmarks it might be compared with (see
 - **AL-QASIDA** (arXiv:2412.04193), the published dialect-fidelity suite,
   covers Kuwaiti, Saudi (Najdi), Syrian, Palestinian, Sudanese, Egyptian,
   Algerian and Moroccan. Gulf appears only as Kuwaiti and Najdi; **Yemeni is
-  absent entirely.** Two of Hakiya's three dialects cannot be benchmarked
+  absent entirely.** Two of Hikaya's three dialects cannot be benchmarked
   against it, and for Yemeni the golden set here is the only instrument that
   exists. Treat a Yemeni regression in `eval-dialect-live` as the whole
   evidence, not a hint.

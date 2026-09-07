@@ -1,4 +1,4 @@
-# Egyptian Arabic (Cairene) — Curriculum Research Brief for Hakiya Content Authors
+# Egyptian Arabic (Cairene) — Curriculum Research Brief for Hikaya Content Authors
 
 Scope: Pre-A1 → B1, three stages (Stage 1 Foundations Pre-A1→A1, Stage 2 Building Blocks A1→A2, Stage 3 The Bridge A2→B1), adapting the stage structure of the existing Gulf-centric design doc (`scratchpad/docx/curriculum.txt`). Everything Arabic below is **spoken Egyptian (Cairene)**, never فصحى. Where a form is contrasted with MSA or Gulf it is marked ❌ or "replaces:" and is there only so authors know what *not* to write.
 
@@ -92,7 +92,7 @@ Practical rule for authors: **one Cairene form per slot.** Where Cairo itself ha
 
 ### 3.1 Letters whose Cairene value differs from MSA
 
-| Letter | MSA value | Cairene value | Spelling rule for Hakiya content | Examples |
+| Letter | MSA value | Cairene value | Spelling rule for Hikaya content | Examples |
 |---|---|---|---|---|
 | ج | [dʒ] | **[g]** always | keep ج | جميل gamiil, جديد gidiid, جنيه gineeh, راجل raagil |
 | ق | [q] | **[ʔ]** glottal stop in inherited/everyday words | keep ق (never write ء) — learners must learn to *read* ق as ' | قلب 'alb, قال 'aal, دلوقتي dilwa'ti, قهوة 'ahwa (→ أهوة in the app's cultural anchor spelling), بقى ba'a, قبل 'abl, قدام 'uddaam |

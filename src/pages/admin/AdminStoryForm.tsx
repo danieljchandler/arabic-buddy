@@ -270,7 +270,7 @@ const AdminStoryForm = () => {
             <Button variant="ghost" size="icon" onClick={() => navigate('/admin/stories')}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <SaduMark title="Hakiya" variant="clear" className="h-8 w-8" />
+            <SaduMark title="Hikaya" variant="clear" className="h-8 w-8" />
             <h1 className="text-xl font-bold font-heading">{isEdit ? 'Edit Story' : 'New Story'}</h1>
           </div>
           <div className="flex items-center gap-2">

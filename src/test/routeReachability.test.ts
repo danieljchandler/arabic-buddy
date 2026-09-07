@@ -16,7 +16,7 @@ import { ROUTES } from "./support/routes/manifest";
  *
  * So the failure mode is a feature that still works perfectly and that nobody
  * can reach. It costs nothing to run and is invisible in review, which is
- * exactly the profile of a check worth automating. Hakiya runs it from the
+ * exactly the profile of a check worth automating. Hikaya runs it from the
  * same commit that removes the hubs, not after.
  *
  * The allow-list below is the interesting part: a route on it is a claim that

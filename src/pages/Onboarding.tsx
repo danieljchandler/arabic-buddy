@@ -195,7 +195,7 @@ const Onboarding = () => {
       // The wizard's pick becomes the active dialect right now — not after
       // the next full reload, which is when the context would next read it.
       setAppDialect(dialect as DialectModule);
-      toast.success('Welcome to Hakiya! 🎉');
+      toast.success('Welcome to Hikaya! 🎉');
       navigate('/');
     } catch (e) {
       console.error(e);
@@ -232,13 +232,13 @@ const Onboarding = () => {
         {/* ─── WELCOME ─────────────────────────── */}
         {step === 'welcome' && (
           <div className="text-center space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-            <img src={hakiyaLockup} alt="Hakiya" className="h-40 w-40 mx-auto" />
+            <img src={hakiyaLockup} alt="Hikaya" className="h-40 w-40 mx-auto" />
             <div>
               <h1 className="text-3xl font-bold font-heading text-foreground mb-3" dir="rtl">
                 !أهلاً وسهلاً
               </h1>
               <h2 className="text-xl font-semibold text-foreground mb-2">
-                Welcome to Hakiya
+                Welcome to Hikaya
               </h2>
               <p className="text-muted-foreground leading-relaxed">
                 Learn Arabic dialects through real conversations, videos, and interactive lessons.

@@ -198,7 +198,7 @@ const Choose = () => {
         </div>
 
         {/* The sequential paths. Where Ingleezy announces its curriculum as
-            coming, both of Hakiya's are real — so the doors open, and the
+            coming, both of Hikaya's are real — so the doors open, and the
             alphabet one reports its position, because a path is the one thing
             here that has one. */}
         <Link

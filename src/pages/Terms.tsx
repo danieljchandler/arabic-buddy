@@ -13,13 +13,13 @@ const Terms = () => {
         <p className="text-sm text-muted-foreground">Last updated: May 29, 2026</p>
 
         <p>
-          Welcome to Hakiya. By creating an account or using this site you agree to
+          Welcome to Hikaya. By creating an account or using this site you agree to
           these terms. They're written in plain English on purpose.
         </p>
 
-        <h2>What Hakiya is</h2>
+        <h2>What Hikaya is</h2>
         <p>
-          Hakiya is an Arabic-learning web app focused on spoken dialects (Gulf,
+          Hikaya is an Arabic-learning web app focused on spoken dialects (Gulf,
           Egyptian, Yemeni). We provide lessons, flashcards, audio, AI-assisted
           practice, and tools to learn from real media (videos, social posts,
           transcriptions you upload).
@@ -57,7 +57,7 @@ const Terms = () => {
 
         <h2>Your content</h2>
         <p>
-          You keep ownership of audio, text, or media you upload. You grant Hakiya a
+          You keep ownership of audio, text, or media you upload. You grant Hikaya a
           limited license to store, process, and display that content so we can
           provide the service to you (e.g. transcribing audio, generating
           flashcards). We won't sell your content.
@@ -70,7 +70,7 @@ const Terms = () => {
           keep the audio clips you record during pronunciation practice, together
           with the phrase you were practising and the score you received, and we may
           use them to improve Arabic speech recognition and the learning features in
-          Hakiya — including training or fine-tuning speech and language models.
+          Hikaya — including training or fine-tuning speech and language models.
         </p>
         <p>
           Contributed recordings are stored privately, are never published or shared
@@ -82,7 +82,7 @@ const Terms = () => {
 
         <h2>AI-generated content</h2>
         <p>
-          Hakiya uses AI models to generate translations, explanations, images, audio,
+          Hikaya uses AI models to generate translations, explanations, images, audio,
           and example sentences. AI output can be wrong. Don't rely on it for
           professional, legal, medical, or safety-critical decisions.
         </p>
@@ -95,7 +95,7 @@ const Terms = () => {
 
         <h2>Limitation of liability</h2>
         <p>
-          To the maximum extent allowed by law, Hakiya's liability for any claim
+          To the maximum extent allowed by law, Hikaya's liability for any claim
           related to the service is limited to the amount you paid us in the 12
           months before the claim.
         </p>
@@ -103,7 +103,7 @@ const Terms = () => {
         <h2>Changes</h2>
         <p>
           We may update these terms. If a change is material we'll tell you in the
-          app or by email. Continuing to use Hakiya after a change means you accept
+          app or by email. Continuing to use Hikaya after a change means you accept
           the new terms.
         </p>
 

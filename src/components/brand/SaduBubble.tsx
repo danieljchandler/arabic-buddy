@@ -6,7 +6,7 @@ import charcoal from "@/assets/sadu-bubble-charcoal.png";
 /**
  * A speech bubble carrying a band of Sadu weave.
  *
- * The Hakiya mark is already a speech bubble with a sadu ring, and the brand
+ * The Hikaya mark is already a speech bubble with a sadu ring, and the brand
  * film draws every line of dialogue as a bubble filled with woven pattern
  * rather than words. Speech that looks like cloth is a more particular thing
  * for a language app to own than a sparkle.

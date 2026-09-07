@@ -44,7 +44,7 @@ const prefetchPlayer = () => import("./DiscoverVideo");
  * picture lives in the dock's fifth slot, so the rail had nothing left to say.
  *
  * Where Ingleezy's feed header carries For-you/Following, this one carries the
- * dialect: Hakiya has three of them, that choice is exactly what filters the
+ * dialect: Hikaya has three of them, that choice is exactly what filters the
  * feed, so it belongs at the top of the feed rather than in a card halfway
  * down a dashboard. (The ritual flip-card switcher survives on /today.)
  */

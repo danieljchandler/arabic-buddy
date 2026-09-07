@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import hakiyaLockup from "@/assets/hakiya-lockup.webp";
 
 /**
- * The Hakiya mark, back in the top-left corner where it belongs.
+ * The Hikaya mark, back in the top-left corner where it belongs.
  *
  * It briefly shared that corner with the avatar and lost. A corner can only
  * say one thing, so the two were separated: the mark keeps the corner, and
@@ -33,7 +33,7 @@ export function BrandMark({ className }: { className?: string }) {
   return (
     <img
       src={hakiyaLockup}
-      alt="Hakiya"
+      alt="Hikaya"
       className={cn("h-12 w-12 shrink-0 select-none", className)}
       draggable={false}
     />

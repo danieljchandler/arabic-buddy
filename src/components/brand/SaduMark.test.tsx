@@ -24,10 +24,10 @@ describe("SaduMark", () => {
     const { container, rerender } = render(<SaduMark />);
     expect(container.querySelector("span")).toHaveAttribute("aria-hidden", "true");
 
-    rerender(<SaduMark title="Hakiya" />);
+    rerender(<SaduMark title="Hikaya" />);
     const labelled = container.querySelector("span");
     expect(labelled).toHaveAttribute("role", "img");
-    expect(labelled).toHaveAttribute("aria-label", "Hakiya");
+    expect(labelled).toHaveAttribute("aria-label", "Hikaya");
     expect(labelled).not.toHaveAttribute("aria-hidden");
   });
 

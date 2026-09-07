@@ -1,6 +1,6 @@
-# Hakiya — Learn Spoken Arabic
+# Hikaya — Learn Spoken Arabic
 
-Hakiya is a web app for learning **spoken (dialectal) Arabic** — Gulf (Khaliji),
+Hikaya is a web app for learning **spoken (dialectal) Arabic** — Gulf (Khaliji),
 Egyptian, and Yemeni — with native audio, spaced-repetition flashcards, and
 lessons built from real Arabic media. The emphasis throughout is on authentic
 dialect, never Modern Standard Arabic (MSA / فصحى).

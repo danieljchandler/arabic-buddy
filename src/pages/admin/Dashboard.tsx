@@ -89,7 +89,7 @@ const Dashboard = () => {
       <header className="border-b bg-card">
         <div className="container mx-auto px-4 py-4 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <SaduMark title="Hakiya" variant="clear" className="h-10 w-10" />
+            <SaduMark title="Hikaya" variant="clear" className="h-10 w-10" />
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold font-heading">{roleLabel} Dashboard</h1>

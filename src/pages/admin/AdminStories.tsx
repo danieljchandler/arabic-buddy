@@ -75,7 +75,7 @@ const AdminStories = () => {
             <Button variant="ghost" size="icon" onClick={() => navigate('/admin')}>
               <ArrowLeft className="h-5 w-5" />
             </Button>
-            <SaduMark title="Hakiya" variant="clear" className="h-8 w-8" />
+            <SaduMark title="Hikaya" variant="clear" className="h-8 w-8" />
             <h1 className="text-xl font-bold font-heading">Interactive Stories</h1>
           </div>
           <Button onClick={() => navigate('/admin/stories/new')}>

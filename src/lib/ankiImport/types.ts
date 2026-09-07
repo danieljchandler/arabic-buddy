@@ -6,7 +6,7 @@ export type HakiyaStage =
   | "REVIEWING_14D"
   | "MATURE_21D";
 
-/** @deprecated Use HakiyaStage. Kept as an alias during the Lahja → Hakiya rename. */
+/** @deprecated Use HakiyaStage. Kept as an alias from the original Lahja → Hakiya rename. */
 export type LahjaStage = HakiyaStage;
 
 export interface AnkiMediaRef {

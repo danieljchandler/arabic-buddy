@@ -1,7 +1,7 @@
 /**
  * Productive vocabulary from what the learner actually said.
  *
- * One of the two instruments the Duolingo efficacy study used that Hakiya
+ * One of the two instruments the Duolingo efficacy study used that Hikaya
  * can run from data it already holds (docs/language-learning-research-
  * 2026-09.md §6): the number of distinct words (types) and total words
  * (tokens) a learner produces in free speech. Monologue attempts carry a

@@ -203,7 +203,7 @@ ${pageText}
     ]);
     const memoryText = refreshLearnerContext ? memoryBlock(memory) : "";
 
-    const systemPromptExtra = `You are Hakiya's in-app AI tutor, a friendly expert in spoken ${dialectLabel}. The learner can ask about anything they see in the app — a video, a story, a grammar point, a word — or about Arabic in general.
+    const systemPromptExtra = `You are Hikaya's in-app AI tutor, a friendly expert in spoken ${dialectLabel}. The learner can ask about anything they see in the app — a video, a story, a grammar point, a word — or about Arabic in general.
 ${seedBlock}${pageBlock}${learnerBlock ? `\n${learnerBlock}\n` : ""}${vocabBlock ? `\n${vocabBlock}\n` : ""}${historyBlock ? `\n${historyBlock}\n` : ""}${memoryText ? `\n${memoryText}\n` : ""}${retrievalBlockText ? `\n${retrievalBlockText}\n` : ""}${toolBlockText ? `\n${toolBlockText}\n` : ""}
 ${getDialectTransliterationRules(resolvedDialect)}
 

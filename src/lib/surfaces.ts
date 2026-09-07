@@ -226,7 +226,7 @@ export const VERBS: Surface[] = [
 
 /**
  * The sequential paths. Where Ingleezy has to announce its curriculum as
- * coming, Hakiya already ships both of these — so the doors open, and each one
+ * coming, Hikaya already ships both of these — so the doors open, and each one
  * carries progress, because a path is the one thing on the chooser that has a
  * position to report.
  */

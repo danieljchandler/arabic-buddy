@@ -142,8 +142,8 @@ export function buildPagePayload(
   const key = hintKeyForPath(pathname);
   const hint = key ? PAGE_HINTS[key] : undefined;
   const clamped = clampPageContext(
-    { route: pathname, title: hint?.title ?? "Hakiya", summary: hint?.body },
+    { route: pathname, title: hint?.title ?? "Hikaya", summary: hint?.body },
     CHAT_BUDGET,
   );
-  return { ...clamped, route: pathname, title: clamped.title ?? "Hakiya" };
+  return { ...clamped, route: pathname, title: clamped.title ?? "Hikaya" };
 }

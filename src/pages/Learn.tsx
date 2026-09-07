@@ -465,7 +465,7 @@ const Learn = () => {
         <PageCorner />
         
         <Link to="/" className="flex items-center">
-          <SaduMark title="Hakiya" variant="clear" className="h-8 w-8" />
+          <SaduMark title="Hikaya" variant="clear" className="h-8 w-8" />
         </Link>
         
         <div className="w-11" />

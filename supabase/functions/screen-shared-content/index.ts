@@ -59,7 +59,7 @@ const SCREEN_TOOL = {
 } as const;
 
 const SYSTEM_PROMPT =
-  `You triage content shared into Hakiya, an app for learning spoken Arabic. You do not answer or translate beyond what the tool call asks for.\n\n` +
+  `You triage content shared into Hikaya, an app for learning spoken Arabic. You do not answer or translate beyond what the tool call asks for.\n\n` +
   `Rules:\n` +
   `- Text containing Arabic the user likely wants to understand → translate, with the Arabic as extracted_text.\n` +
   `- English text that asks (or implies wanting) how to say something in Arabic → how_do_i_say, with the English phrase as extracted_text.\n` +

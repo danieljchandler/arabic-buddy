@@ -1,6 +1,6 @@
 # Sharing into the app
 
-Share a message, a voice note, a screenshot, or a link straight to Hakiya from
+Share a message, a voice note, a screenshot, or a link straight to Hikaya from
 another app; AI screens what it is and routes it to the right feature,
 converting it on the way when needed. Admins get one extra power: sharing a
 TikTok/YouTube/Instagram link starts the full Discover ingestion pipeline in a
@@ -68,7 +68,7 @@ appear when the pipeline finishes. Publishing stays a human decision.
 ## Platform support
 
 - **Android (Chrome, installed PWA):** the real share-sheet integration. Needs
-  the app installed (Add to Home Screen); Chrome shows "Hakiya" as a share
+  the app installed (Add to Home Screen); Chrome shows "Hikaya" as a share
   target for text, links, images, audio and video.
 - **iOS:** Safari has no Web Share Target. Two fallbacks:
   - `/share?text=…&url=…` accepts query params, so an iOS **Shortcut** (Share

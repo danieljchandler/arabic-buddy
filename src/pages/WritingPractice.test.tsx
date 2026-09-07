@@ -20,7 +20,7 @@ vi.mock("@/integrations/supabase/client", () => ({
     // The page's top corner carries the profile emblem, which now shows the
     // learner's chosen picture — so rendering this page asks who is signed in
     // even though the page itself never does. Answered "nobody", which is all
-    // the emblem needs to fall back to the Hakiya mark.
+    // the emblem needs to fall back to the Hikaya mark.
     auth: {
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
       getSession: async () => ({ data: { session: null } }),

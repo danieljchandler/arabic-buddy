@@ -1,6 +1,6 @@
 # AI Pipeline Audit + ALLaM/Fanar Proposal
 
-**Project:** Hakiya (repo `arabic-buddy`). There is no separate "Lahja" project — `Lahja`
+**Project:** Hikaya (repo `arabic-buddy`). There is no separate "Lahja" project — `Lahja`
 was this app's previous brand name; `src/lib/brandMigration.ts` migrates `lahja_*`
 localStorage keys to `hakiya_*`. Everything below is one pipeline.
 

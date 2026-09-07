@@ -157,7 +157,7 @@ test.describe("the emblem's picture", () => {
     // The first pass put the two side by side in the same corner and the
     // avatar ended up wearing the slot the brand had. The mark keeps its
     // corner; the face lives in the dock and nowhere near the header.
-    const mark = page.getByRole("img", { name: "Hakiya" }).first();
+    const mark = page.getByRole("img", { name: "Hikaya" }).first();
     await expect(mark).toBeVisible();
 
     const face = page.getByRole("link", { name: /Your account/ });

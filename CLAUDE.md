@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Hakiya — a web app for learning **spoken (dialectal) Arabic** (Gulf/Khaliji,
+Hikaya — a web app for learning **spoken (dialectal) Arabic** (Gulf/Khaliji,
 Egyptian, Yemeni), never Modern Standard Arabic (MSA / فصحى). Frontend: Vite +
 React + TypeScript + shadcn-ui + Tailwind. Backend: Supabase (Postgres + RLS,
 Auth, Deno Edge Functions). See `README.md` for the full feature/architecture

@@ -179,9 +179,9 @@ const Auth = () => {
       <div className="max-w-sm mx-auto">
         {/* Logo and Title */}
         <div className="text-center mb-10">
-          <img src={hakiyaLockup} alt="Hakiya" className="h-32 w-32 mx-auto mb-5" />
+          <img src={hakiyaLockup} alt="Hikaya" className="h-32 w-32 mx-auto mb-5" />
           <h1 className="text-2xl font-bold text-foreground mb-2 font-heading">
-            {isLogin ? "Welcome Back" : "Join Hakiya"}
+            {isLogin ? "Welcome Back" : "Join Hikaya"}
           </h1>
           <p className="text-muted-foreground">
             {isLogin
@@ -296,7 +296,7 @@ const Auth = () => {
                   <p className="text-destructive text-sm">{errors.inviteCode}</p>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Hakiya is in closed beta. Don't have a code? Email us at hello@hakiya.app.
+                  Hikaya is in closed beta. Don't have a code? Email us at hello@hakiya.app.
                 </p>
               </div>
             )}

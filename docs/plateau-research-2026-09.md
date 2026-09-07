@@ -80,7 +80,7 @@ Full text (mirror): http://mikesclass.pbworks.com/f/Richards-Beyond-Plateau.pdf
   grammatical output modification per classroom hour) — is an argument
   *against classrooms relying on it arising naturally*, and therefore an
   argument *for* a product that deliberately engineers output tasks. The
-  honest claim for Hakiya: output practice creates opportunities the input
+  honest claim for Hikaya: output practice creates opportunities the input
   diet doesn't, and interaction as a package robustly works (Mackey & Goo
   2007 meta-analysis, pooled d ≈ 1.09) — not "science proves speaking
   practice causes acquisition."
@@ -130,7 +130,7 @@ Full text (mirror): http://mikesclass.pbworks.com/f/Richards-Beyond-Plateau.pdf
 - **Arabic: gap confirmed.** The only corpus-informed Arabic formulaic
   sequence list is MSA-oriented (Alghamdi & Atwell 2019, *IJCL* 24(2));
   nothing exists for Gulf/Egyptian/Yemeni dialect chunks. Any chunk
-  inventory for Hakiya must be derived from dialect corpora + native review
+  inventory for Hikaya must be derived from dialect corpora + native review
   (the transcript-review pipeline is the natural source), not lifted from
   published pedagogical lists.
 
@@ -279,7 +279,7 @@ papered over with "research shows" copy:
 
 1. **Dialect-only acquisition** — the entire integration literature studies
    MSA+dialect together; nobody has studied learners of *only* a spoken
-   dialect, i.e. Hakiya's core user.
+   dialect, i.e. Hikaya's core user.
 2. **Gulf/Khaliji and Yemeni Arabic as L2 targets** — zero acquisition
    studies (Yemeni appears in SLA only as learners' L1). Egyptian fares
    slightly better (Trentman; Huntley's stimuli model Egyptian variation).

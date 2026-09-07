@@ -97,7 +97,7 @@ const Privacy = () => {
 
         <h2>Children</h2>
         <p>
-          Hakiya is not directed at children under 13. If you believe a child has
+          Hikaya is not directed at children under 13. If you believe a child has
           created an account, email us and we'll remove it.
         </p>
 

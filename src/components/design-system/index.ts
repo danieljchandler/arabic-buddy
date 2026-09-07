@@ -1,7 +1,7 @@
 /**
- * Hakiya Design System Components
+ * Hikaya Design System Components
  * 
- * These are the official reusable UI components for the Hakiya app.
+ * These are the official reusable UI components for the Hikaya app.
  * Use these components consistently throughout the application.
  * Do NOT introduce new visual styles - extend these components instead.
  */

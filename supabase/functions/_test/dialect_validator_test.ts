@@ -28,6 +28,8 @@ const OPENROUTER = "openrouter.ai";
 // nothing about routing — the thing this file actually covers.
 const STRONG = MODEL_IDS.GEMINI_PRO;
 const ARABIC = MODEL_IDS.SABA;
+const JAIS = MODEL_IDS.JAIS2_8B;
+const FANAR = MODEL_IDS.FANAR;
 
 interface ValidatorLeak {
   token: string;
@@ -364,6 +366,96 @@ Deno.test("a rewrite from either model stands", async () => {
     assertEquals(lenientArabic.score, 2);
   }, {
     upstreams: crossCheck({ score: 5 }, { score: 2, verdict: "rewrite" }),
+  });
+});
+
+// ── Which specialist settles a split ────────────────────────────────────────
+
+const RUNPOD = "api.runpod.ai";
+const FANAR_HOST = "api.fanar.qa";
+/** A deployed Jais. Absent everywhere else, so the default is "not deployed". */
+const DEPLOYED = { RUNPOD_JAIS_8B_ENDPOINT_ID: "test1endpoint" };
+
+/** A disagreement (lenient Arabic leg, harsh strong leg) plus a tie-breaker's answer. */
+const split = (tiebreakHost: string, tiebreak: Record<string, unknown>) => ({
+  [OPENROUTER]: () => chatCompletion("", judgment({ score: 5 })),
+  [GATEWAY]: () => chatCompletion("", judgment({ score: 2, verdict: "rewrite" })),
+  [tiebreakHost]: () => chatCompletion("", judgment(tiebreak)),
+});
+
+Deno.test("a deployed Jais settles a split, in place of Fanar", async () => {
+  await withValidator(async (mod, up) => {
+    const result = await mod.validateDialectCrossChecked("x", "Gulf");
+
+    // Both specialists are Arabic-native, and the reason to prefer Jais is not
+    // that it judges better on paper but that it has no daily allowance to
+    // spend: Fanar's quota is what keeps it off the standing legs, and a
+    // tie-break on our own hardware is not rationed.
+    assertEquals(up.callsTo(RUNPOD).length, 1);
+    assertEquals(up.callsTo(FANAR_HOST).length, 0);
+    assertEquals(bodyOf(up.callsTo(RUNPOD)[0]).model, upstreamModelId(JAIS, "runpod"));
+    // The tie-breaker is an opinion where the merge only had a policy, so its
+    // "pass" overrides the harsher-verdict rule that would have said rewrite.
+    assertEquals(result.verdict, "pass");
+    // And it is named as the model that settled it. Which specialist gets this
+    // slot is a deployment question now, so a constant here would credit every
+    // Jais verdict to Fanar in the logs and in anything reading the result.
+    assertEquals(result.model, `${ARABIC}+${STRONG}+${JAIS}`);
+  }, { env: DEPLOYED, upstreams: split(RUNPOD, { score: 5 }) });
+});
+
+Deno.test("Fanar still settles a split when no Jais is deployed", async () => {
+  await withValidator(async (mod, up) => {
+    const result = await mod.validateDialectCrossChecked("x", "Gulf");
+
+    // The endpoint is deployment state, not a code change: with nothing
+    // deployed the tie-break has to fall back to the model that was doing this
+    // job before, rather than quietly stop happening.
+    assertEquals(up.callsTo(FANAR_HOST).length, 1);
+    assertEquals(up.callsTo(RUNPOD).length, 0);
+    assertEquals(bodyOf(up.callsTo(FANAR_HOST)[0]).model, FANAR);
+    assertEquals(result.verdict, "pass");
+  }, { upstreams: split(FANAR_HOST, { score: 5 }) });
+});
+
+Deno.test("deploying a size the tie-break does not name changes nothing", async () => {
+  await withValidator(async (mod, up) => {
+    const result = await mod.validateDialectCrossChecked("x", "Gulf");
+
+    // Sizes are chosen by job, not by quality: a 144GB cold start is a
+    // multi-minute download, so the 70B belongs to batch work and putting it
+    // here would hang a path a learner waits for. Deploying one is therefore
+    // not consent to use it in this slot — the tie-break names the 8B, and
+    // with only some other size up it must behave as though no Jais exists.
+    assertEquals(up.callsTo(RUNPOD).length, 0);
+    assertEquals(up.callsTo(FANAR_HOST).length, 1);
+    assertEquals(result.verdict, "pass");
+  }, {
+    env: { RUNPOD_JAIS_70B_ENDPOINT_ID: "seventyb" },
+    upstreams: split(FANAR_HOST, { score: 5 }),
+  });
+});
+
+Deno.test("a cold Jais leaves the harsher verdict standing", async () => {
+  await withValidator(async (mod, up) => {
+    const result = await mod.validateDialectCrossChecked("x", "Gulf");
+
+    // This is the whole reason Jais is allowed in this slot and nowhere else.
+    // Its weights are 16GB and the endpoint scales to zero, so a call landing
+    // on an idle worker does not answer — and the caller must be no worse off
+    // than it was with no tie-breaker at all. A non-answer is not a casting
+    // vote: the rule stands, and the harsher verdict wins.
+    assertEquals(up.callsTo(RUNPOD).length, 1);
+    assertEquals(result.verdict, "rewrite");
+    assertEquals(result.score, 2);
+    assertEquals(result.agreement, "disagree");
+  }, {
+    env: DEPLOYED,
+    upstreams: {
+      [OPENROUTER]: () => chatCompletion("", judgment({ score: 5 })),
+      [GATEWAY]: () => chatCompletion("", judgment({ score: 2, verdict: "rewrite" })),
+      [RUNPOD]: () => json({ error: "worker cold" }, 503),
+    },
   });
 });
 

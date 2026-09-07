@@ -217,6 +217,93 @@ Deno.test("an unconfigured Fanar does not silently become another model", async 
   }, { env: { FANAR_API_KEY: undefined } });
 });
 
+// ── Jais 2 on our own RunPod worker ─────────────────────────────────────────
+
+/** The endpoint id is deployment state, so every RunPod test supplies its own. */
+const DEPLOYED = { RUNPOD_JAIS_8B_ENDPOINT_ID: "test1endpoint" };
+
+Deno.test("a Jais model goes to our own worker, with the routing prefix stripped", async () => {
+  await withGateway(async (mod, up) => {
+    await mod.chatFetch("runpod/jais-2-8b-chat", { messages: [] });
+
+    const [call] = up.callsTo("test1endpoint.api.runpod.ai");
+    assert(call, "expected the call to reach the RunPod worker");
+    assertEquals(call.headers.authorization, "Bearer fixture-runpod");
+    // `runpod/` says where the model lives, not who publishes it. The worker
+    // was started with `--served-model-name jais-2-8b-chat` and 404s on any
+    // other name, so the prefix must not survive onto the wire.
+    assertEquals(bodyOf(call).model, "jais-2-8b-chat");
+    assertEquals(mod.providerForModel("runpod/jais-2-8b-chat"), "runpod");
+  }, { env: DEPLOYED });
+});
+
+Deno.test("a RunPod outage is never retried on OpenRouter", async () => {
+  await withGateway(async (mod, up) => {
+    const response = await mod.chatFetch("runpod/jais-2-8b-chat", { messages: [] });
+
+    // Same reason as Fanar: Jais 2 is not on OpenRouter's catalogue at all, so
+    // the retry would replace one honest failure with a 404 about a model that
+    // was never there.
+    assertEquals(response.status, 503);
+    assertEquals(up.callsTo(OPENROUTER).length, 0);
+  }, {
+    env: DEPLOYED,
+    upstreams: { "api.runpod.ai": () => json({ error: "down" }, 503) },
+  });
+});
+
+Deno.test("a key with no endpoint deployed is unconfigured, not misrouted", async () => {
+  await withGateway(async (mod, up) => {
+    // RunPod is the one provider that can be half-configured: an API key is
+    // not an address. Nothing is deployed, so there is nowhere to send this,
+    // and the error has to name the part that is actually missing rather than
+    // send the reader to look at a key that is present.
+    await assertRejects(
+      () => mod.chatFetch("runpod/jais-2-8b-chat", { messages: [] }),
+      Error,
+      "RUNPOD_JAIS_8B_ENDPOINT_ID",
+    );
+    assertEquals(up.calls.length, 0);
+  });
+});
+
+Deno.test("an absent endpoint leaves tryChatRoute null rather than throwing", async () => {
+  await withGateway((mod) => {
+    // This is the property the dialect validator leans on: an undeployed Jais
+    // has to be answerable without a request, so the validator can skip it
+    // silently instead of turning a quality pass into a failure.
+    assertEquals(mod.tryChatRoute("runpod/jais-2-8b-chat"), null);
+  });
+});
+
+Deno.test("a runpod id with no address of its own never borrows a deployed worker", async () => {
+  await withGateway(async (mod, up) => {
+    // Each size is its own deployment at its own address, so a `runpod/` id
+    // nobody has mapped is unroutable — never answered by whichever worker
+    // happens to be up. Serving a 70B request on the 8B's worker would return
+    // a different model under the requested name, the one substitution the
+    // registry exists to prevent. The 70B is the live case: it is a real
+    // upstream model deliberately not carried here.
+    assertEquals(mod.tryChatRoute("runpod/jais-2-70b-chat"), null);
+
+    await mod.chatFetch("runpod/jais-2-8b-chat", { messages: [] });
+    assertEquals(up.callsTo("eightb.api.runpod.ai").length, 1);
+  }, { env: { RUNPOD_JAIS_8B_ENDPOINT_ID: "eightb" } });
+});
+
+Deno.test("asks Jais nothing about reasoning", async () => {
+  await withGateway(async (mod, up) => {
+    await mod.chatFetch("runpod/jais-2-8b-chat", { messages: [] });
+
+    // Jais 2 is not a reasoning model and plain vLLM has no sampler for an
+    // effort field, so the default that every OpenRouter call carries must not
+    // be attached here.
+    const body = bodyOf(up.callsTo("api.runpod.ai")[0]);
+    assertEquals("reasoning" in body, false);
+    assertEquals("reasoning_effort" in body, false);
+  }, { env: DEPLOYED });
+});
+
 // ── Images ──────────────────────────────────────────────────────────────────
 
 Deno.test("an image comes back as bytes from Gemini's inline data", async () => {

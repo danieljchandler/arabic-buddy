@@ -145,9 +145,25 @@ harness.
   entry left on the allow-list after it was fixed. Which *provider*
   serves a model is `_shared/aiGateway.ts`'s decision, off the vendor prefix:
   `google/*` → Google (`GEMINI_API_KEY`), `openai/*` → OpenAI
-  (`OPENAI_API_KEY`), `Fanar-*` → QCRI (`FANAR_API_KEY`), everything else →
-  OpenRouter (`OPENROUTER_API_KEY`). Fanar is the one vendor with no OpenRouter
-  twin, so it never falls back there — `canFallBack` is what encodes that.
+  (`OPENAI_API_KEY`), `Fanar-*` → QCRI (`FANAR_API_KEY`), `runpod/*` → our own
+  RunPod Serverless workers (`RUNPOD_API_KEY` + a per-size
+  `RUNPOD_JAIS_8B_ENDPOINT_ID`),
+  everything else → OpenRouter (`OPENROUTER_API_KEY`). Fanar and Jais 2 are the
+  two vendors with no OpenRouter twin, so neither falls back there —
+  `canFallBack` is what encodes that. `runpod/` is a routing signal rather than
+  a vendor namespace: it says the model runs on hardware this project rents, and
+  the prefix is stripped on the wire to match the worker's
+  `--served-model-name`. It is also the one provider that can be *half*
+  configured — a key is not an address — so a missing endpoint id leaves
+  `tryChatRoute` null (unconfigured, skipped silently) rather than erroring.
+  Each Jais size is its own deployment at its own address, picked by *job*
+  rather than quality, and only the **8B** (16GB, one GPU) is carried: the 70B
+  scores better but its 144GB cold start is a multi-minute download, economic
+  only amortised over batch work. Adding a size back is an id in the registry
+  plus an entry in aiGateway's `RUNPOD_ENDPOINT_ENV` — and a test asserts a
+  `runpod/` id with no address of its own is unroutable rather than answered by
+  whichever worker happens to be up, so a second size can never be silently
+  served under the name of the first.
   Registry ids stay in OpenRouter's `vendor/model` form because that is the one
   namespace all three can be addressed from; aiGateway strips the prefix for the
   vendors whose own APIs don't use it. Call models with `chatFetch` /

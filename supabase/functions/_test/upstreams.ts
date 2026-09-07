@@ -174,6 +174,7 @@ export function defaultUpstreams(): Record<string, UpstreamHandler> {
     "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("fixture reply"),
     "generativelanguage.googleapis.com/v1beta/models": geminiNative,
     "api.fanar.qa": () => chatCompletion("fixture reply"),
+    "api.runpod.ai": () => chatCompletion("fixture reply"),
     "api.openai.com/v1/images/generations": () => openaiImage(),
     "api.openai.com": () => chatCompletion("fixture reply"),
     "router.huggingface.co": () => chatCompletion("fixture reply"),

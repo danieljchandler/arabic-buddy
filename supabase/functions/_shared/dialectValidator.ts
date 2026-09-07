@@ -37,6 +37,38 @@ const ARABIC_VALIDATOR_MODEL = MODEL_IDS.SABA;
  */
 const TIEBREAK_VALIDATOR_MODEL = MODEL_IDS.FANAR;
 
+/**
+ * The Arabic-native specialist that settles a split, in preference order.
+ *
+ * Jais 2 goes first when its endpoint is deployed. It is a strong instrument
+ * for this specific question — Arabic-native, trained from scratch, judging
+ * whether a line reads as native — and, unlike Fanar, it runs on hardware this
+ * project rents, so the quota argument above does not apply to it: there is no
+ * daily allowance to spend before lunch.
+ *
+ * Deliberately the **8B**. Upstream's 70B scores better, but its weights are
+ * 144GB, so a cold start is a multi-minute download and the model is only
+ * economic amortised over batch work — which is why it is not carried in the
+ * registry at all. The 8B is 16GB on a single GPU and can actually answer
+ * inside a caller's timeout. Size is chosen by job, not by quality; see
+ * `MODEL_IDS` for the full cost argument.
+ *
+ * Even the 8B can be cold, and that is survivable *here* and almost nowhere
+ * else in the pipeline: a tie-break that does not answer leaves `verdict` on
+ * the "harsher verdict wins" rule, which is exactly what happens today when no
+ * tie-breaker is configured at all. So the failure mode of a cold Jais is the
+ * behaviour this function already had — never a worse verdict, occasionally a
+ * better one — and Fanar remains the standing answer when Jais is not
+ * deployed.
+ *
+ * Returns null when neither is configured; the caller then keeps the rule.
+ */
+function tiebreakValidatorModel(): string | null {
+  if (tryChatRoute(MODEL_IDS.JAIS2_8B)) return MODEL_IDS.JAIS2_8B;
+  if (tryChatRoute(TIEBREAK_VALIDATOR_MODEL)) return TIEBREAK_VALIDATOR_MODEL;
+  return null;
+}
+
 export interface ValidatorLeak {
   token: string;
   suggestion?: string;
@@ -219,11 +251,12 @@ export async function validateDialectCrossChecked(
   const agreement = arabic.verdict === strong.verdict ? 'agree' : 'disagree';
 
   // On a split, ask the Arabic-native specialist rather than settling it with a
-  // rule. Skipped silently when Fanar is unconfigured, and never reached when
-  // the two agree — see TIEBREAK_VALIDATOR_MODEL for the quota argument.
+  // rule. Skipped silently when none is configured, and never reached when the
+  // two agree — see `tiebreakValidatorModel` for which one is asked and why.
+  const tiebreakModel = agreement === 'disagree' ? tiebreakValidatorModel() : null;
   let tiebreak: ValidatorResult | null = null;
-  if (agreement === 'disagree' && tryChatRoute(TIEBREAK_VALIDATOR_MODEL)) {
-    const result = await validateDialect(text, dialect, { ...opts, model: TIEBREAK_VALIDATOR_MODEL });
+  if (tiebreakModel) {
+    const result = await validateDialect(text, dialect, { ...opts, model: tiebreakModel });
     // `unknown` is what this returns when it could not judge, which is not a
     // casting vote — fall back to the rule rather than let a non-answer decide.
     if (result.ok && result.verdict !== 'unknown') tiebreak = result;
@@ -247,7 +280,7 @@ export async function validateDialectCrossChecked(
     `[dialectValidator] cross-check ${agreement}: ` +
       `${ARABIC_VALIDATOR_MODEL}=${arabic.score}/${arabic.verdict} ` +
       `${VALIDATOR_MODEL}=${strong.score}/${strong.verdict}` +
-      `${tiebreak ? ` ${TIEBREAK_VALIDATOR_MODEL}=${tiebreak.score}/${tiebreak.verdict}` : ''}` +
+      `${tiebreak ? ` ${tiebreakModel}=${tiebreak.score}/${tiebreak.verdict}` : ''}` +
       ` → ${verdict}`,
   );
 
@@ -261,7 +294,10 @@ export async function validateDialectCrossChecked(
     // after them, so it adds its own latency on the calls that need it.
     latencyMs: Math.max(arabic.latencyMs, strong.latencyMs) + (tiebreak?.latencyMs ?? 0),
     ok: true,
-    model: `${ARABIC_VALIDATOR_MODEL}+${VALIDATOR_MODEL}${tiebreak ? `+${TIEBREAK_VALIDATOR_MODEL}` : ''}`,
+    // `tiebreakModel`, not the Fanar constant: which model settles a split is
+    // now a deployment question, so naming the constant would attribute Jais's
+    // verdict to Fanar in every consumer and log that reads this field.
+    model: `${ARABIC_VALIDATOR_MODEL}+${VALIDATOR_MODEL}${tiebreak ? `+${tiebreakModel}` : ''}`,
     agreement,
   };
 }

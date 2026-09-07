@@ -10,6 +10,7 @@
 //
 //   google/*   → Google's Generative Language API   (GEMINI_API_KEY)
 //   openai/*   → OpenAI                              (OPENAI_API_KEY)
+//   runpod/*   → our own RunPod Serverless workers   (RUNPOD_API_KEY)
 //   everything → OpenRouter                          (OPENROUTER_API_KEY)
 //
 // Google and OpenAI both expose an OpenAI-shaped `/chat/completions`, which is
@@ -28,9 +29,9 @@
 // it gets its own helper (`generateImage`) rather than a shared body.
 // =============================================================================
 
-import { IMAGE_MODEL_IDS, reasoningFloor, type ReasoningEffort } from './modelRegistry.ts';
+import { IMAGE_MODEL_IDS, MODEL_IDS, reasoningFloor, type ReasoningEffort } from './modelRegistry.ts';
 
-export type Provider = 'google' | 'openai' | 'openrouter' | 'fanar';
+export type Provider = 'google' | 'openai' | 'openrouter' | 'fanar' | 'runpod';
 
 // ---- Endpoints --------------------------------------------------------------
 export const OPENROUTER_CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions';
@@ -42,6 +43,41 @@ export const OPENAI_IMAGE_URL = 'https://api.openai.com/v1/images/generations';
 /** QCRI's Arabic-native model. OpenAI-shaped, but on nobody else's catalogue. */
 export const FANAR_CHAT_URL = 'https://api.fanar.qa/v1/chat/completions';
 
+/**
+ * Jais 2 on our own RunPod Serverless worker.
+ *
+ * The one endpoint here whose URL is not a constant: it is a machine we
+ * deployed, so its id *is* the address. Returns undefined when no endpoint is
+ * configured, which is what keeps an un-deployed Jais an "unconfigured
+ * provider" (a silent `unknown` at the validator) rather than a broken route.
+ *
+ * `RUNPOD_JAIS_BASE_URL` overrides the derived URL — that is the seam the edge
+ * tests stub, and the escape hatch if the worker ever moves behind a proxy.
+ */
+export function runpodChatUrl(model: string): string | undefined {
+  const suffix = RUNPOD_ENDPOINT_ENV[model];
+  // A `runpod/` id nobody has given an address to. Unknown here rather than
+  // guessed: falling back to another size's endpoint would answer as a
+  // different model, which is the one thing the registry forbids.
+  if (!suffix) return undefined;
+  const explicit = Deno.env.get(`RUNPOD_JAIS_${suffix}_BASE_URL`)?.trim();
+  const id = Deno.env.get(`RUNPOD_JAIS_${suffix}_ENDPOINT_ID`)?.trim();
+  const base = explicit || (id ? `https://${id}.api.runpod.ai` : '');
+  return base ? `${base.replace(/\/+$/, '')}/v1/chat/completions` : undefined;
+}
+
+/**
+ * Which endpoint serves which id. Each Jais size is its own deployment at its
+ * own address with its own cost profile, so sizes cannot share an env var —
+ * only the 8B is deployed today, and a second size is one entry here. Keyed by
+ * the registry id rather than derived from it, so a typo is an unconfigured
+ * model instead of a request to a URL that does not exist, and an id with no
+ * entry is unroutable rather than answered by whichever worker is up.
+ */
+const RUNPOD_ENDPOINT_ENV: Record<string, string> = {
+  [MODEL_IDS.JAIS2_8B]: '8B',
+};
+
 /** Vendors with no first-party account here — they only exist behind OpenRouter. */
 const OPENROUTER_ONLY = /^(anthropic|qwen|meta-llama|mistralai|deepseek|x-ai|nousresearch|cohere)\//;
 
@@ -51,6 +87,13 @@ const OPENROUTER_ONLY = /^(anthropic|qwen|meta-llama|mistralai|deepseek|x-ai|nou
  * see `canFallBack` for why that matters.
  */
 const FANAR_MODEL = /^Fanar[-/]/i;
+
+/**
+ * `runpod/` is a routing signal, not a vendor namespace: it says "this model
+ * lives on hardware we rent" rather than naming a catalogue. The worker serves
+ * the model under the bare name, so the prefix is stripped on the wire.
+ */
+const RUNPOD_MODEL = /^runpod\//;
 
 /**
  * Model ids whose Google-native name is not just the id minus its `google/`
@@ -95,6 +138,8 @@ function keyFor(provider: Provider): string | undefined {
       return openRouterApiKey();
     case 'fanar':
       return Deno.env.get('FANAR_API_KEY')?.trim() || undefined;
+    case 'runpod':
+      return Deno.env.get('RUNPOD_API_KEY')?.trim() || undefined;
   }
 }
 
@@ -108,6 +153,7 @@ export function hasAnyProvider(): boolean {
 /** The vendor a model id names, before the configured-keys question is asked. */
 export function vendorForModel(model: string): Provider {
   if (FANAR_MODEL.test(model)) return 'fanar';
+  if (RUNPOD_MODEL.test(model)) return 'runpod';
   if (OPENROUTER_ONLY.test(model)) return 'openrouter';
   if (/^google\//.test(model)) return 'google';
   if (/^openai\//.test(model)) return 'openai';
@@ -117,11 +163,12 @@ export function vendorForModel(model: string): Provider {
 /**
  * Whether a vendor's traffic can be rescued by OpenRouter.
  *
- * Only true for vendors whose models OpenRouter actually lists. Fanar is the
- * exception that makes this a function rather than a `!== 'openrouter'` check:
- * it is a sovereign model on QCRI's own endpoint, so retrying `Fanar-C-2-27B`
- * against OpenRouter would turn one real failure into a 404 about a model that
- * was never there.
+ * Only true for vendors whose models OpenRouter actually lists. Two vendors
+ * make this a function rather than a `!== 'openrouter'` check, for the same
+ * reason: Fanar is a sovereign model on QCRI's own endpoint, and Jais 2 runs on
+ * a worker we rent. Neither is on OpenRouter's catalogue, so retrying either
+ * there would turn one real failure into a 404 about a model that was never
+ * present.
  */
 function canFallBack(provider: Provider): boolean {
   return provider === 'google' || provider === 'openai';
@@ -143,6 +190,9 @@ export function upstreamModelId(model: string, provider: Provider): string {
   if (provider === 'openrouter') return model;
   if (provider === 'google') return GOOGLE_MODEL_ALIASES[model] ?? model.replace(/^google\//, '');
   if (provider === 'fanar') return model;
+  // The worker is started with `--served-model-name`, which is the id minus
+  // this prefix — vLLM 404s on a name it was not given.
+  if (provider === 'runpod') return model.replace(/^runpod\//, '');
   return model.replace(/^openai\//, '');
 }
 
@@ -154,27 +204,39 @@ export interface ChatRoute {
   headers: Record<string, string>;
 }
 
-const CHAT_URLS: Record<Provider, string> = {
+const CHAT_URLS: Record<Exclude<Provider, 'runpod'>, string> = {
   google: GOOGLE_CHAT_URL,
   openai: OPENAI_CHAT_URL,
   openrouter: OPENROUTER_CHAT_URL,
   fanar: FANAR_CHAT_URL,
 };
 
+/**
+ * Every provider but one has a fixed URL. RunPod's is deployment state, so it
+ * is resolved per call and can legitimately be absent.
+ */
+function chatUrlFor(model: string, provider: Provider): string | undefined {
+  return provider === 'runpod' ? runpodChatUrl(model) : CHAT_URLS[provider];
+}
+
 const KEY_ENV: Record<Provider, string> = {
   google: 'GEMINI_API_KEY',
   openai: 'OPENAI_API_KEY',
   openrouter: 'OPENROUTER_API_KEY',
   fanar: 'FANAR_API_KEY',
+  runpod: 'RUNPOD_API_KEY',
 };
 
 /** Resolve a model to a concrete endpoint, or `null` when nothing is configured to serve it. */
 export function tryChatRoute(model: string, provider = providerForModel(model)): ChatRoute | null {
   const apiKey = keyFor(provider);
   if (!apiKey) return null;
+  const url = chatUrlFor(model, provider);
+  // A key with nowhere to send it is as unconfigured as no key at all.
+  if (!url) return null;
   return {
     provider,
-    url: CHAT_URLS[provider],
+    url,
     model: upstreamModelId(model, provider),
     headers: {
       Authorization: `Bearer ${apiKey}`,
@@ -187,8 +249,13 @@ export function tryChatRoute(model: string, provider = providerForModel(model)):
 export function chatRoute(model: string, provider = providerForModel(model)): ChatRoute {
   const route = tryChatRoute(model, provider);
   if (!route) {
+    // RunPod can fail this two ways; naming the key when the endpoint id is
+    // what is missing sends the reader to the wrong secret.
+    const missing = provider === 'runpod' && keyFor(provider)
+      ? `RUNPOD_JAIS_${RUNPOD_ENDPOINT_ENV[model] ?? '<size>'}_ENDPOINT_ID`
+      : KEY_ENV[provider];
     throw new GatewayConfigError(
-      `${KEY_ENV[provider]} not configured (required for ${model})`,
+      `${missing} not configured (required for ${model})`,
     );
   }
   return route;
@@ -244,7 +311,9 @@ function reasoningFieldFor(
   provider: Provider,
   effort: ReasoningEffort,
 ): Record<string, unknown> | null {
-  if (provider === 'fanar') return null;
+  // Fanar has no such switch, and Jais 2 is not a reasoning model — plain vLLM
+  // rejects an effort field it has no sampler for.
+  if (provider === 'fanar' || provider === 'runpod') return null;
   if (provider === 'openrouter') return { reasoning: { effort } };
   if (provider === 'google') return { reasoning_effort: effort === 'none' ? 'low' : effort };
   return { reasoning_effort: effort };

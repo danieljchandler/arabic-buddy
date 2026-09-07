@@ -284,6 +284,6 @@ test.describe("switching between modes", () => {
 
     await page.getByRole("button", { name: /create an account/i }).click();
     await expect(page.getByLabel(/invite code/i)).toBeVisible();
-    await expect(page.getByRole("heading", { name: /join hakiya/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /join hikaya/i })).toBeVisible();
   });
 });

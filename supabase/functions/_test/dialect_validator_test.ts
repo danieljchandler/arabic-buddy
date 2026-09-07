@@ -52,6 +52,7 @@ interface ValidateOptions {
   apiKey?: string;
   passThreshold?: number;
   maxChars?: number;
+  signal?: AbortSignal;
   timeoutMs?: number;
   model?: string;
 }
@@ -436,26 +437,225 @@ Deno.test("deploying a size the tie-break does not name changes nothing", async 
   });
 });
 
-Deno.test("a cold Jais leaves the harsher verdict standing", async () => {
+Deno.test("a cold Jais falls through to Fanar instead of consuming the split", async () => {
   await withValidator(async (mod, up) => {
     const result = await mod.validateDialectCrossChecked("x", "Gulf");
 
-    // This is the whole reason Jais is allowed in this slot and nowhere else.
-    // Its weights are 16GB and the endpoint scales to zero, so a call landing
-    // on an idle worker does not answer — and the caller must be no worse off
-    // than it was with no tie-breaker at all. A non-answer is not a casting
-    // vote: the rule stands, and the harsher verdict wins.
+    // The correction to how this slot was first wired. "Jais is deployed" was
+    // read as "Fanar is not asked", which made a deployed-but-cold Jais worse
+    // than no Jais at all: the endpoint scales to zero, so the common case was
+    // a cold worker eating the split while the warm hosted specialist — the
+    // model that settled every split before Jais existed — sat unused.
     assertEquals(up.callsTo(RUNPOD).length, 1);
-    assertEquals(result.verdict, "rewrite");
-    assertEquals(result.score, 2);
-    assertEquals(result.agreement, "disagree");
+    assertEquals(up.callsTo(FANAR_HOST).length, 1);
+    // Fanar's opinion is a real casting vote, so it overrides the rule.
+    assertEquals(result.verdict, "pass");
+    assertEquals(result.model, `${ARABIC}+${STRONG}+${FANAR}`);
   }, {
     env: DEPLOYED,
     upstreams: {
       [OPENROUTER]: () => chatCompletion("", judgment({ score: 5 })),
       [GATEWAY]: () => chatCompletion("", judgment({ score: 2, verdict: "rewrite" })),
       [RUNPOD]: () => json({ error: "worker cold" }, 503),
+      [FANAR_HOST]: () => chatCompletion("", judgment({ score: 5 })),
     },
+  });
+});
+
+/**
+ * What a cold serverless worker actually does to a caller.
+ *
+ * It does not answer 503 — that is a worker which is up and refusing. It
+ * accepts the connection and holds it while 16GB of weights load, and the only
+ * thing that ends the wait is the caller's own clock. That is the shape this
+ * whole change exists for, and the shape no test covered: `chatFetch` applies
+ * no timeout of its own (the 90s in `aiGateway` belongs to `generateImage`),
+ * so before the tie-break ceiling this request had nothing bounding it at all.
+ */
+const holdsTheConnection = (request: Request): Promise<Response> =>
+  new Promise((_, reject) => {
+    const hangUp = () =>
+      reject(new DOMException("The signal has been aborted", "AbortError"));
+    // Already aborted is the live case, not an edge case: a caller that gives
+    // up *during* the request aborts before this handler is even reached, and
+    // a listener attached after the fact never fires — leaving a promise that
+    // never settles and leaks its fetches into whichever test runs next.
+    if (request.signal.aborted) return hangUp();
+    request.signal.addEventListener("abort", hangUp);
+  });
+
+Deno.test("a Jais that never answers is bailed on, and the split still gets settled", async () => {
+  await withValidator(async (mod, up) => {
+    const started = Date.now();
+    const result = await mod.validateDialectCrossChecked("x", "Gulf");
+    const elapsed = Date.now() - started;
+
+    // Bounded by the tie-break's own short ceiling rather than by the provider
+    // hanging up, and well inside the 20s a caller's `timeoutMs` would have
+    // allowed if the tie-break had gone on inheriting it.
+    assert(elapsed < 15_000, `tie-break took ${elapsed}ms; the cold rung should bail in seconds`);
+    // And bailing is not giving up: the next rung down still settles it.
+    assertEquals(result.verdict, "pass");
+    assertEquals(result.model, `${ARABIC}+${STRONG}+${FANAR}`);
+  }, {
+    env: DEPLOYED,
+    upstreams: {
+      [OPENROUTER]: () => chatCompletion("", judgment({ score: 5 })),
+      [GATEWAY]: () => chatCompletion("", judgment({ score: 2, verdict: "rewrite" })),
+      [RUNPOD]: holdsTheConnection,
+      [FANAR_HOST]: () => chatCompletion("", judgment({ score: 5 })),
+    },
+  });
+});
+
+Deno.test("when no specialist answers, the harsher verdict still stands", async () => {
+  await withValidator(async (mod, up) => {
+    const result = await mod.validateDialectCrossChecked("x", "Gulf");
+
+    // The property that lets a self-hosted model sit in this slot at all: with
+    // the whole ladder exhausted the caller is exactly where it was before any
+    // tie-breaker existed. A non-answer is never a casting vote.
+    assertEquals(up.callsTo(RUNPOD).length, 1);
+    assertEquals(up.callsTo(FANAR_HOST).length, 1);
+    assertEquals(result.verdict, "rewrite");
+    assertEquals(result.score, 2);
+    assertEquals(result.agreement, "disagree");
+    // Nobody settled it, so nobody is credited with settling it.
+    assertEquals(result.model, `${ARABIC}+${STRONG}`);
+  }, {
+    env: DEPLOYED,
+    upstreams: {
+      [OPENROUTER]: () => chatCompletion("", judgment({ score: 5 })),
+      [GATEWAY]: () => chatCompletion("", judgment({ score: 2, verdict: "rewrite" })),
+      [RUNPOD]: () => json({ error: "worker cold" }, 503),
+      [FANAR_HOST]: () => json({ error: "daily allowance spent" }, 429),
+    },
+  });
+});
+
+Deno.test("a cold rung's cost is reported, not hidden behind the rung that answered", async () => {
+  await withValidator(async (mod) => {
+    const result = await mod.validateDialectCrossChecked("x", "Gulf");
+
+    // The reported latency is what the caller's budget actually paid for. If it
+    // named only the winning rung, a tie-break that spent five seconds finding
+    // Jais asleep would bill as though Fanar had answered instantly — and the
+    // cost of a cold first rung is the one number this change exists to expose.
+    assert(
+      result.latencyMs >= 5_000,
+      `expected the cold rung's wait to be counted, got ${result.latencyMs}ms`,
+    );
+  }, {
+    env: DEPLOYED,
+    upstreams: {
+      [OPENROUTER]: () => chatCompletion("", judgment({ score: 5 })),
+      [GATEWAY]: () => chatCompletion("", judgment({ score: 2, verdict: "rewrite" })),
+      [RUNPOD]: holdsTheConnection,
+      [FANAR_HOST]: () => chatCompletion("", judgment({ score: 5 })),
+    },
+  });
+});
+
+// ── Waking the worker we rent ───────────────────────────────────────────────
+
+/** A split where Jais is cold and Fanar settles it. The warm-up's setting. */
+const coldJais = {
+  [OPENROUTER]: () => chatCompletion("", judgment({ score: 5 })),
+  [GATEWAY]: () => chatCompletion("", judgment({ score: 2, verdict: "rewrite" })),
+  [RUNPOD]: () => json({ error: "worker cold" }, 503),
+  [FANAR_HOST]: () => chatCompletion("", judgment({ score: 5 })),
+};
+
+/** The wake-up is the one Jais call carrying a one-token body. */
+const warmups = (up: StubbedUpstreams) =>
+  up.callsTo(RUNPOD).filter((call) => bodyOf(call).max_tokens === 1);
+
+Deno.test("a cold tie-breaker is not woken unless warming is switched on", async () => {
+  await withValidator(async (mod, up) => {
+    await mod.validateDialectCrossChecked("x", "Gulf");
+
+    // Off by default, and that is a cost decision rather than caution: the
+    // endpoint holds one worker, so warming without limit converges on the
+    // ~$500/month `workersMin: 1` bill this deployment exists to avoid.
+    assertEquals(warmups(up).length, 0);
+    assertEquals(up.callsTo(RUNPOD).length, 1);
+  }, { env: DEPLOYED, upstreams: coldJais });
+});
+
+Deno.test("with warming on, a cold tie-breaker is woken for the next split", async () => {
+  await withValidator(async (mod, up) => {
+    await mod.validateDialectCrossChecked("x", "Gulf");
+
+    // One judgment request that found it cold, one wake-up behind it. The
+    // wake-up asks for a single token because it is wanted for its effect on
+    // the worker, not for its answer.
+    assertEquals(up.callsTo(RUNPOD).length, 2);
+    assertEquals(warmups(up).length, 1);
+    // And it never delays the split it was triggered by — Fanar still settles.
+    assertEquals(up.callsTo(FANAR_HOST).length, 1);
+  }, {
+    env: { ...DEPLOYED, JAIS_TIEBREAK_WARMUP: "on" },
+    upstreams: coldJais,
+  });
+});
+
+Deno.test("warming fires once per cooldown, not once per cold split", async () => {
+  await withValidator(async (mod, up) => {
+    await mod.validateDialectCrossChecked("x", "Gulf");
+    await mod.validateDialectCrossChecked("y", "Gulf");
+    await mod.validateDialectCrossChecked("z", "Gulf");
+
+    // Three cold splits inside one idle window are one worker to start, not
+    // three. Without the cooldown a burst of disagreements would each kick a
+    // boot, which is how a fire-and-forget wake-up turns into a billing
+    // surprise on an endpoint that holds a worker for five minutes.
+    assertEquals(warmups(up).length, 1);
+  }, {
+    env: { ...DEPLOYED, JAIS_TIEBREAK_WARMUP: "on" },
+    upstreams: coldJais,
+  });
+});
+
+Deno.test("a caller that gives up mid-tie-break is not charged a wake-up", async () => {
+  const caller = new AbortController();
+  await withValidator(async (mod, up) => {
+    await mod.validateDialectCrossChecked("x", "Gulf", { signal: caller.signal });
+
+    // `validateDialect` reports a cancellation and a cold worker identically,
+    // as `ok: false`, so the ladder has to tell them apart from the signal
+    // rather than the result. Reading an abort as "asleep" would answer a
+    // cancelled request by starting a *new* one with a five-minute lifetime —
+    // spending the capacity the cancellation existed to stop.
+    assertEquals(warmups(up).length, 0);
+    // And the ladder stops rather than spending Fanar's allowance on a
+    // judgment whose caller has already walked away.
+    assertEquals(up.callsTo(FANAR_HOST).length, 0);
+  }, {
+    env: { ...DEPLOYED, JAIS_TIEBREAK_WARMUP: "on" },
+    upstreams: {
+      [OPENROUTER]: () => chatCompletion("", judgment({ score: 5 })),
+      [GATEWAY]: () => chatCompletion("", judgment({ score: 2, verdict: "rewrite" })),
+      [RUNPOD]: (request: Request) => {
+        caller.abort();
+        return holdsTheConnection(request);
+      },
+      [FANAR_HOST]: () => chatCompletion("", judgment({ score: 5 })),
+    },
+  });
+});
+
+Deno.test("a Fanar-only tie-break is never warmed", async () => {
+  await withValidator(async (mod, up) => {
+    await mod.validateDialectCrossChecked("x", "Gulf");
+
+    // Warming means something only for a worker that can be asleep. Fanar is
+    // somebody else's always-on API, and a wake-up call to it would be a billed
+    // request against the very allowance that keeps it off the standing legs.
+    assertEquals(up.callsTo(RUNPOD).length, 0);
+    assertEquals(up.callsTo(FANAR_HOST).length, 1);
+  }, {
+    env: { JAIS_TIEBREAK_WARMUP: "on" },
+    upstreams: split(FANAR_HOST, { score: 5 }),
   });
 });
 

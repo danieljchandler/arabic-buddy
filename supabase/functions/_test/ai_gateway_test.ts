@@ -276,6 +276,67 @@ Deno.test("an absent endpoint leaves tryChatRoute null rather than throwing", as
   });
 });
 
+// ── Waking a worker that scales to zero ─────────────────────────────────────
+
+Deno.test("warming a runpod model wakes the worker without waiting for it", async () => {
+  await withGateway(async (mod, up) => {
+    // Returns nothing, on purpose. A warm-up whose result a caller could await
+    // is just a slow request by another name, and the whole point of this call
+    // is that the request it is attached to does not pay for it.
+    assertEquals(mod.warmRoute("runpod/jais-2-8b-chat"), undefined);
+    await Promise.allSettled(up.tasks);
+
+    const [call] = up.callsTo("test1endpoint.api.runpod.ai");
+    assert(call, "expected the wake-up to reach the RunPod worker");
+    assertEquals(call.headers.authorization, "Bearer fixture-runpod");
+    // The smallest legal completion: this exists for its side effect on the
+    // worker, so one token is as much answer as it needs.
+    assertEquals(bodyOf(call).max_tokens, 1);
+    assertEquals(bodyOf(call).model, "jais-2-8b-chat");
+  }, { env: DEPLOYED });
+});
+
+Deno.test("a worker that refuses the wake-up is still not an error for the caller", async () => {
+  await withGateway(async (mod, up) => {
+    mod.warmRoute("runpod/jais-2-8b-chat");
+    await Promise.allSettled(up.tasks);
+
+    // Same contract as the four logging sinks: it swallows its own failures, so
+    // it can never fail the request it was attached to. A wake-up that throws
+    // into an unhandled rejection would take the edge function down over work
+    // nobody was waiting for.
+    assertEquals(up.callsTo("api.runpod.ai").length, 1);
+  }, {
+    env: DEPLOYED,
+    upstreams: { "api.runpod.ai": () => json({ error: "no capacity" }, 500) },
+  });
+});
+
+Deno.test("warming is a no-op for a provider that is always on", async () => {
+  await withGateway(async (mod, up) => {
+    mod.warmRoute("google/gemini-3.1-pro-preview");
+    mod.warmRoute("Fanar-C-2-27B");
+    await Promise.allSettled(up.tasks);
+
+    // Every provider here but RunPod is somebody else's hosted API: there is no
+    // worker asleep, so a wake-up would just be a billed call with its answer
+    // thrown away — and against Fanar, one charged to the daily allowance that
+    // is the reason it is not a standing validator leg in the first place.
+    assertEquals(up.calls.length, 0);
+  }, { env: DEPLOYED });
+});
+
+Deno.test("warming an undeployed runpod model reaches nothing", async () => {
+  await withGateway(async (mod, up) => {
+    mod.warmRoute("runpod/jais-2-8b-chat");
+    await Promise.allSettled(up.tasks);
+
+    // No endpoint id means no address, and a warm-up must not fall back to
+    // whichever worker happens to be up any more than a judgment call may.
+    assertEquals(up.calls.length, 0);
+  });
+});
+
 Deno.test("a runpod id with no address of its own never borrows a deployed worker", async () => {
   await withGateway(async (mod, up) => {
     // Each size is its own deployment at its own address, so a `runpod/` id

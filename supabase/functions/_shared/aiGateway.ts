@@ -437,6 +437,54 @@ export async function chatFetch(
   return (await chatFetchDetailed(model, body, options)).response;
 }
 
+/**
+ * Nudge a self-hosted worker awake, without waiting for it to come up.
+ *
+ * A no-op for every provider but `runpod`: everyone else here is somebody
+ * else's always-on API, where there is nothing to warm and a wake-up request
+ * would just be a billed call with its answer thrown away.
+ *
+ * This is a fire-and-forget sink in the same sense as the four loggers — it
+ * swallows its own errors, returns nothing, and can never fail the request it
+ * was attached to. Returning a promise would invite an `await` at a call site,
+ * and a warm-up somebody waits for is just a slow request by another name.
+ *
+ * The timeout is deliberately generous rather than short. Aborting does not
+ * stop a boot that has already started, but a wake-up that hangs up early
+ * cannot tell us it worked, and `waitUntil` is what keeps the isolate alive
+ * long enough for it to finish at all.
+ */
+export function warmRoute(model: string, timeoutMs = 300_000): void {
+  const route = tryChatRoute(model);
+  if (!route || route.provider !== 'runpod') return;
+
+  const task = fetch(route.url, {
+    method: 'POST',
+    headers: route.headers,
+    // The smallest legal completion: this call exists for its side effect on
+    // the worker, so a single token is as much answer as it needs.
+    body: JSON.stringify({
+      model: route.model,
+      messages: [{ role: 'user', content: 'ping' }],
+      max_tokens: 1,
+    }),
+    signal: AbortSignal.timeout(timeoutMs),
+  })
+    // Draining the body is what lets the connection be reused rather than left
+    // hanging on an isolate that is about to be torn down.
+    .then((res) => res.body?.cancel())
+    .catch(() => {});
+
+  // The Supabase edge runtime tears an isolate down once the handler resolves,
+  // which would kill a boot that takes minutes. `waitUntil` is how the four
+  // background-work functions here keep theirs alive; outside that runtime
+  // (deno test, local dev) the bare promise is the fallback.
+  const runtime = (globalThis as {
+    EdgeRuntime?: { waitUntil?: (task: Promise<unknown>) => void };
+  }).EdgeRuntime;
+  runtime?.waitUntil?.(task);
+}
+
 /** The assistant text of an OpenAI-shaped completion, or null when there wasn't one. */
 export function completionText(data: unknown): string | null {
   const content = (data as { choices?: Array<{ message?: { content?: unknown } }> })

@@ -72,7 +72,7 @@ by the runtime and must not be set by hand.
 | `OPENAI_API_KEY` | `openai/*` ids and the realtime voice call |
 | `FANAR_API_KEY` | `Fanar-*` ids (QCRI; no OpenRouter twin, so no fallback) |
 | `RUNPOD_API_KEY` | `runpod/*` ids — Jais 2 on our own Serverless workers (no OpenRouter twin, and no pay-per-token API anywhere, so no fallback) |
-| `RUNPOD_JAIS_8B_ENDPOINT_ID` | Address of the **8B** worker — the only size deployed. Without it `runpod/jais-2-8b-chat` is *unconfigured* rather than broken: the dialect validator skips its tie-break and keeps the rule. |
+| `RUNPOD_JAIS_8B_ENDPOINT_ID` | Address of the **8B** worker — the only size deployed. Without it `runpod/jais-2-8b-chat` is *unconfigured* rather than broken: the dialect validator's tie-break falls straight through to Fanar, as it did before Jais existed. |
 | `STRIPE_SECRET_KEY` | `create-checkout`, `check-subscription`, `customer-portal` |
 
 There is no Lovable AI gateway key any more: every model call goes through
@@ -94,7 +94,18 @@ There is no Lovable AI gateway key any more: every model call goes through
 `FARASA_API_KEY` (required for tashkeel — the WebAPI refuses anonymous
 traffic), `HUGGINGFACE_API_KEY` (CAMeL dialect ID), `JINA_API_KEY`,
 `FIRECRAWL_API_KEY`, `YOUTUBE_API_KEY`, `RAPIDAPI_KEY`, `COBALT_API_KEY`,
-`DIALECT_VALIDATOR_CROSSCHECK`.
+`DIALECT_VALIDATOR_CROSSCHECK`, `JAIS_TIEBREAK_WARMUP`.
+
+`JAIS_TIEBREAK_WARMUP=on` lets a validator tie-break that found the Jais worker
+asleep fire a wake-up behind itself, so the next split lands on a live worker.
+It is **off by default, and that default is a cost decision**: the endpoint
+holds at most one worker, so warming without limit converges on a worker running
+continuously — roughly $500/month, which is the `workersMin: 1` bill the
+serverless deployment exists to avoid. A five-minute cooldown bounds a burst of
+cold splits to one boot, but how much warming actually costs depends on how
+clustered splits are and on how long a warm-cache boot takes, neither of which
+has been measured. Switching it on is deliberate; leaving it off costs only the
+tie-break's short cold-bail, which is the behaviour the slot was chosen for.
 
 **Push and internal jobs**
 

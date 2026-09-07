@@ -340,6 +340,10 @@ async function settleSplit(
     Math.min(TIEBREAK_BUDGET_MS, opts.timeoutMs ?? TIEBREAK_BUDGET_MS);
 
   for (const model of ladder) {
+    // A caller that gave up wants no more calls made on its behalf, and the
+    // ladder is the one place here that would otherwise keep spending after
+    // the answer stopped being wanted.
+    if (opts.signal?.aborted) break;
     const remaining = deadline - Date.now();
     if (remaining < TIEBREAK_MIN_MS) break;
     const result = await validateDialect(text, dialect, {
@@ -350,8 +354,14 @@ async function settleSplit(
     if (result.ok && result.verdict !== 'unknown') {
       return { result, model, elapsedMs: Date.now() - start };
     }
-    // It did not answer. If it is ours, it was probably asleep — say so, and
-    // let the warm-up policy decide whether that is worth acting on.
+    // It did not answer — but *why* decides whether that is worth acting on,
+    // and `validateDialect` reports a cancellation and a cold worker the same
+    // way, as `ok: false`. Only this call's own ceiling means "asleep". A
+    // caller's abort means the opposite, and treating it as cold would start a
+    // fresh request with a five-minute lifetime for a validation nobody is
+    // waiting for any more — spending exactly the capacity the cancellation
+    // was trying to stop.
+    if (opts.signal?.aborted) break;
     if (providerForModel(model) === 'runpod') warmTiebreaker(model);
   }
   return { result: null, model: null, elapsedMs: Date.now() - start };

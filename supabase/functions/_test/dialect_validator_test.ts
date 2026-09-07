@@ -52,6 +52,7 @@ interface ValidateOptions {
   apiKey?: string;
   passThreshold?: number;
   maxChars?: number;
+  signal?: AbortSignal;
   timeoutMs?: number;
   model?: string;
 }
@@ -473,8 +474,14 @@ Deno.test("a cold Jais falls through to Fanar instead of consuming the split", a
  */
 const holdsTheConnection = (request: Request): Promise<Response> =>
   new Promise((_, reject) => {
-    request.signal.addEventListener("abort", () =>
-      reject(new DOMException("The signal has been aborted", "AbortError")));
+    const hangUp = () =>
+      reject(new DOMException("The signal has been aborted", "AbortError"));
+    // Already aborted is the live case, not an edge case: a caller that gives
+    // up *during* the request aborts before this handler is even reached, and
+    // a listener attached after the fact never fires — leaving a promise that
+    // never settles and leaks its fetches into whichever test runs next.
+    if (request.signal.aborted) return hangUp();
+    request.signal.addEventListener("abort", hangUp);
   });
 
 Deno.test("a Jais that never answers is bailed on, and the split still gets settled", async () => {
@@ -606,6 +613,34 @@ Deno.test("warming fires once per cooldown, not once per cold split", async () =
   }, {
     env: { ...DEPLOYED, JAIS_TIEBREAK_WARMUP: "on" },
     upstreams: coldJais,
+  });
+});
+
+Deno.test("a caller that gives up mid-tie-break is not charged a wake-up", async () => {
+  const caller = new AbortController();
+  await withValidator(async (mod, up) => {
+    await mod.validateDialectCrossChecked("x", "Gulf", { signal: caller.signal });
+
+    // `validateDialect` reports a cancellation and a cold worker identically,
+    // as `ok: false`, so the ladder has to tell them apart from the signal
+    // rather than the result. Reading an abort as "asleep" would answer a
+    // cancelled request by starting a *new* one with a five-minute lifetime —
+    // spending the capacity the cancellation existed to stop.
+    assertEquals(warmups(up).length, 0);
+    // And the ladder stops rather than spending Fanar's allowance on a
+    // judgment whose caller has already walked away.
+    assertEquals(up.callsTo(FANAR_HOST).length, 0);
+  }, {
+    env: { ...DEPLOYED, JAIS_TIEBREAK_WARMUP: "on" },
+    upstreams: {
+      [OPENROUTER]: () => chatCompletion("", judgment({ score: 5 })),
+      [GATEWAY]: () => chatCompletion("", judgment({ score: 2, verdict: "rewrite" })),
+      [RUNPOD]: (request: Request) => {
+        caller.abort();
+        return holdsTheConnection(request);
+      },
+      [FANAR_HOST]: () => chatCompletion("", judgment({ score: 5 })),
+    },
   });
 });
 

@@ -17,9 +17,12 @@ import {
   engagementLabel,
   type HarvestSummary,
   screenInfo,
+  type SocialContentSource,
   type SocialPost,
   useAdminSocialPosts,
+  useCandidateSocialSources,
   useRunSocialHarvest,
+  useSetSocialSourceStatus,
   useSetSocialPostStatus,
   useTrendingTopics,
 } from "@/hooks/useSocialTrends";
@@ -45,6 +48,56 @@ const STATUS_TABS = [
   { value: "rejected", label: "Rejected" },
   { value: "pending", label: "Unscreened" },
 ];
+
+function SourceCard({ source }: { source: SocialContentSource }) {
+  const setStatus = useSetSocialSourceStatus();
+  const verification = (source.verification ?? {}) as Record<string, unknown>;
+  const judge = (status: "approved" | "rejected") =>
+    setStatus.mutate(
+      { id: source.id, status },
+      {
+        onSuccess: () => toast.success(
+          status === "approved"
+            ? `@${source.handle} will be included in the next harvest`
+            : `@${source.handle} rejected`,
+        ),
+        onError: (e) => toast.error(e instanceof Error ? e.message : "Update failed"),
+      },
+    );
+
+  return (
+    <Card>
+      <CardContent className="p-4 space-y-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <a
+            href={`https://x.com/${source.handle}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold hover:underline"
+          >
+            {source.display_name} <span className="text-muted-foreground">@{source.handle}</span>
+          </a>
+          <Badge variant="outline">{source.dialect}</Badge>
+          {source.country && <Badge variant="outline">{source.country}</Badge>}
+        </div>
+        {source.notes && <p className="text-sm text-muted-foreground">{source.notes}</p>}
+        <p className="text-xs text-muted-foreground">
+          Verified timeline: {typeof verification.tweets === "number" ? verification.tweets : "—"} posts
+          {typeof verification.arabic === "number" && ` · ${verification.arabic} Arabic`}
+          {typeof verification.prescreenPassed === "number" && ` · ${verification.prescreenPassed} passed prefilter`}
+        </p>
+        <div className="flex gap-2">
+          <Button size="sm" onClick={() => judge("approved")} disabled={setStatus.isPending}>
+            <Check className="h-3.5 w-3.5 mr-1.5" /> Approve source
+          </Button>
+          <Button size="sm" variant="outline" onClick={() => judge("rejected")} disabled={setStatus.isPending}>
+            <X className="h-3.5 w-3.5 mr-1.5" /> Reject
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
 
 function harvestToast(summary: HarvestSummary) {
   const posts = (summary.xPosts ?? 0) + (summary.telegramPosts ?? 0) + (summary.redditPosts ?? 0);
@@ -149,6 +202,7 @@ const AdminSocialTrends = () => {
   const [platform, setPlatform] = useState<string>("All");
 
   const { data: posts, isLoading } = useAdminSocialPosts({ status, dialect, platform });
+  const { data: candidateSources, isLoading: sourcesLoading } = useCandidateSocialSources();
   const { data: topicsByCountry } = useTrendingTopics(dialect);
   const harvest = useRunSocialHarvest();
 
@@ -179,6 +233,24 @@ const AdminSocialTrends = () => {
         Harvested X trends and Telegram/Reddit posts. The AI screen only fills the queue —
         nothing is published until you approve it here.
       </p>
+
+      {(sourcesLoading || (candidateSources?.length ?? 0) > 0) && (
+        <section className="mb-8" aria-labelledby="source-review-heading">
+          <h2 id="source-review-heading" className="text-lg font-semibold mb-1">
+            Sources needing review
+          </h2>
+          <p className="text-sm text-muted-foreground mb-3">
+            Approve an imported X account to include its posts in future harvests.
+          </p>
+          {sourcesLoading ? (
+            <LoadingPanel variant="inline" className="py-8" />
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {candidateSources?.map((source) => <SourceCard key={source.id} source={source} />)}
+            </div>
+          )}
+        </section>
+      )}
 
       {countries.length > 0 && (
         <section className="mb-6">

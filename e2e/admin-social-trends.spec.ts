@@ -60,6 +60,30 @@ test.describe("the review queue", () => {
     await expect(page.getByText("وش السالفة؟")).toBeVisible();
   });
 
+  test("approving an imported source makes it harvestable", async ({ page, db }) => {
+    db.seed("social_content_sources", [{
+      id: "10000000-0000-4000-8000-000000000001",
+      platform: "x",
+      handle: "yemenivoice",
+      display_name: "Yemeni Voice",
+      dialect: "Yemeni",
+      country: "Yemen",
+      notes: "Posts daily in Sanaani Arabic.",
+      status: "candidate",
+      verification: { tweets: 20, arabic: 18, prescreenPassed: 15 },
+    }]);
+
+    await page.goto("/admin/social-trends");
+    await expect(page.getByRole("heading", { name: "Sources needing review" })).toBeVisible();
+    await expect(page.getByText("@yemenivoice")).toBeVisible();
+    await expect(page.getByText(/20 posts · 18 Arabic · 15 passed prefilter/)).toBeVisible();
+    await page.getByRole("button", { name: "Approve source" }).click();
+
+    await expect(page.getByText("@yemenivoice")).not.toBeVisible();
+    const write = db.writesTo("social_content_sources").find((w) => w.method === "PATCH");
+    expect(write?.payload[0]).toEqual({ status: "approved" });
+  });
+
   test("a harvest run reports its per-dialect outcome", async ({ page, db, backend }) => {
     db.seed("social_posts", []);
     backend.stubFunction("harvest-social-trends", {

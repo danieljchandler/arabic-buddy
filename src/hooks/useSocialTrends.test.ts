@@ -12,8 +12,10 @@ import {
   latestTopicsByCountry,
   type TrendingTopic,
   useAdminSocialPosts,
+  useCandidateSocialSources,
   useRunSocialHarvest,
   useSetSocialPostStatus,
+  useSetSocialSourceStatus,
   useTrendingTopics,
 } from "./useSocialTrends";
 import type { SupabaseBackend } from "@/test/support/server/handler";
@@ -219,6 +221,46 @@ describe("the human verdict", () => {
     await expect(
       harness.result.current.mutateAsync({ id: socialPostId(0), status: "rejected" }),
     ).rejects.toBeTruthy();
+  });
+});
+
+describe("the source review queue", () => {
+  const candidate = {
+    id: "10000000-0000-4000-8000-000000000001",
+    platform: "x",
+    handle: "yemenivoice",
+    display_name: "Yemeni Voice",
+    dialect: "Yemeni",
+    country: "Yemen",
+    notes: "Research candidate",
+    status: "candidate",
+    verification: { tweets: 20, arabic: 18 },
+  };
+
+  it("lists only imported X candidates", async () => {
+    const harness = renderHookWithProviders(() => useCandidateSocialSources(), {
+      persona: "content_reviewer",
+      seed: (backend: SupabaseBackend) => backend.db.seed("social_content_sources", [
+        candidate,
+        { ...candidate, id: "10000000-0000-4000-8000-000000000002", status: "approved" },
+        { ...candidate, id: "10000000-0000-4000-8000-000000000003", platform: "telegram" },
+      ]),
+    });
+    cleanup = harness.cleanup;
+    await waitFor(() => expect(harness.result.current.isSuccess).toBe(true));
+    expect(harness.result.current.data?.map((source) => source.handle)).toEqual(["yemenivoice"]);
+  });
+
+  it("records the human source verdict", async () => {
+    const harness = renderHookWithProviders(() => useSetSocialSourceStatus(), {
+      persona: "content_reviewer",
+      seed: (backend: SupabaseBackend) => backend.db.seed("social_content_sources", [candidate]),
+    });
+    cleanup = harness.cleanup;
+    await harness.result.current.mutateAsync({ id: candidate.id, status: "approved" });
+    expect(harness.backend.db.lastWriteTo("social_content_sources")?.payload[0]).toEqual({
+      status: "approved",
+    });
   });
 });
 

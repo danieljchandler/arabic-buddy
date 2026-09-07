@@ -41,6 +41,19 @@ export interface SocialPost {
   captured_at: string;
 }
 
+export interface SocialContentSource {
+  id: string;
+  platform: string;
+  handle: string;
+  display_name: string;
+  dialect: string;
+  country: string | null;
+  notes: string | null;
+  verification: Json;
+  status: string;
+  last_verified_at: string | null;
+}
+
 /**
  * Keep only each country's most recent harvest day, in rank order. The table
  * accumulates a row per (country, topic, day), so without this a country whose
@@ -149,6 +162,38 @@ export function useAdminSocialPosts(filters: {
       if (error) throw error;
       return (data ?? []) as unknown as SocialPost[];
     },
+  });
+}
+
+/** Imported account proposals waiting for the source-level human gate. */
+export function useCandidateSocialSources() {
+  return useQuery({
+    queryKey: ["candidate-social-sources"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("social_content_sources")
+        .select("*")
+        .eq("platform", "x")
+        .eq("status", "candidate")
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as unknown as SocialContentSource[];
+    },
+  });
+}
+
+/** Approving a candidate makes it eligible for the next harvest. */
+export function useSetSocialSourceStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, status }: { id: string; status: "approved" | "rejected" }) => {
+      const { error } = await supabase
+        .from("social_content_sources")
+        .update({ status })
+        .eq("id", id);
+      if (error) throw error;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["candidate-social-sources"] }),
   });
 }
 

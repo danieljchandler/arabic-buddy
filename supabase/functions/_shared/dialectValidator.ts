@@ -10,7 +10,7 @@ import {
   getDialectLabel,
   type Dialect,
 } from './dialectHelpers.ts';
-import { chatFetch, tryChatRoute } from './aiGateway.ts';
+import { chatFetch, providerForModel, tryChatRoute, warmRoute } from './aiGateway.ts';
 import { MODEL_IDS } from './modelRegistry.ts';
 
 const VALIDATOR_MODEL = MODEL_IDS.GEMINI_PRO;
@@ -38,7 +38,35 @@ const ARABIC_VALIDATOR_MODEL = MODEL_IDS.SABA;
 const TIEBREAK_VALIDATOR_MODEL = MODEL_IDS.FANAR;
 
 /**
- * The Arabic-native specialist that settles a split, in preference order.
+ * How long a single tie-break rung may take, and how long the whole ladder may.
+ *
+ * The tie-break is the one call in this file with no budget of its own: it runs
+ * *after* the two standing legs, sequentially, on a path a learner is waiting
+ * on. Before these ceilings it inherited `opts.timeoutMs` — the same budget the
+ * parallel legs got — and so could double the validator's cost, and inherited
+ * nothing at all from `askBrain`'s review path, which passes no options and
+ * therefore left the call unbounded.
+ *
+ * `COLD_BAIL` is the ceiling for a rung we host ourselves, and it is short on
+ * purpose. A cold Jais does not answer in five seconds and is not meant to:
+ * bailing is the correct outcome, because the next rung down can still settle
+ * the split, and the property this slot was chosen for is that a cold
+ * tie-breaker costs the learner nothing.
+ */
+/**
+ * The ceiling a validator call falls back on when its caller named none. Not a
+ * budget so much as a backstop against an unbounded request; callers that care
+ * about latency pass their own and get something far tighter.
+ */
+const VALIDATOR_DEFAULT_TIMEOUT_MS = 30_000;
+
+const TIEBREAK_COLD_BAIL_MS = 5_000;
+const TIEBREAK_BUDGET_MS = 12_000;
+/** Below this there is no point asking anyone; the rule is the cheaper answer. */
+const TIEBREAK_MIN_MS = 1_000;
+
+/**
+ * The Arabic-native specialists that can settle a split, best first.
  *
  * Jais 2 goes first when its endpoint is deployed. It is a strong instrument
  * for this specific question — Arabic-native, trained from scratch, judging
@@ -53,20 +81,61 @@ const TIEBREAK_VALIDATOR_MODEL = MODEL_IDS.FANAR;
  * inside a caller's timeout. Size is chosen by job, not by quality; see
  * `MODEL_IDS` for the full cost argument.
  *
- * Even the 8B can be cold, and that is survivable *here* and almost nowhere
- * else in the pipeline: a tie-break that does not answer leaves `verdict` on
- * the "harsher verdict wins" rule, which is exactly what happens today when no
- * tie-breaker is configured at all. So the failure mode of a cold Jais is the
- * behaviour this function already had — never a worse verdict, occasionally a
- * better one — and Fanar remains the standing answer when Jais is not
- * deployed.
+ * This is a **ladder, not a choice**, and that is the correction to how the
+ * slot was first wired. Jais either being deployed or not was read as Jais
+ * *or* Fanar, which quietly made a deployed-but-cold Jais worse than no Jais:
+ * the endpoint scales to zero, so a cold worker consumed the split and Fanar —
+ * warm, hosted, and the model that settled every split before Jais existed —
+ * was never asked. Falling through restores that, and costs Fanar's allowance
+ * strictly *less* than it spent before Jais arrived, because only the splits
+ * where Jais was cold reach it now.
  *
- * Returns null when neither is configured; the caller then keeps the rule.
+ * Returns empty when neither is configured; the caller then keeps the rule.
  */
-function tiebreakValidatorModel(): string | null {
-  if (tryChatRoute(MODEL_IDS.JAIS2_8B)) return MODEL_IDS.JAIS2_8B;
-  if (tryChatRoute(TIEBREAK_VALIDATOR_MODEL)) return TIEBREAK_VALIDATOR_MODEL;
-  return null;
+function tiebreakValidatorModels(): string[] {
+  const ladder: string[] = [];
+  if (tryChatRoute(MODEL_IDS.JAIS2_8B)) ladder.push(MODEL_IDS.JAIS2_8B);
+  if (tryChatRoute(TIEBREAK_VALIDATOR_MODEL)) ladder.push(TIEBREAK_VALIDATOR_MODEL);
+  return ladder;
+}
+
+/**
+ * A rung's own ceiling. A worker we host can be asleep, and the whole point of
+ * asking it first is that finding out is cheap; a hosted API is either up or it
+ * is not, so it gets whatever budget is left.
+ */
+function tiebreakCeilingMs(model: string): number {
+  return providerForModel(model) === 'runpod' ? TIEBREAK_COLD_BAIL_MS : TIEBREAK_BUDGET_MS;
+}
+
+/**
+ * Wake the self-hosted tie-breaker after a split found it cold, so the *next*
+ * split lands on a live worker.
+ *
+ * Off unless `JAIS_TIEBREAK_WARMUP=on`, and that default is a cost decision
+ * rather than caution. The endpoint holds at most one worker, so the ceiling on
+ * what warming can cost is one worker running continuously — about $500 a
+ * month, which is exactly the `workersMin: 1` bill this deployment exists to
+ * avoid. Between "never warm" and that ceiling there is no setting this module
+ * can pick on its own: it depends on how clustered splits actually are and on
+ * how long a warm-cache boot takes, neither of which is measured yet. So the
+ * mechanism ships, wired and tested, and turning it on stays a deliberate act.
+ *
+ * The cooldown is what makes it bounded at all: one wake per idle window, so a
+ * burst of cold splits cannot start a boot each. Module-level state, so it
+ * resets when the isolate does — which is the right granularity, since a fresh
+ * isolate has no idea what the last one warmed.
+ */
+const WARMUP_COOLDOWN_MS = 5 * 60_000;
+let lastWarmupAt = 0;
+
+function warmTiebreaker(model: string): void {
+  if (Deno.env.get('JAIS_TIEBREAK_WARMUP')?.trim() !== 'on') return;
+  const now = Date.now();
+  if (now - lastWarmupAt < WARMUP_COOLDOWN_MS) return;
+  lastWarmupAt = now;
+  console.log(`[dialectValidator] tie-breaker ${model} was cold; warming for the next split`);
+  warmRoute(model);
 }
 
 export interface ValidatorLeak {
@@ -97,11 +166,29 @@ export interface ValidateOptions {
    * Per-call ceiling. Preferred over `signal` for the cross-checked path: one
    * shared AbortSignal across two concurrent calls means a slow leg eats the
    * other leg's clock, so each call mints its own timer from this instead.
-   * Ignored when `signal` is supplied.
+   * Combined with `signal` when both are given, rather than overridden by it —
+   * the tie-break clamps this down to its own ceiling, and a caller's signal
+   * must not be able to lift that clamp back off.
    */
   timeoutMs?: number;
   /** Override the judging model. Defaults to the registry's Pro-tier judge. */
   model?: string;
+}
+
+/**
+ * The signal one call is made under: the caller's cancellation and this call's
+ * own ceiling, whichever fires first. Both matter — the ceiling bounds a slow
+ * provider, and the caller's signal is how an abandoned request stops paying
+ * for work nobody will read.
+ */
+function callSignal(opts: ValidateOptions): AbortSignal | undefined {
+  // Never unbounded. `chatFetch` applies no timeout of its own — the 90s in
+  // `aiGateway` belongs to `generateImage` — so a validator call that passes
+  // neither a signal nor a ceiling used to hang for as long as the provider
+  // would hold the socket. `askBrain`'s review path passes exactly that.
+  const timer = AbortSignal.timeout(opts.timeoutMs ?? VALIDATOR_DEFAULT_TIMEOUT_MS);
+  if (opts.signal && timer) return AbortSignal.any([opts.signal, timer]);
+  return opts.signal ?? timer;
 }
 
 export async function validateDialect(
@@ -174,7 +261,7 @@ Be harsh. When in doubt between 4 and 3, choose 3.`;
       tools: [{ type: 'function', function: tool }],
       tool_choice: { type: 'function', function: { name: tool.name } },
     }, {
-      signal: opts.signal ?? (opts.timeoutMs ? AbortSignal.timeout(opts.timeoutMs) : undefined),
+      signal: callSignal(opts),
       label: 'dialectValidator',
     });
     if (!res.ok) {
@@ -206,6 +293,68 @@ Be harsh. When in doubt between 4 and 3, choose 3.`;
     console.warn('[dialectValidator] failed', model, err);
     return { score: 0, verdict: 'unknown', leaks: [], latencyMs: Date.now() - start, ok: false, model };
   }
+}
+
+/**
+ * Walk the tie-break ladder until somebody actually judges the text.
+ *
+ * Three properties this has to keep, in order of how badly they broke before:
+ *
+ * 1. **Bounded.** The whole phase is capped at `TIEBREAK_BUDGET_MS`, clamped
+ *    further by whatever the caller had left. Nothing here can inherit a
+ *    caller's full budget a second time, and the path that passes no options at
+ *    all gets a ceiling rather than an open-ended request.
+ * 2. **No worse than no tie-breaker.** A rung that does not answer — cold,
+ *    down, out of quota, or `unknown`, which is what this returns when it could
+ *    not judge — is not a casting vote. Exhaust the ladder and the caller keeps
+ *    the harsher-verdict rule, which is exactly the behaviour it had before any
+ *    tie-breaker existed.
+ * 3. **A cold first rung does not consume the split.** Falling through to the
+ *    hosted specialist is the difference between "Jais is deployed, so Fanar
+ *    never runs" and "Jais answers when it is up, Fanar when it is not".
+ */
+interface SettledSplit {
+  /** The judgment that settled it, or null when nobody on the ladder could. */
+  result: ValidatorResult | null;
+  /** Which rung settled it — for the log and the reported `model`. */
+  model: string | null;
+  /**
+   * Wall clock for the whole phase, including rungs that did not answer.
+   * Reported rather than the winning rung's own `latencyMs`, because what the
+   * caller's budget actually paid for is every rung that was tried — the cost
+   * of a cold first rung is precisely the number this exists to make visible.
+   */
+  elapsedMs: number;
+}
+
+async function settleSplit(
+  text: string,
+  dialect: Dialect,
+  opts: ValidateOptions,
+): Promise<SettledSplit | null> {
+  const ladder = tiebreakValidatorModels();
+  if (!ladder.length) return null;
+
+  const start = Date.now();
+  const deadline = start +
+    Math.min(TIEBREAK_BUDGET_MS, opts.timeoutMs ?? TIEBREAK_BUDGET_MS);
+
+  for (const model of ladder) {
+    const remaining = deadline - Date.now();
+    if (remaining < TIEBREAK_MIN_MS) break;
+    const result = await validateDialect(text, dialect, {
+      ...opts,
+      model,
+      timeoutMs: Math.min(remaining, tiebreakCeilingMs(model)),
+    });
+    if (result.ok && result.verdict !== 'unknown') {
+      return { result, model, elapsedMs: Date.now() - start };
+    }
+    // It did not answer. If it is ours, it was probably asleep — say so, and
+    // let the warm-up policy decide whether that is worth acting on.
+    if (providerForModel(model) === 'runpod') warmTiebreaker(model);
+  }
+  return { result: null, model: null, elapsedMs: Date.now() - start };
 }
 
 /**
@@ -250,17 +399,12 @@ export async function validateDialectCrossChecked(
 
   const agreement = arabic.verdict === strong.verdict ? 'agree' : 'disagree';
 
-  // On a split, ask the Arabic-native specialist rather than settling it with a
+  // On a split, ask an Arabic-native specialist rather than settling it with a
   // rule. Skipped silently when none is configured, and never reached when the
-  // two agree — see `tiebreakValidatorModel` for which one is asked and why.
-  const tiebreakModel = agreement === 'disagree' ? tiebreakValidatorModel() : null;
-  let tiebreak: ValidatorResult | null = null;
-  if (tiebreakModel) {
-    const result = await validateDialect(text, dialect, { ...opts, model: tiebreakModel });
-    // `unknown` is what this returns when it could not judge, which is not a
-    // casting vote — fall back to the rule rather than let a non-answer decide.
-    if (result.ok && result.verdict !== 'unknown') tiebreak = result;
-  }
+  // two agree — see `tiebreakValidatorModels` for who is asked and in what order.
+  const settled = agreement === 'disagree' ? await settleSplit(text, dialect, opts) : null;
+  const tiebreak = settled?.result ?? null;
+  const tiebreakModel = settled?.model ?? null;
 
   // Harsher verdict wins: a rewrite call from either model stands, and the
   // reported score is the lower of the two. The tie-breaker, when there is one,
@@ -290,9 +434,10 @@ export async function validateDialectCrossChecked(
     leaks,
     notes: tiebreak?.notes ?? strong.notes ?? arabic.notes,
     // The two standing legs run in parallel, so their cost to the caller's
-    // budget is the slower one rather than the sum; a tie-break is sequential
-    // after them, so it adds its own latency on the calls that need it.
-    latencyMs: Math.max(arabic.latencyMs, strong.latencyMs) + (tiebreak?.latencyMs ?? 0),
+    // budget is the slower one rather than the sum; the tie-break ladder is
+    // sequential after them, so it adds the whole phase — every rung tried,
+    // not just the one that answered.
+    latencyMs: Math.max(arabic.latencyMs, strong.latencyMs) + (settled?.elapsedMs ?? 0),
     ok: true,
     // `tiebreakModel`, not the Fanar constant: which model settles a split is
     // now a deployment question, so naming the constant would attribute Jais's

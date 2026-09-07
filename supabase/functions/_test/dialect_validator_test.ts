@@ -397,6 +397,10 @@ Deno.test("a deployed Jais settles a split, in place of Fanar", async () => {
     // The tie-breaker is an opinion where the merge only had a policy, so its
     // "pass" overrides the harsher-verdict rule that would have said rewrite.
     assertEquals(result.verdict, "pass");
+    // And it is named as the model that settled it. Which specialist gets this
+    // slot is a deployment question now, so a constant here would credit every
+    // Jais verdict to Fanar in the logs and in anything reading the result.
+    assertEquals(result.model, `${ARABIC}+${STRONG}+${JAIS}`);
   }, { env: DEPLOYED, upstreams: split(RUNPOD, { score: 5 }) });
 });
 

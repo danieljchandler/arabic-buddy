@@ -294,7 +294,10 @@ export async function validateDialectCrossChecked(
     // after them, so it adds its own latency on the calls that need it.
     latencyMs: Math.max(arabic.latencyMs, strong.latencyMs) + (tiebreak?.latencyMs ?? 0),
     ok: true,
-    model: `${ARABIC_VALIDATOR_MODEL}+${VALIDATOR_MODEL}${tiebreak ? `+${TIEBREAK_VALIDATOR_MODEL}` : ''}`,
+    // `tiebreakModel`, not the Fanar constant: which model settles a split is
+    // now a deployment question, so naming the constant would attribute Jais's
+    // verdict to Fanar in every consumer and log that reads this field.
+    model: `${ARABIC_VALIDATOR_MODEL}+${VALIDATOR_MODEL}${tiebreak ? `+${tiebreakModel}` : ''}`,
     agreement,
   };
 }

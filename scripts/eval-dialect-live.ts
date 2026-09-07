@@ -40,7 +40,7 @@
  *                       rather than on the paper's.
  */
 import { detectMsaLeaks } from "../supabase/functions/_shared/msaLeakDetector.ts";
-import { chatFetch, hasAnyProvider, providerForModel } from "../supabase/functions/_shared/aiGateway.ts";
+import { chatFetch, providerForModel, tryChatRoute } from "../supabase/functions/_shared/aiGateway.ts";
 import { getDialectDemonstrations } from "../supabase/functions/_shared/dialectHelpers.ts";
 import {
   getDialectIdentity,
@@ -74,9 +74,21 @@ const limit = Number(opt("limit")) || Infinity;
 const compareModel = opt("compare");
 const withDemos = !args.includes("--no-demos");
 
-if (!hasAnyProvider()) {
-  console.error("No provider key set. Export GEMINI_API_KEY, OPENAI_API_KEY or OPENROUTER_API_KEY.");
-  Deno.exit(2);
+// The models this run will actually call, rather than "is any provider
+// configured at all". A Jais-versus-Fanar comparison needs neither Google nor
+// OpenRouter, so the broad check would exit 2 on the very command the Jais
+// runbook prescribes. `tryChatRoute` asks the precise question — a key *and*
+// somewhere to send it — which is also the half-configured state RunPod alone
+// can be in, where a key is present but no endpoint id names a worker.
+for (const id of [modelArg, compareModel]) {
+  if (id && !tryChatRoute(id)) {
+    console.error(
+      `No route for ${id} (provider: ${providerForModel(id)}). Export that ` +
+        `provider's key — for runpod/* ids, RUNPOD_API_KEY *and* the size's ` +
+        `RUNPOD_JAIS_<size>_ENDPOINT_ID.`,
+    );
+    Deno.exit(2);
+  }
 }
 // Narrowed once, after the usage check above, so the rest of the file has a
 // plain string rather than re-proving it is not null at every use.

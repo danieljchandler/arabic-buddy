@@ -44,7 +44,7 @@ interface VisionReply {
  */
 const MAX_INLINE_VIDEO_BYTES = 13 * 1024 * 1024;
 
-const GEMINI_MODEL = "gemini-2.5-flash";
+const GEMINI_MODEL = MODEL_IDS.GEMINI_FLASH.replace(/^google\//, "");
 
 function json(body: unknown, status: number, corsHeaders: Record<string, string>): Response {
   return new Response(JSON.stringify(body), {

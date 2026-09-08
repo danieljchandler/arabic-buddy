@@ -62,7 +62,7 @@ return `null` for the provider entirely (as it already does for Fanar and
 RunPod) until the curl above proves the field is accepted — a 400 on every call
 costs a round trip on every call.
 
-**`_shared/aiGateway.ts`** — five small edits, each mirroring the Fanar case
+**`_shared/aiGateway.ts`** — six small edits, each mirroring the Fanar case
 that is already there:
 
 | Site | Change |
@@ -72,11 +72,27 @@ that is already there:
 | `HUMAIN_MODEL` regex | `/^humain\//` → `vendorForModel` returns `'humain'` |
 | `keyFor` / `KEY_ENV` / `CHAT_URLS` | `HUMAIN_API_KEY` |
 | `upstreamModelId` | strip the `humain/` prefix |
+| `hasAnyProvider` | add the HUMAIN key — see below |
 | `canFallBack` | unchanged — stays false, which is the point |
 
 A missing `HUMAIN_API_KEY` then makes `tryChatRoute` return `null`, which is
 already the codebase's word for "unconfigured provider, skip silently". That
 is what lets every consumer below ship dark and light up when the secret lands.
+
+`hasAnyProvider` is the one that is easy to miss and fails loudly. It reads
+`Boolean(googleApiKey() ?? openaiApiKey() ?? openRouterApiKey())`, and
+`askBrain` calls it as a preflight before any model resolution happens —
+throwing `No AI provider configured` and naming those three secrets. A
+deployment whose only key is HUMAIN would therefore fail *before* the route
+that would have served it was ever built, which is exactly the shape
+`humain-translate` takes below (solo M3 through the Brain). Add the key to
+the check and to the message it prints.
+
+Worth saying plainly: this is a pre-existing gap rather than one M3 creates —
+a Fanar-only or Jais-only deployment fails the same preflight today. It has
+gone unnoticed because those two are always additional legs beside a
+configured Google or OpenRouter, never the sole provider. M3 is the first
+model this plan proposes to call on its own, so it is the first to meet it.
 
 ### 1b. Where to actually use it, in the order worth doing
 
@@ -143,9 +159,15 @@ in three parts, and M3 slots into it as a *candidate generator*:
   exactly this shape.
 - **`dialect_native_reviews`** is the queue reviewers already work in, on the
   admin dialect-rules tab, with a settle trigger.
-- **`user_roles`** already carries `content_reviewer`, `transcriber` and
-  `beta_tester`, and `useAdminAuth` already collapses them into a role the
-  router can gate on.
+- **`user_roles`** already carries `content_reviewer` and `transcriber`, and
+  `useAdminAuth` collapses those into a role the router can gate on. Note that
+  `beta_tester` is **not** one of them: `UserRole` in `useAdminAuth.ts` is
+  `admin | content_reviewer | recorder | transcriber | null`, `checkRoles()`
+  never queries the beta role, and `AdminLayout` does not count it as
+  privileged. A beta-tester-only account resolves to no role and cannot reach
+  an admin-nav surface at all. So this feature is `content_reviewer`-gated,
+  full stop; widening it to beta testers later is its own change to
+  `useAdminAuth` and the layout's gate, not a config flip.
 
 So the feature is: **M3 drafts, a human contributor accepts or corrects, and
 the pair lands as a `gold` training example.**
@@ -165,7 +187,26 @@ contributor pastes/receives text
                  │                        'content_reviewer', engines: { model: 'humain/humain-m3' },
                  │                        source_function: 'humain-translate', tier: 'gold' }
                  └─ rejected/flagged  → dialect_native_reviews { source: 'contributor' }
+                                        (see the trigger caveat below)
 ```
+
+**The rejection lane has a label bug waiting in it.** When a row in
+`dialect_native_reviews` is later settled as `corrected`, the
+`training_example_from_review()` trigger mirrors it into `training_examples`
+with `task_type` hardcoded to `'generation'`. A rejected M3 *translation* that
+a native speaker then fixes would therefore land labelled as a generation
+pair, quietly contaminating any export that filters by task. Three ways out,
+in order of preference:
+
+1. Don't route translation candidates through that trigger at all — have
+   `record-translation-review` write the `training_examples` row itself with
+   `task_type: 'translation'`, and use `dialect_native_reviews` only as the
+   human queue.
+2. Teach the trigger to derive the task from `NEW.source` or `NEW.metadata`.
+   This is correct but costs a migration, which is the one place §3's "no
+   schema change" claim does not hold — see the note there.
+3. Accept the mislabel. Not an option: the whole value of these rows is that
+   an export can be filtered to one task.
 
 Two things to keep from the existing patterns rather than reinvent:
 
@@ -174,10 +215,28 @@ Two things to keep from the existing patterns rather than reinvent:
   `transcript-review` rule, and its reasoning applies verbatim: an audit trail
   its own subject can author is worth nothing. A contributor must not be able
   to post a `machine_output` of their choosing — the M3 draft the pair is
-  measured against has to be the one the server issued. Persist the candidate
-  (or a hash of it) when `humain-translate` returns it and look it up on write.
-- **Contributors are not learners.** Gate the route on `content_reviewer` (or
-  `beta_tester` for a wider trial), not on subscription tier.
+  measured against has to be the one the server issued.
+
+  This is the invariant that decides `candidate_token`'s design, and the repo
+  offers nothing to build it from: there is no candidate store and no signing
+  helper anywhere in `supabase/functions/`. Two honest options, and a v1 must
+  pick one rather than leave the token unexplained:
+
+  - **A signed self-contained token.** `humain-translate` returns an HMAC over
+    `{ draft, dialect, user_id, issued_at }` signed with a new secret; the
+    write endpoint verifies the signature and an expiry before trusting the
+    draft. No table, so §3's "no migration" holds — at the cost of a new
+    secret and a token big enough to carry the draft.
+  - **A candidate table.** `translation_candidates` keyed by id, with
+    `user_id`, the draft, and an expiry; the token is just the row id. Simpler
+    to reason about and the natural home if the queue later needs claiming,
+    but it is a migration and a generated-types entry.
+
+  Either way, do **not** let the client hand back the draft it was shown. That
+  is the one shape that voids the invariant entirely.
+- **Contributors are not learners.** Gate the route on `content_reviewer`, not
+  on subscription tier — and see the `beta_tester` note above for why that is
+  not a drop-in alternative.
 
 Skip the `bronze` lane here: M3-vs-repair-pass pairs are already covered by
 `trainingExampleLogger`, and the value of this surface is the human half.
@@ -186,7 +245,17 @@ Skip the `bronze` lane here: M3-vs-repair-pass pairs are already covered by
 
 ## 3. Database schema changes
 
-**None required for v1.** Checked, one by one:
+**None required for the storage of the pairs themselves** — but "none at all"
+is only true for one of the choices left open above. Two decisions in §2 each
+carry a migration on one branch: the `candidate_token` store (a signed token
+avoids it; a `translation_candidates` table does not), and the rejection lane's
+`task_type` (writing the row from the edge function avoids it; teaching
+`training_example_from_review()` does not). Take the migration-free branch of
+both and this section holds as written; take either other branch and budget a
+migration plus a generated-types drift entry. The compare-mode record below is
+a third, and it has no migration-free branch.
+
+The tables the feature actually writes, checked one by one:
 
 | Table | Verdict |
 | --- | --- |
@@ -233,11 +302,28 @@ usage logging, which are the whole point of the Brain. Set `callTimeoutMs`
 explicitly (the preview tier is slow) and `skipRepair: false` so a leaky draft
 is repaired before a human is asked to judge it.
 
-`mode: "compare"` is worth building on day one and costs almost nothing: run
-the existing `TRANSLATION` lineup alongside M3 and return both, unlabelled or
-labelled by preference. That turns the contributor tool into the evaluation
-harness for the decision in §1b — human preference data on real content, which
-the golden-set leak rate cannot give you.
+`mode: "compare"` is worth building on day one: run the existing `TRANSLATION`
+lineup alongside M3 and return both, unlabelled. That is what turns the
+contributor tool into the evaluation harness for the decision in §1b — human
+preference data on real content, which the golden-set leak rate cannot give
+you.
+
+It is *not* free, though, and the flow as drawn in §2 would throw the data
+away. A preference is a fact about a pair — which candidate won, which lost,
+which model produced each, and what order they were shown in — and none of
+that survives a write that records one `candidate_token` and one action. Worse,
+the most decisive outcome of all is an accept with no edit, which §2 skips as
+a no-op because `machine_output == human_output` makes a useless training pair.
+It is a useless *training* pair and the strongest possible *preference*
+signal.
+
+So compare mode needs a record of its own: a comparison id issued with the two
+drafts, carrying both model ids and the display order, and a selection written
+on every resolution including unchanged accepts. There is no existing table
+for this and no way to fold it into `training_examples`, whose row is a pair
+and not a choice — so unlike the rest of §2, this one costs a small table. If
+that is not wanted in v1, ship compare mode as display-only and say so, rather
+than claiming an evaluation harness that records nothing.
 
 **`POST /functions/v1/record-translation-review`**
 
@@ -268,10 +354,17 @@ otherwise, and they fail on *adding* code, not on breaking it):
   `AskAISentence` and the `useTranslateText` hook shape already do this job on
   `/translate`. A new `useHumainTranslate` hook mirroring `useTranslateText`
   needs a co-located test (`hookCoverage` guard) and keeps the page thin.
-- **A new route costs two manifest entries**: `src/test/support/routes/manifest.ts`
-  (`routeManifest`) and an in-app link or a `NO_LINK_NEEDED` entry with a
-  written reason (`routeReachability`). A contributor tool reached only from
-  the admin nav is the normal case for the second.
+- **A new route costs two manifest entries and one allow-list**:
+  `src/test/support/routes/manifest.ts` (`routeManifest`), an in-app link or a
+  `NO_LINK_NEEDED` entry with a written reason (`routeReachability`), and —
+  the one a manifest entry does not buy you — the path itself in
+  `CONTENT_REVIEWER_ALLOWED_ADMIN_PREFIXES` in `src/lib/rbac.ts`.
+  `AdminLayout` admits a content reviewer only where
+  `canAccessContentReviewerAdminPath()` returns true, and that function matches
+  against a fixed prefix list (`/admin/videos`, `/admin/set-phrases`,
+  `/admin/dialect-rules`, …). Without an entry there, the intended
+  contributors are redirected away from a route the manifest happily declares
+  reviewer-accessible.
 - **Label the provenance.** An M3 draft is a candidate, not app-quality dialect
   content — a "HUMAIN M3 · draft" chip, and the leak/validator verdict from
   `_meta` shown next to it, so a contributor knows what the machine already

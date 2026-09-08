@@ -40,7 +40,7 @@ const LENGTH_META: Record<ListenLength, { label: string; sub: string }> = {
 };
 
 const Listen = () => {
-  useDocumentTitle("Listen — Hakiya");
+  useDocumentTitle("Listen — Hikaya");
   const navigate = useNavigate();
   const { activeDialect } = useDialect();
   // How much of each episode's script the learner already knows. The scripts

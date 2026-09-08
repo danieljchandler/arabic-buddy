@@ -1,4 +1,4 @@
-// Generates the Hakiya brand illustrations with the Gemini image API.
+// Generates the Hikaya brand illustrations with the Gemini image API.
 // The committed WebP assets in src/assets/illustrations/ were produced by this
 // script; rerun it to regenerate or extend the set (add a spec below), then run
 // scripts/convert-illustrations.mjs to resize/convert into src/assets.

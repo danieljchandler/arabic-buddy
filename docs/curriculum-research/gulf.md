@@ -1,6 +1,6 @@
 # Gulf Arabic (Khaleeji) Pre-A1 → B1 Curriculum Research Brief
 
-Prepared for Hakiya content authors. Scope: Stage 1 Foundations (Pre-A1→A1), Stage 2 Building Blocks (A1→A2), Stage 3 The Bridge (A2→B1). Everything in Arabic below is *spoken Gulf*, never MSA. Where a form is contested between Gulf countries it is labelled; where a claim could not be verified online it is marked **[own knowledge]**.
+Prepared for Hikaya content authors. Scope: Stage 1 Foundations (Pre-A1→A1), Stage 2 Building Blocks (A1→A2), Stage 3 The Bridge (A2→B1). Everything in Arabic below is *spoken Gulf*, never MSA. Where a form is contested between Gulf countries it is labelled; where a claim could not be verified online it is marked **[own knowledge]**.
 
 Conventions used in this brief:
 - Transliteration follows the app's `TRANSLITERATION_RULES.Gulf` (ق = g, ع = 3 or ʿ, ح = H, خ = kh, emphatics capitalised, long vowels doubled). ج is written **j/y** as a pair where the countries split (Riyadh/Jeddah *j*, Kuwait/UAE/Qatar/Bahrain mostly *y*), otherwise *j*. See §3 for the decision this forces.

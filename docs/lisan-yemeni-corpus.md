@@ -2,11 +2,11 @@
 
 Status: **evaluation only.** Nothing in this document has been implemented.
 It exists to answer one question: is the Lisan Yemeni corpus worth pulling into
-Hakiya, and if so, for what.
+Hikaya, and if so, for what.
 
 ## Why we went looking
 
-Hakiya ships three dialects, and Yemeni is by a wide margin the thinnest. The
+Hikaya ships three dialects, and Yemeni is by a wide margin the thinnest. The
 reason is structural, not cosmetic.
 
 Every generator gets its dialect instructions from the `dialect_rules` table via

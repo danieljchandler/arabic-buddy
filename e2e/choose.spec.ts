@@ -40,7 +40,7 @@ test.describe("choosing what to do", () => {
   });
 
   test("opens the paths rather than announcing them", async ({ page }) => {
-    // Where Ingleezy greys its curriculum out as coming soon, both of Hakiya's
+    // Where Ingleezy greys its curriculum out as coming soon, both of Hikaya's
     // sequential paths are real — so the doors open, and the alphabet one
     // reports its position, because a path is the one thing on this screen
     // that has one.

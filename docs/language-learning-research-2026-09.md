@@ -2,7 +2,7 @@
 
 *September 2026. A broad verification pass over second-language-acquisition and
 spaced-repetition research, plus an inventory of dialectal-Arabic AI resources,
-compared against what Hakiya actually implements. Companion to
+compared against what Hikaya actually implements. Companion to
 `docs/plateau-research-2026-09.md`, which covered the plateau/output/chunk/
 shadowing literature and is not repeated here.*
 
@@ -51,7 +51,7 @@ far worse than per-user-optimized FSRS-7 (0.3401 / 0.0634). An app shipping
 fixed FSRS constants gives up most of the algorithm's advantage regardless of
 which version it ships.
 
-**This is the single most important finding in this document for Hakiya**, and
+**This is the single most important finding in this document for Hikaya**, and
 it inverts the obvious move. Upgrading `spacedRepetition.ts` from FSRS-5 to
 FSRS-6/7 while keeping the stock weight vector buys a fraction of what fitting
 19 weights per learner would buy — and we cannot fit anything, because we do not
@@ -142,7 +142,7 @@ https://www.cambridge.org/core/journals/language-teaching/article/how-effective-
 - Proficiency moderates hard: beyond-basic learners g = 1.40 vs basic learners
   **g = 0.70**. Narrative texts g = 1.43 vs expository **g = 0.61**.
 
-**This is the most uncomfortable finding for Hakiya's shape.** The app is
+**This is the most uncomfortable finding for Hikaya's shape.** The app is
 video-first — Discover, Feed, DiscoverVideo, WordClips, the clip pipeline — and
 audiovisual viewing is the *weakest* channel in this dataset, less than half the
 pickup of plain reading, and the only mode whose gains fade rather than
@@ -250,7 +250,7 @@ Arabic has no standard orthography.
 dialect from an MSA source measurably biases output toward MSA. MADAR's authors
 deliberately translated from English/French rather than MSA, attributing an
 earlier corpus's inflated dialect-similarity scores to exactly that priming
-effect. Anywhere Hakiya generates or translates dialect *from* MSA, this applies.
+effect. Anywhere Hikaya generates or translates dialect *from* MSA, this applies.
 
 **`unverified` — morphology should be taught in context, not as paradigm
 tables.** A PRISMA review of Arabic *sarf* instruction (2010–2025) finds
@@ -465,7 +465,7 @@ studies on Arabic diglossia (eight databases, grey literature, 1970–2021)
 recommends **increasing Standard Arabic exposure early**, integrating simplified
 MSA into early childhood education. That is a recommendation for *L1 Arabic
 children's literacy*, not for adult L2 dialect learners, so it does not directly
-contradict Hakiya's premise — but it is the largest synthesis in the area and it
+contradict Hikaya's premise — but it is the largest synthesis in the area and it
 points the other way, and the review's own authors note the literature is
 disproportionately authored from outside the Arab world. Do not cite "the
 research supports dialect-first" without this caveat.
@@ -492,7 +492,7 @@ product.** Its Hugging Face distribution (`UBC-NLP/Casablanca`) is licensed
 **CC-BY-NC-ND-4.0**, and the project page states the dataset is "intended for
 academic research and non-commercial use only," with commercial use,
 redistribution or integration into products prohibited without prior written
-permission. Hakiya is a paid product, so the NC clause alone is disqualifying;
+permission. Hikaya is a paid product, so the NC clause alone is disqualifying;
 the **ND clause independently rules out fine-tuning**, since a fine-tuned model
 is a derivative. On top of that, **only the validation and test splits are
 currently released**, so it is not a training corpus today even setting licence
@@ -503,7 +503,7 @@ ask UBC-NLP for written permission — not to proceed and hope.
 **Resource inventory for the three target dialects** (`unverified` unless
 marked):
 
-| Resource | What it gives Hakiya |
+| Resource | What it gives Hikaya |
 |---|---|
 | **Casablanca** (48h, human-transcribed, 8 dialects incl. **Emirati** and **Yemeni**) | **Licence blocks our use — see below.** First annotated speech for previously zero-resource Emirati and Yemeni. https://www.dlnlp.ai/speech/casablanca |
 | **Arab Voices** | Unified access to 31 datasets / 14 dialects — Gulf (afb), Egyptian (arz), Yemeni Sanaani (ayn) and Ta'izzi-Adeni (acq) — with harmonized metadata |
@@ -552,11 +552,11 @@ have acted on:
 
 ---
 
-# Part 2 — Comparison with what Hakiya implements
+# Part 2 — Comparison with what Hikaya implements
 
 Verified by inspection of the codebase at `656283f`.
 
-| Research finding | Hakiya today | Verdict |
+| Research finding | Hikaya today | Verdict |
 |---|---|---|
 | Per-user FSRS fitting > version bump (§1) | FSRS-5 with stock 19 weights; `useFsrsCalibration` applies a single heuristic multiplier from windowed retention | **Biggest gap.** Not fittable — no review log exists |
 | Spacing beats massing; expansion no better than equal (§1) | FSRS expanding intervals, ±5% fuzz | Fine. No change needed |
@@ -734,7 +734,7 @@ already know which surface they are.
 
 Audiovisual viewing is the weakest input mode measured (7% immediate, **5%
 delayed** — the only mode that decays), while reading-while-listening is the only
-one that *improves* by delay (13% → 17%) (§3). Hakiya is video-first by
+one that *improves* by delay (13% → 17%) (§3). Hikaya is video-first by
 architecture.
 
 This is a reframing, not a teardown — the app already pairs video with
@@ -811,7 +811,7 @@ revisited. The Duolingo SSLA study hands us a ready outcome battery (§6): C-tes
 picture-description productive vocabulary, error correction, and a discourse
 completion task for pragmatics.
 
-Recurring placement plus even two of those instruments would let Hakiya answer
+Recurring placement plus even two of those instruments would let Hikaya answer
 "is this working?" — which no app teaching a spoken Arabic dialect can currently
 answer for itself (`plateau-research` §7, gap 7), and which is the precondition
 for any efficacy claim in marketing.

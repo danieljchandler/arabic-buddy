@@ -331,7 +331,7 @@ async function getRedditToken(): Promise<string | null> {
     headers: {
       Authorization: `Basic ${btoa(`${id}:${secret}`)}`,
       "Content-Type": "application/x-www-form-urlencoded",
-      "User-Agent": "hakiya/1.0 (Arabic dialect learning; content discovery)",
+      "User-Agent": "hikaya/1.0 (Arabic dialect learning; content discovery)",
     },
     body: "grant_type=client_credentials",
   });
@@ -352,7 +352,7 @@ async function fetchRedditListing(handle: string): Promise<unknown | null> {
     const res = await fetch(`https://oauth.reddit.com/r/${handle}/top?t=day&limit=25&raw_json=1`, {
       headers: {
         Authorization: `Bearer ${token}`,
-        "User-Agent": "hakiya/1.0 (Arabic dialect learning; content discovery)",
+        "User-Agent": "hikaya/1.0 (Arabic dialect learning; content discovery)",
       },
     });
     if (!res.ok) return null;

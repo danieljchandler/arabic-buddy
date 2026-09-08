@@ -93,7 +93,7 @@ test.describe("the feed", () => {
 
     // The mark keeps the corner it always had; your face holds the dock's
     // fifth slot, which is where every feed app this audience uses keeps it.
-    const mark = page.getByRole("img", { name: "Hakiya" }).first();
+    const mark = page.getByRole("img", { name: "Hikaya" }).first();
     const face = page
       .getByRole("navigation", { name: "Primary" })
       .getByRole("link", { name: /Your account/ });
@@ -110,7 +110,7 @@ test.describe("the feed", () => {
 
     await page.goto("/");
 
-    // Hakiya's one deliberate divergence from Ingleezy's feed header: there is
+    // Hikaya's one deliberate divergence from Ingleezy's feed header: there is
     // no For-you/Following pair, because the choice that actually filters this
     // feed is the dialect. Three dialects, three chips, on the content they
     // switch.

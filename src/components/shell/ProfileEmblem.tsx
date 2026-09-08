@@ -13,7 +13,7 @@ import { SaduMark } from "@/components/brand/SaduMark";
  *
  * Where it sits depends on the screen. On the feed it rides the action rail on
  * the right, above the verbs, because the top-left corner belongs to the
- * Hakiya mark — the brand was there first and a corner can only say one thing.
+ * Hikaya mark — the brand was there first and a corner can only say one thing.
  * On the chooser and a skill it takes the right end of the header, opposite
  * the mark. On the interior pages it is still the corner control, because
  * those pages carry no mark and have nothing to displace.

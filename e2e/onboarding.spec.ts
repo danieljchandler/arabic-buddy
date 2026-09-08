@@ -14,7 +14,7 @@ import { aProfile, TEST_USER_ID } from "../src/test/support/factories";
  */
 
 const STEP_HEADINGS = {
-  welcome: /Welcome to Hakiya/,
+  welcome: /Welcome to Hikaya/,
   dialect: /Which dialect interests you\?/,
   level: /What's your Arabic level\?/,
   purpose: /What do you want to use Arabic for\?/,
@@ -533,7 +533,7 @@ test.describe("the placement quiz", () => {
     await page.getByRole("button", { name: /start learning/i }).click();
 
     // Back on the level step with the Egyptian pick still in hand — not on
-    // the feed, and not at "Welcome to Hakiya" again.
+    // the feed, and not at "Welcome to Hikaya" again.
     await expect(page).toHaveURL(/\/onboarding$/);
     await expect(page.getByRole("heading", { name: STEP_HEADINGS.level })).toBeVisible();
   });

@@ -91,7 +91,7 @@ const AdminLogin = () => {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <SaduMark title="Hakiya" variant="clear" className="h-14 w-14 mx-auto mb-4" />
+          <SaduMark title="Hikaya" variant="clear" className="h-14 w-14 mx-auto mb-4" />
           <CardTitle className="text-2xl font-bold">Admin Panel</CardTitle>
           <CardDescription>
             {isSignUp ? 'Create an account' : 'Sign in to manage content'}
@@ -176,7 +176,7 @@ const AdminLogin = () => {
               onClick={() => navigate('/')}
               className="text-muted-foreground"
             >
-              ← Back to Hakiya
+              ← Back to Hikaya
             </Button>
           </div>
         </CardContent>

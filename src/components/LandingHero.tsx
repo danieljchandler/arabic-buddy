@@ -13,9 +13,9 @@ import dialectYemeniArt from "@/assets/illustrations/dialect-yemeni.webp";
 
 /**
  * Logged-out landing hero shown on `/` when the visitor isn't authenticated.
- * Goal: explain Hakiya in one screen and push to /auth or /placement.
+ * Goal: explain Hikaya in one screen and push to /auth or /placement.
  *
- * The framing is the name. Hakiya is حكاية — a story — so the page opens on
+ * The framing is the name. Hikaya is حكاية — a story — so the page opens on
  * people telling one round a fire, and the three value cards run as a story
  * arc: who tells it, how it stays with you, what you get to hear next.
  *
@@ -30,7 +30,7 @@ export function LandingHero() {
     <section className="py-6">
       {/* Logo */}
       <div className="flex justify-center mb-5">
-        <img src={hakiyaLockup} alt="Hakiya" className="h-32 w-32 sm:h-40 sm:w-40" />
+        <img src={hakiyaLockup} alt="Hikaya" className="h-32 w-32 sm:h-40 sm:w-40" />
       </div>
 
       {/* The fire: campfire clip + its one-line beat */}
@@ -61,7 +61,7 @@ export function LandingHero() {
           </span>
         </h1>
         <p className="text-base text-muted-foreground leading-relaxed">
-          Hakiya means{" "}
+          Hikaya means{" "}
           <span className="font-arabic" dir="rtl">
             حكاية
           </span>{" "}

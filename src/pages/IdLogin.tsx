@@ -80,7 +80,7 @@ const IdLogin = () => {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <SaduMark title="Hakiya" variant="clear" className="h-14 w-14 mx-auto mb-4" />
+          <SaduMark title="Hikaya" variant="clear" className="h-14 w-14 mx-auto mb-4" />
           <CardTitle className="text-2xl font-bold">Sign in with your ID</CardTitle>
           <CardDescription>
             Use the ID number and password you were sent. No email address needed.

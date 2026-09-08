@@ -5,7 +5,7 @@ import frameClear from "@/assets/sadu-frame.svg";
 import hakiyaMark from "@/assets/hakiya-mark.png";
 
 /**
- * The Hakiya mark, framed in a band of Sadu weave.
+ * The Hikaya mark, framed in a band of Sadu weave.
  *
  * The mark on its own is a speech bubble with an open silhouette and a
  * transparent ground, and both of those turn into problems the moment it sits

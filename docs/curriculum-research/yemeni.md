@@ -1,6 +1,6 @@
 # Yemeni (Ṣanʿāni) curriculum research brief — Pre-A1 → B1
 
-Prepared for Hakiya content authors. Research only; nothing in the repo was edited.
+Prepared for Hikaya content authors. Research only; nothing in the repo was edited.
 Target variety: **Ṣanʿāni** (urban Sanaa highlands) as the default, with systematic
 notes for **Taʿizzi–ʿAdeni** and shorter ones for Ḥaḍrami and Tihāmi.
 

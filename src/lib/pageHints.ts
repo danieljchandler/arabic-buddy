@@ -30,7 +30,7 @@ export const PAGE_HINTS: Record<string, { title: string; body: string; cta?: str
     body: "Drop in audio, video, TikTok, or YouTube and get a word-by-word transcript with translations, dialect notes, and tappable vocab.",
   },
   share: {
-    title: "Shared with Hakiya",
+    title: "Shared with Hikaya",
     body: "Content shared from another app lands here. AI checks what it is — Arabic text, a voice note, a screenshot, a link — and routes it to the right tool automatically.",
   },
   translate: {

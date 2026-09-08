@@ -1,6 +1,6 @@
 # The X (Twitter) content pipeline
 
-How Yemeni and Egyptian text from X gets into Hakiya, why it is shaped this
+How Yemeni and Egyptian text from X gets into Hikaya, why it is shaped this
 way, and how to run the research loop that feeds it.
 
 ## The problem this replaces

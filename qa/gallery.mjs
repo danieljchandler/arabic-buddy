@@ -73,7 +73,7 @@ const cards = thumbs
 
 writeFileSync(
   join(OUT, "gallery.html"),
-  `<title>Hakiya QA Screens</title>
+  `<title>Hikaya QA Screens</title>
 <style>
 :root{--bg:#faf7f2;--fg:#222;--card:#fff;--line:#ddd;--flag:#a33}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#181614;--fg:#eee;--card:#221f1c;--line:#3a3532;--flag:#f88}}
@@ -85,7 +85,7 @@ figure{margin:0;background:var(--card);border:1px solid var(--line);border-radiu
 figure img{display:block;width:100%;height:auto;max-height:420px;object-fit:cover;object-position:top}
 figcaption{padding:8px 10px;font-size:12px;line-height:1.4}figcaption em{color:var(--flag);font-style:normal}
 </style>
-<h1>Hakiya live crawl — screenshots</h1>
+<h1>Hikaya live crawl — screenshots</h1>
 <p>${thumbs.length} states captured ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC. Click a thumbnail for the full-size image. Route pages are full-page captures; resilience captures are the viewport after the injected outage.</p>
 <div class="grid">${cards}</div>
 `,

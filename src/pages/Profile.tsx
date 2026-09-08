@@ -138,7 +138,7 @@ const Profile = () => {
           />
           {/* Corner stamp */}
           <div className="absolute top-3 right-3 rotate-6 rounded-md border-2 border-desert-red/80 px-2 py-1 text-[10px] tracking-[0.18em] uppercase font-heading text-desert-red">
-            Hakiya · جواز
+            Hikaya · جواز
           </div>
 
           <div className="relative p-5 flex flex-col items-center text-center">

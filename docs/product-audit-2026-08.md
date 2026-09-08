@@ -28,7 +28,7 @@
 > any line of the original text below as work still to do. Everything below this line is the original August
 > text, left unedited as the record of what was true then.
 
-A code-grounded review of where Hakiya should invest next. Scope: 65 learner
+A code-grounded review of where Hikaya should invest next. Scope: 65 learner
 pages, 87 edge functions, 139 migrations, 3 dialects.
 
 The app is further along than a feature list suggests — FSRS scheduling, a
@@ -181,7 +181,7 @@ already stores but doesn't yet use.
 
 The strongest single feature idea here. The research consensus behind
 comprehensible input is that learners progress fastest on material where they
-already know the large majority of the words — and Hakiya is unusually well
+already know the large majority of the words — and Hikaya is unusually well
 positioned to compute that, because it knows each learner's vocabulary from real
 SRS state and it owns the transcripts.
 
@@ -274,7 +274,7 @@ corrections, so the reviews improve the product while the learner pays for them.
 
 Proficiency evidence is becoming what learners, employers and institutions
 actually pay for, and dialectal Arabic has essentially no recognised assessment.
-Hakiya has CEFR placement, pronunciation scoring, a grammar mastery ladder and
+Hikaya has CEFR placement, pronunciation scoring, a grammar mastery ladder and
 per-dialect tracking — four of the five pieces.
 
 **The move.** A paid **proficiency report**: a supervised adaptive assessment
@@ -329,7 +329,7 @@ Ranked by effect per unit of effort. The top four are all small.
 
 ---
 
-The through-line: Hakiya has built the expensive things — a dialect-faithful
+The through-line: Hikaya has built the expensive things — a dialect-faithful
 generation pipeline, a real learner model, a large authentic corpus — and is
 currently giving away their output at an unmeasured price. Fix the metering
 first, then spend the recovered margin on the comprehension shelf and

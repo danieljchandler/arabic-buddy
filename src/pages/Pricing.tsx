@@ -76,10 +76,10 @@ const Pricing = () => {
             Choose Your Plan <InfoHint {...PAGE_HINTS["pricing"]} size="md" />
           </h1>
           <p className="text-muted-foreground text-lg">
-            Unlock the full power of Hakiya to accelerate your Arabic learning
+            Unlock the full power of Hikaya to accelerate your Arabic learning
           </p>
           <Badge variant="outline" className="mt-3">
-            Hakiya is in closed beta — pricing below reflects our upcoming public launch
+            Hikaya is in closed beta — pricing below reflects our upcoming public launch
           </Badge>
         </div>
 

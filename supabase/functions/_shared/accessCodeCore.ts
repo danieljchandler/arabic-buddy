@@ -200,7 +200,7 @@ export function credentialMessage({
 }: CredentialMessageInput): string {
   const what = roleLabel ? `your ${roleLabel} access` : "your access";
   return [
-    `Here are ${what} details for Hakiya.`,
+    `Here are ${what} details for Hikaya.`,
     ``,
     `Open: ${accessIdLoginUrl(origin)}`,
     `ID number: ${formatAccessId(accessId)}`,

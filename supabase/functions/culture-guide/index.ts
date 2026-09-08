@@ -8,9 +8,13 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getDialectIdentity, getDialectVocabRules, getDialectLabel } from "../_shared/dialectHelpers.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 
 
-const GROUNDED_MODEL = "gemini-2.5-flash";
+// Native Gemini endpoint takes the bare model name, so strip the registry's
+// `google/` routing prefix rather than writing an id here (which would go
+// stale, as gemini-2.5-flash did when Google retired it for new callers).
+const GROUNDED_MODEL = MODEL_IDS.GEMINI_FLASH.replace(/^google\//, "");
 
 function buildSystemPrompt(dialect: string): string {
   const dialectLabel = getDialectLabel(dialect);

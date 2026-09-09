@@ -1,0 +1,2 @@
+GRANT SELECT, INSERT, UPDATE ON public.lessons, public.vocabulary_words, public.curriculum_concepts, public.concept_realizations, public.content_concept_links, public.vocab_concepts TO sandbox_exec;
+GRANT SELECT ON public.curriculum_stages TO sandbox_exec;

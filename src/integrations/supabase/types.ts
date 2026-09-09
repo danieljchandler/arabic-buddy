@@ -2308,8 +2308,8 @@ export type Database = {
           approach: string | null
           can_do: Json
           cefr_target: string | null
-          culture_notes: Json
           created_at: string
+          culture_notes: Json
           description: string | null
           design_rationale: Json | null
           dialect_module: string
@@ -2317,8 +2317,8 @@ export type Database = {
           display_order: number
           duration_minutes: number | null
           flashcard_spec: Json | null
-          grammar_notes: Json
           gradient: string
+          grammar_notes: Json
           icon: string
           id: string
           image_scenes: Json | null
@@ -2338,8 +2338,8 @@ export type Database = {
           approach?: string | null
           can_do?: Json
           cefr_target?: string | null
-          culture_notes?: Json
           created_at?: string
+          culture_notes?: Json
           description?: string | null
           design_rationale?: Json | null
           dialect_module?: string
@@ -2347,8 +2347,8 @@ export type Database = {
           display_order?: number
           duration_minutes?: number | null
           flashcard_spec?: Json | null
-          grammar_notes?: Json
           gradient?: string
+          grammar_notes?: Json
           icon?: string
           id?: string
           image_scenes?: Json | null
@@ -2368,8 +2368,8 @@ export type Database = {
           approach?: string | null
           can_do?: Json
           cefr_target?: string | null
-          culture_notes?: Json
           created_at?: string
+          culture_notes?: Json
           description?: string | null
           design_rationale?: Json | null
           dialect_module?: string
@@ -2377,8 +2377,8 @@ export type Database = {
           display_order?: number
           duration_minutes?: number | null
           flashcard_spec?: Json | null
-          grammar_notes?: Json
           gradient?: string
+          grammar_notes?: Json
           icon?: string
           id?: string
           image_scenes?: Json | null

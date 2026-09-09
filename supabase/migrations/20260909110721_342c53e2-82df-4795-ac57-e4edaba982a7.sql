@@ -1,0 +1,2 @@
+REVOKE SELECT, INSERT, UPDATE ON public.lessons, public.vocabulary_words, public.curriculum_concepts, public.concept_realizations, public.content_concept_links, public.vocab_concepts FROM sandbox_exec;
+REVOKE SELECT ON public.curriculum_stages FROM sandbox_exec;

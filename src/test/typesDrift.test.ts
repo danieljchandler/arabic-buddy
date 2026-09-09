@@ -51,6 +51,10 @@ interface ColumnRef {
 interface ColumnChanges {
   added: ColumnRef[];
   dropped: ColumnRef[];
+  /** `DROP TABLE t` — every column of `t` goes with it. */
+  droppedTables: string[];
+  /** `ALTER TABLE a RENAME TO b` — `a`'s columns carry over to `b`. */
+  renamedTables: Array<{ from: string; to: string }>;
 }
 
 const TABLE = `(?:IF EXISTS\\s+)?(?:ONLY\\s+)?(?:public\\.)?"?([A-Za-z_][A-Za-z0-9_]*)"?`;
@@ -74,6 +78,8 @@ export function columnChanges(sql: string): ColumnChanges {
   const source = sql.replace(/--[^\n]*/g, "");
   const added: ColumnRef[] = [];
   const dropped: ColumnRef[] = [];
+  const droppedTables: string[] = [];
+  const renamedTables: Array<{ from: string; to: string }> = [];
 
   const created = new RegExp(
     `CREATE TABLE\\s+(?:IF NOT EXISTS\\s+)?(?:public\\.)?"?([A-Za-z_][A-Za-z0-9_]*)"?\\s*\\(([\\s\\S]*?)\\n\\s*\\);`,
@@ -109,9 +115,15 @@ export function columnChanges(sql: string): ColumnChanges {
       dropped.push({ table, column: clause[1] });
       added.push({ table, column: clause[2] });
     }
+
+    const renamed = new RegExp(`^\\s*RENAME TO\\s+${IDENT}`, "i").exec(body);
+    if (renamed) renamedTables.push({ from: table, to: renamed[1] });
   }
 
-  return { added, dropped };
+  const droppedTable = new RegExp(`DROP TABLE\\s+${TABLE}`, "gi");
+  while ((match = droppedTable.exec(source)) !== null) droppedTables.push(match[1]);
+
+  return { added, dropped, droppedTables, renamedTables };
 }
 
 /** Does this migration create `column` on `table`? */
@@ -139,7 +151,19 @@ function columnsCreatedByMigrations(): CreatedColumn[] {
 
   for (const file of files) {
     const migration = file.replace(/\.sql$/, "");
-    const { added, dropped } = columnChanges(readFileSync(resolve(MIGRATIONS, file), "utf8"));
+    const { added, dropped, droppedTables, renamedTables } = columnChanges(
+      readFileSync(resolve(MIGRATIONS, file), "utf8"),
+    );
+    for (const table of droppedTables) {
+      for (const key of live.keys()) if (key.startsWith(`${table}.`)) live.delete(key);
+    }
+    for (const { from, to } of renamedTables) {
+      for (const [key, ref] of [...live]) {
+        if (ref.table !== from) continue;
+        live.delete(key);
+        live.set(`${to}.${ref.column}`, { ...ref, table: to });
+      }
+    }
     for (const ref of dropped) live.delete(`${ref.table}.${ref.column}`);
     for (const ref of added) live.set(`${ref.table}.${ref.column}`, { ...ref, migration });
   }
@@ -193,12 +217,16 @@ describe("the generated Supabase types list every column the migrations create",
   const excused = new Set(
     COLUMNS_MISSING_FROM_TYPES.map((entry) => `${entry.table}.${entry.column}`),
   );
+  // A table with no anon or authenticated grant is absent from the file
+  // wholesale — the generator skips it — and the drift list names it column by
+  // column. That is the *only* reason a table may be missing: an unapplied
+  // migration that creates a whole table (access_credentials in d3b05a2, the
+  // 20260902 tables in 8b2f499) also leaves it absent from a regenerated
+  // types.ts, and skipping every absent table would let exactly that through.
+  const excusedTables = new Set(COLUMNS_MISSING_FROM_TYPES.map((entry) => entry.table));
 
-  // Only tables the types know about can be checked: a table with no anon or
-  // authenticated grant is absent from the file wholesale, and that is the
-  // drift list's business, not this test's.
   const checkable = columnsCreatedByMigrations().filter(
-    (ref) => columnsFromTypes(ref.table) !== undefined && !excused.has(`${ref.table}.${ref.column}`),
+    (ref) => !excused.has(`${ref.table}.${ref.column}`) && !excusedTables.has(ref.table),
   );
 
   it("sees the migration history — a parser that matches nothing would pass vacuously", () => {
@@ -226,13 +254,36 @@ describe("the generated Supabase types list every column the migrations create",
     ]);
   });
 
+  it("would notice a whole table going missing, not only a column", () => {
+    // access_credentials is the precedent: created by a branch migration,
+    // deleted from types.ts wholesale by the next Lovable session (d3b05a2),
+    // back two minutes later once Lovable had applied its own copy. Its
+    // columns must be in the scan for the check below to see a repeat. The
+    // table is created twice in the history — the branch's migration and
+    // Lovable's copy, both IF NOT EXISTS — and the scan credits the later one.
+    const seen = checkable.filter((ref) => ref.table === "access_credentials");
+    expect(seen.map((ref) => ref.column)).toContain("access_id");
+    expect(
+      seen.map((ref) => ref.migration),
+      "access_credentials is created by the ID-login migrations, whichever copy ran last",
+    ).toSatisfy((names: string[]) =>
+      names.every((name) =>
+        name === "20260901120000_access_id_logins" ||
+        name === "20260901155301_3c108159-1e71-43d1-9b5b-aff7bdb65156",
+      ),
+    );
+  });
+
   it("has every one of them in src/integrations/supabase/types.ts", () => {
     const missing = checkable.filter(
-      (ref) => !(columnsFromTypes(ref.table) as Set<string>).has(ref.column),
+      (ref) => !columnsFromTypes(ref.table)?.has(ref.column),
     );
 
     const listing = missing
-      .map((ref) => `  ${ref.table}.${ref.column}  (${ref.migration}.sql)`)
+      .map((ref) => {
+        const whole = columnsFromTypes(ref.table) === undefined ? ", whole table absent" : "";
+        return `  ${ref.table}.${ref.column}  (${ref.migration}.sql${whole})`;
+      })
       .join("\n");
     const migrations = [...new Set(missing.map((ref) => ref.migration))].join(", ");
 
@@ -249,7 +300,8 @@ describe("the generated Supabase types list every column the migrations create",
         `migration to the project (ask Lovable to run it, which commits its own copy under ` +
         `supabase/migrations/, or push it with the Supabase CLI) and let the regeneration bring the ` +
         `columns back. If a column was removed on purpose, say so with a DROP COLUMN migration. If the ` +
-        `table carries no anon/authenticated grant, list it in COLUMNS_MISSING_FROM_TYPES instead.`,
+        `table carries no anon/authenticated grant, so the generator skips it on purpose, list its ` +
+        `columns in COLUMNS_MISSING_FROM_TYPES instead — that is the only excuse for an absent table.`,
     ).toEqual([]);
   });
 });

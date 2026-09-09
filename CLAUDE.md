@@ -83,7 +83,9 @@ harness.
   - `routeReachability` — every learner route needs an in-app link, or an
     entry in the `NO_LINK_NEEDED` allow-list with a written reason.
   - `grammarTaxonomy` parses a migration; `typesDrift` checks the
-    generated-types drift allow-list against the migrations that caused it.
+    generated-types drift allow-list against the migrations that caused it,
+    and in the other direction that every column the migrations create is in
+    `types.ts` (see the next bullet for why that fails).
   - `brandSpelling` — the app is **Hikaya**; no file may carry the old
     `Hakiya` spelling unless it matches an allow-listed pattern with a written
     reason. Unlike the others it scans *every* tracked text file, `.js`, `.mjs`
@@ -96,6 +98,18 @@ harness.
   These checks are deliberately *shallow* — a name in a test file is a claim
   someone looked at it. Don't satisfy them with an empty test; depth is what
   review is for.
+- **A migration merged through GitHub is not applied to the database.** The
+  app runs against a Lovable Cloud project, and Lovable regenerates
+  `src/integrations/supabase/types.ts` from that project's *live* schema at
+  the start of every session (the `gpt-engineer-app[bot]` "Work in progress"
+  commits). Lovable only applies SQL it runs itself, committing its own
+  uuid-named copy under `supabase/migrations/`. So a migration file that lands
+  from a branch creates columns in CI's replay and in nobody's database — and
+  the next Lovable session deletes them from `types.ts` because, there, they
+  do not exist. That is what removed the curriculum-track columns four times.
+  Never hand-edit `types.ts` beyond a revert; when the `typesDrift` guard
+  names a migration, apply it to the project (ask Lovable to run it, or
+  `supabase db push` with a token) and let the regeneration carry the columns.
 - **Unit coverage is gated per-directory, not globally.** `vitest.config.ts`
   sets thresholds for `src/components/**`, `src/hooks/**`, `src/lib/**` and
   `src/contexts/**` only (`src/pages/**` is covered by Playwright and would

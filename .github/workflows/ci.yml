@@ -33,7 +33,12 @@ jobs:
   check:
     name: Typecheck, lint & unit tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Coverage instrumentation now pushes the complete 382-file suite beyond
+    # the old 15-minute ceiling on a clean runner. The job was being killed
+    # while tests were still passing, before it could report coverage or run
+    # the production build. Keep a finite guard, but leave enough room for the
+    # measured suite and the remaining build step.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
 

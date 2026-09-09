@@ -34,7 +34,14 @@ export function installSupabaseFetch(options: InstallOptions = {}): InstalledBac
   const previous = globalThis.fetch;
 
   const fetchImpl: typeof fetch = async (input, init) => {
-    const request = input instanceof Request ? input : new Request(toUrl(input), init);
+    // jsdom's AbortSignal lives in the window realm. Newer Node/Undici rejects
+    // it when constructing its own Request even though it is standards-valid;
+    // cancellation has already happened before fetch is invoked, and the
+    // in-memory backend completes synchronously, so it does not need the
+    // foreign-realm signal.
+    const request = input instanceof Request
+      ? input
+      : new Request(toUrl(input), init ? { ...init, signal: undefined } : undefined);
     const url = new URL(request.url);
 
     if (url.hostname !== SUPABASE_HOST) {

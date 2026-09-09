@@ -94,7 +94,14 @@ describe("recording a round", () => {
       backend = b;
       b.db.seed("user_perception_progress", [aPerceptionProgress({ seconds: MINUTES_PER_CONTRAST * 60 - 30 })]);
     });
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    // Wait for the seeded row, not only the query's loading flag. The result
+    // can leave its loading state one render before the fetched row reaches
+    // this hook, which made the mutation race a stale empty `rows` closure.
+    await waitFor(() =>
+      expect(result.current.statusFor("sad-sin").minutes).toBeCloseTo(
+        MINUTES_PER_CONTRAST - 0.5,
+      ),
+    );
     await act(async () => {
       await result.current.recordRound({ contrastId: "sad-sin", attempts: 5, correct: 5, seconds: 60 });
     });

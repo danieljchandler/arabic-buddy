@@ -2306,15 +2306,19 @@ export type Database = {
       lessons: {
         Row: {
           approach: string | null
+          can_do: Json
           cefr_target: string | null
           created_at: string
+          culture_notes: Json
           description: string | null
           design_rationale: Json | null
           dialect_module: string
+          dialogue: Json
           display_order: number
           duration_minutes: number | null
           flashcard_spec: Json | null
           gradient: string
+          grammar_notes: Json
           icon: string
           id: string
           image_scenes: Json | null
@@ -2322,6 +2326,7 @@ export type Database = {
           lesson_sequence: Json | null
           real_world_prompts: Json | null
           sound_spotlight: Json | null
+          source_key: string | null
           stage_id: string
           status: string
           title: string
@@ -2331,15 +2336,19 @@ export type Database = {
         }
         Insert: {
           approach?: string | null
+          can_do?: Json
           cefr_target?: string | null
           created_at?: string
+          culture_notes?: Json
           description?: string | null
           design_rationale?: Json | null
           dialect_module?: string
+          dialogue?: Json
           display_order?: number
           duration_minutes?: number | null
           flashcard_spec?: Json | null
           gradient?: string
+          grammar_notes?: Json
           icon?: string
           id?: string
           image_scenes?: Json | null
@@ -2347,6 +2356,7 @@ export type Database = {
           lesson_sequence?: Json | null
           real_world_prompts?: Json | null
           sound_spotlight?: Json | null
+          source_key?: string | null
           stage_id: string
           status?: string
           title: string
@@ -2356,15 +2366,19 @@ export type Database = {
         }
         Update: {
           approach?: string | null
+          can_do?: Json
           cefr_target?: string | null
           created_at?: string
+          culture_notes?: Json
           description?: string | null
           design_rationale?: Json | null
           dialect_module?: string
+          dialogue?: Json
           display_order?: number
           duration_minutes?: number | null
           flashcard_spec?: Json | null
           gradient?: string
+          grammar_notes?: Json
           icon?: string
           id?: string
           image_scenes?: Json | null
@@ -2372,6 +2386,7 @@ export type Database = {
           lesson_sequence?: Json | null
           real_world_prompts?: Json | null
           sound_spotlight?: Json | null
+          source_key?: string | null
           stage_id?: string
           status?: string
           title?: string
@@ -5469,6 +5484,9 @@ export type Database = {
           created_at: string
           dialect_module: string
           display_order: number
+          example_arabic: string | null
+          example_english: string | null
+          example_transliteration: string | null
           frequency_rank: number | null
           id: string
           image_position: string | null
@@ -5491,6 +5509,9 @@ export type Database = {
           created_at?: string
           dialect_module?: string
           display_order?: number
+          example_arabic?: string | null
+          example_english?: string | null
+          example_transliteration?: string | null
           frequency_rank?: number | null
           id?: string
           image_position?: string | null
@@ -5513,6 +5534,9 @@ export type Database = {
           created_at?: string
           dialect_module?: string
           display_order?: number
+          example_arabic?: string | null
+          example_english?: string | null
+          example_transliteration?: string | null
           frequency_rank?: number | null
           id?: string
           image_position?: string | null

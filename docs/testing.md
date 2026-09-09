@@ -149,6 +149,30 @@ worse; shrinking them is the goal.
 Fixing the last two means writing migrations for tables whose real shape only
 production knows, which needs a schema dump rather than a guess.
 
+### The generated types come from a database the migrations may not have reached
+
+`src/integrations/supabase/types.ts` is not generated here. Lovable regenerates
+it from the live schema of its Cloud project — the one production runs against
+— at the start of every session, and commits the result as "Work in progress"
+when it differs. Lovable applies only the SQL it runs itself, committing its own
+uuid-named copy under `supabase/migrations/`; a migration merged from a branch
+is never applied to that project. The two facts together produce a failure that
+looks like something else: the columns a merged migration creates are deleted
+from `types.ts` by the next Lovable session, the emulator (which derives its
+schema from that file) starts rejecting them, and a fixture is accused of
+inventing fields the migration plainly adds. Restoring the file is a day's
+reprieve; it happened four times to the curriculum-track columns.
+
+`src/test/typesDrift.test.ts` now checks the direction that catches this: every
+column the migrations create on a table the types know about must be in the
+file, unless a later migration drops it or `COLUMNS_MISSING_FROM_TYPES` excuses
+it. It replays the DDL statically — `CREATE TABLE` bodies, `ADD COLUMN`,
+`DROP COLUMN`, `RENAME COLUMN` — over 1,400 columns and needs no database. When
+it fails it names the migration, and the fix is to apply that migration to the
+project, not to edit the file. It also asserts the eight curriculum-track
+columns are in its scan, so a parser that quietly stopped seeing them would
+fail rather than fall silent.
+
 ## Time
 
 `spacedRepetition`, `reviewQueue`, `todayCompletion`, `useNewCardBudget`,

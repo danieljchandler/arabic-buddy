@@ -133,10 +133,12 @@ export function LandingHero() {
             { image: dialectGulfArt, name: "Gulf", nameAr: "خليجي", line: "The unhurried cadence of the majlis." },
             { image: dialectEgyptianArt, name: "Egyptian", nameAr: "مصري", line: "Quick, warm, theatrical — the dialect of cinema." },
             { image: dialectYemeniArt, name: "Yemeni", nameAr: "يمني", line: "Mountain Arabic — old vowels, deep hospitality." },
-          ].map((d, i) => (
-            <Reveal key={d.name} delayMs={i * 90} className="h-full">
-              <DialectCard {...d} />
-            </Reveal>
+          ].map((d) => (
+            /* Keep detailed artwork out of transformed
+               ancestors. Reveal's translate animation promotes the whole card
+               to a temporary bitmap layer, which some browsers keep at the
+               pre-animation resolution and then display noticeably soft. */
+            <DialectCard key={d.name} {...d} />
           ))}
         </div>
       </div>
@@ -188,7 +190,10 @@ function DialectCard({
       <img
         src={image}
         alt={`${name} Arabic illustration`}
+        width={1200}
+        height={805}
         loading="lazy"
+        decoding="async"
         draggable={false}
         className="aspect-[5/3] w-full object-cover select-none"
       />

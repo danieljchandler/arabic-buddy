@@ -11,9 +11,12 @@ mkdirSync(OUT, { recursive: true });
 // crop = fraction of the source kept (center crop); 1 = full frame.
 // cropRight = extra fraction shaved off the right edge only (artifact removal).
 const JOBS = [
-  { name: "dialect-gulf", w: 1200, crop: 1, q: 0.8 },
-  { name: "dialect-egyptian", w: 1200, crop: 1, q: 0.8 },
-  { name: "dialect-yemeni", w: 1200, crop: 1, q: 0.8 },
+  // These scenes are displayed edge-to-edge in large cards. Preserve the
+  // watercolor grain and fine architectural lines instead of applying the
+  // stronger compression used for small badges and empty states.
+  { name: "dialect-gulf", w: 1200, crop: 1, q: 0.96 },
+  { name: "dialect-egyptian", w: 1200, crop: 1, q: 0.96 },
+  { name: "dialect-yemeni", w: 1200, crop: 1, q: 0.96 },
   { name: "empty-caught-up", w: 640, crop: 0.82, q: 0.8 },
   { name: "empty-nothing", w: 640, crop: 0.82, q: 0.8 },
   { name: "value-voices", w: 480, crop: 0.84, q: 0.8 },

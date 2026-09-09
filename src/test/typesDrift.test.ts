@@ -238,8 +238,20 @@ describe("the generated Supabase types list every column the migrations create",
     // that have been deleted from types.ts four times. If the parser stopped
     // seeing them, the check below would go quiet while the regressions
     // continued, so their presence in the scan is asserted on its own.
+    const curriculumColumns = new Set([
+      "lessons.can_do",
+      "lessons.culture_notes",
+      "lessons.dialogue",
+      "lessons.grammar_notes",
+      "lessons.source_key",
+      "vocabulary_words.example_arabic",
+      "vocabulary_words.example_english",
+      "vocabulary_words.example_transliteration",
+    ]);
     const seen = checkable
-      .filter((ref) => ref.migration === "20260905100000_curriculum_tracks_schema")
+      // Reconciliation migrations can legitimately become the most recent
+      // creator. Pin the columns the replay sees, not an obsolete provenance.
+      .filter((ref) => curriculumColumns.has(`${ref.table}.${ref.column}`))
       .map((ref) => `${ref.table}.${ref.column}`)
       .sort();
     expect(seen).toEqual([

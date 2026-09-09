@@ -33,7 +33,12 @@ jobs:
   check:
     name: Typecheck, lint & unit tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # Coverage instrumentation now pushes the complete 382-file suite to about
+    # 20 minutes by itself on a clean runner. The timeout covers the whole job,
+    # including npm ci, typechecking, linting and the production build; 25
+    # minutes left too little headroom and the retry was killed as well. Keep a
+    # finite guard while allowing normal cold-run variance.
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
 

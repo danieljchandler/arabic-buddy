@@ -188,7 +188,10 @@ function DialectCard({
       <img
         src={image}
         alt={`${name} Arabic illustration`}
-        loading="lazy"
+        width={1200}
+        height={805}
+        decoding="async"
+        fetchPriority="high"
         draggable={false}
         className="aspect-[5/3] w-full object-cover select-none"
       />

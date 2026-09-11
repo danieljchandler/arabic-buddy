@@ -49,6 +49,14 @@ function openai(
         session: { id: "sess_fixture" },
       });
     }
+    // GPT-Live: one call that takes the session config *and* the browser's
+    // offer, and answers with the SDP. There is no ephemeral key on this path.
+    if (path.endsWith("/live/sessions")) {
+      return json({
+        session: { id: "live_fixture" },
+        transport: { type: "webrtc", sdp: sdpAnswer },
+      });
+    }
     return new Response(sdpAnswer, {
       status: 200,
       headers: { "content-type": "application/sdp" },
@@ -430,6 +438,245 @@ Deno.test("realtime-session-token reports a failed SDP exchange as 502", async (
 
   assertEquals(status, 502);
   assertEquals(body.error, "Failed to exchange Realtime SDP");
+});
+
+// ── realtime-session-token: the GPT-Live engine ─────────────────────────────
+// A second engine behind the same function, opted into with VOICE_ENGINE=live.
+// It is a different endpoint, a different config shape, and the SDP exchange
+// happens here rather than in the browser — OpenAI's guidance is that the
+// application server holds the project key and does that exchange. Everything
+// before the branch (the caps, the minute meter, the dialect rulebook, the
+// learner model) is shared, which is the reason both engines live in one place.
+
+const LIVE = { VOICE_ENGINE: "live" };
+const OFFER = "v=0\r\no=- 1 1 IN IP4 127.0.0.1\r\n";
+
+/**
+ * The session config this function sent to `/v1/live/sessions`.
+ *
+ * The harness records request bodies as raw text, so this parses the one call
+ * that carried a `session` — the Live open — rather than indexing by position.
+ */
+function liveSessionSent(bodies: Array<string | null>): Record<string, unknown> {
+  for (const raw of bodies) {
+    if (!raw) continue;
+    try {
+      const parsed = JSON.parse(raw) as { session?: Record<string, unknown> };
+      if (parsed.session) return parsed.session;
+    } catch {
+      // Not every upstream body is JSON.
+    }
+  }
+  throw new Error("no /v1/live/sessions request was made");
+}
+
+Deno.test("realtime-session-token opens a GPT-Live session and answers with the SDP", async () => {
+  const { status, body, calls } = await call(
+    "realtime-session-token",
+    { dialect: "Gulf", sdp: OFFER, client_api: 2 },
+    subscriber({ "api.openai.com": openai() }),
+    undefined,
+    { env: LIVE },
+  );
+
+  assertEquals(status, 200);
+  assertEquals(body.engine, "live");
+  assertEquals(body.model, "gpt-live-1");
+  assertStringIncludes(String(body.sdp), "v=0");
+  assertEquals(body.session_id, "live_fixture");
+  // One upstream call, to the Live endpoint. There is no ephemeral key on this
+  // path at all, so nothing should have gone to client_secrets.
+  assert(calls.some((url) => url.includes("/live/sessions")));
+  assert(!calls.some((url) => url.includes("client_secrets")));
+  assert(!calls.some((url) => url.includes("/realtime/calls")));
+});
+
+Deno.test("realtime-session-token keeps the long-lived key out of the GPT-Live response", async () => {
+  const { text } = await call(
+    "realtime-session-token",
+    { dialect: "Gulf", sdp: OFFER, client_api: 2 },
+    subscriber({ "api.openai.com": openai() }),
+    undefined,
+    { env: LIVE },
+  );
+
+  // The key authorises the exchange server-side and must not be echoed back —
+  // this engine has no ephemeral credential to hand the browser instead.
+  assert(!text.includes("sk-"));
+  assert(!text.includes("client_secret"));
+});
+
+Deno.test("realtime-session-token puts the dialect voice and prompt on the GPT-Live session", async () => {
+  const { bodies } = await call(
+    "realtime-session-token",
+    { dialect: "Egyptian", sdp: OFFER, client_api: 2 },
+    subscriber({ "api.openai.com": openai() }),
+    undefined,
+    { env: LIVE },
+  );
+
+  const session = liveSessionSent(bodies);
+  assertEquals(session.model, "gpt-live-1");
+  // The same per-dialect voice routing as the Realtime path: GPT-Live kept the
+  // older language-agnostic personas alongside its twelve new locale voices,
+  // which is what lets the dialect keep coming from the prompt.
+  assertEquals(session.audio, { output: { voice: "shimmer" } });
+  assertStringIncludes(String(session.instructions), "فصحى");
+});
+
+Deno.test("realtime-session-token gives GPT-Live practice no backend to bill", async () => {
+  const { bodies } = await call(
+    "realtime-session-token",
+    { dialect: "Gulf", sdp: OFFER, client_api: 2 },
+    subscriber({ "api.openai.com": openai() }),
+    undefined,
+    { env: LIVE },
+  );
+
+  // Practice is immersion conversation with no tools. A managed Responses
+  // backend here would be a per-call bill for a model with nothing to do.
+  assertEquals(liveSessionSent(bodies).delegation, { type: "client" });
+});
+
+Deno.test("realtime-session-token gives the GPT-Live assistant a backend and its tools", async () => {
+  const { bodies } = await call(
+    "realtime-session-token",
+    { dialect: "Gulf", mode: "assistant", sdp: OFFER, client_api: 2 },
+    subscriber({ "api.openai.com": openai() }),
+    undefined,
+    { env: LIVE },
+  );
+
+  const delegation = liveSessionSent(bodies).delegation as {
+    type: string;
+    responses: Record<string, unknown>;
+  };
+  assertEquals(delegation.type, "responses");
+  // The backend is addressed by OpenAI's own id, without the `vendor/` prefix
+  // the registry stores for OpenRouter's namespace.
+  assert(!String(delegation.responses.model).includes("/"));
+  assert(Array.isArray(delegation.responses.tools));
+  assert((delegation.responses.tools as unknown[]).length > 0);
+  // The dialect rulebook reaches the backend too: it never speaks, but the
+  // voice layer paraphrases its answer aloud, so a فصحى draft is a فصحى answer.
+  assertStringIncludes(String(delegation.responses.instructions), "فصحى");
+});
+
+Deno.test("realtime-session-token locks down the GPT-Live data channel", async () => {
+  const { bodies } = await call(
+    "realtime-session-token",
+    { dialect: "Gulf", sdp: OFFER, client_api: 2 },
+    subscriber({ "api.openai.com": openai() }),
+    undefined,
+    { env: LIVE },
+  );
+
+  const client = liveSessionSent(bodies).client as {
+    data_channel: { allowed_client_events: string[] };
+  };
+  const allowed = client.data_channel.allowed_client_events;
+  // Allow-all is the default, and it would let anyone with the page open send
+  // session.instructions.append and rewrite the tutor's prompt mid-call.
+  assert(!allowed.includes("session.instructions.append"));
+  assert(!allowed.includes("session.update"));
+  assert(allowed.includes("session.thinking.append"));
+});
+
+Deno.test("realtime-session-token refuses a GPT-Live call with no offer", async () => {
+  const { status, body, calls } = await call(
+    "realtime-session-token",
+    { dialect: "Gulf", client_api: 2 },
+    subscriber({ "api.openai.com": openai() }),
+    undefined,
+    { env: LIVE },
+  );
+
+  assertEquals(status, 400);
+  assertEquals(body.error, "sdp_required");
+  assert(!calls.some((url) => url.includes("/live/sessions")));
+});
+
+Deno.test("realtime-session-token reports a failed GPT-Live session as 502", async () => {
+  const { status, body } = await call(
+    "realtime-session-token",
+    { dialect: "Gulf", sdp: OFFER, client_api: 2 },
+    subscriber({ "api.openai.com": () => json({ error: "no capacity" }, 503) }),
+    undefined,
+    { env: LIVE },
+  );
+
+  assertEquals(status, 502);
+  assertEquals(body.error, "Failed to open a GPT-Live session");
+});
+
+Deno.test("realtime-session-token reports a GPT-Live session that came back without SDP", async () => {
+  const { status, body } = await call(
+    "realtime-session-token",
+    { dialect: "Gulf", sdp: OFFER, client_api: 2 },
+    subscriber({ "api.openai.com": () => json({ session: { id: "live_1" } }) }),
+    undefined,
+    { env: LIVE },
+  );
+
+  assertEquals(status, 502);
+  assertStringIncludes(String(body.error), "missing its SDP answer");
+});
+
+Deno.test("realtime-session-token serves Realtime to a bundle that cannot speak GPT-Live", async () => {
+  const { status, contentType, calls } = await call(
+    "realtime-session-token",
+    // No `client_api` marker: a cached bundle from before GPT-Live shipped. It
+    // understands only the Realtime events, so serving it Live would give it a
+    // call whose audio works and whose transcripts never arrive.
+    { dialect: "Gulf", sdp: OFFER },
+    subscriber({ "api.openai.com": openai() }),
+    undefined,
+    { env: LIVE },
+  );
+
+  assertEquals(status, 200);
+  assertStringIncludes(contentType, "application/sdp");
+  assert(calls.some((url) => url.includes("client_secrets")));
+  assert(!calls.some((url) => url.includes("/live/sessions")));
+});
+
+Deno.test("realtime-session-token stays on Realtime while the flag is unset", async () => {
+  const { status, body, calls } = await call(
+    "realtime-session-token",
+    { dialect: "Gulf", sdp: OFFER, client_api: 2 },
+    subscriber({ "api.openai.com": openai() }),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(body.engine, "realtime");
+  assertEquals(body.value, "ek_fixture");
+  // A current bundle sends its offer up front so the Live branch can use it. On
+  // Realtime that offer is unused and the browser does its own exchange, so the
+  // stale-bundle relay must not fire and answer with SDP instead of a key.
+  assert(calls.some((url) => url.includes("client_secrets")));
+  assert(!calls.some((url) => url.includes("/realtime/calls")));
+  assert(!calls.some((url) => url.includes("/live/sessions")));
+});
+
+Deno.test("realtime-session-token meters GPT-Live minutes the same way", async () => {
+  const { status, body, calls } = await call(
+    "realtime-session-token",
+    { dialect: "Gulf", sdp: OFFER, client_api: 2 },
+    subscriber({
+      "api.openai.com": openai(),
+      "/rest/v1/subscribers": () =>
+        json({ subscribed: true, subscription_end: null, subscription_tier: "standard" }),
+      "/rest/v1/voice_usage": () => json([{ seconds: 7300 }]),
+    }),
+    undefined,
+    { env: LIVE },
+  );
+
+  // The budget is enforced before the engine branch, so switching engines
+  // cannot hand anyone free minutes. GPT-Live bills $0.05/min plus the backend.
+  assertEquals(status, 429);
+  assertEquals(body.error, "voice_minutes_exhausted");
+  assert(!calls.some((url) => url.includes("/live/sessions")));
 });
 
 Deno.test("realtime-session-token turns an anonymous caller away", async () => {

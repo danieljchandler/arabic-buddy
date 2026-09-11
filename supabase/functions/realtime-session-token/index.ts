@@ -5,6 +5,21 @@
 // The long-lived OPENAI_API_KEY never leaves the server.
 //
 // Per-dialect system prompt + voice is baked into the session config.
+//
+// Two engines live behind this one function, chosen by the `VOICE_ENGINE`
+// secret (`realtime`, the default, or `live`):
+//
+//   realtime — OpenAI Realtime API. Mint an ephemeral client secret here; the
+//              browser does the SDP exchange itself, as described above.
+//   live     — GPT-Live-1. There is no ephemeral key for this one: OpenAI's own
+//              guidance is that the application server exchanges the SDP with
+//              `POST /v1/live/sessions` using the project key, so the browser
+//              posts its offer *here* and gets an answer back. The SDP travels
+//              inside a JSON field rather than a multipart part, so the
+//              unmarshal failure that shaped the design above cannot recur.
+//
+// The response names the engine it served (`engine`), so the browser knows which
+// event vocabulary to expect rather than being configured separately.
 import { getDialectIdentity, getDialectVocabRules, primeDialectPrompt, type Dialect } from "../_shared/dialectHelpers.ts";
 import { REALTIME_VOICE_BY_DIALECT } from "../_shared/ttsVoiceRoutingCore.ts";
 import {
@@ -34,8 +49,16 @@ import {
 } from "../_shared/pageContextCore.ts";
 import { ASSISTANT_TOOL_SPECS } from "../_shared/assistantToolsCore.ts";
 import { learnerMemoryBlock } from "../_shared/learnerMemory.ts";
-
-const REALTIME_MODEL = "gpt-realtime-2";
+import { MODEL_IDS, reasoningFloor } from "../_shared/modelRegistry.ts";
+import { upstreamModelId } from "../_shared/aiGateway.ts";
+import {
+  buildLiveBackendInstruction,
+  buildLiveFrontendInstruction,
+  buildLiveSessionConfig,
+  LIVE_MODEL,
+  REALTIME_MODEL,
+  resolveVoiceEngine,
+} from "../_shared/liveVoiceCore.ts";
 
 /**
  * The live call's voice, which is not a TTS voice.
@@ -224,6 +247,16 @@ Deno.serve(async (req) => {
 
   try {
     const sdp = typeof body.sdp === "string" ? body.sdp.trim() : "";
+
+    // Which event vocabulary the caller can speak. Bundles from before GPT-Live
+    // shipped send no marker and understand only the Realtime events, so they
+    // are served Realtime whatever the secret says — the alternative is a call
+    // whose audio works and whose transcripts silently never arrive.
+    const clientApi = typeof body.client_api === "number" ? body.client_api : 1;
+    const engine = clientApi >= 2
+      ? resolveVoiceEngine(Deno.env.get("VOICE_ENGINE"))
+      : "realtime";
+
     const dialect = (body.dialect ?? "Gulf") as Dialect;
     const difficulty = (body.difficulty ?? "beginner") as string;
     const topicHint = (body.topicHint ?? "") as string;
@@ -249,34 +282,39 @@ Deno.serve(async (req) => {
     try { await primeDialectPrompt(dialect); } catch { /* fallback to hard-coded */ }
 
     const voice = voiceForDialect(dialect);
+
+    // The learner model and the memory notes, assembled once. Both engines want
+    // them; they differ only in which prompt they land in — Realtime has one
+    // prompt, GPT-Live puts them on the delegated backend rather than on the
+    // voice layer that has to stay short.
+    const [learnerBlock, memoryBlock] = mode === "assistant"
+      ? ((await Promise.all([
+          // Profile plus the on-screen cross-reference: which of the words
+          // in front of the learner are weak, in progress, known, or new.
+          // Same failure posture as learnerPromptBlock had — a broken
+          // profile degrades to an unpersonalised call, never a failed one.
+          (async () => {
+            if (!cap.userId) return "";
+            try {
+              const profile = await buildLearnerProfile({ userId: cap.userId, dialect });
+              return [
+                renderProfileForPrompt(profile, { includeWeak: true }),
+                onScreenVocabBlock(profile.membership, clampedPage?.meta?.vocabulary),
+              ].filter(Boolean).join("\n\n");
+            } catch (e) {
+              console.warn("[realtime-session-token] profile unavailable:", e);
+              return "";
+            }
+          })(),
+          // The same notes the text tutor keeps. A learner who spent last
+          // week's chat untangling one construction should not have to
+          // explain that again to the voice tutor.
+          learnerMemoryBlock(cap.userId, dialect),
+        ])) as [string, string])
+      : ["", ""];
+
     const instructions = mode === "assistant"
-      ? buildAssistantInstruction(
-          dialect,
-          context,
-          ...(await Promise.all([
-            // Profile plus the on-screen cross-reference: which of the words
-            // in front of the learner are weak, in progress, known, or new.
-            // Same failure posture as learnerPromptBlock had — a broken
-            // profile degrades to an unpersonalised call, never a failed one.
-            (async () => {
-              if (!cap.userId) return "";
-              try {
-                const profile = await buildLearnerProfile({ userId: cap.userId, dialect });
-                return [
-                  renderProfileForPrompt(profile, { includeWeak: true }),
-                  onScreenVocabBlock(profile.membership, clampedPage?.meta?.vocabulary),
-                ].filter(Boolean).join("\n\n");
-              } catch (e) {
-                console.warn("[realtime-session-token] profile unavailable:", e);
-                return "";
-              }
-            })(),
-            // The same notes the text tutor keeps. A learner who spent last
-            // week's chat untangling one construction should not have to
-            // explain that again to the voice tutor.
-            learnerMemoryBlock(cap.userId, dialect),
-          ])) as [string, string],
-        )
+      ? buildAssistantInstruction(dialect, context, learnerBlock, memoryBlock)
       : buildSystemInstruction(dialect, difficulty, topicHint);
     // Tools are the assistant's only way to reach past what it was handed at
     // mint time — reading the article behind a story, searching the learner's
@@ -292,6 +330,110 @@ Deno.serve(async (req) => {
         }))
       : [];
 
+    // ---- GPT-Live-1 -------------------------------------------------------
+    // A different endpoint, a different config shape, and the SDP exchange
+    // happens here rather than in the browser. Everything above this point —
+    // the caps, the minute budget, the dialect rulebook, the learner model — is
+    // shared, which is the point of keeping both engines in one function.
+    if (engine === "live") {
+      if (!sdp) {
+        return new Response(
+          JSON.stringify({
+            error: "sdp_required",
+            message: "This voice engine needs the browser's connection offer. Reload the page and try again.",
+          }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+      if (!sdp.startsWith("v=")) {
+        return new Response(
+          JSON.stringify({ error: "Invalid SDP offer", message: "The browser sent a malformed WebRTC offer." }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      const liveSession = buildLiveSessionConfig({
+        voice,
+        mode,
+        instructions: buildLiveFrontendInstruction({
+          identity: getDialectIdentity(dialect),
+          vocab: getDialectVocabRules(dialect),
+          dialect,
+          mode,
+          difficultyExtra: mode === "practice" ? difficultyExtras(difficulty) : undefined,
+          topicHint: topicHint?.trim().slice(0, MAX_TOPIC_CHARS),
+        }),
+        backend: mode === "assistant"
+          ? {
+              // The delegated backend is a text model doing text-model work, so
+              // it comes from the registry like every other one rather than
+              // being pinned here. Only the *voice* model is outside the
+              // registry's remit. `upstreamModelId` drops the `openai/` prefix
+              // OpenRouter needs and OpenAI's own API does not.
+              model: upstreamModelId(MODEL_IDS.GPT_MINI, "openai"),
+              instructions: buildLiveBackendInstruction({
+                identity: getDialectIdentity(dialect),
+                vocab: getDialectVocabRules(dialect),
+                context,
+                learnerBlock,
+                memoryBlock,
+              }),
+              tools: ASSISTANT_TOOL_SPECS.map((spec) => ({
+                name: spec.name,
+                description: spec.description,
+                parameters: spec.parameters,
+              })),
+              // Latency is the product here. A tutor that thinks for four
+              // seconds mid-sentence is worse than one that answers plainly.
+              reasoningEffort: reasoningFloor(MODEL_IDS.GPT_MINI),
+            }
+          : undefined,
+      });
+
+      const liveUpstream = await fetch("https://api.openai.com/v1/live/sessions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${OPENAI_API_KEY}`,
+          "Content-Type": "application/json",
+          "OpenAI-Safety-Identifier": await safetyIdentifier(cap.userId),
+        },
+        body: JSON.stringify({ session: liveSession, transport: { type: "webrtc", sdp } }),
+      });
+
+      if (!liveUpstream.ok) {
+        const txt = await liveUpstream.text();
+        console.error("[realtime-session-token] live session upstream error", liveUpstream.status, txt);
+        return new Response(
+          JSON.stringify({ error: "Failed to open a GPT-Live session", details: txt }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      const liveData = await liveUpstream.json();
+      const answerSdp = typeof liveData?.transport?.sdp === "string" ? liveData.transport.sdp : "";
+      if (!answerSdp) {
+        console.error("[realtime-session-token] live session response carried no SDP answer", liveData);
+        return new Response(
+          JSON.stringify({ error: "GPT-Live session response was missing its SDP answer" }),
+          { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          engine: "live",
+          sdp: answerSdp,
+          model: LIVE_MODEL,
+          voice,
+          session_id: liveData?.session?.id,
+          voice_limit_seconds: voiceLimitSeconds,
+          voice_remaining_seconds: voiceRemainingSeconds,
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    // ---- Realtime API -----------------------------------------------------
     const sessionConfig = {
       type: "realtime",
       model: REALTIME_MODEL,
@@ -356,7 +498,10 @@ Deno.serve(async (req) => {
     // this function and expect an SDP answer back. Do a two-step exchange: mint
     // the ephemeral key above, then send the raw SDP to OpenAI with that key.
     // This intentionally avoids edge-runtime FormData/multipart handling.
-    if (sdp) {
+    // Only for those legacy callers: a current bundle sends its offer up front
+    // so the GPT-Live branch above can use it, and does its own Realtime SDP
+    // exchange when it is served Realtime instead.
+    if (sdp && clientApi < 2) {
       if (!sdp.startsWith("v=")) {
         return new Response(
           JSON.stringify({ error: "Invalid SDP offer", message: "The browser sent a malformed WebRTC offer." }),
@@ -390,6 +535,7 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({
+        engine: "realtime",
         value: tokenValue,
         client_secret: tokenValue,
         expires_at: data.expires_at ?? data.client_secret?.expires_at,

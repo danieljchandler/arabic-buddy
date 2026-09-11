@@ -1129,3 +1129,292 @@ describe("tool calls from the model", () => {
     expect(calls.some((c) => c.url.includes(TOOLS_URL))).toBe(false);
   });
 });
+
+/**
+ * The GPT-Live engine.
+ *
+ * The server decides which engine serves a call and names it in the mint
+ * response, so these tests drive the branch by replying with `engine: "live"`.
+ * Almost nothing carries over from the Realtime path: the SDP answer arrives in
+ * the mint response instead of from OpenAI, every event has a different name,
+ * tool calls arrive nested inside the delegated backend's own stream, and
+ * nothing marks the end of a turn.
+ */
+describe("the GPT-Live engine", () => {
+  const liveReply = (extra: Record<string, unknown> = {}) => ({
+    status: 200,
+    body: JSON.stringify({ engine: "live", sdp: "v=0\r\no=- live-answer", ...extra }),
+  });
+
+  it("sends its offer up with the mint request, so the server can exchange it", async () => {
+    const { result } = renderHook(() => useOpenAIRealtime());
+    await startSession(result);
+
+    const mint = calls.find((c) => c.url.includes(TOKEN_URL));
+    const body = JSON.parse(String(mint!.init?.body));
+    // GPT-Live takes the session config and the offer in one request, so the
+    // offer has to be built before minting rather than after.
+    expect(body.sdp).toContain("v=0");
+    // The marker that says this bundle understands either engine's events.
+    // Without it the server serves Realtime, whatever the secret says.
+    expect(body.client_api).toBe(2);
+  });
+
+  it("applies the server's answer without calling OpenAI from the browser", async () => {
+    tokenReply = liveReply();
+    const { result } = renderHook(() => useOpenAIRealtime());
+    const pc = await startSession(result);
+
+    expect(pc.remoteDescription).toEqual({ type: "answer", sdp: "v=0\r\no=- live-answer" });
+    // The project key does the exchange server-side on this engine, so there is
+    // no ephemeral key and nothing for the browser to post to OpenAI.
+    expect(calls.some((c) => c.url === OPENAI_URL)).toBe(false);
+  });
+
+  it("treats a response that names no engine as Realtime", async () => {
+    // A cached bundle can outlive a rollback. The old response shape has no
+    // `engine` field, and it can only ever have meant Realtime.
+    const { result } = renderHook(() => useOpenAIRealtime());
+    const pc = await startSession(result);
+
+    expect(calls.some((c) => c.url === OPENAI_URL)).toBe(true);
+    expect(pc.remoteDescription?.sdp).toBe("v=0\r\no=- answer");
+  });
+
+  it("reports a live response that arrived without an answer", async () => {
+    tokenReply = { status: 200, body: JSON.stringify({ engine: "live" }) };
+    const { result } = renderHook(() => useOpenAIRealtime());
+    await startSession(result);
+
+    expect(result.current.status).toBe("error");
+    expect(result.current.error).toMatch(/connection answer/i);
+    // The mic must not be left live behind a failed start.
+    expect(micTracks[0].stop).toHaveBeenCalled();
+  });
+
+  describe("the transcript", () => {
+    const say = async (
+      pc: FakePeerConnection,
+      type: string,
+      delta: string,
+      startMs: number,
+      endMs: number,
+    ) => {
+      await act(async () => {
+        pc.deliver({ type, delta, start_ms: startMs, end_ms: endMs, event_id: `e-${startMs}` });
+      });
+    };
+
+    it("builds a turn out of deltas that carry no item id", async () => {
+      tokenReply = liveReply();
+      const { result } = renderHook(() => useOpenAIRealtime());
+      const pc = await startSession(result);
+      goLive(pc);
+
+      await say(pc, "session.input_transcript.delta", "أنا ", 0, 300);
+      await say(pc, "session.input_transcript.delta", "أبغى قهوة", 300, 800);
+
+      expect(result.current.turns).toHaveLength(1);
+      expect(result.current.turns[0]).toMatchObject({
+        role: "user",
+        text: "أنا أبغى قهوة",
+        partial: true,
+      });
+    });
+
+    it("settles a turn when the other speaker starts", async () => {
+      tokenReply = liveReply();
+      const onTurnFinalized = vi.fn();
+      const { result } = renderHook(() => useOpenAIRealtime({ onTurnFinalized }));
+      const pc = await startSession(result);
+      goLive(pc);
+
+      await say(pc, "session.input_transcript.delta", "شلونك", 0, 500);
+      await say(pc, "session.output_transcript.delta", "زين", 600, 900);
+
+      // There is no end-of-turn event on this engine; the speaker change is
+      // what closes the learner's turn.
+      expect(result.current.turns[0]).toMatchObject({ role: "user", partial: false });
+      expect(result.current.turns[1]).toMatchObject({ role: "assistant", partial: true });
+      expect(onTurnFinalized).toHaveBeenCalledWith(
+        expect.objectContaining({ role: "user", text: "شلونك" }),
+      );
+    });
+
+    it("still flags dialect drift in the model's reply", async () => {
+      tokenReply = liveReply();
+      const onDialectDrift = vi.fn();
+      const { result } = renderHook(() => useOpenAIRealtime({ onDialectDrift }));
+      const pc = await startSession(result);
+      goLive(pc);
+
+      await say(pc, "session.output_transcript.delta", "لماذا تريد هذا", 0, 900);
+      // Closed by teardown, since nothing follows it.
+      await act(async () => { result.current.stop(); });
+
+      // The MSA check runs on finalized turns, so it has to survive the move to
+      // inferred turn boundaries — it is the whole point of the feature.
+      expect(onDialectDrift).toHaveBeenCalledWith(expect.arrayContaining(["لماذا"]));
+    });
+
+    it("flushes the turn still open when the call ends", async () => {
+      tokenReply = liveReply();
+      const onTurnFinalized = vi.fn();
+      const { result } = renderHook(() => useOpenAIRealtime({ onTurnFinalized }));
+      const pc = await startSession(result);
+      goLive(pc);
+
+      await say(pc, "session.input_transcript.delta", "آخر كلمة", 0, 500);
+      await act(async () => { result.current.stop(); });
+
+      // The learner's last utterance. Nothing else would ever close it.
+      expect(onTurnFinalized).toHaveBeenCalledWith(
+        expect.objectContaining({ role: "user", text: "آخر كلمة" }),
+      );
+    });
+  });
+
+  describe("tool calls", () => {
+    it("runs a lookup the delegated backend asked for and continues the response", async () => {
+      tokenReply = liveReply();
+      const { result } = renderHook(() => useOpenAIRealtime());
+      const pc = await startSession(result, {
+        dialect: "Gulf",
+        difficulty: "intermediate",
+        mode: "assistant",
+      });
+      goLive(pc);
+
+      await act(async () => {
+        // Nested inside the backend's own Responses stream, not a top-level
+        // event as on Realtime.
+        pc.deliver({
+          type: "response.event",
+          delegation_id: "item_1",
+          event: {
+            type: "response.output_item.done",
+            item: {
+              type: "function_call",
+              call_id: "call_1",
+              name: "read_source",
+              arguments: JSON.stringify({ url: "https://example.com/a" }),
+            },
+          },
+        });
+      });
+
+      await waitFor(() => expect(pc.sent().length).toBeGreaterThanOrEqual(2));
+
+      expect(calls.some((c) => c.url.includes(TOOLS_URL))).toBe(true);
+
+      const sent = pc.sent();
+      // The result goes to the backend's conversation, not the voice model's.
+      const output = sent.find((e) => e.type === "response.item.create");
+      expect(output).toBeTruthy();
+      expect((output!.item as { type: string; call_id: string }).type).toBe("function_call_output");
+      expect((output!.item as { call_id: string }).call_id).toBe("call_1");
+      // And the backend has to be told explicitly to carry on.
+      expect(sent.some((e) => e.type === "response.create")).toBe(true);
+    });
+
+    it("ignores a nested event that is not a finished tool call", async () => {
+      tokenReply = liveReply();
+      const { result } = renderHook(() => useOpenAIRealtime());
+      const pc = await startSession(result, { dialect: "Gulf", difficulty: "beginner", mode: "assistant" });
+      goLive(pc);
+
+      await act(async () => {
+        pc.deliver({ type: "response.event", event: { type: "response.output_text.delta", delta: "hi" } });
+      });
+
+      expect(calls.some((c) => c.url.includes(TOOLS_URL))).toBe(false);
+    });
+
+    it("releases a delegation in practice mode, where no backend will answer it", async () => {
+      tokenReply = liveReply();
+      const { result } = renderHook(() => useOpenAIRealtime());
+      const pc = await startSession(result);
+      goLive(pc);
+
+      await act(async () => {
+        pc.deliver({
+          type: "session.delegation.created",
+          delegation: { id: "item_9", type: "delegation", target: "client" },
+        });
+      });
+
+      // Practice runs on client delegation with nothing behind it. A delegation
+      // left unanswered is a tutor that stops talking mid-conversation.
+      const released = pc.sent().find((e) => e.type === "session.thinking.append");
+      expect(released).toBeTruthy();
+      expect(released!.delegation_id).toBe("item_9");
+    });
+  });
+
+  describe("keeping the call up to date", () => {
+    it("sends a screen change as silent context, not as something the learner said", async () => {
+      tokenReply = liveReply();
+      const { result } = renderHook(() => useOpenAIRealtime());
+      const pc = await startSession(result);
+      goLive(pc);
+
+      act(() => {
+        expect(result.current.updateContext("Now on line 4: التمر زاد")).toBe(true);
+      });
+
+      const update = pc.sent().find((e) => e.type === "session.thinking.append");
+      expect(update).toBeTruthy();
+      expect(String(update!.content)).toContain("Now on line 4");
+      // Null means general session context. A delegation id here is rejected
+      // outright under Responses delegation.
+      expect(update!.delegation_id).toBeNull();
+      // Silent context asks for no reply, so nothing requests one: a learner
+      // scrolling is not a question.
+      expect(pc.sent().some((e) => e.type === "response.create")).toBe(false);
+    });
+
+    it("clamps an oversized update rather than having it silently rejected", async () => {
+      tokenReply = liveReply();
+      const { result } = renderHook(() => useOpenAIRealtime());
+      const pc = await startSession(result);
+      goLive(pc);
+
+      act(() => {
+        result.current.updateContext("ا".repeat(5000));
+      });
+
+      const update = pc.sent().find((e) => e.type === "session.thinking.append");
+      // GPT-Live caps every append at 500 tokens, and a rejected append fails
+      // silently — the tutor just keeps discussing the previous line.
+      expect(String(update!.content).length).toBeLessThanOrEqual(1000);
+    });
+  });
+
+  it("explains a call the server ended on its own", async () => {
+    tokenReply = liveReply();
+    const { result } = renderHook(() => useOpenAIRealtime());
+    const pc = await startSession(result);
+    goLive(pc);
+
+    await act(async () => {
+      pc.deliver({ type: "session.closed", reason: "expired" });
+    });
+
+    expect(result.current.status).toBe("error");
+    expect(result.current.error).toMatch(/expired/);
+  });
+
+  it("says nothing when the call closed because the learner hung up", async () => {
+    tokenReply = liveReply();
+    const { result } = renderHook(() => useOpenAIRealtime());
+    const pc = await startSession(result);
+    goLive(pc);
+
+    await act(async () => {
+      result.current.stop();
+      pc.deliver({ type: "session.closed", reason: "close_requested" });
+    });
+
+    expect(result.current.error).toBeNull();
+  });
+});

@@ -416,6 +416,25 @@ that is already open (`serializeFocusUpdate`), throttled and only on a real
 change. Without this the tutor is frozen at whatever was on screen when the
 call connected.
 
+**Two live-voice engines, one function.** `realtime-session-token` serves either
+OpenAI Realtime (`gpt-realtime-2`, the default) or GPT-Live (`gpt-live-1`),
+picked by the `VOICE_ENGINE` secret. GPT-Live is not a model swap: the model
+that speaks and the model that reasons are separate, so the single Realtime
+prompt becomes two — speaking rules on the voice layer, procedure and page
+context on a delegated backend — and the dialect rulebook goes in *both*,
+because the backend's draft is paraphrased aloud and a فصحى draft is a فصحى
+answer. Practice mode takes `client` delegation (no tools, so no backend to
+bill); the Ask AI assistant takes `responses` delegation, which is the near-exact
+shape the Realtime path already had. GPT-Live also marks no turn boundaries at
+all — full duplex means no single moment ends a turn — so turns are rebuilt from
+timed transcript deltas by `src/lib/liveTranscriptGrouping.ts`, which matters
+beyond display: a turn that never closes is a mistake the drill never sees.
+Everything before the engine branch is shared, which is why both live in one
+function. The config shapes and the two prompts are in
+`_shared/liveVoiceCore.ts`; `docs/tts-voice-routing.md` covers what GPT-Live
+gives up (Arabic-tuned ASR and `semantic_vad`) and why no engine can use a
+Munsit voice.
+
 **Retrieval.** `content_embeddings` and `match_content()` shipped in Sprint 3
 and nothing read them. `_shared/contentRetrieval.ts` is the reader: it embeds
 the question, takes the nearest material in the learner's dialect, keeps one

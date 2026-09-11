@@ -1,5 +1,21 @@
-// useOpenAIRealtime — manages an OpenAI Realtime API voice session via WebRTC.
-// Flow:
+// useOpenAIRealtime — manages an OpenAI voice session via WebRTC.
+//
+// Two engines, chosen by the server (the `VOICE_ENGINE` secret) and named back
+// in the mint response, so the browser is never configured separately from the
+// function that builds the session:
+//
+//   realtime — OpenAI Realtime API. The flow below: mint an ephemeral secret,
+//              then exchange SDP with OpenAI directly from here.
+//   live     — GPT-Live-1. The server owns the SDP exchange, so the offer goes
+//              up with the mint request and the answer comes back in it. Its
+//              event names all differ, and it marks no turn boundaries at all —
+//              see `handleLiveEvent` and `liveTranscriptGrouping`.
+//
+// The request carries `client_api: 2` to say it understands both. Without that
+// marker the server serves Realtime regardless, so an old cached bundle keeps
+// working rather than going half-silent on unfamiliar events.
+//
+// Realtime flow:
 //   1. Build a WebRTC SDP offer in the browser.
 //   2. Create RTCPeerConnection, add mic track, attach <audio> sink for model voice,
 //      open a data channel for JSON events.
@@ -13,6 +29,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { isVoiceErrorCaptureEnabled } from "@/lib/uiPrefs";
+import { clampLiveAppend } from "../../supabase/functions/_shared/liveVoiceCore";
+import {
+  LiveTranscriptGrouper,
+  type LiveGroupingEvent,
+  type LiveSpeaker,
+} from "@/lib/liveTranscriptGrouping";
 import type { PageContextPayload } from "../../supabase/functions/_shared/pageContextCore";
 
 export type LiveStatus = "idle" | "connecting" | "live" | "ending" | "error";
@@ -49,12 +71,27 @@ interface InternalLiveTurn extends LiveTurn {
 
 type RealtimeEvent = Record<string, unknown>;
 
+type VoiceEngine = "realtime" | "live";
+
 interface ClientSecretResponse {
+  /** Which engine the server served. Absent from pre-GPT-Live responses. */
+  engine?: VoiceEngine;
   value?: string;
   client_secret?: string | { value?: string };
+  /** GPT-Live only: the SDP answer, since that exchange happens server-side. */
+  sdp?: string;
   /** Monthly minute budget, in seconds. null = unmetered (admins). */
   voice_remaining_seconds?: number | null;
 }
+
+/**
+ * How often the transcript grouper is asked whether a turn has gone quiet.
+ *
+ * GPT-Live sends no end-of-turn event, so the last turn before a silence is
+ * closed by this tick and nothing else. Comfortably under the grouper's own
+ * 2s inactivity window, so a turn closes promptly once it really has ended.
+ */
+const LIVE_GROUPING_TICK_MS = 400;
 
 const CLIENT_MSA_TOKENS: Record<string, string[]> = {
   Gulf: ['الآن', 'لماذا', 'أين', 'ماذا', 'سوف', 'ليس', 'يريد', 'أريد', 'كيف', 'إزيك', 'دلوقتي', 'عايز'],
@@ -99,6 +136,17 @@ export function useOpenAIRealtime(opts: Options = {}) {
   // with the assistant's next turn for the mistake-drill feed (below).
   const lastUserTextRef = useRef<string>("");
   const modeRef = useRef<"practice" | "assistant">("practice");
+  // Which engine this call is on. Decided by the server at mint time.
+  const engineRef = useRef<VoiceEngine>("realtime");
+  // GPT-Live only: rebuilds turns from untagged transcript deltas, plus the
+  // timer that closes a turn nothing follows.
+  const grouperRef = useRef<LiveTranscriptGrouper | null>(null);
+  const groupTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // `finalizeTurn` closes over `opts`, which callers pass as a fresh object
+  // literal on every render. Reading it through a ref keeps `cleanup` stable —
+  // and `cleanup` has to stay stable, because the unmount effect below is keyed
+  // on it and would otherwise tear down a live call on every re-render.
+  const finalizeTurnRef = useRef<(role: "user" | "assistant", id: string, text: string) => void>(() => {});
   // The context the call was started with, kept so a tool call can be resolved
   // against it server-side. The browser relays tool requests; it never decides
   // what they are allowed to reach.
@@ -251,6 +299,8 @@ export function useOpenAIRealtime(opts: Options = {}) {
     return () => window.removeEventListener("pagehide", onPageHide);
   }, [reportUsage]);
 
+  finalizeTurnRef.current = finalizeTurn;
+
   const cleanup = useCallback(() => {
     reportUsage();
     try { dcRef.current?.close(); } catch { /* noop */ }
@@ -276,6 +326,22 @@ export function useOpenAIRealtime(opts: Options = {}) {
     micSenderRef.current = null;
     userBufRef.current.clear();
     assistantBufRef.current.clear();
+
+    // GPT-Live: stop ticking, then flush. The open segment at hang-up is the
+    // learner's last utterance and there is no end-of-turn event coming for it,
+    // so without this flush it would never reach the mistake drill.
+    if (groupTimerRef.current) {
+      clearInterval(groupTimerRef.current);
+      groupTimerRef.current = null;
+    }
+    if (grouperRef.current) {
+      for (const event of grouperRef.current.close()) {
+        if (event.type === "closed") {
+          finalizeTurnRef.current(event.segment.speaker, event.segment.id, event.segment.text);
+        }
+      }
+      grouperRef.current = null;
+    }
   }, [reportUsage]);
 
   const stop = useCallback(() => {
@@ -345,19 +411,131 @@ export function useOpenAIRealtime(opts: Options = {}) {
         console.warn("[realtime] tool call failed", name, e);
       }
 
-      send({
-        type: "conversation.item.create",
-        item: { type: "function_call_output", call_id: callId, output },
-      });
-      // The model is waiting on this result to carry on speaking, so unlike a
-      // screen update this one does ask for a response.
-      send({ type: "response.create" });
+      // Same two steps on both engines — hand back the result, then ask the
+      // model to carry on — but GPT-Live addresses the delegated backend's
+      // conversation rather than the voice model's own, so the item event is
+      // named differently and both events are correlated by `event_id`.
+      if (engineRef.current === "live") {
+        send({
+          type: "response.item.create",
+          event_id: `tool_result_${callId}`,
+          item: { type: "function_call_output", call_id: callId, output },
+        });
+        send({ type: "response.create", event_id: `continue_${callId}` });
+      } else {
+        send({
+          type: "conversation.item.create",
+          item: { type: "function_call_output", call_id: callId, output },
+        });
+        // The model is waiting on this result to carry on speaking, so unlike a
+        // screen update this one does ask for a response.
+        send({ type: "response.create" });
+      }
     },
     [send],
   );
 
+  /**
+   * Turn the grouper's verdicts into the same turn updates the Realtime path
+   * produces, so everything downstream — the drift check, the mistake drill,
+   * the transcript UI — is engine-agnostic.
+   */
+  const applyGrouping = useCallback((events: LiveGroupingEvent[]) => {
+    for (const event of events) {
+      const { segment } = event;
+      if (event.type === "updated") {
+        upsertTurn(segment.speaker, segment.id, segment.text, true);
+      } else {
+        finalizeTurn(segment.speaker, segment.id, segment.text);
+      }
+    }
+  }, [upsertTurn, finalizeTurn]);
+
+  /**
+   * GPT-Live's events.
+   *
+   * Nothing here maps one-to-one onto the Realtime path. Transcripts arrive as
+   * timed deltas with no item id and no completion event, so turns are inferred
+   * by the grouper. Tool calls arrive nested inside `response.event` — the
+   * backend's own Responses stream, relayed — rather than as top-level events.
+   */
+  const handleLiveEvent = useCallback((evt: RealtimeEvent, type: string): void => {
+    if (type === "session.started") {
+      // WebRTC has already started the session by the time the data channel
+      // opens, so this is confirmation rather than a gate. Status is set on
+      // channel open, as with Realtime.
+      return;
+    }
+
+    if (type === "session.input_transcript.delta" || type === "session.output_transcript.delta") {
+      const grouper = grouperRef.current;
+      if (!grouper) return;
+      const speaker: LiveSpeaker = type === "session.input_transcript.delta" ? "user" : "assistant";
+      const delta = typeof evt.delta === "string" ? evt.delta : "";
+      const startMs = typeof evt.start_ms === "number" ? evt.start_ms : 0;
+      const endMs = typeof evt.end_ms === "number" ? evt.end_ms : startMs;
+      applyGrouping(grouper.push({ speaker, text: delta, startMs, endMs }, performance.now()));
+      return;
+    }
+
+    // A tool call from the delegated backend. The nested event is a Responses
+    // stream event, so the tool lives on the completed output item.
+    if (type === "response.event") {
+      const inner = (evt.event ?? {}) as Record<string, unknown>;
+      if (inner.type !== "response.output_item.done") return;
+      const item = (inner.item ?? {}) as Record<string, unknown>;
+      if (item.type !== "function_call") return;
+      const callId = typeof item.call_id === "string" ? item.call_id : "";
+      const name = typeof item.name === "string" ? item.name : "";
+      const args = typeof item.arguments === "string" ? item.arguments : "";
+      if (callId && name) {
+        void runToolCall(callId, name, args);
+      } else {
+        console.warn("[live] unnamed tool call, ignoring", { callId });
+      }
+      return;
+    }
+
+    // Practice mode runs on client delegation with no backend behind it, so a
+    // delegation nothing answers leaves the tutor waiting mid-conversation.
+    // Release it immediately: this is silent context, not something to say.
+    if (type === "session.delegation.created") {
+      const delegation = (evt.delegation ?? {}) as Record<string, unknown>;
+      const id = typeof delegation.id === "string" ? delegation.id : null;
+      if (!id) return;
+      send({
+        type: "session.thinking.append",
+        delegation_id: id,
+        content: "No backend is available for this call. Answer from what you already know, and do not tell the learner a lookup is pending.",
+      });
+      return;
+    }
+
+    if (type === "session.closed") {
+      const reason = (evt.reason ?? "") as string;
+      // `close_requested` is our own hang-up; anything else ended the call
+      // without us asking, and the learner is owed an explanation.
+      if (!endingRef.current && reason && reason !== "close_requested") {
+        setError(`The voice call ended (${reason}).`);
+        setStatus("error");
+      }
+      return;
+    }
+
+    if (type === "error") {
+      console.error("[live] server error", evt);
+      const err = evt.error as { message?: unknown } | undefined;
+      setError(typeof err?.message === "string" ? err.message : "Voice server error");
+    }
+  }, [applyGrouping, runToolCall, send]);
+
   const handleEvent = useCallback((evt: RealtimeEvent) => {
     const type = typeof evt.type === "string" ? evt.type : "";
+
+    if (engineRef.current === "live") {
+      handleLiveEvent(evt, type);
+      return;
+    }
 
     // A function call is announced as a conversation item before its
     // arguments finish streaming. Remember the name against its call_id so
@@ -440,7 +618,7 @@ export function useOpenAIRealtime(opts: Options = {}) {
       const err = evt.error as { message?: unknown } | undefined;
       setError(typeof err?.message === "string" ? err.message : "Realtime server error");
     }
-  }, [finalizeTurn, upsertTurn, runToolCall]);
+  }, [finalizeTurn, upsertTurn, runToolCall, handleLiveEvent]);
 
   /**
    * Tell a call in progress that the screen moved on.
@@ -465,6 +643,23 @@ export function useOpenAIRealtime(opts: Options = {}) {
       if (pageContext) pageContextRef.current = pageContext;
       const text = note.trim();
       if (!text) return false;
+
+      // GPT-Live has a channel for exactly this: silent context that colours
+      // later speech without requesting any. That removes the need for the
+      // "not spoken aloud" marker the Realtime path has to carry, since this
+      // does not arrive as something the learner said. Capped at 500 tokens by
+      // the API, so it is clamped rather than risking a silent rejection.
+      if (engineRef.current === "live") {
+        return send({
+          type: "session.thinking.append",
+          // Null means general session context. A delegation id here would be
+          // rejected outright in assistant mode, which runs Responses
+          // delegation — and this update belongs to no delegation anyway.
+          delegation_id: null,
+          content: clampLiveAppend(`The learner's screen moved on: ${text}`),
+        });
+      }
+
       return send({
         type: "conversation.item.create",
         item: {
@@ -583,8 +778,20 @@ export function useOpenAIRealtime(opts: Options = {}) {
         }
       };
 
-      // 2. Get a short-lived OpenAI Realtime client secret from our edge
-      // function. The long-lived OpenAI key stays server-side.
+      // 2. Build the SDP offer before minting, because GPT-Live needs it in
+      // the same request: its session config and the offer are exchanged
+      // together, server-side. On Realtime the offer is simply unused here and
+      // posted to OpenAI in step 3 instead. Either way it costs nothing to have
+      // it ready, and building it early keeps one code path up to the branch.
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      const offerSdp = pc.localDescription?.sdp || offer.sdp;
+      if (!offerSdp) {
+        throw new Error("Browser did not generate a voice connection offer. Try Chrome or Edge in a new window.");
+      }
+
+      // 3. Ask our edge function for a session. The long-lived OpenAI key stays
+      // server-side on both engines.
       const { data: { session } } = await supabase.auth.getSession();
       const token = session?.access_token ?? import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       accessTokenRef.current = token;
@@ -595,7 +802,8 @@ export function useOpenAIRealtime(opts: Options = {}) {
           "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ dialect, difficulty, topicHint, mode, pageContext }),
+        // `client_api: 2` says this bundle understands either engine's events.
+        body: JSON.stringify({ dialect, difficulty, topicHint, mode, pageContext, sdp: offerSdp, client_api: 2 }),
       });
       if (!tokenResp.ok) {
         const t = await tokenResp.text();
@@ -610,39 +818,53 @@ export function useOpenAIRealtime(opts: Options = {}) {
       if (typeof tokenPayload.voice_remaining_seconds === "number") {
         setRemainingSeconds(tokenPayload.voice_remaining_seconds);
       }
-      const clientSecret = extractClientSecret(tokenPayload);
-      if (!clientSecret) {
-        throw new Error("Voice token response was missing a client secret.");
-      }
+      // The server decides the engine; an older response naming none is
+      // Realtime by definition, since it predates the alternative.
+      const engine: VoiceEngine = tokenPayload.engine === "live" ? "live" : "realtime";
+      engineRef.current = engine;
 
-      // 3. SDP exchange directly with OpenAI using the ephemeral key. Sending
-      // raw application/sdp avoids edge-runtime multipart serialization issues.
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      const offerSdp = pc.localDescription?.sdp || offer.sdp;
-      if (!offerSdp) {
-        throw new Error("Browser did not generate a voice connection offer. Try Chrome or Edge in a new window.");
-      }
+      if (engine === "live") {
+        // 4a. GPT-Live already exchanged the SDP for us — the answer is in the
+        // mint response. Turns have to be rebuilt from timed transcript deltas,
+        // so the grouper is armed here and ticked until teardown.
+        if (!tokenPayload.sdp) {
+          throw new Error("Voice session response was missing its connection answer.");
+        }
+        const grouper = new LiveTranscriptGrouper();
+        grouperRef.current = grouper;
+        groupTimerRef.current = setInterval(() => {
+          applyGrouping(grouper.advance(performance.now()));
+        }, LIVE_GROUPING_TICK_MS);
+        await pc.setRemoteDescription({ type: "answer", sdp: tokenPayload.sdp });
+      } else {
+        // 4b. Realtime: exchange SDP directly with OpenAI using the ephemeral
+        // key. Sending raw application/sdp avoids edge-runtime multipart
+        // serialization issues.
+        const clientSecret = extractClientSecret(tokenPayload);
+        if (!clientSecret) {
+          throw new Error("Voice token response was missing a client secret.");
+        }
 
-      const sdpResp = await fetch("https://api.openai.com/v1/realtime/calls", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${clientSecret}`,
-          "Content-Type": "application/sdp",
-        },
-        body: offerSdp,
-      });
-      if (!sdpResp.ok) {
-        const t = await sdpResp.text();
-        let message = t;
-        try {
-          const parsed = JSON.parse(t);
-          message = parsed?.details || parsed?.message || parsed?.error || t;
-        } catch { /* noop */ }
-        throw new Error(`Voice setup failed (${sdpResp.status}): ${String(message).slice(0, 300)}`);
+        const sdpResp = await fetch("https://api.openai.com/v1/realtime/calls", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${clientSecret}`,
+            "Content-Type": "application/sdp",
+          },
+          body: offerSdp,
+        });
+        if (!sdpResp.ok) {
+          const t = await sdpResp.text();
+          let message = t;
+          try {
+            const parsed = JSON.parse(t);
+            message = parsed?.details || parsed?.message || parsed?.error || t;
+          } catch { /* noop */ }
+          throw new Error(`Voice setup failed (${sdpResp.status}): ${String(message).slice(0, 300)}`);
+        }
+        const answerSdp = await sdpResp.text();
+        await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
       }
-      const answerSdp = await sdpResp.text();
-      await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
 
       // status flips to "live" when data channel opens.
     } catch (e) {
@@ -651,7 +873,7 @@ export function useOpenAIRealtime(opts: Options = {}) {
       setStatus("error");
       cleanup();
     }
-  }, [cleanup, handleEvent, status]);
+  }, [cleanup, handleEvent, status, applyGrouping]);
 
   useEffect(() => () => cleanup(), [cleanup]);
 

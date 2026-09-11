@@ -33,6 +33,14 @@ BEGIN
   IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'supabase_auth_admin') THEN
     CREATE ROLE supabase_auth_admin NOLOGIN NOINHERIT;
   END IF;
+  -- Two migrations from 2026-09-09 GRANT the curriculum tables to this role and
+  -- REVOKE them again in the very next file, so it leaves nothing behind in the
+  -- live schema — but the GRANT still has to resolve for the replay to get past
+  -- it. Like the roles above, it belongs to the project rather than to any
+  -- migration here, which is why recreating it is the prelude's job.
+  IF NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'sandbox_exec') THEN
+    CREATE ROLE sandbox_exec NOLOGIN NOINHERIT;
+  END IF;
 END
 $$;
 

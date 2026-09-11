@@ -65,10 +65,29 @@ export const useSubscription = () => {
   });
 
   const checkSubscription = useCallback(async () => {
-    if (!session?.access_token) {
+    if (!session?.access_token || !user?.id) {
       setState({ subscribed: false, tier: null, subscriptionEnd: null, loading: false });
       return;
     }
+
+    // Full-access roles are decided in the database, not in Stripe. Checking
+    // them here as well as in check-subscription means staff and complimentary
+    // accounts stay unlocked even when the Stripe-backed check errors out —
+    // that failure used to leave an admin looking like a free user.
+    const hasFullAccessRole = async () => {
+      try {
+        const [admin, complimentary] = await Promise.all([
+          supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' }),
+          supabase.rpc('has_role', { _user_id: user.id, _role: 'complimentary' }),
+        ]);
+        return admin.data === true || complimentary.data === true;
+      } catch {
+        return false;
+      }
+    };
+
+    const grantFullAccess = () =>
+      setState({ subscribed: true, tier: 'allin', subscriptionEnd: null, loading: false });
 
     try {
       const { data, error } = await supabase.functions.invoke('check-subscription', {
@@ -79,7 +98,16 @@ export const useSubscription = () => {
 
       if (error) {
         console.error('Error checking subscription:', error);
+        if (await hasFullAccessRole()) {
+          grantFullAccess();
+          return;
+        }
         setState(prev => ({ ...prev, loading: false }));
+        return;
+      }
+
+      if (!data?.subscribed && (await hasFullAccessRole())) {
+        grantFullAccess();
         return;
       }
 
@@ -91,9 +119,13 @@ export const useSubscription = () => {
       });
     } catch (err) {
       console.error('Error checking subscription:', err);
+      if (await hasFullAccessRole()) {
+        grantFullAccess();
+        return;
+      }
       setState(prev => ({ ...prev, loading: false }));
     }
-  }, [session?.access_token]);
+  }, [session?.access_token, user?.id]);
 
   // Check subscription on mount and when user changes
   useEffect(() => {

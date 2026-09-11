@@ -1222,7 +1222,7 @@ describe("the GPT-Live engine", () => {
       });
     });
 
-    it("settles a turn when the other speaker starts", async () => {
+    it("shows both speakers as still talking while they overlap", async () => {
       tokenReply = liveReply();
       const onTurnFinalized = vi.fn();
       const { result } = renderHook(() => useOpenAIRealtime({ onTurnFinalized }));
@@ -1232,13 +1232,32 @@ describe("the GPT-Live engine", () => {
       await say(pc, "session.input_transcript.delta", "شلونك", 0, 500);
       await say(pc, "session.output_transcript.delta", "زين", 600, 900);
 
-      // There is no end-of-turn event on this engine; the speaker change is
-      // what closes the learner's turn.
-      expect(result.current.turns[0]).toMatchObject({ role: "user", partial: false });
+      // Full duplex: the tutor answering does not prove the learner stopped, so
+      // neither turn settles here. Silence closes them, on the grouper's tick.
+      expect(result.current.turns[0]).toMatchObject({ role: "user", partial: true });
       expect(result.current.turns[1]).toMatchObject({ role: "assistant", partial: true });
-      expect(onTurnFinalized).toHaveBeenCalledWith(
-        expect.objectContaining({ role: "user", text: "شلونك" }),
-      );
+      expect(onTurnFinalized).not.toHaveBeenCalled();
+    });
+
+    it("keeps the learner's sentence whole across a tutor backchannel", async () => {
+      tokenReply = liveReply();
+      const onTurnFinalized = vi.fn();
+      const { result } = renderHook(() => useOpenAIRealtime({ onTurnFinalized }));
+      const pc = await startSession(result);
+      goLive(pc);
+
+      await say(pc, "session.input_transcript.delta", "أنا أبغى", 0, 600);
+      await say(pc, "session.output_transcript.delta", "أيوه", 500, 700);
+      await say(pc, "session.input_transcript.delta", " قهوة", 700, 1100);
+      await act(async () => { result.current.stop(); });
+
+      // The learner spoke one sentence. Finalizing it at the backchannel would
+      // hand the mistake drill "أنا أبغى" as though that were the whole thing.
+      const learnerTurns = onTurnFinalized.mock.calls
+        .map(([turn]) => turn)
+        .filter((turn) => turn.role === "user");
+      expect(learnerTurns).toHaveLength(1);
+      expect(learnerTurns[0].text).toBe("أنا أبغى قهوة");
     });
 
     it("still flags dialect drift in the model's reply", async () => {

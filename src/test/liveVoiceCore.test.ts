@@ -79,6 +79,23 @@ describe("the voice layer's prompt", () => {
     expect(prompt).toMatch(/do not speak over them/i);
   });
 
+  it("redirects an English question back to dialect in practice mode", () => {
+    const prompt = frontend({ mode: "practice" });
+    expect(prompt).toMatch(/speaks English, answer briefly in dialect/i);
+    expect(prompt).not.toMatch(/explain in English/i);
+  });
+
+  it("lets the assistant answer in English instead of redirecting", () => {
+    // The two modes want opposite things here and the difference is the whole
+    // point of the assistant: "what does this mean?" asked in English is the
+    // question it exists for, so telling it to reply in dialect and steer back
+    // would fail exactly the learner who is already lost. The Realtime path
+    // keeps the same split — the redirect lives only in buildSystemInstruction.
+    const prompt = frontend({ mode: "assistant" });
+    expect(prompt).toMatch(/explain in English/i);
+    expect(prompt).not.toMatch(/guide them back/i);
+  });
+
   it("tells practice mode never to delegate, since nothing would answer", () => {
     // Practice runs on client delegation with no backend. A model that
     // delegates and waits goes silent mid-conversation.

@@ -137,8 +137,17 @@ Listening:
 - This learner is speaking a language they are still learning. Let them finish. Leave silence while they think, even a long pause — do not fill it and do not finish their sentence for them.
 - Do not speak over them. A short "mm" or "أيوه" to show you're listening is fine; a full reply while they are mid-sentence is not.
 - If they stall badly, offer one short prompt, then wait again.
-- If the student speaks English, answer briefly in dialect and gently guide them back.
-
+${
+    // Practice mode only, and deliberately so. Immersion answers an English
+    // question in dialect and steers back; the assistant is *bilingual* by
+    // design — "what does this mean?" in English is the question it exists to
+    // answer, and telling it to redirect instead would fail exactly the learner
+    // who is already lost. The Realtime path keeps this split too: the rule
+    // lives in buildSystemInstruction and never in buildAssistantInstruction.
+    mode === "practice"
+      ? "- If the student speaks English, answer briefly in dialect and gently guide them back.\n"
+      : "- If the learner asks in English or seems lost, explain in English, then model the phrase in dialect.\n"
+  }
 ${delegation}
 
 ${opening}`;

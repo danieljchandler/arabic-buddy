@@ -955,6 +955,7 @@ describe("ending a session", () => {
     expect(micTracks.every((track) => track.stop.mock.calls.length > 0)).toBe(true);
   });
 
+
   it("releases everything when the screen goes away", async () => {
     const { result, unmount } = renderHook(() => useOpenAIRealtime());
     const pc = await startSession(result);
@@ -975,6 +976,110 @@ describe("ending a session", () => {
         result.current.stop();
       }),
     ).not.toThrow();
+  });
+});
+
+/**
+ * `disconnected` is the state this hook used to hang up on.
+ *
+ * It is the transient one: a few seconds of packet loss raises it and the first
+ * packet through clears it again, so treating it as terminal ended a call on
+ * every wifi blip — reliably about a minute in, with "Voice connection
+ * disconnected" on it. These four tests are the whole of the fix: hold the call
+ * open, keep the mic hot, say something that is not an error, and only give up
+ * if the window really does elapse.
+ */
+describe("a connection that goes quiet mid-call", () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("holds the call open rather than hanging up", async () => {
+    const { result } = renderHook(() => useOpenAIRealtime());
+    const pc = await startSession(result);
+    goLive(pc);
+
+    act(() => {
+      pc.transitionTo("disconnected");
+    });
+
+    // Still live, still holding the microphone: the learner may well be
+    // mid-sentence and the path is expected back.
+    expect(result.current.status).toBe("live");
+    expect(result.current.interrupted).toBe(true);
+    expect(result.current.error).toBeNull();
+    expect(micTracks.every((track) => track.stop.mock.calls.length === 0)).toBe(true);
+  });
+
+  it("says nothing at all once the connection comes back", async () => {
+    const { result } = renderHook(() => useOpenAIRealtime());
+    const pc = await startSession(result);
+    goLive(pc);
+
+    act(() => {
+      pc.transitionTo("disconnected");
+    });
+    act(() => {
+      pc.transitionTo("connected");
+    });
+
+    // The recovered case is the common one, and a call that recovers should
+    // never have asked the learner to do anything.
+    expect(result.current.interrupted).toBe(false);
+    expect(result.current.status).toBe("live");
+    expect(result.current.error).toBeNull();
+
+    // And the timer it armed must not fire behind the recovery.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    expect(result.current.status).toBe("live");
+    expect(result.current.error).toBeNull();
+  });
+
+  it("gives up once the window has actually elapsed", async () => {
+    const { result } = renderHook(() => useOpenAIRealtime());
+    const pc = await startSession(result);
+    goLive(pc);
+
+    act(() => {
+      pc.transitionTo("disconnected");
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000);
+    });
+
+    // A grace period is not a promise: a path that never comes back still ends
+    // the call, and still releases the microphone.
+    expect(result.current.status).toBe("error");
+    expect(result.current.interrupted).toBe(false);
+    expect(result.current.error).toContain("could not recover");
+    expect(micTracks.every((track) => track.stop.mock.calls.length > 0)).toBe(true);
+  });
+
+  it("does not grieve a connection the learner hung up", async () => {
+    const { result } = renderHook(() => useOpenAIRealtime());
+    const pc = await startSession(result);
+    goLive(pc);
+
+    act(() => {
+      result.current.stop();
+    });
+    // Closing the peer connection is itself a state transition, and a call the
+    // learner ended must not come back as an error a few seconds later.
+    act(() => {
+      pc.transitionTo("disconnected");
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.status).toBe("idle");
   });
 });
 

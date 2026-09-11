@@ -252,6 +252,58 @@ describe("the sixty-second refresh", () => {
     expect(rendered.result.current.tier).toBe("standard");
   });
 
+  /**
+   * Staff access is a database role, not a Stripe row, so the refresh has to
+   * consult both — and the two can disagree for a tick. What must never happen
+   * is a downgrade on the strength of a lookup that failed: the poll runs every
+   * minute behind whatever the learner is doing, and a momentary "not
+   * subscribed" pulls premium UI out from under them. That is how a live voice
+   * call came to end abruptly about a minute in.
+   */
+  it("keeps a staff account unlocked when Stripe has never heard of them", async () => {
+    const rendered = renderHookWithProviders(() => useSubscription(), { persona: "admin" });
+    cleanup = rendered.cleanup;
+
+    await settled(rendered);
+    rendered.backend.stubFunction("check-subscription", {
+      subscribed: false,
+      tier: null,
+      product_id: null,
+      subscription_end: null,
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+
+    expect(rendered.result.current.subscribed).toBe(true);
+    expect(rendered.result.current.tier).toBe("allin");
+  });
+
+  it("does not revoke access when the role check itself could not be made", async () => {
+    const rendered = renderHookWithProviders(() => useSubscription(), { persona: "admin" });
+    cleanup = rendered.cleanup;
+
+    await settled(rendered);
+    expect(rendered.result.current.subscribed).toBe(true);
+
+    // Stripe says no, and now the database cannot be asked either. Two
+    // unknowns are not a cancellation.
+    rendered.backend.stubFunction("check-subscription", {
+      subscribed: false,
+      tier: null,
+      product_id: null,
+      subscription_end: null,
+    });
+    rendered.backend.db.failRpc("has_role", 500, { message: "boom" });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(60_000);
+    });
+
+    expect(rendered.result.current.subscribed).toBe(true);
+  });
+
   it("does not poll when signed out", async () => {
     const rendered = renderHookWithProviders(() => useSubscription(), { persona: "anonymous" });
     cleanup = rendered.cleanup;

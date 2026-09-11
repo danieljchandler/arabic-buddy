@@ -25,7 +25,7 @@ export function LiveVoicePanel({
   onTurnFinalized,
   onExitLive,
 }: Props) {
-  const { status, error, turns, muted, setMuted, start, stop } = useOpenAIRealtime({
+  const { status, error, interrupted, turns, muted, setMuted, start, stop, engine } = useOpenAIRealtime({
     onTurnFinalized,
   });
 
@@ -71,6 +71,14 @@ export function LiveVoicePanel({
       {error && (
         <div className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
           {error}
+        </div>
+      )}
+
+      {/* Not an error: the connection is in its grace window and the call is
+          still up. Saying nothing here would read as the tutor going silent. */}
+      {interrupted && (
+        <div className="rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-500">
+          Connection interrupted — holding the call. Keep talking if it comes back.
         </div>
       )}
 
@@ -136,7 +144,9 @@ export function LiveVoicePanel({
       </div>
 
       <p className="text-[11px] text-center text-muted-foreground">
-        Voice powered by ChatGPT Realtime. Best on Chrome or Edge.
+        {/* Named rather than hardcoded: with two engines behind one flag, a
+            fixed label is the reason nobody could tell which one had answered. */}
+        Voice powered by {engine === "live" ? "GPT-Live" : "ChatGPT Realtime"}. Best on Chrome or Edge.
       </p>
     </div>
   );

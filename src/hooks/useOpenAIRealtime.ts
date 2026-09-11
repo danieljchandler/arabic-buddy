@@ -93,6 +93,42 @@ interface ClientSecretResponse {
  */
 const LIVE_GROUPING_TICK_MS = 400;
 
+/**
+ * STUN servers for the WebRTC handshake.
+ *
+ * A bare `new RTCPeerConnection()` gathers host candidates only. That does
+ * connect — OpenAI's end is a public address, so the browser's outbound checks
+ * punch the mapping open — but the connection is then built on whatever NAT
+ * binding happened to exist, with no reflexive candidate to fall back on when
+ * that binding moves. A learner on hotel wifi or a phone handing between cells
+ * is exactly that case.
+ *
+ * There is deliberately no TURN here: a relay needs credentials and would want
+ * minting alongside the session key. A network that blocks UDP outright still
+ * cannot place a call, and that is a known gap rather than an oversight.
+ */
+const ICE_SERVERS: RTCIceServer[] = [
+  { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
+];
+
+/**
+ * How long a `disconnected` peer connection is given to come back before the
+ * call is declared dead.
+ *
+ * `disconnected` is WebRTC's *transient* state: the browser raises it when ICE
+ * consent checks stop being answered — a few seconds of packet loss will do it
+ * — and clears it again on the first packet that gets through. Treating it as
+ * terminal, which this hook used to do, turned every wifi hiccup into a hang-up
+ * with "Voice connection disconnected" on it, reliably about a minute into a
+ * call. Only `failed` is terminal in the spec, and only `failed` is terminal
+ * here now.
+ *
+ * The mic stays hot and the status stays `live` through the window: the state
+ * usually clears on its own, and a call that recovers should not have asked the
+ * learner to do anything.
+ */
+const ICE_RECOVERY_GRACE_MS = 8000;
+
 const CLIENT_MSA_TOKENS: Record<string, string[]> = {
   Gulf: ['الآن', 'لماذا', 'أين', 'ماذا', 'سوف', 'ليس', 'يريد', 'أريد', 'كيف', 'إزيك', 'دلوقتي', 'عايز'],
   Egyptian: ['الآن', 'لماذا', 'أين', 'ماذا', 'سوف', 'ليس', 'يريد', 'أريد', 'كيف', 'شلونك', 'هالحين', 'يبي'],
@@ -136,8 +172,17 @@ export function useOpenAIRealtime(opts: Options = {}) {
   // with the assistant's next turn for the mistake-drill feed (below).
   const lastUserTextRef = useRef<string>("");
   const modeRef = useRef<"practice" | "assistant">("practice");
-  // Which engine this call is on. Decided by the server at mint time.
+  // Which engine this call is on. Decided by the server at mint time. Kept as
+  // state as well as a ref because the UI names it — nothing else in the
+  // browser knows which of the two engines answered.
   const engineRef = useRef<VoiceEngine>("realtime");
+  const [engine, setEngine] = useState<VoiceEngine | null>(null);
+  // True while the connection is in its `disconnected` grace window. Separate
+  // from `error` on purpose: an interruption the call recovers from is not a
+  // failure, and putting it in the error slot would tell the learner the call
+  // had ended while it was still running.
+  const [interrupted, setInterrupted] = useState(false);
+  const recoveryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // GPT-Live only: rebuilds turns from untagged transcript deltas, plus the
   // timer that closes a turn nothing follows.
   const grouperRef = useRef<LiveTranscriptGrouper | null>(null);
@@ -260,7 +305,7 @@ export function useOpenAIRealtime(opts: Options = {}) {
             "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({ action: "report", mode, seconds }),
+          body: JSON.stringify({ action: "report", mode, seconds, engine: engineRef.current }),
         });
         void p.then(async (resp) => {
           if (!resp.ok) return;
@@ -303,6 +348,11 @@ export function useOpenAIRealtime(opts: Options = {}) {
 
   const cleanup = useCallback(() => {
     reportUsage();
+    if (recoveryTimerRef.current) {
+      clearTimeout(recoveryTimerRef.current);
+      recoveryTimerRef.current = null;
+    }
+    setInterrupted(false);
     try { dcRef.current?.close(); } catch { /* noop */ }
     dcRef.current = null;
     try { pcRef.current?.getSenders().forEach((s) => s.track?.stop()); } catch { /* noop */ }
@@ -680,6 +730,7 @@ export function useOpenAIRealtime(opts: Options = {}) {
     modeRef.current = mode === "assistant" ? "assistant" : "practice";
     pageContextRef.current = pageContext;
     setError(null);
+    setInterrupted(false);
     setStatus("connecting");
     setTurns([]);
     userBufRef.current.clear();
@@ -687,7 +738,7 @@ export function useOpenAIRealtime(opts: Options = {}) {
 
     try {
       // 1. Set up peer connection.
-      const pc = new RTCPeerConnection();
+      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
       pcRef.current = pc;
 
       // Remote audio sink — model voice. Must be in the DOM for some browsers
@@ -769,12 +820,53 @@ export function useOpenAIRealtime(opts: Options = {}) {
 
       pc.onconnectionstatechange = () => {
         const st = pc.connectionState;
-        if (st === "failed" || st === "disconnected" || st === "closed") {
-          if (!endingRef.current) {
-            setError(`Voice connection ${st}`);
+        // A connection this hook has already let go of cannot speak for the
+        // session any more — after teardown `pcRef` is null, and after a restart
+        // it is somebody else's peer connection.
+        if (endingRef.current || pcRef.current !== pc) return;
+
+        // Back from an interruption. Nothing to tell the learner: as far as the
+        // conversation is concerned it never stopped.
+        if (st === "connected") {
+          if (recoveryTimerRef.current) {
+            clearTimeout(recoveryTimerRef.current);
+            recoveryTimerRef.current = null;
+          }
+          setInterrupted(false);
+          return;
+        }
+
+        // Transient by definition — see ICE_RECOVERY_GRACE_MS. Hold the call
+        // open and say nothing final until the window has actually elapsed.
+        if (st === "disconnected") {
+          if (recoveryTimerRef.current) return;
+          setInterrupted(true);
+          recoveryTimerRef.current = setTimeout(() => {
+            recoveryTimerRef.current = null;
+            // A different call may have been started inside the window; this
+            // timer belongs to the connection that scheduled it and to no other.
+            if (endingRef.current || pcRef.current !== pc) return;
+            if (pc.connectionState === "connected") {
+              setInterrupted(false);
+              return;
+            }
+            setInterrupted(false);
+            setError("The voice connection dropped and could not recover. Start a new call to carry on.");
             setStatus("error");
             cleanup();
+          }, ICE_RECOVERY_GRACE_MS);
+          return;
+        }
+
+        if (st === "failed" || st === "closed") {
+          if (recoveryTimerRef.current) {
+            clearTimeout(recoveryTimerRef.current);
+            recoveryTimerRef.current = null;
           }
+          setInterrupted(false);
+          setError(`Voice connection ${st}`);
+          setStatus("error");
+          cleanup();
         }
       };
 
@@ -822,6 +914,7 @@ export function useOpenAIRealtime(opts: Options = {}) {
       // Realtime by definition, since it predates the alternative.
       const engine: VoiceEngine = tokenPayload.engine === "live" ? "live" : "realtime";
       engineRef.current = engine;
+      setEngine(engine);
 
       if (engine === "live") {
         // 4a. GPT-Live already exchanged the SDP for us — the answer is in the
@@ -877,5 +970,20 @@ export function useOpenAIRealtime(opts: Options = {}) {
 
   useEffect(() => () => cleanup(), [cleanup]);
 
-  return { status, error, turns, muted, setMuted, start, stop, updateContext, remainingSeconds, remoteStream };
+  return {
+    status,
+    error,
+    /** In a `disconnected` grace window: the call is up but the path is not. */
+    interrupted,
+    turns,
+    muted,
+    setMuted,
+    start,
+    stop,
+    updateContext,
+    remainingSeconds,
+    remoteStream,
+    /** Which engine served this call, once the server has said. */
+    engine,
+  };
 }

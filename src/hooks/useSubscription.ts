@@ -74,15 +74,21 @@ export const useSubscription = () => {
     // them here as well as in check-subscription means staff and complimentary
     // accounts stay unlocked even when the Stripe-backed check errors out —
     // that failure used to leave an admin looking like a free user.
-    const hasFullAccessRole = async () => {
+    // Three answers, not two, and the third is what matters: `true` grants,
+    // `false` is a real "this account has neither role", and `null` is the
+    // check not having been made. Collapsing `null` into `false` is what let a
+    // single failed lookup on the one-minute refresh below present a staff
+    // account with the paywall — mid-call, on a feature it is entitled to.
+    const hasFullAccessRole = async (): Promise<boolean | null> => {
       try {
         const [admin, complimentary] = await Promise.all([
           supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' }),
           supabase.rpc('has_role', { _user_id: user.id, _role: 'complimentary' }),
         ]);
+        if (admin.error || complimentary.error) return null;
         return admin.data === true || complimentary.data === true;
       } catch {
-        return false;
+        return null;
       }
     };
 
@@ -106,9 +112,19 @@ export const useSubscription = () => {
         return;
       }
 
-      if (!data?.subscribed && (await hasFullAccessRole())) {
-        grantFullAccess();
-        return;
+      if (!data?.subscribed) {
+        const fullAccess = await hasFullAccessRole();
+        if (fullAccess) {
+          grantFullAccess();
+          return;
+        }
+        // Stripe says no and the database did not answer. Keep whatever we
+        // already believed: this runs again in a minute, and revoking access on
+        // the strength of a lookup that failed is the worse of the two errors.
+        if (fullAccess === null) {
+          setState(prev => ({ ...prev, loading: false }));
+          return;
+        }
       }
 
       setState({

@@ -28,6 +28,8 @@ const live = vi.hoisted(() => ({
   turns: [] as Turn[],
   muted: false,
   remainingSeconds: null as number | null,
+  interrupted: false,
+  engine: null as "live" | "realtime" | null,
   setMuted: vi.fn(),
   start: vi.fn(),
   stop: vi.fn(),
@@ -41,6 +43,8 @@ vi.mock("@/hooks/useOpenAIRealtime", () => ({
     turns: live.turns,
     muted: live.muted,
     remainingSeconds: live.remainingSeconds,
+    interrupted: live.interrupted,
+    engine: live.engine,
     setMuted: live.setMuted,
     start: live.start,
     stop: live.stop,
@@ -68,6 +72,8 @@ beforeEach(() => {
   live.turns = [];
   live.muted = false;
   live.remainingSeconds = null;
+  live.interrupted = false;
+  live.engine = null;
   live.setMuted.mockReset();
   live.start.mockReset();
   live.stop.mockReset();
@@ -135,6 +141,33 @@ describe("gating", () => {
     expect(screen.getByText(/premium feature/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /See plans/ })).toHaveAttribute("href", "/pricing");
     expect(screen.queryByRole("button", { name: /Start voice call/ })).toBeNull();
+  });
+
+  /**
+   * The entitlement check re-runs once a minute, and it can answer wrongly for
+   * one tick — a `has_role` lookup that fails, a Stripe read that flakes. When
+   * these gates applied to a call already in progress, that tick replaced a
+   * live conversation with the paywall card while the audio kept playing: a
+   * call ending abruptly about a minute in, with nothing in any log to say why.
+   * A minted call is already billed, and the server refuses the *next* mint.
+   */
+  it("does not take a call in progress away from someone it thinks is unsubscribed", () => {
+    subscription.subscribed = false;
+    live.status = "live";
+    render();
+
+    expect(screen.queryByText(/premium feature/)).toBeNull();
+    expect(screen.getByRole("button", { name: /End call/ })).toBeInTheDocument();
+  });
+
+  it("does not blank a call in progress while the check is in flight", () => {
+    subscription.subscribed = false;
+    subscription.loading = true;
+    live.status = "connecting";
+    render();
+
+    expect(screen.queryByText(/premium feature/)).toBeNull();
+    expect(screen.getByRole("button", { name: /End call/ })).toBeInTheDocument();
   });
 });
 
@@ -290,6 +323,27 @@ describe("the call", () => {
     harness.unmount();
     // Teardown must also fire when the panel closes around us.
     expect(live.stop.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("says a wobbling connection is being held, not that the call failed", () => {
+    live.status = "live";
+    live.interrupted = true;
+    render();
+
+    // `disconnected` is transient; the call is still up and the learner should
+    // not be told it ended.
+    expect(screen.getByText(/Connection interrupted/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /End call/ })).toBeInTheDocument();
+  });
+
+  it("names the engine that actually answered", () => {
+    live.status = "live";
+    live.engine = "live";
+    render();
+
+    // Two engines behind one secret: a hardcoded label is why nobody could tell
+    // which one had served a call.
+    expect(screen.getByText(/Voice powered by GPT-Live/)).toBeInTheDocument();
   });
 
   it("surfaces connection errors instead of a silent dead call", () => {

@@ -441,13 +441,18 @@ Deno.test("realtime-session-token reports a failed SDP exchange as 502", async (
 });
 
 // ── realtime-session-token: the GPT-Live engine ─────────────────────────────
-// A second engine behind the same function, opted into with VOICE_ENGINE=live.
-// It is a different endpoint, a different config shape, and the SDP exchange
-// happens here rather than in the browser — OpenAI's guidance is that the
-// application server holds the project key and does that exchange. Everything
-// before the branch (the caps, the minute meter, the dialect rulebook, the
-// learner model) is shared, which is the reason both engines live in one place.
-
+// The default engine, and the one a current bundle gets unless VOICE_ENGINE is
+// set to `realtime`. It is a different endpoint, a different config shape, and
+// the SDP exchange happens here rather than in the browser — OpenAI's guidance
+// is that the application server holds the project key and does that exchange.
+// Everything before the branch (the caps, the minute meter, the dialect
+// rulebook, the learner model) is shared, which is the reason both engines live
+// in one place.
+//
+// These tests still set the flag explicitly. Asserting GPT-Live behaviour off
+// an unset secret would make every one of them a test of the default as well,
+// and then flipping the default back for a week would turn the whole section
+// red instead of the two tests that are actually about which engine is default.
 const LIVE = { VOICE_ENGINE: "live" };
 const OFFER = "v=0\r\no=- 1 1 IN IP4 127.0.0.1\r\n";
 
@@ -640,11 +645,30 @@ Deno.test("realtime-session-token serves Realtime to a bundle that cannot speak 
   assert(!calls.some((url) => url.includes("/live/sessions")));
 });
 
-Deno.test("realtime-session-token stays on Realtime while the flag is unset", async () => {
+Deno.test("realtime-session-token serves GPT-Live while the flag is unset", async () => {
   const { status, body, calls } = await call(
     "realtime-session-token",
     { dialect: "Gulf", sdp: OFFER, client_api: 2 },
     subscriber({ "api.openai.com": openai() }),
+  );
+
+  // The flag is an opt-out now: an environment with no VOICE_ENGINE set at all
+  // gets GPT-Live, which is what makes "which engine served this" independent
+  // of a secret being present on every deployment.
+  assertEquals(status, 200);
+  assertEquals(body.engine, "live");
+  assertEquals(body.model, "gpt-live-1");
+  assert(calls.some((url) => url.includes("/live/sessions")));
+  assert(!calls.some((url) => url.includes("client_secrets")));
+});
+
+Deno.test("realtime-session-token rolls back to Realtime on the opt-out value", async () => {
+  const { status, body, calls } = await call(
+    "realtime-session-token",
+    { dialect: "Gulf", sdp: OFFER, client_api: 2 },
+    subscriber({ "api.openai.com": openai() }),
+    undefined,
+    { env: { VOICE_ENGINE: "realtime" } },
   );
 
   assertEquals(status, 200);

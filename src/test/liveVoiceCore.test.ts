@@ -31,16 +31,19 @@ const frontend = (overrides: Partial<Parameters<typeof buildLiveFrontendInstruct
   buildLiveFrontendInstruction({ ...RULES, mode: "practice", ...overrides });
 
 describe("choosing the engine", () => {
-  it("switches to GPT-Live only for the exact opt-in value", () => {
-    expect(resolveVoiceEngine("live")).toBe("live");
-    expect(resolveVoiceEngine(" LIVE ")).toBe("live");
+  it("rolls back to Realtime only for the exact opt-out value", () => {
+    expect(resolveVoiceEngine("realtime")).toBe("realtime");
+    expect(resolveVoiceEngine(" REALTIME ")).toBe("realtime");
   });
 
-  it("falls back to Realtime for anything else", () => {
-    // A typo in a secret must not take the live call down, and of the two
-    // engines Realtime is the one with a year of Arabic behind it.
-    for (const raw of [undefined, null, "", "realtime", "gpt-live", "livee", "true", "1"]) {
-      expect(resolveVoiceEngine(raw), String(raw)).toBe("realtime");
+  it("serves GPT-Live for anything else, the unset secret included", () => {
+    // The flag reads the other way round from how it shipped: GPT-Live is the
+    // default, so which engine serves a call no longer depends on a secret
+    // being set correctly on every environment. A typo still lands on a
+    // working engine — just not on the one with the Arabic-tuned ASR, which is
+    // what `VOICE_ENGINE=realtime` exists to get back.
+    for (const raw of [undefined, null, "", "live", "gpt-live", "realtimee", "true", "1"]) {
+      expect(resolveVoiceEngine(raw), String(raw)).toBe("live");
     }
   });
 

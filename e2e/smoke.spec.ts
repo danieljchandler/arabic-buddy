@@ -368,6 +368,31 @@ test.describe("signed in — curriculum leeches", () => {
     await expect(page.getByRole("button", { name: /Generate AI mnemonic/ })).toHaveCount(0);
   });
 
+  test("draws the mnemonic, and offers to adjust what came back", async ({ page }) => {
+    await signIn(page);
+    await stubSupabase(page, {
+      curriculumDue: 1,
+      tables: {
+        word_reviews: [reviewRow({ is_leech: true, mnemonic: "sounds like the English word" })],
+      },
+    });
+    await page.goto("/review");
+
+    // The hook is only half the technique: the keyword method works because the
+    // learner sees the scene, and not every learner can build it from prose.
+    await page.getByRole("button", { name: /Picture this mnemonic/ }).click();
+    await expect(page.getByRole("img", { name: /Mnemonic picture/ })).toHaveAttribute(
+      "src",
+      /mnemonic\.png/,
+    );
+
+    // And the first attempt routinely illustrates the pun while dropping the
+    // meaning, so the redraw has to take the learner's correction.
+    await page.getByRole("button", { name: /Adjust/ }).click();
+    await expect(page.getByLabel("Adjust the picture")).toBeVisible();
+    await expect(page.getByRole("button", { name: /Redraw picture/ })).toBeVisible();
+  });
+
   test("stays out of the way on a card that isn't stuck", async ({ page }) => {
     await signIn(page);
     await stubSupabase(page, {

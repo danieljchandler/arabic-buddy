@@ -76,6 +76,7 @@ Deno.test("functions handling payment or user data require a JWT", async () => {
     "process-approved-video",
     "curriculum-chat",
     "generate-flashcard-image",
+    "generate-mnemonic-image",
     "generate-story",
     "record-grammar-outcome",
     "draft-dialect-rules",

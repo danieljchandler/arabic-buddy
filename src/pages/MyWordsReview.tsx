@@ -78,6 +78,7 @@ interface DueCard {
   production_lapses: number;
   is_leech: boolean;
   mnemonic: string | null;
+  mnemonic_image_url: string | null;
   root: string | null;
   /**
    * The card's own dialect. Carried because a mixed-dialect session serves all
@@ -116,6 +117,7 @@ interface RawRow {
   production_lapses: number | null;
   is_leech: boolean | null;
   mnemonic: string | null;
+  mnemonic_image_url: string | null;
   root: string | null;
   dialect: string | null;
 }
@@ -242,7 +244,7 @@ const MyWordsReview = () => {
       // Fetch all rows that are due in either direction. We do two queries
       // and merge so each direction can be tagged independently.
       const baseSelect =
-        "id, word_arabic, word_english, ease_factor, difficulty, interval_days, repetitions, next_review_at, last_reviewed_at, production_ease_factor, production_difficulty, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, word_audio_url, sentence_audio_url, image_url, jingle_audio_url, jingle_lyrics, sentence_text, sentence_english, lapses, production_lapses, is_leech, mnemonic, root, dialect";
+        "id, word_arabic, word_english, ease_factor, difficulty, interval_days, repetitions, next_review_at, last_reviewed_at, production_ease_factor, production_difficulty, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, word_audio_url, sentence_audio_url, image_url, jingle_audio_url, jingle_lyrics, sentence_text, sentence_english, lapses, production_lapses, is_leech, mnemonic, mnemonic_image_url, root, dialect";
 
       // PostgREST caps unbounded selects at 1000 rows, and large decks pass that
       // easily. Page through so a big backlog doesn't silently truncate (which
@@ -314,6 +316,7 @@ const MyWordsReview = () => {
           production_lapses: r.production_lapses ?? 0,
           is_leech: r.is_leech ?? false,
           mnemonic: r.mnemonic,
+          mnemonic_image_url: r.mnemonic_image_url ?? null,
           root: (r as any).root ?? null,
           dialect: r.dialect ?? activeDialect,
         });
@@ -343,6 +346,7 @@ const MyWordsReview = () => {
           production_lapses: r.production_lapses ?? 0,
           is_leech: r.is_leech ?? false,
           mnemonic: r.mnemonic,
+          mnemonic_image_url: r.mnemonic_image_url ?? null,
           root: (r as any).root ?? null,
           dialect: r.dialect ?? activeDialect,
         });
@@ -1217,6 +1221,7 @@ const MyWordsReview = () => {
               english={currentWord.word_english}
               dialect={activeDialect}
               mnemonic={currentWord.mnemonic}
+              mnemonicImageUrl={currentWord.mnemonic_image_url}
               invalidateKeys={[["user-vocabulary-due-words"]]}
             />
           )}

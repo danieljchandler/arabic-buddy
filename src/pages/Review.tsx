@@ -835,6 +835,7 @@ const Review = () => {
               english={currentWord.word_english}
               dialect={currentWord.dialect_module ?? activeDialect}
               mnemonic={review.mnemonic ?? null}
+              mnemonicImageUrl={review.mnemonic_image_url ?? null}
               invalidateKeys={[["due-words"]]}
             />
           )}

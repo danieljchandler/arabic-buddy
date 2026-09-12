@@ -1,5 +1,8 @@
+import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { usePublishedStories } from '@/hooks/useInteractiveStories';
+import { usePageAiContext } from '@/contexts/AiAssistantContext';
+import { listingContext } from '@/lib/pageAiContext';
 import { AppShell } from '@/components/layout/AppShell';
 import { LoadingPanel } from '@/components/loading/LoadingPanel';
 import { PageCorner } from '@/components/shell/PageCorner';
@@ -20,6 +23,25 @@ const DIFFICULTY_COLORS: Record<string, string> = {
 const Stories = () => {
   const navigate = useNavigate();
   const { data: stories, isLoading, isError, error, refetch } = usePublishedStories();
+
+  usePageAiContext(
+    useMemo(
+      () =>
+        listingContext({
+          kind: "story",
+          title: "Interactive stories",
+          summary:
+            "The story library. Each one is a short dialect story the learner reads or listens " +
+            "to with tap-to-translate, followed by comprehension questions.",
+          label: "Stories in the library",
+          items: (stories ?? []).map((story) => ({
+            arabic: story.title_arabic,
+            english: `${story.title}${story.difficulty ? ` (${story.difficulty})` : ""}`,
+          })),
+        }),
+      [stories],
+    ),
+  );
 
   return (
     <AppShell>

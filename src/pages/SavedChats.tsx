@@ -25,8 +25,12 @@ import { toast } from "sonner";
 import { Check, Loader2, MessageSquare, Pencil, Sparkles, Trash2, X } from "lucide-react";
 
 /**
- * The saved Ask AI conversations. Opening one loads it back into the global
- * assistant panel, where it can be continued (and re-saved).
+ * The full Ask AI history. Opening one loads it back into the global assistant
+ * panel, where it carries on from where it stopped.
+ *
+ * The panel has its own History list for picking a recent conversation back
+ * up; this page is the whole archive, and the place renaming and deleting
+ * live — the panel is too small to be anyone's filing cabinet.
  */
 const SavedChats = () => {
   const { data: conversations, isLoading } = useSavedConversations();
@@ -79,7 +83,7 @@ const SavedChats = () => {
           <div className="w-11" />
           <h1 className="flex items-center gap-2 text-xl font-bold">
             <Sparkles className="h-5 w-5 text-primary" />
-            Saved Chats
+            Chat History
           </h1>
           <PageCorner />
         </div>
@@ -92,10 +96,10 @@ const SavedChats = () => {
           <Card>
             <CardContent className="flex flex-col items-center gap-2 py-10 text-center">
               <MessageSquare className="h-6 w-6 text-muted-foreground" />
-              <p className="text-sm font-medium">No saved chats yet</p>
+              <p className="text-sm font-medium">No conversations yet</p>
               <p className="max-w-xs text-xs text-muted-foreground">
-                When an Ask AI conversation is worth keeping, tap Save in the chat panel and it
-                will show up here.
+                Every conversation you have with the Ask AI tutor is kept here automatically. Open
+                one to pick it back up.
               </p>
             </CardContent>
           </Card>
@@ -128,7 +132,7 @@ const SavedChats = () => {
                       {row.dialect}
                       {row.page_context?.title ? ` · ${row.page_context.title}` : ""}
                       {" · "}
-                      {new Date(row.created_at).toLocaleDateString()}
+                      {new Date(row.updated_at ?? row.created_at).toLocaleDateString()}
                     </p>
                   </button>
                   {renamingId === row.id ? (
@@ -175,7 +179,7 @@ const SavedChats = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this conversation?</AlertDialogTitle>
             <AlertDialogDescription>
-              It will be gone for good — saved chats aren't recoverable.
+              It will be gone for good — a deleted conversation isn't recoverable.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

@@ -4,9 +4,20 @@ import { useAuth } from "./useAuth";
 import type { AssistantMsg, AssistantSeed } from "@/contexts/AiAssistantContext";
 
 /**
- * Saved Ask AI conversations. The chat itself is ephemeral; these are the
- * ones the learner explicitly kept. List/save/rename/delete over
- * `saved_chat_conversations` (owner-only via RLS).
+ * Ask AI conversation history — every chat the learner has had, newest first,
+ * over `saved_chat_conversations` (owner-only via RLS).
+ *
+ * This started as an opt-in "keep this one" bookmark, which is why the table is
+ * named the way it is. It is now the history: `ChatTab` writes each completed
+ * turn as it lands, so a conversation survives being closed, navigated away
+ * from, or reloaded, and can be picked back up from the panel's History list or
+ * from /saved-chats. Saving per turn rather than on a timer is deliberate — a
+ * conversation ends when the learner leaves the page it was about, and a
+ * debounce would lose the last answer to exactly that navigation.
+ *
+ * `useSaveConversation` is an upsert: pass the row id to update an ongoing
+ * conversation, omit it to start one. Rename and delete are the learner's own
+ * housekeeping.
  */
 
 export interface SavedConversation {
@@ -34,7 +45,11 @@ export const useSavedConversations = () => {
         .from("saved_chat_conversations")
         .select("*")
         .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+        // By last activity, not by when it started: a conversation picked
+        // back up is updated in place, and ordering on `created_at` left it
+        // buried at its original position while both views showed its fresh
+        // timestamp.
+        .order("updated_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as unknown as SavedConversation[];
     },

@@ -2,12 +2,21 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render as rtlRender, screen, fireEvent, type RenderOptions } from "@testing-library/react";
 import React from "react";
 import { ReviewQuizCard } from "@/components/review/ReviewQuizCard";
+import { MemoryRouter } from "react-router-dom";
 import { AiAssistantProvider } from "@/contexts/AiAssistantContext";
 import { VocabularyWord } from "@/hooks/useReview";
 
-// The answered card carries an Ask AI chip, which reads the global assistant.
+// The answered card carries an Ask AI chip, which reads the global assistant —
+// and the assistant scopes what it holds to the current route, so it wants a
+// router above it just as it has in the app.
+const Wrapper = ({ children }: { children: React.ReactNode }) => (
+  <MemoryRouter>
+    <AiAssistantProvider>{children}</AiAssistantProvider>
+  </MemoryRouter>
+);
+
 const render = (ui: React.ReactElement, options?: RenderOptions) =>
-  rtlRender(ui, { wrapper: AiAssistantProvider, ...options });
+  rtlRender(ui, { wrapper: Wrapper, ...options });
 
 const makeWord = (overrides: Partial<VocabularyWord> = {}): VocabularyWord => ({
   id: "w1",

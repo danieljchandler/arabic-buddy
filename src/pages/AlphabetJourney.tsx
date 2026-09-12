@@ -1,7 +1,10 @@
+import { useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ChevronRight, Volume2, VolumeX } from "lucide-react";
 import { ARABIC_LETTERS, CHECKPOINT_INDICES, type ArabicLetter } from "@/data/arabicAlphabet";
 import { useAlphabetProgress, useCheckpointProgress } from "@/hooks/useAlphabetProgress";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
+import { listingContext } from "@/lib/pageAiContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { ProfileEmblem } from "@/components/shell/ProfileEmblem";
 import { MilestoneBanner } from "@/components/alphabet/MilestoneBanner";
@@ -47,6 +50,32 @@ const AlphabetJourney = () => {
     : 0;
 
   const pct = Math.round((masteredCount / ARABIC_LETTERS.length) * 100);
+
+  // The letters, with which of them this learner has actually mastered — so
+  // "which one should I do next?" and "why does this letter look different at
+  // the end of a word?" can both be answered from the page itself.
+  usePageAiContext(
+    useMemo(
+      () =>
+        listingContext({
+          kind: "word",
+          title: "The alphabet journey",
+          summary:
+            `The letter-by-letter path through the Arabic alphabet. ${masteredCount} of ` +
+            `${ARABIC_LETTERS.length} letters mastered (${pct}%). Letters unlock in order.`,
+          label: "Letters, in order",
+          items: ARABIC_LETTERS.map((letter) => ({
+            arabic: letter.isolated,
+            english: `${letter.name_translit} — ${letter.sound_hint}${
+              progress[letter.code]?.mastered_at ? " [mastered]" : ""
+            }`,
+          })),
+          limit: 28,
+          meta: current ? { notes: [`The learner is on ${current.name_translit}.`] } : undefined,
+        }),
+      [progress, masteredCount, pct, current],
+    ),
+  );
 
   const stages = CHECKPOINT_INDICES.map((lastIndex, i) => ({
     number: i + 1,

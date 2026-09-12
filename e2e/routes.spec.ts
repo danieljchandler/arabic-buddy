@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "./support/fixtures";
 import { concreteUrl, ROUTES, type RouteSpec } from "../src/test/support/routes/manifest";
+import { isAssistantOffRoute } from "../src/lib/assistantRoutes";
 import type { Persona } from "../src/test/support/personas";
 
 /**
@@ -39,6 +40,29 @@ const NOT_FOUND = /We couldn't find that page/i;
 async function waitForPage(page: Page): Promise<void> {
   const skeleton = page.getByTestId("page-skeleton");
   await expect(skeleton).toHaveCount(0, { timeout: 15_000 });
+}
+
+/**
+ * The Ask AI disc is on this page, and something can actually be tapped.
+ *
+ * Visibility alone was not enough: the disc is mounted once at the app root at
+ * a fixed z-index, so any full-screen overlay painted above it hides it while
+ * every assertion about the button still passes. That is exactly how the feed
+ * — the screen learners spend the most time on — ended up with no way to ask
+ * about the clip playing on it. The hit test is what catches that class of
+ * bug, and it is cheap to run on a sweep that is already loading every page.
+ */
+async function expectAskAiReachable(page: Page, route: RouteSpec): Promise<void> {
+  const button = page.getByRole("button", { name: "Ask AI" });
+  await expect(button, `${route.path} has no Ask AI button`).toBeVisible();
+
+  const covered = await button.evaluate((el) => {
+    const box = el.getBoundingClientRect();
+    const onTop = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+    return !(onTop && el.contains(onTop));
+  });
+
+  expect(covered, `${route.path} paints something over the Ask AI button`).toBe(false);
 }
 
 /** Assert the page rendered something real rather than an error state. */
@@ -112,6 +136,13 @@ test.describe("every route renders", () => {
       }
 
       await expectRendered(page, route);
+
+      // Every learner page carries the tutor. The exceptions are the sign-in
+      // forms and the admin console (ASSISTANT_OFF_ROUTES), and a signed-out
+      // visitor, who is not one of the personas this sweep signs in as.
+      if (!isAssistantOffRoute(route.path)) {
+        await expectAskAiReachable(page, route);
+      }
     });
   }
 });

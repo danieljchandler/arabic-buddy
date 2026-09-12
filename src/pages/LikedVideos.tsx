@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageCorner } from "@/components/shell/PageCorner";
@@ -5,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { useLikedVideos } from "@/hooks/useVideoLikes";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
+import { listingContext } from "@/lib/pageAiContext";
 import { cn } from "@/lib/utils";
 import { Heart, Play, Loader2 } from "lucide-react";
 import { formatDuration } from "@/lib/videoEmbed";
@@ -81,6 +84,25 @@ const LikedVideos = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const { data: videos, isLoading } = useLikedVideos();
+
+  usePageAiContext(
+    useMemo(
+      () =>
+        listingContext({
+          kind: "video",
+          title: "Liked videos",
+          summary:
+            "The clips this learner has liked on Discover — the closest thing the app has to a " +
+            "statement of what they enjoy watching.",
+          label: "Liked clips",
+          items: (videos ?? []).map((video) => ({
+            arabic: video.title_arabic,
+            english: `${video.title} (${video.dialect})`,
+          })),
+        }),
+      [videos],
+    ),
+  );
 
   if (!isAuthenticated) {
     return (

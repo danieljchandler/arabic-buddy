@@ -4,6 +4,7 @@ import { Bookmark, Flag, Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useAiAssistant } from "@/contexts/AiAssistantContext";
+import { useSaveConversation } from "@/hooks/useSavedConversations";
 import { useDialect } from "@/contexts/DialectContext";
 import { useAuth } from "@/hooks/useAuth";
 import { buildPagePayload } from "@/lib/pageAiContext";
@@ -44,10 +45,14 @@ interface ChatTabProps {
 }
 
 export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
-  const { seed, messages, setMessages, pageContext } = useAiAssistant();
+  const { seed, messages, setMessages, pageContext, conversationId, setConversationId } =
+    useAiAssistant();
   const { activeDialect } = useDialect();
   const { user, loading: authLoading } = useAuth();
   const { pathname } = useLocation();
+  // Destructured: react-query hands back a fresh object each render, and `send`
+  // lists its dependencies.
+  const { mutateAsync: persistConversation } = useSaveConversation();
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [phraseToSave, setPhraseToSave] = useState<string | null>(null);
@@ -59,6 +64,26 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
   // at a time, and each one used to snap the view back down — so scrolling up
   // to re-read the start of a long answer was undone before you got a line in.
   const pinnedRef = useRef(true);
+  // The history row this conversation is being written to, and which
+  // conversation that is.
+  //
+  // A ref as well as context state because two turns can finish close
+  // together: the second has to *update* the row the first created, and
+  // `conversationId` only arrives back through a render. The writes are
+  // serialised for the same reason — the second turn's write has to see the
+  // first one's row id, which means waiting for it.
+  //
+  // The epoch is what stops that from going wrong in the other direction. A
+  // write still in flight when the panel switches conversations (New chat,
+  // walking away from the page, opening one from History) must not hand its
+  // row id to whatever is in the panel now — that would overwrite one
+  // conversation with the next one's messages.
+  const historyRef = useRef<{ epoch: number; id: string | null }>({ epoch: 0, id: conversationId });
+  const historyQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+
+  const switchHistoryRow = useCallback((id: string | null) => {
+    historyRef.current = { epoch: historyRef.current.epoch + 1, id };
+  }, []);
 
   // A learner's flag goes to the native-review queue, not straight into
   // training data — natives decide what was actually wrong.
@@ -101,13 +126,27 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
-  // "New chat" (and anything else that empties the conversation) must also
-  // stop an in-flight stream: without this the orphaned stream kept billing
-  // tokens, held `loading` true so the composer stayed locked, and its deltas
-  // wrote into whatever conversation came next.
+  // "New chat" (and anything else that empties the conversation — including
+  // navigating away from the page it was about) must also stop an in-flight
+  // stream: without this the orphaned stream kept billing tokens, held
+  // `loading` true so the composer stayed locked, and its deltas wrote into
+  // whatever conversation came next. The history row goes with it, so the
+  // next conversation starts its own rather than overwriting the last one.
   useEffect(() => {
-    if (messages.length === 0) abortRef.current?.abort();
-  }, [messages.length]);
+    if (messages.length === 0) {
+      abortRef.current?.abort();
+      switchHistoryRow(null);
+    }
+  }, [messages.length, switchHistoryRow]);
+
+  // Opening a conversation from History adopts its row, and deleting the one
+  // in the panel detaches it — `null` here means "this transcript has no row
+  // any more", so the next turn starts a fresh one rather than updating a
+  // deleted id forever. Guarded on the id actually differing, so it doesn't
+  // fire on the panel learning the id of a row we just wrote ourselves.
+  useEffect(() => {
+    if (conversationId !== historyRef.current.id) switchHistoryRow(conversationId);
+  }, [conversationId, switchHistoryRow]);
 
   const send = useCallback(
     async (text: string) => {
@@ -124,6 +163,16 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
       const ctrl = new AbortController();
       abortRef.current = ctrl;
 
+      // The reply as it stands, kept out here so the turn can be written to the
+      // history the moment it finishes. Reading it back off `messages` would
+      // mean waiting for a re-render, and by then the learner may have
+      // navigated — which now ends the conversation.
+      let reply = "";
+      // Only a stream that ran to the end is a turn. An aborted one (New chat,
+      // switching to voice, the panel closing) leaves a half-written answer
+      // that nobody asked to keep.
+      let completed = false;
+
       try {
         setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
         await streamChat({
@@ -136,6 +185,7 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
             pageContext: buildPagePayload(pathname, pageContext),
           },
           onDelta: (_delta, accumulated) => {
+            reply = accumulated;
             setMessages((prev) => {
               // The conversation may have been cleared (New chat) while this
               // stream was still in flight — writing to the last index of an
@@ -147,6 +197,7 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
             });
           },
         });
+        completed = true;
       } catch (err) {
         if ((err as Error)?.name !== "AbortError") {
           if (err instanceof SseChatError) {
@@ -186,8 +237,54 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
         );
         setLoading(false);
       }
+
+      // Write the finished turn to the history. Every conversation is kept,
+      // not just the ones somebody thought to press Save on — which is what
+      // lets a conversation end when the learner walks away from the page
+      // without anything being lost, and what makes History worth opening.
+      //
+      // Per completed turn rather than on a timer: a debounce loses the last
+      // answer to exactly the navigation that ends the conversation. Failures
+      // are swallowed — a history that could not be written is not a reason to
+      // interrupt someone mid-question.
+      if (user && completed && reply.trim()) {
+        const turns = [...nextMessages, { role: "assistant" as const, content: reply }];
+        const pageTitle = buildPagePayload(pathname, pageContext).title;
+        const { epoch, id: idAtSend } = historyRef.current;
+        historyQueueRef.current = historyQueueRef.current
+          .then(async () => {
+            // Still the same conversation? Then the row id may have been
+            // filled in by the write queued ahead of this one. If not, this
+            // turn belongs to a conversation the panel has already left, and
+            // the id it had when the question was asked is the right one.
+            const current = historyRef.current.epoch === epoch;
+            const row = await persistConversation({
+              id: current ? historyRef.current.id : idAtSend,
+              dialect: activeDialect,
+              seed,
+              pageContext: { route: pathname, title: pageTitle },
+              messages: turns,
+            });
+            if (historyRef.current.epoch !== epoch) return;
+            historyRef.current = { epoch, id: row.id };
+            setConversationId(row.id);
+          })
+          .catch((err) => console.warn("Couldn't write the conversation to history", err));
+      }
     },
-    [messages, setMessages, loading, activeDialect, seed, pathname, pageContext, stickToBottom],
+    [
+      messages,
+      setMessages,
+      loading,
+      activeDialect,
+      seed,
+      pathname,
+      pageContext,
+      stickToBottom,
+      user,
+      setConversationId,
+      persistConversation,
+    ],
   );
 
   if (!user && !authLoading) {

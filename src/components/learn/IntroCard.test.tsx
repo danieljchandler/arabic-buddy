@@ -1,13 +1,22 @@
 import { fireEvent, render as rtlRender, screen, type RenderOptions } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import type { VocabularyWord } from "@/components/design-system";
+import { MemoryRouter } from "react-router-dom";
 import { AiAssistantProvider } from "@/contexts/AiAssistantContext";
 import { IntroCard } from "./IntroCard";
 
-// The revealed card carries an Ask AI chip, which reads the global assistant.
+// The revealed card carries an Ask AI chip, which reads the global assistant —
+// and the assistant scopes what it holds to the current route, so it wants a
+// router above it just as it has in the app.
+const Wrapper = ({ children }: { children: ReactNode }) => (
+  <MemoryRouter>
+    <AiAssistantProvider>{children}</AiAssistantProvider>
+  </MemoryRouter>
+);
+
 const render = (ui: ReactElement, options?: RenderOptions) =>
-  rtlRender(ui, { wrapper: AiAssistantProvider, ...options });
+  rtlRender(ui, { wrapper: Wrapper, ...options });
 
 /**
  * The screen a learner meets a new word on, before the quiz asks them for it.

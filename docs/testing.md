@@ -58,6 +58,31 @@ app is configured, that file is the one that will tell you.
 Both conventions currently exist in the tree for historical reasons. New tests
 follow the rule above.
 
+### Guards that fail when you *add* code
+
+Several suites in `src/test/` read a source of truth off disk and fail on
+drift, so landing new code without its counterpart turns the fast unit job red
+(CLAUDE.md lists them). `askAiCoverage.test.ts` is one of them, and it guards
+two claims that are easy to break invisibly:
+
+- **The Ask AI button is on every learner route.** The disc is mounted once at
+  the app root, so it is present on a new page without anybody doing anything
+  — until the page paints something over it. The unit half checks the route is
+  not on `ASSISTANT_OFF_ROUTES` (with a second, independent copy of the
+  exemptions and their reasons, so reading the answer off the list that
+  produces it cannot pass for a test); the `e2e/routes.spec.ts` sweep does the
+  half a unit test cannot, hit-testing the disc with `elementFromPoint` on
+  every route it loads.
+- **Every learner route can say what it is showing.** Either the page calls
+  `usePageAiContext`, or its route resolves through `ROUTE_HINTS` to a
+  `PAGE_HINTS` entry. Pages built around one piece of content (a video, a
+  story, a lesson, a drill) are listed explicitly and must publish a real
+  context — a hint can only describe the *kind* of page, which leaves the tutor
+  guessing at the actual material.
+
+Like its neighbours the check is deliberately shallow: it cannot tell a rich
+context from a thin one, only that there is one.
+
 ## Test code standards
 
 Test files are held to a *higher* lint standard than the app, not a lower one

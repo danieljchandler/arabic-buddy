@@ -86,6 +86,11 @@ harness.
     generated-types drift allow-list against the migrations that caused it,
     and in the other direction that every column the migrations create is in
     `types.ts` (see the next bullet for why that fails).
+  - `askAiCoverage` — every learner route in the manifest is either
+    assistant-enabled or named, with a reason, on the off-list; and every one
+    of them resolves to *some* page context (a `usePageAiContext` registration,
+    or a `PAGE_HINTS` blurb via `ROUTE_HINTS`). Pages built around one piece of
+    content must publish a real one.
   - `brandSpelling` — the app is **Hikaya**; no file may carry the old
     `Hakiya` spelling unless it matches an allow-listed pattern with a written
     reason. Unlike the others it scans *every* tracked text file, `.js`, `.mjs`
@@ -264,6 +269,15 @@ declared directly on the Realtime session for voice); on-screen OCR timing via
 `_shared/visualTimelineCore.ts`; and cross-session notes via
 `_shared/learnerMemory.ts`. Each layer degrades independently rather than
 erroring.
+
+Three rules about the assistant hold everywhere and are each guarded:
+`ASSISTANT_OFF_ROUTES` in `src/lib/assistantRoutes.ts` is the *single* list of
+where the tutor is switched off (the disc, Cmd/Ctrl+K and the panel all read
+it); every other learner route resolves to a page context, a registered one or
+the route's `PAGE_HINTS` blurb; and both the conversation and the page context
+are scoped to the route, so neither follows the learner to the next page — a
+closed panel's conversation ends on navigation and is picked up again from the
+History list, which `ChatTab` writes to per completed turn.
 
 **Grammar mastery** parallels the vocabulary SRS but for structures:
 `user_concept_mastery`, updated by `record-grammar-outcome`, keyed on a fixed

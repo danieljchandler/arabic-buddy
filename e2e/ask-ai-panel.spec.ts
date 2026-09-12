@@ -41,7 +41,9 @@ const PASSAGE = {
  * in. (Cmd/Ctrl+K still works and keeps its own spec below.)
  */
 const openPanel = async (page: Page) => {
-  await page.getByRole("button", { name: "Ask AI" }).click();
+  // Exact: "Close Ask AI" inside the panel matches a loose name, so a reopen
+  // straight after a close resolves to two buttons while the sheet animates out.
+  await page.getByRole("button", { name: "Ask AI", exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible();
 };
 
@@ -180,6 +182,83 @@ test.describe("Ask AI panel", () => {
     await expect(line).toBeInViewport();
 
     await page.screenshot({ path: "/tmp/ask-ai-seeded.png" });
+  });
+
+  /**
+   * A conversation belongs to the page it was started on.
+   *
+   * It used to outlive every navigation: a question asked about a video was
+   * still sitting in the panel, seed sentence and all, when the disc was
+   * tapped on the review deck three screens later, and clearing it by hand was
+   * the only way to ask anything else. Nothing is lost by ending it — the
+   * conversation is written to the history as each turn lands.
+   *
+   * These navigate by clicking the dock rather than calling `goto`: a full page
+   * load would clear the panel's in-memory state whatever this code did, so it
+   * would prove nothing. A desktop viewport, where the dock is a left rail and
+   * the panel a right one, keeps the two out of each other's way.
+   */
+  test.describe("leaving the page a conversation was about", () => {
+    test.beforeEach(async ({ page, backend }) => {
+      await page.setViewportSize({ width: 1440, height: 900 });
+      backend.stubFunction("assistant-chat", () => streaming("Because ", "it is idiomatic."));
+    });
+
+    const askSomething = async (page: Page, question: string) => {
+      await page.getByPlaceholder("Ask a question…").fill(question);
+      await page.getByRole("button", { name: "Send" }).click();
+      await expect(page.getByText(/it is idiomatic/)).toBeVisible();
+    };
+
+    test("does not carry the conversation onto the next page", async ({ page }) => {
+      await page.goto("/reading");
+      await expect(page.getByRole("heading", { name: /reading practice/i })).toBeVisible();
+
+      await openPanel(page);
+      await askSomething(page, "why is this idiomatic?");
+
+      await page.getByRole("button", { name: "Close Ask AI" }).click();
+      await page.getByRole("link", { name: "Skills" }).click();
+      await expect(page).toHaveURL(/\/choose$/);
+      await openPanel(page);
+
+      // A clean panel on the new page, offering the prompts it opens with.
+      await expect(page.getByText(/it is idiomatic/)).toHaveCount(0);
+      await expect(page.getByText("What am I looking at?")).toBeVisible();
+    });
+
+    test("keeps a conversation the learner is still in the middle of", async ({ page }) => {
+      await page.goto("/reading");
+      await expect(page.getByRole("heading", { name: /reading practice/i })).toBeVisible();
+
+      await openPanel(page);
+      await askSomething(page, "where should I practise this?");
+
+      // Following the tutor's advice to another page must not wipe the answer
+      // that sent them there. The panel is open, so it is still in use.
+      await page.getByRole("link", { name: "Skills" }).click();
+      await expect(page).toHaveURL(/\/choose$/);
+      await expect(page.getByRole("dialog")).toBeVisible();
+      await expect(page.getByText(/it is idiomatic/)).toBeVisible();
+    });
+
+    test("leaves the conversation in History, ready to carry on", async ({ page }) => {
+      await page.goto("/reading");
+      await expect(page.getByRole("heading", { name: /reading practice/i })).toBeVisible();
+
+      await openPanel(page);
+      await askSomething(page, "what does this passage say?");
+
+      await page.getByRole("button", { name: "Close Ask AI" }).click();
+      await page.getByRole("link", { name: "Skills" }).click();
+      await openPanel(page);
+      await expect(page.getByText(/it is idiomatic/)).toHaveCount(0);
+
+      // Nothing was lost — it is one tap away, and opens where it left off.
+      await page.getByRole("button", { name: "History" }).click();
+      await page.getByText("what does this passage say?").click();
+      await expect(page.getByText(/it is idiomatic/)).toBeVisible();
+    });
   });
 
   test("does not dim the page on desktop", async ({ page }) => {

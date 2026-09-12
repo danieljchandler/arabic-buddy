@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useDialect } from "@/contexts/DialectContext";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
+import { listingContext } from "@/lib/pageAiContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageCorner } from "@/components/shell/PageCorner";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -78,6 +80,24 @@ export default function MyTranscriptions() {
     if (showAll) return rows;
     return rows.filter((r) => (r.dialect ?? null) === activeDialect || r.dialect == null);
   }, [rows, showAll, activeDialect]);
+
+  usePageAiContext(
+    useMemo(
+      () =>
+        listingContext({
+          title: "My transcriptions",
+          summary:
+            "Everything this learner has run through Transcribe — their own audio, videos and " +
+            "voice notes, kept with the transcript and analysis.",
+          label: "Saved transcriptions",
+          items: (visibleRows ?? []).map((row) => ({
+            english: `${row.title}${row.dialect ? ` (${row.dialect})` : ""}`,
+          })),
+          meta: { dialect: activeDialect },
+        }),
+      [visibleRows, activeDialect],
+    ),
+  );
 
   async function handleDelete(id: string) {
     const { error } = await supabase.from("saved_transcriptions").delete().eq("id", id);

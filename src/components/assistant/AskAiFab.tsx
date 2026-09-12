@@ -1,8 +1,8 @@
-import { useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import art from "@/assets/sadu-ask.svg";
 import { useAiAssistant } from "@/contexts/AiAssistantContext";
 import { useAuth } from "@/hooks/useAuth";
+import { isAssistantOffRoute } from "@/lib/assistantRoutes";
 import { cn } from "@/lib/utils";
 
 /**
@@ -20,11 +20,11 @@ import { cn } from "@/lib/utils";
  * FAB owns the bottom-left; this owns the bottom-right.
  *
  * Hidden while the panel is open — the panel is the button, opened — on the
- * routes where a tutor has no business (auth, onboarding, admin), and for a
- * visitor who is not signed in. The last one is not a permission check (the
- * panel enforces its own): it is that the disc sat on top of the marketing
- * page offering a signed-out visitor a tutor they cannot open, right beside a
- * dock of tabs they cannot use.
+ * routes where a tutor has no business (ASSISTANT_OFF_ROUTES: auth,
+ * onboarding, admin), and for a visitor who is not signed in. The last one is
+ * not a permission check (the panel enforces its own): it is that the disc sat
+ * on top of the marketing page offering a signed-out visitor a tutor they
+ * cannot open, right beside a dock of tabs they cannot use.
  * Must do no fetching on mount: the route sweep renders every page.
  */
 export function AskAiFab({ className }: { className?: string }) {
@@ -32,16 +32,7 @@ export function AskAiFab({ className }: { className?: string }) {
   const { pathname } = useLocation();
   const { isAuthenticated } = useAuth();
 
-  const hidden = useMemo(
-    () =>
-      pathname.startsWith("/auth") ||
-      pathname.startsWith("/onboarding") ||
-      pathname.startsWith("/admin") ||
-      pathname.startsWith("/reset-password"),
-    [pathname],
-  );
-
-  if (hidden || isOpen || !isAuthenticated) return null;
+  if (isAssistantOffRoute(pathname) || isOpen || !isAuthenticated) return null;
 
   return (
     <button
@@ -50,7 +41,12 @@ export function AskAiFab({ className }: { className?: string }) {
       data-feedback-ignore="true"
       onClick={() => openChat()}
       className={cn(
-        "fixed right-3 bottom-20 z-40 flex flex-col items-center gap-1",
+        // z-[46] rather than z-40: the dock and the feed's inline video player
+        // are both full-width chrome below it (z-40 and z-[45]), and the disc
+        // has to clear them — an Ask AI button hidden behind the player was
+        // the whole reason the feed had no way in. It stays *below* the
+        // modal layer (z-50), so a dialog still covers it.
+        "fixed right-3 bottom-20 z-[46] flex flex-col items-center gap-1",
         "transition-transform hover:scale-105 active:scale-95",
         "lg:bottom-6 lg:right-6",
         className,

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { QueryErrorState } from "@/components/shared/QueryErrorState";
 import { AppShell } from "@/components/layout/AppShell";
@@ -7,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Loader2, MessageCircle, Sparkles, ArrowRight } from "lucide-react";
 import { useDialect } from "@/contexts/DialectContext";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
+import { listingContext } from "@/lib/pageAiContext";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
 import { RequestSituationCard } from "@/components/set-phrases/RequestSituationCard";
@@ -16,6 +19,31 @@ const SetPhrases = () => {
   const { data: occasions, isLoading, isError, error, refetch } = useSetPhraseOccasions();
   const { data: dueCount = 0 } = useUserSetPhrasesDueCount();
   const { activeDialect } = useDialect();
+
+  usePageAiContext(
+    useMemo(
+      () =>
+        listingContext({
+          kind: "phrase",
+          title: "Set phrases",
+          summary:
+            "The occasions a learner needs fixed expressions for — greetings, weddings, Eid, " +
+            "condolences. Each opens a practice set; the whole lot can be drilled mixed.",
+          label: "Occasions on this page",
+          items: (occasions ?? []).map((occasion) => ({
+            arabic: occasion.name_arabic,
+            english: occasion.description
+              ? `${occasion.name} — ${occasion.description}`
+              : occasion.name,
+          })),
+          meta: {
+            dialect: activeDialect,
+            notes: dueCount > 0 ? [`${dueCount} set phrases are due for review.`] : undefined,
+          },
+        }),
+      [occasions, activeDialect, dueCount],
+    ),
+  );
 
   return (
     <AppShell>

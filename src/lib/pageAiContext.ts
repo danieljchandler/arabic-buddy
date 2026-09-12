@@ -90,7 +90,6 @@ const ROUTE_HINTS: Array<[prefix: string, hintKey: string]> = [
   ["/settings", "settings"],
   ["/friends", "friends"],
   ["/liked-videos", "liked-videos"],
-  ["/today/story", "stories"],
   ["/stories", "stories"],
   ["/souq-news", "souq-news"],
   ["/placement", "placement-quiz"],
@@ -98,8 +97,81 @@ const ROUTE_HINTS: Array<[prefix: string, hintKey: string]> = [
   ["/bible", "bible-reading"],
   ["/set-phrases", "set-phrases"],
   ["/onboarding", "onboarding"],
+  // Routes that used to resolve to nothing at all. A page with no hint and no
+  // published context handed the assistant a bare URL and the word "Hikaya",
+  // which is how a tutor ends up answering about the wrong screen.
+  ["/today/story", "stories"],
+  ["/today", "today"],
+  ["/choose", "choose"],
+  ["/skills", "skill"],
+  ["/curriculum", "curriculum"],
+  ["/learn", "learn"],
+  ["/quiz", "quiz"],
+  ["/alphabet", "alphabet"],
+  ["/bridge", "bridge"],
+  ["/mistakes", "mistakes"],
+  ["/monologue", "monologue"],
+  ["/write", "write"],
+  ["/clips", "clips"],
+  ["/native-feedback", "native-feedback"],
+  ["/saved-chats", "saved-chats"],
+  ["/me", "me"],
+  ["/profile", "profile"],
+  ["/terms", "terms"],
+  ["/privacy", "privacy"],
   ["/", "today"],
 ];
+
+/**
+ * Context for a page that is a *list* of things — a feed of clips, a library of
+ * stories, a deck of saved words.
+ *
+ * These pages were the long tail of "the assistant has no idea what I'm looking
+ * at": each one individually looks too unremarkable to write a context for, and
+ * the generic route hint describes the *kind* of page rather than what is
+ * actually on it, so "which of these should I watch?" had nothing to answer
+ * from. The shape is always the same — a heading, a sentence of framing, and
+ * the rows on screen — so it lives here once instead of being retyped per page.
+ *
+ * `items` is what is rendered, in render order. It is capped rather than
+ * truncated silently: a listing of 400 saved words does not need to reach the
+ * model whole to answer a question about the deck, and `position.total` keeps
+ * the real size visible.
+ */
+export function listingContext(args: {
+  kind?: PageAiContext["kind"];
+  title: string;
+  summary: string;
+  /** What the list is, in the assistant's words: "Videos in this feed". */
+  label: string;
+  items: ReadonlyArray<{ arabic?: string | null; english?: string | null }>;
+  meta?: PageContextMeta;
+  /** How many rows to publish. The default is generous; the budget clamps. */
+  limit?: number;
+}): PageAiContext {
+  const lines: PageContextLine[] = args.items
+    .map((item, index) => ({
+      index: index + 1,
+      arabic: item.arabic?.trim() || undefined,
+      english: item.english?.trim() || undefined,
+    }))
+    .filter((line) => line.arabic || line.english)
+    .slice(0, args.limit ?? 40);
+
+  return {
+    kind: args.kind ?? "page",
+    title: args.title,
+    summary: args.summary,
+    document: lines.length ? { label: args.label, lines } : undefined,
+    position: args.items.length ? { total: args.items.length } : undefined,
+    meta: args.meta,
+  };
+}
+
+const FALLBACK_TITLE = "Hikaya";
+const FALLBACK_SUMMARY =
+  "A page of Hikaya, an app for learning spoken (dialectal) Arabic. This address does not " +
+  "match any of the app's screens, so the learner is most likely looking at the not-found page.";
 
 export function hintKeyForPath(pathname: string): string | null {
   for (const [prefix, key] of ROUTE_HINTS) {
@@ -142,8 +214,17 @@ export function buildPagePayload(
   const key = hintKeyForPath(pathname);
   const hint = key ? PAGE_HINTS[key] : undefined;
   const clamped = clampPageContext(
-    { route: pathname, title: hint?.title ?? "Hikaya", summary: hint?.body },
+    {
+      route: pathname,
+      title: hint?.title ?? FALLBACK_TITLE,
+      // A bare "Hikaya" told the tutor nothing, and an assistant that does not
+      // know what app it is in answers the first question about the screen by
+      // guessing. Every route the app declares resolves to a hint (that is
+      // what `src/test/askAiCoverage.test.ts` holds it to); this is what is
+      // left — an address that matches no route at all, i.e. the 404 page.
+      summary: hint?.body ?? FALLBACK_SUMMARY,
+    },
     CHAT_BUDGET,
   );
-  return { ...clamped, route: pathname, title: clamped.title ?? "Hikaya" };
+  return { ...clamped, route: pathname, title: clamped.title ?? FALLBACK_TITLE };
 }

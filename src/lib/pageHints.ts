@@ -157,4 +157,75 @@ export const PAGE_HINTS: Record<string, { title: string; body: string; cta?: str
     title: "Welcome",
     body: "A 60-second setup so we can personalize your dialect, goals, and pace. Skip anytime.",
   },
+
+  // ─── Pages with no InfoHint of their own ───────────────────────────────────
+  // Everything below is here for the Ask AI assistant rather than for a hint
+  // bubble. A page that publishes no context of its own falls back to its
+  // route's hint (see `buildPagePayload`), so a missing entry means the tutor
+  // is answering "what am I looking at?" with nothing but a URL.
+  // `src/test/askAiCoverage.test.ts` is what keeps that from happening again.
+  choose: {
+    title: "What do you want to practise?",
+    body: "The chooser: every skill the app trains — listening, speaking, reading, writing, vocabulary and grammar — with the tools that build each one.",
+  },
+  skill: {
+    title: "One skill, end to end",
+    body: "Everything in the app that trains a single skill, ordered from the gentlest way in to the most demanding.",
+  },
+  curriculum: {
+    title: "The curriculum",
+    body: "The staged path through spoken Arabic: stages, the lessons inside them, and where the learner has got to.",
+  },
+  learn: {
+    title: "Lessons",
+    body: "The lesson path — new words and structures introduced a handful at a time, each one built on the last.",
+  },
+  alphabet: {
+    title: "The Arabic alphabet",
+    body: "Letters, their shapes in each position, and the sounds English does not have. The reading foundation everything else sits on.",
+  },
+  bridge: {
+    title: "MSA Bridge",
+    body: "For learners arriving from Modern Standard Arabic: what changes in the spoken dialect, word by word and structure by structure.",
+  },
+  mistakes: {
+    title: "My Mistakes",
+    body: "The errors this learner has actually made, drawn from their reviews, drills and conversations — drilled until they stop happening.",
+  },
+  monologue: {
+    title: "Monologue",
+    body: "Speak at length on a prompt and get it back transcribed, scored and corrected.",
+  },
+  write: {
+    title: "Writing Practice",
+    body: "Write in the dialect and get it corrected — spelling, word choice, and whether it sounds like something a native would write.",
+  },
+  clips: {
+    title: "Word Clips",
+    body: "Short clips of single words and phrases said by native speakers, for training the ear on one thing at a time.",
+  },
+  "native-feedback": {
+    title: "Native Feedback",
+    body: "Recordings waiting on a native speaker's judgement, and the corrections that have come back.",
+  },
+  "saved-chats": {
+    title: "Chat History",
+    body: "Every Ask AI conversation this learner has had, newest first. Opening one puts it back in the panel to carry on.",
+  },
+  me: {
+    title: "Me",
+    body: "The learner's own hub: streak, progress, saved decks, and everything they have collected across the app.",
+  },
+  profile: {
+    title: "Profile",
+    body: "The learner's account, dialect, level and goals.",
+  },
+  terms: {
+    title: "Terms of Service",
+    body: "The legal terms for using Hikaya. Not a lesson — nothing here is Arabic practice.",
+  },
+  privacy: {
+    title: "Privacy Policy",
+    body: "What Hikaya stores, why, and how a learner gets it back or deleted. Not a lesson.",
+  },
 };

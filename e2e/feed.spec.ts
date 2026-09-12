@@ -155,6 +155,32 @@ test.describe("the feed", () => {
     await expect(page).toHaveURL(/127\.0\.0\.1:\d+\/$/);
   });
 
+  test("keeps the Ask AI disc reachable over the inline player", async ({ page, db, backend }) => {
+    seedFeed(db, backend, 1);
+
+    await page.goto("/");
+    await page.getByRole("button", { name: /^Play / }).click();
+    await expect(page.getByRole("dialog", { name: "Video player" })).toBeVisible();
+
+    // The player is an opaque, full-screen overlay portalled to <body>, and the
+    // disc is mounted once at the app root — so for as long as the overlay sat
+    // above it, the screen learners spend the most time on was the one screen
+    // with no way to ask about what was playing. Visibility alone would not
+    // have caught it: the button was in the DOM and "visible" the whole time.
+    const disc = page.getByRole("button", { name: "Ask AI", exact: true });
+    await expect(disc).toBeVisible();
+    const covered = await disc.evaluate((el) => {
+      const box = el.getBoundingClientRect();
+      const onTop = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      return !(onTop && el.contains(onTop));
+    });
+    expect(covered).toBe(false);
+
+    // And it opens onto the clip, not onto the feed behind it.
+    await disc.click();
+    await expect(page.getByRole("dialog").last()).toBeVisible();
+  });
+
   test("the player's Back closes the clip, back to the feed", async ({ page, db, backend }) => {
     seedFeed(db, backend, 1);
 

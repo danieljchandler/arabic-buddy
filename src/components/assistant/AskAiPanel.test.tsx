@@ -1,6 +1,6 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders } from "@/test/support/react/harness";
+import { renderWithProviders, TEST_USER_ID } from "@/test/support/react/harness";
 import { streaming } from "@/test/support/server/functions";
 import { aProfile } from "@/test/support/factories";
 import {
@@ -152,6 +152,114 @@ describe("AskAiPanel", () => {
 
     expect(screen.queryByText(/Because it is idiomatic\./)).toBeNull();
     expect(screen.getByText("What am I looking at?")).toBeInTheDocument();
+  });
+
+  /**
+   * History. The panel keeps nothing when the learner walks away from the page
+   * a conversation was about, so "it is written down as it happens" is what
+   * makes that safe rather than lossy — and the way back in has to be one tap
+   * from the panel itself.
+   */
+  describe("history", () => {
+    it("writes a finished turn to the history without being asked", async () => {
+      const { backend } = render();
+      await open();
+      await ask("Why is this passage hard?");
+
+      await waitFor(() => {
+        expect(screen.getByText(/Because it is idiomatic\./)).toBeInTheDocument();
+      });
+
+      await waitFor(() => {
+        expect(backend.db.rows("saved_chat_conversations")).toHaveLength(1);
+      });
+      const row = backend.db.rows("saved_chat_conversations")[0] as Record<string, unknown>;
+      expect(row.title).toBe("Why is this passage hard?");
+      expect(row.dialect).toBe("Gulf");
+      expect(row.messages).toEqual([
+        { role: "user", content: "Why is this passage hard?" },
+        { role: "assistant", content: "Because it is idiomatic." },
+      ]);
+      // Where it happened, so the list can say what the chat was about.
+      expect(row.page_context).toEqual({ route: "/reading", title: "Reading Practice" });
+    });
+
+    it("updates the same row as the conversation goes on", async () => {
+      const { backend } = render();
+      await open();
+
+      await ask("first question");
+      await waitFor(() => {
+        expect(backend.db.rows("saved_chat_conversations")).toHaveLength(1);
+      });
+
+      await ask("second question");
+      await waitFor(() => {
+        const rows = backend.db.rows("saved_chat_conversations");
+        expect((rows[0] as { messages: unknown[] }).messages).toHaveLength(4);
+      });
+
+      // One conversation, one row — not a row per turn.
+      expect(backend.db.rows("saved_chat_conversations")).toHaveLength(1);
+    });
+
+    it("starts a new row for a new chat instead of overwriting the last one", async () => {
+      const { backend } = render();
+      await open();
+
+      await ask("first conversation");
+      await waitFor(() => {
+        expect(backend.db.rows("saved_chat_conversations")).toHaveLength(1);
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /New chat/ }));
+      });
+      await ask("second conversation");
+
+      await waitFor(() => {
+        expect(backend.db.rows("saved_chat_conversations")).toHaveLength(2);
+      });
+      const titles = backend.db
+        .rows("saved_chat_conversations")
+        .map((row) => (row as { title: string }).title);
+      expect(titles).toContain("first conversation");
+      expect(titles).toContain("second conversation");
+    });
+
+    it("opens a past conversation from the list and carries on with it", async () => {
+      const { backend } = render();
+      backend.db.seed("saved_chat_conversations", [
+        {
+          id: "11111111-0000-4000-8000-000000000000",
+          user_id: TEST_USER_ID,
+          dialect: "Gulf",
+          title: "What does yalla mean?",
+          seed: null,
+          page_context: { route: "/discover", title: "Discover" },
+          messages: [
+            { role: "user", content: "What does yalla mean?" },
+            { role: "assistant", content: "It means let's go." },
+          ],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      ]);
+
+      await open();
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /History/ }));
+      });
+
+      const entry = await screen.findByText("What does yalla mean?");
+      await act(async () => {
+        fireEvent.click(entry);
+      });
+
+      // The transcript is back, and the list has stepped out of the way.
+      expect(screen.getByText(/It means let's go\./)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Close history" })).toBeNull();
+    });
   });
 
   /**

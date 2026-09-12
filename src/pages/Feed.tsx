@@ -7,6 +7,8 @@ import { AppDock } from "@/components/shell/AppDock";
 import { BrandMark } from "@/components/shell/BrandMark";
 import { SaduPlayButton } from "@/components/brand/SaduPlayButton";
 import { useDiscoverFeed } from "@/hooks/useDiscoverFeed";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
+import { listingContext } from "@/lib/pageAiContext";
 import type { DiscoverVideo } from "@/hooks/useDiscoverVideos";
 import { useSwipeSurfaces } from "@/hooks/useSwipeSurfaces";
 import { useAuth } from "@/hooks/useAuth";
@@ -181,6 +183,30 @@ const Feed = () => {
 
   const items = useMemo(() => feed?.items ?? [], [feed]);
 
+  // What the tutor sees when asked "what should I watch?" on the front door.
+  // While a clip is open the inline player publishes its own, richer context
+  // over the top of this one — it mounts after the feed, so it wins — and this
+  // comes back the moment the player closes.
+  usePageAiContext(
+    useMemo(
+      () =>
+        listingContext({
+          kind: "video",
+          title: "The feed",
+          summary:
+            "The home screen: a scrollable feed of short native-speaker clips, recommended for " +
+            "this learner. Tapping one opens the full player with subtitles.",
+          label: "Clips in the feed, top to bottom",
+          items: items.map(({ video }) => ({
+            arabic: video.title_arabic,
+            english: video.title,
+          })),
+          meta: { dialect: activeDialect },
+        }),
+      [items, activeDialect],
+    ),
+  );
+
   // A visitor who has never signed in has no feed to show — the recommender
   // is keyed on their history — so the front door stays the landing page for
   // them. Dropping a stranger into an empty video feed would be the worst
@@ -273,7 +299,11 @@ const Feed = () => {
             role="dialog"
             aria-modal="true"
             aria-label="Video player"
-            className="fixed inset-0 z-50 overflow-y-auto overscroll-contain bg-background"
+            // z-[45]: above the dock (z-40), below the Ask AI disc (z-[46]).
+            // At z-50 this opaque sheet covered the disc completely, so the
+            // one screen a learner spends the most time on was the one with no
+            // way to ask about what they were watching.
+            className="fixed inset-0 z-[45] overflow-y-auto overscroll-contain bg-background"
           >
             <Suspense
               fallback={

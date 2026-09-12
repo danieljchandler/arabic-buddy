@@ -9,6 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDialect } from "@/contexts/DialectContext";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
+import { listingContext } from "@/lib/pageAiContext";
 import { getTopicCategories } from "@/data/listenTopics";
 import {
   useListenEpisodes,
@@ -61,6 +63,24 @@ const Listen = () => {
       return c !== undefined && c.band !== "too-hard";
     });
   }, [episodes, justRightOnly, comprehensionMap]);
+  usePageAiContext(
+    useMemo(
+      () =>
+        listingContext({
+          kind: "story",
+          title: "Listening library",
+          summary:
+            "Generated listening episodes — podcasts, monologues and dialogues in the " +
+            "learner's dialect, with transcripts. The learner can also commission a new one " +
+            "on a topic of their choosing from this page.",
+          label: "Episodes on the shelf",
+          items: (shelfEpisodes ?? []).map((ep) => ({ english: ep.title })),
+          meta: { dialect: activeDialect },
+        }),
+      [shelfEpisodes, activeDialect],
+    ),
+  );
+
   const generate = useGenerateListenEpisode();
 
   const [format, setFormat] = useState<ListenFormat>("podcast");

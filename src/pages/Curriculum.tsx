@@ -7,6 +7,8 @@ import { useStages } from "@/hooks/useStages";
 import { useAllLessons } from "@/hooks/useLessons";
 import { useLessonProgress } from "@/hooks/useLessonProgress";
 import { useDialect } from "@/contexts/DialectContext";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
+import { listingContext } from "@/lib/pageAiContext";
 import { useAuth } from "@/hooks/useAuth";
 import {
   findNextUpLessonId,
@@ -62,6 +64,35 @@ const Curriculum = () => {
   const { data: progressRows } = useLessonProgress();
 
   const progress = useMemo(() => indexProgress(progressRows ?? []), [progressRows]);
+
+  // "Where am I up to?" and "what should I do next?" are the two questions this
+  // page exists to answer, and both need the lesson list *with* the learner's
+  // progress on it — not a description of what a curriculum is.
+  usePageAiContext(
+    useMemo(
+      () =>
+        listingContext({
+          title: "The curriculum path",
+          summary:
+            "The staged path through the dialect: stages in order, the lessons inside each, " +
+            "and how far this learner has got. Gating is soft — any lesson can be opened.",
+          label: "Lessons, in order, with this learner's progress",
+          items: (lessons ?? []).map((lesson) => ({
+            arabic: lesson.name_arabic,
+            english: `${lesson.name}${lesson.cefr_target ? ` [${lesson.cefr_target}]` : ""} — ${
+              progress.get(lesson.id)?.status === "completed"
+                ? "completed"
+                : progress.has(lesson.id)
+                  ? "in progress"
+                  : "not started"
+            }`,
+          })),
+          limit: 60,
+          meta: { dialect: activeDialect },
+        }),
+      [lessons, progress, activeDialect],
+    ),
+  );
 
   // Lessons carry stage_id; useLessons maps to a display shape, so group here.
   const lessonsByStage = useMemo(() => {

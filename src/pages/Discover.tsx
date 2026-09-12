@@ -17,6 +17,8 @@ import { ContentRequestBar } from "@/components/discover/ContentRequestBar";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
 import { useDialect } from "@/contexts/DialectContext";
+import { usePageAiContext } from "@/contexts/AiAssistantContext";
+import { listingContext } from "@/lib/pageAiContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useUserLevel } from "@/hooks/useUserLevel";
 import { useComprehensionMap } from "@/hooks/useComprehensionMap";
@@ -179,6 +181,33 @@ const Discover = () => {
   const { data: feed, isLoading: isFeedLoading, isFetching: isFeedFetching, isError: isFeedError, error: feedError, refetch: refetchFeed } = useDiscoverFeed(seed);
 
   const feedItems = useMemo(() => feed?.items ?? [], [feed]);
+
+  // Whichever shelf is on screen is what the tutor is asked about — "is this
+  // one too hard for me?" means the tab in front of them, not the other one.
+  usePageAiContext(
+    useMemo(() => {
+      const onScreen =
+        tab === "feed"
+          ? feedItems.map((item) => item.video)
+          : (shelfVideos ?? []);
+      return listingContext({
+        kind: "video",
+        title: tab === "feed" ? "Discover — recommended for you" : "Discover — browse",
+        summary:
+          tab === "feed"
+            ? "A shelf of native-speaker videos picked for this learner, with subtitles and " +
+              "tap-to-translate."
+            : "The browsable video library, filtered by the learner's search, dialect and " +
+              "difficulty choices.",
+        label: "Videos on screen",
+        items: onScreen.map((video) => ({
+          arabic: video.title_arabic,
+          english: `${video.title} (${video.dialect}, ${video.difficulty})`,
+        })),
+        meta: { dialect: activeDialect },
+      });
+    }, [tab, feedItems, shelfVideos, activeDialect]),
+  );
 
   return (
     <AppShell>

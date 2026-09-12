@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
+import { usePageAiContext } from '@/contexts/AiAssistantContext';
+import { listingContext } from '@/lib/pageAiContext';
 import { AppShell } from '@/components/layout/AppShell';
 import { LoadingPanel } from '@/components/loading/LoadingPanel';
 import { useComprehensionMap } from '@/hooks/useComprehensionMap';
@@ -66,6 +68,25 @@ const ReadingLibrary = () => {
       return c !== undefined && c.band !== "too-hard";
     });
   }, [stories, justRightOnly, comprehensionMap]);
+
+  usePageAiContext(
+    useMemo(
+      () =>
+        listingContext({
+          kind: "passage",
+          title: "Reading library",
+          summary:
+            "Authentic short prose in dialect — the shelf the learner picks a story from. " +
+            "The filters above it are theirs, so this is the list actually on screen.",
+          label: "Stories on the shelf",
+          items: (shelfStories ?? []).map((story) => ({
+            arabic: story.title_arabic,
+            english: `${story.title}${story.author ? ` — ${story.author}` : ''} (${story.dialect}, ${story.difficulty})`,
+          })),
+        }),
+      [shelfStories],
+    ),
+  );
 
   // duration_seconds is nullable in the DB, so accept null as well as undefined.
   const formatDuration = (seconds?: number | null) => {

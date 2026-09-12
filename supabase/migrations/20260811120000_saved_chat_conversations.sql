@@ -1,9 +1,14 @@
--- Saved Ask AI conversations.
+-- Ask AI conversation history.
 --
--- The global assistant chat is ephemeral by design — it lives in memory and
--- resets on reload. This table is the opt-in exception: a learner who wants to
--- keep a good explanation taps "Save conversation" and gets it back later at
--- /saved-chats. Nothing is written unless they ask.
+-- Written as the opt-in exception to an otherwise ephemeral chat: a learner who
+-- wanted to keep a good explanation tapped "Save conversation". It is now the
+-- history — the client writes each completed turn as it lands, so a
+-- conversation survives the panel being closed, the page being left, and a
+-- reload, and is picked back up from the panel's History list or /saved-chats.
+-- (The table keeps its name; renaming it would take a migration this project
+-- cannot apply from a branch. See CLAUDE.md on why.)
+--
+-- One row per conversation, updated in place per turn — not a row per turn.
 --
 -- Messages are stored as one jsonb array rather than a row per message: a
 -- saved chat is re-read whole and never queried by individual message, and an

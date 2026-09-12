@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import type { ReactNode } from "react";
+import { MemoryRouter, useNavigate } from "react-router-dom";
 import {
   AiAssistantProvider,
   useAiAssistant,
@@ -18,12 +19,20 @@ import type { PageAiContext } from "@/lib/pageAiContext";
  */
 
 const wrapper = ({ children }: { children: ReactNode }) => (
-  <AiAssistantProvider>{children}</AiAssistantProvider>
+  <MemoryRouter initialEntries={["/discover/abc"]}>
+    <AiAssistantProvider>{children}</AiAssistantProvider>
+  </MemoryRouter>
 );
 
 describe("useAiAssistant", () => {
   it("throws a clear error outside the provider", () => {
-    expect(() => renderHook(() => useAiAssistant())).toThrow(/AiAssistantProvider/);
+    expect(() =>
+      renderHook(() => useAiAssistant(), {
+        wrapper: ({ children }: { children: ReactNode }) => (
+          <MemoryRouter>{children}</MemoryRouter>
+        ),
+      }),
+    ).toThrow(/AiAssistantProvider/);
   });
 
   it("opens chat with a seed and keeps the conversation for the same seed", () => {
@@ -139,5 +148,111 @@ describe("usePageAiContext", () => {
 
     rerender({ a: null, b: second });
     expect(result.current.pageContext?.title).toBe("Second");
+  });
+});
+
+/**
+ * Everything the assistant holds is scoped to the page it came from. Before
+ * this, both halves outlived the page: opening the panel two screens later
+ * showed the last page's sentence with the last page's conversation under it,
+ * and a page that published nothing of its own inherited its predecessor's
+ * description of itself.
+ */
+describe("navigating away", () => {
+  /** A hook that exposes the assistant plus a way to move to another route. */
+  const useAssistantAndNav = (ctx?: PageAiContext) => {
+    usePageAiContext(ctx ?? null);
+    return { assistant: useAiAssistant(), navigate: useNavigate() };
+  };
+
+  it("ends a closed conversation when the route changes", () => {
+    const { result } = renderHook(() => useAssistantAndNav(), { wrapper });
+
+    act(() => result.current.assistant.openChat({ arabic: "شلونك" }));
+    act(() => result.current.assistant.setMessages([{ role: "user", content: "hi" }]));
+    act(() => result.current.assistant.setConversationId("saved-1"));
+    act(() => result.current.assistant.close());
+
+    act(() => result.current.navigate("/review"));
+
+    expect(result.current.assistant.seed).toBeNull();
+    expect(result.current.assistant.messages).toHaveLength(0);
+    expect(result.current.assistant.conversationId).toBeNull();
+  });
+
+  it("keeps a conversation the learner is still in the middle of", () => {
+    const { result } = renderHook(() => useAssistantAndNav(), { wrapper });
+
+    act(() => result.current.assistant.openChat({ arabic: "شلونك" }));
+    act(() => result.current.assistant.setMessages([{ role: "user", content: "hi" }]));
+
+    // Panel still open — following the tutor's advice to another page must not
+    // wipe the answer that sent them there.
+    act(() => result.current.navigate("/review"));
+
+    expect(result.current.assistant.messages).toHaveLength(1);
+    expect(result.current.assistant.seed?.arabic).toBe("شلونك");
+
+    // It ends on the *next* move, once they have closed it.
+    act(() => result.current.assistant.close());
+    act(() => result.current.navigate("/my-words"));
+
+    expect(result.current.assistant.messages).toHaveLength(0);
+  });
+
+  it("stops publishing a page's context once the learner has left it", () => {
+    const ctx: PageAiContext = { kind: "video", title: "Souq tour" };
+    const { result } = renderHook(() => useAssistantAndNav(ctx), { wrapper });
+
+    expect(result.current.assistant.pageContext?.title).toBe("Souq tour");
+
+    // The page component is still mounted (a route transition holds it for a
+    // frame, and this hook never unmounts) — the route alone has to be enough.
+    act(() => result.current.navigate("/review"));
+
+    expect(result.current.assistant.pageContext).toBeNull();
+  });
+
+  it("does not let a lingering page overwrite the page that replaced it", () => {
+    const older: PageAiContext = { kind: "video", title: "Souq tour" };
+    const newer: PageAiContext = { kind: "drill", title: "Review" };
+
+    const useTwoPages = ({ old, next }: { old: PageAiContext | null; next: PageAiContext | null }) => {
+      usePageAiContext(old);
+      usePageAiContext(next);
+      return { assistant: useAiAssistant(), navigate: useNavigate() };
+    };
+
+    const { result, rerender } = renderHook(useTwoPages, {
+      wrapper,
+      initialProps: { old: older, next: null as PageAiContext | null },
+    });
+    expect(result.current.assistant.pageContext?.title).toBe("Souq tour");
+
+    act(() => result.current.navigate("/review"));
+    rerender({ old: older, next: newer });
+
+    expect(result.current.assistant.pageContext?.title).toBe("Review");
+
+    // The outgoing page re-publishing on its way out (data landing late) must
+    // not put the old title back.
+    rerender({ old: { ...older }, next: newer });
+    expect(result.current.assistant.pageContext?.title).toBe("Review");
+  });
+
+  it("re-publishes when the same page comes back", () => {
+    const ctx: PageAiContext = { kind: "video", title: "Souq tour" };
+    const useOnePage = () => {
+      usePageAiContext(ctx);
+      return { assistant: useAiAssistant(), navigate: useNavigate() };
+    };
+
+    const { result } = renderHook(useOnePage, { wrapper });
+
+    act(() => result.current.navigate("/review"));
+    expect(result.current.assistant.pageContext).toBeNull();
+
+    act(() => result.current.navigate("/discover/abc"));
+    expect(result.current.assistant.pageContext?.title).toBe("Souq tour");
   });
 });

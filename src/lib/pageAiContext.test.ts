@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPagePayload, hintKeyForPath } from "./pageAiContext";
+import { buildPagePayload, hintKeyForPath, listingContext } from "./pageAiContext";
 import { PAGE_HINTS } from "./pageHints";
 
 /**
@@ -62,10 +62,76 @@ describe("buildPagePayload", () => {
     expect(payload.summary).toBe(PAGE_HINTS["discover"].body);
   });
 
-  it("degrades to a bare route when nothing is known", () => {
+  it("still says what app it is when the route matches nothing", () => {
+    // Every declared route resolves to a hint (askAiCoverage.test.ts holds it
+    // to that), so this is the 404 page. "Hikaya" on its own left the tutor
+    // guessing what kind of app it had been dropped into.
     const payload = buildPagePayload("/no-such-page", null);
     expect(payload.route).toBe("/no-such-page");
     expect(payload.title).toBe("Hikaya");
-    expect(payload.summary).toBeUndefined();
+    expect(payload.summary).toMatch(/spoken \(dialectal\) Arabic/);
+  });
+});
+
+describe("listingContext", () => {
+  const items = [
+    { arabic: "قهوة", english: "coffee" },
+    { arabic: "شاي", english: "tea" },
+  ];
+
+  it("publishes the rows on screen, in order, as the document", () => {
+    const ctx = listingContext({
+      title: "My Words",
+      summary: "Saved vocabulary.",
+      label: "Words in this deck",
+      items,
+    });
+
+    expect(ctx.document?.label).toBe("Words in this deck");
+    expect(ctx.document?.lines).toEqual([
+      { index: 1, arabic: "قهوة", english: "coffee" },
+      { index: 2, arabic: "شاي", english: "tea" },
+    ]);
+    expect(ctx.position?.total).toBe(2);
+  });
+
+  it("caps the rows but keeps the real total visible", () => {
+    const many = Array.from({ length: 120 }, (_, i) => ({ english: `word ${i}` }));
+    const ctx = listingContext({
+      title: "My Words",
+      summary: "Saved vocabulary.",
+      label: "Words in this deck",
+      items: many,
+      limit: 10,
+    });
+
+    expect(ctx.document?.lines).toHaveLength(10);
+    // Otherwise "how many do I have left?" gets answered from the cap.
+    expect(ctx.position?.total).toBe(120);
+  });
+
+  it("drops blank rows rather than publishing empty lines", () => {
+    const ctx = listingContext({
+      title: "Stories",
+      summary: "The library.",
+      label: "Stories",
+      items: [{ arabic: "  ", english: null }, { english: "The market" }],
+    });
+
+    expect(ctx.document?.lines).toEqual([{ index: 2, english: "The market" }]);
+  });
+
+  it("omits the document entirely while the list is still empty", () => {
+    // A loading page must not tell the tutor the library is empty.
+    const ctx = listingContext({
+      title: "Stories",
+      summary: "The library.",
+      label: "Stories",
+      items: [],
+    });
+
+    expect(ctx.document).toBeUndefined();
+    expect(ctx.position).toBeUndefined();
+    expect(ctx.title).toBe("Stories");
   });
 });

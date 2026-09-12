@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useDialect } from '@/contexts/DialectContext';
+import { usePageAiContext } from '@/contexts/AiAssistantContext';
+import { listingContext } from '@/lib/pageAiContext';
 import { useAddUserVocabulary } from '@/hooks/useUserVocabulary';
 import {
   groupClipsByCategory,
@@ -65,6 +67,28 @@ const WordClips = () => {
   const categories = useMemo(
     () => groupClipsByCategory(concepts ?? [], clips ?? []),
     [concepts, clips],
+  );
+
+  // The words on the page, not a description of what a word clip is: the
+  // question this screen gets is "what does that one mean?".
+  usePageAiContext(
+    useMemo(
+      () =>
+        listingContext({
+          kind: "word",
+          title: "Word Clips",
+          summary:
+            `First ${activeDialect} words taught from five-second clips of real speech rather ` +
+            `than flashcards. Each concept opens a clip the learner can replay and save.`,
+          label: "Words on this page",
+          items: (clips ?? []).map((clip) => ({
+            arabic: clip.term,
+            english: clip.term_gloss ?? clip.translation,
+          })),
+          meta: { dialect: activeDialect },
+        }),
+      [clips, activeDialect],
+    ),
   );
 
   const openClip = (entry: ConceptWithClips) => {

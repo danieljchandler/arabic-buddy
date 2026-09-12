@@ -1,6 +1,7 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { useAiAssistant } from "@/contexts/AiAssistantContext";
+import { isAssistantOffRoute } from "@/lib/assistantRoutes";
 
 const AskAiPanel = lazy(() =>
   import("./AskAiPanel").then((m) => ({ default: m.AskAiPanel })),
@@ -15,8 +16,9 @@ const AskAiPanel = lazy(() =>
  * shortcut lives here rather than on the floating sadu disc (AskAiFab) so the
  * two ways in stay independent: the disc had a spell off-screen — removed for
  * covering the bottom bar before coming back above it — and the keystroke
- * must not disappear with it. Both share this route list, so neither can open
- * a tutor over the sign-in form or the admin console.
+ * must not disappear with it. Both read ASSISTANT_OFF_ROUTES, so neither can
+ * open a tutor over the sign-in form or the admin console — and neither can
+ * drift from the other, which is what two copies of the list invited.
  * (Cmd+/ belongs to feedback.)
  */
 export function AssistantMount() {
@@ -24,17 +26,17 @@ export function AssistantMount() {
   const [everOpened, setEverOpened] = useState(false);
   const { pathname } = useLocation();
 
-  // The routes the assistant has nothing to say about — mirrored in AskAiFab,
-  // kept so a stray keystroke can't open a tutor over the sign-in form or the
-  // admin console.
-  const off = useMemo(
-    () =>
-      pathname.startsWith("/auth") ||
-      pathname.startsWith("/onboarding") ||
-      pathname.startsWith("/admin") ||
-      pathname.startsWith("/reset-password"),
-    [pathname],
-  );
+  // The routes the assistant has nothing to say about — the same list the
+  // disc reads, so a stray keystroke can't open a tutor over the sign-in form
+  // or the admin console.
+  const off = isAssistantOffRoute(pathname);
+
+  // A panel left open when the learner walks into the admin console (or signs
+  // out onto /auth) is the assistant following them somewhere it is switched
+  // off — the disc is gone, so there would be no way to open it again either.
+  useEffect(() => {
+    if (off && isOpen) close();
+  }, [off, isOpen, close]);
 
   useEffect(() => {
     if (off) return;

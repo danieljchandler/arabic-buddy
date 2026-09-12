@@ -400,6 +400,48 @@ cultural and visual context) and `position` (line 12 of 48, 0:47 of 3:10).
 the client and both edge functions — the client's caps are a courtesy, the
 server's are the boundary.
 
+Every page answers, one way or another. A page that publishes nothing falls
+back to its route's `PAGE_HINTS` blurb through `ROUTE_HINTS` in
+`src/lib/pageAiContext.ts`, and `src/test/askAiCoverage.test.ts` fails when a
+learner route has neither — which is how a run of pages ended up telling the
+tutor nothing but the app's name and a URL. Listing pages (the feed, the story
+library, the saved decks) use `listingContext`, which publishes the rows
+actually on screen with the real total beside them, so "which of these should I
+watch?" has something to answer from. The pages built around a single piece of
+content are held to a higher bar than the fallback: the same test names them and
+requires a real registration.
+
+**The button is part of the contract.** The disc (`AskAiFab`), Cmd/Ctrl+K
+(`AssistantMount`) and the panel all read one list, `ASSISTANT_OFF_ROUTES` in
+`src/lib/assistantRoutes.ts` — two hand-copied lists is how a page gets a button
+that opens nothing. Being mounted is not the same as being reachable: the disc
+sits at a fixed `z-[46]`, above the dock (`z-40`) and the feed's inline video
+player (`z-[45]`) and below the modal layer (`z-50`), because an opaque
+full-screen overlay above it hid it completely on the feed while every
+assertion about the button still passed. The route sweep (`e2e/routes.spec.ts`)
+now hit-tests the disc on every learner route rather than merely asserting it is
+visible.
+
+**A conversation belongs to the page it was started on.** It used to outlive
+every navigation, so a question asked about a video was still sitting in the
+panel — seed sentence and all — when the disc was tapped three screens later,
+and clearing it by hand was the only way to ask anything else. Leaving the page
+with the panel closed now ends it; leaving with the panel *open* does not, since
+that conversation is in use. Page context is scoped the same way: registrations
+carry the route they were made on, so a page that unmounts late cannot clear its
+successor's context and a page that publishes none cannot inherit its
+predecessor's.
+
+**History.** Ending a conversation is only safe because none are lost.
+`ChatTab` writes each completed turn to `saved_chat_conversations` as it lands
+(one row per conversation, updated in place — not a row per turn, and not a
+debounce, which would lose the last answer to exactly the navigation that ends
+the chat). The panel's History button lists them newest-first and puts one back
+in the panel to carry on with; `/saved-chats` is the full archive, with rename
+and delete. The table kept its name from when this was an opt-in "Save
+conversation" bookmark — there is no Save button any more, because keeping a
+good explanation is no longer a decision anyone has to make mid-question.
+
 Long documents are windowed, not truncated. `slice(0, N)` keeps a transcript's
 opening and throws away the part being watched; `windowDocument` grows a
 contiguous window outward from the focused line, reserves a short head so the

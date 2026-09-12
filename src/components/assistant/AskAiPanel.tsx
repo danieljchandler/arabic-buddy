@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import {
-  Bookmark,
-  BookmarkCheck,
   History,
-  Loader2,
   Maximize2,
   MessageSquare,
   Mic,
@@ -12,21 +9,19 @@ import {
   Plus,
   X,
 } from "lucide-react";
-import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAiAssistant, type AssistantTab } from "@/contexts/AiAssistantContext";
 import { useAuth } from "@/hooks/useAuth";
-import { useDialect } from "@/contexts/DialectContext";
 import { useKeyboardInset } from "@/hooks/useKeyboardInset";
 import { useVisibleViewport } from "@/hooks/useVisibleViewport";
-import { useSaveConversation } from "@/hooks/useSavedConversations";
 import { buildPagePayload } from "@/lib/pageAiContext";
 import { cn } from "@/lib/utils";
 import { SaduBubble } from "@/components/brand/SaduBubble";
 import { AskAiContextCard } from "./AskAiContextCard";
 import { ChatTab } from "./ChatTab";
+import { HistoryList } from "./HistoryList";
 import { VoiceTab } from "./VoiceTab";
 
 /**
@@ -77,13 +72,9 @@ export function AskAiPanel() {
     newChat,
     messages,
     pageContext,
-    conversationId,
-    setConversationId,
   } = useAiAssistant();
   const { pathname } = useLocation();
   const { user } = useAuth();
-  const { activeDialect } = useDialect();
-  const saveConversation = useSaveConversation();
 
   const pagePayload = useMemo(
     () => buildPagePayload(pathname, pageContext),
@@ -93,6 +84,10 @@ export function AskAiPanel() {
   // Local, not context: AssistantMount keeps this component mounted for the
   // rest of the session, so the choice already survives close/reopen.
   const [snap, setSnap] = useState<Snap>("peek");
+  // The history overlay. Local for the same reason as `snap` — the panel stays
+  // mounted for the rest of the session, so closing and reopening it keeps
+  // whatever the learner was doing.
+  const [showHistory, setShowHistory] = useState(false);
   const isCover = snap === "cover";
   // Only ever grows the panel — a learner who went to full screen has said
   // plainly what size they want, and nothing here should walk that back.
@@ -171,29 +166,6 @@ export function AskAiPanel() {
     // Tapping the handle is the "give me a bit more / a bit less" gesture, so
     // full is the middle it returns to from either end.
     setSnap((s) => (s === "full" ? "peek" : "full"));
-  };
-
-  const canSave = !!user && messages.some((m) => m.role === "assistant" && m.content);
-
-  const handleSave = () => {
-    saveConversation.mutate(
-      {
-        id: conversationId,
-        dialect: activeDialect,
-        seed,
-        pageContext: { route: pagePayload.route, title: pagePayload.title },
-        messages,
-      },
-      {
-        onSuccess: (row) => {
-          setConversationId(row.id);
-          toast.success(conversationId ? "Conversation updated" : "Conversation saved", {
-            description: "Find it any time under Saved chats.",
-          });
-        },
-        onError: () => toast.error("Couldn't save the conversation"),
-      },
-    );
   };
 
   return (
@@ -344,42 +316,35 @@ export function AskAiPanel() {
                   variant="ghost"
                   size="sm"
                   className="h-6 gap-1 px-2 text-xs text-muted-foreground"
-                  onClick={newChat}
+                  onClick={() => {
+                    setShowHistory(false);
+                    newChat();
+                  }}
                 >
                   <Plus className="h-3 w-3" />
                   New chat
                 </Button>
               )}
-              {canSave && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="h-6 gap-1 px-2 text-xs text-muted-foreground"
-                  onClick={handleSave}
-                  disabled={saveConversation.isPending}
-                >
-                  {saveConversation.isPending ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : conversationId ? (
-                    <BookmarkCheck className="h-3 w-3" />
-                  ) : (
-                    <Bookmark className="h-3 w-3" />
-                  )}
-                  {conversationId ? "Saved" : "Save"}
-                </Button>
-              )}
+              {/* There is no Save button any more: every finished turn is
+                  written to the history as it lands, so "keep this one" is not
+                  a decision the learner has to make mid-conversation. This is
+                  the way back to the ones already kept. */}
               {user && (
                 <Button
-                  asChild
                   type="button"
                   variant="ghost"
                   size="sm"
+                  aria-pressed={showHistory}
                   className="h-6 gap-1 px-2 text-xs text-muted-foreground"
+                  onClick={() => {
+                    // A list of conversations in a 56dvh letterbox is the same
+                    // complaint the snap ladder exists to answer.
+                    if (!showHistory) promoteToFull();
+                    setShowHistory((open) => !open);
+                  }}
                 >
-                  <Link to="/saved-chats" onClick={close} aria-label="Saved chats">
-                    <History className="h-3 w-3" />
-                  </Link>
+                  <History className="h-3 w-3" />
+                  History
                 </Button>
               )}
             </div>
@@ -414,8 +379,12 @@ export function AskAiPanel() {
             around the tab body remounts it, and remounting VoiceTab runs its
             cleanup — which hangs up a live call.
           */}
-          <div id="ask-ai-body" className="flex min-h-0 flex-1 flex-col">
+          <div id="ask-ai-body" className="relative flex min-h-0 flex-1 flex-col">
             {activeTab === "chat" ? <ChatTab onComposerFocus={promoteToFull} /> : <VoiceTab />}
+            {/* Layered over the tab body, never in place of it — see the note
+                above, and HistoryList's own. Kept last so the element the tabs
+                render stays at the same position and is never remounted. */}
+            {showHistory && <HistoryList onClose={() => setShowHistory(false)} />}
           </div>
         </div>
       </SheetContent>

@@ -11,11 +11,13 @@ import {
 } from "./useSavedConversations";
 
 /**
- * Saved Ask AI conversations. The assistant chat is ephemeral by design, so
- * this hook is the entire persistence story: an explicit save (insert), a
- * re-save that updates in place rather than forking a duplicate, and the list
- * ordered newest-first for /saved-chats. The title is derived from the first
- * user message because at save time nobody wants to name a chat.
+ * Ask AI conversation history. The panel's own state is ephemeral — a chat ends
+ * when the learner leaves the page it was about — so this hook is the entire
+ * persistence story: an insert for the first turn, an update in place for every
+ * turn after it (rather than forking a duplicate per turn, which is what makes
+ * the per-turn write affordable), and the list ordered newest-first for the
+ * History panel and /saved-chats. The title is derived from the first user
+ * message because nobody wants to name a chat mid-question.
  */
 
 let cleanup: (() => void) | undefined;

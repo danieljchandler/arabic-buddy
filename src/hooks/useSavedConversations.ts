@@ -45,7 +45,11 @@ export const useSavedConversations = () => {
         .from("saved_chat_conversations")
         .select("*")
         .eq("user_id", user.id)
-        .order("created_at", { ascending: false });
+        // By last activity, not by when it started: a conversation picked
+        // back up is updated in place, and ordering on `created_at` left it
+        // buried at its original position while both views showed its fresh
+        // timestamp.
+        .order("updated_at", { ascending: false });
       if (error) throw error;
       return (data ?? []) as unknown as SavedConversation[];
     },

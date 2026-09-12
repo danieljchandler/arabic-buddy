@@ -55,19 +55,52 @@ function render<T>(hook: () => T, seed?: (backend: SupabaseBackend) => void) {
 }
 
 describe("useSavedConversations", () => {
-  it("lists the learner's saved chats, newest first", async () => {
+  it("lists the learner's conversations, newest first", async () => {
     const { result } = render(
       () => useSavedConversations(),
       (backend) =>
         backend.db.seed("saved_chat_conversations", [
-          aConversation({ title: "older", created_at: "2026-08-01T10:00:00Z" }),
-          aConversation({ title: "newer", created_at: "2026-08-10T10:00:00Z" }),
+          aConversation({
+            title: "older",
+            created_at: "2026-08-01T10:00:00Z",
+            updated_at: "2026-08-01T10:00:00Z",
+          }),
+          aConversation({
+            title: "newer",
+            created_at: "2026-08-10T10:00:00Z",
+            updated_at: "2026-08-10T10:00:00Z",
+          }),
         ]),
     );
 
     await waitFor(() => expect(result.current.data).toHaveLength(2));
     expect(result.current.data![0].title).toBe("newer");
     expect(result.current.data![1].title).toBe("older");
+  });
+
+  it("orders by last activity, so a resumed conversation comes back to the top", async () => {
+    // Turns are written in place, so an old conversation picked back up has a
+    // fresh `updated_at` and a stale `created_at`. Ordering on the latter left
+    // it buried where it started while the list showed its new timestamp.
+    const { result } = render(
+      () => useSavedConversations(),
+      (backend) =>
+        backend.db.seed("saved_chat_conversations", [
+          aConversation({
+            title: "started long ago, answered just now",
+            created_at: "2026-08-01T10:00:00Z",
+            updated_at: "2026-08-12T09:00:00Z",
+          }),
+          aConversation({
+            title: "started yesterday, untouched since",
+            created_at: "2026-08-10T10:00:00Z",
+            updated_at: "2026-08-10T10:00:00Z",
+          }),
+        ]),
+    );
+
+    await waitFor(() => expect(result.current.data).toHaveLength(2));
+    expect(result.current.data![0].title).toBe("started long ago, answered just now");
   });
 });
 

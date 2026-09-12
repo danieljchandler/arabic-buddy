@@ -139,13 +139,13 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
     }
   }, [messages.length, switchHistoryRow]);
 
-  // Opening a conversation from History adopts its row. Guarded on the id
-  // actually differing, so this doesn't fire on the panel learning the id of a
-  // row we just wrote ourselves.
+  // Opening a conversation from History adopts its row, and deleting the one
+  // in the panel detaches it — `null` here means "this transcript has no row
+  // any more", so the next turn starts a fresh one rather than updating a
+  // deleted id forever. Guarded on the id actually differing, so it doesn't
+  // fire on the panel learning the id of a row we just wrote ourselves.
   useEffect(() => {
-    if (conversationId && conversationId !== historyRef.current.id) {
-      switchHistoryRow(conversationId);
-    }
+    if (conversationId !== historyRef.current.id) switchHistoryRow(conversationId);
   }, [conversationId, switchHistoryRow]);
 
   const send = useCallback(

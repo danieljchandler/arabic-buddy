@@ -89,6 +89,23 @@ const ask = async (text: string) => {
   });
 };
 
+/** A conversation already in the history. */
+const aHistoryRow = (over: Record<string, unknown> = {}) => ({
+  id: "11111111-0000-4000-8000-000000000000",
+  user_id: TEST_USER_ID,
+  dialect: "Gulf",
+  title: "What does yalla mean?",
+  seed: null,
+  page_context: { route: "/discover", title: "Discover" },
+  messages: [
+    { role: "user", content: "What does yalla mean?" },
+    { role: "assistant", content: "It means let's go." },
+  ],
+  created_at: new Date().toISOString(),
+  updated_at: new Date().toISOString(),
+  ...over,
+});
+
 describe("AskAiPanel", () => {
   it("streams a reply and sends dialect + page context with the question", async () => {
     const { backend } = render();
@@ -227,24 +244,67 @@ describe("AskAiPanel", () => {
       expect(titles).toContain("second conversation");
     });
 
+    it("closes the whole panel on the way to the management page", async () => {
+      // History promotes the sheet to its tall snap, so leaving the panel up
+      // would land the learner on /saved-chats behind a near-full-screen
+      // panel with nothing on the management page reachable.
+      const { backend } = render();
+      backend.db.seed("saved_chat_conversations", [aHistoryRow()]);
+
+      await open();
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /History/ }));
+      });
+      const manage = await screen.findByRole("link", { name: "Manage" });
+
+      await act(async () => {
+        fireEvent.click(manage);
+      });
+
+      await waitFor(() => {
+        expect(screen.queryByRole("dialog")).toBeNull();
+      });
+    });
+
+    it("detaches a deleted conversation so later turns still reach History", async () => {
+      // Left attached, every later turn updates a row that no longer exists:
+      // the update matches nothing, `.single()` rejects, ChatTab swallows it,
+      // and the rest of the conversation silently never lands.
+      const { backend } = render();
+      await open();
+
+      await ask("first question");
+      await waitFor(() => {
+        expect(backend.db.rows("saved_chat_conversations")).toHaveLength(1);
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: /History/ }));
+      });
+      const remove = await screen.findByRole("button", { name: /Delete first question/ });
+      await act(async () => {
+        fireEvent.click(remove);
+      });
+      await waitFor(() => {
+        expect(backend.db.rows("saved_chat_conversations")).toHaveLength(0);
+      });
+
+      await act(async () => {
+        fireEvent.click(screen.getByRole("button", { name: "Close history" }));
+      });
+      await ask("second question");
+
+      // The conversation carries on into a fresh row rather than vanishing.
+      await waitFor(() => {
+        expect(backend.db.rows("saved_chat_conversations")).toHaveLength(1);
+      });
+      const row = backend.db.rows("saved_chat_conversations")[0] as { messages: unknown[] };
+      expect(row.messages).toHaveLength(4);
+    });
+
     it("opens a past conversation from the list and carries on with it", async () => {
       const { backend } = render();
-      backend.db.seed("saved_chat_conversations", [
-        {
-          id: "11111111-0000-4000-8000-000000000000",
-          user_id: TEST_USER_ID,
-          dialect: "Gulf",
-          title: "What does yalla mean?",
-          seed: null,
-          page_context: { route: "/discover", title: "Discover" },
-          messages: [
-            { role: "user", content: "What does yalla mean?" },
-            { role: "assistant", content: "It means let's go." },
-          ],
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        },
-      ]);
+      backend.db.seed("saved_chat_conversations", [aHistoryRow()]);
 
       await open();
       await act(async () => {

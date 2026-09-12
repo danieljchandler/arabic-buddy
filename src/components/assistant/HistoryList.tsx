@@ -42,7 +42,7 @@ function relativeTime(iso: string): string {
 export function HistoryList({ onClose }: { onClose: () => void }) {
   const { data: conversations, isLoading } = useSavedConversations();
   const deleteConversation = useDeleteConversation();
-  const { loadConversation, conversationId } = useAiAssistant();
+  const { loadConversation, conversationId, setConversationId, close } = useAiAssistant();
 
   const rows = useMemo(() => conversations ?? [], [conversations]);
 
@@ -61,7 +61,17 @@ export function HistoryList({ onClose }: { onClose: () => void }) {
         <h2 className="mr-auto text-sm font-semibold">History</h2>
         {rows.length > 0 && (
           <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-xs text-muted-foreground">
-            <Link to="/saved-chats" onClick={onClose}>
+            {/* Closes the panel, not just this overlay: opening History promotes
+                the sheet to its tall snap, so leaving it up would land the
+                learner on the management page behind a near-full-screen panel
+                with nothing to click. */}
+            <Link
+              to="/saved-chats"
+              onClick={() => {
+                onClose();
+                close();
+              }}
+            >
               Manage
             </Link>
           </Button>
@@ -116,6 +126,15 @@ export function HistoryList({ onClose }: { onClose: () => void }) {
                   disabled={deleteConversation.isPending}
                   onClick={() =>
                     deleteConversation.mutate(row.id, {
+                      onSuccess: () => {
+                        // Deleting the conversation that is open in the panel
+                        // has to detach it, or every later turn keeps updating
+                        // a row that is gone: the update matches nothing,
+                        // `.single()` rejects, ChatTab swallows it, and the
+                        // rest of the conversation silently never reaches the
+                        // history. Detached, the next turn starts a fresh row.
+                        if (row.id === conversationId) setConversationId(null);
+                      },
                       onError: () => toast.error("Couldn't delete the conversation"),
                     })
                   }

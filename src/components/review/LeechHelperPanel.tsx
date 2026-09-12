@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Loader2, Brain, RefreshCw, AlertTriangle, X } from "lucide-react";
+import { MnemonicImagePanel } from "./MnemonicImagePanel";
 
 
 /**
@@ -29,6 +30,8 @@ interface LeechHelperPanelProps {
   transliteration?: string | null;
   dialect: string;
   mnemonic: string | null;
+  /** The picture drawn from that mnemonic, if the learner has asked for one. */
+  mnemonicImageUrl?: string | null;
   /** Invalidate which query keys after save. */
   invalidateKeys?: string[][];
 }
@@ -57,17 +60,22 @@ export function LeechHelperPanel({
   transliteration,
   dialect,
   mnemonic: initialMnemonic,
+  mnemonicImageUrl: initialMnemonicImageUrl = null,
   invalidateKeys = [],
 }: LeechHelperPanelProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [mnemonic, setMnemonic] = useState<string | null>(initialMnemonic);
+  const [mnemonicImageUrl, setMnemonicImageUrl] = useState<string | null>(
+    initialMnemonicImageUrl,
+  );
   const [mnLoading, setMnLoading] = useState(false);
   const [cleared, setCleared] = useState(false);
 
   useEffect(() => {
     setMnemonic(initialMnemonic);
-  }, [rowId, initialMnemonic]);
+    setMnemonicImageUrl(initialMnemonicImageUrl);
+  }, [rowId, initialMnemonic, initialMnemonicImageUrl]);
 
   // A new card is a fresh question, so a dismissal never carries over: the
   // parents render one panel and swap the row underneath it rather than
@@ -81,6 +89,19 @@ export function LeechHelperPanel({
       queryClient.invalidateQueries({ queryKey: key }),
     );
   };
+
+  /**
+   * Write to whichever of the three decks this card came from.
+   *
+   * The cast is the price of one component serving three tables: the union of
+   * their Update types has no common member, so `.update()` types to `never`.
+   * It lives here once rather than at each of the three call sites, which also
+   * keeps every write on the same `.eq("id", rowId)` — a leech write that lost
+   * its filter would rewrite the learner's whole deck.
+   */
+  const updateRow = (payload: Record<string, unknown>) =>
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (supabase.from(TABLE_BY_KIND[kind]) as any).update(payload).eq("id", rowId);
 
 
   const generateMnemonic = async () => {
@@ -102,9 +123,11 @@ export function LeechHelperPanel({
       const text = (data as { mnemonic?: string })?.mnemonic;
       if (!text) throw new Error("Empty mnemonic");
       setMnemonic(text);
-      await (supabase.from(TABLE_BY_KIND[kind]) as any)
-        .update({ mnemonic: text })
-        .eq("id", rowId);
+      // The picture illustrates the old hook, so it goes with it: leaving it
+      // up would show the learner a scene that no longer matches the sentence
+      // underneath it, which is exactly the confusion a mnemonic must not add.
+      setMnemonicImageUrl(null);
+      await updateRow({ mnemonic: text, mnemonic_image_url: null });
       invalidate();
       toast.success("Mnemonic ready!");
     } catch (err: any) {
@@ -118,18 +141,30 @@ export function LeechHelperPanel({
   };
 
 
+  /** Keep a generated picture on the same row the mnemonic lives on. */
+  const persistMnemonicImage = async (imageUrl: string) => {
+    const { error } = await updateRow({ mnemonic_image_url: imageUrl });
+    // PostgREST reports a rejected write on `error` rather than by throwing,
+    // so without this the learner would be shown a picture that is gone on
+    // their next review — and charged for it again to get it back.
+    if (error) throw new Error(error.message || "Could not save the picture");
+    // Held here as well as in the child, so the panel and the row agree even
+    // before the refetch lands — and so a regenerated mnemonic has one place
+    // to clear the picture from.
+    setMnemonicImageUrl(imageUrl);
+    invalidate();
+  };
+
   const dismissLeech = async () => {
     try {
       // PostgREST reports a rejected write on the `error` channel rather than
       // by throwing, so without this check a failed clear would still toast
       // success and hide the panel over a row that is still flagged.
-      const { error } = await (supabase.from(TABLE_BY_KIND[kind]) as any)
-        .update({
-          is_leech: false,
-          lapses: 0,
-          ...(HAS_PRODUCTION_LAPSES[kind] ? { production_lapses: 0 } : {}),
-        })
-        .eq("id", rowId);
+      const { error } = await updateRow({
+        is_leech: false,
+        lapses: 0,
+        ...(HAS_PRODUCTION_LAPSES[kind] ? { production_lapses: 0 } : {}),
+      });
       if (error) throw error;
       setCleared(true);
       invalidate();
@@ -188,6 +223,16 @@ export function LeechHelperPanel({
             </Button>
           </div>
           <p className="text-sm text-foreground leading-relaxed">{mnemonic}</p>
+
+          {/* A hook the learner can see, not only read. */}
+          <MnemonicImagePanel
+            cardKey={rowId}
+            mnemonic={mnemonic}
+            arabic={arabic}
+            english={english}
+            imageUrl={mnemonicImageUrl}
+            onPersist={persistMnemonicImage}
+          />
         </div>
       ) : (
         <Button

@@ -23,6 +23,7 @@ export interface UserPhrase {
   lapses?: number;
   is_leech?: boolean;
   mnemonic?: string | null;
+  mnemonic_image_url?: string | null;
   jingle_audio_url?: string | null;
   jingle_lyrics?: string | null;
   phrase_audio_url?: string | null;

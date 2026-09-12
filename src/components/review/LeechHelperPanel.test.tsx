@@ -59,11 +59,16 @@ const ROW_ID: Record<LeechKind, string> = {
 interface Options {
   kind?: LeechKind;
   mnemonic?: string | null;
+  mnemonicImageUrl?: string | null;
   seed?: (backend: SupabaseBackend) => void;
 }
 
 /** The panel as the review screens mount it, for one deck's row. */
-const panel = (kind: LeechKind, mnemonic: string | null = null) => (
+const panel = (
+  kind: LeechKind,
+  mnemonic: string | null = null,
+  mnemonicImageUrl: string | null = null,
+) => (
   <LeechHelperPanel
     kind={kind}
     rowId={ROW_ID[kind]}
@@ -72,13 +77,14 @@ const panel = (kind: LeechKind, mnemonic: string | null = null) => (
     transliteration="mat'am"
     dialect="Gulf"
     mnemonic={mnemonic}
+    mnemonicImageUrl={mnemonicImageUrl}
     invalidateKeys={[["due-words"]]}
   />
 );
 
-function render({ kind = "word", mnemonic = null, seed }: Options = {}) {
+function render({ kind = "word", mnemonic = null, mnemonicImageUrl = null, seed }: Options = {}) {
   const harness = renderWithProviders(
-    panel(kind, mnemonic),
+    panel(kind, mnemonic, mnemonicImageUrl),
     {
       persona: "free",
       seed: (backend) => {
@@ -93,6 +99,10 @@ function render({ kind = "word", mnemonic = null, seed }: Options = {}) {
         ]);
         backend.stubFunction("generate-mnemonic", {
           mnemonic: "مطعم sounds like 'mat' — picture a welcome mat outside a restaurant.",
+        });
+        backend.stubFunction("generate-mnemonic-image", {
+          success: true,
+          imageUrl: "https://cdn.test/mnemonic-scene.png",
         });
         seed?.(backend);
       },
@@ -111,6 +121,10 @@ const settleAuth = () =>
 const generateButton = () => screen.getByRole("button", { name: /Generate AI mnemonic/ });
 const regenerateButton = () => screen.getByRole("button", { name: "Regenerate mnemonic" });
 const clearButton = () => screen.getByRole("button", { name: /clear leech flag/ });
+const pictureButton = () => screen.getByRole("button", { name: /Picture this mnemonic/ });
+const redrawButton = () => screen.getByRole("button", { name: /Redraw picture/ });
+const adjustButton = () => screen.getByRole("button", { name: /Adjust/ });
+const mnemonicImage = () => screen.getByRole("img", { name: /Mnemonic picture/ });
 
 const click = async (button: HTMLElement) => {
   await settleAuth();
@@ -333,6 +347,231 @@ describe("making a memory hook", () => {
     await click(generateButton());
 
     await waitFor(() => expect(generateButton()).toBeEnabled());
+  });
+});
+
+describe("picturing the memory hook", () => {
+  it("offers a picture only once there is a hook to draw", async () => {
+    render();
+    await settleAuth();
+
+    // Nothing to illustrate. The word's own photo is a different feature, on a
+    // different button, and drawing one here would quietly substitute it.
+    expect(screen.queryByRole("button", { name: /Picture this mnemonic/ })).toBeNull();
+  });
+
+  it("draws the hook the learner is looking at", async () => {
+    const { backend } = render({ mnemonic: "picture a welcome mat" });
+
+    await click(pictureButton());
+
+    // The mnemonic is the subject; the word rides along so the scene still
+    // shows the meaning the learner has to recall from it.
+    expect(backend.lastCallTo("generate-mnemonic-image")?.body).toMatchObject({
+      mnemonic: "picture a welcome mat",
+      word_arabic: "مطعم",
+      word_english: "restaurant",
+    });
+  });
+
+  it("shows the picture and keeps it on the card", async () => {
+    const { backend } = render({ mnemonic: "picture a welcome mat" });
+
+    await click(pictureButton());
+
+    await waitFor(() => expect(mnemonicImage()).toBeInTheDocument());
+    expect(mnemonicImage().getAttribute("src")).toContain("https://cdn.test/mnemonic-scene.png");
+    // Kept, or the learner pays for the same picture on every failed attempt.
+    expect(updatesTo(backend, "user_vocabulary")[0]).toMatchObject({
+      mnemonic_image_url: expect.stringContaining("mnemonic-scene.png"),
+    });
+    expect(toasts.success).toHaveBeenCalledWith("Picture ready!");
+  });
+
+  it("keeps a curriculum card's picture on the learner's own row", async () => {
+    const { backend } = render({ kind: "curriculum", mnemonic: "picture a welcome mat" });
+
+    await click(pictureButton());
+
+    // Same reason as the mnemonic itself: the picture illustrates one
+    // learner's association, and vocabulary_words is everybody's.
+    await waitFor(() => expect(updatesTo(backend, "word_reviews")).toHaveLength(1));
+    expect(backend.db.writesTo("vocabulary_words")).toHaveLength(0);
+  });
+
+  it("shows the picture the card already has, and offers a redraw", async () => {
+    render({ mnemonic: "picture a welcome mat", mnemonicImageUrl: "https://cdn.test/kept.png" });
+    await settleAuth();
+
+    expect(mnemonicImage().getAttribute("src")).toBe("https://cdn.test/kept.png");
+    expect(redrawButton()).toBeInTheDocument();
+  });
+
+  it("sends the learner's adjustment with the redraw", async () => {
+    const { backend } = render({
+      mnemonic: "picture a welcome mat",
+      mnemonicImageUrl: "https://cdn.test/kept.png",
+    });
+
+    await click(adjustButton());
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText("Adjust the picture"), {
+        target: { value: "make it a cartoon, in a desert doorway" },
+      });
+    });
+    await click(redrawButton());
+
+    // The whole point of the control: the first attempt routinely illustrates
+    // the pun and drops the meaning, and the learner is the only one who knows
+    // which half is missing.
+    expect(backend.lastCallTo("generate-mnemonic-image")?.body).toMatchObject({
+      custom_instructions: "make it a cartoon, in a desert doorway",
+    });
+  });
+
+  it("leaves the adjustment on screen, since it still applies", async () => {
+    render({ mnemonic: "picture a welcome mat", mnemonicImageUrl: "https://cdn.test/kept.png" });
+
+    await click(adjustButton());
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText("Adjust the picture"), {
+        target: { value: "make it a cartoon" },
+      });
+    });
+    await click(redrawButton());
+
+    // The instructions stay in force for the next redraw, so hiding them would
+    // leave the learner adjusting against a note they can no longer see.
+    await waitFor(() => expect(toasts.success).toHaveBeenCalledWith("Picture ready!"));
+    expect(screen.getByLabelText("Adjust the picture")).toHaveValue("make it a cartoon");
+  });
+
+  it("does not carry an adjustment onto the next card", async () => {
+    const { rerender } = render({ mnemonic: "picture a welcome mat" });
+
+    await click(adjustButton());
+    await act(async () => {
+      fireEvent.change(screen.getByLabelText("Adjust the picture"), {
+        target: { value: "make it a cartoon" },
+      });
+    });
+
+    act(() => {
+      rerender(panel("phrase", "think of a queue"));
+    });
+
+    // "Make it a cartoon" was about a welcome mat. Carried onto the next card
+    // it would silently reshape a picture of something else.
+    expect(screen.queryByLabelText("Adjust the picture")).toBeNull();
+  });
+
+  it("busts the cache so a redraw is visible", async () => {
+    render({ mnemonic: "picture a welcome mat", mnemonicImageUrl: "https://cdn.test/kept.png" });
+
+    await click(redrawButton());
+
+    // A regeneration can land on the same storage path, and a browser showing
+    // the cached copy reads as "the button did nothing".
+    await waitFor(() =>
+      expect(mnemonicImage().getAttribute("src")).toMatch(/mnemonic-scene\.png\?t=\d+/),
+    );
+  });
+
+  it("throws the old picture away with the hook it illustrated", async () => {
+    const { backend } = render({
+      mnemonic: "a hook that never helped",
+      mnemonicImageUrl: "https://cdn.test/kept.png",
+    });
+
+    await click(regenerateButton());
+
+    // The scene belongs to the sentence it was drawn from. Left up, it shows
+    // the learner a picture that contradicts the mnemonic under it.
+    await waitFor(() => expect(screen.getByText(/welcome mat/)).toBeInTheDocument());
+    expect(screen.queryByRole("img", { name: /Mnemonic picture/ })).toBeNull();
+    expect(updatesTo(backend, "user_vocabulary")[0]).toMatchObject({ mnemonic_image_url: null });
+  });
+
+  it("says it is working", async () => {
+    render({ mnemonic: "picture a welcome mat" });
+    await settleAuth();
+
+    let release: () => void;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const inner = globalThis.fetch;
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url =
+        typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+      if (url.includes("generate-mnemonic-image")) await held;
+      return inner(input as RequestInfo, init);
+    });
+
+    await act(async () => {
+      fireEvent.click(pictureButton());
+    });
+
+    // Image generation takes tens of seconds — far longer than the mnemonic —
+    // so an unlabelled wait reads as a dead button and gets clicked again.
+    expect(screen.getByRole("button", { name: /Drawing it/ })).toBeDisabled();
+
+    await act(async () => {
+      release!();
+      await held;
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    vi.unstubAllGlobals();
+  });
+
+  it("reports a refusal in the words the function sent", async () => {
+    render({
+      mnemonic: "picture a welcome mat",
+      seed: (b) =>
+        b.stubFunction("generate-mnemonic-image", {
+          success: false,
+          fallback: true,
+          message: "Could not picture that mnemonic — try again, or reword the hook.",
+        }),
+    });
+
+    await click(pictureButton());
+
+    // The function answers a refusal as a 200, so a caller that only checked
+    // `error` would save `undefined` as the picture URL and call it a success.
+    await waitFor(() =>
+      expect(toasts.error).toHaveBeenCalledWith(
+        "Could not picture that mnemonic — try again, or reword the hook.",
+      ),
+    );
+    expect(pictureButton()).toBeEnabled();
+  });
+
+  it("does not claim a picture it could not keep", async () => {
+    render({
+      mnemonic: "picture a welcome mat",
+      seed: (b) => b.db.failNextWrite("user_vocabulary", 500),
+    });
+
+    await click(pictureButton());
+
+    // The save is what makes the picture survive the card. Toasting success
+    // over a rejected write would tell the learner it is kept when the next
+    // review shows an empty panel.
+    await waitFor(() => expect(toasts.error).toHaveBeenCalled());
+    expect(toasts.success).not.toHaveBeenCalledWith("Picture ready!");
+  });
+
+  it("can be tried again after a failure", async () => {
+    render({
+      mnemonic: "picture a welcome mat",
+      seed: (b) => b.stubFunctionFailure("generate-mnemonic-image", 500),
+    });
+
+    await click(pictureButton());
+
+    await waitFor(() => expect(toasts.error).toHaveBeenCalled());
+    expect(pictureButton()).toBeEnabled();
   });
 });
 

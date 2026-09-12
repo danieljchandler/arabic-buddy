@@ -622,6 +622,10 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
 
   "generate-mnemonic": () => ok({ mnemonic: "a memorable hook" }),
   "generate-flashcard-image": () => ok({ imageUrl: "https://cdn.test/flashcard.png" }),
+  // The mnemonic's illustration. `success` is read by nothing, but the real
+  // function answers a refusal as a 200 with `fallback: true`, so a stub
+  // without the success half would make the two indistinguishable.
+  "generate-mnemonic-image": () => ok({ success: true, imageUrl: "https://cdn.test/mnemonic.png" }),
   // Base64 audio plus the type and extension the caller needs to store it —
   // not a URL. `MyWordsReview` decodes `audioBase64`, uploads it with
   // `mimeType` and names the file from `extension`, so the earlier

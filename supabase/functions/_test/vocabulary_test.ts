@@ -1,6 +1,6 @@
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { jsonRequest, loadFunction } from "./harness.ts";
-import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
+import { chatCompletion, geminiImage, imageLadder, json, type UpstreamHandler } from "./upstreams.ts";
 
 /**
  * The functions behind a saved word.
@@ -17,7 +17,10 @@ import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
  * accepting an upload for the same reason.
  *
  * `generate-mnemonic` is the plainest — one model call, no Brain — and is the
- * only one of the four with no daily cap at all.
+ * only one of the four with no daily cap at all. `generate-mnemonic-image`
+ * draws what that mnemonic describes, and is the pair's only writer: it puts
+ * the rendered scene in a shared public bucket, so where it writes matters as
+ * much as what it draws.
  */
 
 const USER = "00000000-0000-4000-8000-000000000001";
@@ -1005,4 +1008,156 @@ Deno.test("enrich-word-roots turns an anonymous caller away", async () => {
 
   assertEquals(status, 401);
   assert(!calls.some((url) => url.includes("generativelanguage.googleapis.com/v1beta/openai")));
+});
+
+// ── generate-mnemonic-image ─────────────────────────────────────────────────
+
+/** The caller's backend plus a working image model and a working bucket. */
+function illustrator(extra: Record<string, UpstreamHandler> = {}) {
+  const uploads: Array<{ path: string; method: string }> = [];
+  const upstreams = caller({
+    "/storage/v1": (request: Request) => {
+      const path = new URL(request.url).pathname;
+      uploads.push({ path, method: request.method });
+      return json({ Key: path.replace("/storage/v1/object/", "") });
+    },
+    ...imageLadder(() => geminiImage()),
+    ...extra,
+  });
+  return { upstreams, uploads };
+}
+
+/** The body of the request that asked the image model for a picture. */
+function imagePrompt(result: { calls: string[]; bodies: Array<string | null> }): string {
+  const i = result.calls.findIndex((url) => url.includes("-image:generateContent"));
+  return i === -1 ? "" : (result.bodies[i] ?? "");
+}
+
+Deno.test("generate-mnemonic-image draws the mnemonic, not the word", async () => {
+  const { upstreams } = illustrator();
+  const result = await call(
+    "generate-mnemonic-image",
+    {
+      mnemonic: "Picture a welcome mat laid across a restaurant doorway.",
+      word_arabic: "مطعم",
+      word_english: "restaurant",
+    },
+    upstreams,
+  );
+
+  assertEquals(result.status, 200);
+  assertEquals(result.body.success, true);
+  const prompt = imagePrompt(result);
+  // The hook is the subject. Sending the English alone would produce the same
+  // stock photograph generate-flashcard-image already makes.
+  assertStringIncludes(prompt, "welcome mat laid across a restaurant doorway");
+  // ...with the meaning alongside it, because the hook is usually a pun on the
+  // sound and an illustrator given only the pun draws the mat and drops the
+  // restaurant — the half the learner has to recall.
+  assertStringIncludes(prompt, "restaurant");
+});
+
+Deno.test("generate-mnemonic-image asks for a drawing, and for no lettering", async () => {
+  const { upstreams } = illustrator();
+  const prompt = imagePrompt(
+    await call(
+      "generate-mnemonic-image",
+      { mnemonic: "A kitten reading a book.", word_english: "book" },
+      upstreams,
+    ),
+  );
+
+  // Realism is wrong here: a mnemonic sticks because the scene is strange, and
+  // a plausible photograph is not strange.
+  assertStringIncludes(prompt, "NOT a photograph");
+  assertStringIncludes(prompt, "absurd");
+  // Image models render Arabic as garbled shapes, and a learner reading a
+  // misspelt word off their own flashcard is worse than no picture.
+  assertStringIncludes(prompt, "NO text");
+});
+
+Deno.test("generate-mnemonic-image lets the learner's adjustment win", async () => {
+  const { upstreams } = illustrator();
+  const prompt = imagePrompt(
+    await call(
+      "generate-mnemonic-image",
+      {
+        mnemonic: "A kitten reading a book.",
+        word_english: "book",
+        custom_instructions: "make the kitten orange and put it on a bus",
+      },
+      upstreams,
+    ),
+  );
+
+  assertStringIncludes(prompt, "make the kitten orange and put it on a bus");
+  // Last, and said to take priority: the adjustment exists because the house
+  // style produced something the learner cannot picture.
+  assertStringIncludes(prompt, "take priority");
+  assert(
+    prompt.indexOf("take priority") > prompt.indexOf("STYLE GUIDE"),
+    "the learner's instructions must come after the style guide",
+  );
+});
+
+Deno.test("generate-mnemonic-image refuses a request with no mnemonic", async () => {
+  for (const body of [{ word_english: "book" }, { mnemonic: "   " }, {}]) {
+    const { upstreams } = illustrator();
+    const { status, calls } = await call("generate-mnemonic-image", body, upstreams);
+
+    // There is nothing to draw. The word's own illustrator is a different
+    // function, and answering this one with a stock photo would quietly
+    // replace the feature the learner asked for.
+    assertEquals(status, 400);
+    assert(!calls.some((url) => url.includes("-image:generateContent")));
+  }
+});
+
+Deno.test("generate-mnemonic-image files the picture under the caller's own id", async () => {
+  const { upstreams, uploads } = illustrator();
+  await call(
+    "generate-mnemonic-image",
+    { mnemonic: "A kitten reading a book.", storage_path: "../../someone-else/theirs.png" },
+    upstreams,
+  );
+
+  // flashcard-images is one public bucket written with the service role, so
+  // the path is the only thing keeping one learner's uploads out of another's.
+  const upload = uploads.find((u) => u.method === "POST");
+  assert(upload, "nothing was uploaded");
+  assertStringIncludes(upload.path, `flashcard-images/mnemonic/${USER}/`);
+  assert(!upload.path.includes(".."), `a traversal reached the bucket: ${upload.path}`);
+});
+
+Deno.test("generate-mnemonic-image turns an anonymous caller away", async () => {
+  const { upstreams } = illustrator({
+    "/auth/v1/user": () => json({ error: "no session" }, 401),
+  });
+  const { status, calls } = await call(
+    "generate-mnemonic-image",
+    { mnemonic: "A kitten reading a book." },
+    upstreams,
+    { jwt: null },
+  );
+
+  assertEquals(status, 401);
+  assert(!calls.some((url) => url.includes("-image:generateContent")));
+});
+
+Deno.test("generate-mnemonic-image reports a refusal instead of saving nothing", async () => {
+  // Every leg of the ladder answers without an image — "the image model is
+  // down", which needs both routes stubbed, not one.
+  const { upstreams, uploads } = illustrator({ ...imageLadder(() => json({}, 500)) });
+  const { status, body } = await call(
+    "generate-mnemonic-image",
+    { mnemonic: "A kitten reading a book." },
+    upstreams,
+  );
+
+  // 200 with success:false, like the flashcard illustrator: the caller shows
+  // the message rather than a generic failure.
+  assertEquals(status, 200);
+  assertEquals(body.success, false);
+  assertEquals(body.error, "IMAGE_GENERATION_FAILED");
+  assert(!uploads.some((u) => u.method === "POST"), "a failed generation still wrote to the bucket");
 });

@@ -38,6 +38,12 @@ verify_jwt = true
 [functions.generate-flashcard-image]
 verify_jwt = true
 
+# Renders a learner's own mnemonic as a picture and stores it under their id in
+# the shared flashcard-images bucket — both the spend and the write path need
+# a real caller, not an IP bucket.
+[functions.generate-mnemonic-image]
+verify_jwt = true
+
 # Transcribes and stores the caller's own monologue attempt; enforceDailyCap
 # inside is the authorization, and anonymous callers have nothing to store.
 [functions.score-monologue]

@@ -37,6 +37,8 @@ export interface WordReview {
   is_leech?: boolean | null;
   /** Learner's own memory hook for a stuck card; written by LeechHelperPanel. */
   mnemonic?: string | null;
+  /** The picture drawn from that hook, stored in the flashcard-images bucket. */
+  mnemonic_image_url?: string | null;
   /** Learner-generated jingle for this curriculum word (see Review.tsx). */
   jingle_audio_url?: string | null;
   jingle_lyrics?: string | null;

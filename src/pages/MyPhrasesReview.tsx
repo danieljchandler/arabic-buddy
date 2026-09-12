@@ -527,6 +527,7 @@ const MyPhrasesReview = () => {
               transliteration={current.transliteration}
               dialect={activeDialect}
               mnemonic={current.mnemonic ?? null}
+              mnemonicImageUrl={current.mnemonic_image_url ?? null}
               invalidateKeys={[["user-phrases-due"], ["user-phrases"]]}
             />
           )}

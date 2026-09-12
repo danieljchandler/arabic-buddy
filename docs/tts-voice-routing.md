@@ -166,15 +166,20 @@ One secret, `VOICE_ENGINE`, picks between two engines behind the same function:
 
 | `VOICE_ENGINE` | Engine | Model | Endpoint |
 | --- | --- | --- | --- |
-| unset / anything else | OpenAI Realtime | `gpt-realtime-2` | `POST /v1/realtime/client_secrets`, then the browser exchanges SDP |
-| `live` | GPT-Live | `gpt-live-1` | `POST /v1/live/sessions`, exchanged server-side |
+| unset / anything else | GPT-Live | `gpt-live-1` | `POST /v1/live/sessions`, exchanged server-side |
+| `realtime` | OpenAI Realtime | `gpt-realtime-2` | `POST /v1/realtime/client_secrets`, then the browser exchanges SDP |
 
-Realtime is the default, and an unrecognised value falls back to it rather than
-failing — `resolveVoiceEngine` in `_shared/liveVoiceCore.ts`. The response names
-the engine it served, so the browser is never configured separately from the
-function that built the session; a request without `client_api: 2` is served
-Realtime whatever the secret says, because a cached bundle from before GPT-Live
-understands only the Realtime event names.
+GPT-Live is the default, and an unrecognised value falls back to it rather than
+failing — `resolveVoiceEngine` in `_shared/liveVoiceCore.ts`. **To roll back**,
+set `VOICE_ENGINE` to exactly `realtime`; that is the only value that does it,
+and it is what to reach for if dialect recognition regresses, since GPT-Live is
+the engine without the Arabic-tuned ASR and `semantic_vad` described above. The
+flag reads as an opt-out rather than an opt-in so which engine serves a call
+does not depend on a secret being set correctly on every environment. The
+response names the engine it served, so the browser is never configured
+separately from the function that built the session; a request without
+`client_api: 2` is served Realtime whatever the secret says, because a cached
+bundle from before GPT-Live understands only the Realtime event names.
 
 Per-dialect voices are unchanged across the two. GPT-Live added twelve
 locale-specific voices (English, Brazilian Portuguese, Filipino English — none

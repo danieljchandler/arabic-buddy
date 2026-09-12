@@ -85,8 +85,14 @@ export const useSubscription = () => {
           supabase.rpc('has_role', { _user_id: user.id, _role: 'admin' }),
           supabase.rpc('has_role', { _user_id: user.id, _role: 'complimentary' }),
         ]);
+        // A grant that came back beats a lookup that didn't. Checking the
+        // errors first would discard definitive evidence of entitlement
+        // whenever the *other* role's RPC happened to fail — and on the first
+        // check, where there is no previous state to keep, `null` leaves the
+        // default `subscribed: false` standing and shows the paywall.
+        if (admin.data === true || complimentary.data === true) return true;
         if (admin.error || complimentary.error) return null;
-        return admin.data === true || complimentary.data === true;
+        return false;
       } catch {
         return null;
       }

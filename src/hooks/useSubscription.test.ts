@@ -85,6 +85,34 @@ describe("resolving the plan", () => {
     expect(rendered.backend.callsTo("check-subscription")).toHaveLength(0);
   });
 
+  it("honours the role that answered when the other lookup failed", async () => {
+    // Two role lookups go out in parallel. One coming back `true` is
+    // definitive, whatever happened to the other — and on this first check
+    // there is no previous state to fall back on, so reading the pair as
+    // "unknown" would leave the default `subscribed: false` standing and show
+    // an entitled account the paywall.
+    const rendered = renderHookWithProviders(() => useSubscription(), {
+      persona: "admin",
+      seed: (backend) => {
+        backend.stubFunction("check-subscription", {
+          subscribed: false,
+          tier: null,
+          product_id: null,
+          subscription_end: null,
+        });
+        backend.stubRpc("has_role", ({ args }) => {
+          if (args._role === "complimentary") throw new Error("boom");
+          return true;
+        });
+      },
+    });
+    cleanup = rendered.cleanup;
+
+    await settled(rendered);
+    expect(rendered.result.current.subscribed).toBe(true);
+    expect(rendered.result.current.tier).toBe("allin");
+  });
+
   it("treats a failed check as unsubscribed rather than hanging", async () => {
     // Failing open would hand paid features to anyone whose check errored;
     // hanging would leave the Pricing page on a spinner forever.

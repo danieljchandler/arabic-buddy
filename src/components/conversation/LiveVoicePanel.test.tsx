@@ -30,6 +30,8 @@ const live = vi.hoisted(() => ({
   error: null as string | null,
   turns: [] as Turn[],
   muted: false,
+  interrupted: false,
+  engine: null as "live" | "realtime" | null,
   setMuted: vi.fn(),
   start: vi.fn(),
   stop: vi.fn(),
@@ -44,6 +46,8 @@ vi.mock("@/hooks/useOpenAIRealtime", () => ({
       error: live.error,
       turns: live.turns,
       muted: live.muted,
+      interrupted: live.interrupted,
+      engine: live.engine,
       setMuted: live.setMuted,
       start: live.start,
       stop: live.stop,
@@ -58,6 +62,8 @@ beforeEach(() => {
   live.error = null;
   live.turns = [];
   live.muted = false;
+  live.interrupted = false;
+  live.engine = null;
   live.setMuted.mockReset();
   live.start.mockReset();
   live.stop.mockReset();

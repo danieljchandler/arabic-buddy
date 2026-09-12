@@ -408,6 +408,19 @@ material stays identifiable, and reports what it dropped as
 non-adjacent lines with no gap between them reads them as consecutive and then
 explains a transition that never happened.
 
+**A live call survives a wobble.** WebRTC's `disconnected` is transient — the
+browser raises it when ICE consent checks go unanswered for a few seconds and
+clears it again on the first packet through — so `useOpenAIRealtime` holds the
+call open for `ICE_RECOVERY_GRACE_MS` and only gives up if the window really
+elapses or the connection reaches `failed`. Treating `disconnected` as terminal
+is what ended calls on a wifi hiccup, and reliably read as "the call timed out
+after about a minute". The peer connection is also given STUN servers, which a
+bare `new RTCPeerConnection()` has none of; there is deliberately no TURN, so a
+network that blocks UDP outright still cannot place a call. The entitlement
+gates in `VoiceTab` are skipped for a call already in flight for the same
+reason: the subscription refresh polls once a minute, and one wrong answer used
+to replace a live conversation with the paywall while the audio kept playing.
+
 **Live voice stays in sync.** A Realtime session's instructions are minted once
 and carry the dialect rulebook and learner profile, so they are deliberately
 not rebuilt from the browser. Instead the document goes out at mint time and
@@ -417,8 +430,12 @@ change. Without this the tutor is frozen at whatever was on screen when the
 call connected.
 
 **Two live-voice engines, one function.** `realtime-session-token` serves either
-OpenAI Realtime (`gpt-realtime-2`, the default) or GPT-Live (`gpt-live-1`),
-picked by the `VOICE_ENGINE` secret. GPT-Live is not a model swap: the model
+GPT-Live (`gpt-live-1`, the default) or OpenAI Realtime (`gpt-realtime-2`,
+reached by setting the `VOICE_ENGINE` secret to exactly `realtime`). The flag
+reads as an opt-out rather than an opt-in so that which engine serves a call
+does not depend on a secret being present on every environment; the cost is
+that a typo now lands on the engine without the Arabic-tuned ASR, which is what
+the rollback value is for. GPT-Live is not a model swap: the model
 that speaks and the model that reasons are separate, so the single Realtime
 prompt becomes two — speaking rules on the voice layer, procedure and page
 context on a delegated backend — and the dialect rulebook goes in *both*,
@@ -430,7 +447,12 @@ all — full duplex means no single moment ends a turn — so turns are rebuilt 
 timed transcript deltas by `src/lib/liveTranscriptGrouping.ts`, which matters
 beyond display: a turn that never closes is a mistake the drill never sees.
 Everything before the engine branch is shared, which is why both live in one
-function. The config shapes and the two prompts are in
+function. Which engine actually served a call is recorded twice — a log line
+from the mint and a `feature_metrics` row (`live-voice` / `session_minted`,
+with a matching `call_ended` carrying the duration) — because nothing else
+persists it: `voice_usage` stores minutes and mode, and the engine was
+answerable only from the browser's network tab while the call was still open.
+The two panels name it in their footer for the same reason. The config shapes and the two prompts are in
 `_shared/liveVoiceCore.ts`; `docs/tts-voice-routing.md` covers what GPT-Live
 gives up (Arabic-tuned ASR and `semantic_vad`) and why no engine can use a
 Munsit voice.

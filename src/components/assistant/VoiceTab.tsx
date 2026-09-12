@@ -25,8 +25,20 @@ export function VoiceTab() {
   const { user, loading: authLoading } = useAuth();
   const { subscribed, loading: subLoading } = useSubscription();
   const { pathname } = useLocation();
-  const { status, error, turns, muted, setMuted, start, stop, updateContext, remainingSeconds, remoteStream } =
-    useOpenAIRealtime();
+  const {
+    status,
+    error,
+    interrupted,
+    turns,
+    muted,
+    setMuted,
+    start,
+    stop,
+    updateContext,
+    remainingSeconds,
+    remoteStream,
+    engine,
+  } = useOpenAIRealtime();
 
   // Closing the panel or switching tabs unmounts this component; the call must
   // not keep running (and billing) with no UI attached to it.
@@ -114,7 +126,16 @@ export function VoiceTab() {
     );
   }
 
-  if (subLoading) {
+  // Everything below re-runs on the entitlement refresh, which polls once a
+  // minute — so these gates must not apply to a call that is already up. A
+  // refresh that answered "not subscribed" for one tick used to replace a live
+  // conversation with the paywall card while the audio carried on playing
+  // behind it, which is a call ending abruptly about a minute in. A minted call
+  // is already being billed; the server is the enforcement point and refuses
+  // the *next* mint.
+  const callInFlight = status === "connecting" || status === "live" || status === "ending";
+
+  if (!callInFlight && subLoading) {
     return (
       <div className="flex flex-1 items-center justify-center p-6">
         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
@@ -122,7 +143,7 @@ export function VoiceTab() {
     );
   }
 
-  if (!subscribed) {
+  if (!callInFlight && !subscribed) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
         <Crown className="h-6 w-6 text-amber-500" />
@@ -157,6 +178,13 @@ export function VoiceTab() {
           <div className="flex items-start gap-2 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
             <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
             {error}
+          </div>
+        )}
+
+        {interrupted && (
+          <div className="flex items-start gap-2 rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-500">
+            <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            Connection interrupted — holding the call. Keep talking if it comes back.
           </div>
         )}
 
@@ -265,7 +293,8 @@ export function VoiceTab() {
               {" · "}
             </>
           )}
-          The tutor knows what's on your screen. Voice powered by ChatGPT Realtime.
+          The tutor knows what's on your screen.
+          {engine ? ` Voice powered by ${engine === "live" ? "GPT-Live" : "ChatGPT Realtime"}.` : ""}
         </p>
       </div>
     </>

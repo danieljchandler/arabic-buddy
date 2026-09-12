@@ -7,10 +7,12 @@
 // Per-dialect system prompt + voice is baked into the session config.
 //
 // Two engines live behind this one function, chosen by the `VOICE_ENGINE`
-// secret (`realtime`, the default, or `live`):
+// secret (`live`, the default, or `realtime` to roll back):
 //
 //   realtime — OpenAI Realtime API. Mint an ephemeral client secret here; the
-//              browser does the SDP exchange itself, as described above.
+//              browser does the SDP exchange itself, as described above. Still
+//              the engine with the Arabic-tuned ASR and semantic VAD, which is
+//              why it stays one secret away rather than being deleted.
 //   live     — GPT-Live-1. There is no ephemeral key for this one: OpenAI's own
 //              guidance is that the application server exchanges the SDP with
 //              `POST /v1/live/sessions` using the project key, so the browser
@@ -19,7 +21,10 @@
 //              unmarshal failure that shaped the design above cannot recur.
 //
 // The response names the engine it served (`engine`), so the browser knows which
-// event vocabulary to expect rather than being configured separately.
+// event vocabulary to expect rather than being configured separately. It is also
+// recorded to `feature_metrics` on both the mint and the duration report, since
+// nothing else persists it: without that, "which engine served that call, and
+// how long did it last" is unanswerable an hour later.
 import { getDialectIdentity, getDialectVocabRules, primeDialectPrompt, type Dialect } from "../_shared/dialectHelpers.ts";
 import { REALTIME_VOICE_BY_DIALECT } from "../_shared/ttsVoiceRoutingCore.ts";
 import {
@@ -30,6 +35,7 @@ import {
   resolveUserId,
 } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import { emitMetric, logMetric } from "../_shared/featureMetrics.ts";
 import {
   buildLearnerProfile,
   onScreenVocabBlock,
@@ -189,6 +195,25 @@ Deno.serve(async (req) => {
     }
     const seconds = clampReportedSeconds(body.seconds);
     if (seconds > 0) await recordVoiceUsage(userId, mode, seconds);
+    // Which engine served the call that just ended. Narrowed to the two known
+    // values rather than stored raw, because it is the client's word for it —
+    // and it cannot be recomputed here: the secret may have changed since the
+    // call was minted, and the question this answers is what served *that*
+    // call. `voice_usage` carries the minutes; this carries the why.
+    if (seconds > 0) {
+      const reportedEngine = body.engine === "live" || body.engine === "realtime" ? body.engine : null;
+      // Awaited, unlike the mint path: this request is already fire-and-forget
+      // from the browser's side, so there is nothing to keep waiting, and an
+      // attributed duration is the row worth not dropping.
+      await logMetric({
+        feature: "live-voice",
+        event: "call_ended",
+        userId,
+        count: seconds,
+        durationMs: seconds * 1000,
+        meta: { mode, engine: reportedEngine },
+      });
+    }
     if (await isAdminUser(userId)) {
       return new Response(
         JSON.stringify({ ok: true, voice_limit_seconds: null, voice_remaining_seconds: null }),
@@ -277,6 +302,28 @@ Deno.serve(async (req) => {
       : typeof body.context === "string"
       ? body.context.slice(0, VOICE_BUDGET.content)
       : "";
+
+    /**
+     * Record which engine a call was actually served on.
+     *
+     * Both sinks on purpose: the log line is what answers the question while a
+     * call is still in living memory (the function's own logs, no query needed)
+     * and is the one that cannot be dropped, and the metric is what still
+     * answers it a week later. Neither can fail or delay the mint —
+     * `emitMetric` is fire-and-forget and swallows its own errors by design.
+     */
+    const noteServed = (served: "live" | "realtime", model: string) => {
+      console.log(
+        `[realtime-session-token] served engine=${served} model=${model} mode=${mode} dialect=${dialect} client_api=${clientApi}`,
+      );
+      emitMetric({
+        feature: "live-voice",
+        event: "session_minted",
+        dialect,
+        userId: cap.userId,
+        meta: { engine: served, model, mode, client_api: clientApi },
+      });
+    };
 
     // Warm the dialect rulebook cache so identity/vocab include admin edits.
     try { await primeDialectPrompt(dialect); } catch { /* fallback to hard-coded */ }
@@ -419,6 +466,7 @@ Deno.serve(async (req) => {
         );
       }
 
+      noteServed("live", LIVE_MODEL);
       return new Response(
         JSON.stringify({
           engine: "live",
@@ -528,11 +576,13 @@ Deno.serve(async (req) => {
       }
 
       const answerSdp = await sdpUpstream.text();
+      noteServed("realtime", REALTIME_MODEL);
       return new Response(answerSdp, {
         headers: { ...corsHeaders, "Content-Type": "application/sdp" },
       });
     }
 
+    noteServed("realtime", REALTIME_MODEL);
     return new Response(
       JSON.stringify({
         engine: "realtime",

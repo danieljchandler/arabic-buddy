@@ -1,9 +1,10 @@
 // liveVoiceCore — the pure half of the live voice call: which engine serves it,
 // and what session config each one is handed.
 //
-// Two engines, one feature. `realtime` is OpenAI's Realtime API (gpt-realtime-2),
-// which the app has shipped on since the live call existed. `live` is GPT-Live-1,
-// where the model that *speaks* and the model that *reasons* are separate:
+// Two engines, one feature. `live` is GPT-Live-1 and the current default;
+// `realtime` is OpenAI's Realtime API (gpt-realtime-2), which the app shipped on
+// from the live call's first day and is now the opt-out. Under GPT-Live the
+// model that *speaks* and the model that *reasons* are separate:
 //
 //   Realtime: one model hears, thinks, calls tools and speaks.
 //   GPT-Live: a voice layer hears and speaks full-duplex, and delegates any
@@ -24,7 +25,7 @@
 /** GPT-Live-1's only endpoint is `/v1/live/sessions`; it is not a Realtime model. */
 export const LIVE_MODEL = "gpt-live-1";
 
-/** The Realtime API model, and still the default engine. */
+/** The Realtime API model — the engine `VOICE_ENGINE=realtime` rolls back to. */
 export const REALTIME_MODEL = "gpt-realtime-2";
 
 export type VoiceEngine = "realtime" | "live";
@@ -32,12 +33,18 @@ export type VoiceEngine = "realtime" | "live";
 /**
  * Which engine a call runs on, from the `VOICE_ENGINE` secret's raw value.
  *
- * Realtime is the default and anything unrecognised falls back to it: a
- * typo'd secret must not take the live call down, and of the two engines
- * Realtime is the one with a year of Arabic behind it.
+ * GPT-Live is the default, and `VOICE_ENGINE=realtime` — exactly that value — is
+ * the rollback. The flag used to read the other way round, on the argument that
+ * a typo'd secret must not take the live call down and Realtime was the engine
+ * with a year of Arabic behind it. Defaulting to GPT-Live gives up the second
+ * half of that but not the first: a typo still resolves to a working engine, and
+ * which one that is no longer depends on a secret being set correctly on every
+ * environment. What it costs is the Arabic-tuned ASR and semantic VAD, which
+ * GPT-Live's session has no `audio.input` block to carry — so if dialect
+ * recognition regresses, the flag above is the way back rather than a revert.
  */
 export function resolveVoiceEngine(raw: string | null | undefined): VoiceEngine {
-  return raw?.trim().toLowerCase() === "live" ? "live" : "realtime";
+  return raw?.trim().toLowerCase() === "realtime" ? "realtime" : "live";
 }
 
 export type VoiceMode = "practice" | "assistant";

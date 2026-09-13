@@ -11,7 +11,7 @@
 //   google/*   → Google's Generative Language API   (GEMINI_API_KEY)
 //   openai/*   → OpenAI                              (OPENAI_API_KEY)
 //   runpod/*   → our own RunPod Serverless workers   (RUNPOD_API_KEY)
-//   humain/*   → HUMAIN Node                         (HUMAIN_API_KEY)
+//   humain/*   → HUMAIN Node                         (HUMAIN_NODE_API_KEY)
 //   everything → OpenRouter                          (OPENROUTER_API_KEY)
 //
 // Google and OpenAI both expose an OpenAI-shaped `/chat/completions`, which is
@@ -68,20 +68,23 @@ export function runpodChatUrl(model: string): string | undefined {
 }
 
 /**
+ * HUMAIN Node's published API base. Includes the version segment, because that
+ * is how Node documents it: every endpoint below is this plus a path, and
+ * `/healthz` is deliberately the one that is not (it lives on the origin).
+ */
+export const HUMAIN_BASE_URL = 'https://api.node.humain.com/v1';
+
+/**
  * HUMAIN Node's chat endpoint.
  *
- * A function rather than a constant, for the same reason RunPod's is: the base
- * is configuration rather than a published address, so a deployment that has
- * not been told where Node lives has M3 *unroutable* — `tryChatRoute` returns
- * null and every consumer skips it silently — instead of firing requests at a
- * host guessed from a press release. `HUMAIN_BASE_URL` is also the seam the
- * edge tests stub, and the escape hatch if Node moves or a tenant gets its own
- * hostname.
+ * A function rather than a constant only so `HUMAIN_BASE_URL` can be overridden
+ * — the edge tests stub it there, and a tenant with its own gateway hostname
+ * would too. Unlike the RunPod worker's URL this one has a real default, so M3
+ * needs no address configured: a key is enough, exactly as Fanar is.
  */
-export function humainChatUrl(): string | undefined {
-  const base = Deno.env.get('HUMAIN_BASE_URL')?.trim();
-  if (!base) return undefined;
-  return `${base.replace(/\/+$/, '')}/v1/chat/completions`;
+export function humainChatUrl(): string {
+  const base = Deno.env.get('HUMAIN_BASE_URL')?.trim() || HUMAIN_BASE_URL;
+  return `${base.replace(/\/+$/, '')}/chat/completions`;
 }
 
 /**
@@ -166,7 +169,7 @@ function keyFor(provider: Provider): string | undefined {
     case 'runpod':
       return Deno.env.get('RUNPOD_API_KEY')?.trim() || undefined;
     case 'humain':
-      return Deno.env.get('HUMAIN_API_KEY')?.trim() || undefined;
+      return Deno.env.get('HUMAIN_NODE_API_KEY')?.trim() || undefined;
   }
 }
 
@@ -269,7 +272,7 @@ const KEY_ENV: Record<Provider, string> = {
   openrouter: 'OPENROUTER_API_KEY',
   fanar: 'FANAR_API_KEY',
   runpod: 'RUNPOD_API_KEY',
-  humain: 'HUMAIN_API_KEY',
+  humain: 'HUMAIN_NODE_API_KEY',
 };
 
 /** Resolve a model to a concrete endpoint, or `null` when nothing is configured to serve it. */
@@ -294,14 +297,11 @@ export function tryChatRoute(model: string, provider = providerForModel(model)):
 export function chatRoute(model: string, provider = providerForModel(model)): ChatRoute {
   const route = tryChatRoute(model, provider);
   if (!route) {
-    // The two address-by-configuration providers can each fail this two ways;
-    // naming the key when the address is what is missing sends the reader to
-    // the wrong secret.
-    const hasKey = Boolean(keyFor(provider));
-    const missing = provider === 'runpod' && hasKey
+    // RunPod can fail this two ways; naming the key when the endpoint id is
+    // what is missing sends the reader to the wrong secret. HUMAIN cannot —
+    // its base has a default, so a missing key is the only way it gets here.
+    const missing = provider === 'runpod' && keyFor(provider)
       ? `RUNPOD_JAIS_${RUNPOD_ENDPOINT_ENV[model] ?? '<size>'}_ENDPOINT_ID`
-      : provider === 'humain' && hasKey
-      ? 'HUMAIN_BASE_URL'
       : KEY_ENV[provider];
     throw new GatewayConfigError(
       `${missing} not configured (required for ${model})`,
@@ -361,10 +361,10 @@ function reasoningFieldFor(
   effort: ReasoningEffort,
 ): Record<string, unknown> | null {
   // Fanar has no such switch, and Jais 2 is not a reasoning model — plain vLLM
-  // rejects an effort field it has no sampler for. M3 is here on a weaker
-  // claim: its preview tiers differ on whether thinking is even available, and
-  // an unsupported field is a 400 on every call, so it sends none until a live
-  // key says which spelling Node accepts.
+  // rejects an effort field it has no sampler for. Node's /chat/completions
+  // documents the fields it accepts and neither spelling is among them, so M3
+  // is sent none either; its own `max_tokens` and `temperature` are there,
+  // which is everything the Brain's bodies actually set.
   if (provider === 'fanar' || provider === 'runpod' || provider === 'humain') return null;
   if (provider === 'openrouter') return { reasoning: { effort } };
   if (provider === 'google') return { reasoning_effort: effort === 'none' ? 'low' : effort };

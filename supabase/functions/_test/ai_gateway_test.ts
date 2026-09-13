@@ -367,7 +367,11 @@ Deno.test("asks Jais nothing about reasoning", async () => {
 
 // ── HUMAIN M3 on HUMAIN Node ────────────────────────────────────────────────
 
-/** Node's base is deployment configuration, so every M3 test supplies its own. */
+/**
+ * A configured M3 is a key and nothing else — Node's base has a real default.
+ * The tests still point it at a stub host, because asserting "the call reached
+ * HUMAIN" must not mean "the call left the machine".
+ */
 const NODE = { HUMAIN_BASE_URL: "https://node.humain.test" };
 
 Deno.test("an M3 model goes to HUMAIN Node with its vendor prefix stripped", async () => {
@@ -381,7 +385,7 @@ Deno.test("an M3 model goes to HUMAIN Node with its vendor prefix stripped", asy
     // registry's vendor form and belongs nowhere on the wire.
     assertEquals(bodyOf(call).model, "humain-m3");
     assertEquals(mod.providerForModel("humain/humain-m3"), "humain");
-  }, { env: { ...NODE, HUMAIN_API_KEY: "fixture-humain" } });
+  }, { env: { ...NODE, HUMAIN_NODE_API_KEY: "fixture-humain" } });
 });
 
 Deno.test("an M3 outage is never retried on OpenRouter", async () => {
@@ -394,7 +398,7 @@ Deno.test("an M3 outage is never retried on OpenRouter", async () => {
     assertEquals(response.status, 503);
     assertEquals(up.callsTo(OPENROUTER).length, 0);
   }, {
-    env: { ...NODE, HUMAIN_API_KEY: "fixture-humain" },
+    env: { ...NODE, HUMAIN_NODE_API_KEY: "fixture-humain" },
     upstreams: { "node.humain.test": () => json({ error: "down" }, 503) },
   });
 });
@@ -405,25 +409,33 @@ Deno.test("an unconfigured M3 is unroutable rather than quietly another model", 
     await assertRejects(
       () => mod.chatFetch("humain/humain-m3", { messages: [] }),
       Error,
-      "HUMAIN_API_KEY",
+      "HUMAIN_NODE_API_KEY",
     );
     assertEquals(up.calls.length, 0);
-  }, { env: { ...NODE, HUMAIN_API_KEY: undefined } });
+  }, { env: { ...NODE, HUMAIN_NODE_API_KEY: undefined } });
 });
 
-Deno.test("a key with nowhere to send it names the address, not the key", async () => {
+Deno.test("a key alone is enough: Node's own base is the default", async () => {
   await withGateway(async (mod, up) => {
-    // M3 fails two ways, and the half-configured one is the confusing one: a
-    // key is not an address. Naming HUMAIN_API_KEY here would send the reader
-    // to the secret they already set.
-    assertEquals(mod.tryChatRoute("humain/humain-m3"), null);
-    await assertRejects(
-      () => mod.chatFetch("humain/humain-m3", { messages: [] }),
-      Error,
-      "HUMAIN_BASE_URL",
-    );
+    // Unlike the RunPod worker, Node has a published address, so M3 must not
+    // need one configured. HUMAIN_BASE_URL exists for a tenant on its own
+    // gateway hostname and for these tests — not as a second required secret.
+    const route = mod.tryChatRoute("humain/humain-m3");
+    assert(route, "a key with no base URL should still route");
+    assertEquals(route.url, "https://api.node.humain.com/v1/chat/completions");
     assertEquals(up.calls.length, 0);
-  }, { env: { HUMAIN_API_KEY: "fixture-humain", HUMAIN_BASE_URL: undefined } });
+  }, { env: { HUMAIN_NODE_API_KEY: "fixture-humain", HUMAIN_BASE_URL: undefined } });
+});
+
+Deno.test("an override replaces Node's base without losing the endpoint path", async () => {
+  await withGateway(async (mod) => {
+    // The override is a *base*, so the version segment travels with it and the
+    // endpoint is appended. A trailing slash must not produce a double one.
+    const route = mod.tryChatRoute("humain/humain-m3");
+    assertEquals(route?.url, "https://gateway.example/v1/chat/completions");
+  }, {
+    env: { HUMAIN_NODE_API_KEY: "fixture-humain", HUMAIN_BASE_URL: "https://gateway.example/v1/" },
+  });
 });
 
 Deno.test("asks M3 nothing about reasoning", async () => {
@@ -436,7 +448,7 @@ Deno.test("asks M3 nothing about reasoning", async () => {
     const body = bodyOf(up.callsTo("node.humain.test")[0]);
     assertEquals("reasoning" in body, false);
     assertEquals("reasoning_effort" in body, false);
-  }, { env: { ...NODE, HUMAIN_API_KEY: "fixture-humain" } });
+  }, { env: { ...NODE, HUMAIN_NODE_API_KEY: "fixture-humain" } });
 });
 
 Deno.test("a HUMAIN key alone satisfies the Brain's provider preflight", async () => {
@@ -449,7 +461,7 @@ Deno.test("a HUMAIN key alone satisfies the Brain's provider preflight", async (
   }, {
     env: {
       ...NODE,
-      HUMAIN_API_KEY: "fixture-humain",
+      HUMAIN_NODE_API_KEY: "fixture-humain",
       GEMINI_API_KEY: undefined,
       GOOGLE_API_KEY: undefined,
       OPENAI_API_KEY: undefined,

@@ -385,7 +385,7 @@ const split = (tiebreakHost: string, tiebreak: Record<string, unknown>) => ({
 });
 
 /** A configured M3. Absent everywhere else, so the default is "not configured". */
-const NODE = { HUMAIN_API_KEY: "fixture-humain", HUMAIN_BASE_URL: "https://node.humain.test" };
+const NODE = { HUMAIN_NODE_API_KEY: "fixture-humain", HUMAIN_BASE_URL: "https://node.humain.test" };
 const NODE_HOST = "node.humain.test";
 const M3 = MODEL_IDS.HUMAIN_M3;
 

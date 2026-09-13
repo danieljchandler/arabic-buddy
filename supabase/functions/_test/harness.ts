@@ -30,7 +30,7 @@ export const NO_AI_PROVIDER: Record<string, string | undefined> = {
   // line a no-op — and exactly the kind of no-op worth keeping, since the day
   // someone adds the key to the fixtures is the day every "the AI is not
   // configured" test would otherwise start lying.
-  HUMAIN_API_KEY: undefined,
+  HUMAIN_NODE_API_KEY: undefined,
 };
 
 export const FIXTURE_ENV: Record<string, string> = {

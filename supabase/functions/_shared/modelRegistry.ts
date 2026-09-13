@@ -105,10 +105,16 @@ export const MODEL_IDS = {
   // alone and every consumer has to be additive rather than load-bearing.
   //
   // The `humain/` prefix is the registry's usual vendor form and is stripped on
-  // the wire. Its address is not a constant — see `humainChatUrl` — because
-  // Node's base is deployment configuration rather than a published URL, which
-  // also makes an unconfigured M3 unroutable (a silent skip) instead of a
-  // request to a host that may not exist.
+  // the wire, because Node serves the model under its bare id.
+  //
+  // That bare id is the one thing here nobody has confirmed against a key.
+  // Node's model catalogue is **per key** — availability is assigned per user
+  // across four tiers, one of which is early-access preview — so "the id M3 is
+  // published under" is not a global fact and cannot be looked up from the
+  // docs. `GET /v1/models` is the authority; `scripts/humain-models.ts` prints
+  // it. A wrong id here is not silent and not dangerous: Node answers 404
+  // `model_not_found`, which for the validator leg means one degraded gate, and
+  // the fix is this line.
   HUMAIN_M3: 'humain/humain-m3',
 } as const;
 

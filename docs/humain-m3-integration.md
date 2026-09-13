@@ -1,7 +1,12 @@
 # HUMAIN M3 — integration plan
 
-Status: **proposal**, written 2026-09-08 against the pipeline as it stands.
-Nothing here is implemented yet.
+Status: **partly implemented**, written 2026-09-08 and revised 2026-09-13
+against HUMAIN Node's own API specification.
+
+§1a (the gateway seam) and the validator leg from §1b are built. Everything
+from the contributor surface onward is still a proposal. Where this document
+guessed and Node's spec later said otherwise, the spec wins and the text below
+has been corrected rather than left standing.
 
 M3 is HUMAIN's frontier Arabic model (428B MoE, ~23B active, announced at LEAP
 Riyadh on 2026-09-03, weights built with MiniMax), served from HUMAIN Node
@@ -20,22 +25,42 @@ Three properties decide everything below:
 3. **The preview tier explicitly adds latency.** That rules it out of the
    latency-critical paths (the transcript merge, live chat) until measured.
 
-Before writing any of this, confirm three facts against the key with one call —
-the plan assumes them and they are the only things not verifiable from here
-(`node.humain.com` refuses unauthenticated fetches):
+This document originally listed four facts it had guessed at. Node's API
+specification has since settled three of them:
+
+- **Base URL**: `https://api.node.humain.com/v1`, with `/healthz` on the origin
+  outside it. Confirmed live — an unauthenticated `GET /v1/models` returns 401
+  `missing_api_key` in Node's documented error envelope, with an
+  `X-Request-ID` header.
+- **Auth**: `Authorization: Bearer $HUMAIN_NODE_API_KEY` (or `x-api-key`).
+  Note the variable name: this plan first invented `HUMAIN_API_KEY`, and the
+  code uses Node's own name instead.
+- **Reasoning**: Node's `/chat/completions` documents the optional fields it
+  takes, and neither `reasoning` nor `reasoning_effort` is among them.
+  `max_tokens` and `temperature` are, which is what the Brain's bodies set. So
+  M3 is sent no reasoning field, and that is now a fact rather than caution.
+
+One remains, and it cannot be looked up:
+
+- **The served model id.** Node's catalogue is *per key* — availability is
+  assigned per user across four tiers, one of them early-access preview — so
+  there is no global answer to "what is M3 called". Node's own instruction is
+  to call `GET /v1/models` first. `scripts/humain-models.ts` does that and
+  prints the ids, without the key touching this repo or a chat window:
 
 ```sh
-curl https://<node-base>/v1/chat/completions \
-  -H "Authorization: Bearer $HUMAIN_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"model":"humain-m3","messages":[{"role":"user","content":"مرحبا"}],"max_tokens":32}'
+HUMAIN_NODE_API_KEY=... deno run --allow-env --allow-net scripts/humain-models.ts
 ```
 
-- the base URL,
-- the exact served model id (`humain-m3`, or a versioned variant),
-- whether it accepts `reasoning_effort` / `reasoning` or 400s on it,
-- whether the response carries a `usage` block with cost (it decides whether
-  spend telemetry is real or has to be priced from a table).
+  `MODEL_IDS.HUMAIN_M3` currently reads `humain/humain-m3`, which is a
+  placeholder until that list confirms it. A wrong id is a 404
+  `model_not_found`, which on the validator leg is one degraded gate rather
+  than a broken request — see §1b.
+
+Node also exposes `/responses`, `/messages` (Anthropic-shaped), image
+generation and a realtime WebSocket on the same key. None of them are used
+here: `/chat/completions` is the shape `aiGateway` already speaks, and the
+others are only interesting if M3 ever takes on a job those endpoints serve.
 
 ---
 
@@ -68,14 +93,14 @@ that is already there:
 | Site | Change |
 | --- | --- |
 | `Provider` union | add `'humain'` |
-| `HUMAIN_CHAT_URL` | the Node base + `/v1/chat/completions` |
+| `humainChatUrl()` | `HUMAIN_BASE_URL` (default `https://api.node.humain.com/v1`) + `/chat/completions` |
 | `HUMAIN_MODEL` regex | `/^humain\//` → `vendorForModel` returns `'humain'` |
-| `keyFor` / `KEY_ENV` / `CHAT_URLS` | `HUMAIN_API_KEY` |
+| `keyFor` / `KEY_ENV` / `CHAT_URLS` | `HUMAIN_NODE_API_KEY` |
 | `upstreamModelId` | strip the `humain/` prefix |
 | `hasAnyProvider` | add the HUMAIN key — see below |
 | `canFallBack` | unchanged — stays false, which is the point |
 
-A missing `HUMAIN_API_KEY` then makes `tryChatRoute` return `null`, which is
+A missing `HUMAIN_NODE_API_KEY` then makes `tryChatRoute` return `null`, which is
 already the codebase's word for "unconfigured provider, skip silently". That
 is what lets every consumer below ship dark and light up when the secret lands.
 
@@ -105,13 +130,26 @@ new key: the validator is optional by design — it returns `unknown`/`ok:false`
 when its provider is unavailable, so a bad key, a rate limit or a slow preview
 tier degrades the gate instead of failing the request behind it.
 
-Concretely: put M3 at the head of the tie-break ladder, ahead of Jais 2, under
-the same `tryChatRoute` guard and the same `TIEBREAK_COLD_BAIL_MS` /
-`TIEBREAK_BUDGET_MS` ceilings. Ladder position costs nothing when the key is
-absent and bounds the latency risk when it is present. If it proves fast and
-good there, promote it to the standing Arabic leg in place of Saba — that is a
-one-constant change and Saba's own comment says it holds the slot on price, not
-quality.
+**Built.** M3 sits at the head of the tie-break ladder, ahead of Jais 2, under
+the same `tryChatRoute` guard — so ladder position costs nothing when the key
+is absent.
+
+One correction to what this section first said, found while implementing it.
+It said to put M3 first "under the same `TIEBREAK_COLD_BAIL_MS` /
+`TIEBREAK_BUDGET_MS` ceilings", and that would have been a bug. The rungs
+share a single `TIEBREAK_BUDGET_MS`, and `tiebreakCeilingMs` hands everything
+that is not our own RunPod worker the run of it — correct for Fanar, a warm
+hosted API, and wrong for a model whose own preview terms advertise added
+latency. First *and* unbounded, a slow M3 could spend the whole budget and
+leave Jais and Fanar unasked: a quality upgrade that makes the split worse.
+M3 therefore has a ceiling of its own, `TIEBREAK_PREVIEW_BAIL_MS` (7s, larger
+than the 5s cold bail because a slow hosted endpoint plausibly *will* answer
+where a cold worker will not). Revisit it once M3's real latency on a
+single-snippet judgment is measured.
+
+If it proves fast and good there, promote it to the standing Arabic leg in
+place of Saba — that is a one-constant change, and Saba's own comment says it
+holds the slot on price, not quality.
 
 **Second: a TRANSLATION drafter — but only behind an eval.** The `TRANSLATION`
 lineup is `[CLAUDE, GEMINI_FLASH]` under `strategy: 'ensemble'`, and
@@ -121,7 +159,7 @@ plus a `MODEL_WEIGHTS` entry. What it does need is evidence, and the repo
 already has the instrument:
 
 ```sh
-HUMAIN_API_KEY=... OPENROUTER_API_KEY=... deno run --allow-env --allow-read --allow-net \
+HUMAIN_NODE_API_KEY=... OPENROUTER_API_KEY=... deno run --allow-env --allow-read --allow-net \
   scripts/eval-dialect-live.ts --model humain/humain-m3 --compare anthropic/claude-sonnet-5
 ```
 
@@ -338,11 +376,11 @@ otherwise, and they fail on *adding* code, not on breaking it):
 - a file per function dir in `supabase/functions/_test/` — `edgeFunctionCoverage`
   checks the names, `npm run test:edge` runs them via `loadFunction()`;
 - `[functions.<name>] verify_jwt` in `supabase/config.toml`;
-- `HUMAIN_API_KEY` in the edge harness. Add it to `FIXTURE_ENV` only if you
+- `HUMAIN_NODE_API_KEY` in the edge harness. Add it to `FIXTURE_ENV` only if you
   want M3 routable in every edge test — the Jais precedent (key present,
   endpoint id absent, so `tryChatRoute` returns null by default and tests opt
   in) is the better default here too;
-- add `HUMAIN_API_KEY` to `NO_AI_PROVIDER` if M3 ever becomes a path a test
+- add `HUMAIN_NODE_API_KEY` to `NO_AI_PROVIDER` if M3 ever becomes a path a test
   needs to prove is dead — "the AI is not configured" means *every* provider
   key unset.
 
@@ -376,7 +414,7 @@ otherwise, and they fail on *adding* code, not on breaking it):
 - **Side-by-side for `mode: "compare"`**, with the two outputs order-randomised
   and unlabelled until a choice is made. Labelled comparisons measure brand
   preference, not translation quality.
-- **Degrade, don't error.** When `HUMAIN_API_KEY` is unset the function should
+- **Degrade, don't error.** When `HUMAIN_NODE_API_KEY` is unset the function should
   answer a clean "not configured" that the page renders as a disabled panel —
   the same shape `isCappedError` handling already gives the translate page.
 
@@ -418,7 +456,7 @@ otherwise, and they fail on *adding* code, not on breaking it):
 
 ## Suggested order of work
 
-1. Gateway + registry seam, with `HUMAIN_API_KEY` unset in prod. Nothing
+1. Gateway + registry seam, with `HUMAIN_NODE_API_KEY` unset in prod. Nothing
    changes; `tryChatRoute` returns null everywhere. One edge test that a
    `humain/` id with no key is unroutable, one that it routes to Node with a
    key — mirroring the RunPod tests.

@@ -55,9 +55,11 @@ export type LineWordTiming = {
    */
   altTranslation?: string;
   /**
-   * Set when a disputed line was settled by the Shaheen-MT tiebreak rather than
-   * by the ensemble itself, e.g. `shaheen→claude-sonnet-4.5`. Such a line has
-   * `needs_review` false but did not reach a clean ensemble majority.
+   * Set when a disputed line was settled by a tiebreak rather than by the
+   * ensemble itself: the Arabic-native judge names itself and the candidate it
+   * backed (`humain/humain-m3→anthropic/claude-sonnet-5`), and the Shaheen-MT
+   * rendering is `shaheen→<candidate>:<mode>`. Such a line has `needs_review`
+   * false but did not reach a clean ensemble majority.
    */
   resolved_by?: string;
  };

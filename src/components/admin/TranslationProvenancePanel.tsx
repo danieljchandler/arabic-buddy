@@ -24,6 +24,20 @@ export interface TranslationProvenance {
   blank_after_ensemble?: number;
   cheap_fill?: number;
   tiers?: TranslationTier[];
+  /**
+   * The Arabic-native judge's pass over the disputed lines — HUMAIN M3, Jais 2
+   * or Fanar, whichever answered — which runs before the Shaheen-MT rendering.
+   */
+  arabic_arbiter?: {
+    attempted?: boolean;
+    model?: string | null;
+    disputed_lines?: number;
+    resolved?: number;
+    adopted_unconfirmed?: number;
+    unresolved?: number;
+    skip_reason?: string;
+    attempts?: Array<{ model: string; error: string }>;
+  };
   shaheen?: { attempted?: boolean; succeeded?: boolean; filled?: number; skip_reason?: string };
 }
 
@@ -111,6 +125,23 @@ export function TranslationProvenancePanel({
         <p className="text-muted-foreground">
           {provenance.blank_after_ensemble} line{provenance.blank_after_ensemble === 1 ? "" : "s"} left blank by the
           ensemble; {provenance.cheap_fill ?? 0} filled by the per-line fallback translator.
+        </p>
+      )}
+      {provenance.arabic_arbiter && (provenance.arabic_arbiter.attempted || provenance.arabic_arbiter.skip_reason) && provenance.arabic_arbiter.skip_reason !== "nothing_disputed" && (
+        <p className="text-muted-foreground">
+          {provenance.arabic_arbiter.model
+            ? `Arabic-native arbitration by ${shortName(provenance.arabic_arbiter.model)}: ` +
+              `${provenance.arabic_arbiter.resolved ?? 0} of ${provenance.arabic_arbiter.disputed_lines ?? 0} disputed line${provenance.arabic_arbiter.disputed_lines === 1 ? "" : "s"} settled` +
+              ((provenance.arabic_arbiter.adopted_unconfirmed ?? 0) > 0
+                ? `, ${provenance.arabic_arbiter.adopted_unconfirmed} adopted at low confidence`
+                : "") +
+              "."
+            : `Arabic-native arbitration did not run on ${provenance.arabic_arbiter.disputed_lines ?? 0} disputed line${provenance.arabic_arbiter.disputed_lines === 1 ? "" : "s"}` +
+              (provenance.arabic_arbiter.skip_reason ? ` (${provenance.arabic_arbiter.skip_reason})` : "") +
+              "."}
+          {provenance.arabic_arbiter.attempts?.length
+            ? ` Did not answer: ${provenance.arabic_arbiter.attempts.map((a) => `${shortName(a.model)} — ${a.error}`).join("; ")}.`
+            : ""}
         </p>
       )}
       {provenance.shaheen?.attempted && (

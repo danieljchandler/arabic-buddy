@@ -2094,3 +2094,25 @@ Deno.test("process-approved-video waits rather than failing when no engine has a
 
   assertEquals(finalStatus(result), "completed");
 });
+
+Deno.test("process-approved-video wakes the Jais worker before the engines run", async () => {
+  const result = await call({ videoId: VIDEO }, {
+    ...backend(),
+    "api.runpod.ai": () => chatCompletion("ok"),
+  }, { env: { RUNPOD_JAIS_8B_ENDPOINT_ID: "test1endpoint" } });
+
+  // The self-hosted Arabic judge scales to zero, and the analysis that needs
+  // it is minutes away — about a FlashBoot start. One one-token ping at the
+  // top of the run is what turns "bailed past, cold" into "judged".
+  const ping = result.calls.findIndex((u) => u.includes("api.runpod.ai"));
+  assert(ping >= 0, `expected the Jais worker to be pinged, saw:\n${result.calls.join("\n")}`);
+  assertEquals((JSON.parse(result.bodies[ping] ?? "{}") as { max_tokens?: number }).max_tokens, 1);
+  const firstEngine = result.calls.findIndex((u) => u.includes("api.soniox.com") || u.includes("api.elevenlabs.io"));
+  assert(ping < firstEngine, "the ping goes out before the ASR fan-out, not after it");
+  assertEquals(finalStatus(result), "completed");
+});
+
+Deno.test("process-approved-video does not ping a Jais that is not deployed", async () => {
+  const result = await call({ videoId: VIDEO }, backend());
+  assertEquals(result.calls.some((u) => u.includes("api.runpod.ai")), false);
+});

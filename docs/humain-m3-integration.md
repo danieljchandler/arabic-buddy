@@ -197,6 +197,59 @@ it, because an audit that cannot tell M3's verdict from Fanar's is how this went
 unexamined for as long as it did. The key is still spelled `fanar_validation`
 for the sake of historical rows.
 
+The first run after that seam landed (2026-09-13, 17:05 UTC) still reported
+the dialect check as "Fanar, replied in prose" and nothing from M3 or Jais, and
+it took a second look to see why. Three things, each fixed in the walk:
+
+- **A prose reply ended the walk.** `judgeWithArabicNative` took the first
+  non-empty reply as the answer, so one chatty rung meant nothing behind it was
+  asked. It now takes an `accept` predicate — the pipeline passes "does the
+  issue parser get anything out of this" — and a rung that fails it is a
+  failed attempt like a 503. When every rung is prose the first prose is still
+  returned, marked `usable: false`, so the admin banner keeps something to
+  show. The dialect-check prompt also gained a one-line English "JSON only"
+  instruction under its Arabic brief; every model on the roster follows an
+  English format rule more reliably than an Arabic one.
+- **The rungs that failed were invisible whenever a later one answered.** The
+  walk recorded them in `attempts`, and the pipeline only logged that list when
+  *nobody* answered. A run where M3 404s and Fanar replies looked identical to
+  one where M3 was never configured. `attempts` is now logged on every run and
+  stored under `fanar_validation.attempts` (and `translation.arabic_arbiter.attempts`),
+  so "M3 didn't fire" is answered from the row: `HTTP 404 model_not_found` is
+  a key whose tier lacks the model; a timeout is the preview latency.
+- **The cold probe was aborting a warm Jais.** The 8s cold bail sat on the
+  whole call, and vLLM sends a non-streaming completion's headers only when
+  the body is finished — so an 8B model writing a thousand tokens of JSON about
+  a transcript was cut off at eight seconds whether the worker was hot or not.
+  The bail now bounds a one-token *probe*; a worker that answers it is awake
+  and the real call gets the full budget. And since the endpoint scales to zero
+  after five idle minutes, the pipeline pings it at the top of every run
+  (`warmArabicJudges`, `JAIS_PIPELINE_WARMUP`), which is roughly a FlashBoot
+  start ahead of the first question.
+
+### 1d. A say in the translations
+
+`analyze-gulf-arabic` also now puts every line its ensemble could not settle to
+the same roster, before the Shaheen-MT rendering. The ensemble's three
+drafters are generalists judging each other by English token overlap, and the
+only tiebreak was an MT model's rendering scored the same way — on the audited
+run that reached four of eight disputed lines and settled none. The roster is
+asked outright instead: the Arabic line and the lettered, *unnamed* candidates
+(a judge told which is Claude's measures brand preference), and a JSON verdict
+per line with a confidence. A high-confidence pick becomes the line and clears
+`needs_review`, recorded as `resolved_by: humain/humain-m3→<candidate model>`;
+a low-confidence pick becomes the line but stays flagged; a null pick leaves the
+line as the ensemble had it. Only what is still open goes on to Shaheen, which
+is what keeps that call inside its twenty-a-day allowance. The prompt, the
+layout and the tolerant parser are `buildArbiterSystemPrompt`,
+`formatDisputedLines` and `parseArbiterChoices` in `_shared/translationArbiter.ts`;
+the outcome is `engines_used.translation.arabic_arbiter`, which the admin
+provenance panel reads.
+
+This is deliberately the *judge* role and not the drafter role that §1b's
+"second" item still holds behind an eval: one short call per video on the
+disputed minority, against a permanent third drafter on every line.
+
 **Second: a TRANSLATION drafter — but only behind an eval.** The `TRANSLATION`
 lineup is `[CLAUDE, GEMINI_FLASH]` under `strategy: 'ensemble'`, and
 `runEnsemble` already ranks candidates by weighted Jaccard agreement and MSA

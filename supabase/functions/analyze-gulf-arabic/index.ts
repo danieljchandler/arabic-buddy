@@ -224,6 +224,21 @@ function generationBudgetMs(maxTokens: number): number {
 }
 
 /**
+ * A signal that fires when this run must stop starting work, less the margin
+ * the final write needs.
+ *
+ * For the callers that walk several models in turn — the Arabic roster walks
+ * — a per-call budget is not enough: each rung is granted the budget afresh,
+ * so three slow rungs can spend three of them, and a walk that starts late in
+ * the run can cross the platform's wall clock before the safety save. This is
+ * the outer bound the per-rung ceilings sit inside.
+ */
+function runDeadlineSignal(): AbortSignal {
+  const left = Math.min(timeLeftMs(), ANALYZE_BUDGET_MS) - 15_000;
+  return AbortSignal.timeout(Math.max(1_000, left));
+}
+
+/**
  * The share of the wall clock this function will spend before it must write.
  *
  * 300s against the platform's 400s leaves the persist, the pipeline hand-off
@@ -2458,6 +2473,8 @@ serve(async (req) => {
            // so it gets the same allowance here — `generationBudgetMs` already
            // shrinks it when the function is running out of wall clock.
            timeoutMs: FANAR_CONNECT_TIMEOUT_MS + generationBudgetMs(1024),
+           // Per rung. The walk as a whole ends at the run's deadline.
+           signal: runDeadlineSignal(),
            // A reply the issue parser cannot read is a failed rung, not a
            // verdict: the last audited run ended with "replied in prose"
            // from the first model to answer, and nothing behind it was asked.
@@ -2682,6 +2699,11 @@ serve(async (req) => {
             temperature: 0.1,
             label: 'analyze-gulf-arabic/translation-arbiter',
             timeoutMs: FANAR_CONNECT_TIMEOUT_MS + generationBudgetMs(arbiterMaxTokens),
+            // Per rung. Without an outer bound three configured judges could
+            // each take the ceiling in turn and carry the run past its wall
+            // clock before the safety save — the failure the budget exists to
+            // prevent. The walk stops at the run's deadline instead.
+            signal: runDeadlineSignal(),
             // A reply with no readable verdicts is a failed rung; the next
             // Arabic model gets the same question.
             accept: (content) => parseArbiterChoices(content, asked) !== null,

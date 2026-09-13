@@ -1290,3 +1290,30 @@ Deno.test("an undeployed Jais is not warmed, and neither is one switched off", a
     assertEquals(up.callsTo(RUNPOD).length, 0);
   }, { env: { ...DEPLOYED, JAIS_PIPELINE_WARMUP: "off" } });
 });
+
+Deno.test("the caller's signal ends the walk, not just the rung it interrupted", async () => {
+  await withValidator(async (mod, up) => {
+    const started = Date.now();
+    const out = await mod.judgeWithArabicNative("sys", "نص", {
+      timeoutMs: 20_000,
+      signal: AbortSignal.timeout(1_500),
+    });
+    const elapsed = Date.now() - started;
+
+    // The transcript pipeline passes its run deadline here. A per-rung
+    // ceiling alone lets every configured judge take the ceiling in turn —
+    // three of them can outlast the whole analysis budget — so when the
+    // caller's own signal fires the walk must stop asking, whoever is still
+    // waiting behind the rung that was cut off.
+    assert(elapsed < 5_000, `kept walking for ${elapsed}ms after the caller gave up`);
+    assertEquals(out.content, null);
+    assertEquals(up.callsTo(NODE_HOST).length, 1);
+    assertEquals(up.callsTo(FANAR_HOST).length, 0);
+  }, {
+    env: NODE,
+    upstreams: {
+      [NODE_HOST]: holdsTheConnection,
+      [FANAR_HOST]: () => chatCompletion("حكم فنار"),
+    },
+  });
+});

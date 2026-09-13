@@ -365,6 +365,111 @@ Deno.test("asks Jais nothing about reasoning", async () => {
   }, { env: DEPLOYED });
 });
 
+// ── HUMAIN M3 on HUMAIN Node ────────────────────────────────────────────────
+
+/**
+ * A configured M3 is a key and nothing else — Node's base has a real default.
+ * The tests still point it at a stub host, because asserting "the call reached
+ * HUMAIN" must not mean "the call left the machine".
+ */
+const NODE = { HUMAIN_BASE_URL: "https://node.humain.test" };
+
+Deno.test("an M3 model goes to HUMAIN Node with its vendor prefix stripped", async () => {
+  await withGateway(async (mod, up) => {
+    await mod.chatFetch("humain/humain-m3", { messages: [] });
+
+    const [call] = up.callsTo("node.humain.test");
+    assert(call, "expected the call to reach HUMAIN Node");
+    assertEquals(call.headers.authorization, "Bearer fixture-humain");
+    // Node serves the model under its bare name; the `humain/` prefix is the
+    // registry's vendor form and belongs nowhere on the wire.
+    assertEquals(bodyOf(call).model, "humain-m3");
+    assertEquals(mod.providerForModel("humain/humain-m3"), "humain");
+  }, { env: { ...NODE, HUMAIN_NODE_API_KEY: "fixture-humain" } });
+});
+
+Deno.test("an M3 outage is never retried on OpenRouter", async () => {
+  await withGateway(async (mod, up) => {
+    const response = await mod.chatFetch("humain/humain-m3", { messages: [] });
+
+    // Same reasoning as Fanar: M3 is on nobody else's catalogue, so retrying
+    // there would turn one real failure into a 404 about a model that was
+    // never listed. Every consumer of M3 has to survive this status.
+    assertEquals(response.status, 503);
+    assertEquals(up.callsTo(OPENROUTER).length, 0);
+  }, {
+    env: { ...NODE, HUMAIN_NODE_API_KEY: "fixture-humain" },
+    upstreams: { "node.humain.test": () => json({ error: "down" }, 503) },
+  });
+});
+
+Deno.test("an unconfigured M3 is unroutable rather than quietly another model", async () => {
+  await withGateway(async (mod, up) => {
+    assertEquals(mod.tryChatRoute("humain/humain-m3"), null);
+    await assertRejects(
+      () => mod.chatFetch("humain/humain-m3", { messages: [] }),
+      Error,
+      "HUMAIN_NODE_API_KEY",
+    );
+    assertEquals(up.calls.length, 0);
+  }, { env: { ...NODE, HUMAIN_NODE_API_KEY: undefined } });
+});
+
+Deno.test("a key alone is enough: Node's own base is the default", async () => {
+  await withGateway(async (mod, up) => {
+    // Unlike the RunPod worker, Node has a published address, so M3 must not
+    // need one configured. HUMAIN_BASE_URL exists for a tenant on its own
+    // gateway hostname and for these tests — not as a second required secret.
+    const route = mod.tryChatRoute("humain/humain-m3");
+    assert(route, "a key with no base URL should still route");
+    assertEquals(route.url, "https://api.node.humain.com/v1/chat/completions");
+    assertEquals(up.calls.length, 0);
+  }, { env: { HUMAIN_NODE_API_KEY: "fixture-humain", HUMAIN_BASE_URL: undefined } });
+});
+
+Deno.test("an override replaces Node's base without losing the endpoint path", async () => {
+  await withGateway(async (mod) => {
+    // The override is a *base*, so the version segment travels with it and the
+    // endpoint is appended. A trailing slash must not produce a double one.
+    const route = mod.tryChatRoute("humain/humain-m3");
+    assertEquals(route?.url, "https://gateway.example/v1/chat/completions");
+  }, {
+    env: { HUMAIN_NODE_API_KEY: "fixture-humain", HUMAIN_BASE_URL: "https://gateway.example/v1/" },
+  });
+});
+
+Deno.test("asks M3 nothing about reasoning", async () => {
+  await withGateway(async (mod, up) => {
+    await mod.chatFetch("humain/humain-m3", { messages: [] });
+
+    // The preview tiers differ on whether thinking is even available, and an
+    // unsupported field is a 400 on every call. Until a live key settles the
+    // shape, M3 is sent no reasoning field at all.
+    const body = bodyOf(up.callsTo("node.humain.test")[0]);
+    assertEquals("reasoning" in body, false);
+    assertEquals("reasoning_effort" in body, false);
+  }, { env: { ...NODE, HUMAIN_NODE_API_KEY: "fixture-humain" } });
+});
+
+Deno.test("a HUMAIN key alone satisfies the Brain's provider preflight", async () => {
+  await withGateway((mod) => {
+    // askBrain refuses to start when no upstream at all is configured. M3 is
+    // the first model the pipeline can be asked to run on its own, so a
+    // deployment holding only this key must not fail before the route that
+    // would have served it is built.
+    assertEquals(mod.hasAnyProvider(), true);
+  }, {
+    env: {
+      ...NODE,
+      HUMAIN_NODE_API_KEY: "fixture-humain",
+      GEMINI_API_KEY: undefined,
+      GOOGLE_API_KEY: undefined,
+      OPENAI_API_KEY: undefined,
+      OPENROUTER_API_KEY: undefined,
+    },
+  });
+});
+
 // ── Images ──────────────────────────────────────────────────────────────────
 
 Deno.test("an image comes back as bytes from Gemini's inline data", async () => {

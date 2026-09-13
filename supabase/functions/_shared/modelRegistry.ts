@@ -97,6 +97,25 @@ export const MODEL_IDS = {
   // entry in aiGateway's RUNPOD_ENDPOINT_ENV — and it must never land on a
   // path a learner waits for.
   JAIS2_8B: 'runpod/jais-2-8b-chat',
+  // HUMAIN M3 — a 428B mixture-of-experts Arabic model (23B active),
+  // commissioned by Saudi Arabia's HUMAIN and served from HUMAIN Node behind an
+  // OpenAI-shaped `/chat/completions`. The third Arabic-native model here, and
+  // the third with no OpenRouter twin: like Fanar and Jais 2 it exists on
+  // exactly one endpoint, so `aiGateway.canFallBack` deliberately leaves it
+  // alone and every consumer has to be additive rather than load-bearing.
+  //
+  // The `humain/` prefix is the registry's usual vendor form and is stripped on
+  // the wire, because Node serves the model under its bare id.
+  //
+  // That bare id is the one thing here nobody has confirmed against a key.
+  // Node's model catalogue is **per key** — availability is assigned per user
+  // across four tiers, one of which is early-access preview — so "the id M3 is
+  // published under" is not a global fact and cannot be looked up from the
+  // docs. `GET /v1/models` is the authority; `scripts/humain-models.ts` prints
+  // it. A wrong id here is not silent and not dangerous: Node answers 404
+  // `model_not_found`, which for the validator leg means one degraded gate, and
+  // the fix is this line.
+  HUMAIN_M3: 'humain/humain-m3',
 } as const;
 
 // ---- Named lineups (preferred entry point) ---------------------------------
@@ -201,6 +220,13 @@ const REASONING_FLOOR: Record<string, 'none' | 'minimal' | 'low'> = {
   [MODEL_IDS.GEMINI_FLASH]: 'low',    // mandatory; Gemini 3.7 Flash offers low/medium/high
   [MODEL_IDS.GEMINI_PRO]: 'low',      // mandatory; same three levels
   [MODEL_IDS.JAIS2_8B]: 'none',       // not a reasoning model; plain vLLM takes no effort field
+  // M3's limited-preview tier documents thinking as *off*, and the research
+  // tier as available. Which tier a key buys is not visible from here, and
+  // nothing in the app has asked M3 to think, so it is floored at "none" and
+  // `reasoningFieldFor` sends it no field at all until the shape is confirmed
+  // against a live key — the Fanar treatment, for the same reason: a guess
+  // costs a round trip on every call.
+  [MODEL_IDS.HUMAIN_M3]: 'none',
 };
 
 /**

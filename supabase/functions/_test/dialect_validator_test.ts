@@ -571,6 +571,36 @@ Deno.test("a slow M3 gives up its slice rather than the whole budget", async () 
   });
 });
 
+Deno.test("a slow M3 and a cold Jais still leave Fanar a turn", async () => {
+  await withValidator(async (mod, up) => {
+    const started = Date.now();
+    const result = await mod.validateDialectCrossChecked("x", "Gulf");
+    const elapsed = Date.now() - started;
+
+    // The failure adding a third rung introduces if nothing bounds the *sum*
+    // of the per-rung ceilings: M3's slice plus Jais's cold bail can spend the
+    // whole budget between them, and Fanar — the rung that settled every split
+    // before either of the others existed — is never asked. That would make
+    // configuring M3 strictly worse than not configuring it, in exactly the
+    // slow-preview case its ceiling was added for.
+    assertEquals(up.callsTo(NODE_HOST).length, 1);
+    assertEquals(up.callsTo(RUNPOD).length, 1);
+    assertEquals(up.callsTo(FANAR_HOST).length, 1);
+    assertEquals(result.verdict, "pass");
+    assertEquals(result.model, `${ARABIC}+${STRONG}+${FANAR}`);
+    assert(elapsed < 20_000, `ladder took ${elapsed}ms; the whole budget should still bound it`);
+  }, {
+    env: { ...NODE, ...DEPLOYED },
+    upstreams: {
+      [OPENROUTER]: () => chatCompletion("", judgment({ score: 5 })),
+      [GATEWAY]: () => chatCompletion("", judgment({ score: 2, verdict: "rewrite" })),
+      [NODE_HOST]: holdsTheConnection,
+      [RUNPOD]: holdsTheConnection,
+      [FANAR_HOST]: () => chatCompletion("", judgment({ score: 5 })),
+    },
+  });
+});
+
 Deno.test("when no specialist answers, the harsher verdict still stands", async () => {
   await withValidator(async (mod, up) => {
     const result = await mod.validateDialectCrossChecked("x", "Gulf");

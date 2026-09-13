@@ -61,7 +61,36 @@ const TIEBREAK_VALIDATOR_MODEL = MODEL_IDS.FANAR;
 const VALIDATOR_DEFAULT_TIMEOUT_MS = 30_000;
 
 const TIEBREAK_COLD_BAIL_MS = 5_000;
-const TIEBREAK_BUDGET_MS = 12_000;
+/**
+ * The whole ladder's wall clock.
+ *
+ * 12s while the ladder was two rungs: a 5s cold bail on Jais left 7s for
+ * Fanar. A third rung does not fit in that — M3's 7s plus Jais's 5s is the
+ * entire budget, and Fanar, the rung that settled every split before either of
+ * the others existed, would never be asked in exactly the slow-preview case
+ * the ceilings were added for. Raised so all three intended ceilings fit
+ * alongside `TIEBREAK_TAIL_RESERVE_MS`.
+ *
+ * The cost is the worst case, not the common one: every rung has to be slow or
+ * cold to spend this, and any rung answering ends it. A caller's own
+ * `timeoutMs` still wins, since the deadline is the smaller of the two.
+ */
+const TIEBREAK_BUDGET_MS = 16_000;
+/**
+ * What a rung must leave for the rungs behind it.
+ *
+ * Per-rung ceilings bound each call; nothing bounded their *sum*, so early
+ * rungs could eat the budget and the loop would break on `TIEBREAK_MIN_MS`
+ * before reaching the last one. That is worse than not adding a rung at all:
+ * the ladder is ordered best-first, but the rungs at the bottom are the
+ * *proven* ones, and starving them trades a settled split for an unsettled
+ * one.
+ *
+ * 4s is a slice a warm hosted API can actually answer a single-snippet
+ * judgment in — the point is a usable remainder, not a token one, which is why
+ * this is not simply `TIEBREAK_MIN_MS`.
+ */
+const TIEBREAK_TAIL_RESERVE_MS = 4_000;
 /**
  * The ceiling for a rung that is hosted but whose latency nobody here has
  * measured — HUMAIN M3, whose limited-preview tier documents *added latency* as
@@ -377,17 +406,25 @@ async function settleSplit(
   const deadline = start +
     Math.min(TIEBREAK_BUDGET_MS, opts.timeoutMs ?? TIEBREAK_BUDGET_MS);
 
-  for (const model of ladder) {
+  for (const [index, model] of ladder.entries()) {
     // A caller that gave up wants no more calls made on its behalf, and the
     // ladder is the one place here that would otherwise keep spending after
     // the answer stopped being wanted.
     if (opts.signal?.aborted) break;
     const remaining = deadline - Date.now();
     if (remaining < TIEBREAK_MIN_MS) break;
+    // What this rung may spend, after setting aside a usable slice for each
+    // rung behind it. Without the reserve the per-rung ceilings bound every
+    // call and nothing bounds their sum, so a slow first rung and a cold
+    // second one can exhaust the budget between them and the proven last rung
+    // is never reached. The floor keeps a squeezed rung a real attempt rather
+    // than a zero-length one.
+    const reserved = (ladder.length - index - 1) * TIEBREAK_TAIL_RESERVE_MS;
+    const share = Math.max(TIEBREAK_MIN_MS, remaining - reserved);
     const result = await validateDialect(text, dialect, {
       ...opts,
       model,
-      timeoutMs: Math.min(remaining, tiebreakCeilingMs(model)),
+      timeoutMs: Math.min(share, tiebreakCeilingMs(model)),
     });
     if (result.ok && result.verdict !== 'unknown') {
       return { result, model, elapsedMs: Date.now() - start };

@@ -16,6 +16,10 @@ import {
   type DialectIssue,
 } from "../_shared/dialectIssues.ts";
 import {
+  judgeWithArabicNative,
+  type ArabicJudgement,
+} from "../_shared/dialectValidator.ts";
+import {
   overlayDiacritizedPerLine,
   stripDiacritics,
 } from "../_shared/arabicDiacritics.ts";
@@ -30,7 +34,7 @@ import {
   alignFushaLines,
   buildFushaSystemPrompt,
 } from "../_shared/fushaBridge.ts";
-import { MODEL_IDS } from "../_shared/modelRegistry.ts";
+import { MODEL_IDS, getModelWeight } from "../_shared/modelRegistry.ts";
 import { EDGE_BUILD } from "../_shared/edgeBuild.ts";
 import { chatFetch, hasAnyProvider, providerForModel, type Provider } from "../_shared/aiGateway.ts";
 import { splitOverlongLines } from "../_shared/transcriptLineSplit.ts";
@@ -109,7 +113,13 @@ type ReviewReason = 'ensemble_disagreement' | 'call2_fallback' | 'empty';
    vocabulary: VocabItem[];
    grammarPoints: GrammarPoint[];
    culturalContext?: string;
-  dialectValidation?: { content: string; timestamp: string; issues?: DialectIssue[] } | null;
+  dialectValidation?: {
+    content: string;
+    timestamp: string;
+    /** Which Arabic-native model judged; absent on rows written before the ladder. */
+    model?: string;
+    issues?: DialectIssue[];
+  } | null;
   dialect?: 'Saudi' | 'Kuwaiti' | 'UAE' | 'Bahraini' | 'Qatari' | 'Omani' | 'Gulf';
   difficulty?: 'Beginner' | 'Intermediate' | 'Advanced' | 'Expert';
   /** Full merged Arabic transcript with tashkeel added by Farasa. Feed to ElevenLabs TTS for accurate pronunciation. */
@@ -586,7 +596,8 @@ No additional text outside JSON.`;
 type TranslationAI = { translations: string[]; literals?: string[] };
 
 // ============================================================================
-// TRANSLATION ENSEMBLE — Gemini + Claude (weight 1.0) + Qwen (weight 0.5)
+// TRANSLATION ENSEMBLE — Gemini + Claude as co-equal peers, Qwen as a
+// lower-weight verifier. Weights come from MODEL_WEIGHTS in the registry.
 // All three run in parallel; per-line winner is chosen by weighted vote with
 // Jaccard token-overlap clustering. Gemini+Claude agreement always wins.
 // ============================================================================
@@ -617,6 +628,16 @@ type EnsembleLineResult = {
 };
 
 /**
+ * The weight at which a drafter counts as an authoritative peer rather than a
+ * verifier — the same 1.0 the registry gives Claude and Gemini today.
+ *
+ * Kept as a named threshold because two separate rules depend on it (a cluster
+ * of two peers wins outright; a lone sub-peer is `needs_review`), and both used
+ * to spell it as a bare `1.0` or as a vendor name.
+ */
+const AUTHORITATIVE_WEIGHT = 1.0;
+
+/**
  * Merge candidate translations for ONE line using weighted clustering.
  * Returns the chosen translation, a needs_review flag, and which models won.
  */
@@ -631,7 +652,7 @@ function mergeOneLine(
     return {
       translation: present[0].text.trim(),
       literal: (present[0].literal ?? '').trim(),
-      needs_review: present[0].weight < 1.0, // a single low-weight verifier is uncertain
+      needs_review: present[0].weight < AUTHORITATIVE_WEIGHT, // a lone verifier is uncertain
       winner_models: [present[0].name],
       candidates: present,
     };
@@ -657,20 +678,30 @@ function mergeOneLine(
   clusters.sort((a, b) => b.weight - a.weight);
   const top = clusters[0];
 
-  // Gemini + Claude agreement (cluster contains both) → always wins
-  const hasGemini = (c: typeof top) => c.members.some((m) => m.name.includes('gemini'));
-  const hasClaude = (c: typeof top) => c.members.some((m) => m.name.includes('claude'));
-  const geminiClaudeCluster = clusters.find((c) => hasGemini(c) && hasClaude(c));
-  if (geminiClaudeCluster) {
+  // Two authoritative drafters agreeing → always wins.
+  //
+  // This was `name.includes('gemini') && name.includes('claude')`, which made
+  // the rule about two *particular vendors* rather than about authority. Two
+  // consequences, both bad: the check silently stopped matching whenever a
+  // model id was renamed, and no model added later could ever satisfy it — an
+  // Arabic-native drafter could not outvote Claude and Gemini agreeing on a
+  // wrong dialect reading, which is precisely the failure this pipeline exists
+  // to catch. Asking about weight instead means the rule describes the ensemble
+  // rather than its current membership: give a model 1.0 in MODEL_WEIGHTS and
+  // it counts, whoever publishes it.
+  const authoritative = (c: typeof top) =>
+    c.members.filter((m) => m.weight >= AUTHORITATIVE_WEIGHT).length;
+  const consensusCluster = clusters.find((c) => authoritative(c) >= 2);
+  if (consensusCluster) {
     // Pick the longest (most detailed) translation in that cluster
-    const winner = geminiClaudeCluster.members
+    const winner = consensusCluster.members
       .slice()
       .sort((a, b) => b.text.length - a.text.length)[0];
     return {
       translation: winner.text.trim(),
       literal: (winner.literal ?? '').trim(),
       needs_review: false,
-      winner_models: geminiClaudeCluster.members.map((m) => m.name),
+      winner_models: consensusCluster.members.map((m) => m.name),
       candidates: present,
     };
   }
@@ -687,10 +718,17 @@ function mergeOneLine(
     };
   }
 
-  // Full disagreement (each model in its own cluster) → Claude > Gemini > Qwen by default
-  const claude = present.find((c) => c.name.includes('claude'));
-  const gemini = present.find((c) => c.name.includes('gemini'));
-  const fallback = claude ?? gemini ?? present[0];
+  // Full disagreement (each model in its own cluster) → the heaviest candidate
+  // wins, ties going to whichever the ensemble listed first.
+  //
+  // Named models again before this: `claude ?? gemini ?? present[0]`, which is
+  // the same ranking the weights already encode, written a second time and by
+  // vendor. Sorting on weight keeps today's outcome exactly (Claude and Gemini
+  // are both 1.0 and Claude is listed first; Qwen is lighter) while letting a
+  // reweighting take effect here instead of being silently overridden.
+  const fallback = present
+    .map((c, i) => ({ c, i }))
+    .sort((a, b) => b.c.weight - a.c.weight || a.i - b.i)[0].c;
   return {
     translation: fallback.text.trim(),
     literal: (fallback.literal ?? '').trim(),
@@ -725,11 +763,16 @@ function mergeTranslationEnsemble(
     const res = mergeOneLine(lineCands);
     lines.push(res);
     if (res.needs_review) needs_review++;
-    const hasG = res.winner_models.some((n) => n.includes('gemini'));
-    const hasC = res.winner_models.some((n) => n.includes('claude'));
-    const hasQ = res.winner_models.some((n) => n.includes('qwen'));
-    if (hasG && hasC && hasQ) all_three++;
-    else if (hasG && hasC) gemini_claude++;
+    // Counted by how many drafters backed the winning line, not by which
+    // vendors did. The stat keys keep their names because they are persisted in
+    // translation provenance and read off historical rows; with today's
+    // three-model lineup the numbers are identical to the vendor-matching
+    // version they replace.
+    const peers = res.winner_models.filter(
+      (n) => (lineCands.find((c) => c.name === n)?.weight ?? 0) >= AUTHORITATIVE_WEIGHT,
+    ).length;
+    if (res.winner_models.length >= 3) all_three++;
+    else if (peers >= 2) gemini_claude++;
     for (const m of res.winner_models) perModelWins[m] = (perModelWins[m] ?? 0) + 1;
   }
   return { lines, agreements: { all_three, gemini_claude, needs_review }, perModelWins };
@@ -2292,11 +2335,15 @@ serve(async (req) => {
      const arabicOnlyText = mergedLines.map(l => l.arabic).join('\n');
      const hfApiKey = Deno.env.get('HUGGINGFACE_API_KEY') ?? '';
 
-      const [translationEnsembleResult, fushaOutcome, analysisResp, fanarMetaResp, fanarValidResp, camelOutcome, diacOutcome] = await Promise.all([
-        // TRANSLATION ENSEMBLE — Claude Sonnet 4.5 (1.0) + Gemini 3.5 Flash (1.0)
-        // as co-equal peers, Qwen3-Max (0.5) as lower-weight verifier. Model
-        // IDs are sourced from _shared/modelRegistry.ts (MODEL_LINEUPS.TRANSLATION)
-        // so upgrades happen in one place. Do NOT hardcode IDs here.
+      const [translationEnsembleResult, fushaOutcome, analysisResp, fanarMetaResp, dialectJudgement, camelOutcome, diacOutcome] = await Promise.all([
+        // TRANSLATION ENSEMBLE — the two co-equal peers plus a lower-weight
+        // verifier. Both the ids and the *weights* come from
+        // _shared/modelRegistry.ts, so a reweighting takes effect here instead
+        // of being silently overridden: the inline numbers this replaces had
+        // already drifted from the registry (Qwen 0.5 here against 0.6 there),
+        // and the comment above them still named Sonnet 4.5 and Gemini 3.5
+        // Flash — two upgrades after the models had actually moved on. Do NOT
+        // hardcode ids or weights here.
         (async () => {
           const sys = getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation);
           const CLAUDE = MODEL_IDS.CLAUDE;
@@ -2305,7 +2352,7 @@ serve(async (req) => {
           const settled = await Promise.allSettled([
             callTranslationModel({
               name: CLAUDE,
-              weight: 1.0,
+              weight: getModelWeight(CLAUDE),
               model: CLAUDE,
               systemPrompt: sys,
               userContent: mergedTranscriptText,
@@ -2313,7 +2360,7 @@ serve(async (req) => {
             }),
             callTranslationModel({
               name: GEMINI,
-              weight: 1.0,
+              weight: getModelWeight(GEMINI),
               model: GEMINI,
               systemPrompt: sys,
               userContent: mergedTranscriptText,
@@ -2321,7 +2368,7 @@ serve(async (req) => {
             }),
             callTranslationModel({
               name: QWEN,
-              weight: 0.5,
+              weight: getModelWeight(QWEN),
               model: QWEN,
               systemPrompt: sys,
               userContent: mergedTranscriptText,
@@ -2331,7 +2378,7 @@ serve(async (req) => {
           const candidates: EnsembleCandidate[] = settled.map((s, i) => {
             const names = [CLAUDE, GEMINI, QWEN];
             const vias: Provider[] = names.map(providerForModel);
-            const weights = [1.0, 1.0, 0.5];
+            const weights = names.map(getModelWeight);
             if (s.status === 'fulfilled') return s.value;
             return {
               name: names[i],
@@ -2375,19 +2422,22 @@ serve(async (req) => {
              maxTokens: 2048,
            })
          : Promise.resolve({ content: null } as { content: string | null }),
-       // Fanar-C-2-27B dialect validation
-       fanarLlmAvailable
-         ? callFanar({
-             systemPrompt: getFanarValidationSystemPrompt(),
-             userContent: mergedTranscriptText,
-             apiKey: FANAR_API_KEY!,
-             model: 'Fanar-C-2-27B',
-             maxTokens: 1024,
-           }).catch((e) => {
-             console.warn('Fanar dialect validation failed (non-blocking):', e);
-             return { content: null } as { content: string | null };
-           })
-         : Promise.resolve({ content: null } as { content: string | null }),
+       // Dialect validation, on the best Arabic-native model that is actually
+       // configured — HUMAIN M3, then Jais 2 8B, then Fanar. This used to be a
+       // direct `callFanar`, which is why adding Jais 2 and M3 to the registry
+       // never changed anything here: a bare fetch to api.fanar.qa cannot see
+       // the roster, so the strongest Arabic model in the project sat unused on
+       // every video. The ordering argument lives with the ladder in
+       // modelRegistry.ts — note it also conserves the Fanar allowance that the
+       // meta-enrichment call above is already spending once per video.
+       judgeWithArabicNative(
+         getFanarValidationSystemPrompt(),
+         mergedTranscriptText,
+         { maxTokens: 1024, label: 'analyze-gulf-arabic/dialect-validation' },
+       ).catch((e) => {
+         console.warn('Arabic dialect validation failed (non-blocking):', e);
+         return { content: null, model: null, attempts: [] } as ArabicJudgement;
+       }),
        // CAMeL-Lab BERT dialect ID. A missing key is reported as an outcome
        // (`no_api_key`) rather than short-circuited to null, so the stored
        // signal distinguishes "not configured" from "the call failed".
@@ -2440,32 +2490,45 @@ serve(async (req) => {
        );
      }
 
-     // --- Parse Fanar dialect validation — accept JSON or raw text, never throw ---
-     // The raw text is kept alongside the parsed issues: if Fanar answers in
+     // --- Parse the dialect validation — accept JSON or raw text, never throw ---
+     // The raw text is kept alongside the parsed issues: if the model answers in
      // prose instead of JSON, the admin banner still has something to show and
      // `flagged` falls back to the old length heuristic.
      let dialectValidation:
-       { content: string; timestamp: string; issues?: DialectIssue[] } | null = null;
-     if (fanarValidResp?.content) {
-       const issues = parseDialectIssues(fanarValidResp.content);
+       { content: string; timestamp: string; model?: string; issues?: DialectIssue[] } | null = null;
+     if (dialectJudgement?.content) {
+       const issues = parseDialectIssues(dialectJudgement.content);
        dialectValidation = {
-         content: fanarValidResp.content,
+         content: dialectJudgement.content,
          timestamp: new Date().toISOString(),
+         // Which Arabic model actually judged. Recorded because the ladder can
+         // resolve to any of three, and an audit that cannot tell M3's verdict
+         // from Fanar's is how this leg went unexamined for so long.
+         ...(dialectJudgement.model ? { model: dialectJudgement.model } : {}),
          ...(issues ? { issues } : {}),
        };
        console.log(
-         `Fanar dialect validation: ${issues ? `${issues.length} issue(s) parsed` : 'unparseable, keeping raw text'}` +
-         ` — first 150 chars: ${fanarValidResp.content.slice(0, 150)}`,
+         `Dialect validation [${dialectJudgement.model}]: ` +
+         `${issues ? `${issues.length} issue(s) parsed` : 'unparseable, keeping raw text'}` +
+         ` — first 150 chars: ${dialectJudgement.content.slice(0, 150)}`,
        );
        if (!issues) {
-         // Genuinely unstructured now means Fanar answered in prose, not that
-         // its JSON tripped the parser — worth the full text in the log, since
-         // it is the only place the finding survives.
+         // Genuinely unstructured now means the model answered in prose, not
+         // that its JSON tripped the parser — worth the full text in the log,
+         // since it is the only place the finding survives.
          console.warn(
-           `Fanar dialect validation: no issue array recoverable from ` +
-           `${fanarValidResp.content.length} chars — ${fanarValidResp.content.slice(0, 400)}`,
+           `Dialect validation [${dialectJudgement.model}]: no issue array recoverable from ` +
+           `${dialectJudgement.content.length} chars — ${dialectJudgement.content.slice(0, 400)}`,
          );
        }
+     } else if (dialectJudgement?.attempts.length) {
+       // Every configured rung was asked and none answered. Distinct from "no
+       // Arabic model is configured", which leaves `attempts` empty and is a
+       // deployment fact rather than an incident.
+       console.warn(
+         `Dialect validation: no Arabic model answered — ` +
+         dialectJudgement.attempts.map((a) => `${a.model}: ${a.error}`).join('; '),
+       );
      }
 
       // --- TRANSLATION ENSEMBLE: merge Gemini + Claude + Qwen candidates per line ---
@@ -3173,6 +3236,10 @@ serve(async (req) => {
             : (dialectValidation?.content?.length ?? 0) > 300;
           const dialectSignals = {
             llm_dialect: detectedDialect,
+            // Still `fanar_validation` though any of three Arabic models may
+            // have written it: the key is persisted on every historical row and
+            // in the admin reader, so renaming it would orphan them. The model
+            // that actually judged is inside, under `model`.
             fanar_validation: dialectValidation,
             camel: camelDialectResult ?? null,
             camel_agrees: camelAgrees,

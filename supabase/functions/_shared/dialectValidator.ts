@@ -11,31 +11,56 @@ import {
   type Dialect,
 } from './dialectHelpers.ts';
 import { chatFetch, providerForModel, tryChatRoute, warmRoute } from './aiGateway.ts';
-import { MODEL_IDS } from './modelRegistry.ts';
+import {
+  ARABIC_STANDING_LEG_ORDER,
+  ARABIC_OCCASIONAL_ORDER,
+  MODEL_IDS,
+} from './modelRegistry.ts';
 
 const VALIDATOR_MODEL = MODEL_IDS.GEMINI_PRO;
-// Arabic-native second opinion. Mistral Saba is a 24B Arabic-focused model on
-// the OpenRouter key the app already uses — roughly an order of magnitude
-// cheaper than the Pro-tier judge on this single-snippet task.
-const ARABIC_VALIDATOR_MODEL = MODEL_IDS.SABA;
+
 /**
- * Arabic-native tie-breaker, consulted only when the other two disagree.
+ * The Arabic-native half of the cross-check: the best Arabic judge that is
+ * actually configured.
  *
- * Fanar is the better Arabic judge of the three — QCRI's sovereign model,
- * dialect-tuned and validated by native testers — so the obvious move is to
- * make it the standing Arabic leg in place of Saba. It is not, for one reason:
- * quota. Fanar's endpoints run on small daily allowances (the STT paths in
- * `fanar-transcribe` are metered at 18 and 8 calls a day), and the validator
- * fires on every generation that asks for it. An always-on Fanar leg would
- * spend the allowance before lunch and then degrade to `ok: false` for the rest
- * of the day — a quality gate that is off precisely when the app is busiest.
+ * This was a constant pinned to Mistral Saba, and the pin was the problem.
+ * Saba is a February 2025 24B — the oldest and weakest Arabic model in the
+ * registry — and it held the one validator slot that runs on *every* call,
+ * while HUMAIN M3, which outscores Opus 5 on Arabic benchmarks, sat two rungs
+ * down a tie-break ladder that only fires when Saba and the generalist judge
+ * happen to disagree. The strongest instrument was gated behind the weakest
+ * one's opinion.
  *
- * A disagreement is the one moment the third opinion is worth a call: the two
- * standing legs have already split, so the merge is about to fall back on
- * "harsher verdict wins", which is a safe default rather than a judgment. Any
- * disagreement is a minority of calls, which keeps this inside the allowance.
+ * Resolved per call rather than at module load because routability is
+ * deployment state — a key added or a preview tier revoked changes the answer
+ * without a deploy — and because `tryChatRoute` answers from the environment
+ * without making a request, so asking every time costs nothing.
+ *
+ * Falls back down `ARABIC_STANDING_LEG_ORDER` rather than to nothing: a
+ * cross-check that loses its Arabic side is just the generalist judge alone,
+ * which is the exact failure this two-model shape exists to prevent.
  */
-const TIEBREAK_VALIDATOR_MODEL = MODEL_IDS.FANAR;
+function arabicStandingLeg(): string {
+  for (const model of ARABIC_STANDING_LEG_ORDER) {
+    if (tryChatRoute(model)) return model;
+  }
+  // Nothing configured. Returned rather than thrown so `validateDialect` can
+  // report the usual unconfigured-provider `unknown`, and the cross-check
+  // degrades to the strong leg alone exactly as it does when a provider is
+  // down — an optional gate stays optional.
+  return ARABIC_STANDING_LEG_ORDER[ARABIC_STANDING_LEG_ORDER.length - 1];
+}
+
+// Who may settle a split is `ARABIC_OCCASIONAL_ORDER` in the registry, alongside
+// the standing-leg order above, because the two lists only make sense read
+// together — the tie-break is affordable precisely where the standing leg is
+// not. Fanar is the clearest case and the reason the split exists at all: it is
+// a better Arabic judge than Saba, but its endpoints run on small daily
+// allowances (the STT paths in `fanar-transcribe` are metered at 18 and 8 calls
+// a day), so an always-on Fanar leg would spend the allowance before lunch and
+// then degrade to `ok: false` for the rest of the day — a quality gate that
+// switches off exactly when the app is busiest. A disagreement is a minority of
+// calls, which is what keeps it inside the allowance down here.
 
 /**
  * How long a single tie-break rung may take, and how long the whole ladder may.
@@ -111,38 +136,61 @@ const TIEBREAK_TAIL_RESERVE_MS = 4_000;
  * single-snippet call is known.
  */
 const TIEBREAK_PREVIEW_BAIL_MS = 7_000;
+/**
+ * The ceiling on the *standing* Arabic leg when it is the preview endpoint.
+ *
+ * Promoting M3 out of the tie-break moved it from a slot that fires on a
+ * minority of calls to one that fires on all of them, and its preview tier
+ * lists added latency among its terms. Nothing else bounded that: the standing
+ * legs take the caller's `timeoutMs`, and the common caller — `askBrain`'s
+ * review path — passes none, so a hanging M3 would spend
+ * `VALIDATOR_DEFAULT_TIMEOUT_MS` on every generation in the app.
+ *
+ * Losing the leg is cheap and losing the call is not: a timed-out Arabic leg
+ * reports `ok: false` and the cross-check degrades to the strong judge alone,
+ * which is the documented behaviour for any unavailable provider. So this is
+ * set where a hosted model that is *working* will comfortably answer a
+ * single-snippet judgment, and a hosted model that is struggling gets out of
+ * the way — generous next to the tie-break's 7s bail, because that rung has
+ * others waiting behind it and this one does not.
+ *
+ * Only the preview provider is clamped. Saba, the fallback occupant, is an
+ * ordinary OpenRouter model with no latency caveat, and narrowing its budget
+ * would be an unrelated behaviour change smuggled in under this one.
+ */
+const STANDING_LEG_PREVIEW_BAIL_MS = 12_000;
 /** Below this there is no point asking anyone; the rule is the cheaper answer. */
 const TIEBREAK_MIN_MS = 1_000;
 
 /**
- * The Arabic-native specialists that can settle a split, best first.
+ * The Arabic-native specialists that can settle a split, best first, minus
+ * whichever one is already serving as the standing leg.
  *
- * HUMAIN M3 goes first when it is configured: a 428B frontier model built for
- * Arabic is the best instrument on this ladder for "does this line read as
- * native", and it is hosted, so unlike Jais it cannot be asleep. What it can be
- * is slow — its preview tier lists added latency among its terms — which is why
- * it is the one rung with a ceiling of its own (`TIEBREAK_PREVIEW_BAIL_MS`)
- * rather than the run of the whole budget. First *and* unbounded is the
- * combination that would let it starve the two rungs behind it.
+ * `ARABIC_OCCASIONAL_ORDER` still lists HUMAIN M3 first, but in the common
+ * deployment it is filtered straight out: a configured M3 takes the standing
+ * Arabic seat, so by the time a split exists it has already voted and the
+ * ladder starts at Jais. M3 stays in the list for the case where it is
+ * routable but something above chose otherwise, and because a rung that is
+ * sometimes skipped is cheaper to keep than to rediscover. Its per-rung
+ * ceiling (`TIEBREAK_PREVIEW_BAIL_MS`) still applies when it is reached: it is
+ * hosted, so it cannot be asleep, but its preview tier lists added latency
+ * among its terms, and first *and* unbounded is the combination that would let
+ * it starve the rungs behind it.
  *
- * This slot is also deliberately where M3 enters the app at all. The validator
- * is optional by design — it answers `unknown`/`ok:false` when its provider is
- * unavailable — so a wrong model id, an expired key or a preview endpoint
- * having a bad afternoon degrades a quality gate instead of failing the
- * learner's request behind it. Nothing else in the pipeline offers that.
+ * Jais 2 is the usual head of the ladder, when its endpoint is deployed. Its
+ * claim on the slot is economic, not qualitative, and the distinction matters:
+ * this is the **8B**, which scores 57.89 on QIMMA against the 70B's 65.81 and
+ * is the weakest Arabic judge in the registry. What it has is no daily
+ * allowance to spend — it runs on hardware this project rents — so it can be
+ * asked on every split where Fanar cannot. It is a cheap opinion tried before
+ * an expensive one, not a better one.
  *
- * Jais 2 goes next when its endpoint is deployed. It is a strong instrument
- * for this specific question — Arabic-native, trained from scratch, judging
- * whether a line reads as native — and, unlike Fanar, it runs on hardware this
- * project rents, so the quota argument above does not apply to it: there is no
- * daily allowance to spend before lunch.
- *
- * Deliberately the **8B**. Upstream's 70B scores better, but its weights are
- * 144GB, so a cold start is a multi-minute download and the model is only
- * economic amortised over batch work — which is why it is not carried in the
- * registry at all. The 8B is 16GB on a single GPU and can actually answer
- * inside a caller's timeout. Size is chosen by job, not by quality; see
- * `MODEL_IDS` for the full cost argument.
+ * Deliberately the 8B all the same. Upstream's 70B scores better, but its
+ * weights are 144GB, so a cold start is a multi-minute download and the model
+ * is only economic amortised over batch work — which is why it is not carried
+ * in the registry at all. The 8B is 16GB on a single GPU and can actually
+ * answer inside a caller's timeout. Size is chosen by job; see `MODEL_IDS` for
+ * the full cost argument.
  *
  * This is a **ladder, not a choice**, and that is the correction to how the
  * slot was first wired. Jais either being deployed or not was read as Jais
@@ -155,20 +203,29 @@ const TIEBREAK_MIN_MS = 1_000;
  *
  * Returns empty when neither is configured; the caller then keeps the rule.
  */
-function tiebreakValidatorModels(): string[] {
-  const ladder: string[] = [];
-  if (tryChatRoute(MODEL_IDS.HUMAIN_M3)) ladder.push(MODEL_IDS.HUMAIN_M3);
-  if (tryChatRoute(MODEL_IDS.JAIS2_8B)) ladder.push(MODEL_IDS.JAIS2_8B);
-  if (tryChatRoute(TIEBREAK_VALIDATOR_MODEL)) ladder.push(TIEBREAK_VALIDATOR_MODEL);
-  return ladder;
+function tiebreakValidatorModels(standingLeg: string): string[] {
+  return ARABIC_OCCASIONAL_ORDER.filter((model) =>
+    // Never re-ask the model that already voted. Once M3 is the standing leg it
+    // has judged this exact text as one of the two legs that split, so putting
+    // it at the head of the ladder would spend the first and largest slice of
+    // the tie-break budget re-reading its own verdict — and then hand the split
+    // to the opinion that helped cause it. Skipping it promotes the rungs
+    // behind it, which is the point: the tie-breaker has to be a *third* voice.
+    model !== standingLeg && tryChatRoute(model)
+  );
 }
 
 /**
- * A rung's own ceiling. A worker we host can be asleep, and the whole point of
- * asking it first is that finding out is cheap; a hosted API is either up or it
- * is not, so it gets whatever budget is left.
+ * A rung's own ceiling, for either consumer that walks the Arabic roster.
+ *
+ * A worker we host can be asleep, and the whole point of asking it first is
+ * that finding out is cheap; a hosted API is either up or it is not, so it gets
+ * whatever budget is left. The preview ceiling is what keeps a slow M3 to one
+ * slice rather than the run of the caller's budget — which matters most in
+ * `judgeWithArabicNative`, where M3 *is* the first rung, the tie-break having
+ * filtered it out as the standing leg.
  */
-function tiebreakCeilingMs(model: string): number {
+function arabicRungCeilingMs(model: string): number {
   const provider = providerForModel(model);
   if (provider === 'runpod') return TIEBREAK_COLD_BAIL_MS;
   if (provider === 'humain') return TIEBREAK_PREVIEW_BAIL_MS;
@@ -398,8 +455,9 @@ async function settleSplit(
   text: string,
   dialect: Dialect,
   opts: ValidateOptions,
+  standingLeg: string,
 ): Promise<SettledSplit | null> {
-  const ladder = tiebreakValidatorModels();
+  const ladder = tiebreakValidatorModels(standingLeg);
   if (!ladder.length) return null;
 
   const start = Date.now();
@@ -424,7 +482,7 @@ async function settleSplit(
     const result = await validateDialect(text, dialect, {
       ...opts,
       model,
-      timeoutMs: Math.min(share, tiebreakCeilingMs(model)),
+      timeoutMs: Math.min(share, arabicRungCeilingMs(model)),
     });
     if (result.ok && result.verdict !== 'unknown') {
       return { result, model, elapsedMs: Date.now() - start };
@@ -462,6 +520,12 @@ async function settleSplit(
  * left the strong validator with a few seconds and it aborted into `unknown`,
  * silently degrading the cross-check to Saba alone.
  *
+ * Which model takes the Arabic seat is no longer a constant — see
+ * `arabicStandingLeg`. Saba holds it only when nothing better is configured,
+ * so the failure described above is now the fallback's weakness rather than
+ * the design's: with a HUMAIN key present this leg is M3, and the shortcut
+ * stays closed either way because both legs still always run.
+ *
  * Set DIALECT_VALIDATOR_CROSSCHECK=off to fall back to Gemini Pro alone.
  */
 export async function validateDialectCrossChecked(
@@ -473,8 +537,20 @@ export async function validateDialectCrossChecked(
     return validateDialect(text, dialect, opts);
   }
 
+  // Resolved once and threaded through: the ladder has to skip whichever model
+  // took this seat, and the log and `model` field have to name the model that
+  // actually answered rather than a constant that may not have been asked.
+  const arabicModel = arabicStandingLeg();
+  // The strong leg keeps the caller's budget; the Arabic one is clamped when it
+  // is the preview endpoint. See STANDING_LEG_PREVIEW_BAIL_MS — this seat now
+  // fires on every call, so an unbounded slow occupant is charged to every
+  // generation rather than to a minority of splits.
+  const arabicTimeoutMs = providerForModel(arabicModel) === 'humain'
+    ? Math.min(opts.timeoutMs ?? VALIDATOR_DEFAULT_TIMEOUT_MS, STANDING_LEG_PREVIEW_BAIL_MS)
+    : opts.timeoutMs;
+
   const [arabic, strong] = await Promise.all([
-    validateDialect(text, dialect, { ...opts, model: ARABIC_VALIDATOR_MODEL }),
+    validateDialect(text, dialect, { ...opts, model: arabicModel, timeoutMs: arabicTimeoutMs }),
     validateDialect(text, dialect, { ...opts, model: VALIDATOR_MODEL }),
   ]);
 
@@ -487,7 +563,9 @@ export async function validateDialectCrossChecked(
   // On a split, ask an Arabic-native specialist rather than settling it with a
   // rule. Skipped silently when none is configured, and never reached when the
   // two agree — see `tiebreakValidatorModels` for who is asked and in what order.
-  const settled = agreement === 'disagree' ? await settleSplit(text, dialect, opts) : null;
+  const settled = agreement === 'disagree'
+    ? await settleSplit(text, dialect, opts, arabicModel)
+    : null;
   const tiebreak = settled?.result ?? null;
   const tiebreakModel = settled?.model ?? null;
 
@@ -507,7 +585,7 @@ export async function validateDialectCrossChecked(
 
   console.log(
     `[dialectValidator] cross-check ${agreement}: ` +
-      `${ARABIC_VALIDATOR_MODEL}=${arabic.score}/${arabic.verdict} ` +
+      `${arabicModel}=${arabic.score}/${arabic.verdict} ` +
       `${VALIDATOR_MODEL}=${strong.score}/${strong.verdict}` +
       `${tiebreak ? ` ${tiebreakModel}=${tiebreak.score}/${tiebreak.verdict}` : ''}` +
       ` → ${verdict}`,
@@ -527,7 +605,106 @@ export async function validateDialectCrossChecked(
     // `tiebreakModel`, not the Fanar constant: which model settles a split is
     // now a deployment question, so naming the constant would attribute Jais's
     // verdict to Fanar in every consumer and log that reads this field.
-    model: `${ARABIC_VALIDATOR_MODEL}+${VALIDATOR_MODEL}${tiebreak ? `+${tiebreakModel}` : ''}`,
+    model: `${arabicModel}+${VALIDATOR_MODEL}${tiebreak ? `+${tiebreakModel}` : ''}`,
     agreement,
   };
+}
+
+/**
+ * Ask the best available Arabic-native model a free-form question about Arabic,
+ * walking `ARABIC_OCCASIONAL_ORDER` until one answers.
+ *
+ * This exists because the transcript pipeline could not reach any of these
+ * models. `analyze-gulf-arabic` ran its per-video dialect check by calling
+ * Fanar directly with a bare `fetch` to `api.fanar.qa` and a hardcoded model
+ * id, which meant adding Jais 2 and then HUMAIN M3 to the registry changed
+ * nothing there: the pipeline had no way to see them, so the strongest Arabic
+ * model in the project sat unused on every video that has ever been processed.
+ * Going through the gateway is what makes the registry's roster reachable, and
+ * it is the same rule every other model call in this codebase follows.
+ *
+ * Deliberately *not* `validateDialect`: that one asks for a 1-5 authenticity
+ * score through a fixed tool schema, and this caller wants a whole transcript
+ * reviewed into structured issues under its own prompt. Shared here anyway,
+ * rather than in the pipeline, so the ladder and its ordering argument live in
+ * one place.
+ *
+ * Returns which model answered, not just the text. The caller records it in
+ * provenance — without that, a run's audit cannot distinguish M3's judgment
+ * from Fanar's, which is exactly the ambiguity that hid this gap.
+ */
+export interface ArabicJudgement {
+  /** The reply text, or null when nobody on the ladder answered. */
+  content: string | null;
+  /** Which model produced it, for provenance. Null when none did. */
+  model: string | null;
+  /** Every model tried and why it did not answer, oldest first. */
+  attempts: Array<{ model: string; error: string }>;
+}
+
+export async function judgeWithArabicNative(
+  systemPrompt: string,
+  userContent: string,
+  opts: {
+    maxTokens?: number;
+    temperature?: number;
+    /** Ceiling for each rung, not for the walk. */
+    timeoutMs?: number;
+    signal?: AbortSignal;
+    label?: string;
+  } = {},
+): Promise<ArabicJudgement> {
+  const attempts: Array<{ model: string; error: string }> = [];
+
+  for (const model of ARABIC_OCCASIONAL_ORDER) {
+    // Unconfigured is not a failure worth reporting: most deployments will not
+    // have all three, and a caller reading `attempts` wants the models that
+    // were asked and let it down, not the ones that were never there.
+    if (!tryChatRoute(model)) continue;
+    if (opts.signal?.aborted) break;
+
+    // Each rung capped by its own provider's ceiling as well as the caller's:
+    // a cold Jais and a slow preview endpoint must not spend a video's whole
+    // budget between them and leave the rung that would have answered unasked.
+    const ceiling = Math.min(
+      opts.timeoutMs ?? VALIDATOR_DEFAULT_TIMEOUT_MS,
+      arabicRungCeilingMs(model),
+    );
+    const timer = AbortSignal.timeout(ceiling);
+    const signal = opts.signal ? AbortSignal.any([opts.signal, timer]) : timer;
+
+    try {
+      const res = await chatFetch(model, {
+        temperature: opts.temperature ?? 0.2,
+        max_tokens: opts.maxTokens ?? 1024,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userContent },
+        ],
+      }, { signal, label: opts.label ?? 'arabicNativeJudge' });
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        attempts.push({ model, error: `HTTP ${res.status} ${body.slice(0, 120)}` });
+        continue;
+      }
+      const data = await res.json();
+      const content = data?.choices?.[0]?.message?.content;
+      if (typeof content !== 'string' || !content.trim()) {
+        // A 200 with nothing in it is a failure like any other — fall through
+        // rather than hand the caller an empty "judgment" it would then try to
+        // parse into issues.
+        attempts.push({ model, error: 'empty response body' });
+        continue;
+      }
+      return { content, model, attempts };
+    } catch (err) {
+      attempts.push({ model, error: String(err).slice(0, 160) });
+      // A caller that gave up wants no further rungs tried on its behalf; only
+      // this rung's own ceiling means "try the next one".
+      if (opts.signal?.aborted) break;
+    }
+  }
+
+  return { content: null, model: null, attempts };
 }

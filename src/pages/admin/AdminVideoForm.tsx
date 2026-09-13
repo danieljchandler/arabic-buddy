@@ -1952,7 +1952,12 @@ const AdminVideoForm = () => {
                   camel_error?: string;
                   camel_config_hint?: string;
                   camel?: { dialect?: string; code?: string; confidence?: number } | null;
-                  fanar_validation?: { content?: string; issues?: DialectIssue[] } | null;
+                  fanar_validation?: {
+                    content?: string;
+                    /** Which Arabic model judged. Absent on rows written before the ladder. */
+                    model?: string;
+                    issues?: DialectIssue[];
+                  } | null;
                 };
                 const enginesUsed = existingVideo?.engines_used as
                   { dialect_signals?: DialectSignals } | null | undefined;
@@ -1960,6 +1965,10 @@ const AdminVideoForm = () => {
                 if (!signals) return null;
                 const camel = signals.camel;
                 const issues = signals.fanar_validation?.issues;
+                // The key is still `fanar_validation` for historical rows, but the
+                // reviewer can now be HUMAIN M3 or Jais 2 as well, so the label has
+                // to name whoever actually answered rather than assume Fanar.
+                const reviewer = signals.fanar_validation?.model ?? "Fanar";
                 return (
                   <div
                     className={`p-3 rounded-lg border text-sm space-y-1 ${
@@ -2012,13 +2021,13 @@ const AdminVideoForm = () => {
                       </ul>
                     )}
                     {issues && issues.length === 0 && (
-                      <p className="text-muted-foreground">Fanar review: no issues found.</p>
+                      <p className="text-muted-foreground">{reviewer} review: no issues found.</p>
                     )}
-                    {/* Fanar answered in prose rather than the JSON it was asked for —
-                        show the raw text so the signal isn't lost. */}
+                    {/* The reviewer answered in prose rather than the JSON it was
+                        asked for — show the raw text so the signal isn't lost. */}
                     {!issues && signals.fanar_validation?.content && (
                       <p className="text-muted-foreground whitespace-pre-wrap" dir="auto">
-                        Fanar review: {String(signals.fanar_validation.content).slice(0, 500)}
+                        {reviewer} review: {String(signals.fanar_validation.content).slice(0, 500)}
                       </p>
                     )}
                   </div>

@@ -137,7 +137,7 @@ is absent.
 One correction to what this section first said, found while implementing it.
 It said to put M3 first "under the same `TIEBREAK_COLD_BAIL_MS` /
 `TIEBREAK_BUDGET_MS` ceilings", and that would have been a bug. The rungs
-share a single `TIEBREAK_BUDGET_MS`, and `tiebreakCeilingMs` hands everything
+share a single `TIEBREAK_BUDGET_MS`, and `arabicRungCeilingMs` (then `tiebreakCeilingMs`) hands everything
 that is not our own RunPod worker the run of it — correct for Fanar, a warm
 hosted API, and wrong for a model whose own preview terms advertise added
 latency. First *and* unbounded, a slow M3 could spend the whole budget and
@@ -147,9 +147,55 @@ than the 5s cold bail because a slow hosted endpoint plausibly *will* answer
 where a cold worker will not). Revisit it once M3's real latency on a
 single-snippet judgment is measured.
 
-If it proves fast and good there, promote it to the standing Arabic leg in
-place of Saba — that is a one-constant change, and Saba's own comment says it
-holds the slot on price, not quality.
+**Promoted.** M3 is now the standing Arabic leg, and Saba is the fallback
+behind it (`ARABIC_STANDING_LEG_ORDER` in `modelRegistry.ts`, resolved by
+`arabicStandingLeg()`). What forced the question earlier than this section
+planned was an audit of a real run: M3 and Jais were reported as "didn't
+fire", and the reason was that nothing in the transcription pipeline can
+reach a tie-break rung at all — see 1c below. Fixing that made the roster's
+ordering load-bearing, and a tie-break rung that only speaks when Saba and
+Gemini Pro happen to disagree is not where the strongest Arabic model in the
+registry belongs.
+
+Two consequences worth stating, because neither is free:
+
+- **Read this as a promotion on published benchmarks, not on measured
+  latency.** HUMAIN's own eval puts M3 at 89.37% across seven Arabic
+  benchmarks against Opus 5's 87.34, which is the quality half of "fast and
+  good". The speed half is still unmeasured here — nobody has timed a
+  single-snippet judgment against a live key. The standing seat fires on
+  *every* validated generation, where the tie-break fired on a minority, so
+  the exposure to a slow preview endpoint went up rather than down.
+- That is what `STANDING_LEG_PREVIEW_BAIL_MS` (12s) is for. The standing legs
+  otherwise take the caller's `timeoutMs`, and the common caller — askBrain's
+  review path — passes none, so an unbounded hanging M3 would have spent the
+  30s default on every generation in the app. A timed-out Arabic leg reports
+  `ok: false` and the cross-check degrades to Gemini Pro alone, which is the
+  documented behaviour for any unavailable provider. Tighten or loosen it once
+  the real latency is known; that measurement is still the open item.
+
+M3 stays listed first in `ARABIC_OCCASIONAL_ORDER`, but the tie-break filters
+out whichever model holds the standing seat — a tie-breaker that is one of the
+disagreeing parties is not a third opinion. Its place in that list is now load-
+bearing for the *pipeline* consumer instead (1c).
+
+### 1c. The gap this was actually hiding
+
+Adding M3 to the registry changed nothing for transcription, and neither had
+adding Jais 2 before it. `analyze-gulf-arabic` ran its per-video dialect check
+by calling Fanar directly — a bare `fetch` to `api.fanar.qa` with a hardcoded
+model id — so it could not see the registry's roster at all. Neither model was
+misconfigured: on the audited run the Jais endpoint had a warm worker and M3's
+id and base URL were correct. They were simply unreachable from that code
+path, which no test covered because every test of the *validator* passed.
+
+`judgeWithArabicNative()` in `dialectValidator.ts` is the seam that closes it:
+it walks `ARABIC_OCCASIONAL_ORDER` through `chatFetch`, returns which model
+answered, and records the rungs that failed. The pipeline stores that model in
+`engines_used.dialect_signals.fanar_validation.model` and the admin panel names
+it, because an audit that cannot tell M3's verdict from Fanar's is how this went
+unexamined for as long as it did. The key is still spelled `fanar_validation`
+for the sake of historical rows.
 
 **Second: a TRANSLATION drafter — but only behind an eval.** The `TRANSLATION`
 lineup is `[CLAUDE, GEMINI_FLASH]` under `strategy: 'ensemble'`, and

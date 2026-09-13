@@ -4862,6 +4862,7 @@ export type Database = {
           lapses: number
           last_reviewed_at: string | null
           mnemonic: string | null
+          mnemonic_image_url: string | null
           next_review_at: string
           notes: string | null
           phrase_arabic: string
@@ -4886,6 +4887,7 @@ export type Database = {
           lapses?: number
           last_reviewed_at?: string | null
           mnemonic?: string | null
+          mnemonic_image_url?: string | null
           next_review_at?: string
           notes?: string | null
           phrase_arabic: string
@@ -4910,6 +4912,7 @@ export type Database = {
           lapses?: number
           last_reviewed_at?: string | null
           mnemonic?: string | null
+          mnemonic_image_url?: string | null
           next_review_at?: string
           notes?: string | null
           phrase_arabic?: string
@@ -5086,6 +5089,7 @@ export type Database = {
           last_result: string | null
           last_reviewed_at: string | null
           mnemonic: string | null
+          mnemonic_image_url: string | null
           msa_form: string | null
           msa_note: string | null
           next_review_at: string
@@ -5134,6 +5138,7 @@ export type Database = {
           last_result?: string | null
           last_reviewed_at?: string | null
           mnemonic?: string | null
+          mnemonic_image_url?: string | null
           msa_form?: string | null
           msa_note?: string | null
           next_review_at?: string
@@ -5182,6 +5187,7 @@ export type Database = {
           last_result?: string | null
           last_reviewed_at?: string | null
           mnemonic?: string | null
+          mnemonic_image_url?: string | null
           msa_form?: string | null
           msa_note?: string | null
           next_review_at?: string
@@ -5701,6 +5707,7 @@ export type Database = {
           last_result: string | null
           last_reviewed_at: string | null
           mnemonic: string | null
+          mnemonic_image_url: string | null
           next_review_at: string
           production_difficulty: number
           production_ease_factor: number
@@ -5730,6 +5737,7 @@ export type Database = {
           last_result?: string | null
           last_reviewed_at?: string | null
           mnemonic?: string | null
+          mnemonic_image_url?: string | null
           next_review_at?: string
           production_difficulty?: number
           production_ease_factor?: number
@@ -5759,6 +5767,7 @@ export type Database = {
           last_result?: string | null
           last_reviewed_at?: string | null
           mnemonic?: string | null
+          mnemonic_image_url?: string | null
           next_review_at?: string
           production_difficulty?: number
           production_ease_factor?: number

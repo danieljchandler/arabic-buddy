@@ -11,6 +11,7 @@
 //   google/*   → Google's Generative Language API   (GEMINI_API_KEY)
 //   openai/*   → OpenAI                              (OPENAI_API_KEY)
 //   runpod/*   → our own RunPod Serverless workers   (RUNPOD_API_KEY)
+//   humain/*   → HUMAIN Node                         (HUMAIN_API_KEY)
 //   everything → OpenRouter                          (OPENROUTER_API_KEY)
 //
 // Google and OpenAI both expose an OpenAI-shaped `/chat/completions`, which is
@@ -31,7 +32,7 @@
 
 import { IMAGE_MODEL_IDS, MODEL_IDS, reasoningFloor, type ReasoningEffort } from './modelRegistry.ts';
 
-export type Provider = 'google' | 'openai' | 'openrouter' | 'fanar' | 'runpod';
+export type Provider = 'google' | 'openai' | 'openrouter' | 'fanar' | 'runpod' | 'humain';
 
 // ---- Endpoints --------------------------------------------------------------
 export const OPENROUTER_CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions';
@@ -67,6 +68,23 @@ export function runpodChatUrl(model: string): string | undefined {
 }
 
 /**
+ * HUMAIN Node's chat endpoint.
+ *
+ * A function rather than a constant, for the same reason RunPod's is: the base
+ * is configuration rather than a published address, so a deployment that has
+ * not been told where Node lives has M3 *unroutable* — `tryChatRoute` returns
+ * null and every consumer skips it silently — instead of firing requests at a
+ * host guessed from a press release. `HUMAIN_BASE_URL` is also the seam the
+ * edge tests stub, and the escape hatch if Node moves or a tenant gets its own
+ * hostname.
+ */
+export function humainChatUrl(): string | undefined {
+  const base = Deno.env.get('HUMAIN_BASE_URL')?.trim();
+  if (!base) return undefined;
+  return `${base.replace(/\/+$/, '')}/v1/chat/completions`;
+}
+
+/**
  * Which endpoint serves which id. Each Jais size is its own deployment at its
  * own address with its own cost profile, so sizes cannot share an env var —
  * only the 8B is deployed today, and a second size is one entry here. Keyed by
@@ -94,6 +112,13 @@ const FANAR_MODEL = /^Fanar[-/]/i;
  * the model under the bare name, so the prefix is stripped on the wire.
  */
 const RUNPOD_MODEL = /^runpod\//;
+
+/**
+ * HUMAIN's frontier Arabic model, on HUMAIN Node. An ordinary vendor prefix —
+ * unlike `runpod/`, this one does name who publishes the model — stripped on
+ * the wire because Node serves it under the bare name.
+ */
+const HUMAIN_MODEL = /^humain\//;
 
 /**
  * Model ids whose Google-native name is not just the id minus its `google/`
@@ -140,12 +165,26 @@ function keyFor(provider: Provider): string | undefined {
       return Deno.env.get('FANAR_API_KEY')?.trim() || undefined;
     case 'runpod':
       return Deno.env.get('RUNPOD_API_KEY')?.trim() || undefined;
+    case 'humain':
+      return Deno.env.get('HUMAIN_API_KEY')?.trim() || undefined;
   }
 }
 
-/** True when at least one upstream is configured — the "can we call a model at all" check. */
+/**
+ * True when at least one upstream is configured — the "can we call a model at
+ * all" check, which `askBrain` runs as a preflight before it resolves a route.
+ *
+ * HUMAIN counts, and the reason is worth stating: this list is not "the
+ * providers we like", it is "an upstream that could serve *some* model". Leave
+ * a sole-provider vendor out and a deployment holding only its key fails here,
+ * before the route that would have answered was ever built. Fanar and Jais are
+ * absent for the opposite reason rather than a judgement — neither has ever
+ * been the only key present, because both exist as extra legs beside a
+ * configured Google or OpenRouter. M3 is the first model the pipeline can be
+ * asked to run on its own.
+ */
 export function hasAnyProvider(): boolean {
-  return Boolean(googleApiKey() ?? openaiApiKey() ?? openRouterApiKey());
+  return Boolean(googleApiKey() ?? openaiApiKey() ?? openRouterApiKey() ?? keyFor('humain'));
 }
 
 // ---- Routing ----------------------------------------------------------------
@@ -154,6 +193,7 @@ export function hasAnyProvider(): boolean {
 export function vendorForModel(model: string): Provider {
   if (FANAR_MODEL.test(model)) return 'fanar';
   if (RUNPOD_MODEL.test(model)) return 'runpod';
+  if (HUMAIN_MODEL.test(model)) return 'humain';
   if (OPENROUTER_ONLY.test(model)) return 'openrouter';
   if (/^google\//.test(model)) return 'google';
   if (/^openai\//.test(model)) return 'openai';
@@ -193,6 +233,7 @@ export function upstreamModelId(model: string, provider: Provider): string {
   // The worker is started with `--served-model-name`, which is the id minus
   // this prefix — vLLM 404s on a name it was not given.
   if (provider === 'runpod') return model.replace(/^runpod\//, '');
+  if (provider === 'humain') return model.replace(/^humain\//, '');
   return model.replace(/^openai\//, '');
 }
 
@@ -204,7 +245,7 @@ export interface ChatRoute {
   headers: Record<string, string>;
 }
 
-const CHAT_URLS: Record<Exclude<Provider, 'runpod'>, string> = {
+const CHAT_URLS: Record<Exclude<Provider, 'runpod' | 'humain'>, string> = {
   google: GOOGLE_CHAT_URL,
   openai: OPENAI_CHAT_URL,
   openrouter: OPENROUTER_CHAT_URL,
@@ -212,11 +253,14 @@ const CHAT_URLS: Record<Exclude<Provider, 'runpod'>, string> = {
 };
 
 /**
- * Every provider but one has a fixed URL. RunPod's is deployment state, so it
- * is resolved per call and can legitimately be absent.
+ * Most providers have a fixed URL. The two we address by configuration rather
+ * than by catalogue — our own RunPod worker and HUMAIN Node — are resolved per
+ * call and can legitimately be absent.
  */
 function chatUrlFor(model: string, provider: Provider): string | undefined {
-  return provider === 'runpod' ? runpodChatUrl(model) : CHAT_URLS[provider];
+  if (provider === 'runpod') return runpodChatUrl(model);
+  if (provider === 'humain') return humainChatUrl();
+  return CHAT_URLS[provider];
 }
 
 const KEY_ENV: Record<Provider, string> = {
@@ -225,6 +269,7 @@ const KEY_ENV: Record<Provider, string> = {
   openrouter: 'OPENROUTER_API_KEY',
   fanar: 'FANAR_API_KEY',
   runpod: 'RUNPOD_API_KEY',
+  humain: 'HUMAIN_API_KEY',
 };
 
 /** Resolve a model to a concrete endpoint, or `null` when nothing is configured to serve it. */
@@ -249,10 +294,14 @@ export function tryChatRoute(model: string, provider = providerForModel(model)):
 export function chatRoute(model: string, provider = providerForModel(model)): ChatRoute {
   const route = tryChatRoute(model, provider);
   if (!route) {
-    // RunPod can fail this two ways; naming the key when the endpoint id is
-    // what is missing sends the reader to the wrong secret.
-    const missing = provider === 'runpod' && keyFor(provider)
+    // The two address-by-configuration providers can each fail this two ways;
+    // naming the key when the address is what is missing sends the reader to
+    // the wrong secret.
+    const hasKey = Boolean(keyFor(provider));
+    const missing = provider === 'runpod' && hasKey
       ? `RUNPOD_JAIS_${RUNPOD_ENDPOINT_ENV[model] ?? '<size>'}_ENDPOINT_ID`
+      : provider === 'humain' && hasKey
+      ? 'HUMAIN_BASE_URL'
       : KEY_ENV[provider];
     throw new GatewayConfigError(
       `${missing} not configured (required for ${model})`,
@@ -312,8 +361,11 @@ function reasoningFieldFor(
   effort: ReasoningEffort,
 ): Record<string, unknown> | null {
   // Fanar has no such switch, and Jais 2 is not a reasoning model — plain vLLM
-  // rejects an effort field it has no sampler for.
-  if (provider === 'fanar' || provider === 'runpod') return null;
+  // rejects an effort field it has no sampler for. M3 is here on a weaker
+  // claim: its preview tiers differ on whether thinking is even available, and
+  // an unsupported field is a 400 on every call, so it sends none until a live
+  // key says which spelling Node accepts.
+  if (provider === 'fanar' || provider === 'runpod' || provider === 'humain') return null;
   if (provider === 'openrouter') return { reasoning: { effort } };
   if (provider === 'google') return { reasoning_effort: effort === 'none' ? 'low' : effort };
   return { reasoning_effort: effort };

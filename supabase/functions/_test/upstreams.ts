@@ -175,6 +175,11 @@ export function defaultUpstreams(): Record<string, UpstreamHandler> {
     "generativelanguage.googleapis.com/v1beta/models": geminiNative,
     "api.fanar.qa": () => chatCompletion("fixture reply"),
     "api.runpod.ai": () => chatCompletion("fixture reply"),
+    // HUMAIN Node. Unlike the others this host is not the real one: Node's
+    // base is configuration (HUMAIN_BASE_URL), so the tests pick the address
+    // and this is the address they pick. A test that points M3 somewhere else
+    // stubs that host itself.
+    "node.humain.test": () => chatCompletion("fixture reply"),
     "api.openai.com/v1/images/generations": () => openaiImage(),
     "api.openai.com": () => chatCompletion("fixture reply"),
     "router.huggingface.co": () => chatCompletion("fixture reply"),

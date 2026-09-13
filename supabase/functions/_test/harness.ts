@@ -25,6 +25,12 @@ export const NO_AI_PROVIDER: Record<string, string | undefined> = {
   GOOGLE_API_KEY: undefined,
   OPENAI_API_KEY: undefined,
   OPENROUTER_API_KEY: undefined,
+  // HUMAIN counts toward `hasAnyProvider`, so leaving it set would leave the
+  // Brain configured. It is absent from FIXTURE_ENV today, which makes this
+  // line a no-op — and exactly the kind of no-op worth keeping, since the day
+  // someone adds the key to the fixtures is the day every "the AI is not
+  // configured" test would otherwise start lying.
+  HUMAIN_API_KEY: undefined,
 };
 
 export const FIXTURE_ENV: Record<string, string> = {

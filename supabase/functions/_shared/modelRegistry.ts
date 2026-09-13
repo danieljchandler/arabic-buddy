@@ -57,7 +57,13 @@ export const MODEL_IDS = {
   // the calls whose answer is English or a label (CEFR scoring, clip
   // verification, trend triage), never for the ones that write Arabic.
   GEMINI_FAST: 'google/gemini-3.7-flash',
-  QWEN: 'qwen/qwen3.8-max',                        // third-leg verifier (weight 0.6)
+  // Third-leg verifier (weight 0.6). Pinned to the dated snapshot rather than
+  // the bare `qwen/qwen3.8-max`, which is an *alias*: OpenRouter's catalogue
+  // has no such entry and resolves the name to whichever snapshot Alibaba
+  // currently points it at (today `-0902`). That is the same silent-drift trap
+  // the bare `Fanar` alias is banned for — a model swap nobody committed —
+  // except quieter, because the alias keeps answering either way.
+  QWEN: 'qwen/qwen3.8-max-0902',
   // The transcript analyser's workhorse: the merge of the ASR transcripts, its
   // stricter retry, the vocabulary-and-grammar pass and the phrase shortcut.
   // These ran on this model until 2026-08-31, when centralising the pins moved
@@ -107,14 +113,15 @@ export const MODEL_IDS = {
   // The `humain/` prefix is the registry's usual vendor form and is stripped on
   // the wire, because Node serves the model under its bare id.
   //
-  // That bare id is the one thing here nobody has confirmed against a key.
-  // Node's model catalogue is **per key** — availability is assigned per user
-  // across four tiers, one of which is early-access preview — so "the id M3 is
-  // published under" is not a global fact and cannot be looked up from the
-  // docs. `GET /v1/models` is the authority; `scripts/humain-models.ts` prints
-  // it. A wrong id here is not silent and not dangerous: Node answers 404
-  // `model_not_found`, which for the validator leg means one degraded gate, and
-  // the fix is this line.
+  // The bare id and the base URL are both confirmed against HUMAIN Node's own
+  // published docs (`humain-m3`, `https://api.node.humain.com/v1`), so the
+  // earlier caveat here — that nobody had checked either against a live key —
+  // no longer applies to the *name*. What is still per-key is **access**:
+  // Node assigns availability per user across tiers, so a key without M3 gets
+  // 404 `model_not_found` on a correct id. `GET /v1/models` remains the
+  // authority on what a given key may call; `scripts/humain-models.ts` prints
+  // it. Either way the blast radius is one degraded validator leg, never a
+  // failed learner request — which is why this model entered the app there.
   HUMAIN_M3: 'humain/humain-m3',
 } as const;
 
@@ -163,6 +170,88 @@ export const MODEL_LINEUPS: Record<LineupName, Lineup> = {
 export function getLineup(name: LineupName): Lineup {
   return MODEL_LINEUPS[name];
 }
+
+// ---- The Arabic-native roster ----------------------------------------------
+//
+// Four of the ids above are Arabic-native, and which of them judges a piece of
+// Arabic used to be decided in two places that did not know about each other:
+// `dialectValidator.ts` picked the standing leg and the tie-break ladder, and
+// `analyze-gulf-arabic` pinned Fanar directly with a bare fetch. The second is
+// why adding Jais 2 and then HUMAIN M3 to the registry changed nothing at all
+// for transcription — the pipeline could not see them. These two orders are the
+// single place that question is answered now.
+//
+// They are ordered by *judgment quality on Arabic*, then filtered by what each
+// model costs to ask:
+//
+//   HUMAIN M3     428B MoE, further pre-trained on 1T+ Arabic-native tokens.
+//                 HUMAIN's own eval puts it at 89.37% across seven Arabic
+//                 benchmarks, ahead of Opus 5 (87.34) and GPT-5.6 SOL (87.30),
+//                 leading five of the seven. The best instrument here by a
+//                 wide margin, and hosted, so it has no cold start.
+//   Fanar-C-2-27B QCRI's sovereign model, dialect-tuned and validated by
+//                 native testers. Rationed: small daily allowances, which is
+//                 what keeps it off any always-on slot.
+//   Mistral Saba  24B, February 2025, and showing its age — other hosts have
+//                 already deprecated it. Kept only as the fallback standing
+//                 leg, because a cross-check that loses its Arabic side
+//                 entirely is worse than one running an older Arabic model.
+//   Jais 2 8B     The **small** Jais, and it must not be mistaken for the one
+//                 the papers praise: 8B scores 57.89 on QIMMA against the
+//                 70B's 65.81, so it is the weakest Arabic judge on this list,
+//                 not a frontier one. It earns its rung on economics rather
+//                 than quality — it runs on hardware this project rents, so
+//                 unlike Fanar it has no allowance to spend — and it stays
+//                 *behind* nothing it outscores. See MODEL_IDS.JAIS2_8B for
+//                 why the 70B is deliberately not carried.
+
+/**
+ * Who takes the always-on Arabic seat in the two-model cross-check, best first.
+ *
+ * "Always-on" is the whole constraint. This leg runs on *every* validated
+ * generation, so a rationed model cannot sit here — Fanar would spend its
+ * allowance before lunch and then degrade to `ok: false` for the rest of the
+ * day, which is a quality gate that switches itself off precisely when the app
+ * is busiest. Jais 2 8B is excluded for the opposite reason: it is cheap to ask
+ * but the weakest judge here, and the standing leg is the one slot where being
+ * asked every time makes quality matter most.
+ *
+ * Saba is second rather than absent because the consumer falls back to the
+ * first *routable* entry: with no HUMAIN key the cross-check keeps an Arabic
+ * opinion instead of silently collapsing to the generalist judge alone.
+ */
+export const ARABIC_STANDING_LEG_ORDER: string[] = [
+  MODEL_IDS.HUMAIN_M3,
+  MODEL_IDS.SABA,
+];
+
+/**
+ * Who judges Arabic in the slots that fire *occasionally*, best first.
+ *
+ * Two consumers, and they share this list because they share the economics:
+ * the validator's tie-break (only when the standing legs split) and the
+ * transcript pipeline's per-video dialect check. Neither runs per generation,
+ * which is what makes the rationed and the cold options affordable here when
+ * they are not affordable in the standing seat.
+ *
+ * The order is *not* pure quality, and the exception is deliberate. Jais 2 8B
+ * sits ahead of Fanar despite being the weaker judge, because Fanar is the only
+ * rationed model here and the cheapest way to protect a small daily allowance
+ * is to spend an unrationed opinion first. The transcript pipeline makes that
+ * concrete: it already spends one Fanar call per video on meta enrichment, so a
+ * second one for the dialect check would double its burn on the engine most
+ * likely to run out. Walking down means Fanar is asked when the free options
+ * are absent or asleep — which is the case its allowance is actually for.
+ *
+ * Consumers serving an always-on slot from `ARABIC_STANDING_LEG_ORDER` must
+ * skip whichever entry took that seat: asking the same model the same question
+ * twice buys no new information and spends a rung to learn nothing.
+ */
+export const ARABIC_OCCASIONAL_ORDER: string[] = [
+  MODEL_IDS.HUMAIN_M3,
+  MODEL_IDS.JAIS2_8B,
+  MODEL_IDS.FANAR,
+];
 
 // ---- Aliases consumed by aiBrain.ts ----------------------------------------
 // These intentionally point at the CONTENT lineup so changing the tandem in

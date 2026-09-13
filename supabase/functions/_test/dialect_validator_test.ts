@@ -68,6 +68,21 @@ interface ValidatorModule {
     dialect: string,
     opts?: ValidateOptions,
   ) => Promise<ValidatorResult>;
+  judgeWithArabicNative: (
+    systemPrompt: string,
+    userContent: string,
+    opts?: {
+      maxTokens?: number;
+      temperature?: number;
+      timeoutMs?: number;
+      signal?: AbortSignal;
+      label?: string;
+    },
+  ) => Promise<{
+    content: string | null;
+    model: string | null;
+    attempts: Array<{ model: string; error: string }>;
+  }>;
 }
 
 /** What the model is asked to emit: a score, a verdict and the offending tokens. */
@@ -389,21 +404,32 @@ const NODE = { HUMAIN_NODE_API_KEY: "fixture-humain", HUMAIN_BASE_URL: "https://
 const NODE_HOST = "node.humain.test";
 const M3 = MODEL_IDS.HUMAIN_M3;
 
-Deno.test("a configured M3 settles a split ahead of both specialists", async () => {
+Deno.test("a configured M3 takes the standing Arabic seat rather than a rung", async () => {
   await withValidator(async (mod, up) => {
     const result = await mod.validateDialectCrossChecked("x", "Gulf");
 
-    // M3 is a 428B model built for Arabic, which is the best instrument on this
-    // ladder for the one question it is asked. It also cannot be asleep, so
-    // unlike Jais there is no cheap-to-rule-out argument for putting something
-    // else in front of it.
+    // The correction to where M3 first landed. As a tie-break rung it only ever
+    // spoke when Saba and the generalist judge happened to disagree — the
+    // strongest Arabic model in the registry gated behind the weakest one's
+    // opinion, on a minority of calls. It is the Arabic leg now, so it judges
+    // every call, and Saba is only what a deployment without a HUMAIN key gets.
     assertEquals(up.callsTo(NODE_HOST).length, 1);
-    assertEquals(up.callsTo(RUNPOD).length, 0);
-    assertEquals(up.callsTo(FANAR_HOST).length, 0);
+    assertEquals(up.callsTo(OPENROUTER).length, 0);
     assertEquals(bodyOf(up.callsTo(NODE_HOST)[0]).model, upstreamModelId(M3, "humain"));
+    // And having already voted, it is not asked again to settle the split it
+    // helped create: the ladder starts at the rung behind it. A tie-breaker
+    // that is one of the disagreeing parties is not a third opinion.
+    assertEquals(up.callsTo(RUNPOD).length, 1);
     assertEquals(result.verdict, "pass");
-    assertEquals(result.model, `${ARABIC}+${STRONG}+${M3}`);
-  }, { env: { ...NODE, ...DEPLOYED }, upstreams: split(NODE_HOST, { score: 5 }) });
+    assertEquals(result.model, `${M3}+${STRONG}+${JAIS}`);
+  }, {
+    env: { ...NODE, ...DEPLOYED },
+    upstreams: {
+      [NODE_HOST]: () => chatCompletion("", judgment({ score: 5 })),
+      [GATEWAY]: () => chatCompletion("", judgment({ score: 2, verdict: "rewrite" })),
+      [RUNPOD]: () => chatCompletion("", judgment({ score: 5 })),
+    },
+  });
 });
 
 Deno.test("an unconfigured M3 leaves the ladder exactly as it was", async () => {
@@ -507,6 +533,30 @@ Deno.test("a cold Jais falls through to Fanar instead of consuming the split", a
  * no timeout of its own (the 90s in `aiGateway` belongs to `generateImage`),
  * so before the tie-break ceiling this request had nothing bounding it at all.
  */
+/**
+ * A worker that is genuinely working, just not quickly: it answers after
+ * `afterMs` unless the caller hangs up first.
+ *
+ * Distinct from `holdsTheConnection`, which never answers at all. The
+ * difference is the whole point of the ceilings above — a rung that will
+ * eventually answer must be allowed to, and a rung that never will must not be
+ * waited on. A ceiling that cannot tell them apart aborts real work.
+ */
+const slowThen = (afterMs: number, answer: () => Response) =>
+  (request: Request): Promise<Response> =>
+    new Promise((resolve, reject) => {
+      const hangUp = () => {
+        clearTimeout(timer);
+        reject(new DOMException("The signal has been aborted", "AbortError"));
+      };
+      const timer = setTimeout(() => {
+        request.signal.removeEventListener("abort", hangUp);
+        resolve(answer());
+      }, afterMs);
+      if (request.signal.aborted) return hangUp();
+      request.signal.addEventListener("abort", hangUp);
+    });
+
 const holdsTheConnection = (request: Request): Promise<Response> =>
   new Promise((_, reject) => {
     const hangUp = () =>
@@ -543,27 +593,30 @@ Deno.test("a Jais that never answers is bailed on, and the split still gets sett
   });
 });
 
-Deno.test("a slow M3 gives up its slice rather than the whole budget", async () => {
+Deno.test("a hanging M3 gives up the Arabic seat rather than the whole call", async () => {
   await withValidator(async (mod, up) => {
     const started = Date.now();
     const result = await mod.validateDialectCrossChecked("x", "Gulf");
     const elapsed = Date.now() - started;
 
-    // The reason M3 is the one rung with a ceiling of its own. It is first on a
-    // ladder whose rungs share a single budget, and its preview tier lists
-    // added latency among its terms — so unbounded it could spend the whole
-    // budget and leave nothing for the two proven rungs behind it, turning a
-    // quality upgrade into a worse answer on exactly the splits this ladder
-    // exists to settle. Bounded, a hanging M3 costs one slice and Jais still
-    // settles it.
-    assert(elapsed < 12_000, `tie-break took ${elapsed}ms; the preview rung should bail first`);
-    assertEquals(up.callsTo(RUNPOD).length, 1);
-    assertEquals(result.verdict, "pass");
-    assertEquals(result.model, `${ARABIC}+${STRONG}+${JAIS}`);
+    // What promoting M3 out of the tie-break put at risk. The standing legs run
+    // on the caller's budget, and the common caller — askBrain's review path —
+    // passes none, so before STANDING_LEG_PREVIEW_BAIL_MS a hanging preview
+    // endpoint spent the 30s default on *every* generation in the app rather
+    // than on a minority of splits.
+    assert(elapsed < 20_000, `cross-check took ${elapsed}ms; the preview leg should bail first`);
+    // Losing the leg is the designed outcome, not an error: an Arabic leg that
+    // could not judge is indistinguishable from an unconfigured provider, and
+    // both degrade to the strong judge alone.
+    assertEquals(result.agreement, "single");
+    assertEquals(result.verdict, "rewrite");
+    assertEquals(result.model, STRONG);
+    // No split was ever established, so nothing below is asked to settle one.
+    assertEquals(up.callsTo(RUNPOD).length, 0);
+    assertEquals(up.callsTo(FANAR_HOST).length, 0);
   }, {
     env: { ...NODE, ...DEPLOYED },
     upstreams: {
-      [OPENROUTER]: () => chatCompletion("", judgment({ score: 5 })),
       [GATEWAY]: () => chatCompletion("", judgment({ score: 2, verdict: "rewrite" })),
       [NODE_HOST]: holdsTheConnection,
       [RUNPOD]: () => chatCompletion("", judgment({ score: 5 })),
@@ -571,30 +624,32 @@ Deno.test("a slow M3 gives up its slice rather than the whole budget", async () 
   });
 });
 
-Deno.test("a slow M3 and a cold Jais still leave Fanar a turn", async () => {
+Deno.test("with M3 in the Arabic seat, a cold Jais still leaves Fanar a turn", async () => {
   await withValidator(async (mod, up) => {
     const started = Date.now();
     const result = await mod.validateDialectCrossChecked("x", "Gulf");
     const elapsed = Date.now() - started;
 
-    // The failure adding a third rung introduces if nothing bounds the *sum*
-    // of the per-rung ceilings: M3's slice plus Jais's cold bail can spend the
-    // whole budget between them, and Fanar — the rung that settled every split
-    // before either of the others existed — is never asked. That would make
-    // configuring M3 strictly worse than not configuring it, in exactly the
-    // slow-preview case its ceiling was added for.
+    // The sum-bounding invariant, in the topology promoting M3 leaves behind.
+    // Per-rung ceilings bound each call and nothing bounds their total, so a
+    // cold first rung can still eat the budget and starve Fanar — the rung that
+    // settled every split before either of the others existed. The ladder is
+    // ordered best-first but its *last* rungs are the proven ones, so starving
+    // them trades a settled split for an unsettled one.
+    //
+    // M3 is asked exactly once here, as the standing leg, and not again as a
+    // rung: it is the party that disagreed.
     assertEquals(up.callsTo(NODE_HOST).length, 1);
     assertEquals(up.callsTo(RUNPOD).length, 1);
     assertEquals(up.callsTo(FANAR_HOST).length, 1);
     assertEquals(result.verdict, "pass");
-    assertEquals(result.model, `${ARABIC}+${STRONG}+${FANAR}`);
+    assertEquals(result.model, `${M3}+${STRONG}+${FANAR}`);
     assert(elapsed < 20_000, `ladder took ${elapsed}ms; the whole budget should still bound it`);
   }, {
     env: { ...NODE, ...DEPLOYED },
     upstreams: {
-      [OPENROUTER]: () => chatCompletion("", judgment({ score: 5 })),
+      [NODE_HOST]: () => chatCompletion("", judgment({ score: 5 })),
       [GATEWAY]: () => chatCompletion("", judgment({ score: 2, verdict: "rewrite" })),
-      [NODE_HOST]: holdsTheConnection,
       [RUNPOD]: holdsTheConnection,
       [FANAR_HOST]: () => chatCompletion("", judgment({ score: 5 })),
     },
@@ -918,4 +973,157 @@ Deno.test("the literal field is described for whatever is being glossed", async 
   // The noun varies — a line, a phrase, a caption — and it goes into a JSON
   // schema the model reads, so it has to name the thing in front of it.
   assert(literalSchema("caption").description.includes("of the caption"));
+});
+
+// ── The Arabic roster, asked directly ───────────────────────────────────────
+//
+// `judgeWithArabicNative` is the seam that let the transcript pipeline reach
+// these models at all. Before it, `analyze-gulf-arabic` called Fanar with a
+// bare fetch and a hardcoded id, so Jais 2 and HUMAIN M3 could be in the
+// registry, configured and warm, and still never judge a single video — which
+// is exactly what happened. These tests pin the walk, because "the pipeline
+// silently uses the weakest model available" is not a failure anything else
+// here would catch.
+
+Deno.test("the Arabic judge walks to M3 first when it is configured", async () => {
+  await withValidator(async (mod, up) => {
+    const out = await mod.judgeWithArabicNative("sys", "نص");
+
+    assertEquals(out.model, M3);
+    assertEquals(out.content, "حكم");
+    assertEquals(bodyOf(up.callsTo(NODE_HOST)[0]).model, upstreamModelId(M3, "humain"));
+    // Nothing behind it is asked once it answers: the walk stops on success.
+    assertEquals(up.callsTo(RUNPOD).length, 0);
+    assertEquals(up.callsTo(FANAR_HOST).length, 0);
+    // And no failure is reported for rungs that were never needed.
+    assertEquals(out.attempts, []);
+  }, {
+    env: { ...NODE, ...DEPLOYED },
+    upstreams: { [NODE_HOST]: () => chatCompletion("حكم") },
+  });
+});
+
+Deno.test("the Arabic judge falls through a failing rung to the next one", async () => {
+  await withValidator(async (mod, up) => {
+    const out = await mod.judgeWithArabicNative("sys", "نص");
+
+    // Fanar is last precisely so its allowance is spent only when the
+    // unrationed options cannot answer. Reaching it here means the walk did
+    // what it is for rather than giving up at the first refusal.
+    assertEquals(out.model, FANAR);
+    assertEquals(up.callsTo(NODE_HOST).length, 1);
+    assertEquals(up.callsTo(RUNPOD).length, 1);
+    assertEquals(up.callsTo(FANAR_HOST).length, 1);
+    // Every rung that was asked and let it down is named, in order. Without
+    // this the pipeline can only log "no dialect check", which is the same
+    // message whether nothing is configured or everything is broken.
+    assertEquals(out.attempts.map((a) => a.model), [M3, JAIS]);
+  }, {
+    env: { ...NODE, ...DEPLOYED },
+    upstreams: {
+      [NODE_HOST]: () => json({ error: "model_not_found" }, 404),
+      [RUNPOD]: () => json({ error: "cold" }, 503),
+      [FANAR_HOST]: () => chatCompletion("حكم فنار"),
+    },
+  });
+});
+
+Deno.test("an unconfigured rung is skipped without being counted as a failure", async () => {
+  await withValidator(async (mod, up) => {
+    const out = await mod.judgeWithArabicNative("sys", "نص");
+
+    // No HUMAIN key and no deployed Jais: both are absent rather than broken,
+    // and a caller reading `attempts` wants the models that let it down, not
+    // the ones that were never there. Most deployments will not have all three.
+    assertEquals(out.model, FANAR);
+    assertEquals(up.callsTo(NODE_HOST).length, 0);
+    assertEquals(up.callsTo(RUNPOD).length, 0);
+    assertEquals(out.attempts, []);
+  }, { upstreams: { [FANAR_HOST]: () => chatCompletion("حكم فنار") } });
+});
+
+Deno.test("a 200 carrying no text is a failure, not a judgment", async () => {
+  await withValidator(async (mod, up) => {
+    const out = await mod.judgeWithArabicNative("sys", "نص");
+
+    // An empty body parses into zero issues, which reads downstream as "this
+    // transcript is clean" — the most expensive possible way to be wrong about
+    // a dialect check. Falling through is the only safe reading.
+    assertEquals(out.model, FANAR);
+    assertEquals(up.callsTo(FANAR_HOST).length, 1);
+    assertEquals(out.attempts.map((a) => a.model), [M3]);
+  }, {
+    env: NODE,
+    upstreams: {
+      [NODE_HOST]: () => chatCompletion(""),
+      [FANAR_HOST]: () => chatCompletion("حكم فنار"),
+    },
+  });
+});
+
+Deno.test("no Arabic model configured is an empty judgment, never a throw", async () => {
+  await withValidator(async (mod) => {
+    const out = await mod.judgeWithArabicNative("sys", "نص");
+
+    // The pipeline attaches this to a video import that must still succeed.
+    // A dialect check is a signal for the admin review queue, not a gate on
+    // the transcript landing.
+    assertEquals(out.content, null);
+    assertEquals(out.model, null);
+    assertEquals(out.attempts, []);
+    // NO_AI_PROVIDER alone does *not* produce this state, and the distinction
+    // is easy to get wrong: it unsets the keys that count toward
+    // `hasAnyProvider`, and Fanar is deliberately not one of them. So "the
+    // Brain is unconfigured" and "no Arabic model can judge" are different
+    // conditions, and only the second one is what this walk bottoms out on.
+  }, { env: { ...NO_AI_PROVIDER, FANAR_API_KEY: undefined, RUNPOD_API_KEY: undefined } });
+});
+
+Deno.test("a whole-transcript judge is not held to the tie-break ceilings", async () => {
+  await withValidator(async (mod, up) => {
+    const started = Date.now();
+    const out = await mod.judgeWithArabicNative("sys", "نص", { maxTokens: 1024 });
+    const elapsed = Date.now() - started;
+
+    // The regression this pins. The walk once clamped every rung to
+    // `arabicRungCeilingMs` — 7s for M3, 5s for Jais, 16s for Fanar — which are
+    // sized for a single-snippet authenticity judgment on a path a learner is
+    // waiting on. This caller hands over a whole transcript and asks for 1024
+    // tokens of JSON about it, and the `callFanar` path it replaced allowed 30s
+    // for headers alone. Under the old clamp a healthy but unhurried Fanar was
+    // aborted mid-answer and the dialect check landed null: the feature this
+    // helper exists to restore, broken by its own ceiling.
+    //
+    // Fanar is the last rung and holds the connection past 16s. It must still
+    // be waited on.
+    assert(elapsed > 16_000, `gave up after ${elapsed}ms; the tie-break ceiling is still clamping this`);
+    assertEquals(out.model, FANAR);
+    assertEquals(out.content, "حكم فنار");
+  }, {
+    upstreams: {
+      [FANAR_HOST]: slowThen(18_000, () => chatCompletion("حكم فنار")),
+    },
+  });
+});
+
+Deno.test("a cold self-hosted rung is still given up on when someone is behind it", async () => {
+  await withValidator(async (mod, up) => {
+    const started = Date.now();
+    const out = await mod.judgeWithArabicNative("sys", "نص");
+    const elapsed = Date.now() - started;
+
+    // The property worth keeping from the old clamp, at this path's scale. The
+    // RunPod worker scales to zero, so finding out it is asleep should stay
+    // cheap *while another rung can do the work* — otherwise one cold start
+    // delays a judgment Fanar was ready to give.
+    assert(elapsed < 20_000, `waited ${elapsed}ms on a cold worker with Fanar available`);
+    assertEquals(up.callsTo(RUNPOD).length, 1);
+    assertEquals(out.model, FANAR);
+  }, {
+    env: DEPLOYED,
+    upstreams: {
+      [RUNPOD]: holdsTheConnection,
+      [FANAR_HOST]: () => chatCompletion("حكم فنار"),
+    },
+  });
 });

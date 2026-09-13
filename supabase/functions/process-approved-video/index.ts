@@ -22,6 +22,7 @@ import {
 } from "../_shared/audioChunk.ts";
 import { noArabicSpeechNote } from "../_shared/arabicSpeechGate.ts";
 import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
+import { warmArabicJudges } from "../_shared/dialectValidator.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { alignLinesToAsrWords } from "../_shared/transcriptTimingAlign.ts";
 import { splitOverlongLines } from "../_shared/transcriptLineSplit.ts";
@@ -912,6 +913,15 @@ async function runAsrStage(ctx: PipelineContext, cp: Checkpoint): Promise<void> 
 
   try {
     console.log(`[pipeline] Starting for video ${videoId}: ${video.source_url}`);
+
+    // Wake the self-hosted Arabic judge (Jais 2 on RunPod) now, before the
+    // download and the six-engine fan-out. The analysis that needs it — the
+    // dialect check and the translation arbitration — is two to three minutes
+    // away, which is about what a FlashBoot start takes; the worker scales to
+    // zero after five idle minutes, so without this it is cold for every video
+    // that arrives after a quiet spell and is bailed past in favour of whoever
+    // was already awake. Fire-and-forget: it can neither fail nor delay the run.
+    warmArabicJudges();
 
     // Start the checkpoint over. Whatever an earlier run left on disk — its
     // engine results, its count of analysis starts — belongs to that run, and

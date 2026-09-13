@@ -77,12 +77,16 @@ interface ValidatorModule {
       timeoutMs?: number;
       signal?: AbortSignal;
       label?: string;
+      accept?: (content: string) => boolean;
+      warmWhenCold?: boolean;
     },
   ) => Promise<{
     content: string | null;
     model: string | null;
+    usable: boolean;
     attempts: Array<{ model: string; error: string }>;
   }>;
+  warmArabicJudges: () => string[];
 }
 
 /** What the model is asked to emit: a score, a verdict and the offending tokens. */
@@ -1123,6 +1127,192 @@ Deno.test("a cold self-hosted rung is still given up on when someone is behind i
     env: DEPLOYED,
     upstreams: {
       [RUNPOD]: holdsTheConnection,
+      [FANAR_HOST]: () => chatCompletion("حكم فنار"),
+    },
+  });
+});
+
+Deno.test("a warm self-hosted rung is asked a one-token probe, then given the whole budget", async () => {
+  await withValidator(async (mod, up) => {
+    const started = Date.now();
+    const out = await mod.judgeWithArabicNative("sys", "نص", { maxTokens: 1024 });
+    const elapsed = Date.now() - started;
+
+    // The regression this pins. The cold bail used to sit on the whole call,
+    // and vLLM sends a non-streaming completion's headers only when the body
+    // is done — so an 8B model writing a thousand tokens of JSON about a whole
+    // transcript was aborted at eight seconds on every video, warm or not,
+    // and Jais never judged one. Now the eight seconds bound a one-token
+    // probe; a worker that answers it is awake and the real call is allowed
+    // to take as long as the job takes.
+    const runpod = up.callsTo(RUNPOD);
+    assertEquals(runpod.length, 2);
+    assertEquals(bodyOf(runpod[0]).max_tokens, 1);
+    assertEquals(bodyOf(runpod[1]).max_tokens, 1024);
+    assert(elapsed > 9_000, `the judgment was cut off at ${elapsed}ms; the probe ceiling is clamping the real call`);
+    assertEquals(out.model, JAIS);
+    assertEquals(out.content, "حكم جايس");
+    assertEquals(out.usable, true);
+    assertEquals(up.callsTo(FANAR_HOST).length, 0);
+  }, {
+    env: DEPLOYED,
+    upstreams: {
+      [RUNPOD]: (request: Request) =>
+        // The probe answers at once — the worker is up — and the judgment
+        // takes as long as a small model writing JSON actually takes.
+        request.clone().text().then((body) =>
+          JSON.parse(body).max_tokens === 1
+            ? chatCompletion("ok")
+            : slowThen(10_000, () => chatCompletion("حكم جايس"))(request)
+        ),
+      [FANAR_HOST]: () => chatCompletion("حكم فنار"),
+    },
+  });
+});
+
+Deno.test("a reply the caller cannot use falls through to the next rung", async () => {
+  await withValidator(async (mod, up) => {
+    const out = await mod.judgeWithArabicNative("sys", "نص", {
+      accept: (content) => content.trim().startsWith("{"),
+    });
+
+    // "Replied in prose instead of the expected format" was the last audited
+    // run's verdict on its dialect check, and the walk stopped there: one
+    // chatty reply from the first model to answer, and nothing behind it was
+    // asked. Prose is as useless to a JSON consumer as a 503, so it is a
+    // failed rung — named as such — and the next model gets the question.
+    assertEquals(out.model, FANAR);
+    assertEquals(out.content, '{"issues":[]}');
+    assertEquals(out.usable, true);
+    assertEquals(out.attempts.length, 1);
+    assertEquals(out.attempts[0].model, M3);
+    assert(out.attempts[0].error.startsWith("unusable reply:"), out.attempts[0].error);
+  }, {
+    env: NODE,
+    upstreams: {
+      [NODE_HOST]: () => chatCompletion("النص سليم ولا توجد مشاكل تُذكر."),
+      [FANAR_HOST]: () => chatCompletion('{"issues":[]}'),
+    },
+  });
+});
+
+Deno.test("when every rung answers in prose, the first prose is kept and marked unusable", async () => {
+  await withValidator(async (mod) => {
+    const out = await mod.judgeWithArabicNative("sys", "نص", {
+      accept: (content) => content.trim().startsWith("{"),
+    });
+
+    // Nothing parseable anywhere, but the reply is not thrown away: the admin
+    // banner can still show what the model said, and `usable` tells the
+    // caller not to read it as a verdict.
+    assertEquals(out.usable, false);
+    assertEquals(out.model, M3);
+    assertEquals(out.content, "كلام عام من M3");
+    assertEquals(out.attempts.map((a) => a.model), [M3, FANAR]);
+  }, {
+    env: NODE,
+    upstreams: {
+      [NODE_HOST]: () => chatCompletion("كلام عام من M3"),
+      [FANAR_HOST]: () => chatCompletion("كلام عام من فنار"),
+    },
+  });
+});
+
+Deno.test("without an accept filter every non-empty reply is an answer", async () => {
+  await withValidator(async (mod) => {
+    const out = await mod.judgeWithArabicNative("sys", "نص");
+    assertEquals(out.usable, true);
+    assertEquals(out.model, M3);
+  }, { env: NODE, upstreams: { [NODE_HOST]: () => chatCompletion("أي شيء") } });
+});
+
+Deno.test("a cold rung found by the probe is woken only when the caller asks", async () => {
+  await withValidator(async (mod, up) => {
+    const quiet = await mod.judgeWithArabicNative("sys", "نص");
+    assertEquals(quiet.model, FANAR);
+    // One probe, aborted; no wake-up behind it.
+    assertEquals(up.callsTo(RUNPOD).length, 1);
+    assert(quiet.attempts[0].error.startsWith("cold worker"), quiet.attempts[0].error);
+
+    const woken = await mod.judgeWithArabicNative("sys", "نص", { warmWhenCold: true });
+    assertEquals(woken.model, FANAR);
+    // The probe again, and this time a wake-up left running behind the walk —
+    // the pipeline's next judgment in this run lands on a live worker.
+    assertEquals(up.callsTo(RUNPOD).length, 3);
+  }, {
+    env: DEPLOYED,
+    upstreams: {
+      [RUNPOD]: holdsTheConnection,
+      [FANAR_HOST]: () => chatCompletion("حكم فنار"),
+    },
+  });
+});
+
+// ── Warming the self-hosted judges for a transcript run ─────────────────────
+
+Deno.test("a transcript run wakes the deployed Jais worker ahead of time", async () => {
+  await withValidator(async (mod, up) => {
+    const warmed = mod.warmArabicJudges();
+    // Fire-and-forget: the stub records a call once it has read the body.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    // The pipeline calls this before its ASR fan-out, two to three minutes
+    // before it has anything to ask — about a FlashBoot start. The wake-up is
+    // the smallest legal completion and is not waited on.
+    assertEquals(warmed, [JAIS]);
+    assertEquals(warmups(up).length, 1);
+    assertEquals(up.callsTo(RUNPOD).length, 1);
+  }, { env: DEPLOYED, upstreams: { [RUNPOD]: () => chatCompletion("ok") } });
+});
+
+Deno.test("only self-hosted judges are warmed — a hosted M3 has nothing to wake", async () => {
+  await withValidator(async (mod, up) => {
+    assertEquals(mod.warmArabicJudges(), []);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assertEquals(up.callsTo(NODE_HOST).length, 0);
+    assertEquals(up.callsTo(FANAR_HOST).length, 0);
+  }, { env: NODE });
+});
+
+Deno.test("an undeployed Jais is not warmed, and neither is one switched off", async () => {
+  await withValidator(async (mod, up) => {
+    assertEquals(mod.warmArabicJudges(), []);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assertEquals(up.callsTo(RUNPOD).length, 0);
+  });
+  await withValidator(async (mod, up) => {
+    // On by default — the opposite of `JAIS_TIEBREAK_WARMUP` — because a
+    // transcript run is a deliberate act whose other calls already cost
+    // dollars; the opt-out exists for a deployment that would rather have
+    // the dialect check answered by whoever is already awake.
+    assertEquals(mod.warmArabicJudges(), []);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assertEquals(up.callsTo(RUNPOD).length, 0);
+  }, { env: { ...DEPLOYED, JAIS_PIPELINE_WARMUP: "off" } });
+});
+
+Deno.test("the caller's signal ends the walk, not just the rung it interrupted", async () => {
+  await withValidator(async (mod, up) => {
+    const started = Date.now();
+    const out = await mod.judgeWithArabicNative("sys", "نص", {
+      timeoutMs: 20_000,
+      signal: AbortSignal.timeout(1_500),
+    });
+    const elapsed = Date.now() - started;
+
+    // The transcript pipeline passes its run deadline here. A per-rung
+    // ceiling alone lets every configured judge take the ceiling in turn —
+    // three of them can outlast the whole analysis budget — so when the
+    // caller's own signal fires the walk must stop asking, whoever is still
+    // waiting behind the rung that was cut off.
+    assert(elapsed < 5_000, `kept walking for ${elapsed}ms after the caller gave up`);
+    assertEquals(out.content, null);
+    assertEquals(up.callsTo(NODE_HOST).length, 1);
+    assertEquals(up.callsTo(FANAR_HOST).length, 0);
+  }, {
+    env: NODE,
+    upstreams: {
+      [NODE_HOST]: holdsTheConnection,
       [FANAR_HOST]: () => chatCompletion("حكم فنار"),
     },
   });

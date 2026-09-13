@@ -263,3 +263,91 @@ describe("arbitrateDispute — relative decisions", () => {
     expect(verdict.winner?.name).toBe("claude");
   });
 });
+
+// ── Asking an Arabic-native model outright ─────────────────────────────────
+
+import {
+  buildArbiterSystemPrompt,
+  formatDisputedLines,
+  parseArbiterChoices,
+  type DisputedLine,
+} from "../../supabase/functions/_shared/translationArbiter";
+
+const disputed: DisputedLine[] = [
+  { line: 3, arabic: "شخبارك اليوم", candidates: [cand("claude", "How are you today?"), cand("qwen", "What's your news today?", 0.6)] },
+  { line: 7, arabic: "يلا نروح", candidates: [cand("claude", "Let's go"), cand("gemini", "Come on, let's head off"), cand("qwen", "Let us leave", 0.6)] },
+];
+
+describe("formatDisputedLines", () => {
+  it("shows the Arabic with lettered, unnamed candidates", () => {
+    const text = formatDisputedLines(disputed);
+    expect(text).toContain("Line 3: شخبارك اليوم");
+    expect(text).toContain("  A. How are you today?");
+    expect(text).toContain("  B. What's your news today?");
+    expect(text).toContain("Line 7: يلا نروح");
+    expect(text).toContain("  C. Let us leave");
+    // The judge must not be told whose translation is whose — a labelled
+    // comparison measures brand preference, not translation quality.
+    expect(text).not.toMatch(/claude|gemini|qwen/i);
+  });
+});
+
+describe("buildArbiterSystemPrompt", () => {
+  it("names the dialect and demands the JSON verdict shape", () => {
+    const prompt = buildArbiterSystemPrompt("Yemeni Arabic (يمني)");
+    expect(prompt).toContain("native speaker of Yemeni Arabic (يمني)");
+    expect(prompt).toContain('{"choices":[{"line":1,"pick":"B","confidence":"high"}]}');
+  });
+});
+
+describe("parseArbiterChoices", () => {
+  it("maps letters back to candidate indexes", () => {
+    const choices = parseArbiterChoices(
+      '{"choices":[{"line":3,"pick":"B","confidence":"high"},{"line":7,"pick":"A","confidence":"low"}]}',
+      disputed,
+    );
+    expect(choices).toEqual([
+      { line: 3, pick: 1, confidence: "high" },
+      { line: 7, pick: 0, confidence: "low" },
+    ]);
+  });
+
+  it("reads a verdict wrapped in a code fence or chatter", () => {
+    const choices = parseArbiterChoices(
+      'Here is my judgment:\n```json\n{"choices":[{"line":3,"pick":"a","confidence":"HIGH"}]}\n```\nHope this helps.',
+      disputed,
+    );
+    expect(choices).toEqual([{ line: 3, pick: 0, confidence: "high" }]);
+  });
+
+  it("accepts option numbers and string line numbers, and keeps null picks", () => {
+    const choices = parseArbiterChoices(
+      '{"choices":[{"line":"3","pick":2,"confidence":"high"},{"line":7,"pick":null}]}',
+      disputed,
+    );
+    expect(choices).toEqual([
+      { line: 3, pick: 1, confidence: "high" },
+      { line: 7, pick: null, confidence: "low" },
+    ]);
+  });
+
+  it("drops verdicts about lines that were not asked, letters the line did not offer, and repeats", () => {
+    const choices = parseArbiterChoices(
+      '{"choices":[{"line":9,"pick":"A"},{"line":3,"pick":"C"},{"line":7,"pick":"B"},{"line":7,"pick":"C"}]}',
+      disputed,
+    );
+    expect(choices).toEqual([{ line: 7, pick: 1, confidence: "low" }]);
+  });
+
+  it("treats prose, an empty verdict list and nonsense as no verdict", () => {
+    expect(parseArbiterChoices("السطر الثالث الترجمة الأولى أفضل", disputed)).toBeNull();
+    expect(parseArbiterChoices('{"choices":[]}', disputed)).toBeNull();
+    expect(parseArbiterChoices('{"choices":[{"line":3,"pick":"Z"}]}', disputed)).toBeNull();
+    expect(parseArbiterChoices("", disputed)).toBeNull();
+  });
+
+  it("confidence defaults to low when the judge does not say", () => {
+    const choices = parseArbiterChoices('[{"line":3,"pick":"A"}]', disputed);
+    expect(choices?.[0].confidence).toBe("low");
+  });
+});

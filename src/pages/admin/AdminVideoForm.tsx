@@ -1957,6 +1957,8 @@ const AdminVideoForm = () => {
                     /** Which Arabic model judged. Absent on rows written before the ladder. */
                     model?: string;
                     issues?: DialectIssue[];
+                    /** Arabic models that were asked and did not answer, in order. */
+                    attempts?: Array<{ model: string; error: string }>;
                   } | null;
                 };
                 const enginesUsed = existingVideo?.engines_used as
@@ -2028,6 +2030,19 @@ const AdminVideoForm = () => {
                     {!issues && signals.fanar_validation?.content && (
                       <p className="text-muted-foreground whitespace-pre-wrap" dir="auto">
                         {reviewer} review: {String(signals.fanar_validation.content).slice(0, 500)}
+                      </p>
+                    )}
+                    {/* Rungs that were asked and let the check down, even when a
+                        later one answered. "M3 didn't fire" is answered here —
+                        a 404 is a key whose tier lacks the model, a timeout is
+                        the preview latency, "cold worker" is Jais asleep. */}
+                    {signals.fanar_validation?.attempts && signals.fanar_validation.attempts.length > 0 && (
+                      <p className="text-muted-foreground">
+                        {signals.fanar_validation.model ? "Did not answer before " : "No Arabic model answered — "}
+                        {signals.fanar_validation.model ? `${reviewer}: ` : ""}
+                        {signals.fanar_validation.attempts
+                          .map((a) => `${a.model.replace(/^[^/]+\//, "")} (${a.error})`)
+                          .join("; ")}
                       </p>
                     )}
                   </div>

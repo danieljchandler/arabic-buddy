@@ -4,8 +4,12 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { isServiceRoleCall, requireContentManager } from "../_shared/requireRole.ts";
 import {
   arbitrateDispute,
+  buildArbiterSystemPrompt,
+  formatDisputedLines,
   jaccard,
+  parseArbiterChoices,
   type ArbiterCandidate,
+  type DisputedLine,
 } from "../_shared/translationArbiter.ts";
 import {
   callFarasaDiacritizeLines,
@@ -17,6 +21,7 @@ import {
 } from "../_shared/dialectIssues.ts";
 import {
   judgeWithArabicNative,
+  warmArabicJudges,
   type ArabicJudgement,
 } from "../_shared/dialectValidator.ts";
 import {
@@ -216,6 +221,21 @@ function generationBudgetMs(maxTokens: number): number {
   const ceiling = Math.min(GENERATION_CEILING_MS, Math.max(CONNECT_TIMEOUT_MS, forTokens));
   const left = timeLeftMs() - 15_000;
   return Math.max(5_000, Math.min(ceiling, left));
+}
+
+/**
+ * A signal that fires when this run must stop starting work, less the margin
+ * the final write needs.
+ *
+ * For the callers that walk several models in turn — the Arabic roster walks
+ * — a per-call budget is not enough: each rung is granted the budget afresh,
+ * so three slow rungs can spend three of them, and a walk that starts late in
+ * the run can cross the platform's wall clock before the safety save. This is
+ * the outer bound the per-rung ceilings sit inside.
+ */
+function runDeadlineSignal(): AbortSignal {
+  const left = Math.min(timeLeftMs(), ANALYZE_BUDGET_MS) - 15_000;
+  return AbortSignal.timeout(Math.max(1_000, left));
 }
 
 /**
@@ -517,7 +537,9 @@ const getFanarValidationSystemPrompt = () => {
 
 "line" رقم السطر (يبدأ من 1)، و"kind" واحدة من: msa | spelling | foreign_dialect | cultural،
 و"severity" إما "low" أو "high" — استخدم "high" فقط لما يغيّر المعنى أو يجعل النص غير أصيل.
-إذا لم تجد أي مشاكل، أخرج {"issues": []}. يمكن كتابة "note" بالعربية أو الإنجليزية.`;
+إذا لم تجد أي مشاكل، أخرج {"issues": []}. يمكن كتابة "note" بالعربية أو الإنجليزية.
+
+Respond with the JSON object only — no introduction, no explanation, no markdown. A reply that is not JSON will be discarded unread.`;
 };
 
 // ─── FANAR VALIDATION RESPONSE ──────────────────────────────────────────────
@@ -2008,6 +2030,14 @@ serve(async (req) => {
       );
     }
 
+    // Wake the self-hosted Arabic judge now, while the merge runs. The dialect
+    // check and the translation arbitration are a minute or more away, which
+    // is roughly a FlashBoot start of the Jais worker; asked cold at that point
+    // it is bailed past, so every transcript would be judged by whoever was
+    // already awake. Usually a no-op — the pipeline warms it before the ASR
+    // fan-out, so by now the worker is up and a one-token ping keeps it so.
+    warmArabicJudges();
+
     const hasDual = Boolean(munsitTranscript && typeof munsitTranscript === 'string' && munsitTranscript.trim().length > 0);
     const hasFanar = Boolean(fanarTranscript && typeof fanarTranscript === 'string' && fanarTranscript.trim().length > 0);
     const hasSoniox = Boolean(sonioxTranscript && typeof sonioxTranscript === 'string' && sonioxTranscript.trim().length > 0);
@@ -2443,10 +2473,19 @@ serve(async (req) => {
            // so it gets the same allowance here — `generationBudgetMs` already
            // shrinks it when the function is running out of wall clock.
            timeoutMs: FANAR_CONNECT_TIMEOUT_MS + generationBudgetMs(1024),
+           // Per rung. The walk as a whole ends at the run's deadline.
+           signal: runDeadlineSignal(),
+           // A reply the issue parser cannot read is a failed rung, not a
+           // verdict: the last audited run ended with "replied in prose"
+           // from the first model to answer, and nothing behind it was asked.
+           // The prose is still kept (`usable: false`) when every rung does
+           // the same, so the admin banner has something to show.
+           accept: (content) => parseDialectIssues(content) !== null,
+           warmWhenCold: true,
          },
        ).catch((e) => {
          console.warn('Arabic dialect validation failed (non-blocking):', e);
-         return { content: null, model: null, attempts: [] } as ArabicJudgement;
+         return { content: null, model: null, usable: false, attempts: [] } as ArabicJudgement;
        }),
        // CAMeL-Lab BERT dialect ID. A missing key is reported as an outcome
        // (`no_api_key`) rather than short-circuited to null, so the stored
@@ -2505,7 +2544,23 @@ serve(async (req) => {
      // prose instead of JSON, the admin banner still has something to show and
      // `flagged` falls back to the old length heuristic.
      let dialectValidation:
-       { content: string; timestamp: string; model?: string; issues?: DialectIssue[] } | null = null;
+       {
+         content: string;
+         timestamp: string;
+         model?: string;
+         issues?: DialectIssue[];
+         attempts?: Array<{ model: string; error: string }>;
+       } | null = null;
+     // Rungs that were asked and let the check down, even when a later one
+     // answered. Without this a run in which M3 404s and Fanar answers is
+     // indistinguishable from one in which M3 was never configured — which is
+     // how "M3 didn't fire" went unexplained on the last audited run.
+     if (dialectJudgement?.attempts.length) {
+       console.warn(
+         `Dialect validation: rung(s) that did not answer — ` +
+         dialectJudgement.attempts.map((a) => `${a.model}: ${a.error}`).join('; '),
+       );
+     }
      if (dialectJudgement?.content) {
        const issues = parseDialectIssues(dialectJudgement.content);
        dialectValidation = {
@@ -2516,6 +2571,7 @@ serve(async (req) => {
          // from Fanar's is how this leg went unexamined for so long.
          ...(dialectJudgement.model ? { model: dialectJudgement.model } : {}),
          ...(issues ? { issues } : {}),
+         ...(dialectJudgement.attempts.length ? { attempts: dialectJudgement.attempts } : {}),
        };
        console.log(
          `Dialect validation [${dialectJudgement.model}]: ` +
@@ -2534,11 +2590,15 @@ serve(async (req) => {
      } else if (dialectJudgement?.attempts.length) {
        // Every configured rung was asked and none answered. Distinct from "no
        // Arabic model is configured", which leaves `attempts` empty and is a
-       // deployment fact rather than an incident.
-       console.warn(
-         `Dialect validation: no Arabic model answered — ` +
-         dialectJudgement.attempts.map((a) => `${a.model}: ${a.error}`).join('; '),
-       );
+       // deployment fact rather than an incident — and worth a row of its own,
+       // with no verdict in it, so the failures are readable from the video
+       // rather than only from a log that has since rolled over.
+       console.warn(`Dialect validation: no Arabic model answered (${dialectJudgement.attempts.length} tried)`);
+       dialectValidation = {
+         content: '',
+         timestamp: new Date().toISOString(),
+         attempts: dialectJudgement.attempts,
+       };
      }
 
       // --- TRANSLATION ENSEMBLE: merge Gemini + Claude + Qwen candidates per line ---
@@ -2581,10 +2641,139 @@ serve(async (req) => {
         console.log(`[ensemble] cheap fill: ${cheapFilled.size}/${blankIdx.length} blank line(s) translated`);
       }
 
+      // ── ARABIC-NATIVE ARBITRATION ────────────────────────────────────────
+      // The first thing a disputed line gets is a native speaker's verdict.
+      // The ensemble's three drafters are generalists judging each other by
+      // English token overlap; the registry's Arabic-native roster (HUMAIN
+      // M3, Jais 2, Fanar — `ARABIC_OCCASIONAL_ORDER`) had no say in the
+      // translations at all until this stage, which is the gap the last
+      // audited run showed: eight lines flagged, a rationed MT model reached
+      // four of them and settled none. One call here puts every disputed line
+      // in front of the best Arabic model that is configured and asks it
+      // which candidate is *right*, and only what it leaves open goes on to
+      // the Shaheen-MT rendering below.
+      const arbiterResolvedBy: (string | null)[] = new Array(mergedLines.length).fill(null);
+      const arbiterProvenance: {
+        attempted: boolean;
+        /** Which Arabic model judged, when one did. */
+        model: string | null;
+        disputed_lines: number;
+        /** Disputed lines settled on a high-confidence pick — off the review queue. */
+        resolved: number;
+        /** Lines where a pick was adopted at low confidence — text updated, still flagged. */
+        adopted_unconfirmed: number;
+        /** Lines the judge backed no candidate on, or said nothing about. */
+        unresolved: number;
+        latency_ms: number;
+        skip_reason?: 'nothing_disputed' | 'no_arabic_model' | 'out_of_time' | 'no_usable_reply';
+        /** Rungs that were asked and did not answer, in order. */
+        attempts?: Array<{ model: string; error: string }>;
+      } = {
+        attempted: false, model: null, disputed_lines: 0,
+        resolved: 0, adopted_unconfirmed: 0, unresolved: 0, latency_ms: 0,
+      };
+      // A dispute needs something to choose between: a lone verifier's line
+      // is flagged, but a judge shown one candidate can only rubber-stamp it.
+      const arbitrableIdx = ensembleMerge.lines
+        .map((l, i) => (l.needs_review && l.translation && l.candidates.length >= 2) ? i : -1)
+        .filter((i) => i >= 0);
+      arbiterProvenance.disputed_lines = arbitrableIdx.length;
+      // Sized to the reply: one short verdict per line, plus the envelope.
+      const arbiterMaxTokens = Math.min(2048, 64 + arbitrableIdx.length * 40);
+      if (arbitrableIdx.length === 0) {
+        arbiterProvenance.skip_reason = 'nothing_disputed';
+      } else if (!haveTimeFor(FANAR_CONNECT_TIMEOUT_MS + 15_000, `Arabic-native arbitration of ${arbitrableIdx.length} disputed line(s)`)) {
+        arbiterProvenance.skip_reason = 'out_of_time';
+      } else {
+        const asked: DisputedLine[] = arbitrableIdx.map((i) => ({
+          line: i + 1,
+          arabic: mergedLines[i].arabic,
+          candidates: ensembleMerge.lines[i].candidates,
+        }));
+        const t0 = Date.now();
+        const judgement = await judgeWithArabicNative(
+          buildArbiterSystemPrompt(dialectFamilyLabel()),
+          formatDisputedLines(asked),
+          {
+            maxTokens: arbiterMaxTokens,
+            temperature: 0.1,
+            label: 'analyze-gulf-arabic/translation-arbiter',
+            timeoutMs: FANAR_CONNECT_TIMEOUT_MS + generationBudgetMs(arbiterMaxTokens),
+            // Per rung. Without an outer bound three configured judges could
+            // each take the ceiling in turn and carry the run past its wall
+            // clock before the safety save — the failure the budget exists to
+            // prevent. The walk stops at the run's deadline instead.
+            signal: runDeadlineSignal(),
+            // A reply with no readable verdicts is a failed rung; the next
+            // Arabic model gets the same question.
+            accept: (content) => parseArbiterChoices(content, asked) !== null,
+            warmWhenCold: true,
+          },
+        ).catch((e) => {
+          console.warn('Arabic-native arbitration failed (non-blocking):', e);
+          return { content: null, model: null, usable: false, attempts: [] } as ArabicJudgement;
+        });
+        arbiterProvenance.latency_ms = Date.now() - t0;
+        arbiterProvenance.attempted = judgement.attempts.length > 0 || judgement.content !== null;
+        if (judgement.attempts.length) arbiterProvenance.attempts = judgement.attempts;
+
+        const choices = judgement.usable && judgement.content
+          ? parseArbiterChoices(judgement.content, asked)
+          : null;
+        if (!choices) {
+          arbiterProvenance.skip_reason = judgement.content === null && judgement.attempts.length === 0
+            ? 'no_arabic_model'
+            : 'no_usable_reply';
+          arbiterProvenance.unresolved = arbitrableIdx.length;
+          console.warn(
+            `Arabic-native arbitration: no verdict on ${arbitrableIdx.length} disputed line(s) ` +
+              `(${arbiterProvenance.skip_reason}` +
+              (judgement.attempts.length ? `; ${judgement.attempts.map((a) => `${a.model}: ${a.error}`).join('; ')}` : '') +
+              ')',
+          );
+        } else {
+          arbiterProvenance.model = judgement.model;
+          const byLine = new Map(choices.map((c) => [c.line, c]));
+          for (const i of arbitrableIdx) {
+            const choice = byLine.get(i + 1);
+            const winner = choice && choice.pick !== null ? ensembleMerge.lines[i].candidates[choice.pick] : null;
+            if (!choice || !winner) {
+              arbiterProvenance.unresolved++;
+              continue;
+            }
+            // The judge's pick becomes the line either way; only a confident
+            // pick takes it off the review queue. A hesitant native opinion
+            // is still better evidence than "the heaviest drafter listed
+            // first", which is what the ensemble's fallback chose on.
+            dedicatedTranslations[i] = winner.text.trim();
+            if (winner.literal) dedicatedLiterals[i] = winner.literal.trim();
+            ensembleMerge.lines[i].translation = winner.text.trim();
+            ensembleMerge.lines[i].literal = (winner.literal ?? '').trim();
+            arbiterResolvedBy[i] = `${judgement.model}→${winner.name}`;
+            if (choice.confidence === 'high') {
+              ensembleNeedsReview[i] = false;
+              ensembleMerge.lines[i].needs_review = false;
+              arbiterProvenance.resolved++;
+            } else {
+              arbiterProvenance.adopted_unconfirmed++;
+            }
+          }
+          ensembleMerge.agreements.needs_review = ensembleNeedsReview.filter(Boolean).length;
+          console.log(
+            `Arabic-native arbitration [${judgement.model}]: ${arbitrableIdx.length} disputed line(s) → ` +
+              `${arbiterProvenance.resolved} resolved, ${arbiterProvenance.adopted_unconfirmed} adopted at low confidence, ` +
+              `${arbiterProvenance.unresolved} left open (${arbiterProvenance.latency_ms}ms)`,
+          );
+        }
+      }
+
       // ── SHAHEEN-MT TIEBREAK ──────────────────────────────────────────────
-      // Only for lines the ensemble couldn't settle (needs_review) or left
-      // empty: get a reference translation from Fanar-Shaheen-MT-1, the only
-      // Arabic-native dedicated MT model in the stack. It is used two ways:
+      // Only for lines still unsettled after the arbitration above (needs_review)
+      // or left empty: get a reference translation from Fanar-Shaheen-MT-1, the
+      // only Arabic-native dedicated MT model in the stack. Running second is
+      // what keeps it inside its twenty-a-day allowance — it now sees the lines
+      // no Arabic chat model could call, not every line the ensemble split on.
+      // It is used two ways:
       //
       //   fill     — the line has no translation at all; Shaheen's becomes it.
       //   arbitrate — the line has competing candidates and no winner; whichever
@@ -2752,6 +2941,7 @@ serve(async (req) => {
         blank_after_ensemble: blankIdx.length,
         cheap_fill: cheapFilled.size,
         agreements: ensembleMerge.agreements,
+        arabic_arbiter: arbiterProvenance,
         shaheen: shaheenProvenance,
         tiers: translationCandidates.map((c) => ({
           name: c.name,
@@ -2917,7 +3107,13 @@ serve(async (req) => {
           ...(ensembleTranslation && shaheenByLine[i] && (needsReview || shaheenResolvedBy[i])
             ? { altTranslation: shaheenByLine[i]! }
             : {}),
-          ...(shaheenResolvedBy[i] ? { resolved_by: `shaheen→${shaheenResolvedBy[i]}` } : {}),
+          // Whoever settled it, named. The Arabic-native judge runs first, so a
+          // line it settled never reaches Shaheen; one it left open may.
+          ...(shaheenResolvedBy[i]
+            ? { resolved_by: `shaheen→${shaheenResolvedBy[i]}` }
+            : arbiterResolvedBy[i] && !needsReview
+              ? { resolved_by: arbiterResolvedBy[i]! }
+              : {}),
         };
       });
 

@@ -252,6 +252,21 @@ task picks a `Strategy` — `solo`, `ensemble`, `draft_critic` or `council` — 
 edge function that generates or judges Arabic content calls through this, not
 the gateway directly.
 
+**The Arabic-native roster** (HUMAIN M3, Jais 2 8B, Fanar — ordered in
+`modelRegistry.ts` as `ARABIC_STANDING_LEG_ORDER` / `ARABIC_OCCASIONAL_ORDER`)
+is reached through one seam, `judgeWithArabicNative` in
+`_shared/dialectValidator.ts`, which walks the roster best-first and records
+every rung that failed. The transcript pipeline uses it twice: the per-video
+dialect check, and the arbitration of translation lines the ensemble split on
+(`_shared/translationArbiter.ts`, before the rationed Shaheen-MT rendering).
+Two things it must keep: a reply the caller cannot parse is a *failed rung*
+(pass `accept`), not an answer; and a self-hosted rung is probed with a
+one-token ping, never bounded on the whole call, because vLLM sends a
+non-streaming completion's headers only when the body is done. Jais scales to
+zero, so `warmArabicJudges()` pings it at the top of every transcript run
+(`process-approved-video` and `analyze-gulf-arabic`; `JAIS_PIPELINE_WARMUP=off`
+to disable). Writeup: `docs/humain-m3-integration.md` §1c–1d.
+
 **The learner model** conditions generation on what a learner actually knows.
 `_shared/learnerProfile.ts` assembles known/in-progress/weak vocabulary from
 real SRS state, CEFR placement, and stated interests; its pure half

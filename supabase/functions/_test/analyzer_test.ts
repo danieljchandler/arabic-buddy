@@ -931,3 +931,204 @@ Deno.test("runs the merge and the analysis on the fast workhorse, not the Max ti
     fn.restore();
   }
 });
+
+// ── The Arabic-native roster's say in the translations ──────────────────────
+//
+// Until this stage the registry's Arabic-native models had no input into the
+// English at all: the ensemble's three generalists judged each other by token
+// overlap, and a rationed MT rendering was the only tiebreak. The last audited
+// run ended with eight disputed lines, four reached by Shaheen and none
+// settled. Now every disputed line is put to the best Arabic model that is
+// configured, which is asked outright which candidate is right.
+
+const NODE_ENV = { HUMAIN_NODE_API_KEY: "fixture-humain", HUMAIN_BASE_URL: "https://node.humain.test", FANAR_API_KEY: undefined };
+
+/** Three drafters that disagree on line 1 and agree on line 2. */
+const splitEnsemble: UpstreamHandler = async (request) => {
+  const body = JSON.parse(await request.clone().text()) as { model: string; messages: Array<{ content: string }> };
+  // The translation prompt is the one that asks for a `translations` array;
+  // the merge and the analysis ask for `lines`.
+  if (!body.messages?.[0]?.content?.includes('"translations"')) return analysisReply();
+  const model = body.model;
+  const first = model.includes("gemini") ? "What's up today"
+    : model.includes("qwen") ? "How's it going today"
+    : "How are you today";
+  return chatCompletion(JSON.stringify({ translations: [first, "Fine, thank God"], literals: ["lit 1", "lit 2"] }));
+};
+
+/** M3 answers the dialect check with a clean sheet and the arbitration with a pick. */
+const m3 = (pick: string, confidence: string): UpstreamHandler => async (request) => {
+  const body = await request.clone().text();
+  if (body.includes("native speaker of")) {
+    return chatCompletion(JSON.stringify({ choices: [{ line: 1, pick, confidence }] }));
+  }
+  return chatCompletion('{"issues":[]}');
+};
+
+async function analyseSplit(pick: string, confidence: string) {
+  const fn = await loadFunction("analyze-gulf-arabic", {
+    env: NODE_ENV,
+    upstreams: allowed({
+      "openrouter.ai": splitEnsemble,
+      "generativelanguage.googleapis.com": splitEnsemble,
+      "node.humain.test": m3(pick, confidence),
+      "/rest/v1/discover_videos": (request) =>
+        request.method === "GET"
+          ? json({ transcription_status: "processing", engines_used: null }, 200)
+          : json([{ id: PIPELINE_VIDEO }], 200),
+      "/rest/v1/processed_videos": () => json({}, 201),
+      "/functions/v1/process-approved-video": () => json({ success: true }, 202),
+    }),
+  });
+  try {
+    const response = await fn.handler(jsonRequest("analyze-gulf-arabic", {
+      transcript: "شلونك اليوم الحمد لله بخير",
+      videoId: PIPELINE_VIDEO,
+    }, { jwt: SERVICE_ROLE_KEY }));
+    assertEquals(response.status, 200);
+    const body = await response.json() as {
+      result?: { lines?: Array<{ translation: string; needs_review?: boolean; resolved_by?: string; review_reason?: string }> };
+    };
+    await fn.background();
+    const save = fn.calls.find((c) => c.url.includes("discover_videos") && c.method === "PATCH" && c.body?.includes("analysis_complete"));
+    assert(save, "expected the analysis save");
+    const patch = JSON.parse(save.body ?? "{}") as {
+      engines_used: { translation?: { arabic_arbiter?: Record<string, unknown>; shaheen?: Record<string, unknown>; agreements?: { needs_review: number } } };
+    };
+    const arbiterCalls = fn.calls.filter((c) => c.url.includes("node.humain.test") && (c.body ?? "").includes("native speaker of"));
+    return { lines: body.result?.lines ?? [], provenance: patch.engines_used.translation, arbiterCalls };
+  } finally {
+    fn.restore();
+  }
+}
+
+Deno.test("puts a disputed line to the Arabic-native judge and takes its confident pick", async () => {
+  const { lines, provenance, arbiterCalls } = await analyseSplit("B", "high");
+
+  // Line 1 split three ways; the ensemble's fallback had handed it to the
+  // heaviest drafter listed first (Claude) and flagged it. The judge picked B
+  // — Gemini's — so that is the line now, off the review queue, and it says
+  // who settled it and on whose text.
+  assertEquals(lines[0].translation, "What's up today");
+  assertEquals(lines[0].needs_review, false);
+  assertEquals(lines[0].resolved_by, "humain/humain-m3→google/gemini-3.7-flash");
+  // Line 2 was never in dispute and was never put to the judge.
+  assertEquals(lines[1].translation, "Fine, thank God");
+  assertEquals(lines[1].needs_review, false);
+  assertEquals(lines[1].resolved_by, undefined);
+
+  // One call, every disputed line in it, candidates lettered and unnamed.
+  assertEquals(arbiterCalls.length, 1);
+  const prompt = JSON.parse(arbiterCalls[0].body ?? "{}") as { messages: Array<{ content: string }> };
+  const user = prompt.messages[1].content;
+  assert(user.includes("Line 1: شلونك اليوم"), user);
+  assert(user.includes("A. How are you today") && user.includes("B. What's up today") && user.includes("C. How's it going today"), user);
+  assert(!user.includes("Line 2:"), "an agreed line is not a dispute");
+  assert(!/claude|gemini|qwen/i.test(user), "the judge is not told whose translation is whose");
+
+  const arbiter = provenance?.arabic_arbiter ?? {};
+  assertEquals(arbiter.attempted, true);
+  assertEquals(arbiter.model, "humain/humain-m3");
+  assertEquals(arbiter.disputed_lines, 1);
+  assertEquals(arbiter.resolved, 1);
+  assertEquals(provenance?.agreements?.needs_review, 0);
+  // Nothing is left for the rationed MT tiebreak to do.
+  assertEquals(provenance?.shaheen?.disputed_lines, 0);
+});
+
+Deno.test("adopts a hesitant pick but keeps the line on the review queue", async () => {
+  const { lines, provenance } = await analyseSplit("C", "low");
+
+  // A native speaker's low-confidence preference is still better evidence
+  // than "listed first", so the text changes — but a reviewer still sees it.
+  assertEquals(lines[0].translation, "How's it going today");
+  assertEquals(lines[0].needs_review, true);
+  assertEquals(lines[0].review_reason, "ensemble_disagreement");
+  assertEquals(lines[0].resolved_by, undefined);
+  assertEquals(provenance?.arabic_arbiter?.adopted_unconfirmed, 1);
+  assertEquals(provenance?.arabic_arbiter?.resolved, 0);
+});
+
+Deno.test("leaves a line the judge backs no candidate on exactly as the ensemble left it", async () => {
+  const { lines, provenance } = await analyseSplit("null", "high");
+
+  assertEquals(lines[0].translation, "How are you today");
+  assertEquals(lines[0].needs_review, true);
+  assertEquals(provenance?.arabic_arbiter?.unresolved, 1);
+});
+
+Deno.test("records why the arbitration produced nothing, naming the rungs that let it down", async () => {
+  const fn = await loadFunction("analyze-gulf-arabic", {
+    env: NODE_ENV,
+    upstreams: allowed({
+      "openrouter.ai": splitEnsemble,
+      "generativelanguage.googleapis.com": splitEnsemble,
+      // M3 is configured but this key's tier does not carry the model.
+      "node.humain.test": () => json({ error: { code: "model_not_found" } }, 404),
+      "/rest/v1/discover_videos": (request) =>
+        request.method === "GET"
+          ? json({ transcription_status: "processing", engines_used: null }, 200)
+          : json([{ id: PIPELINE_VIDEO }], 200),
+      "/rest/v1/processed_videos": () => json({}, 201),
+      "/functions/v1/process-approved-video": () => json({ success: true }, 202),
+    }),
+  });
+  try {
+    const response = await fn.handler(jsonRequest("analyze-gulf-arabic", {
+      transcript: "شلونك اليوم الحمد لله بخير",
+      videoId: PIPELINE_VIDEO,
+    }, { jwt: SERVICE_ROLE_KEY }));
+    assertEquals(response.status, 200);
+    await fn.background();
+    // The final save: the dialect signals ride only on the post-enrichment
+    // write, the pre-enrichment one carries the translation provenance alone.
+    const save = fn.calls.filter((c) => c.url.includes("discover_videos") && c.method === "PATCH" && c.body?.includes("analysis_complete")).at(-1);
+    const patch = JSON.parse(save?.body ?? "{}") as {
+      engines_used: {
+        translation?: { arabic_arbiter?: { skip_reason?: string; attempts?: Array<{ model: string; error: string }> } };
+        dialect_signals?: { fanar_validation?: { attempts?: Array<{ model: string; error: string }> } | null };
+      };
+    };
+    // "M3 didn't fire" is answerable from the row now: which rung, and what it said.
+    const arbiter = patch.engines_used.translation?.arabic_arbiter;
+    assertEquals(arbiter?.skip_reason, "no_usable_reply");
+    assertEquals(arbiter?.attempts?.map((a) => a.model), ["humain/humain-m3"]);
+    assert(arbiter?.attempts?.[0].error.startsWith("HTTP 404"), arbiter?.attempts?.[0].error);
+    // The dialect check walked the same rung and found the same thing; with
+    // nobody behind it there is no verdict to store, but the row still says
+    // who was asked and what went wrong.
+    const validation = patch.engines_used.dialect_signals?.fanar_validation;
+    assertEquals(validation?.attempts?.map((a) => a.model), ["humain/humain-m3"]);
+    assertEquals((validation as { model?: string } | null | undefined)?.model, undefined);
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("wakes the deployed Jais worker as soon as a transcript run starts", async () => {
+  const fn = await loadFunction("analyze-gulf-arabic", {
+    env: { FANAR_API_KEY: undefined, RUNPOD_JAIS_8B_ENDPOINT_ID: "test1endpoint" },
+    upstreams: allowed({
+      "openrouter.ai": () => analysisReply(),
+      "generativelanguage.googleapis.com": () => analysisReply(),
+      "api.runpod.ai": () => chatCompletion('{"issues":[]}'),
+    }),
+  });
+  try {
+    const response = await fn.handler(jsonRequest("analyze-gulf-arabic", {
+      transcript: "شلونك اليوم الحمد لله بخير",
+    }));
+    assertEquals(response.status, 200);
+    await fn.background();
+    // The one-token ping goes out before the merge, so the worker's boot
+    // overlaps the minute or two the run spends before it has a question.
+    const runpod = fn.calls.filter((c) => c.url.includes("api.runpod.ai"));
+    assert(runpod.length >= 1, "expected the Jais worker to be pinged");
+    assertEquals((JSON.parse(runpod[0].body ?? "{}") as { max_tokens?: number }).max_tokens, 1);
+    const firstModelCall = fn.calls.findIndex((c) => c.url.includes("openrouter.ai"));
+    const ping = fn.calls.indexOf(runpod[0]);
+    assert(ping < firstModelCall, `the ping (call ${ping}) should precede the merge (call ${firstModelCall})`);
+  } finally {
+    fn.restore();
+  }
+});

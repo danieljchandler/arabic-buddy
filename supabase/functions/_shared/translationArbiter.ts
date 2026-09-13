@@ -223,3 +223,151 @@ export function arbitrateDispute(
 
   return { winner: null, score: best.score, margin, reason: 'too_close' };
 }
+
+// =============================================================================
+// Asking an Arabic-native model to settle a dispute outright.
+//
+// `arbitrateDispute` above infers a preference from a *rendering* — Shaheen-MT
+// translates the line and the nearest candidate wins. That is the right shape
+// for a machine-translation model, which can only translate, and the wrong one
+// for a chat model that can read the Arabic and the candidates together and
+// simply say which English is right. The roster in `modelRegistry.ts` (HUMAIN
+// M3, Jais 2, Fanar) is asked that question directly, once, for every disputed
+// line in the transcript — which is both cheaper than one Shaheen call per line
+// against a twenty-a-day allowance and a stronger vote, since it is a judgment
+// about meaning rather than a token-overlap score against a third translation.
+//
+// The candidates are lettered rather than named. A model told which
+// translation is Claude's and which is Qwen's measures brand preference, not
+// translation quality; the pipeline maps the letter back to the model after
+// the verdict.
+// =============================================================================
+
+/** Letters the candidates are shown under — the ensemble never has more than a handful. */
+const CANDIDATE_LABELS = ['A', 'B', 'C', 'D', 'E', 'F'] as const;
+
+export interface DisputedLine {
+  /** 1-based line number as shown to the reviewer. */
+  line: number;
+  arabic: string;
+  candidates: ArbiterCandidate[];
+}
+
+export interface ArbiterChoice {
+  line: number;
+  /** Index into the line's `candidates`, or null when the judge backed none. */
+  pick: number | null;
+  confidence: 'high' | 'low';
+}
+
+/**
+ * The reviewer's brief. English, with the dialect named, because the reply is
+ * a JSON verdict about *English* candidates and every model on the roster
+ * follows an English format instruction more reliably than an Arabic one — the
+ * dialect check's all-Arabic prompt is what produced the prose replies that
+ * made this file's caller grow an `accept` filter.
+ */
+export function buildArbiterSystemPrompt(dialectLabel: string): string {
+  return `You are a native speaker of ${dialectLabel} and a professional Arabic-to-English translator.
+
+You will be shown numbered lines of spoken ${dialectLabel} from a video transcript. For each line, several candidate English translations are listed under letters. The candidates disagree; decide which one best conveys what the Arabic line actually means to a native speaker — dialect idioms, tone and register included — not which is the most fluent English.
+
+Rules:
+- Pick exactly one letter per line, or null if none of the candidates is acceptable.
+- "confidence" is "high" when the Arabic clearly supports your pick, "low" when two candidates are both defensible or the line is ambiguous.
+- Judge meaning. Do not reward length, formality or elegance.
+- Respond with JSON only, no commentary before or after, in exactly this shape:
+{"choices":[{"line":1,"pick":"B","confidence":"high"}]}`;
+}
+
+/** The disputed lines, laid out for the brief above. */
+export function formatDisputedLines(lines: DisputedLine[]): string {
+  return lines.map((l) => {
+    const options = l.candidates
+      .slice(0, CANDIDATE_LABELS.length)
+      .map((c, i) => `  ${CANDIDATE_LABELS[i]}. ${c.text.trim()}`)
+      .join('\n');
+    return `Line ${l.line}: ${l.arabic.trim()}\n${options}`;
+  }).join('\n\n');
+}
+
+/**
+ * Read the judge's verdicts back, tolerating the usual slippage — a code fence
+ * around the JSON, a letter in lower case, a numeric pick, a line number as a
+ * string. Returns null when nothing shaped like a verdict list can be found,
+ * which the walk treats as a rung that failed (see `judgeWithArabicNative`'s
+ * `accept`), so a prose reply falls through to the next model instead of
+ * ending the arbitration with nothing.
+ *
+ * Verdicts for lines that were not asked about, or letters the line did not
+ * offer, are dropped rather than trusted.
+ */
+export function parseArbiterChoices(content: string, asked: DisputedLine[]): ArbiterChoice[] | null {
+  if (!content || !content.trim()) return null;
+  const byLine = new Map(asked.map((l) => [l.line, l]));
+
+  const candidatesJson: string[] = [content.trim()];
+  const fenced = content.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenced) candidatesJson.push(fenced[1]);
+  // The outermost object, then the outermost array — a reply may be either
+  // shape, wrapped in whatever the model felt like saying around it.
+  for (const [open, close] of [['{', '}'], ['[', ']']] as const) {
+    const first = content.indexOf(open);
+    const last = content.lastIndexOf(close);
+    if (first >= 0 && last > first) candidatesJson.push(content.slice(first, last + 1));
+  }
+
+  for (const text of candidatesJson) {
+    let parsed: unknown;
+    try { parsed = JSON.parse(text); } catch { continue; }
+    const raw = Array.isArray(parsed)
+      ? parsed
+      : Array.isArray((parsed as { choices?: unknown })?.choices)
+        ? (parsed as { choices: unknown[] }).choices
+        : null;
+    if (!raw) continue;
+
+    const choices: ArbiterChoice[] = [];
+    const seen = new Set<number>();
+    for (const item of raw) {
+      if (!item || typeof item !== 'object') continue;
+      const o = item as Record<string, unknown>;
+      const line = typeof o.line === 'number' ? Math.trunc(o.line)
+        : typeof o.line === 'string' ? Number(o.line.match(/\d+/)?.[0])
+        : NaN;
+      const target = byLine.get(line);
+      if (!target || seen.has(line)) continue;
+      const pick = coercePick(o.pick, target.candidates.length);
+      if (pick === undefined) continue;
+      seen.add(line);
+      choices.push({
+        line,
+        pick,
+        confidence: typeof o.confidence === 'string' && o.confidence.trim().toLowerCase() === 'high' ? 'high' : 'low',
+      });
+    }
+    // An empty list is a verdict about nothing; keep looking at the other
+    // JSON shapes before calling the reply unusable.
+    if (choices.length > 0) return choices;
+  }
+  return null;
+}
+
+/** "B", "b", 1, "1", "none" and null → an index, null, or undefined for nonsense. */
+function coercePick(value: unknown, count: number): number | null | undefined {
+  if (value === null) return null;
+  if (typeof value === 'number' && Number.isInteger(value)) {
+    // Models sometimes answer with the 1-based option number instead of the letter.
+    return value >= 1 && value <= count ? value - 1 : undefined;
+  }
+  if (typeof value !== 'string') return undefined;
+  const v = value.trim().toUpperCase();
+  if (!v || v === 'NONE' || v === 'NULL') return null;
+  const idx = CANDIDATE_LABELS.indexOf(v as typeof CANDIDATE_LABELS[number]);
+  if (idx >= 0) return idx < count ? idx : undefined;
+  if (/^\d+$/.test(v)) {
+    const n = Number(v);
+    return n >= 1 && n <= count ? n - 1 : undefined;
+  }
+  return undefined;
+}

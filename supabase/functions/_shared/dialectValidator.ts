@@ -655,11 +655,22 @@ export async function validateDialectCrossChecked(
 const JUDGE_RUNG_TIMEOUT_MS = 45_000;
 
 /**
- * What a self-hosted rung gets when another rung is waiting behind it.
+ * How long a self-hosted rung has to prove it is awake when another rung is
+ * waiting behind it.
  *
  * The RunPod worker scales to zero, so the question "is it awake" should be
  * cheap to answer when somebody else can do the work — the same argument as
  * `TIEBREAK_COLD_BAIL_MS`, at a batch path's scale rather than a learner's.
+ *
+ * It bounds a *probe*, not the judgment. The first version of this walk put
+ * the whole call under it, and that made a warm Jais indistinguishable from a
+ * cold one: vLLM sends a non-streaming completion's headers only when the body
+ * is finished, and an 8B model writing a thousand tokens of JSON about a whole
+ * transcript takes well past eight seconds even on a hot GPU. So the rung was
+ * aborted mid-answer on every video — warm or not — and Jais never judged a
+ * single transcript. The probe is a one-token completion instead: an awake
+ * worker answers it in well under a second, and only the answer to *that*
+ * decides whether the real call is made under the full budget.
  *
  * It applies only when there *is* a successor. A cold bail on the last rung
  * buys nothing and costs the whole judgment: no other model is going to
@@ -667,21 +678,98 @@ const JUDGE_RUNG_TIMEOUT_MS = 45_000;
  */
 const JUDGE_COLD_PROBE_MS = 8_000;
 
-function judgeRungCeilingMs(
+/**
+ * Is the worker behind `model` awake? Answered with the smallest legal
+ * completion under `timeoutMs`, so the answer costs one token when the worker
+ * is up and one aborted request when it is not.
+ *
+ * Returns the reason when it is not, so the caller can record whether the
+ * rung was asleep (nothing answered) or broken (something answered, badly).
+ */
+async function probeAwake(
   model: string,
-  { budgetMs, hasSuccessor }: { budgetMs: number; hasSuccessor: boolean },
-): number {
-  if (hasSuccessor && providerForModel(model) === 'runpod') {
-    return Math.min(budgetMs, JUDGE_COLD_PROBE_MS);
+  timeoutMs: number,
+  signal?: AbortSignal,
+): Promise<{ awake: true } | { awake: false; error: string }> {
+  const timer = AbortSignal.timeout(timeoutMs);
+  try {
+    const res = await chatFetch(model, {
+      messages: [{ role: 'user', content: 'ping' }],
+      max_tokens: 1,
+    }, {
+      signal: signal ? AbortSignal.any([signal, timer]) : timer,
+      noFallback: true,
+      label: 'arabicNativeJudge/probe',
+    });
+    // The body is not the point, but draining it is what lets the connection
+    // be reused for the real call that follows.
+    await res.body?.cancel();
+    if (res.ok) return { awake: true };
+    return { awake: false, error: `HTTP ${res.status} on wake probe` };
+  } catch (err) {
+    const aborted = timer.aborted && !signal?.aborted;
+    return {
+      awake: false,
+      error: aborted ? `cold worker: no answer to a 1-token probe in ${timeoutMs}ms` : String(err).slice(0, 160),
+    };
   }
-  return budgetMs;
+}
+
+/** The one switch for both pipeline wake-ups: the run-start ping and the probe's. */
+function pipelineWarmupEnabled(): boolean {
+  return Deno.env.get('JAIS_PIPELINE_WARMUP')?.trim().toLowerCase() !== 'off';
+}
+
+/**
+ * Wake the self-hosted Arabic judges ahead of a transcript run, so they are up
+ * by the time the run has anything to ask them.
+ *
+ * The transcription pipeline is the one caller with the time to spend: between
+ * the ASR fan-out and the merge, two to three minutes pass before the dialect
+ * check and the translation arbitration fire, which is about what a FlashBoot
+ * start of the 8B worker takes. Without this the endpoint, which scales to
+ * zero after five idle minutes, is cold for every video that arrives more than
+ * five minutes after the last, and the probe above correctly bails past it —
+ * which is the correct behaviour on a learner's path and the wrong outcome on
+ * a batch one, where the whole point of renting the worker was to have it
+ * judge transcripts.
+ *
+ * Unlike `warmTiebreaker` this is on by default, and the two defaults are the
+ * same cost decision made about different workloads. A validator split can
+ * happen on any learner request at any rate, so warming behind it converges
+ * on a worker running continuously; a transcript run is a deliberate, rare
+ * act whose other calls already cost dollars, and one worker-boot per import
+ * (the 300s idle window carries a batch of imports on one boot) is a rounding
+ * error against them. `JAIS_PIPELINE_WARMUP=off` switches it off.
+ *
+ * A no-op for every rung that is not self-hosted, and for an undeployed one.
+ */
+export function warmArabicJudges(): string[] {
+  if (!pipelineWarmupEnabled()) return [];
+  const warmed: string[] = [];
+  for (const model of ARABIC_OCCASIONAL_ORDER) {
+    if (providerForModel(model) !== 'runpod' || !tryChatRoute(model)) continue;
+    warmRoute(model);
+    warmed.push(model);
+  }
+  if (warmed.length) console.log(`[dialectValidator] warming self-hosted Arabic judge(s) for the run: ${warmed.join(', ')}`);
+  return warmed;
 }
 
 export interface ArabicJudgement {
-  /** The reply text, or null when nobody on the ladder answered. */
+  /**
+   * The reply text, or null when nobody on the ladder answered.
+   *
+   * When a caller supplied `accept` and no rung produced a usable reply, this
+   * is the first reply that was at least *something* — with `usable: false` —
+   * so a prose answer still reaches a log or an admin banner rather than
+   * vanishing.
+   */
   content: string | null;
-  /** Which model produced it, for provenance. Null when none did. */
+  /** Which model produced `content`, for provenance. Null when none did. */
   model: string | null;
+  /** Whether `content` passed the caller's `accept` check (always true without one). */
+  usable: boolean;
   /** Every model tried and why it did not answer, oldest first. */
   attempts: Array<{ model: string; error: string }>;
 }
@@ -696,9 +784,26 @@ export async function judgeWithArabicNative(
     timeoutMs?: number;
     signal?: AbortSignal;
     label?: string;
+    /**
+     * What counts as an answer. A rung whose reply fails this is recorded as a
+     * failed attempt and the walk continues, because "answered in prose when
+     * asked for JSON" is the most common way an Arabic model lets this caller
+     * down, and it is exactly as useless to it as a 503 — while the rung
+     * behind may well format correctly. Without it, one chatty reply from the
+     * first rung ended the walk with nothing the caller could parse.
+     */
+    accept?: (content: string) => boolean;
+    /**
+     * Wake a self-hosted rung found cold, so the next judgment in this run
+     * lands on a live worker. Fire-and-forget; see `warmRoute`. Honours
+     * `JAIS_PIPELINE_WARMUP=off` like `warmArabicJudges` does.
+     */
+    warmWhenCold?: boolean;
   } = {},
 ): Promise<ArabicJudgement> {
   const attempts: Array<{ model: string; error: string }> = [];
+  // The first reply that was at least text, kept for when nothing better comes.
+  let fallback: { content: string; model: string } | null = null;
   // Resolved up front because the last rung is treated differently: there is
   // nobody behind it to fall through to, so nothing is saved by giving up on
   // it early.
@@ -711,11 +816,23 @@ export async function judgeWithArabicNative(
     // ones that were never there.
     if (opts.signal?.aborted) break;
 
-    const ceiling = judgeRungCeilingMs(model, {
-      budgetMs: opts.timeoutMs ?? JUDGE_RUNG_TIMEOUT_MS,
-      hasSuccessor: index < routable.length - 1,
-    });
-    const timer = AbortSignal.timeout(ceiling);
+    const budgetMs = opts.timeoutMs ?? JUDGE_RUNG_TIMEOUT_MS;
+    const hasSuccessor = index < routable.length - 1;
+
+    // A worker we host can be asleep, and finding out is only worth doing
+    // cheaply when somebody else can take the job. The probe decides; the
+    // real call below then gets the whole budget, cold start excluded.
+    if (hasSuccessor && providerForModel(model) === 'runpod') {
+      const probe = await probeAwake(model, Math.min(budgetMs, JUDGE_COLD_PROBE_MS), opts.signal);
+      if (!probe.awake) {
+        attempts.push({ model, error: probe.error });
+        if (opts.signal?.aborted) break;
+        if (opts.warmWhenCold && pipelineWarmupEnabled() && probe.error.startsWith('cold worker')) warmRoute(model);
+        continue;
+      }
+    }
+
+    const timer = AbortSignal.timeout(budgetMs);
     const signal = opts.signal ? AbortSignal.any([opts.signal, timer]) : timer;
 
     try {
@@ -742,7 +859,12 @@ export async function judgeWithArabicNative(
         attempts.push({ model, error: 'empty response body' });
         continue;
       }
-      return { content, model, attempts };
+      if (opts.accept && !opts.accept(content)) {
+        attempts.push({ model, error: `unusable reply: ${content.slice(0, 120).replace(/\s+/g, ' ')}` });
+        fallback ??= { content, model };
+        continue;
+      }
+      return { content, model, usable: true, attempts };
     } catch (err) {
       attempts.push({ model, error: String(err).slice(0, 160) });
       // A caller that gave up wants no further rungs tried on its behalf; only
@@ -751,5 +873,6 @@ export async function judgeWithArabicNative(
     }
   }
 
-  return { content: null, model: null, attempts };
+  if (fallback) return { ...fallback, usable: false, attempts };
+  return { content: null, model: null, usable: false, attempts };
 }

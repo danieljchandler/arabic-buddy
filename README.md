@@ -1118,7 +1118,10 @@ same question can be answered from a single call without opening a video.
 
 `analyze-gulf-arabic` is the long pole, and it used to persist exactly once,
 after every optional stage had run: the merge, a translation ensemble, a Fusha
-waterfall that walks several models in turn, up to four sequential 30-second
+waterfall that walks several models in turn, an Arabic-native arbitration of
+the disputed lines (HUMAIN M3, Jais 2 or Fanar — whichever is configured and
+answers — asked outright which candidate is right, before Shaheen sees what is
+left; see `docs/humain-m3-integration.md` §1d), up to four sequential 30-second
 Shaheen arbitration calls, an analysis retry, then vocabulary and gloss
 enrichment. That chain can outlast the 400-second wall clock, and a worker torn
 down inside it wrote nothing at all — every model call paid for, and the

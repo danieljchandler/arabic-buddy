@@ -84,4 +84,30 @@ describe("TranslationProvenancePanel", () => {
     expect(screen.getByText(/Analysis build 2026-09-05\.6 · merge on qwen3-235b-a22b/)).toBeInTheDocument();
     expect(screen.queryByText(/Deploy analyze-gulf-arabic/)).not.toBeInTheDocument();
   });
+
+  it("names the Arabic-native judge and what it settled", () => {
+    render_(provenance({
+      arabic_arbiter: { attempted: true, model: "humain/humain-m3", disputed_lines: 8, resolved: 6, adopted_unconfirmed: 1, unresolved: 1 },
+    }));
+    expect(screen.getByText(/Arabic-native arbitration by humain-m3: 6 of 8 disputed lines settled, 1 adopted at low confidence\./)).toBeInTheDocument();
+  });
+
+  it("says which Arabic models let the arbitration down, in their own words", () => {
+    render_(provenance({
+      arabic_arbiter: {
+        attempted: true, model: null, disputed_lines: 3, resolved: 0, unresolved: 3, skip_reason: "no_usable_reply",
+        attempts: [
+          { model: "humain/humain-m3", error: "HTTP 404 model_not_found" },
+          { model: "runpod/jais-2-8b-chat", error: "cold worker: no answer to a 1-token probe in 8000ms" },
+        ],
+      },
+    }));
+    expect(screen.getByText(/did not run on 3 disputed lines \(no_usable_reply\)/)).toBeInTheDocument();
+    expect(screen.getByText(/humain-m3 — HTTP 404 model_not_found; jais-2-8b-chat — cold worker/)).toBeInTheDocument();
+  });
+
+  it("stays quiet about the arbitration when nothing was disputed", () => {
+    render_(provenance({ arabic_arbiter: { attempted: false, disputed_lines: 0, skip_reason: "nothing_disputed" } }));
+    expect(screen.queryByText(/Arabic-native arbitration/)).not.toBeInTheDocument();
+  });
 });

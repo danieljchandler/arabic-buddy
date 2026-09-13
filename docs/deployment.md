@@ -94,7 +94,18 @@ There is no Lovable AI gateway key any more: every model call goes through
 `FARASA_API_KEY` (required for tashkeel — the WebAPI refuses anonymous
 traffic), `HUGGINGFACE_API_KEY` (CAMeL dialect ID), `JINA_API_KEY`,
 `FIRECRAWL_API_KEY`, `YOUTUBE_API_KEY`, `RAPIDAPI_KEY`, `COBALT_API_KEY`,
-`DIALECT_VALIDATOR_CROSSCHECK`, `JAIS_TIEBREAK_WARMUP`.
+`DIALECT_VALIDATOR_CROSSCHECK`, `JAIS_TIEBREAK_WARMUP`, `JAIS_PIPELINE_WARMUP`.
+
+`JAIS_PIPELINE_WARMUP` (default **on**; set `off` to disable) pings the Jais
+worker at the start of every transcript run — in `process-approved-video`
+before the ASR fan-out, and again in `analyze-gulf-arabic` before the merge —
+so it is awake by the time the dialect check and the translation arbitration
+need it two to three minutes later. The endpoint scales to zero after five idle
+minutes, so without this it is cold for any video that arrives after a quiet
+spell, and the judge's cold probe correctly bails past it in favour of whoever
+is already awake. On by default because a transcript run is a deliberate act
+whose other model calls already cost dollars: one worker boot per import is a
+rounding error, and the idle window carries a batch of imports on one boot.
 
 `JAIS_TIEBREAK_WARMUP=on` lets a validator tie-break that found the Jais worker
 asleep fire a wake-up behind itself, so the next split lands on a live worker.

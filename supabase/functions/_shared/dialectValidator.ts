@@ -62,13 +62,47 @@ const VALIDATOR_DEFAULT_TIMEOUT_MS = 30_000;
 
 const TIEBREAK_COLD_BAIL_MS = 5_000;
 const TIEBREAK_BUDGET_MS = 12_000;
+/**
+ * The ceiling for a rung that is hosted but whose latency nobody here has
+ * measured — HUMAIN M3, whose limited-preview tier documents *added latency* as
+ * one of its terms.
+ *
+ * It exists because "first on the ladder" and "may take a while" is the one
+ * combination the budget cannot absorb. The rungs share
+ * `TIEBREAK_BUDGET_MS`, so a first rung given the whole of it can spend the
+ * whole of it and leave nothing for the two proven ones behind it — turning a
+ * quality upgrade into a quality *regression* on exactly the splits the ladder
+ * exists to settle. Bounding the unmeasured rung keeps its cost to one slice
+ * and keeps Jais and Fanar reachable.
+ *
+ * Larger than the cold bail because the failure being guarded against is
+ * different: a cold worker is not going to answer in five seconds and bailing
+ * is the correct outcome, whereas a slow hosted endpoint plausibly is going to
+ * answer, just not quickly. Raise it once M3's real latency on this
+ * single-snippet call is known.
+ */
+const TIEBREAK_PREVIEW_BAIL_MS = 7_000;
 /** Below this there is no point asking anyone; the rule is the cheaper answer. */
 const TIEBREAK_MIN_MS = 1_000;
 
 /**
  * The Arabic-native specialists that can settle a split, best first.
  *
- * Jais 2 goes first when its endpoint is deployed. It is a strong instrument
+ * HUMAIN M3 goes first when it is configured: a 428B frontier model built for
+ * Arabic is the best instrument on this ladder for "does this line read as
+ * native", and it is hosted, so unlike Jais it cannot be asleep. What it can be
+ * is slow — its preview tier lists added latency among its terms — which is why
+ * it is the one rung with a ceiling of its own (`TIEBREAK_PREVIEW_BAIL_MS`)
+ * rather than the run of the whole budget. First *and* unbounded is the
+ * combination that would let it starve the two rungs behind it.
+ *
+ * This slot is also deliberately where M3 enters the app at all. The validator
+ * is optional by design — it answers `unknown`/`ok:false` when its provider is
+ * unavailable — so a wrong model id, an expired key or a preview endpoint
+ * having a bad afternoon degrades a quality gate instead of failing the
+ * learner's request behind it. Nothing else in the pipeline offers that.
+ *
+ * Jais 2 goes next when its endpoint is deployed. It is a strong instrument
  * for this specific question — Arabic-native, trained from scratch, judging
  * whether a line reads as native — and, unlike Fanar, it runs on hardware this
  * project rents, so the quota argument above does not apply to it: there is no
@@ -94,6 +128,7 @@ const TIEBREAK_MIN_MS = 1_000;
  */
 function tiebreakValidatorModels(): string[] {
   const ladder: string[] = [];
+  if (tryChatRoute(MODEL_IDS.HUMAIN_M3)) ladder.push(MODEL_IDS.HUMAIN_M3);
   if (tryChatRoute(MODEL_IDS.JAIS2_8B)) ladder.push(MODEL_IDS.JAIS2_8B);
   if (tryChatRoute(TIEBREAK_VALIDATOR_MODEL)) ladder.push(TIEBREAK_VALIDATOR_MODEL);
   return ladder;
@@ -105,7 +140,10 @@ function tiebreakValidatorModels(): string[] {
  * is not, so it gets whatever budget is left.
  */
 function tiebreakCeilingMs(model: string): number {
-  return providerForModel(model) === 'runpod' ? TIEBREAK_COLD_BAIL_MS : TIEBREAK_BUDGET_MS;
+  const provider = providerForModel(model);
+  if (provider === 'runpod') return TIEBREAK_COLD_BAIL_MS;
+  if (provider === 'humain') return TIEBREAK_PREVIEW_BAIL_MS;
+  return TIEBREAK_BUDGET_MS;
 }
 
 /**

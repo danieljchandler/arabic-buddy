@@ -384,6 +384,41 @@ const split = (tiebreakHost: string, tiebreak: Record<string, unknown>) => ({
   [tiebreakHost]: () => chatCompletion("", judgment(tiebreak)),
 });
 
+/** A configured M3. Absent everywhere else, so the default is "not configured". */
+const NODE = { HUMAIN_API_KEY: "fixture-humain", HUMAIN_BASE_URL: "https://node.humain.test" };
+const NODE_HOST = "node.humain.test";
+const M3 = MODEL_IDS.HUMAIN_M3;
+
+Deno.test("a configured M3 settles a split ahead of both specialists", async () => {
+  await withValidator(async (mod, up) => {
+    const result = await mod.validateDialectCrossChecked("x", "Gulf");
+
+    // M3 is a 428B model built for Arabic, which is the best instrument on this
+    // ladder for the one question it is asked. It also cannot be asleep, so
+    // unlike Jais there is no cheap-to-rule-out argument for putting something
+    // else in front of it.
+    assertEquals(up.callsTo(NODE_HOST).length, 1);
+    assertEquals(up.callsTo(RUNPOD).length, 0);
+    assertEquals(up.callsTo(FANAR_HOST).length, 0);
+    assertEquals(bodyOf(up.callsTo(NODE_HOST)[0]).model, upstreamModelId(M3, "humain"));
+    assertEquals(result.verdict, "pass");
+    assertEquals(result.model, `${ARABIC}+${STRONG}+${M3}`);
+  }, { env: { ...NODE, ...DEPLOYED }, upstreams: split(NODE_HOST, { score: 5 }) });
+});
+
+Deno.test("an unconfigured M3 leaves the ladder exactly as it was", async () => {
+  await withValidator(async (mod, up) => {
+    const result = await mod.validateDialectCrossChecked("x", "Gulf");
+
+    // The whole point of the seam: with no secret set, M3 is unroutable and
+    // every rung behind it keeps the job it had. A new model must not change
+    // behaviour until someone configures it.
+    assertEquals(up.callsTo(NODE_HOST).length, 0);
+    assertEquals(up.callsTo(RUNPOD).length, 1);
+    assertEquals(result.model, `${ARABIC}+${STRONG}+${JAIS}`);
+  }, { env: DEPLOYED, upstreams: split(RUNPOD, { score: 5 }) });
+});
+
 Deno.test("a deployed Jais settles a split, in place of Fanar", async () => {
   await withValidator(async (mod, up) => {
     const result = await mod.validateDialectCrossChecked("x", "Gulf");
@@ -504,6 +539,34 @@ Deno.test("a Jais that never answers is bailed on, and the split still gets sett
       [GATEWAY]: () => chatCompletion("", judgment({ score: 2, verdict: "rewrite" })),
       [RUNPOD]: holdsTheConnection,
       [FANAR_HOST]: () => chatCompletion("", judgment({ score: 5 })),
+    },
+  });
+});
+
+Deno.test("a slow M3 gives up its slice rather than the whole budget", async () => {
+  await withValidator(async (mod, up) => {
+    const started = Date.now();
+    const result = await mod.validateDialectCrossChecked("x", "Gulf");
+    const elapsed = Date.now() - started;
+
+    // The reason M3 is the one rung with a ceiling of its own. It is first on a
+    // ladder whose rungs share a single budget, and its preview tier lists
+    // added latency among its terms — so unbounded it could spend the whole
+    // budget and leave nothing for the two proven rungs behind it, turning a
+    // quality upgrade into a worse answer on exactly the splits this ladder
+    // exists to settle. Bounded, a hanging M3 costs one slice and Jais still
+    // settles it.
+    assert(elapsed < 12_000, `tie-break took ${elapsed}ms; the preview rung should bail first`);
+    assertEquals(up.callsTo(RUNPOD).length, 1);
+    assertEquals(result.verdict, "pass");
+    assertEquals(result.model, `${ARABIC}+${STRONG}+${JAIS}`);
+  }, {
+    env: { ...NODE, ...DEPLOYED },
+    upstreams: {
+      [OPENROUTER]: () => chatCompletion("", judgment({ score: 5 })),
+      [GATEWAY]: () => chatCompletion("", judgment({ score: 2, verdict: "rewrite" })),
+      [NODE_HOST]: holdsTheConnection,
+      [RUNPOD]: () => chatCompletion("", judgment({ score: 5 })),
     },
   });
 });

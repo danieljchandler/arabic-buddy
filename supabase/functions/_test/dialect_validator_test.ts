@@ -533,6 +533,30 @@ Deno.test("a cold Jais falls through to Fanar instead of consuming the split", a
  * no timeout of its own (the 90s in `aiGateway` belongs to `generateImage`),
  * so before the tie-break ceiling this request had nothing bounding it at all.
  */
+/**
+ * A worker that is genuinely working, just not quickly: it answers after
+ * `afterMs` unless the caller hangs up first.
+ *
+ * Distinct from `holdsTheConnection`, which never answers at all. The
+ * difference is the whole point of the ceilings above — a rung that will
+ * eventually answer must be allowed to, and a rung that never will must not be
+ * waited on. A ceiling that cannot tell them apart aborts real work.
+ */
+const slowThen = (afterMs: number, answer: () => Response) =>
+  (request: Request): Promise<Response> =>
+    new Promise((resolve, reject) => {
+      const hangUp = () => {
+        clearTimeout(timer);
+        reject(new DOMException("The signal has been aborted", "AbortError"));
+      };
+      const timer = setTimeout(() => {
+        request.signal.removeEventListener("abort", hangUp);
+        resolve(answer());
+      }, afterMs);
+      if (request.signal.aborted) return hangUp();
+      request.signal.addEventListener("abort", hangUp);
+    });
+
 const holdsTheConnection = (request: Request): Promise<Response> =>
   new Promise((_, reject) => {
     const hangUp = () =>
@@ -1053,4 +1077,53 @@ Deno.test("no Arabic model configured is an empty judgment, never a throw", asyn
     // Brain is unconfigured" and "no Arabic model can judge" are different
     // conditions, and only the second one is what this walk bottoms out on.
   }, { env: { ...NO_AI_PROVIDER, FANAR_API_KEY: undefined, RUNPOD_API_KEY: undefined } });
+});
+
+Deno.test("a whole-transcript judge is not held to the tie-break ceilings", async () => {
+  await withValidator(async (mod, up) => {
+    const started = Date.now();
+    const out = await mod.judgeWithArabicNative("sys", "نص", { maxTokens: 1024 });
+    const elapsed = Date.now() - started;
+
+    // The regression this pins. The walk once clamped every rung to
+    // `arabicRungCeilingMs` — 7s for M3, 5s for Jais, 16s for Fanar — which are
+    // sized for a single-snippet authenticity judgment on a path a learner is
+    // waiting on. This caller hands over a whole transcript and asks for 1024
+    // tokens of JSON about it, and the `callFanar` path it replaced allowed 30s
+    // for headers alone. Under the old clamp a healthy but unhurried Fanar was
+    // aborted mid-answer and the dialect check landed null: the feature this
+    // helper exists to restore, broken by its own ceiling.
+    //
+    // Fanar is the last rung and holds the connection past 16s. It must still
+    // be waited on.
+    assert(elapsed > 16_000, `gave up after ${elapsed}ms; the tie-break ceiling is still clamping this`);
+    assertEquals(out.model, FANAR);
+    assertEquals(out.content, "حكم فنار");
+  }, {
+    upstreams: {
+      [FANAR_HOST]: slowThen(18_000, () => chatCompletion("حكم فنار")),
+    },
+  });
+});
+
+Deno.test("a cold self-hosted rung is still given up on when someone is behind it", async () => {
+  await withValidator(async (mod, up) => {
+    const started = Date.now();
+    const out = await mod.judgeWithArabicNative("sys", "نص");
+    const elapsed = Date.now() - started;
+
+    // The property worth keeping from the old clamp, at this path's scale. The
+    // RunPod worker scales to zero, so finding out it is asleep should stay
+    // cheap *while another rung can do the work* — otherwise one cold start
+    // delays a judgment Fanar was ready to give.
+    assert(elapsed < 20_000, `waited ${elapsed}ms on a cold worker with Fanar available`);
+    assertEquals(up.callsTo(RUNPOD).length, 1);
+    assertEquals(out.model, FANAR);
+  }, {
+    env: DEPLOYED,
+    upstreams: {
+      [RUNPOD]: holdsTheConnection,
+      [FANAR_HOST]: () => chatCompletion("حكم فنار"),
+    },
+  });
 });

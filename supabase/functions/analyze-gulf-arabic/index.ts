@@ -2433,7 +2433,17 @@ serve(async (req) => {
        judgeWithArabicNative(
          getFanarValidationSystemPrompt(),
          mergedTranscriptText,
-         { maxTokens: 1024, label: 'analyze-gulf-arabic/dialect-validation' },
+         {
+           maxTokens: 1024,
+           label: 'analyze-gulf-arabic/dialect-validation',
+           // The deadline this call actually needs, rather than the helper's
+           // generic default. A whole transcript in and up to 1024 tokens of
+           // JSON out is the same shape of work the replaced `callFanar` path
+           // sized at a 30s wait for headers plus a generation budget on top,
+           // so it gets the same allowance here — `generationBudgetMs` already
+           // shrinks it when the function is running out of wall clock.
+           timeoutMs: FANAR_CONNECT_TIMEOUT_MS + generationBudgetMs(1024),
+         },
        ).catch((e) => {
          console.warn('Arabic dialect validation failed (non-blocking):', e);
          return { content: null, model: null, attempts: [] } as ArabicJudgement;

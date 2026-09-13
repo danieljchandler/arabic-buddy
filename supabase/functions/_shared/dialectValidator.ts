@@ -633,6 +633,50 @@ export async function validateDialectCrossChecked(
  * provenance — without that, a run's audit cannot distinguish M3's judgment
  * from Fanar's, which is exactly the ambiguity that hid this gap.
  */
+/**
+ * How long one rung of the roster walk may take when its caller names no
+ * budget.
+ *
+ * Deliberately *not* the tie-break rung ceilings, and that distinction is the
+ * correction to this helper's first version. Those ceilings
+ * (`arabicRungCeilingMs`) are sized for a single-snippet authenticity
+ * judgment on a path a learner is waiting on — 7s for M3, 5s for Jais, 16s for
+ * Fanar. This walk's caller hands over a whole transcript and asks for up to
+ * 1024 tokens of JSON about it, which is a different job by an order of
+ * magnitude: the `callFanar` path it replaced allowed 30s just to receive
+ * Fanar's headers and then a generation budget on top. Clamped to the
+ * tie-break numbers, a healthy but unhurried Fanar was aborted at 16s and the
+ * dialect check landed `null` — the feature this helper exists to restore,
+ * broken by the ceiling meant to protect it.
+ *
+ * So the default is sized for the job rather than for the slot, and a caller
+ * with a real deadline (the pipeline has one) passes its own.
+ */
+const JUDGE_RUNG_TIMEOUT_MS = 45_000;
+
+/**
+ * What a self-hosted rung gets when another rung is waiting behind it.
+ *
+ * The RunPod worker scales to zero, so the question "is it awake" should be
+ * cheap to answer when somebody else can do the work — the same argument as
+ * `TIEBREAK_COLD_BAIL_MS`, at a batch path's scale rather than a learner's.
+ *
+ * It applies only when there *is* a successor. A cold bail on the last rung
+ * buys nothing and costs the whole judgment: no other model is going to
+ * answer, so the choice is between waiting and returning nothing.
+ */
+const JUDGE_COLD_PROBE_MS = 8_000;
+
+function judgeRungCeilingMs(
+  model: string,
+  { budgetMs, hasSuccessor }: { budgetMs: number; hasSuccessor: boolean },
+): number {
+  if (hasSuccessor && providerForModel(model) === 'runpod') {
+    return Math.min(budgetMs, JUDGE_COLD_PROBE_MS);
+  }
+  return budgetMs;
+}
+
 export interface ArabicJudgement {
   /** The reply text, or null when nobody on the ladder answered. */
   content: string | null;
@@ -655,21 +699,22 @@ export async function judgeWithArabicNative(
   } = {},
 ): Promise<ArabicJudgement> {
   const attempts: Array<{ model: string; error: string }> = [];
+  // Resolved up front because the last rung is treated differently: there is
+  // nobody behind it to fall through to, so nothing is saved by giving up on
+  // it early.
+  const routable = ARABIC_OCCASIONAL_ORDER.filter((model) => tryChatRoute(model));
 
-  for (const model of ARABIC_OCCASIONAL_ORDER) {
-    // Unconfigured is not a failure worth reporting: most deployments will not
-    // have all three, and a caller reading `attempts` wants the models that
-    // were asked and let it down, not the ones that were never there.
-    if (!tryChatRoute(model)) continue;
+  for (const [index, model] of routable.entries()) {
+    // Unconfigured rungs are already filtered out, and deliberately not
+    // reported: most deployments will not have all three, and a caller reading
+    // `attempts` wants the models that were asked and let it down, not the
+    // ones that were never there.
     if (opts.signal?.aborted) break;
 
-    // Each rung capped by its own provider's ceiling as well as the caller's:
-    // a cold Jais and a slow preview endpoint must not spend a video's whole
-    // budget between them and leave the rung that would have answered unasked.
-    const ceiling = Math.min(
-      opts.timeoutMs ?? VALIDATOR_DEFAULT_TIMEOUT_MS,
-      arabicRungCeilingMs(model),
-    );
+    const ceiling = judgeRungCeilingMs(model, {
+      budgetMs: opts.timeoutMs ?? JUDGE_RUNG_TIMEOUT_MS,
+      hasSuccessor: index < routable.length - 1,
+    });
     const timer = AbortSignal.timeout(ceiling);
     const signal = opts.signal ? AbortSignal.any([opts.signal, timer]) : timer;
 

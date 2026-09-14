@@ -714,6 +714,11 @@ async function probeAwake(
     // be reused for the real call that follows.
     await res.body?.cancel();
     if (res.ok) return { awake: true };
+    // The load balancer answers 5xx (an HTML page, not a model reply) while
+    // no worker is ready — the shape a boot in progress takes when it is
+    // asked too early. Named as such so the row reads "still starting"
+    // rather than "broken".
+    if (res.status >= 500) return { awake: false, error: `worker not ready: HTTP ${res.status} on wake probe` };
     return { awake: false, error: `HTTP ${res.status} on wake probe` };
   } catch (err) {
     const aborted = timer.aborted && !signal?.aborted;
@@ -765,6 +770,19 @@ export function warmArabicJudges(): string[] {
   return warmed;
 }
 
+/**
+ * The models in `attempts` that refused the text on content grounds — a
+ * guardrail's `finish_reason=content_filter` or a `refusal`. A refusal is a
+ * verdict about the *text*, so the same model asked about the same transcript
+ * again will refuse again; the pipeline hands these to the next walk's `skip`
+ * rather than spend another preview-tier round trip learning it.
+ */
+export function refusedOnContent(attempts: Array<{ model: string; error: string }>): string[] {
+  return attempts
+    .filter((a) => /finish_reason=content_filter|refusal=/.test(a.error))
+    .map((a) => a.model);
+}
+
 export interface ArabicJudgement {
   /**
    * The reply text, or null when nobody on the ladder answered.
@@ -808,9 +826,17 @@ export async function judgeWithArabicNative(
      * `JAIS_PIPELINE_WARMUP=off` like `warmArabicJudges` does.
      */
     warmWhenCold?: boolean;
+    /**
+     * Rungs not to ask this time, each with why — typically a model that
+     * already refused this same text on content grounds earlier in the run
+     * (see `refusedOnContent`). Recorded in `attempts` as skipped, so the row
+     * still shows the model was considered.
+     */
+    skip?: Array<{ model: string; reason: string }>;
   } = {},
 ): Promise<ArabicJudgement> {
   const attempts: Array<{ model: string; error: string }> = [];
+  const skipped = new Map((opts.skip ?? []).map((s) => [s.model, s.reason]));
   // The first reply that was at least text, kept for when nothing better comes.
   let fallback: { content: string; model: string } | null = null;
   // Resolved up front because the last rung is treated differently: there is
@@ -824,6 +850,12 @@ export async function judgeWithArabicNative(
     // `attempts` wants the models that were asked and let it down, not the
     // ones that were never there.
     if (opts.signal?.aborted) break;
+
+    const skipReason = skipped.get(model);
+    if (skipReason) {
+      attempts.push({ model, error: `skipped: ${skipReason}` });
+      continue;
+    }
 
     const budgetMs = opts.timeoutMs ?? JUDGE_RUNG_TIMEOUT_MS;
     const hasSuccessor = index < routable.length - 1;

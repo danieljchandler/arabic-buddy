@@ -79,6 +79,7 @@ interface ValidatorModule {
       label?: string;
       accept?: (content: string) => boolean;
       warmWhenCold?: boolean;
+      skip?: Array<{ model: string; reason: string }>;
     },
   ) => Promise<{
     content: string | null;
@@ -87,6 +88,7 @@ interface ValidatorModule {
     attempts: Array<{ model: string; error: string }>;
   }>;
   warmArabicJudges: () => string[];
+  refusedOnContent: (attempts: Array<{ model: string; error: string }>) => string[];
 }
 
 /** What the model is asked to emit: a score, a verdict and the offending tokens. */
@@ -1385,6 +1387,57 @@ Deno.test("an empty reply is recorded with why it was empty", async () => {
       [NODE_HOST]: () => json({
         choices: [{ finish_reason: "content_filter", message: { role: "assistant", content: null, refusal: "guardrail" } }],
       }),
+      [FANAR_HOST]: () => chatCompletion("حكم فنار"),
+    },
+  });
+});
+
+Deno.test("a rung the caller skips is recorded as skipped and never asked", async () => {
+  await withValidator(async (mod, up) => {
+    const out = await mod.judgeWithArabicNative("sys", "نص", {
+      skip: [{ model: M3, reason: "refused this transcript on content grounds in the dialect check" }],
+    });
+
+    // A guardrail refusal is a verdict about the text: the same model asked
+    // about the same transcript again refuses again, and the preview tier's
+    // round trip is not worth spending to learn it twice.
+    assertEquals(out.model, FANAR);
+    assertEquals(up.callsTo(NODE_HOST).length, 0);
+    assertEquals(out.attempts, [{ model: M3, error: "skipped: refused this transcript on content grounds in the dialect check" }]);
+  }, {
+    env: NODE,
+    upstreams: {
+      [NODE_HOST]: () => chatCompletion("should not be asked"),
+      [FANAR_HOST]: () => chatCompletion("حكم فنار"),
+    },
+  });
+});
+
+Deno.test("refusedOnContent picks out the guardrail refusals and nothing else", async () => {
+  await withValidator((mod) => {
+    assertEquals(
+      mod.refusedOnContent([
+        { model: M3, error: 'empty response body (finish_reason=content_filter; refusal="guardrail"; content=null)' },
+        { model: JAIS, error: "worker not ready: HTTP 502 on wake probe" },
+        { model: FANAR, error: "HTTP 400 content policy" },
+      ]),
+      [M3],
+    );
+    return Promise.resolve();
+  });
+});
+
+Deno.test("a self-hosted rung answering 5xx to the probe is recorded as not ready", async () => {
+  await withValidator(async (mod) => {
+    const out = await mod.judgeWithArabicNative("sys", "نص");
+    // The load balancer's HTML 502 while the worker boots is "still
+    // starting", not "broken" — the row should say which.
+    assertEquals(out.model, FANAR);
+    assertEquals(out.attempts, [{ model: JAIS, error: "worker not ready: HTTP 502 on wake probe" }]);
+  }, {
+    env: DEPLOYED,
+    upstreams: {
+      [RUNPOD]: () => new Response("<html>502 Bad Gateway</html>", { status: 502, headers: { "content-type": "text/html" } }),
       [FANAR_HOST]: () => chatCompletion("حكم فنار"),
     },
   });

@@ -275,6 +275,30 @@ filter (400). Two fixes in the reader, one in the prompt:
   in English — a smaller Arabic model translates the keys as readily as the
   values when asked in Arabic.
 
+**What the fourth run said (2026-09-14, 06:55 UTC, a Gulf clip).** Both
+judges reached, both refused, both reasons on the row:
+
+- M3, retried correctly as `humain-m3-preview`, answered
+  `finish_reason=content_filter` with a `refusal` — the second run in a row,
+  on ordinary spoken Gulf and Yemeni. That is the limited preview's Saudi
+  alignment guardrail doing what its terms say it does, and nothing in this
+  codebase changes it: the tier without the guardrail is the *research
+  preview*, which is a further approval on the HUMAIN Node account. Until
+  then M3's contribution to transcripts is bounded by what the guardrail lets
+  through. One saving is made here: a model that refused the transcript in the
+  dialect check is not asked again for the arbitration (`refusedOnContent` →
+  `skip`), since a refusal is a verdict about the text.
+- Jais answered `HTTP 502` — an HTML page from the load balancer, not a model
+  reply — to the probe about ninety seconds after the run-start ping. Checked
+  live afterwards: the worker that ping started became ready roughly seven
+  minutes later, and RunPod had also started a *second* worker on a Blackwell
+  MIG slice (the endpoint's 24GB pools admit it) that was still initialising
+  two hours on. A 502 while no worker is ready is the cold start again, just
+  faster to fail; the probe now records it as "worker not ready" so the row
+  says starting rather than broken. The remedies are still infrastructure:
+  a network volume for the weights, a longer idle timeout, and pinning the
+  pools to the Ampere/Ada cards the image is known to boot on.
+
 ### 1d. A say in the translations
 
 `analyze-gulf-arabic` also now puts every line its ensemble could not settle to

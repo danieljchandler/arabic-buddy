@@ -195,6 +195,15 @@ const CONNECT_TIMEOUT_MS = 40_000;
 const FANAR_CONNECT_TIMEOUT_MS = 30_000;
 /** Output budget for the per-video dialect check — see the call site. */
 const DIALECT_CHECK_MAX_TOKENS = 2048;
+/**
+ * How long the dialect check keeps probing a self-hosted judge that is still
+ * booting. Sized to the ensemble it runs alongside, not to the judge: two
+ * minutes is what the translation models take on a normal clip, so the wait
+ * costs the run nothing it was not already spending.
+ */
+const DIALECT_CHECK_COLD_WAIT_MS = 120_000;
+/** The arbitration runs after the ensemble and on the critical path; a short grace only. */
+const ARBITER_COLD_WAIT_MS = 20_000;
 /** Longest any one call may spend writing its answer, however large. */
 const GENERATION_CEILING_MS = 120_000;
 
@@ -2490,6 +2499,13 @@ serve(async (req) => {
            // the same, so the admin banner has something to show.
            accept: (content) => parseDialectIssues(content) !== null,
            warmWhenCold: true,
+           // This call runs alongside the translation ensemble, which takes a
+           // minute or two regardless, so a self-hosted judge still booting
+           // from the run-start ping is worth waiting for here — measured, a
+           // boot from the weights volume was still in progress a minute after
+           // the ping, which an eight-second probe can only ever find cold.
+           // The run deadline signal bounds the wait as well.
+           coldWaitMs: DIALECT_CHECK_COLD_WAIT_MS,
          },
        ).catch((e) => {
          console.warn('Arabic dialect validation failed (non-blocking):', e);
@@ -2716,6 +2732,10 @@ serve(async (req) => {
             // Arabic model gets the same question.
             accept: (content) => parseArbiterChoices(content, asked) !== null,
             warmWhenCold: true,
+            // Sequential, after the ensemble, so only a short grace: by now the
+            // worker has had the ensemble's minutes to come up, and every
+            // second here is a second the transcript waits.
+            coldWaitMs: ARBITER_COLD_WAIT_MS,
             // A guardrail that refused this transcript in the dialect check
             // will refuse it here too — same text, same tier — so the
             // preview-tier round trip is not spent a second time. M3's

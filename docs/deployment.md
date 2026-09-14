@@ -74,11 +74,11 @@ by the runtime and must not be set by hand.
 | `RUNPOD_API_KEY` | `runpod/*` ids — Jais 2 on our own Serverless workers (no OpenRouter twin, and no pay-per-token API anywhere, so no fallback) |
 | `RUNPOD_JAIS_8B_ENDPOINT_ID` | Address of the **8B** worker — the only size deployed. Without it `runpod/jais-2-8b-chat` is *unconfigured* rather than broken: the dialect validator's tie-break falls straight through to Fanar, as it did before Jais existed. |
 
-The Jais endpoint itself (`hakiya-jais2-8b`, a RunPod load-balancing
+The Jais endpoint itself (a RunPod load-balancing
 serverless endpoint running `vllm/vllm-openai`) is configured, as of
 2026-09-14, so that a first transcript run can actually reach it:
 
-- **Weights on a network volume.** `hakiya-jais2-hf-cache` (40 GB, STANDARD,
+- **Weights on a network volume.** The HF-cache volume (id `cnqtje4ldr`, 40 GB, STANDARD,
   `US-IL-1`) is mounted at `/runpod-volume` and `HF_HOME` points into it, so a
   cold start loads the 16 GB from disk instead of pulling it from the Hub.
   Before this a measured cold start was seven to nine minutes — longer than

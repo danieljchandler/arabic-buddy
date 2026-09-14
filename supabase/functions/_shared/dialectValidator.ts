@@ -687,6 +687,12 @@ const JUDGE_RUNG_TIMEOUT_MS = 45_000;
  */
 const JUDGE_COLD_PROBE_MS = 8_000;
 
+/** A body that parses as JSON came from an application, not from a gateway's error page. */
+function looksLikeJson(body: string): boolean {
+  if (!body || !/^[[{]/.test(body)) return false;
+  try { JSON.parse(body); return true; } catch { return false; }
+}
+
 /**
  * Is the worker behind `model` awake? Answered with the smallest legal
  * completion under `timeoutMs`, so the answer costs one token when the worker
@@ -710,16 +716,22 @@ async function probeAwake(
       noFallback: true,
       label: 'arabicNativeJudge/probe',
     });
-    // The body is not the point, but draining it is what lets the connection
-    // be reused for the real call that follows.
-    await res.body?.cancel();
-    if (res.ok) return { awake: true };
-    // The load balancer answers 5xx (an HTML page, not a model reply) while
-    // no worker is ready — the shape a boot in progress takes when it is
-    // asked too early. Named as such so the row reads "still starting"
-    // rather than "broken".
-    if (res.status >= 500) return { awake: false, error: `worker not ready: HTTP ${res.status} on wake probe` };
-    return { awake: false, error: `HTTP ${res.status} on wake probe` };
+    if (res.ok) {
+      // The body is not the point, but draining it is what lets the
+      // connection be reused for the real call that follows.
+      await res.body?.cancel();
+      return { awake: true };
+    }
+    // The load balancer answers 502/503/504 with an HTML page — not a JSON
+    // error from vLLM — while no worker is ready: the shape a boot in
+    // progress takes when it is asked too early. Only that signature is
+    // named "not ready"; a JSON error body is a live worker failing, and a
+    // 500 of any kind is a handler fault, and both keep their status and
+    // their own words so the row can tell the cases apart.
+    const body = (await res.text().catch(() => '')).trim();
+    const gateway = (res.status === 502 || res.status === 503 || res.status === 504) && !looksLikeJson(body);
+    if (gateway) return { awake: false, error: `worker not ready: HTTP ${res.status} (load-balancer page) on wake probe` };
+    return { awake: false, error: `HTTP ${res.status} on wake probe${body ? `: ${body.slice(0, 80).replace(/\s+/g, ' ')}` : ''}` };
   } catch (err) {
     const aborted = timer.aborted && !signal?.aborted;
     return {
@@ -837,12 +849,19 @@ export async function judgeWithArabicNative(
 ): Promise<ArabicJudgement> {
   const attempts: Array<{ model: string; error: string }> = [];
   const skipped = new Map((opts.skip ?? []).map((s) => [s.model, s.reason]));
+  // Skipped rungs are recorded up front and leave the walk: a rung that will
+  // not be asked is no successor to the one before it, and the last rung
+  // that *can* answer must get the whole budget rather than a cold probe.
+  for (const model of ARABIC_OCCASIONAL_ORDER) {
+    const reason = skipped.get(model);
+    if (reason && tryChatRoute(model)) attempts.push({ model, error: `skipped: ${reason}` });
+  }
   // The first reply that was at least text, kept for when nothing better comes.
   let fallback: { content: string; model: string } | null = null;
   // Resolved up front because the last rung is treated differently: there is
   // nobody behind it to fall through to, so nothing is saved by giving up on
   // it early.
-  const routable = ARABIC_OCCASIONAL_ORDER.filter((model) => tryChatRoute(model));
+  const routable = ARABIC_OCCASIONAL_ORDER.filter((model) => tryChatRoute(model) && !skipped.has(model));
 
   for (const [index, model] of routable.entries()) {
     // Unconfigured rungs are already filtered out, and deliberately not
@@ -850,12 +869,6 @@ export async function judgeWithArabicNative(
     // `attempts` wants the models that were asked and let it down, not the
     // ones that were never there.
     if (opts.signal?.aborted) break;
-
-    const skipReason = skipped.get(model);
-    if (skipReason) {
-      attempts.push({ model, error: `skipped: ${skipReason}` });
-      continue;
-    }
 
     const budgetMs = opts.timeoutMs ?? JUDGE_RUNG_TIMEOUT_MS;
     const hasSuccessor = index < routable.length - 1;

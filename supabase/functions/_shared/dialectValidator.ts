@@ -10,7 +10,14 @@ import {
   getDialectLabel,
   type Dialect,
 } from './dialectHelpers.ts';
-import { chatFetch, providerForModel, tryChatRoute, warmRoute } from './aiGateway.ts';
+import {
+  chatFetch,
+  humainCatalogueSummary,
+  isHumainModelRejection,
+  providerForModel,
+  tryChatRoute,
+  warmRoute,
+} from './aiGateway.ts';
 import {
   ARABIC_STANDING_LEG_ORDER,
   ARABIC_OCCASIONAL_ORDER,
@@ -847,7 +854,13 @@ export async function judgeWithArabicNative(
 
       if (!res.ok) {
         const body = await res.text().catch(() => '');
-        attempts.push({ model, error: `HTTP ${res.status} ${body.slice(0, 120)}` });
+        // Node refusing the model is the one failure whose fix is not in this
+        // codebase, so the record says what the key *can* call: "the
+        // catalogue has no M3" is an access request, not a bug.
+        const hint = providerForModel(model) === 'humain' && isHumainModelRejection(res.status, body)
+          ? ` — ${humainCatalogueSummary() ?? "this key's HUMAIN Node catalogue could not be read"}`
+          : '';
+        attempts.push({ model, error: `HTTP ${res.status} ${body.slice(0, 120)}${hint}` });
         continue;
       }
       const data = await res.json();

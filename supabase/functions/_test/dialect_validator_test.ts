@@ -1015,7 +1015,10 @@ Deno.test("the Arabic judge falls through a failing rung to the next one", async
     // unrationed options cannot answer. Reaching it here means the walk did
     // what it is for rather than giving up at the first refusal.
     assertEquals(out.model, FANAR);
-    assertEquals(up.callsTo(NODE_HOST).length, 1);
+    // Two, not one: a model refusal makes the gateway read this key's
+    // catalogue before giving up on M3 (see ai_gateway_test), and the stub
+    // answers that read with the same 404, so nothing is retried.
+    assertEquals(up.callsTo(NODE_HOST).length, 2);
     assertEquals(up.callsTo(RUNPOD).length, 1);
     assertEquals(up.callsTo(FANAR_HOST).length, 1);
     // Every rung that was asked and let it down is named, in order. Without
@@ -1313,6 +1316,31 @@ Deno.test("the caller's signal ends the walk, not just the rung it interrupted",
     env: NODE,
     upstreams: {
       [NODE_HOST]: holdsTheConnection,
+      [FANAR_HOST]: () => chatCompletion("حكم فنار"),
+    },
+  });
+});
+
+Deno.test("a rung Node refuses on the model is recorded with what the key can call", async () => {
+  await withValidator(async (mod) => {
+    const out = await mod.judgeWithArabicNative("sys", "نص");
+
+    // "M3 didn't fire" on the first live run was `400 Unsupported model`,
+    // and nothing in the row said whether that was a naming mismatch or an
+    // access request still pending. The record now carries the catalogue, so
+    // the answer is on the video rather than in a log.
+    assertEquals(out.model, FANAR);
+    assertEquals(out.attempts.length, 1);
+    assertEquals(out.attempts[0].model, M3);
+    assert(out.attempts[0].error.startsWith("HTTP 400 "), out.attempts[0].error);
+    assert(out.attempts[0].error.includes("catalogue: allam-2-7b"), out.attempts[0].error);
+  }, {
+    env: NODE,
+    upstreams: {
+      [NODE_HOST]: (request: Request) =>
+        request.method === "GET"
+          ? json({ data: [{ id: "allam-2-7b" }] })
+          : json({ error: { message: "Unsupported model: humain-m3", code: "model_not_found" } }, 400),
       [FANAR_HOST]: () => chatCompletion("حكم فنار"),
     },
   });

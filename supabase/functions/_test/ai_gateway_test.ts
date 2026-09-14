@@ -451,6 +451,131 @@ Deno.test("asks M3 nothing about reasoning", async () => {
   }, { env: { ...NODE, HUMAIN_NODE_API_KEY: "fixture-humain" } });
 });
 
+/**
+ * Node's catalogue is per key. The first live run answered every M3 call with
+ * `400 Unsupported model: humain-m3` — the documented id, refused because
+ * this key's catalogue did not carry it under that name, or at all. The
+ * gateway asks the catalogue and retries rather than leaving the strongest
+ * Arabic model in the registry unreachable over a naming question.
+ */
+const nodeCatalogue = (ids: string[], served?: string) => async (request: Request): Promise<Response> => {
+  if (request.method === "GET" && new URL(request.url).pathname.endsWith("/models")) {
+    return json({ object: "list", data: ids.map((id) => ({ id, object: "model" })) });
+  }
+  const body = JSON.parse(await request.clone().text()) as { model: string };
+  if (served && body.model === served) return chatCompletion("مرحبا");
+  return json({ error: { message: `Unsupported model: ${body.model}`, code: "model_not_found" } }, 400);
+};
+
+Deno.test("an M3 id Node refuses is looked up in this key's catalogue and retried under the served name", async () => {
+  await withGateway(async (mod, up) => {
+    const response = await mod.chatFetch("humain/humain-m3", { messages: [] });
+    assertEquals(response.status, 200);
+
+    // The refusal, the catalogue read, the retry — in that order, one each.
+    const calls = up.callsTo("node.humain.test");
+    assertEquals(calls.map((c) => c.method), ["POST", "GET", "POST"]);
+    assertEquals(bodyOf(calls[0]).model, "humain-m3");
+    // Off the configured base, so a tenant gateway is asked at its own address.
+    assertEquals(calls[1].url, "https://node.humain.test/models");
+    assertEquals(calls[1].headers.authorization, "Bearer fixture-humain");
+    assertEquals(bodyOf(calls[2]).model, "humain-m3-preview");
+
+    // Remembered: the next call goes straight to the served id, no refusal first.
+    await mod.chatFetch("humain/humain-m3", { messages: [] });
+    const later = up.callsTo("node.humain.test");
+    assertEquals(later.length, 4);
+    assertEquals(bodyOf(later[3]).model, "humain-m3-preview");
+  }, {
+    env: { ...NODE, HUMAIN_NODE_API_KEY: "fixture-humain" },
+    upstreams: { "node.humain.test": nodeCatalogue(["allam-2-7b", "humain-m3-preview"], "humain-m3-preview") },
+  });
+});
+
+Deno.test("an embedding model that happens to carry m3 is not mistaken for the chat model", async () => {
+  await withGateway(async (mod, up) => {
+    const response = await mod.chatFetch("humain/humain-m3", { messages: [] });
+
+    // BGE-M3 is a real embedding model with the same token in its name. It
+    // is listed before the chat model here; the family match must skip it,
+    // on the id and on Node's own interface metadata, and land on M3 proper.
+    assertEquals(response.status, 200);
+    const calls = up.callsTo("node.humain.test");
+    assertEquals(calls.map((c) => c.method), ["POST", "GET", "POST"]);
+    assertEquals(bodyOf(calls[2]).model, "humain-m3-v1");
+  }, {
+    env: { ...NODE, HUMAIN_NODE_API_KEY: "fixture-humain" },
+    upstreams: {
+      "node.humain.test": async (request: Request) => {
+        if (request.method === "GET") {
+          return json({ data: [
+            { id: "bge-m3", node: { api_interface: "embeddings" } },
+            { id: "humain-m3-embed" },
+            { id: "humain-m3-v1", node: { api_interface: "chat" } },
+          ] });
+        }
+        const body = JSON.parse(await request.clone().text()) as { model: string };
+        return body.model === "humain-m3-v1"
+          ? chatCompletion("مرحبا")
+          : json({ error: { message: `Unsupported model: ${body.model}` } }, 400);
+      },
+    },
+  });
+});
+
+Deno.test("an alias is remembered only once it has answered", async () => {
+  await withGateway(async (mod, up) => {
+    // The catalogue names a candidate that Node then refuses too. Nothing is
+    // cached, so the next call starts from the registry id again rather than
+    // from a guess that already failed.
+    const first = await mod.chatFetch("humain/humain-m3", { messages: [] });
+    assertEquals(first.status, 400);
+    await mod.chatFetch("humain/humain-m3", { messages: [] });
+    const posts = up.callsTo("node.humain.test").filter((c) => c.method === "POST");
+    assertEquals(posts.map((c) => bodyOf(c).model), ["humain-m3", "humain-m3-preview", "humain-m3", "humain-m3-preview"]);
+  }, {
+    env: { ...NODE, HUMAIN_NODE_API_KEY: "fixture-humain" },
+    upstreams: { "node.humain.test": nodeCatalogue(["humain-m3-preview"]) },
+  });
+});
+
+Deno.test("a key whose catalogue has no M3 keeps the refusal, and can say what it does have", async () => {
+  await withGateway(async (mod, up) => {
+    const response = await mod.chatFetch("humain/humain-m3", { messages: [] });
+
+    // Nothing to retry under: the refusal is the answer, and it is an access
+    // question for the HUMAIN account rather than anything a deploy can fix.
+    assertEquals(response.status, 400);
+    assertEquals(up.callsTo("node.humain.test").map((c) => c.method), ["POST", "GET"]);
+    assertEquals(mod.humainCatalogueSummary(), "this key's HUMAIN Node catalogue: allam-2-7b, humain-embed");
+    assertEquals(up.callsTo(OPENROUTER).length, 0);
+  }, {
+    env: { ...NODE, HUMAIN_NODE_API_KEY: "fixture-humain" },
+    upstreams: { "node.humain.test": nodeCatalogue(["allam-2-7b", "humain-embed"]) },
+  });
+});
+
+Deno.test("a refusal that is not about the model does not trigger a catalogue read", async () => {
+  await withGateway(async (mod, up) => {
+    const response = await mod.chatFetch("humain/humain-m3", { messages: [] });
+    assertEquals(response.status, 400);
+    assertEquals(up.callsTo("node.humain.test").length, 1);
+    assertEquals(mod.humainCatalogueSummary(), null);
+  }, {
+    env: { ...NODE, HUMAIN_NODE_API_KEY: "fixture-humain" },
+    upstreams: { "node.humain.test": () => json({ error: { message: "messages: too long", code: "invalid_request" } }, 400) },
+  });
+});
+
+Deno.test("HUMAIN_M3_MODEL_ID names the served id outright, and no lookup is made", async () => {
+  await withGateway(async (mod, up) => {
+    await mod.chatFetch("humain/humain-m3", { messages: [] });
+    const [call] = up.callsTo("node.humain.test");
+    assertEquals(bodyOf(call).model, "humain-m3-research");
+    assertEquals(up.callsTo("node.humain.test").length, 1);
+  }, { env: { ...NODE, HUMAIN_NODE_API_KEY: "fixture-humain", HUMAIN_M3_MODEL_ID: "humain-m3-research" } });
+});
+
 Deno.test("a HUMAIN key alone satisfies the Brain's provider preflight", async () => {
   await withGateway((mod) => {
     // askBrain refuses to start when no upstream at all is configured. M3 is

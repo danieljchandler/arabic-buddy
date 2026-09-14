@@ -90,6 +90,13 @@ serverless endpoint running `vllm/vllm-openai`) is configured, as of
 - **Idle timeout 1800 s** (was 300), so a session of imports shares one boot.
   Idle time is billed at the worker's rate, so this is the cost of the
   convenience: up to half an hour of an idle 24 GB card after the last run.
+- **`--enforce-eager` in the vLLM args.** With the weights on the volume a
+  cold start still measured about ten minutes, which is vLLM's own startup —
+  model compilation and CUDA-graph capture — not the download. Eager mode
+  skips both; the judge answers a handful of requests per run, so the
+  throughput it gives up is irrelevant and the boot it saves is the whole
+  point. Timed after the change: the worker was ready within about three
+  minutes of the release rolling.
 - **Pools `AMPERE_24` + `ADA_24` minus the Blackwell MIG slice**
   (`NVIDIA RTX PRO 6000 Blackwell Server Edition MIG 1g.24gb`), which RunPod
   had placed a worker on and which sat initialising for hours without ever

@@ -171,6 +171,9 @@ const STANDING_LEG_PREVIEW_BAIL_MS = 12_000;
 /** Below this there is no point asking anyone; the rule is the cheaper answer. */
 const TIEBREAK_MIN_MS = 1_000;
 
+/** Shortest probe worth sending as a cold wait runs out; below this, stop. */
+const COLD_REPROBE_MIN_MS = 500;
+
 /**
  * The Arabic-native specialists that can settle a split, best first, minus
  * whichever one is already serving as the standing leg.
@@ -914,12 +917,20 @@ export async function judgeWithArabicNative(
       let probe = await probeAwake(model, Math.min(budgetMs, JUDGE_COLD_PROBE_MS), opts.signal);
       let waitedMs = 0;
       const booting = (error: string) => /^cold worker|^worker not ready/.test(error);
-      while (!probe.awake && booting(probe.error) && Date.now() < waitUntil && !opts.signal?.aborted) {
-        const pause = Math.min(interval, Math.max(0, waitUntil - Date.now()));
+      // The wait is the ceiling on the whole phase, sleeps and probes
+      // together, so a probe that hangs cannot carry it eight seconds past
+      // the number the caller set: every probe inside it is capped by what
+      // is left, and none starts with less than `COLD_REPROBE_MIN_MS` to go.
+      while (!probe.awake && booting(probe.error) && !opts.signal?.aborted) {
+        const remaining = waitUntil - Date.now();
+        if (remaining < COLD_REPROBE_MIN_MS) break;
+        const pause = Math.min(interval, remaining);
         await sleep(pause, opts.signal);
         if (opts.signal?.aborted) break;
         waitedMs += pause;
-        probe = await probeAwake(model, Math.min(budgetMs, JUDGE_COLD_PROBE_MS), opts.signal);
+        const left = waitUntil - Date.now();
+        if (left < COLD_REPROBE_MIN_MS) break;
+        probe = await probeAwake(model, Math.min(budgetMs, JUDGE_COLD_PROBE_MS, left), opts.signal);
       }
       if (!probe.awake) {
         attempts.push({

@@ -1536,13 +1536,13 @@ Deno.test("the wait for a booting worker gives up at its ceiling and says how lo
   await withValidator(async (mod, up) => {
     const started = Date.now();
     const out = await mod.judgeWithArabicNative("sys", "نص", {
-      coldWaitMs: 600,
-      coldWaitIntervalMs: 200,
+      coldWaitMs: 2_000,
+      coldWaitIntervalMs: 500,
     });
     const elapsed = Date.now() - started;
 
     assertEquals(out.model, FANAR);
-    assert(elapsed < 5_000, `waited ${elapsed}ms past a 600ms ceiling`);
+    assert(elapsed < 5_000, `waited ${elapsed}ms past a 2s ceiling`);
     assertEquals(out.attempts.length, 1);
     assert(out.attempts[0].error.startsWith("worker not ready: HTTP 502 (load-balancer page) on wake probe (after waiting "), out.attempts[0].error);
     assert(up.callsTo(RUNPOD).length >= 3, `expected repeated probes, saw ${up.callsTo(RUNPOD).length}`);
@@ -1583,6 +1583,37 @@ Deno.test("without a wait, one probe still decides", async () => {
     env: DEPLOYED,
     upstreams: {
       [RUNPOD]: () => new Response("<html>502</html>", { status: 502, headers: { "content-type": "text/html" } }),
+      [FANAR_HOST]: () => chatCompletion("حكم فنار"),
+    },
+  });
+});
+
+Deno.test("a hanging worker cannot carry the cold wait past its ceiling", async () => {
+  await withValidator(async (mod, up) => {
+    const started = Date.now();
+    const out = await mod.judgeWithArabicNative("sys", "نص", {
+      coldWaitMs: 9_500,
+      coldWaitIntervalMs: 500,
+    });
+    const elapsed = Date.now() - started;
+
+    // The wait runs from the first probe, so the ordinary eight-second cold
+    // probe spends most of a 9.5s wait itself. Inside what is left, each
+    // further probe is capped by the remaining time and none starts with
+    // under half a second to go — so a worker that never answers costs the
+    // wait, never the wait plus another full probe on top (a 20s arbitration
+    // grace was taking 28s).
+    assertEquals(out.model, FANAR);
+    assert(elapsed < 9_500 + 1_000, `phase took ${elapsed}ms; a probe ran past the wait's ceiling`);
+    // First probe, then one probe capped at the ~1s left after the 500ms
+    // sleep; it times out at the ceiling and nothing more is started.
+    assertEquals(up.callsTo(RUNPOD).length, 2);
+    assert(out.attempts[0].error.startsWith("cold worker: no answer to a 1-token probe in "), out.attempts[0].error);
+    assert(out.attempts[0].error.includes("(after waiting "), out.attempts[0].error);
+  }, {
+    env: DEPLOYED,
+    upstreams: {
+      [RUNPOD]: holdsTheConnection,
       [FANAR_HOST]: () => chatCompletion("حكم فنار"),
     },
   });

@@ -249,6 +249,89 @@ describe("splitting and merging", () => {
     expect(result.current.segments).toEqual(THREE);
   });
 
+  it("deletes a line outright", () => {
+    const { result } = renderHook(() => useTranscriptEditor(THREE));
+
+    act(() => {
+      result.current.remove("b");
+    });
+
+    // Deleting is not merging: the words go with the line rather than joining
+    // the one above it. A caption the recogniser invented out of background
+    // music has nowhere useful to be merged to.
+    expect(result.current.segments.map((segment) => segment.id)).toEqual(["a", "c"]);
+    expect(result.current.segments.map((segment) => segment.text)).not.toContain("زين");
+  });
+
+  it("leaves the neighbours' timings where the reviewer set them", () => {
+    const { result } = renderHook(() => useTranscriptEditor(THREE));
+
+    act(() => {
+      result.current.remove("b");
+    });
+
+    // The deleted line's span becomes a gap, which the list draws and labels.
+    // Closing it automatically would move a boundary somebody set by ear.
+    expect(result.current.segments[0].end).toBe(2);
+    expect(result.current.segments[1].start).toBe(4);
+  });
+
+  it("can empty the transcript a line at a time", () => {
+    const { result } = renderHook(() => useTranscriptEditor(THREE));
+
+    act(() => {
+      result.current.remove("a");
+      result.current.remove("b");
+      result.current.remove("c");
+    });
+
+    // A clip whose transcript is all hallucination is a real case, and the
+    // alternative — one line that cannot be removed — is worse than none.
+    expect(result.current.segments).toEqual([]);
+  });
+
+  it("ignores a delete of a line that is not there", () => {
+    const { result } = renderHook(() => useTranscriptEditor(THREE));
+
+    act(() => {
+      result.current.remove("gone");
+    });
+
+    expect(result.current.segments).toEqual(THREE);
+    expect(result.current.canUndo).toBe(false);
+  });
+
+  it("tells the page the line is gone", () => {
+    const onSave = vi.fn();
+    const { result } = renderHook(() => useTranscriptEditor(THREE, onSave));
+
+    act(() => {
+      result.current.remove("b");
+    });
+    settle();
+
+    // The save path replaces the whole transcript, so a line that is missing
+    // from what is reported is a line that is deleted on the server.
+    expect(onSave.mock.calls.at(-1)![0].map((s: Segment) => s.id)).toEqual(["a", "c"]);
+  });
+
+  it("stops counting a deleted line as a stale translation", () => {
+    const { result } = renderHook(() => useTranscriptEditor(THREE));
+
+    act(() => {
+      result.current.editText("b", "زينة");
+    });
+    expect(result.current.staleTranslations.has("b")).toBe(true);
+
+    act(() => {
+      result.current.remove("b");
+    });
+
+    // The toolbar counts this set. A deleted id left behind claims work on a
+    // line nobody can open.
+    expect(result.current.staleTranslations.has("b")).toBe(false);
+  });
+
   it("splits at the cursor inside the edited text", () => {
     const { result } = renderHook(() => useTranscriptEditor(THREE));
 
@@ -440,6 +523,123 @@ describe("undo and redo", () => {
       result.current.handleUndo();
     });
 
+    expect(result.current.segments.map((segment) => segment.id)).toEqual(["a", "b", "c"]);
+  });
+
+  it("puts a deleted line back where it was", () => {
+    const { result } = renderHook(() => useTranscriptEditor(THREE));
+    act(() => {
+      result.current.remove("b");
+    });
+
+    act(() => {
+      result.current.handleUndo();
+    });
+
+    // In its own place, not appended: a restored line at the end of the
+    // transcript would be out of time order, which the review write path
+    // refuses outright.
+    expect(result.current.segments.map((segment) => segment.id)).toEqual(["a", "b", "c"]);
+  });
+
+  it("restores everything the line was carrying", () => {
+    const { result } = renderHook(() => useTranscriptEditor(THREE));
+    act(() => {
+      result.current.remove("b");
+    });
+
+    act(() => {
+      result.current.handleUndo();
+    });
+
+    // Undo is the only safety net under a deletion, so it has to return the
+    // line whole — words, timings and translation, not just its text.
+    expect(result.current.segments[1]).toEqual(THREE[1]);
+  });
+
+  it("brings the stale-translation warning back with the line", () => {
+    const { result } = renderHook(() => useTranscriptEditor(THREE));
+    act(() => {
+      result.current.editText("b", "زينة");
+    });
+    act(() => {
+      result.current.remove("b");
+    });
+
+    act(() => {
+      result.current.handleUndo();
+    });
+
+    // The staleness set lives outside the segments, so undo has to restore it
+    // by hand. Otherwise the line comes back with English describing words the
+    // reviewer already replaced, and nothing on the card or in the toolbar
+    // says so — the prompt to re-translate is exactly what they deleted and
+    // then thought better of.
+    expect(result.current.staleTranslations.has("b")).toBe(true);
+  });
+
+  it("takes the warning away again when the delete is redone", () => {
+    const { result } = renderHook(() => useTranscriptEditor(THREE));
+    act(() => {
+      result.current.editText("b", "زينة");
+    });
+    act(() => {
+      result.current.remove("b");
+    });
+    act(() => {
+      result.current.handleUndo();
+    });
+
+    act(() => {
+      result.current.handleRedo();
+    });
+
+    expect(result.current.staleTranslations.has("b")).toBe(false);
+  });
+
+  it("does not invent a warning on a line that never had one", () => {
+    const { result } = renderHook(() => useTranscriptEditor(THREE));
+    act(() => {
+      result.current.remove("b");
+    });
+
+    act(() => {
+      result.current.handleUndo();
+    });
+
+    expect(result.current.staleTranslations.has("b")).toBe(false);
+  });
+
+  it("deletes it again on redo", () => {
+    const { result } = renderHook(() => useTranscriptEditor(THREE));
+    act(() => {
+      result.current.remove("b");
+    });
+    act(() => {
+      result.current.handleUndo();
+    });
+
+    act(() => {
+      result.current.handleRedo();
+    });
+
+    expect(result.current.segments.map((segment) => segment.id)).toEqual(["a", "c"]);
+  });
+
+  it("does not restore a deleted line twice", () => {
+    const { result } = renderHook(() => useTranscriptEditor(THREE));
+    act(() => {
+      result.current.remove("c");
+    });
+
+    act(() => {
+      result.current.handleUndo();
+      result.current.handleUndo();
+    });
+
+    // The second undo has nothing left on the stack, but an operation replayed
+    // against a transcript that already holds the line would give it two rows
+    // with one id — and every review, comment and revision keys off that id.
     expect(result.current.segments.map((segment) => segment.id)).toEqual(["a", "b", "c"]);
   });
 

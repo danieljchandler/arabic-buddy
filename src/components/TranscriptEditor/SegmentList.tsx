@@ -25,6 +25,7 @@ interface SegmentListProps {
   onEndChange: (segmentId: string, value: number) => void;
   onFixArabic?: (segmentId: string) => void;
   onRetranslate?: (segmentId: string) => void;
+  onDelete?: (segmentId: string) => void;
   onSeek?: (segmentId: string) => void;
 }
 
@@ -49,6 +50,7 @@ export default function SegmentList({
   onEndChange,
   onFixArabic,
   onRetranslate,
+  onDelete,
   onSeek,
 }: SegmentListProps) {
   const listRef = useRef<HTMLDivElement>(null);
@@ -88,6 +90,7 @@ export default function SegmentList({
             onEndChange={onEndChange}
             onFixArabic={onFixArabic}
             onRetranslate={onRetranslate}
+            onDelete={onDelete}
             onSeek={onSeek}
             review={reviewFor?.(seg.id)}
             isSelected={seg.id === selectedSegmentId}

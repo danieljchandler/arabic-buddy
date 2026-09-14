@@ -85,6 +85,7 @@ const handlers = () => ({
   onEndChange: vi.fn(),
   onFixArabic: vi.fn(),
   onRetranslate: vi.fn(),
+  onDelete: vi.fn(),
   onSeek: vi.fn(),
 });
 
@@ -323,11 +324,26 @@ describe("SegmentList — following the playhead", () => {
 
 describe("SegmentList — passing the editing handlers down", () => {
   it("hands every card the same set of callbacks", () => {
-    const { onSplit, onEditText, onSeek } = renderList();
+    const { onSplit, onEditText, onSeek, onDelete } = renderList();
     const card = cards.rendered.at(-1) as unknown as Record<string, unknown>;
     expect(card.onSplit).toBe(onSplit);
     expect(card.onEditText).toBe(onEditText);
     expect(card.onSeek).toBe(onSeek);
+    expect(card.onDelete).toBe(onDelete);
+  });
+
+  it("lets a card name itself when it is deleted", () => {
+    // Delete takes an id rather than an index, so a card that re-renders at a
+    // different position after the line above it went does not delete its
+    // neighbour.
+    const { onDelete } = renderList();
+    const card = cards.rendered.find((c) => c.segment.id === "s2") as unknown as {
+      onDelete: (id: string) => void;
+    };
+
+    card.onDelete("s2");
+
+    expect(onDelete).toHaveBeenCalledWith("s2");
   });
 
   it("passes the optional ones through as undefined when absent", () => {
@@ -349,6 +365,7 @@ describe("SegmentList — passing the editing handlers down", () => {
     const card = cards.rendered.at(-1) as unknown as Record<string, unknown>;
     expect(card.onFixArabic).toBeUndefined();
     expect(card.onRetranslate).toBeUndefined();
+    expect(card.onDelete).toBeUndefined();
     expect(card.onSeek).toBeUndefined();
   });
 });

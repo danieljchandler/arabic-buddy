@@ -21,6 +21,7 @@ export type ShortcutAction =
   | "edit-line"
   | "merge-next"
   | "merge-prev"
+  | "delete-line"
   | "split-here"
   /** Owned by the segment card's textarea, listed here so the panel is complete. */
   | "commit-edit"
@@ -88,6 +89,10 @@ export const SHORTCUTS: readonly ShortcutSpec[] = [
   { action: "cancel-edit", keys: "Esc", label: "Abandon the edit", group: "Edit" },
   { action: "merge-next", keys: "M", label: "Merge with the line below", group: "Edit" },
   { action: "merge-prev", keys: "⇧M", label: "Merge with the line above", group: "Edit" },
+  // Shift is required, and the bare key is not claimed at all. Every other
+  // letter here changes a line; this one removes it, and `x` sits next to `c`
+  // (comment) on the row a reviewer's left hand rests on.
+  { action: "delete-line", keys: "⇧X", label: "Delete this line", group: "Edit" },
   { action: "undo", keys: "⌘Z", label: "Undo", group: "Edit", whileEditing: true },
   { action: "redo", keys: "⇧⌘Z", label: "Redo", group: "Edit", whileEditing: true },
   { action: "save", keys: "⌘S", label: "Save now", group: "Edit", whileEditing: true },
@@ -147,6 +152,15 @@ export function resolveShortcut(
       return "merge-next";
     case "M":
       return "merge-prev";
+    // Both spellings, and only with shift actually held. Caps Lock decides the
+    // *case* the browser reports and shift does not cancel it: caps on gives a
+    // bare press `X` with `shiftKey` false, and ⇧X `x` with it true. Keying
+    // off the capital alone therefore let caps-locked typing delete the
+    // selected line with one unmodified keystroke — the opposite of what a
+    // deliberately chorded shortcut is for.
+    case "x":
+    case "X":
+      return shift ? "delete-line" : null;
     case "r":
       return "toggle-reviewed";
     case "t":

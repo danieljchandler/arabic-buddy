@@ -523,3 +523,81 @@ describe("the pipeline's own doubt", () => {
     expect(screen.queryByText("AI unsure")).not.toBeInTheDocument();
   });
 });
+
+/**
+ * Deleting a whole line.
+ *
+ * The editor could already blank a line's words, which is not the same thing:
+ * an empty box still holds its slice of the timeline, so the subtitle track
+ * shows nothing for two seconds and the reviewer's list still has a card to
+ * scroll past. What is actually wanted for a caption the recogniser invented
+ * out of music, or an ad read that is not part of the clip, is for the line to
+ * stop existing.
+ *
+ * It asks twice, unlike merge or split. Those move words around; this one is
+ * the only control on the card that destroys them, and it sits in a row of
+ * one-character buttons.
+ */
+describe("deleting the line", () => {
+  const deleteButton = () => screen.getByRole("button", { name: "Delete line 1" });
+  const confirmButton = () => screen.getByRole("button", { name: "Confirm deleting line 1" });
+
+  it("is not offered when the page has nowhere to send it", () => {
+    render();
+
+    expect(screen.queryByRole("button", { name: /Delete line/ })).not.toBeInTheDocument();
+  });
+
+  it("arms on the first click rather than deleting", () => {
+    const onDelete = vi.fn();
+    render({ onDelete });
+
+    fireEvent.click(deleteButton());
+
+    expect(onDelete).not.toHaveBeenCalled();
+    expect(confirmButton()).toHaveTextContent("Delete?");
+  });
+
+  it("deletes on the second", () => {
+    const onDelete = vi.fn();
+    render({ onDelete });
+
+    fireEvent.click(deleteButton());
+    fireEvent.click(confirmButton());
+
+    expect(onDelete).toHaveBeenCalledWith("seg-1");
+  });
+
+  it("disarms when the reviewer clicks away", () => {
+    const onDelete = vi.fn();
+    render({ onDelete });
+
+    fireEvent.click(deleteButton());
+    fireEvent.blur(confirmButton());
+
+    // Otherwise an armed button left behind by a change of mind is a line
+    // deleted by the next click that happens to land on it.
+    expect(deleteButton()).toBeInTheDocument();
+    expect(onDelete).not.toHaveBeenCalled();
+  });
+
+  it("disarms on escape", () => {
+    const onDelete = vi.fn();
+    render({ onDelete });
+
+    fireEvent.click(deleteButton());
+    fireEvent.keyDown(confirmButton(), { key: "Escape" });
+
+    expect(deleteButton()).toBeInTheDocument();
+    expect(onDelete).not.toHaveBeenCalled();
+  });
+
+  it("names the line it would delete", () => {
+    // The button is a bare icon in a row of them, so the accessible name is
+    // the only thing that says which of a hundred lines this one is.
+    const onDelete = vi.fn();
+    render({ onDelete, index: 41 });
+
+    expect(screen.getByRole("button", { name: "Delete line 42" })).toBeInTheDocument();
+  });
+});

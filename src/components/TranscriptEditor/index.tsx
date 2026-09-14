@@ -98,6 +98,7 @@ export default function TranscriptEditor({
     staleTranslations,
     split,
     merge,
+    remove,
     editText,
     editTranslation,
     shiftTimestamp,
@@ -148,6 +149,27 @@ export default function TranscriptEditor({
       else playback.playLine(span);
     },
     [playback],
+  );
+
+  /**
+   * Delete a line and leave the keyboard somewhere useful.
+   *
+   * The recovery effect above would land the cursor back on line 1, which for
+   * a reviewer deleting stray captions two thirds of the way down a transcript
+   * means scrolling back every time. Moving to the line that takes the deleted
+   * one's place — or to the one above it, at the end — keeps them where they
+   * were working.
+   */
+  const handleDelete = useCallback(
+    (segmentId: string) => {
+      if (segmentId === selectedId) {
+        const idx = segments.findIndex((s) => s.id === segmentId);
+        const next = segments[idx + 1] ?? segments[idx - 1];
+        setSelectedId(next ? next.id : null);
+      }
+      remove(segmentId);
+    },
+    [remove, segments, selectedId],
   );
 
   const handleRetranslate = useCallback(
@@ -270,6 +292,12 @@ export default function TranscriptEditor({
             setSelectedId(segments[selectedIndex - 1].id);
           }
           break;
+        case 'delete-line':
+          claim();
+          // No second press to confirm, unlike the card's button: ⇧X is a
+          // chord nobody hits by accident, and ⌘Z is right there.
+          if (segment) handleDelete(segment.id);
+          break;
         case 'toggle-reviewed':
           claim();
           if (segment) lineReview?.(segment.id)?.onToggleReviewed();
@@ -293,6 +321,7 @@ export default function TranscriptEditor({
     return () => window.removeEventListener('keydown', handler);
   }, [
     activeSegmentId,
+    handleDelete,
     handleRedo,
     handleRetranslate,
     handleUndo,
@@ -488,6 +517,7 @@ export default function TranscriptEditor({
             onEndChange={(id, v) => shiftTimestampRipple(id, 'end', v)}
             onFixArabic={handleFixArabic}
             onRetranslate={onRetranslate ? handleRetranslate : undefined}
+            onDelete={handleDelete}
             onSeek={seekToSegment}
           />
         </div>

@@ -40,9 +40,9 @@ import {
   alignFushaLines,
   buildFushaSystemPrompt,
 } from "../_shared/fushaBridge.ts";
-import { MODEL_IDS, getModelWeight } from "../_shared/modelRegistry.ts";
+import { TRANSCRIPT_TRANSLATION_DRAFTERS, MODEL_IDS, getModelWeight } from "../_shared/modelRegistry.ts";
 import { EDGE_BUILD } from "../_shared/edgeBuild.ts";
-import { chatFetch, hasAnyProvider, providerForModel, type Provider } from "../_shared/aiGateway.ts";
+import { tryChatRoute, chatFetch, hasAnyProvider, providerForModel, type Provider } from "../_shared/aiGateway.ts";
 import { splitOverlongLines } from "../_shared/transcriptLineSplit.ts";
 import {
   decideAudio,
@@ -88,7 +88,7 @@ function generateId(): string {
  }
 
 /**
- * - `ensemble_disagreement` — the three translation models produced clusters
+ * - `ensemble_disagreement` — the translation drafters produced clusters
  *   that never reached a winning weight; the fallback priority picked one.
  * - `call2_fallback` — the ensemble returned nothing for this line and a
  *   fallback filled it: the analysis pass's own translation, or the cheap
@@ -631,10 +631,11 @@ No additional text outside JSON.`;
 type TranslationAI = { translations: string[]; literals?: string[] };
 
 // ============================================================================
-// TRANSLATION ENSEMBLE — Gemini + Claude as co-equal peers, Qwen as a
-// lower-weight verifier. Weights come from MODEL_WEIGHTS in the registry.
-// All three run in parallel; per-line winner is chosen by weighted vote with
-// Jaccard token-overlap clustering. Gemini+Claude agreement always wins.
+// TRANSLATION ENSEMBLE — Gemini, Claude and HUMAIN M3 as co-equal peers, Qwen
+// as a lower-weight verifier (TRANSCRIPT_TRANSLATION_DRAFTERS; weights from
+// MODEL_WEIGHTS, both in the registry). All run in parallel; per-line winner
+// is chosen by weighted vote with Jaccard token-overlap clustering. Any two
+// peers agreeing always wins.
 // ============================================================================
 type EnsembleCandidate = {
   name: string;
@@ -780,10 +781,22 @@ function mergeOneLine(
 function mergeTranslationEnsemble(
   candidates: EnsembleCandidate[],
   lineCount: number,
-): { lines: EnsembleLineResult[]; agreements: { all_three: number; gemini_claude: number; needs_review: number }; perModelWins: Record<string, number> } {
+): {
+  lines: EnsembleLineResult[];
+  agreements: { all_three: number; gemini_claude: number; needs_review: number };
+  perModelWins: Record<string, number>;
+  /**
+   * Lines a drafter answered and lost — its English fell outside the winning
+   * cluster. An equal vote can still be outvoted two to one, and the count is
+   * how a run shows where the Arabic-native peer read a line differently from
+   * the generalists who carried it.
+   */
+  perModelOutvoted: Record<string, number>;
+} {
   const okCands = candidates.filter((c) => c.status === 'ok' && c.translations.length > 0);
   const lines: EnsembleLineResult[] = [];
   const perModelWins: Record<string, number> = {};
+  const perModelOutvoted: Record<string, number> = {};
   let all_three = 0;
   let gemini_claude = 0;
   let needs_review = 0;
@@ -800,17 +813,22 @@ function mergeTranslationEnsemble(
     if (res.needs_review) needs_review++;
     // Counted by how many drafters backed the winning line, not by which
     // vendors did. The stat keys keep their names because they are persisted in
-    // translation provenance and read off historical rows; with today's
-    // three-model lineup the numbers are identical to the vendor-matching
-    // version they replace.
+    // translation provenance and read off historical rows: `all_three` is
+    // "three or more drafters agreed" now that there can be four, and
+    // `gemini_claude` is "two peers agreed", whichever two.
     const peers = res.winner_models.filter(
       (n) => (lineCands.find((c) => c.name === n)?.weight ?? 0) >= AUTHORITATIVE_WEIGHT,
     ).length;
     if (res.winner_models.length >= 3) all_three++;
     else if (peers >= 2) gemini_claude++;
     for (const m of res.winner_models) perModelWins[m] = (perModelWins[m] ?? 0) + 1;
+    for (const c of lineCands) {
+      if (c.text.trim() && !res.winner_models.includes(c.name)) {
+        perModelOutvoted[c.name] = (perModelOutvoted[c.name] ?? 0) + 1;
+      }
+    }
   }
-  return { lines, agreements: { all_three, gemini_claude, needs_review }, perModelWins };
+  return { lines, agreements: { all_three, gemini_claude, needs_review }, perModelWins, perModelOutvoted };
 }
 
 async function callTranslationModel(opts: {
@@ -1163,7 +1181,7 @@ async function callFanar({
 }
 
 // ─── FANAR SHAHEEN-MT — dedicated AR→EN translation model ───────────────────
-// Used only as a tiebreak on lines where the 3-way LLM ensemble disagreed or
+// Used only as a tiebreak on lines where the LLM ensemble disagreed or
 // came back empty. One batched call per transcript (quota is 20/day), metered
 // through the fanar_usage table under endpoint 'mt'.
 // Fanar's documented free-tier cap for Fanar-Shaheen-MT-1 is 20/day. Default to
@@ -2379,47 +2397,42 @@ serve(async (req) => {
      const hfApiKey = Deno.env.get('HUGGINGFACE_API_KEY') ?? '';
 
       const [translationEnsembleResult, fushaOutcome, analysisResp, fanarMetaResp, dialectJudgement, camelOutcome, diacOutcome] = await Promise.all([
-        // TRANSLATION ENSEMBLE — the two co-equal peers plus a lower-weight
-        // verifier. Both the ids and the *weights* come from
-        // _shared/modelRegistry.ts, so a reweighting takes effect here instead
-        // of being silently overridden: the inline numbers this replaces had
-        // already drifted from the registry (Qwen 0.5 here against 0.6 there),
-        // and the comment above them still named Sonnet 4.5 and Gemini 3.5
-        // Flash — two upgrades after the models had actually moved on. Do NOT
+        // TRANSLATION ENSEMBLE — the co-equal peers plus a lower-weight
+        // verifier. The membership, the ids and the *weights* all come from
+        // _shared/modelRegistry.ts (TRANSCRIPT_TRANSLATION_DRAFTERS,
+        // MODEL_WEIGHTS), so a reweighting takes effect here instead of being
+        // silently overridden: the inline numbers this replaces had already
+        // drifted from the registry (Qwen 0.5 here against 0.6 there), and
+        // the comment above them still named Sonnet 4.5 and Gemini 3.5 Flash
+        // — two upgrades after the models had actually moved on. Do NOT
         // hardcode ids or weights here.
+        //
+        // A drafter with no configured route (HUMAIN M3 without its key) is
+        // left out rather than recorded as a failed rung: the ensemble a
+        // deployment can run is the ensemble it runs.
         (async () => {
           const sys = getTranslationSystemPrompt(detectedDialect, visualContext, sonioxTranslation);
-          const CLAUDE = MODEL_IDS.CLAUDE;
-          const GEMINI = MODEL_IDS.GEMINI_FLASH;
-          const QWEN = MODEL_IDS.QWEN;
-          const settled = await Promise.allSettled([
+          const names = TRANSCRIPT_TRANSLATION_DRAFTERS.filter((model) => {
+            if (tryChatRoute(model)) return true;
+            console.log(`[ensemble] ${model}: no route configured — drafting without it`);
+            return false;
+          });
+          // The generous budget is for the generalist peers writing two arrays
+          // about a long clip; the verifier keeps the ceiling it always had,
+          // and the preview-tier M3 gets the same one rather than a limit its
+          // endpoint has not been measured against.
+          const budgetFor = (model: string) =>
+            providerForModel(model) === 'humain' || getModelWeight(model) < AUTHORITATIVE_WEIGHT ? 8192 : 16384;
+          const settled = await Promise.allSettled(names.map((model) =>
             callTranslationModel({
-              name: CLAUDE,
-              weight: getModelWeight(CLAUDE),
-              model: CLAUDE,
+              name: model,
+              weight: getModelWeight(model),
+              model,
               systemPrompt: sys,
               userContent: mergedTranscriptText,
-              maxTokens: 16384,
-            }),
-            callTranslationModel({
-              name: GEMINI,
-              weight: getModelWeight(GEMINI),
-              model: GEMINI,
-              systemPrompt: sys,
-              userContent: mergedTranscriptText,
-              maxTokens: 16384,
-            }),
-            callTranslationModel({
-              name: QWEN,
-              weight: getModelWeight(QWEN),
-              model: QWEN,
-              systemPrompt: sys,
-              userContent: mergedTranscriptText,
-              maxTokens: 8192,
-            }),
-          ]);
+              maxTokens: budgetFor(model),
+            })));
           const candidates: EnsembleCandidate[] = settled.map((s, i) => {
-            const names = [CLAUDE, GEMINI, QWEN];
             const vias: Provider[] = names.map(providerForModel);
             const weights = names.map(getModelWeight);
             if (s.status === 'fulfilled') return s.value;
@@ -2667,13 +2680,14 @@ serve(async (req) => {
 
       // ── ARABIC-NATIVE ARBITRATION ────────────────────────────────────────
       // The first thing a disputed line gets is a native speaker's verdict.
-      // The ensemble's three drafters are generalists judging each other by
-      // English token overlap; the registry's Arabic-native roster (HUMAIN
-      // M3, Jais 2, Fanar — `ARABIC_OCCASIONAL_ORDER`) had no say in the
-      // translations at all until this stage, which is the gap the last
-      // audited run showed: eight lines flagged, a rationed MT model reached
-      // four of them and settled none. One call here puts every disputed line
-      // in front of the best Arabic model that is configured and asks it
+      // The ensemble's generalist drafters judge each other by English token
+      // overlap; the registry's Arabic-native roster (HUMAIN M3, Jais 2,
+      // Fanar — `ARABIC_OCCASIONAL_ORDER`) had no say in the translations at
+      // all until this stage, which is the gap the last audited run showed:
+      // eight lines flagged, a rationed MT model reached four of them and
+      // settled none. One call here puts every disputed line in front of the
+      // best Arabic model that is configured *and did not draft* (M3 drafts
+      // now, so on a run where it answered this is Jais 2 or Fanar), asks it
       // which candidate is *right*, and only what it leaves open goes on to
       // the Shaheen-MT rendering below.
       const arbiterResolvedBy: (string | null)[] = new Array(mergedLines.length).fill(null);
@@ -2740,10 +2754,19 @@ serve(async (req) => {
             // will refuse it here too — same text, same tier — so the
             // preview-tier round trip is not spent a second time. M3's
             // limited preview did exactly this on two runs in a row.
-            skip: refusedOnContent(dialectJudgement?.attempts ?? []).map((model) => ({
-              model,
-              reason: 'refused this transcript on content grounds in the dialect check',
-            })),
+            skip: [
+              ...refusedOnContent(dialectJudgement?.attempts ?? []).map((model) => ({
+                model,
+                reason: 'refused this transcript on content grounds in the dialect check',
+              })),
+              // A roster model that drafted in this ensemble is one of the
+              // disputing parties on every line it answered; asked to
+              // arbitrate, it would pick itself. The walk goes to the next
+              // Arabic model instead.
+              ...translationCandidates
+                .filter((c) => c.status === 'ok' && c.translations.length > 0)
+                .map((c) => ({ model: c.name, reason: 'drafted in this ensemble; not a third opinion on its own line' })),
+            ],
           },
         ).catch((e) => {
           console.warn('Arabic-native arbitration failed (non-blocking):', e);
@@ -2987,6 +3010,7 @@ serve(async (req) => {
           latency_ms: c.latencyMs,
           chars: c.chars,
           lines_won: ensembleMerge.perModelWins[c.name] ?? 0,
+          lines_outvoted: ensembleMerge.perModelOutvoted[c.name] ?? 0,
           ...(c.error ? { error: c.error.slice(0, 200) } : {}),
         })),
       };
@@ -3006,7 +3030,8 @@ serve(async (req) => {
           `all_three=${ensembleMerge.agreements.all_three} ` +
           `gemini_claude=${ensembleMerge.agreements.gemini_claude} ` +
           `needs_review=${ensembleMerge.agreements.needs_review} | ` +
-          `wins=${JSON.stringify(ensembleMerge.perModelWins)}`,
+          `wins=${JSON.stringify(ensembleMerge.perModelWins)} ` +
+          `outvoted=${JSON.stringify(ensembleMerge.perModelOutvoted)}`,
       );
 
 

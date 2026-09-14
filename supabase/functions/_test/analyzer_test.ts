@@ -901,7 +901,10 @@ Deno.test("records which build and merge model produced the translation, on the 
     assert(translation, "expected translation provenance on the first save");
     assert(typeof translation.build === "string" && translation.build.length > 0);
     assertEquals(translation.merge_model, "qwen/qwen3-235b-a22b");
+    // Without a HUMAIN key the ensemble is the three-model one, and the
+    // absent Arabic-native peer is not a failed rung in the provenance.
     assertEquals(translation.tiers?.length, 3);
+    assert(!(translation.tiers as Array<{ name: string }>).some((t) => t.name.startsWith("humain/")));
   } finally {
     fn.restore();
   }
@@ -939,39 +942,57 @@ Deno.test("runs the merge and the analysis on the fast workhorse, not the Max ti
 // overlap, and a rationed MT rendering was the only tiebreak. The last audited
 // run ended with eight disputed lines, four reached by Shaheen and none
 // settled. Now every disputed line is put to the best Arabic model that is
-// configured, which is asked outright which candidate is right.
+// configured, which is asked outright which candidate is right — and HUMAIN M3
+// drafts in the ensemble itself, at the peers' weight, so a line every
+// generalist misread the same way is no longer settled before an Arabic model
+// has seen it.
 
 const NODE_ENV = { HUMAIN_NODE_API_KEY: "fixture-humain", HUMAIN_BASE_URL: "https://node.humain.test", FANAR_API_KEY: undefined };
+/** M3 drafting means M3 cannot arbitrate; Fanar is the roster's next configured rung. */
+const NODE_AND_FANAR_ENV = { ...NODE_ENV, FANAR_API_KEY: "fixture-fanar" };
 
-/** Three drafters that disagree on line 1 and agree on line 2. */
+/** Is this the translation prompt? It asks for a `translations` array; the merge and the analysis ask for `lines`. */
+const asksForTranslations = (body: { messages?: Array<{ content?: string }> }) =>
+  Boolean(body.messages?.[0]?.content?.includes('"translations"'));
+
+/** Drafters that disagree four ways on line 1 and agree on line 2. */
 const splitEnsemble: UpstreamHandler = async (request) => {
   const body = JSON.parse(await request.clone().text()) as { model: string; messages: Array<{ content: string }> };
-  // The translation prompt is the one that asks for a `translations` array;
-  // the merge and the analysis ask for `lines`.
-  if (!body.messages?.[0]?.content?.includes('"translations"')) return analysisReply();
+  if (!asksForTranslations(body)) return analysisReply();
   const model = body.model;
   const first = model.includes("gemini") ? "What's up today"
     : model.includes("qwen") ? "How's it going today"
+    : model.includes("humain") ? "You good today"
     : "How are you today";
   return chatCompletion(JSON.stringify({ translations: [first, "Fine, thank God"], literals: ["lit 1", "lit 2"] }));
 };
 
-/** M3 answers the dialect check with a clean sheet and the arbitration with a pick. */
-const m3 = (pick: string, confidence: string): UpstreamHandler => async (request) => {
+/** M3 drafts its own reading of the lines and answers the dialect check with a clean sheet. */
+const m3Drafter: UpstreamHandler = async (request) => {
+  const body = JSON.parse(await request.clone().text()) as { model: string; messages: Array<{ content: string }> };
+  if (asksForTranslations(body)) return splitEnsemble(request);
+  return chatCompletion('{"issues":[]}');
+};
+
+/** Fanar answers the arbitration with a pick and everything else (its meta pass) with nothing useful. */
+const fanarArbiter = (pick: string, confidence: string): UpstreamHandler => async (request) => {
   const body = await request.clone().text();
   if (body.includes("native speaker of")) {
     return chatCompletion(JSON.stringify({ choices: [{ line: 1, pick, confidence }] }));
   }
-  return chatCompletion('{"issues":[]}');
+  return chatCompletion("{}");
 };
 
 async function analyseSplit(pick: string, confidence: string) {
   const fn = await loadFunction("analyze-gulf-arabic", {
-    env: NODE_ENV,
+    env: NODE_AND_FANAR_ENV,
     upstreams: allowed({
       "openrouter.ai": splitEnsemble,
       "generativelanguage.googleapis.com": splitEnsemble,
-      "node.humain.test": m3(pick, confidence),
+      "node.humain.test": m3Drafter,
+      "api.fanar.qa/v1/chat/completions": fanarArbiter(pick, confidence),
+      // The rationed MT rendering is not what these tests are about.
+      "api.fanar.qa/v1/translations": () => json({ error: "quota" }, 429),
       "/rest/v1/discover_videos": (request) =>
         request.method === "GET"
           ? json({ transcription_status: "processing", engines_used: null }, 200)
@@ -995,23 +1016,26 @@ async function analyseSplit(pick: string, confidence: string) {
     const patch = JSON.parse(save.body ?? "{}") as {
       engines_used: { translation?: { arabic_arbiter?: Record<string, unknown>; shaheen?: Record<string, unknown>; agreements?: { needs_review: number } } };
     };
-    const arbiterCalls = fn.calls.filter((c) => c.url.includes("node.humain.test") && (c.body ?? "").includes("native speaker of"));
-    return { lines: body.result?.lines ?? [], provenance: patch.engines_used.translation, arbiterCalls };
+    const arbiterCalls = fn.calls.filter((c) => c.url.includes("api.fanar.qa") && (c.body ?? "").includes("native speaker of"));
+    const m3ArbiterCalls = fn.calls.filter((c) => c.url.includes("node.humain.test") && (c.body ?? "").includes("native speaker of"));
+    return { lines: body.result?.lines ?? [], provenance: patch.engines_used.translation, arbiterCalls, m3ArbiterCalls };
   } finally {
     fn.restore();
   }
 }
 
 Deno.test("puts a disputed line to the Arabic-native judge and takes its confident pick", async () => {
-  const { lines, provenance, arbiterCalls } = await analyseSplit("B", "high");
+  const { lines, provenance, arbiterCalls, m3ArbiterCalls } = await analyseSplit("B", "high");
 
-  // Line 1 split three ways; the ensemble's fallback had handed it to the
+  // Line 1 split four ways; the ensemble's fallback had handed it to the
   // heaviest drafter listed first (Claude) and flagged it. The judge picked B
   // — Gemini's — so that is the line now, off the review queue, and it says
-  // who settled it and on whose text.
+  // who settled it and on whose text. M3 drafted one of the four, so the
+  // judging fell to the next Arabic model that is configured.
   assertEquals(lines[0].translation, "What's up today");
   assertEquals(lines[0].needs_review, false);
-  assertEquals(lines[0].resolved_by, "humain/humain-m3→google/gemini-3.7-flash");
+  assertEquals(lines[0].resolved_by, "Fanar-C-2-27B→google/gemini-3.7-flash");
+  assertEquals(m3ArbiterCalls.length, 0, "a drafter is not asked to arbitrate its own line");
   // Line 2 was never in dispute and was never put to the judge.
   assertEquals(lines[1].translation, "Fine, thank God");
   assertEquals(lines[1].needs_review, false);
@@ -1022,22 +1046,26 @@ Deno.test("puts a disputed line to the Arabic-native judge and takes its confide
   const prompt = JSON.parse(arbiterCalls[0].body ?? "{}") as { messages: Array<{ content: string }> };
   const user = prompt.messages[1].content;
   assert(user.includes("Line 1: شلونك اليوم"), user);
-  assert(user.includes("A. How are you today") && user.includes("B. What's up today") && user.includes("C. How's it going today"), user);
+  assert(user.includes("A. How are you today") && user.includes("B. What's up today") && user.includes("C. You good today") && user.includes("D. How's it going today"), user);
   assert(!user.includes("Line 2:"), "an agreed line is not a dispute");
-  assert(!/claude|gemini|qwen/i.test(user), "the judge is not told whose translation is whose");
+  assert(!/claude|gemini|qwen|humain/i.test(user), "the judge is not told whose translation is whose");
 
   const arbiter = provenance?.arabic_arbiter ?? {};
   assertEquals(arbiter.attempted, true);
-  assertEquals(arbiter.model, "humain/humain-m3");
+  assertEquals(arbiter.model, "Fanar-C-2-27B");
   assertEquals(arbiter.disputed_lines, 1);
   assertEquals(arbiter.resolved, 1);
+  // The row says why the best Arabic model did not judge.
+  const attempts = (arbiter as { attempts?: Array<{ model: string; error: string }> }).attempts ?? [];
+  assertEquals(attempts.map((a) => a.model), ["humain/humain-m3"]);
+  assert(attempts[0].error.startsWith("skipped: drafted in this ensemble"), attempts[0].error);
   assertEquals(provenance?.agreements?.needs_review, 0);
   // Nothing is left for the rationed MT tiebreak to do.
   assertEquals(provenance?.shaheen?.disputed_lines, 0);
 });
 
 Deno.test("adopts a hesitant pick but keeps the line on the review queue", async () => {
-  const { lines, provenance } = await analyseSplit("C", "low");
+  const { lines, provenance } = await analyseSplit("D", "low");
 
   // A native speaker's low-confidence preference is still better evidence
   // than "listed first", so the text changes — but a reviewer still sees it.
@@ -1055,6 +1083,126 @@ Deno.test("leaves a line the judge backs no candidate on exactly as the ensemble
   assertEquals(lines[0].translation, "How are you today");
   assertEquals(lines[0].needs_review, true);
   assertEquals(provenance?.arabic_arbiter?.unresolved, 1);
+});
+
+Deno.test("drafts with HUMAIN M3 at the peers' weight: one generalist and the Arabic-native peer settle a line", async () => {
+  // Claude reads line 1 one way; Gemini and M3 read it the same other way;
+  // Qwen a third. Before the promotion this was Claude against Gemini with
+  // Qwen unable to tip it — a dispute. With M3 an equal peer, two peers agree
+  // and the line is settled, and it is settled on the reading the Arabic
+  // model backed.
+  const drafters: UpstreamHandler = async (request) => {
+    const body = JSON.parse(await request.clone().text()) as { model: string; messages: Array<{ content: string }> };
+    if (!asksForTranslations(body)) return body.model.includes("humain") ? chatCompletion('{"issues":[]}') : analysisReply();
+    const model = body.model;
+    const first = model.includes("gemini") || model.includes("humain") ? "Where have you been"
+      : model.includes("qwen") ? "Long time no see"
+      : "Where were you";
+    return chatCompletion(JSON.stringify({ translations: [first, "Fine, thank God"], literals: ["lit 1", "lit 2"] }));
+  };
+  const fn = await loadFunction("analyze-gulf-arabic", {
+    env: NODE_ENV,
+    upstreams: allowed({
+      "openrouter.ai": drafters,
+      "generativelanguage.googleapis.com": drafters,
+      "node.humain.test": drafters,
+      "/rest/v1/discover_videos": (request) =>
+        request.method === "GET"
+          ? json({ transcription_status: "processing", engines_used: null }, 200)
+          : json([{ id: PIPELINE_VIDEO }], 200),
+      "/rest/v1/processed_videos": () => json({}, 201),
+      "/functions/v1/process-approved-video": () => json({ success: true }, 202),
+    }),
+  });
+  try {
+    const response = await fn.handler(jsonRequest("analyze-gulf-arabic", {
+      transcript: "وينك اليوم الحمد لله بخير",
+      videoId: PIPELINE_VIDEO,
+    }, { jwt: SERVICE_ROLE_KEY }));
+    assertEquals(response.status, 200);
+    const body = await response.json() as { result?: { lines?: Array<{ translation: string; needs_review?: boolean }> } };
+    await fn.background();
+
+    assertEquals(body.result?.lines?.[0].translation, "Where have you been");
+    assertEquals(body.result?.lines?.[0].needs_review, false);
+
+    const save = fn.calls.find((c) => c.url.includes("discover_videos") && c.method === "PATCH" && c.body?.includes("analysis_complete"));
+    const patch = JSON.parse(save?.body ?? "{}") as {
+      engines_used: {
+        translation?: {
+          active_models?: number;
+          agreements?: { needs_review: number; gemini_claude: number; all_three: number };
+          tiers?: Array<{ name: string; weight: number; status: string; lines_won: number; lines_outvoted: number }>;
+          arabic_arbiter?: { skip_reason?: string };
+        };
+      };
+    };
+    const translation = patch.engines_used.translation;
+    assertEquals(translation?.active_models, 4);
+    assertEquals(translation?.agreements?.needs_review, 0);
+    const byName = Object.fromEntries((translation?.tiers ?? []).map((t) => [t.name, t]));
+    const m3 = byName["humain/humain-m3"];
+    assertEquals(m3?.weight, 1, "the Arabic-native peer votes at the generalists' weight");
+    assertEquals(m3?.status, "ok");
+    assertEquals(m3?.lines_won, 2);
+    assertEquals(m3?.lines_outvoted, 0);
+    // Claude lost line 1 and the row says so — an equal vote can be outvoted.
+    assertEquals(byName["anthropic/claude-sonnet-5"]?.lines_won, 1);
+    assertEquals(byName["anthropic/claude-sonnet-5"]?.lines_outvoted, 1);
+    // Nothing was in dispute, so nothing went to arbitration.
+    assertEquals(translation?.arabic_arbiter?.skip_reason, "nothing_disputed");
+    // M3 got the same translation prompt as the generalists, once.
+    const m3Drafts = fn.calls.filter((c) => c.url.includes("node.humain.test") && (c.body ?? "").includes('{\\"translations\\"'));
+    assertEquals(m3Drafts.length, 1);
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("an Arabic-native peer alone against two generalists is outvoted, and the row records it", async () => {
+  // Equal weight is a vote, not a veto: Claude and Gemini agreeing still
+  // carry the line, M3's different reading is recorded as outvoted rather
+  // than flagged — the case that would flood the review queue.
+  const drafters: UpstreamHandler = async (request) => {
+    const body = JSON.parse(await request.clone().text()) as { model: string; messages: Array<{ content: string }> };
+    if (!asksForTranslations(body)) return body.model.includes("humain") ? chatCompletion('{"issues":[]}') : analysisReply();
+    const first = body.model.includes("humain") ? "Where have you been" : "Where were you";
+    return chatCompletion(JSON.stringify({ translations: [first, "Fine, thank God"], literals: ["lit 1", "lit 2"] }));
+  };
+  const fn = await loadFunction("analyze-gulf-arabic", {
+    env: NODE_ENV,
+    upstreams: allowed({
+      "openrouter.ai": drafters,
+      "generativelanguage.googleapis.com": drafters,
+      "node.humain.test": drafters,
+      "/rest/v1/discover_videos": (request) =>
+        request.method === "GET"
+          ? json({ transcription_status: "processing", engines_used: null }, 200)
+          : json([{ id: PIPELINE_VIDEO }], 200),
+      "/rest/v1/processed_videos": () => json({}, 201),
+      "/functions/v1/process-approved-video": () => json({ success: true }, 202),
+    }),
+  });
+  try {
+    const response = await fn.handler(jsonRequest("analyze-gulf-arabic", {
+      transcript: "وينك اليوم الحمد لله بخير",
+      videoId: PIPELINE_VIDEO,
+    }, { jwt: SERVICE_ROLE_KEY }));
+    assertEquals(response.status, 200);
+    const body = await response.json() as { result?: { lines?: Array<{ translation: string; needs_review?: boolean }> } };
+    await fn.background();
+    assertEquals(body.result?.lines?.[0].translation, "Where were you");
+    assertEquals(body.result?.lines?.[0].needs_review, false);
+    const save = fn.calls.find((c) => c.url.includes("discover_videos") && c.method === "PATCH" && c.body?.includes("analysis_complete"));
+    const patch = JSON.parse(save?.body ?? "{}") as {
+      engines_used: { translation?: { tiers?: Array<{ name: string; lines_won: number; lines_outvoted: number }> } };
+    };
+    const m3 = patch.engines_used.translation?.tiers?.find((t) => t.name === "humain/humain-m3");
+    assertEquals(m3?.lines_won, 1);
+    assertEquals(m3?.lines_outvoted, 1);
+  } finally {
+    fn.restore();
+  }
 });
 
 Deno.test("records why the arbitration produced nothing, naming the rungs that let it down", async () => {

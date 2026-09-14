@@ -320,16 +320,49 @@ layout and the tolerant parser are `buildArbiterSystemPrompt`,
 the outcome is `engines_used.translation.arabic_arbiter`, which the admin
 provenance panel reads.
 
-This is deliberately the *judge* role and not the drafter role that §1b's
-"second" item still holds behind an eval: one short call per video on the
-disputed minority, against a permanent third drafter on every line.
+The judge role has a limit the sixth run made plain: only a *dispute* reaches
+it. A 5-line clip where Claude, Gemini and Qwen agreed on every line went
+through with M3 never shown a word of English, and three generalists can
+agree on the same misreading of a Gulf idiom as fluently as on a right one.
+Unanimity was standing in for correctness on exactly the lines the roster
+exists to catch.
 
-**Second: a TRANSLATION drafter — but only behind an eval.** The `TRANSLATION`
-lineup is `[CLAUDE, GEMINI_FLASH]` under `strategy: 'ensemble'`, and
-`runEnsemble` already ranks candidates by weighted Jaccard agreement and MSA
-leak count, so a third drafter needs no new machinery: it is one array entry
-plus a `MODEL_WEIGHTS` entry. What it does need is evidence, and the repo
-already has the instrument:
+**Second, built: a drafter in the transcript ensemble, at the peers' weight
+(2026-09-14, by decision rather than behind the eval below).** M3 is the
+third entry in `TRANSCRIPT_TRANSLATION_DRAFTERS` and carries `1.0` in
+`MODEL_WEIGHTS`, so `mergeOneLine` treats it exactly as it treats Claude and
+Gemini: any two of the three agreeing settles a line, and one of them reading
+a line differently from the other two is outvoted, not a veto. That last
+point is deliberate — flagging every M3 dissent would put every paraphrase
+below the 0.6 Jaccard line on the review queue — so the dissent is recorded
+instead: each tier's `lines_outvoted` in `engines_used.translation` counts the
+lines a drafter answered and lost, and the admin provenance panel shows it.
+A run where M3 is outvoted on a third of the lines is the signal to look at
+those lines by hand and, if M3 was right, to revisit the weights.
+
+Three consequences of drafting, each handled:
+
+- **M3 no longer arbitrates a dispute it drafted in.** A judge that is one of
+  the disagreeing parties picks itself. `analyze-gulf-arabic` passes every
+  drafter that answered as a `skip` on the arbitration walk, recorded in the
+  row as `skipped: drafted in this ensemble`, and the dispute goes on to Jais
+  2 and Fanar. The dialect check is unaffected — M3 still leads it.
+- **No key, no rung.** The drafter list is filtered by `tryChatRoute`, so a
+  deployment without `HUMAIN_NODE_API_KEY` runs the three-model ensemble it
+  always did, with no failed M3 row in its provenance.
+- **Cost and latency.** One more full translation per video, and the
+  ensemble now finishes when its slowest drafter does. On the limited preview
+  a Saudi guardrail refusal is a failed rung the vote proceeds without; on the
+  22-line Gulf clip it refused in the dialect check, it would have refused
+  here too. Research-preview access is what makes the fourth seat reliable.
+
+Not changed: `MODEL_LINEUPS.TRANSLATION`, which serves every other translation
+caller through the Brain, stays `[CLAUDE, GEMINI_FLASH]`.
+
+**The eval this still owes.** `runEnsemble` ranks candidates by weighted
+Jaccard agreement and MSA leak count, so adding a drafter needed no new
+machinery — one array entry plus a weight. What it needed was evidence, and
+the repo has one instrument for a neighbouring question:
 
 ```sh
 HUMAIN_NODE_API_KEY=... OPENROUTER_API_KEY=... deno run --allow-env --allow-read --allow-net \
@@ -342,9 +375,14 @@ interesting question is not "is M3 better at Arabic" (it will be) but "is it
 better at *Gulf, Egyptian and Yemeni* than a model that is already paid for",
 and a Saudi-commissioned model has an obvious prior toward Gulf and an
 unexamined one on Yemeni. Ship the lineup change only if the delta is real.
-Note the ensemble runs every drafter on every call: a third leg is a permanent
-+50% on translation cost and moves latency to the slowest drafter, which the
-preview tier warns is M3.
+That measures Arabic *generation* leak rate, which is not the fidelity of a
+dialect-to-English rendering. The right instrument for the promotion is the
+review tables: `transcript_line_revisions` holds lines where a native speaker
+corrected the pipeline's English. Rerun those Arabic lines through each
+drafter, score each against the human correction per dialect (the Yemeni
+split matters most — a Saudi-commissioned model has an obvious prior toward
+Gulf), and let the weights follow the numbers. Until that is run, the 1.0 is
+a decision about whose reading deserves an equal vote, not a measurement.
 
 **Third, and not yet: the analyser's workhorse.** The transcript merge runs on
 `QWEN_FAST` for a documented reason — the Max tier's mandatory reasoning turned
@@ -620,10 +658,11 @@ otherwise, and they fail on *adding* code, not on breaking it):
   their own errors by design, which also means they can stop working quietly.
   If cost is absent, price it from token counts in `llmUsageCore.ts` rather
   than leaving the column null.
-- **Watch the ensemble multiplier.** Adding M3 to `TRANSLATION` multiplies
-  every translation by a third full generation. The validator leg, by contrast,
-  is one short classification call on a fraction of requests. Start where the
-  cost is bounded.
+- **Watch the ensemble multiplier.** M3 now drafts in the transcript
+  ensemble (§1d), one more full generation per video. It is *not* in
+  `TRANSLATION`, the Brain lineup every other translation caller uses; adding
+  it there would multiply every translation in the app by a third generation.
+  The validator leg, by contrast, is one short classification call.
 
 ---
 

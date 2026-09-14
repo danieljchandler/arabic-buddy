@@ -11,6 +11,8 @@ export interface TranslationTier {
   status?: "ok" | "failed" | "parse_failed" | "empty" | string;
   latency_ms?: number;
   lines_won?: number;
+  /** Lines it answered but lost the vote on — where it read the Arabic differently. */
+  lines_outvoted?: number;
   error?: string;
 }
 
@@ -60,7 +62,10 @@ function describeTier(tier: TranslationTier): string {
     parts.push("answered");
     if (took) parts.push(`in ${took}`);
     if (typeof tier.lines_won === "number") parts.push(`— won ${tier.lines_won} line${tier.lines_won === 1 ? "" : "s"}`);
-    return parts.join(" ");
+    if (typeof tier.lines_outvoted === "number" && tier.lines_outvoted > 0) {
+      parts.push(`, outvoted on ${tier.lines_outvoted}`);
+    }
+    return parts.join(" ").replace(" ,", ",");
   }
   const why =
     tier.status === "parse_failed" ? "answered, but not with usable JSON"

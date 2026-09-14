@@ -40,6 +40,15 @@ function applyUndo(prev: Segment[], op: UndoOperation): Segment[] {
       if (idx === -1) return prev;
       return [...prev.slice(0, idx), { ...prev[idx], [op.field]: op.previousValue }, ...prev.slice(idx + 1)];
     }
+    case 'DeleteOp': {
+      // Already back — undoing twice must not give the transcript two copies
+      // of the same line, which would then be two lines sharing one id.
+      if (prev.some(s => s.id === op.segment.id)) return prev;
+      // Clamped: the lines after it may since have been merged away, and an
+      // out-of-range slice would drop it off the end instead of restoring it.
+      const idx = Math.min(op.index, prev.length);
+      return [...prev.slice(0, idx), op.segment, ...prev.slice(idx)];
+    }
     case 'RippleTimestampOp': {
       return prev.map(seg => {
         const changes = op.changes.filter(c => c.segmentId === seg.id);
@@ -81,6 +90,11 @@ function applyRedo(prev: Segment[], op: UndoOperation): Segment[] {
       const idx = prev.findIndex(s => s.id === op.segmentId);
       if (idx === -1) return prev;
       return [...prev.slice(0, idx), { ...prev[idx], [op.field]: op.newValue }, ...prev.slice(idx + 1)];
+    }
+    case 'DeleteOp': {
+      const idx = prev.findIndex(s => s.id === op.segment.id);
+      if (idx === -1) return prev;
+      return [...prev.slice(0, idx), ...prev.slice(idx + 1)];
     }
     case 'RippleTimestampOp': {
       return prev.map(seg => {
@@ -165,6 +179,46 @@ export function useTranscriptEditor(
         push({ type: 'MergeOp', originalSegments: [a, b], resultSegment: merged });
 
         const next = [...prev.slice(0, index), merged, ...prev.slice(index + 2)];
+        debounceSave(next);
+        return next;
+      });
+    },
+    [push, debounceSave],
+  );
+
+  /**
+   * Delete a whole line.
+   *
+   * Not the same job as merging it into its neighbour, which is what the editor
+   * could do until now: a merge keeps the words and hands them to the line
+   * above, and there is nothing to hand a caption the recogniser hallucinated
+   * out of music, a duplicated line, or an ad read that is not part of the
+   * clip. Those had to be blanked instead, which left an empty box on the
+   * timeline and an empty subtitle on screen for its whole span.
+   *
+   * The neighbours' timings are deliberately left alone. A deleted line's span
+   * becomes a gap, which the list already draws and labels — closing it
+   * automatically would move boundaries the reviewer had set by ear, and the
+   * gap is visible enough to fix deliberately.
+   */
+  const remove = useCallback(
+    (segmentId: string) => {
+      setSegments(prev => {
+        const idx = prev.findIndex(s => s.id === segmentId);
+        if (idx === -1) return prev;
+
+        push({ type: 'DeleteOp', segment: prev[idx], index: idx });
+
+        const next = [...prev.slice(0, idx), ...prev.slice(idx + 1)];
+        // A line nobody can see cannot have a stale translation, and leaving
+        // the id behind keeps the toolbar's stale count above the number of
+        // lines it can point at.
+        setStaleTranslations(s => {
+          if (!s.has(segmentId)) return s;
+          const n = new Set(s);
+          n.delete(segmentId);
+          return n;
+        });
         debounceSave(next);
         return next;
       });
@@ -411,6 +465,7 @@ export function useTranscriptEditor(
     staleTranslations,
     split,
     merge,
+    remove,
     editText,
     editTranslation,
     shiftTimestamp,

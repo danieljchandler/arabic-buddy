@@ -773,10 +773,28 @@ video form and renders identically there; all the reviewer chrome hangs off one
 optional `lineReview` prop. In review mode it adds per-line playback (play the
 line, loop it, slow it down — the speed is the reviewer's own and never touches
 the published video), a re-translate button per line, and a keyboard map:
-J/K to move, Space to play, ⇧Space to play slowly, M to merge, R to tick, T to
-re-translate, C to comment, brackets to nudge timings, `?` for the list. The map
-lives in `src/lib/transcriptShortcuts.ts` and both the resolver and the help
-panel read it, so a shortcut cannot exist undocumented.
+J/K to move, Space to play, ⇧Space to play slowly, M to merge, ⇧X to delete the
+line, R to tick, T to re-translate, C to comment, brackets to nudge timings, `?`
+for the list. The map lives in `src/lib/transcriptShortcuts.ts` and both the
+resolver and the help panel read it, so a shortcut cannot exist undocumented.
+
+**Deleting a line** is offered in both modes, because it is the one thing
+splitting and merging cannot do: a caption the recogniser hallucinated out of
+background music, a duplicated line, or an ad read that is not part of the clip
+has nothing to be merged into, and blanking it leaves an empty box holding its
+slice of the timeline and an empty subtitle on screen for its whole span. The
+button on the card asks twice — it is the only control there that destroys words
+rather than moving them, and it sits in a row of one-character buttons — while
+⇧X, a chord nobody hits by accident, goes straight through; both are one ⌘Z
+away from being undone, and undo restores the line whole and in its own place.
+The neighbours' timings are deliberately left alone, so the deleted span becomes
+a gap the list already draws and labels rather than a boundary that moved
+itself. Downstream nothing special happens: the save replaces the whole
+`transcript_lines` blob, so the line is simply not in it, and
+`diffTranscriptRevisions` already reports an id that has stopped existing as a
+`structure` revision. Note that a `transcript_line_reviews` row or a comment
+thread on a deleted line stays in its table, unreachable — that is the audit
+trail keeping what it was told, not a leak.
 
 An Arabic edit rewrites the line's **word list**, not just its text
 (`retokenizeSegment` in `src/lib/transcriptOps.ts`). The card draws its Arabic

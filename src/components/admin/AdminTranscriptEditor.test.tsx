@@ -987,6 +987,22 @@ describe("AdminTranscriptEditor — the fields the editor cannot see", () => {
     });
   });
 
+  it("lets a deleted line go, and keeps what the survivors were carrying", () => {
+    const { onChange } = render([rich(), aLine({ id: "line-2", fusha: "نص ثاني" })]);
+
+    // A line the editor removed simply is not in the segments it saves, and
+    // the conversion back is per-segment — so the deletion reaches the stored
+    // transcript without the adapter doing anything about it. What is worth
+    // pinning is that it does not take its neighbour's fields with it: the
+    // gloss pool and the extras map are keyed by line id and still hold the
+    // deleted line's entries.
+    props().onSave?.([props().initialSegments[1]]);
+    const saved = onChange.mock.calls.at(-1)?.[0] as TranscriptLine[];
+
+    expect(saved.map((line) => line.id)).toEqual(["line-2"]);
+    expect(saved[0].fusha).toBe("نص ثاني");
+  });
+
   it("keeps them on the lines nobody touched when one line is edited", () => {
     const { onChange } = render([rich(), aLine({ id: "line-2", fusha: "نص ثاني" })]);
 

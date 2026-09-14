@@ -1050,3 +1050,121 @@ describe("review mode", () => {
     });
   });
 });
+
+/**
+ * Removing a line from the transcript.
+ *
+ * The editor's other structural operations move words between lines — split,
+ * merge, re-segment. None of them can get rid of a line that should not be
+ * there at all, and transcripts arrive with those: a caption the recogniser
+ * hallucinated out of background music, a duplicated line, an ad read that is
+ * not part of the clip. Blanking one leaves an empty box holding its slice of
+ * the timeline.
+ *
+ * It is offered in both modes on purpose. The admin video form is where a
+ * transcript is first cleaned up, and the reviewer's workspace is where a
+ * native speaker finds the lines that are not speech at all.
+ */
+describe("deleting a line", () => {
+  const press = (k: string, mods: Record<string, boolean> = {}) =>
+    fireEvent.keyDown(window, { key: k, ...mods });
+
+  const deleteLine = (n: number) => {
+    fireEvent.click(screen.getByRole("button", { name: `Delete line ${n}` }));
+    fireEvent.click(screen.getByRole("button", { name: `Confirm deleting line ${n}` }));
+  };
+
+  const reviewer = () => (segmentId: string) => ({
+    state: "unreviewed" as const,
+    openComments: 0,
+    revisions: 0,
+    onToggleReviewed: vi.fn(),
+    onOpenComments: vi.fn(),
+    onOpenHistory: vi.fn(),
+    id: segmentId,
+  });
+
+  it("takes the card off the list", () => {
+    const { container } = render();
+
+    deleteLine(2);
+
+    expect(container.querySelectorAll("[data-segment-id]")).toHaveLength(1);
+    expect(container.querySelector("[data-segment-id='seg-2']")).toBeNull();
+  });
+
+  it("reports the shorter transcript to the page", async () => {
+    const { onSave } = render();
+
+    deleteLine(1);
+
+    // The save path replaces `transcript_lines` wholesale, so this is what
+    // actually deletes the line rather than hiding it.
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls.at(-1)![0].map((s: Segment) => s.id)).toEqual(["seg-2"]);
+  });
+
+  it("can be undone", () => {
+    const { container } = render();
+
+    deleteLine(1);
+    press("z", { metaKey: true });
+
+    expect(lines(container)).toEqual(["شلونك", "زين"]);
+  });
+
+  it("is offered on the video form too, not only in review mode", () => {
+    render();
+
+    expect(screen.getByRole("button", { name: "Delete line 1" })).toBeInTheDocument();
+  });
+
+  describe("from the keyboard", () => {
+    it("deletes the selected line on shift-x in review mode", () => {
+      const { container } = render({ lineReview: reviewer() });
+
+      press("X", { shiftKey: true });
+
+      expect(container.querySelector("[data-segment-id='seg-1']")).toBeNull();
+    });
+
+    it("leaves the key alone outside review mode", () => {
+      // The video form's editor has never claimed bare keys, and an admin
+      // typing in one of its other fields must not lose a line.
+      const { container } = render();
+
+      press("X", { shiftKey: true });
+
+      expect(container.querySelectorAll("[data-segment-id]")).toHaveLength(2);
+    });
+
+    it("moves the cursor onto the line that took its place", () => {
+      const { container } = render({ lineReview: reviewer() });
+
+      press("X", { shiftKey: true });
+
+      // Not back to line 1, which is where the selection-recovery effect would
+      // put it — a reviewer clearing captions from the middle of a transcript
+      // would be scrolling back after every one.
+      expect(container.querySelector("[data-segment-id='seg-2']")?.className).toContain("ring-2");
+    });
+
+    it("falls back to the line above when the last one goes", () => {
+      const { container } = render({ lineReview: reviewer() });
+
+      press("j");
+      press("X", { shiftKey: true });
+
+      expect(container.querySelector("[data-segment-id='seg-1']")?.className).toContain("ring-2");
+    });
+
+    it("stays out of a text box, where X is a capital X", () => {
+      const { container } = render({ lineReview: reviewer() });
+
+      const box = openFirstLine(container);
+      fireEvent.keyDown(box, { key: "X", shiftKey: true });
+
+      expect(container.querySelectorAll("[data-segment-id]")).toHaveLength(2);
+    });
+  });
+});

@@ -71,6 +71,21 @@ describe("editing", () => {
     expect(resolveShortcut(press("m"), typing)).toBeNull();
     expect(resolveShortcut(press("M", { shiftKey: true }), typing)).toBeNull();
   });
+
+  it("deletes the line on shift-x", () => {
+    expect(resolveShortcut(press("X", { shiftKey: true }), idle)).toBe("delete-line");
+  });
+
+  it("does not claim a bare x", () => {
+    // The only destructive key in the map, and the only one that asks for a
+    // modifier: every other letter here moves words around, this one throws
+    // them away.
+    expect(resolveShortcut(press("x"), idle)).toBeNull();
+  });
+
+  it("lets shift-x be a capital X inside a text box", () => {
+    expect(resolveShortcut(press("X", { shiftKey: true }), typing)).toBeNull();
+  });
 });
 
 describe("chords", () => {
@@ -163,8 +178,8 @@ describe("the help panel", () => {
     const documented = new Set(SHORTCUTS.map((s) => s.action));
     const reachable = new Set(
       [
-        ...["j", "k", "l", "m", "M", "r", "t", "c", "?", "[", "]", "{", "}", " ", "Enter"].map((key) =>
-          resolveShortcut(press(key, { shiftKey: key === "M" }), idle),
+        ...["j", "k", "l", "m", "M", "X", "r", "t", "c", "?", "[", "]", "{", "}", " ", "Enter"].map(
+          (key) => resolveShortcut(press(key, { shiftKey: key === "M" || key === "X" }), idle),
         ),
         resolveShortcut(press("Enter"), typing),
         resolveShortcut(press("z", { metaKey: true }), idle),

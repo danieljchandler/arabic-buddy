@@ -55,6 +55,8 @@ interface SegmentCardProps {
   onEndChange: (segmentId: string, value: number) => void;
   onFixArabic?: (segmentId: string) => void;
   onRetranslate?: (segmentId: string) => void;
+  /** Remove this line from the transcript entirely. */
+  onDelete?: (segmentId: string) => void;
   onSeek?: (segmentId: string) => void;
   /** Present only in the review workspace. */
   review?: SegmentReviewProps;
@@ -95,6 +97,7 @@ export default function SegmentCard({
   onEndChange,
   onFixArabic,
   onRetranslate,
+  onDelete,
   onSeek,
   review,
   isSelected = false,
@@ -105,6 +108,18 @@ export default function SegmentCard({
   const [editingTranslation, setEditingTranslation] = useState(false);
   const [translationValue, setTranslationValue] = useState(segment.translation);
   const [hoveredBoundary, setHoveredBoundary] = useState<number | null>(null);
+  /**
+   * Whether the delete button is armed.
+   *
+   * Deleting asks twice where merging and splitting do not, because it is the
+   * only action on this card that destroys words rather than moving them: a
+   * mis-hit on merge leaves the text in the line above, a mis-hit here leaves
+   * nothing. It is a second click rather than a modal — this is a list of a
+   * hundred cards and a reviewer clearing hallucinated captions out of one
+   * would be dismissing a dialog per line — and ⌘Z still reverses it either
+   * way.
+   */
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const handleWordClick = useCallback(
     (wordIndex: number) => {
@@ -331,6 +346,47 @@ export default function SegmentCard({
                 🐢
               </button>
             </>
+          )}
+          {onDelete && (
+            <button
+              type="button"
+              className={cn(
+                'text-[10px] px-2 py-0.5 rounded transition-colors',
+                confirmingDelete
+                  ? 'bg-red-600 text-white hover:bg-red-700'
+                  : 'bg-gray-100 hover:bg-red-100 hover:text-red-700 dark:bg-gray-800 dark:hover:bg-red-900/40 dark:hover:text-red-200',
+              )}
+              onClick={() => {
+                if (!confirmingDelete) {
+                  setConfirmingDelete(true);
+                  return;
+                }
+                setConfirmingDelete(false);
+                onDelete(segment.id);
+              }}
+              // Clicking anywhere else disarms it, so an armed button left
+              // behind by a change of mind cannot be triggered by the next
+              // click that happens to land on it.
+              onBlur={() => setConfirmingDelete(false)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') {
+                  e.preventDefault();
+                  setConfirmingDelete(false);
+                }
+              }}
+              title={
+                confirmingDelete
+                  ? 'Click again to delete this line, or click away to keep it'
+                  : 'Delete this line — its words and its translation go with it'
+              }
+              aria-label={
+                confirmingDelete
+                  ? `Confirm deleting line ${index + 1}`
+                  : `Delete line ${index + 1}`
+              }
+            >
+              {confirmingDelete ? 'Delete?' : '🗑'}
+            </button>
           )}
           <button
             className="text-[10px] px-2 py-0.5 rounded bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 transition-colors"

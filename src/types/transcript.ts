@@ -137,6 +137,14 @@ export type UndoOperation =
   | { type: 'EditTextOp'; segmentId: string; previousText: string; newText: string }
   | { type: 'ShiftTimestampOp'; segmentId: string; field: 'start' | 'end'; previousValue: number; newValue: number }
   | { type: 'AIReplaceOp'; segmentId: string; previousText: string; newText: string }
+  /**
+   * A whole line removed. The segment is kept in full — not just its id —
+   * because undoing a deletion has to put the words, the timings and the
+   * per-word confidences back, and by then there is nowhere else to read them
+   * from. `index` is where it sat, so it returns to its own place rather than
+   * to the end of the transcript.
+   */
+  | { type: 'DeleteOp'; segment: Segment; index: number }
   | { type: 'RippleTimestampOp'; changes: Array<{ segmentId: string; field: 'start' | 'end'; previousValue: number; newValue: number }> };
 
 /** Result of gap analysis between segments. */

@@ -258,6 +258,38 @@ test.describe("reviewing on the edit page", () => {
     expect(lines[0].arabic).toBe("شخبارك اليوم");
   });
 
+  test("deletes a line the clip never contained", async ({ page, db, backend }) => {
+    // The lines that most need removing are the ones the pipeline invented —
+    // a caption read out of background music, or an ad the clip does not
+    // contain. There is nothing to merge them into, and blanking one leaves an
+    // empty subtitle holding its slice of the timeline.
+    backend.stubFunction("record-transcript-corrections", { recorded: 0 });
+    await page.goto(`/admin/videos/${VIDEO}/edit`);
+
+    await page.getByRole("button", { name: "Delete line 2" }).click();
+    // It asks twice: this is the one control on the card that destroys words
+    // rather than moving them.
+    await page.getByRole("button", { name: "Confirm deleting line 2" }).click();
+
+    await expect(page.getByText("Fine, thank God")).toHaveCount(0);
+
+    await page.getByRole("button", { name: "Save transcript" }).click();
+
+    await expect
+      .poll(() => {
+        const stored = db.rows("discover_videos").find((r) => r.id === VIDEO);
+        return (stored?.transcript_lines as { id: string }[]).map((l) => l.id);
+      })
+      .toEqual(["L1"]);
+    // The removal is logged like any other change: the audit trail has to be
+    // able to say a line stopped existing, and who stopped it.
+    const structural = db
+      .rows("transcript_line_revisions")
+      .filter((r) => r.field === "structure" && r.line_id === "L2");
+    expect(structural).toHaveLength(1);
+    expect(structural[0].new_value).toBeNull();
+  });
+
   test("shows a correction whose word layer went stale under it", async ({ page, db }) => {
     // The revert-on-blur bug: an Arabic correction saved by a build that set
     // only `arabic` left the old words in `tokens`, and the card draws its
@@ -420,8 +452,22 @@ test.describe("reviewing on the edit page", () => {
     await expect(page.getByText("0 / 2 lines checked")).toBeVisible();
 
     await expect(page.getByRole("button", { name: /^Publish/ })).toHaveCount(0);
-    await expect(page.getByRole("button", { name: /^Delete/ })).toHaveCount(0);
+    // Deleting the *video*. Deleting one of its lines is a transcript
+    // correction and is offered — the two read alike and are not the same
+    // privilege, which is why this asks for the exact label rather than a
+    // prefix.
+    await expect(page.getByRole("button", { name: /^Delete$/ })).toHaveCount(0);
     await expect(page.getByRole("button", { name: /Update Video/ })).toHaveCount(0);
     await expect(page.getByRole("switch")).toHaveCount(0);
+  });
+
+  test("still lets a transcriber remove a line", async ({ page }) => {
+    // The corollary of the test above: correcting the transcript is the whole
+    // of what this role is for, and a line the clip does not contain is a
+    // correction like any other. The write goes through the same
+    // `transcript-review` function as every other edit they make.
+    await page.goto(`/admin/videos/${VIDEO}/edit`);
+
+    await expect(page.getByRole("button", { name: "Delete line 1" })).toBeVisible();
   });
 });

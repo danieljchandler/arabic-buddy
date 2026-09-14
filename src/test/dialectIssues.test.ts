@@ -216,4 +216,27 @@ describe("parseDialectIssues", () => {
       { line: 2, word: "x", kind: "msa", severity: "low", note: "it's MSA" },
     ]);
   });
+
+  it("salvages only from inside the unfinished issues array, never a summary in front of it", () => {
+    // Codex's case: a finished metadata list ahead of the cut-off issues
+    // array. Its object carries a `line` and a `text` (aliased to `word`), so
+    // an unrestricted scan read it as a finding and the walk stopped there.
+    const cut = '{"analysis":[{"line":15,"text":"No issues found"}],"issues":[';
+    expect(parseDialectIssues(cut)).toBeNull();
+
+    const cutWithOne = '{"summary":{"line":15,"kind":"ok"},"issues":[{"line":2,"word":"سوف","kind":"msa","severity":"low"},{"line":5,"wor';
+    expect(parseDialectIssues(cutWithOne)).toEqual([{ line: 2, word: "سوف", kind: "msa", severity: "low" }]);
+  });
+
+  it("does not salvage an object that names neither a word nor a kind", () => {
+    expect(parseDialectIssues('{"issues":[{"line":3,"note":"fine"},{"line":4,"word":"x","kind":"msa"},{"line":5,"wor')).toEqual([
+      { line: 4, word: "x", kind: "msa", severity: "low" },
+    ]);
+  });
+
+  it("keeps an escaped apostrophe when converting single-quoted JSON", () => {
+    expect(parseDialectIssues("{'issues': [{'line': 2, 'word': 'x', 'kind': 'msa', 'note': 'it\\'s MSA'}]}")).toEqual([
+      { line: 2, word: "x", kind: "msa", severity: "low", note: "it's MSA" },
+    ]);
+  });
 });

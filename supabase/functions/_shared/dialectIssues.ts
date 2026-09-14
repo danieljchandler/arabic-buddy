@@ -143,7 +143,16 @@ export function tolerantJsonParse(candidate: string): unknown {
     .replace(/[‘’]/g, "'");
   // Python-style JSON: single quotes throughout and not a double quote in
   // sight. Only then — an apostrophe inside a double-quoted note is data.
-  if (!repaired.includes('"') && repaired.includes("'")) repaired = repaired.replace(/'/g, '"');
+  // An escaped apostrophe inside such a string (`'it\\'s'`) is data too, so
+  // it is set aside before the delimiters turn and put back as a bare `'`.
+  if (!repaired.includes('"') && repaired.includes("'")) {
+    // A private-use code point stands in for the escaped apostrophe while the
+    // delimiters turn; nothing a model emits lands there.
+    repaired = repaired
+      .replace(/\\'/g, '\uE000')
+      .replace(/'/g, '"')
+      .replace(/\uE000/g, "'");
+  }
   repaired = repaired
     // Trailing comma before a close brace/bracket.
     .replace(/,(\s*[}\]])/g, '$1')
@@ -224,7 +233,14 @@ function coerceSeverity(value: unknown): 'low' | 'high' {
 export function parseDialectIssues(content: string): DialectIssue[] | null {
   if (!content || !content.trim()) return null;
 
-  for (const candidate of extractJsonCandidates(content)) {
+  // A reply cut off inside its issues list is read from that list onward.
+  // Whatever the model wrote in front of it — a summary object, a per-line
+  // analysis — is a complete, balanced region the scanner would otherwise
+  // find first and, under the key aliases, read as the answer.
+  const arrayStart = unfinishedIssuesArrayStart(content);
+  const scanned = arrayStart === null ? content : content.slice(arrayStart);
+
+  for (const candidate of extractJsonCandidates(scanned)) {
     const parsed = tolerantJsonParse(candidate);
     const raw = findIssuesArray(parsed);
     if (!raw) continue;
@@ -241,14 +257,66 @@ export function parseDialectIssues(content: string): DialectIssue[] | null {
   // balanced `{...}` the scanner already found. A truncated list of real
   // findings is a real answer; the old first-brace-to-last-brace parse and
   // then the array-only recovery both discarded it whole.
-  const salvaged = coerceIssues(
-    extractJsonCandidates(content)
-      .map(tolerantJsonParse)
-      .filter((value) => isIssueShaped(value)),
-  );
-  if (salvaged.length > 0) return salvaged;
+  //
+  // Only the objects *inside* the unfinished issues array count, and only
+  // those that name a word or a kind. Scanning the whole reply would salvage
+  // whatever else the model wrote in front of the list — a summary object
+  // with a `line` in it reads as an issue under the key aliases — and a false
+  // finding is worse than none: it also satisfies the caller's `accept`, so
+  // the next judge is never asked.
+  if (arrayStart !== null) {
+    const salvaged = coerceIssues(
+      extractJsonCandidates(scanned)
+        .map(tolerantJsonParse)
+        .filter((value) => isIssueShaped(value) && hasIssueSubstance(value)),
+    );
+    if (salvaged.length > 0) return salvaged;
+  }
 
   return null;
+}
+
+/** Keys the issues list has been seen under, in the prompt's English and in translation. */
+const ISSUES_KEY = /"(?:issues|problems|findings|errors|المشاكل|مشاكل|الأخطاء|أخطاء|القضايا|الملاحظات)"\s*:\s*\[/gi;
+
+/**
+ * Where an `issues: [` opens that never closes, or null when every list in
+ * the reply is complete (then there was nothing to salvage — the array path
+ * above already read it). The last unclosed opener wins, so a finished
+ * summary list before it is left alone.
+ */
+function unfinishedIssuesArrayStart(text: string): number | null {
+  const cleaned = text.replace(/[“”„«»]/g, '"').replace(/'/g, '"');
+  let found: number | null = null;
+  for (const match of cleaned.matchAll(ISSUES_KEY)) {
+    const open = match.index + match[0].length - 1;
+    if (!bracketCloses(cleaned, open)) found = open;
+  }
+  return found;
+}
+
+/** Does the `[` at `open` find its `]`, ignoring brackets inside strings? */
+function bracketCloses(text: string, open: number): boolean {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = open; i < text.length; i++) {
+    const ch = text[i];
+    if (escaped) { escaped = false; continue; }
+    if (ch === '\\') { escaped = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '[') depth++;
+    else if (ch === ']') { depth--; if (depth === 0) return true; }
+  }
+  return false;
+}
+
+/** An issue names the offending word or its kind; a line number and a note alone are not a finding. */
+function hasIssueSubstance(value: unknown): boolean {
+  const o = normalizeIssueKeys(value as Record<string, unknown>);
+  return (typeof o.word === 'string' && o.word.trim().length > 0) ||
+    (typeof o.kind === 'string' && o.kind.trim().length > 0);
 }
 
 /** Issue objects → `DialectIssue`s, dropping anything that carries none of the fields. */

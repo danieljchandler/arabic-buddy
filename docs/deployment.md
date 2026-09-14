@@ -94,7 +94,19 @@ There is no Lovable AI gateway key any more: every model call goes through
 `FARASA_API_KEY` (required for tashkeel — the WebAPI refuses anonymous
 traffic), `HUGGINGFACE_API_KEY` (CAMeL dialect ID), `JINA_API_KEY`,
 `FIRECRAWL_API_KEY`, `YOUTUBE_API_KEY`, `RAPIDAPI_KEY`, `COBALT_API_KEY`,
-`DIALECT_VALIDATOR_CROSSCHECK`, `JAIS_TIEBREAK_WARMUP`, `JAIS_PIPELINE_WARMUP`.
+`DIALECT_VALIDATOR_CROSSCHECK`, `JAIS_TIEBREAK_WARMUP`, `JAIS_PIPELINE_WARMUP`,
+`HUMAIN_M3_MODEL_ID`.
+
+`HUMAIN_NODE_API_KEY` routes `humain/*` ids to HUMAIN Node. Node's catalogue is
+per key, and M3 is gated behind an approval on the account, so the documented
+id `humain-m3` can come back `400 Unsupported model` on a key that has not been
+granted it — which is what the first live run saw. The gateway then reads
+`GET /v1/models` with the same key, retries once under whatever id there is M3
+(a tier may suffix it), and remembers the answer; when the catalogue has no M3
+the refusal stands and the log and the video row's `attempts` name what the key
+*can* call, which is the cue to request access on Node. `HUMAIN_M3_MODEL_ID`
+pins the served id outright and skips the lookup. `scripts/humain-models.ts`
+prints the catalogue for a key without it touching the repo.
 
 `JAIS_PIPELINE_WARMUP` (default **on**; set `off` to disable) pings the Jais
 worker at the start of every transcript run — in `process-approved-video`

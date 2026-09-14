@@ -227,6 +227,30 @@ it took a second look to see why. Three things, each fixed in the walk:
   (`warmArabicJudges`, `JAIS_PIPELINE_WARMUP`), which is roughly a FlashBoot
   start ahead of the first question.
 
+**What the second run said (2026-09-14, video `41bf72a9`).** With the walk
+fixed, both judges were *asked* and both missed, for reasons the row now
+names:
+
+- M3: `HTTP 400 Unsupported model: humain-m3`. The id is the one Node's own
+  docs use, so this is the catalogue question §0 warned about — access to M3
+  is granted per account and this key does not carry it under that name, or at
+  all. The gateway now answers that question itself: on a model refusal it
+  reads `GET /v1/models` with the same key, retries once under whatever id
+  there is M3, and remembers the alias; when nothing there is, the refusal
+  stands and the attempt record carries the catalogue (`humainCatalogueSummary`),
+  so "request M3 access on HUMAIN Node" is readable from the video.
+  `HUMAIN_M3_MODEL_ID` pins the id outright.
+- Jais: `cold worker: no answer to a 1-token probe in 8000ms` — despite the
+  run-start ping. The RunPod endpoint was checked live while that worker came
+  up: started 04:32:27Z on the ping, not ready until roughly seven to nine
+  minutes later. It has no network volume, so a cold start is a 16GB pull from
+  the Hub plus vLLM's load, and no pipeline run lasts that long. The ping is
+  therefore what makes the *next* run within the five-minute idle window warm,
+  not this one. Making Jais answer on a first run is infrastructure, not code:
+  a network volume holding the HF cache (a load from disk rather than a
+  download) and/or a longer idle timeout so a session of imports shares one
+  boot. Both cost money and are the operator's call.
+
 ### 1d. A say in the translations
 
 `analyze-gulf-arabic` also now puts every line its ensemble could not settle to

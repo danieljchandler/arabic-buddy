@@ -12,6 +12,8 @@ import {
 } from './dialectHelpers.ts';
 import {
   chatFetch,
+  completionText,
+  describeEmptyCompletion,
   humainCatalogueSummary,
   isHumainModelRejection,
   providerForModel,
@@ -864,12 +866,15 @@ export async function judgeWithArabicNative(
         continue;
       }
       const data = await res.json();
-      const content = data?.choices?.[0]?.message?.content;
-      if (typeof content !== 'string' || !content.trim()) {
+      // `completionText` reads both the string and the content-parts shape;
+      // M3 is multimodal and its first reply under the served id was parts.
+      const content = completionText(data);
+      if (!content) {
         // A 200 with nothing in it is a failure like any other — fall through
         // rather than hand the caller an empty "judgment" it would then try to
-        // parse into issues.
-        attempts.push({ model, error: 'empty response body' });
+        // parse into issues. Say *why* it was empty: a guardrail refusal, a
+        // length cut and an unread shape all need different fixes.
+        attempts.push({ model, error: `empty response body (${describeEmptyCompletion(data)})` });
         continue;
       }
       if (opts.accept && !opts.accept(content)) {

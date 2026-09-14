@@ -192,6 +192,8 @@ function haveTimeFor(needMs: number, label: string): boolean {
 const CONNECT_TIMEOUT_MS = 40_000;
 /** Fanar is intermittently slow; it gets less patience for the same reason. */
 const FANAR_CONNECT_TIMEOUT_MS = 30_000;
+/** Output budget for the per-video dialect check — see the call site. */
+const DIALECT_CHECK_MAX_TOKENS = 2048;
 /** Longest any one call may spend writing its answer, however large. */
 const GENERATION_CEILING_MS = 120_000;
 
@@ -537,9 +539,10 @@ const getFanarValidationSystemPrompt = () => {
 
 "line" رقم السطر (يبدأ من 1)، و"kind" واحدة من: msa | spelling | foreign_dialect | cultural،
 و"severity" إما "low" أو "high" — استخدم "high" فقط لما يغيّر المعنى أو يجعل النص غير أصيل.
-إذا لم تجد أي مشاكل، أخرج {"issues": []}. يمكن كتابة "note" بالعربية أو الإنجليزية.
+إذا لم تجد أي مشاكل، أخرج {"issues": []}. يمكن كتابة "note" بالعربية أو الإنجليزية، ويجب أن تكون قصيرة جداً (لا تتجاوز ١٢ كلمة).
+استخدم أسماء الحقول الإنجليزية كما هي (line, word, kind, severity, note) ولا تترجمها.
 
-Respond with the JSON object only — no introduction, no explanation, no markdown. A reply that is not JSON will be discarded unread.`;
+Respond with the JSON object only — no introduction, no explanation, no markdown. Keep the field names in English exactly as shown and every "note" under 12 words. A reply that is not JSON will be discarded unread.`;
 };
 
 // ─── FANAR VALIDATION RESPONSE ──────────────────────────────────────────────
@@ -2464,7 +2467,11 @@ serve(async (req) => {
          getFanarValidationSystemPrompt(),
          mergedTranscriptText,
          {
-           maxTokens: 1024,
+           // 2048, not 1024: a chatty 8B judge writing a note per issue for a
+           // fifteen-line clip ran past the smaller budget and its JSON came
+           // back cut mid-array. The parser now salvages the finished objects
+           // from a cut reply, but the budget should not be what cuts it.
+           maxTokens: DIALECT_CHECK_MAX_TOKENS,
            label: 'analyze-gulf-arabic/dialect-validation',
            // The deadline this call actually needs, rather than the helper's
            // generic default. A whole transcript in and up to 1024 tokens of
@@ -2472,7 +2479,7 @@ serve(async (req) => {
            // sized at a 30s wait for headers plus a generation budget on top,
            // so it gets the same allowance here — `generationBudgetMs` already
            // shrinks it when the function is running out of wall clock.
-           timeoutMs: FANAR_CONNECT_TIMEOUT_MS + generationBudgetMs(1024),
+           timeoutMs: FANAR_CONNECT_TIMEOUT_MS + generationBudgetMs(DIALECT_CHECK_MAX_TOKENS),
            // Per rung. The walk as a whole ends at the run's deadline.
            signal: runDeadlineSignal(),
            // A reply the issue parser cannot read is a failed rung, not a

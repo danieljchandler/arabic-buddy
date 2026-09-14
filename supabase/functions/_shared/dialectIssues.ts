@@ -43,6 +43,34 @@ const ARABIC_KIND: Record<string, string> = {
   'ثقافية': 'cultural',
 };
 
+/**
+ * Arabic (and a few English variant) spellings of the *field names*. Asked in
+ * Arabic to emit `line`/`word`/`kind`/`severity`/`note`, a smaller model —
+ * Jais 2 8B on the last audited run — translates the keys as readily as the
+ * values, and an object keyed `الكلمة`/`النوع` carried real findings that the
+ * parser threw away as noise. Keys are normalised through this table before
+ * anything is read off the object.
+ */
+const KEY_ALIASES: Record<string, keyof DialectIssue> = {
+  'السطر': 'line', 'سطر': 'line', 'رقم_السطر': 'line', 'رقم السطر': 'line', 'line_number': 'line', 'lineno': 'line',
+  'الكلمة': 'word', 'كلمة': 'word', 'العبارة': 'word', 'token': 'word', 'text': 'word', 'phrase': 'word',
+  'النوع': 'kind', 'نوع': 'kind', 'التصنيف': 'kind', 'type': 'kind', 'category': 'kind', 'issue_type': 'kind',
+  'الشدة': 'severity', 'شدة': 'severity', 'الخطورة': 'severity', 'الأهمية': 'severity', 'level': 'severity',
+  'ملاحظة': 'note', 'الملاحظة': 'note', 'شرح': 'note', 'الشرح': 'note', 'تعليق': 'note', 'التعليق': 'note',
+  'reason': 'note', 'explanation': 'note', 'comment': 'note', 'suggestion': 'note',
+};
+
+/** `{"الكلمة": …}` → `{word: …}`; keys already in English pass through. */
+function normalizeIssueKeys(value: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, v] of Object.entries(value)) {
+    const lower = key.trim().toLowerCase();
+    const mapped = KEY_ALIASES[key.trim()] ?? KEY_ALIASES[lower] ?? lower;
+    if (!(mapped in out)) out[mapped] = v;
+  }
+  return out;
+}
+
 const ARABIC_SEVERITY: Record<string, 'low' | 'high'> = {
   'عالية': 'high',
   'عالي': 'high',
@@ -109,10 +137,14 @@ export function tolerantJsonParse(candidate: string): unknown {
     return JSON.parse(candidate);
   } catch { /* fall through to repairs */ }
 
-  const repaired = normalizeDigits(candidate)
+  let repaired = normalizeDigits(candidate)
     // Smart quotes around keys and values.
     .replace(/[“”„«»]/g, '"')
-    .replace(/[‘’]/g, "'")
+    .replace(/[‘’]/g, "'");
+  // Python-style JSON: single quotes throughout and not a double quote in
+  // sight. Only then — an apostrophe inside a double-quoted note is data.
+  if (!repaired.includes('"') && repaired.includes("'")) repaired = repaired.replace(/'/g, '"');
+  repaired = repaired
     // Trailing comma before a close brace/bracket.
     .replace(/,(\s*[}\]])/g, '$1')
     // An Arabic comma used as a JSON separator, but only where a structural
@@ -129,7 +161,7 @@ export function tolerantJsonParse(candidate: string): unknown {
 /** Does this look like one of Fanar's issue objects rather than some other record? */
 function isIssueShaped(value: unknown): boolean {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  const o = value as Record<string, unknown>;
+  const o = normalizeIssueKeys(value as Record<string, unknown>);
   return ['word', 'kind', 'note', 'severity', 'line'].some((k) => k in o);
 }
 
@@ -197,9 +229,33 @@ export function parseDialectIssues(content: string): DialectIssue[] | null {
     const raw = findIssuesArray(parsed);
     if (!raw) continue;
 
-    const issues = raw.flatMap((item): DialectIssue[] => {
+    const issues = coerceIssues(raw);
+
+    // A candidate that parsed to an array of pure noise is not the answer;
+    // keep scanning the smaller candidates before giving up.
+    if (issues.length > 0 || raw.length === 0) return issues;
+  }
+
+  // No array anywhere — but a reply cut off by its token budget still holds
+  // every issue object that was finished before the cut, each of them a
+  // balanced `{...}` the scanner already found. A truncated list of real
+  // findings is a real answer; the old first-brace-to-last-brace parse and
+  // then the array-only recovery both discarded it whole.
+  const salvaged = coerceIssues(
+    extractJsonCandidates(content)
+      .map(tolerantJsonParse)
+      .filter((value) => isIssueShaped(value)),
+  );
+  if (salvaged.length > 0) return salvaged;
+
+  return null;
+}
+
+/** Issue objects → `DialectIssue`s, dropping anything that carries none of the fields. */
+function coerceIssues(raw: unknown[]): DialectIssue[] {
+  return raw.flatMap((item): DialectIssue[] => {
       if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
-      const o = item as Record<string, unknown>;
+      const o = normalizeIssueKeys(item as Record<string, unknown>);
       const line = coerceLine(o.line);
       const kind = coerceKind(o.kind);
       const word = typeof o.word === 'string' && o.word.trim()
@@ -218,11 +274,4 @@ export function parseDialectIssues(content: string): DialectIssue[] | null {
         ...(note ? { note } : {}),
       }];
     });
-
-    // A candidate that parsed to an array of pure noise is not the answer;
-    // keep scanning the smaller candidates before giving up.
-    if (issues.length > 0 || raw.length === 0) return issues;
-  }
-
-  return null;
 }

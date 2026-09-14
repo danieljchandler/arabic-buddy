@@ -1345,3 +1345,47 @@ Deno.test("a rung Node refuses on the model is recorded with what the key can ca
     },
   });
 });
+
+Deno.test("a reply whose content arrives as typed parts is read as text", async () => {
+  await withValidator(async (mod) => {
+    const out = await mod.judgeWithArabicNative("sys", "نص");
+
+    // M3 is natively multimodal and answered, under its served id, with
+    // `content: [{type: "text", text: …}]`. Read as a string only, that was
+    // "empty response body" and a verdict thrown away.
+    assertEquals(out.model, M3);
+    assertEquals(out.content, '{"issues": []}');
+    assertEquals(out.attempts, []);
+  }, {
+    env: NODE,
+    upstreams: {
+      [NODE_HOST]: () => json({
+        choices: [{ finish_reason: "stop", message: { role: "assistant", content: [{ type: "text", text: '{"issues": []}' }] } }],
+      }),
+    },
+  });
+});
+
+Deno.test("an empty reply is recorded with why it was empty", async () => {
+  await withValidator(async (mod) => {
+    const out = await mod.judgeWithArabicNative("sys", "نص");
+
+    // A guardrail refusal, a length cut and a shape this code does not read
+    // need different fixes; "empty response body" alone told nobody which.
+    assertEquals(out.model, FANAR);
+    assertEquals(out.attempts.length, 1);
+    const error = out.attempts[0].error;
+    assert(error.startsWith("empty response body ("), error);
+    assert(error.includes("finish_reason=content_filter"), error);
+    assert(error.includes('refusal="guardrail"'), error);
+    assert(error.includes("content=null"), error);
+  }, {
+    env: NODE,
+    upstreams: {
+      [NODE_HOST]: () => json({
+        choices: [{ finish_reason: "content_filter", message: { role: "assistant", content: null, refusal: "guardrail" } }],
+      }),
+      [FANAR_HOST]: () => chatCompletion("حكم فنار"),
+    },
+  });
+});

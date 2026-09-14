@@ -687,11 +687,67 @@ export function warmRoute(model: string, timeoutMs = 300_000): void {
   runtime?.waitUntil?.(task);
 }
 
-/** The assistant text of an OpenAI-shaped completion, or null when there wasn't one. */
+/**
+ * The assistant text of an OpenAI-shaped completion, or null when there wasn't one.
+ *
+ * `content` is a string on most providers and an array of typed parts on the
+ * multimodal ones — HUMAIN M3 is natively multimodal, and the first run that
+ * reached it under its served id came back "empty" to a caller that only read
+ * strings. Text parts are joined; anything else (images, tool parts) is not
+ * text and is left out.
+ */
 export function completionText(data: unknown): string | null {
   const content = (data as { choices?: Array<{ message?: { content?: unknown } }> })
     ?.choices?.[0]?.message?.content;
-  return typeof content === 'string' && content.trim() ? content : null;
+  if (typeof content === 'string') return content.trim() ? content : null;
+  if (Array.isArray(content)) {
+    const text = content
+      .map((part) => {
+        if (typeof part === 'string') return part;
+        const p = part as { type?: unknown; text?: unknown; content?: unknown } | null;
+        if (p && typeof p.text === 'string' && (p.type === undefined || /text/i.test(String(p.type)))) return p.text;
+        if (p && typeof p.content === 'string') return p.content;
+        return '';
+      })
+      .join('');
+    return text.trim() ? text : null;
+  }
+  return null;
+}
+
+/**
+ * Why a 200 carried no text — for the record a caller keeps of a rung that
+ * answered nothing. Names the finish reason, a refusal if the provider set
+ * one, and the keys the message did carry, so "empty response body" on a row
+ * says whether it was a guardrail, a length cut, or a shape this code does not
+ * read yet.
+ */
+export function describeEmptyCompletion(data: unknown): string {
+  const d = data as {
+    choices?: Array<{ finish_reason?: unknown; message?: Record<string, unknown> | null }>;
+    error?: unknown;
+  } | null;
+  const choice = d?.choices?.[0];
+  if (!choice) {
+    const keys = d && typeof d === 'object' ? Object.keys(d).join(', ') : typeof d;
+    return `no choices in response (top-level keys: ${keys || 'none'})`;
+  }
+  const bits: string[] = [];
+  if (choice.finish_reason !== undefined) bits.push(`finish_reason=${String(choice.finish_reason)}`);
+  const message = choice.message ?? {};
+  const refusal = message.refusal;
+  if (typeof refusal === 'string' && refusal.trim()) bits.push(`refusal="${refusal.slice(0, 80)}"`);
+  const content = message.content;
+  bits.push(
+    content === undefined ? 'no content field'
+      : content === null ? 'content=null'
+      : Array.isArray(content) ? `content is an array of ${content.length} part(s) with no text`
+      : typeof content === 'string' ? 'content is an empty string'
+      : `content is ${typeof content}`,
+  );
+  const keys = Object.keys(message).filter((k) => k !== 'content' && k !== 'role');
+  if (keys.length) bits.push(`other message keys: ${keys.join(', ')}`);
+  return bits.join('; ');
 }
 
 // ---- Image generation -------------------------------------------------------

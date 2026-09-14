@@ -295,9 +295,11 @@ judges reached, both refused, both reasons on the row:
   MIG slice (the endpoint's 24GB pools admit it) that was still initialising
   two hours on. A 502 while no worker is ready is the cold start again, just
   faster to fail; the probe now records it as "worker not ready" so the row
-  says starting rather than broken. The remedies are still infrastructure:
-  a network volume for the weights, a longer idle timeout, and pinning the
-  pools to the Ampere/Ada cards the image is known to boot on.
+  says starting rather than broken. The remedies were infrastructure, and
+  they were applied the same day: a 40 GB network volume for the weights in
+  `US-IL-1`, a 30-minute idle timeout, and the MIG slice excluded from the
+  pools — see `docs/deployment.md`. Whether that brings a cold start inside a
+  pipeline run is the next thing to measure.
 
 ### 1d. A say in the translations
 

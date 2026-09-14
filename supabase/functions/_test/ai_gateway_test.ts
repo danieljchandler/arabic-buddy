@@ -492,6 +492,53 @@ Deno.test("an M3 id Node refuses is looked up in this key's catalogue and retrie
   });
 });
 
+Deno.test("an embedding model that happens to carry m3 is not mistaken for the chat model", async () => {
+  await withGateway(async (mod, up) => {
+    const response = await mod.chatFetch("humain/humain-m3", { messages: [] });
+
+    // BGE-M3 is a real embedding model with the same token in its name. It
+    // is listed before the chat model here; the family match must skip it,
+    // on the id and on Node's own interface metadata, and land on M3 proper.
+    assertEquals(response.status, 200);
+    const calls = up.callsTo("node.humain.test");
+    assertEquals(calls.map((c) => c.method), ["POST", "GET", "POST"]);
+    assertEquals(bodyOf(calls[2]).model, "humain-m3-v1");
+  }, {
+    env: { ...NODE, HUMAIN_NODE_API_KEY: "fixture-humain" },
+    upstreams: {
+      "node.humain.test": async (request: Request) => {
+        if (request.method === "GET") {
+          return json({ data: [
+            { id: "bge-m3", node: { api_interface: "embeddings" } },
+            { id: "humain-m3-embed" },
+            { id: "humain-m3-v1", node: { api_interface: "chat" } },
+          ] });
+        }
+        const body = JSON.parse(await request.clone().text()) as { model: string };
+        return body.model === "humain-m3-v1"
+          ? chatCompletion("مرحبا")
+          : json({ error: { message: `Unsupported model: ${body.model}` } }, 400);
+      },
+    },
+  });
+});
+
+Deno.test("an alias is remembered only once it has answered", async () => {
+  await withGateway(async (mod, up) => {
+    // The catalogue names a candidate that Node then refuses too. Nothing is
+    // cached, so the next call starts from the registry id again rather than
+    // from a guess that already failed.
+    const first = await mod.chatFetch("humain/humain-m3", { messages: [] });
+    assertEquals(first.status, 400);
+    await mod.chatFetch("humain/humain-m3", { messages: [] });
+    const posts = up.callsTo("node.humain.test").filter((c) => c.method === "POST");
+    assertEquals(posts.map((c) => bodyOf(c).model), ["humain-m3", "humain-m3-preview", "humain-m3", "humain-m3-preview"]);
+  }, {
+    env: { ...NODE, HUMAIN_NODE_API_KEY: "fixture-humain" },
+    upstreams: { "node.humain.test": nodeCatalogue(["humain-m3-preview"]) },
+  });
+});
+
 Deno.test("a key whose catalogue has no M3 keeps the refusal, and can say what it does have", async () => {
   await withGateway(async (mod, up) => {
     const response = await mod.chatFetch("humain/humain-m3", { messages: [] });

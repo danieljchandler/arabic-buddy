@@ -263,8 +263,15 @@ function humainServedId(bare: string): string {
 
 /** Requested bare id → the id this key's catalogue actually serves it as. Per isolate. */
 const humainAliases = new Map<string, string>();
+/** A catalogue row: the id, plus whatever Node says about how it is called. */
+interface HumainCatalogueRow {
+  id: string;
+  /** Node's `node.api_interface`, e.g. "chat", "embeddings" — absent on a bare list. */
+  apiInterface?: string;
+}
+
 /** The last catalogue fetched, for the log line and the judge's attempt record. */
-let humainCatalogue: string[] | null = null;
+let humainCatalogue: HumainCatalogueRow[] | null = null;
 
 /** Node refusing the *model* — as opposed to the request, the key, or the service. */
 export function isHumainModelRejection(status: number, body: string): boolean {
@@ -278,6 +285,11 @@ export function isHumainModelRejection(status: number, body: string): boolean {
  * between two calls of ours.
  */
 export async function humainCatalogueIds(signal?: AbortSignal): Promise<string[] | null> {
+  const rows = await humainCatalogueRows(signal);
+  return rows ? rows.map((row) => row.id) : null;
+}
+
+async function humainCatalogueRows(signal?: AbortSignal): Promise<HumainCatalogueRow[] | null> {
   if (humainCatalogue) return humainCatalogue;
   const apiKey = keyFor('humain');
   if (!apiKey) return null;
@@ -291,11 +303,14 @@ export async function humainCatalogueIds(signal?: AbortSignal): Promise<string[]
       console.warn(`[aiGateway] HUMAIN Node catalogue: HTTP ${res.status}`);
       return null;
     }
-    const data = await res.json() as { data?: Array<{ id?: unknown }> } | Array<{ id?: unknown }>;
+    type Row = { id?: unknown; node?: { api_interface?: unknown } };
+    const data = await res.json() as { data?: Row[] } | Row[];
     const rows = Array.isArray(data) ? data : Array.isArray(data?.data) ? data.data : [];
-    humainCatalogue = rows
-      .map((row) => (typeof row?.id === 'string' ? row.id : null))
-      .filter((id): id is string => Boolean(id));
+    humainCatalogue = rows.flatMap((row): HumainCatalogueRow[] => {
+      if (typeof row?.id !== 'string' || !row.id) return [];
+      const apiInterface = row.node?.api_interface;
+      return [{ id: row.id, ...(typeof apiInterface === 'string' ? { apiInterface } : {}) }];
+    });
     return humainCatalogue;
   } catch (err) {
     console.warn('[aiGateway] HUMAIN Node catalogue unreadable:', err instanceof Error ? err.message : String(err));
@@ -311,22 +326,41 @@ export async function humainCatalogueIds(signal?: AbortSignal): Promise<string[]
 export function humainCatalogueSummary(): string | null {
   if (!humainCatalogue) return null;
   if (humainCatalogue.length === 0) return "this key's HUMAIN Node catalogue is empty";
-  return `this key's HUMAIN Node catalogue: ${humainCatalogue.join(', ')}`;
+  return `this key's HUMAIN Node catalogue: ${humainCatalogue.map((row) => row.id).join(', ')}`;
 }
 
 /**
+ * Ids that are the same family but a different *kind* of model. "m3" is not
+ * a name HUMAIN owns — BGE-M3 is an embedding model that could plausibly sit
+ * in the same catalogue — so a chat alias must never resolve to one of these.
+ */
+const NON_CHAT_ID = /embed|rerank|encoder|bge|tts|stt|whisper|asr|ocr|vision-only/i;
+
+/**
  * The id this key's catalogue serves `bare` under, or null when nothing there
- * is the same model. An exact match wins; failing that, M3 is recognised by
- * name, since a tier may publish it under a suffixed id.
+ * is the same model.
+ *
+ * An exact match wins. Failing that, a tier may publish M3 under a suffixed
+ * id, so the family name is matched — but only on HUMAIN's own ids (the
+ * catalogue is shared with third-party models) and only on rows that are, as
+ * far as Node says or the id suggests, chat models. A wrong guess here is
+ * worse than none: the retry fails and, were it remembered, every later call
+ * would start from the wrong id.
  */
 async function discoverHumainId(bare: string, signal?: AbortSignal): Promise<string | null> {
-  const ids = await humainCatalogueIds(signal);
-  if (!ids) return null;
-  if (ids.includes(bare)) return bare;
+  const rows = await humainCatalogueRows(signal);
+  if (!rows) return null;
+  if (rows.some((row) => row.id === bare)) return bare;
   const family = bare.replace(/^humain-/, '').split(/[-_]/)[0];
   if (!family) return null;
   const pattern = new RegExp(`(^|[-_/])${family}([-_/]|$)`, 'i');
-  return ids.find((id) => pattern.test(id)) ?? null;
+  const candidate = rows.find((row) =>
+    /humain/i.test(row.id) &&
+    pattern.test(row.id) &&
+    !NON_CHAT_ID.test(row.id) &&
+    (!row.apiInterface || /chat|completions|messages|responses/i.test(row.apiInterface))
+  );
+  return candidate?.id ?? null;
 }
 
 export interface ChatRoute {
@@ -555,8 +589,10 @@ export async function chatFetchDetailed(
             `[aiGateway] ${label}: HUMAIN Node refused "${route.model}" (${detail.slice(0, 120)}); ` +
               `this key serves it as "${served}" — retrying under that id`,
           );
-          humainAliases.set(route.model, served);
           const retried = await send({ ...route, model: served });
+          // Remembered only once it has answered: an alias cached on a guess
+          // would put every later call behind the same wrong id.
+          if (retried.ok) humainAliases.set(route.model, served);
           return { response: retried, provider: route.provider, model: served };
         }
         console.warn(

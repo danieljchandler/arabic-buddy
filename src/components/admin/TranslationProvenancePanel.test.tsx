@@ -52,6 +52,22 @@ describe("TranslationProvenancePanel", () => {
     expect(screen.getByText(/answered in 30\.0s — won 0 lines/)).toBeInTheDocument();
   });
 
+  it("says where a model read a line differently from the ones that carried it", () => {
+    render_(provenance({
+      active_models: 4,
+      tiers: [
+        { name: "anthropic/claude-sonnet-5", via: "openrouter", weight: 1, status: "ok", latency_ms: 12_300, lines_won: 10, lines_outvoted: 2 },
+        { name: "humain/humain-m3", via: "humain", weight: 1, status: "ok", latency_ms: 20_000, lines_won: 9, lines_outvoted: 3 },
+        { name: "google/gemini-3.7-flash", via: "google", weight: 1, status: "ok", latency_ms: 8_100, lines_won: 12, lines_outvoted: 0 },
+        { name: "qwen/qwen3.8-max", via: "openrouter", weight: 0.6, status: "ok", latency_ms: 30_000, lines_won: 0 },
+      ],
+    }));
+    expect(screen.getByText("humain-m3")).toBeInTheDocument();
+    expect(screen.getByText(/answered in 20\.0s — won 9 lines, outvoted on 3/)).toBeInTheDocument();
+    // A drafter that never lost is not said to have been outvoted.
+    expect(screen.getByText(/answered in 8\.1s — won 12 lines$/)).toBeInTheDocument();
+  });
+
   it("says what a failed model said, in the model's own words", () => {
     render_(provenance({
       active_models: 0,

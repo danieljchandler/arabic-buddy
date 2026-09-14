@@ -259,6 +259,11 @@ is reached through one seam, `judgeWithArabicNative` in
 every rung that failed. The transcript pipeline uses it twice: the per-video
 dialect check, and the arbitration of translation lines the ensemble split on
 (`_shared/translationArbiter.ts`, before the rationed Shaheen-MT rendering).
+HUMAIN M3 also *drafts* in that ensemble at the generalist peers' weight
+(`TRANSCRIPT_TRANSLATION_DRAFTERS`, `MODEL_WEIGHTS`), so a line every
+generalist misread the same way is no longer settled before an Arabic model
+has seen it; a drafter is never asked to arbitrate its own dispute, and a
+deployment without the HUMAIN key runs the three-model ensemble silently.
 Two things it must keep: a reply the caller cannot parse is a *failed rung*
 (pass `accept`), not an answer; and a self-hosted rung is probed with a
 one-token ping, never bounded on the whole call, because vLLM sends a

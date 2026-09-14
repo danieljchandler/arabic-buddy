@@ -253,6 +253,35 @@ export const ARABIC_OCCASIONAL_ORDER: string[] = [
   MODEL_IDS.FANAR,
 ];
 
+/**
+ * Who drafts the transcript pipeline's English, in `analyze-gulf-arabic`.
+ *
+ * Claude and Gemini are the co-equal generalist peers, HUMAIN M3 the
+ * co-equal Arabic-native one, Qwen the lower-weight verifier; the weights are
+ * `MODEL_WEIGHTS`, and `mergeOneLine` there decides by weight rather than by
+ * name, so this list *is* the lineup. Order matters only for ties: a full
+ * disagreement goes to the heaviest candidate listed first.
+ *
+ * The pipeline includes M3 only when its route is configured
+ * (`tryChatRoute`), the same way Jais 2 is silently absent without an
+ * endpoint id — a deployment without a HUMAIN key runs the three-model
+ * ensemble it always did, with no failed rung in its provenance. Two costs
+ * accepted with the promotion: translation spend rises by one call per video,
+ * and the ensemble finishes when its slowest drafter does, which the preview
+ * tier warns is M3. Because a drafter that disagrees is one of the parties, M3
+ * is not asked to arbitrate a dispute it drafted in; that walk goes on to
+ * Jais 2 and Fanar.
+ *
+ * Distinct from `MODEL_LINEUPS.TRANSLATION`, which serves every other
+ * translation caller through the Brain; M3 has not been added there.
+ */
+export const TRANSCRIPT_TRANSLATION_DRAFTERS: string[] = [
+  MODEL_IDS.CLAUDE,
+  MODEL_IDS.GEMINI_FLASH,
+  MODEL_IDS.HUMAIN_M3,
+  MODEL_IDS.QWEN,
+];
+
 // ---- Aliases consumed by aiBrain.ts ----------------------------------------
 // These intentionally point at the CONTENT lineup so changing the tandem in
 // one place propagates to every brain caller that doesn't pass models[].
@@ -339,6 +368,14 @@ export function reasoningFloor(model: string): 'none' | 'minimal' | 'low' {
 // Qwen and the second GPT drafter stay at lower weights.
 export const MODEL_WEIGHTS: Record<string, number> = {
   [MODEL_IDS.CLAUDE]: 1.0,
+  // Equal to the two generalist peers, by decision rather than by eval
+  // (2026-09-14): the transcript ensemble's disputes went to the Arabic-native
+  // roster, but a line all the generalists misread the same way never became
+  // a dispute, so the strongest Arabic model in the registry had no say on
+  // exactly the lines it exists to catch. At 1.0 it can make a consensus with
+  // one peer and can turn two peers' agreement into a three-way split — an
+  // equal vote, not a veto. See TRANSCRIPT_TRANSLATION_DRAFTERS.
+  [MODEL_IDS.HUMAIN_M3]: 1.0,
   // GEMINI_FLASH and GEMINI_FAST are the same model today, so there is one
   // entry rather than two — a second key would be a duplicate-property error,
   // and the weight belongs to the model, not to the lineup slot.

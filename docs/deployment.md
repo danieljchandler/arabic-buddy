@@ -73,6 +73,28 @@ by the runtime and must not be set by hand.
 | `FANAR_API_KEY` | `Fanar-*` ids (QCRI; no OpenRouter twin, so no fallback) |
 | `RUNPOD_API_KEY` | `runpod/*` ids — Jais 2 on our own Serverless workers (no OpenRouter twin, and no pay-per-token API anywhere, so no fallback) |
 | `RUNPOD_JAIS_8B_ENDPOINT_ID` | Address of the **8B** worker — the only size deployed. Without it `runpod/jais-2-8b-chat` is *unconfigured* rather than broken: the dialect validator's tie-break falls straight through to Fanar, as it did before Jais existed. |
+
+The Jais endpoint itself (a RunPod load-balancing
+serverless endpoint running `vllm/vllm-openai`) is configured, as of
+2026-09-14, so that a first transcript run can actually reach it:
+
+- **Weights on a network volume.** The HF-cache volume (id `cnqtje4ldr`, 40 GB, STANDARD,
+  `US-IL-1`) is mounted at `/runpod-volume` and `HF_HOME` points into it, so a
+  cold start loads the 16 GB from disk instead of pulling it from the Hub.
+  Before this a measured cold start was seven to nine minutes — longer than
+  any pipeline run — so the run-start ping only ever warmed the *next* run.
+  The first boot after the change still downloads once, to fill the volume.
+- **Pinned to `US-IL-1`**, the one volume-capable data center with strong
+  24 GB Ampere/Ada capacity (RTX 4090 high, RTX A5000 low). A network volume
+  pins the endpoint to its data center regardless.
+- **Idle timeout 1800 s** (was 300), so a session of imports shares one boot.
+  Idle time is billed at the worker's rate, so this is the cost of the
+  convenience: up to half an hour of an idle 24 GB card after the last run.
+- **Pools `AMPERE_24` + `ADA_24` minus the Blackwell MIG slice**
+  (`NVIDIA RTX PRO 6000 Blackwell Server Edition MIG 1g.24gb`), which RunPod
+  had placed a worker on and which sat initialising for hours without ever
+  serving. Re-sending `gpu.pools` clears exclusions, so restate this one if
+  the pools are ever changed.
 | `STRIPE_SECRET_KEY` | `create-checkout`, `check-subscription`, `customer-portal` |
 
 There is no Lovable AI gateway key any more: every model call goes through

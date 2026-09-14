@@ -21,6 +21,7 @@ import {
 } from "../_shared/dialectIssues.ts";
 import {
   judgeWithArabicNative,
+  refusedOnContent,
   warmArabicJudges,
   type ArabicJudgement,
 } from "../_shared/dialectValidator.ts";
@@ -2715,6 +2716,14 @@ serve(async (req) => {
             // Arabic model gets the same question.
             accept: (content) => parseArbiterChoices(content, asked) !== null,
             warmWhenCold: true,
+            // A guardrail that refused this transcript in the dialect check
+            // will refuse it here too — same text, same tier — so the
+            // preview-tier round trip is not spent a second time. M3's
+            // limited preview did exactly this on two runs in a row.
+            skip: refusedOnContent(dialectJudgement?.attempts ?? []).map((model) => ({
+              model,
+              reason: 'refused this transcript on content grounds in the dialect check',
+            })),
           },
         ).catch((e) => {
           console.warn('Arabic-native arbitration failed (non-blocking):', e);

@@ -79,6 +79,7 @@ interface ValidatorModule {
       label?: string;
       accept?: (content: string) => boolean;
       warmWhenCold?: boolean;
+      skip?: Array<{ model: string; reason: string }>;
     },
   ) => Promise<{
     content: string | null;
@@ -87,6 +88,7 @@ interface ValidatorModule {
     attempts: Array<{ model: string; error: string }>;
   }>;
   warmArabicJudges: () => string[];
+  refusedOnContent: (attempts: Array<{ model: string; error: string }>) => string[];
 }
 
 /** What the model is asked to emit: a score, a verdict and the offending tokens. */
@@ -1386,6 +1388,105 @@ Deno.test("an empty reply is recorded with why it was empty", async () => {
         choices: [{ finish_reason: "content_filter", message: { role: "assistant", content: null, refusal: "guardrail" } }],
       }),
       [FANAR_HOST]: () => chatCompletion("حكم فنار"),
+    },
+  });
+});
+
+Deno.test("a rung the caller skips is recorded as skipped and never asked", async () => {
+  await withValidator(async (mod, up) => {
+    const out = await mod.judgeWithArabicNative("sys", "نص", {
+      skip: [{ model: M3, reason: "refused this transcript on content grounds in the dialect check" }],
+    });
+
+    // A guardrail refusal is a verdict about the text: the same model asked
+    // about the same transcript again refuses again, and the preview tier's
+    // round trip is not worth spending to learn it twice.
+    assertEquals(out.model, FANAR);
+    assertEquals(up.callsTo(NODE_HOST).length, 0);
+    assertEquals(out.attempts, [{ model: M3, error: "skipped: refused this transcript on content grounds in the dialect check" }]);
+  }, {
+    env: NODE,
+    upstreams: {
+      [NODE_HOST]: () => chatCompletion("should not be asked"),
+      [FANAR_HOST]: () => chatCompletion("حكم فنار"),
+    },
+  });
+});
+
+Deno.test("refusedOnContent picks out the guardrail refusals and nothing else", async () => {
+  await withValidator((mod) => {
+    assertEquals(
+      mod.refusedOnContent([
+        { model: M3, error: 'empty response body (finish_reason=content_filter; refusal="guardrail"; content=null)' },
+        { model: JAIS, error: "worker not ready: HTTP 502 on wake probe" },
+        { model: FANAR, error: "HTTP 400 content policy" },
+      ]),
+      [M3],
+    );
+    return Promise.resolve();
+  });
+});
+
+Deno.test("a self-hosted rung answering the load balancer's HTML 502 is recorded as not ready", async () => {
+  await withValidator(async (mod) => {
+    const out = await mod.judgeWithArabicNative("sys", "نص");
+    // The load balancer's HTML 502 while the worker boots is "still
+    // starting", not "broken" — the row should say which.
+    assertEquals(out.model, FANAR);
+    assertEquals(out.attempts, [{ model: JAIS, error: "worker not ready: HTTP 502 (load-balancer page) on wake probe" }]);
+  }, {
+    env: DEPLOYED,
+    upstreams: {
+      [RUNPOD]: () => new Response("<html>502 Bad Gateway</html>", { status: 502, headers: { "content-type": "text/html" } }),
+      [FANAR_HOST]: () => chatCompletion("حكم فنار"),
+    },
+  });
+});
+
+Deno.test("a live worker's JSON error on the probe keeps its status and its words", async () => {
+  await withValidator(async (mod) => {
+    const out = await mod.judgeWithArabicNative("sys", "نص");
+    // A 500 from vLLM itself is a handler fault on a worker that is up, and a
+    // 503 with a JSON body is the application saying so — neither is a boot
+    // in progress, and labelling them "not ready" would hide exactly the
+    // distinction the record exists to make.
+    assertEquals(out.model, FANAR);
+    assertEquals(out.attempts.length, 1);
+    assertEquals(out.attempts[0].model, JAIS);
+    assert(out.attempts[0].error.startsWith("HTTP 500 on wake probe: "), out.attempts[0].error);
+    assert(out.attempts[0].error.includes("CUDA out of memory"), out.attempts[0].error);
+  }, {
+    env: DEPLOYED,
+    upstreams: {
+      [RUNPOD]: () => json({ error: { message: "CUDA out of memory", type: "server_error" } }, 500),
+      [FANAR_HOST]: () => chatCompletion("حكم فنار"),
+    },
+  });
+});
+
+Deno.test("a skipped rung is not a successor: the last rung that can answer gets the whole budget", async () => {
+  await withValidator(async (mod, up) => {
+    const out = await mod.judgeWithArabicNative("sys", "نص", {
+      timeoutMs: 20_000,
+      skip: [{ model: FANAR, reason: "refused this transcript on content grounds in the dialect check" }],
+    });
+
+    // Jais is deployed and Fanar is routable but skipped. Counting Fanar as a
+    // successor would give Jais the short cold probe and abandon it — the
+    // only judge that could still answer. As the effective last rung it is
+    // asked outright, no probe, and its slow-but-real answer is waited for.
+    assertEquals(out.model, JAIS);
+    assertEquals(out.content, "حكم جايس");
+    const runpod = up.callsTo(RUNPOD);
+    assertEquals(runpod.length, 1);
+    assertEquals(bodyOf(runpod[0]).max_tokens, 1024);
+    assertEquals(up.callsTo(FANAR_HOST).length, 0);
+    assertEquals(out.attempts, [{ model: FANAR, error: "skipped: refused this transcript on content grounds in the dialect check" }]);
+  }, {
+    env: DEPLOYED,
+    upstreams: {
+      [RUNPOD]: slowThen(9_500, () => chatCompletion("حكم جايس")),
+      [FANAR_HOST]: () => chatCompletion("should not be asked"),
     },
   });
 });

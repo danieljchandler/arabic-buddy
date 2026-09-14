@@ -687,6 +687,20 @@ const JUDGE_RUNG_TIMEOUT_MS = 45_000;
  */
 const JUDGE_COLD_PROBE_MS = 8_000;
 
+/** A pause that ends early when the caller gives up. */
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    if (ms <= 0 || signal?.aborted) return resolve();
+    const timer = setTimeout(done, ms);
+    function done() {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', done);
+      resolve();
+    }
+    signal?.addEventListener('abort', done, { once: true });
+  });
+}
+
 /** A body that parses as JSON came from an application, not from a gateway's error page. */
 function looksLikeJson(body: string): boolean {
   if (!body || !/^[[{]/.test(body)) return false;
@@ -845,6 +859,22 @@ export async function judgeWithArabicNative(
      * still shows the model was considered.
      */
     skip?: Array<{ model: string; reason: string }>;
+    /**
+     * How long to keep probing a self-hosted rung that is still booting
+     * before giving up on it, when another rung is waiting behind it.
+     *
+     * Zero (the default) is the learner-facing posture: one probe, bail. The
+     * transcript pipeline passes a real number for the dialect check, because
+     * that call runs in parallel with a translation ensemble that takes a
+     * minute or two anyway — time in which the worker the run-start ping
+     * started is finishing its boot. Measured: a boot from the weights volume
+     * was still in progress a minute after the ping, so an eight-second probe
+     * fired then can only ever find it cold. Bounded by the caller's `signal`
+     * (the run deadline) as well as by this ceiling.
+     */
+    coldWaitMs?: number;
+    /** Seconds between probes while waiting; a test knob, ten seconds otherwise. */
+    coldWaitIntervalMs?: number;
   } = {},
 ): Promise<ArabicJudgement> {
   const attempts: Array<{ model: string; error: string }> = [];
@@ -875,15 +905,32 @@ export async function judgeWithArabicNative(
 
     // A worker we host can be asleep, and finding out is only worth doing
     // cheaply when somebody else can take the job. The probe decides; the
-    // real call below then gets the whole budget, cold start excluded.
+    // real call below then gets the whole budget, cold start excluded. A
+    // caller with time to spare (`coldWaitMs`) keeps probing a worker that is
+    // booting rather than writing it off on the first answer.
     if (hasSuccessor && providerForModel(model) === 'runpod') {
-      const probe = await probeAwake(model, Math.min(budgetMs, JUDGE_COLD_PROBE_MS), opts.signal);
+      const waitUntil = Date.now() + Math.max(0, opts.coldWaitMs ?? 0);
+      const interval = opts.coldWaitIntervalMs ?? 10_000;
+      let probe = await probeAwake(model, Math.min(budgetMs, JUDGE_COLD_PROBE_MS), opts.signal);
+      let waitedMs = 0;
+      const booting = (error: string) => /^cold worker|^worker not ready/.test(error);
+      while (!probe.awake && booting(probe.error) && Date.now() < waitUntil && !opts.signal?.aborted) {
+        const pause = Math.min(interval, Math.max(0, waitUntil - Date.now()));
+        await sleep(pause, opts.signal);
+        if (opts.signal?.aborted) break;
+        waitedMs += pause;
+        probe = await probeAwake(model, Math.min(budgetMs, JUDGE_COLD_PROBE_MS), opts.signal);
+      }
       if (!probe.awake) {
-        attempts.push({ model, error: probe.error });
+        attempts.push({
+          model,
+          error: waitedMs > 0 ? `${probe.error} (after waiting ${Math.round(waitedMs / 1000)}s for it to boot)` : probe.error,
+        });
         if (opts.signal?.aborted) break;
         if (opts.warmWhenCold && pipelineWarmupEnabled() && probe.error.startsWith('cold worker')) warmRoute(model);
         continue;
       }
+      if (waitedMs > 0) console.log(`[dialectValidator] ${model} came up after ${Math.round(waitedMs / 1000)}s of waiting`);
     }
 
     const timer = AbortSignal.timeout(budgetMs);

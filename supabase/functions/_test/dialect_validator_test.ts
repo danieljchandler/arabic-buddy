@@ -80,6 +80,8 @@ interface ValidatorModule {
       accept?: (content: string) => boolean;
       warmWhenCold?: boolean;
       skip?: Array<{ model: string; reason: string }>;
+      coldWaitMs?: number;
+      coldWaitIntervalMs?: number;
     },
   ) => Promise<{
     content: string | null;
@@ -1487,6 +1489,101 @@ Deno.test("a skipped rung is not a successor: the last rung that can answer gets
     upstreams: {
       [RUNPOD]: slowThen(9_500, () => chatCompletion("حكم جايس")),
       [FANAR_HOST]: () => chatCompletion("should not be asked"),
+    },
+  });
+});
+
+Deno.test("a caller with time to spare waits for a booting worker instead of writing it off", async () => {
+  await withValidator(async (mod, up) => {
+    let probes = 0;
+    const out = await mod.judgeWithArabicNative("sys", "نص", {
+      coldWaitMs: 5_000,
+      coldWaitIntervalMs: 100,
+    });
+
+    // The load balancer answers its page twice while the worker boots, then
+    // the probe gets through and the real call is made. The dialect check
+    // runs alongside a translation ensemble that takes minutes anyway, so
+    // this wait is free — and it is the difference between Jais judging the
+    // transcript and Jais being recorded as "not ready" on every first run.
+    assertEquals(out.model, JAIS);
+    assertEquals(out.content, "حكم جايس");
+    const runpod = up.callsTo(RUNPOD);
+    probes = runpod.filter((c) => bodyOf(c).max_tokens === 1).length;
+    assertEquals(probes, 3);
+    assertEquals(bodyOf(runpod[runpod.length - 1]).max_tokens, 1024);
+    assertEquals(up.callsTo(FANAR_HOST).length, 0);
+    assertEquals(out.attempts, []);
+  }, {
+    env: DEPLOYED,
+    upstreams: {
+      [RUNPOD]: (() => {
+        let n = 0;
+        return async (request: Request) => {
+          const body = JSON.parse(await request.clone().text()) as { max_tokens?: number };
+          if (body.max_tokens === 1 && n++ < 2) {
+            return new Response("<html>502 Bad Gateway</html>", { status: 502, headers: { "content-type": "text/html" } });
+          }
+          return chatCompletion("حكم جايس");
+        };
+      })(),
+      [FANAR_HOST]: () => chatCompletion("حكم فنار"),
+    },
+  });
+});
+
+Deno.test("the wait for a booting worker gives up at its ceiling and says how long it waited", async () => {
+  await withValidator(async (mod, up) => {
+    const started = Date.now();
+    const out = await mod.judgeWithArabicNative("sys", "نص", {
+      coldWaitMs: 600,
+      coldWaitIntervalMs: 200,
+    });
+    const elapsed = Date.now() - started;
+
+    assertEquals(out.model, FANAR);
+    assert(elapsed < 5_000, `waited ${elapsed}ms past a 600ms ceiling`);
+    assertEquals(out.attempts.length, 1);
+    assert(out.attempts[0].error.startsWith("worker not ready: HTTP 502 (load-balancer page) on wake probe (after waiting "), out.attempts[0].error);
+    assert(up.callsTo(RUNPOD).length >= 3, `expected repeated probes, saw ${up.callsTo(RUNPOD).length}`);
+  }, {
+    env: DEPLOYED,
+    upstreams: {
+      [RUNPOD]: () => new Response("<html>502 Bad Gateway</html>", { status: 502, headers: { "content-type": "text/html" } }),
+      [FANAR_HOST]: () => chatCompletion("حكم فنار"),
+    },
+  });
+});
+
+Deno.test("a live worker's real error is not waited on", async () => {
+  await withValidator(async (mod, up) => {
+    const started = Date.now();
+    const out = await mod.judgeWithArabicNative("sys", "نص", { coldWaitMs: 5_000, coldWaitIntervalMs: 100 });
+    // A JSON 500 is a worker that is up and failing; waiting for it to
+    // "finish booting" would spend the wait for nothing.
+    assertEquals(out.model, FANAR);
+    assert(Date.now() - started < 2_000);
+    assertEquals(up.callsTo(RUNPOD).length, 1);
+  }, {
+    env: DEPLOYED,
+    upstreams: {
+      [RUNPOD]: () => json({ error: { message: "CUDA out of memory" } }, 500),
+      [FANAR_HOST]: () => chatCompletion("حكم فنار"),
+    },
+  });
+});
+
+Deno.test("without a wait, one probe still decides", async () => {
+  await withValidator(async (mod, up) => {
+    const out = await mod.judgeWithArabicNative("sys", "نص");
+    assertEquals(out.model, FANAR);
+    assertEquals(up.callsTo(RUNPOD).length, 1);
+    assertEquals(out.attempts[0].error, "worker not ready: HTTP 502 (load-balancer page) on wake probe");
+  }, {
+    env: DEPLOYED,
+    upstreams: {
+      [RUNPOD]: () => new Response("<html>502</html>", { status: 502, headers: { "content-type": "text/html" } }),
+      [FANAR_HOST]: () => chatCompletion("حكم فنار"),
     },
   });
 });

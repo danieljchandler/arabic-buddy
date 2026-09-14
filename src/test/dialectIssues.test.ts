@@ -184,4 +184,59 @@ describe("parseDialectIssues", () => {
       expect(() => parseDialectIssues(bad)).not.toThrow();
     }
   });
+
+  it("reads a reply whose field names were translated into Arabic", () => {
+    // Jais 2 8B, asked in Arabic, translated the keys as well as the values on
+    // the first run that reached it — and the findings were dropped as noise.
+    const reply = '{"المشاكل": [{"السطر": "٣", "الكلمة": "سوف", "النوع": "فصحى", "الشدة": "عالية", "الملاحظة": "الأصح في اليمني: بـ"}]}';
+    expect(parseDialectIssues(reply)).toEqual([
+      { line: 3, word: "سوف", kind: "msa", severity: "high", note: "الأصح في اليمني: بـ" },
+    ]);
+  });
+
+  it("salvages the finished issues from a reply cut off by its token budget", () => {
+    const cut = '{"issues": [{"line": 1, "word": "ماذا", "kind": "msa", "severity": "high", "note": "استخدم إيش"}, {"line": 4, "word": "سوف", "kind": "msa", "severity": "low", "note": "استخد';
+    expect(parseDialectIssues(cut)).toEqual([
+      { line: 1, word: "ماذا", kind: "msa", severity: "high", note: "استخدم إيش" },
+    ]);
+  });
+
+  it("does not salvage objects that are not issues", () => {
+    expect(parseDialectIssues('{"summary": {"lines": 15, "ok": true}, "issues": [')).toBeNull();
+  });
+
+  it("reads Python-style single-quoted JSON", () => {
+    expect(parseDialectIssues("{'issues': [{'line': 2, 'word': 'لماذا', 'kind': 'msa', 'severity': 'low'}]}")).toEqual([
+      { line: 2, word: "لماذا", kind: "msa", severity: "low" },
+    ]);
+  });
+
+  it("leaves an apostrophe inside a double-quoted note alone", () => {
+    expect(parseDialectIssues('{"issues": [{"line": 2, "word": "x", "kind": "msa", "severity": "low", "note": "it\'s MSA"}]}')).toEqual([
+      { line: 2, word: "x", kind: "msa", severity: "low", note: "it's MSA" },
+    ]);
+  });
+
+  it("salvages only from inside the unfinished issues array, never a summary in front of it", () => {
+    // Codex's case: a finished metadata list ahead of the cut-off issues
+    // array. Its object carries a `line` and a `text` (aliased to `word`), so
+    // an unrestricted scan read it as a finding and the walk stopped there.
+    const cut = '{"analysis":[{"line":15,"text":"No issues found"}],"issues":[';
+    expect(parseDialectIssues(cut)).toBeNull();
+
+    const cutWithOne = '{"summary":{"line":15,"kind":"ok"},"issues":[{"line":2,"word":"سوف","kind":"msa","severity":"low"},{"line":5,"wor';
+    expect(parseDialectIssues(cutWithOne)).toEqual([{ line: 2, word: "سوف", kind: "msa", severity: "low" }]);
+  });
+
+  it("does not salvage an object that names neither a word nor a kind", () => {
+    expect(parseDialectIssues('{"issues":[{"line":3,"note":"fine"},{"line":4,"word":"x","kind":"msa"},{"line":5,"wor')).toEqual([
+      { line: 4, word: "x", kind: "msa", severity: "low" },
+    ]);
+  });
+
+  it("keeps an escaped apostrophe when converting single-quoted JSON", () => {
+    expect(parseDialectIssues("{'issues': [{'line': 2, 'word': 'x', 'kind': 'msa', 'note': 'it\\'s MSA'}]}")).toEqual([
+      { line: 2, word: "x", kind: "msa", severity: "low", note: "it's MSA" },
+    ]);
+  });
 });

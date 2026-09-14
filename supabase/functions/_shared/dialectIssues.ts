@@ -43,6 +43,34 @@ const ARABIC_KIND: Record<string, string> = {
   'ثقافية': 'cultural',
 };
 
+/**
+ * Arabic (and a few English variant) spellings of the *field names*. Asked in
+ * Arabic to emit `line`/`word`/`kind`/`severity`/`note`, a smaller model —
+ * Jais 2 8B on the last audited run — translates the keys as readily as the
+ * values, and an object keyed `الكلمة`/`النوع` carried real findings that the
+ * parser threw away as noise. Keys are normalised through this table before
+ * anything is read off the object.
+ */
+const KEY_ALIASES: Record<string, keyof DialectIssue> = {
+  'السطر': 'line', 'سطر': 'line', 'رقم_السطر': 'line', 'رقم السطر': 'line', 'line_number': 'line', 'lineno': 'line',
+  'الكلمة': 'word', 'كلمة': 'word', 'العبارة': 'word', 'token': 'word', 'text': 'word', 'phrase': 'word',
+  'النوع': 'kind', 'نوع': 'kind', 'التصنيف': 'kind', 'type': 'kind', 'category': 'kind', 'issue_type': 'kind',
+  'الشدة': 'severity', 'شدة': 'severity', 'الخطورة': 'severity', 'الأهمية': 'severity', 'level': 'severity',
+  'ملاحظة': 'note', 'الملاحظة': 'note', 'شرح': 'note', 'الشرح': 'note', 'تعليق': 'note', 'التعليق': 'note',
+  'reason': 'note', 'explanation': 'note', 'comment': 'note', 'suggestion': 'note',
+};
+
+/** `{"الكلمة": …}` → `{word: …}`; keys already in English pass through. */
+function normalizeIssueKeys(value: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, v] of Object.entries(value)) {
+    const lower = key.trim().toLowerCase();
+    const mapped = KEY_ALIASES[key.trim()] ?? KEY_ALIASES[lower] ?? lower;
+    if (!(mapped in out)) out[mapped] = v;
+  }
+  return out;
+}
+
 const ARABIC_SEVERITY: Record<string, 'low' | 'high'> = {
   'عالية': 'high',
   'عالي': 'high',
@@ -109,10 +137,23 @@ export function tolerantJsonParse(candidate: string): unknown {
     return JSON.parse(candidate);
   } catch { /* fall through to repairs */ }
 
-  const repaired = normalizeDigits(candidate)
+  let repaired = normalizeDigits(candidate)
     // Smart quotes around keys and values.
     .replace(/[“”„«»]/g, '"')
-    .replace(/[‘’]/g, "'")
+    .replace(/[‘’]/g, "'");
+  // Python-style JSON: single quotes throughout and not a double quote in
+  // sight. Only then — an apostrophe inside a double-quoted note is data.
+  // An escaped apostrophe inside such a string (`'it\\'s'`) is data too, so
+  // it is set aside before the delimiters turn and put back as a bare `'`.
+  if (!repaired.includes('"') && repaired.includes("'")) {
+    // A private-use code point stands in for the escaped apostrophe while the
+    // delimiters turn; nothing a model emits lands there.
+    repaired = repaired
+      .replace(/\\'/g, '\uE000')
+      .replace(/'/g, '"')
+      .replace(/\uE000/g, "'");
+  }
+  repaired = repaired
     // Trailing comma before a close brace/bracket.
     .replace(/,(\s*[}\]])/g, '$1')
     // An Arabic comma used as a JSON separator, but only where a structural
@@ -129,7 +170,7 @@ export function tolerantJsonParse(candidate: string): unknown {
 /** Does this look like one of Fanar's issue objects rather than some other record? */
 function isIssueShaped(value: unknown): boolean {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-  const o = value as Record<string, unknown>;
+  const o = normalizeIssueKeys(value as Record<string, unknown>);
   return ['word', 'kind', 'note', 'severity', 'line'].some((k) => k in o);
 }
 
@@ -192,14 +233,97 @@ function coerceSeverity(value: unknown): 'low' | 'high' {
 export function parseDialectIssues(content: string): DialectIssue[] | null {
   if (!content || !content.trim()) return null;
 
-  for (const candidate of extractJsonCandidates(content)) {
+  // A reply cut off inside its issues list is read from that list onward.
+  // Whatever the model wrote in front of it — a summary object, a per-line
+  // analysis — is a complete, balanced region the scanner would otherwise
+  // find first and, under the key aliases, read as the answer.
+  const arrayStart = unfinishedIssuesArrayStart(content);
+  const scanned = arrayStart === null ? content : content.slice(arrayStart);
+
+  for (const candidate of extractJsonCandidates(scanned)) {
     const parsed = tolerantJsonParse(candidate);
     const raw = findIssuesArray(parsed);
     if (!raw) continue;
 
-    const issues = raw.flatMap((item): DialectIssue[] => {
+    const issues = coerceIssues(raw);
+
+    // A candidate that parsed to an array of pure noise is not the answer;
+    // keep scanning the smaller candidates before giving up.
+    if (issues.length > 0 || raw.length === 0) return issues;
+  }
+
+  // No array anywhere — but a reply cut off by its token budget still holds
+  // every issue object that was finished before the cut, each of them a
+  // balanced `{...}` the scanner already found. A truncated list of real
+  // findings is a real answer; the old first-brace-to-last-brace parse and
+  // then the array-only recovery both discarded it whole.
+  //
+  // Only the objects *inside* the unfinished issues array count, and only
+  // those that name a word or a kind. Scanning the whole reply would salvage
+  // whatever else the model wrote in front of the list — a summary object
+  // with a `line` in it reads as an issue under the key aliases — and a false
+  // finding is worse than none: it also satisfies the caller's `accept`, so
+  // the next judge is never asked.
+  if (arrayStart !== null) {
+    const salvaged = coerceIssues(
+      extractJsonCandidates(scanned)
+        .map(tolerantJsonParse)
+        .filter((value) => isIssueShaped(value) && hasIssueSubstance(value)),
+    );
+    if (salvaged.length > 0) return salvaged;
+  }
+
+  return null;
+}
+
+/** Keys the issues list has been seen under, in the prompt's English and in translation. */
+const ISSUES_KEY = /"(?:issues|problems|findings|errors|المشاكل|مشاكل|الأخطاء|أخطاء|القضايا|الملاحظات)"\s*:\s*\[/gi;
+
+/**
+ * Where an `issues: [` opens that never closes, or null when every list in
+ * the reply is complete (then there was nothing to salvage — the array path
+ * above already read it). The last unclosed opener wins, so a finished
+ * summary list before it is left alone.
+ */
+function unfinishedIssuesArrayStart(text: string): number | null {
+  const cleaned = text.replace(/[“”„«»]/g, '"').replace(/'/g, '"');
+  let found: number | null = null;
+  for (const match of cleaned.matchAll(ISSUES_KEY)) {
+    const open = match.index + match[0].length - 1;
+    if (!bracketCloses(cleaned, open)) found = open;
+  }
+  return found;
+}
+
+/** Does the `[` at `open` find its `]`, ignoring brackets inside strings? */
+function bracketCloses(text: string, open: number): boolean {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = open; i < text.length; i++) {
+    const ch = text[i];
+    if (escaped) { escaped = false; continue; }
+    if (ch === '\\') { escaped = true; continue; }
+    if (ch === '"') { inString = !inString; continue; }
+    if (inString) continue;
+    if (ch === '[') depth++;
+    else if (ch === ']') { depth--; if (depth === 0) return true; }
+  }
+  return false;
+}
+
+/** An issue names the offending word or its kind; a line number and a note alone are not a finding. */
+function hasIssueSubstance(value: unknown): boolean {
+  const o = normalizeIssueKeys(value as Record<string, unknown>);
+  return (typeof o.word === 'string' && o.word.trim().length > 0) ||
+    (typeof o.kind === 'string' && o.kind.trim().length > 0);
+}
+
+/** Issue objects → `DialectIssue`s, dropping anything that carries none of the fields. */
+function coerceIssues(raw: unknown[]): DialectIssue[] {
+  return raw.flatMap((item): DialectIssue[] => {
       if (!item || typeof item !== 'object' || Array.isArray(item)) return [];
-      const o = item as Record<string, unknown>;
+      const o = normalizeIssueKeys(item as Record<string, unknown>);
       const line = coerceLine(o.line);
       const kind = coerceKind(o.kind);
       const word = typeof o.word === 'string' && o.word.trim()
@@ -218,11 +342,4 @@ export function parseDialectIssues(content: string): DialectIssue[] | null {
         ...(note ? { note } : {}),
       }];
     });
-
-    // A candidate that parsed to an array of pure noise is not the answer;
-    // keep scanning the smaller candidates before giving up.
-    if (issues.length > 0 || raw.length === 0) return issues;
-  }
-
-  return null;
 }

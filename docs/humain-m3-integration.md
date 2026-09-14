@@ -251,6 +251,30 @@ names:
   download) and/or a longer idle timeout so a session of imports shares one
   boot. Both cost money and are the operator's call.
 
+**What the third run said (2026-09-14, 05:42 UTC, a Yemeni clip).** The
+catalogue lookup worked: Node refused `humain-m3`, the gateway retried as
+`humain-m3-preview` and M3 answered — with a 200 whose text this code did not
+read, so the row said "empty response body". Jais was awake this time, judged
+the dialect check in "prose-wrapped JSON the parser wouldn't accept", and then
+did the translation arbitration on its own: seven disputed lines in, seven
+resolved, eleven seconds. Fanar's dialect check was refused by its own content
+filter (400). Two fixes in the reader, one in the prompt:
+
+- `completionText` now reads the OpenAI content-*parts* shape
+  (`content: [{type: "text", text}]`) as well as the string. M3 is natively
+  multimodal, and that is the shape a multimodal endpoint is entitled to
+  answer in. When a reply is still empty the attempt record says why
+  (`describeEmptyCompletion`: finish reason, any refusal, the keys the message
+  carried), so a guardrail block and an unread shape stop looking alike.
+- `parseDialectIssues` accepts field names translated into Arabic
+  (`الكلمة`, `النوع`, `الشدة`, …) and a wrapper key such as `المشاكل`; reads
+  Python-style single-quoted JSON; and salvages the finished issue objects out
+  of a reply cut off by its token budget, since a truncated list of real
+  findings is a real answer. The dialect-check budget went to 2048 tokens and
+  the prompt now asks for notes under twelve words with the field names kept
+  in English — a smaller Arabic model translates the keys as readily as the
+  values when asked in Arabic.
+
 ### 1d. A say in the translations
 
 `analyze-gulf-arabic` also now puts every line its ensemble could not settle to

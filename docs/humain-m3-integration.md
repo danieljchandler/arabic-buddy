@@ -343,13 +343,19 @@ those lines by hand and, if M3 was right, to revisit the weights.
 Three consequences of drafting, each handled:
 
 - **M3 no longer arbitrates a dispute it drafted in.** A judge that is one of
-  the disagreeing parties picks itself. `analyze-gulf-arabic` passes every
-  drafter that answered as a `skip` on the arbitration walk, recorded in the
-  row as `skipped: drafted in this ensemble`, and the dispute goes on to Jais
-  2 and Fanar. The dialect check is unaffected — M3 still leads it.
+  the disagreeing parties picks itself. `analyze-gulf-arabic` batches the
+  disputed lines by which roster drafters supplied a candidate on them and
+  walks the roster once per batch with only those parties skipped (recorded
+  in the row as `skipped: drafted in this ensemble`), so a dispute M3 drafted
+  goes on to Jais 2 and Fanar, while a line M3's partial reply never covered
+  still gets M3 as its judge. On a full reply that is one batch. The dialect
+  check is unaffected — M3 still leads it.
 - **No key, no rung.** The drafter list is filtered by `tryChatRoute`, so a
   deployment without `HUMAIN_NODE_API_KEY` runs the three-model ensemble it
-  always did, with no failed M3 row in its provenance.
+  always did, with no failed M3 row in its provenance. `degraded` and the
+  admin panel's "N of M models answered" are measured against
+  `configured_models`, the drafters that deployment asked for — so a
+  configured M3 that fails is visible, and three of three is healthy.
 - **Cost and latency.** One more full translation per video, and the
   ensemble now finishes when its slowest drafter does. On the limited preview
   a Saudi guardrail refusal is a failed rung the vote proceeds without; on the

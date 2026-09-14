@@ -22,6 +22,8 @@ export interface TranslationProvenance {
   merge_model?: string;
   degraded?: boolean;
   active_models?: number;
+  /** How many drafters this deployment asked — three without a HUMAIN route, four with one. */
+  configured_models?: number;
   lines?: number;
   blank_after_ensemble?: number;
   cheap_fill?: number;
@@ -101,7 +103,7 @@ export function TranslationProvenancePanel({
   const answered = typeof provenance.active_models === "number"
     ? provenance.active_models
     : tiers.filter((t) => t.status === "ok").length;
-  const total = tiers.length || 3;
+  const total = provenance.configured_models ?? (tiers.length || 3);
   const none = answered === 0;
   const behind = Boolean(provenance.build) && provenance.build !== expectedBuild;
 

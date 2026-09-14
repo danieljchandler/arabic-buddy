@@ -40,7 +40,7 @@ import {
   alignFushaLines,
   buildFushaSystemPrompt,
 } from "../_shared/fushaBridge.ts";
-import { TRANSCRIPT_TRANSLATION_DRAFTERS, MODEL_IDS, getModelWeight } from "../_shared/modelRegistry.ts";
+import { ARABIC_OCCASIONAL_ORDER, TRANSCRIPT_TRANSLATION_DRAFTERS, MODEL_IDS, getModelWeight } from "../_shared/modelRegistry.ts";
 import { EDGE_BUILD } from "../_shared/edgeBuild.ts";
 import { tryChatRoute, chatFetch, hasAnyProvider, providerForModel, type Provider } from "../_shared/aiGateway.ts";
 import { splitOverlongLines } from "../_shared/transcriptLineSplit.ts";
@@ -2648,8 +2648,13 @@ serve(async (req) => {
         );
       }
       const okCount = translationCandidates.filter((c) => c.status === 'ok').length;
+      // "Degraded" is measured against the ensemble this deployment asked
+      // for — three drafters without a HUMAIN route, four with one — so a
+      // configured M3 that fails shows up, and a deployment without it is
+      // not reported unhealthy for running the ensemble it always ran.
+      const configuredCount = translationCandidates.length;
       if (okCount === 0) {
-        console.warn('[ensemble] All 3 translation models failed — leaving translations empty.');
+        console.warn(`[ensemble] All ${configuredCount} translation models failed — leaving translations empty.`);
       }
       const ensembleMerge = mergeTranslationEnsemble(translationCandidates, mergedLines.length);
       const dedicatedTranslations: string[] = ensembleMerge.lines.map((l) => l.translation);
@@ -2693,7 +2698,7 @@ serve(async (req) => {
       const arbiterResolvedBy: (string | null)[] = new Array(mergedLines.length).fill(null);
       const arbiterProvenance: {
         attempted: boolean;
-        /** Which Arabic model judged, when one did. */
+        /** Which Arabic model judged, when one did — two joined with " + " when a partial draft split the batch. */
         model: string | null;
         disputed_lines: number;
         /** Disputed lines settled on a high-confidence pick — off the review queue. */
@@ -2716,88 +2721,117 @@ serve(async (req) => {
         .map((l, i) => (l.needs_review && l.translation && l.candidates.length >= 2) ? i : -1)
         .filter((i) => i >= 0);
       arbiterProvenance.disputed_lines = arbitrableIdx.length;
-      // Sized to the reply: one short verdict per line, plus the envelope.
-      const arbiterMaxTokens = Math.min(2048, 64 + arbitrableIdx.length * 40);
+      // A roster model that drafted in this ensemble is one of the disputing
+      // parties on every line it supplied a candidate for; asked to arbitrate
+      // those, it would pick itself. But a partial reply — M3 answering
+      // twelve of twenty lines — leaves it a genuine third opinion on the
+      // lines it did not draft, and skipping it wholesale would send those to
+      // Jais and Fanar, or to nobody. So the disputed lines are batched by
+      // which roster drafters are parties to them, and each batch walks the
+      // roster with only its own parties skipped. On a full reply that is one
+      // batch, as before.
+      const rosterDrafters = new Set(
+        translationCandidates
+          .filter((c) => c.status === 'ok' && c.translations.length > 0 && ARABIC_OCCASIONAL_ORDER.includes(c.name))
+          .map((c) => c.name),
+      );
+      const partiesOn = (i: number): string[] =>
+        ensembleMerge.lines[i].candidates.map((c) => c.name).filter((n) => rosterDrafters.has(n)).sort();
+      const batches = new Map<string, number[]>();
+      for (const i of arbitrableIdx) {
+        const key = partiesOn(i).join('|');
+        batches.set(key, [...(batches.get(key) ?? []), i]);
+      }
+      const refusedInDialectCheck = refusedOnContent(dialectJudgement?.attempts ?? []).map((model) => ({
+        model,
+        // A guardrail that refused this transcript in the dialect check will
+        // refuse it here too — same text, same tier — so the preview-tier
+        // round trip is not spent a second time. M3's limited preview did
+        // exactly this on two runs in a row.
+        reason: 'refused this transcript on content grounds in the dialect check',
+      }));
+      const judgedBy: string[] = [];
+      let anyReply = false;
+      let anyAttempt = false;
       if (arbitrableIdx.length === 0) {
         arbiterProvenance.skip_reason = 'nothing_disputed';
-      } else if (!haveTimeFor(FANAR_CONNECT_TIMEOUT_MS + 15_000, `Arabic-native arbitration of ${arbitrableIdx.length} disputed line(s)`)) {
-        arbiterProvenance.skip_reason = 'out_of_time';
       } else {
-        const asked: DisputedLine[] = arbitrableIdx.map((i) => ({
-          line: i + 1,
-          arabic: mergedLines[i].arabic,
-          candidates: ensembleMerge.lines[i].candidates,
-        }));
         const t0 = Date.now();
-        const judgement = await judgeWithArabicNative(
-          buildArbiterSystemPrompt(dialectFamilyLabel()),
-          formatDisputedLines(asked),
-          {
-            maxTokens: arbiterMaxTokens,
-            temperature: 0.1,
-            label: 'analyze-gulf-arabic/translation-arbiter',
-            timeoutMs: FANAR_CONNECT_TIMEOUT_MS + generationBudgetMs(arbiterMaxTokens),
-            // Per rung. Without an outer bound three configured judges could
-            // each take the ceiling in turn and carry the run past its wall
-            // clock before the safety save — the failure the budget exists to
-            // prevent. The walk stops at the run's deadline instead.
-            signal: runDeadlineSignal(),
-            // A reply with no readable verdicts is a failed rung; the next
-            // Arabic model gets the same question.
-            accept: (content) => parseArbiterChoices(content, asked) !== null,
-            warmWhenCold: true,
-            // Sequential, after the ensemble, so only a short grace: by now the
-            // worker has had the ensemble's minutes to come up, and every
-            // second here is a second the transcript waits.
-            coldWaitMs: ARBITER_COLD_WAIT_MS,
-            // A guardrail that refused this transcript in the dialect check
-            // will refuse it here too — same text, same tier — so the
-            // preview-tier round trip is not spent a second time. M3's
-            // limited preview did exactly this on two runs in a row.
-            skip: [
-              ...refusedOnContent(dialectJudgement?.attempts ?? []).map((model) => ({
-                model,
-                reason: 'refused this transcript on content grounds in the dialect check',
-              })),
-              // A roster model that drafted in this ensemble is one of the
-              // disputing parties on every line it answered; asked to
-              // arbitrate, it would pick itself. The walk goes to the next
-              // Arabic model instead.
-              ...translationCandidates
-                .filter((c) => c.status === 'ok' && c.translations.length > 0)
-                .map((c) => ({ model: c.name, reason: 'drafted in this ensemble; not a third opinion on its own line' })),
-            ],
-          },
-        ).catch((e) => {
-          console.warn('Arabic-native arbitration failed (non-blocking):', e);
-          return { content: null, model: null, usable: false, attempts: [] } as ArabicJudgement;
-        });
-        arbiterProvenance.latency_ms = Date.now() - t0;
-        arbiterProvenance.attempted = judgement.attempts.length > 0 || judgement.content !== null;
-        if (judgement.attempts.length) arbiterProvenance.attempts = judgement.attempts;
+        for (const [key, batchIdx] of batches) {
+          const parties = key ? key.split('|') : [];
+          // Sized to the reply: one short verdict per line, plus the envelope.
+          const arbiterMaxTokens = Math.min(2048, 64 + batchIdx.length * 40);
+          if (!haveTimeFor(FANAR_CONNECT_TIMEOUT_MS + 15_000, `Arabic-native arbitration of ${batchIdx.length} disputed line(s)`)) {
+            arbiterProvenance.unresolved += batchIdx.length;
+            if (!anyAttempt) arbiterProvenance.skip_reason = 'out_of_time';
+            continue;
+          }
+          const asked: DisputedLine[] = batchIdx.map((i) => ({
+            line: i + 1,
+            arabic: mergedLines[i].arabic,
+            candidates: ensembleMerge.lines[i].candidates,
+          }));
+          const judgement = await judgeWithArabicNative(
+            buildArbiterSystemPrompt(dialectFamilyLabel()),
+            formatDisputedLines(asked),
+            {
+              maxTokens: arbiterMaxTokens,
+              temperature: 0.1,
+              label: 'analyze-gulf-arabic/translation-arbiter',
+              timeoutMs: FANAR_CONNECT_TIMEOUT_MS + generationBudgetMs(arbiterMaxTokens),
+              // Per rung. Without an outer bound three configured judges could
+              // each take the ceiling in turn and carry the run past its wall
+              // clock before the safety save — the failure the budget exists to
+              // prevent. The walk stops at the run's deadline instead.
+              signal: runDeadlineSignal(),
+              // A reply with no readable verdicts is a failed rung; the next
+              // Arabic model gets the same question.
+              accept: (content) => parseArbiterChoices(content, asked) !== null,
+              warmWhenCold: true,
+              // Sequential, after the ensemble, so only a short grace: by now the
+              // worker has had the ensemble's minutes to come up, and every
+              // second here is a second the transcript waits.
+              coldWaitMs: ARBITER_COLD_WAIT_MS,
+              skip: [
+                ...refusedInDialectCheck,
+                ...parties.map((model) => ({
+                  model,
+                  reason: `drafted in this ensemble; not a third opinion on ${batchIdx.length === 1 ? 'its own line' : 'its own lines'}`,
+                })),
+              ],
+            },
+          ).catch((e) => {
+            console.warn('Arabic-native arbitration failed (non-blocking):', e);
+            return { content: null, model: null, usable: false, attempts: [] } as ArabicJudgement;
+          });
+          if (judgement.attempts.length) {
+            anyAttempt = true;
+            arbiterProvenance.attempts = [...(arbiterProvenance.attempts ?? []), ...judgement.attempts];
+          }
+          if (judgement.content !== null) anyReply = true;
 
-        const choices = judgement.usable && judgement.content
-          ? parseArbiterChoices(judgement.content, asked)
-          : null;
-        if (!choices) {
-          arbiterProvenance.skip_reason = judgement.content === null && judgement.attempts.length === 0
-            ? 'no_arabic_model'
-            : 'no_usable_reply';
-          arbiterProvenance.unresolved = arbitrableIdx.length;
-          console.warn(
-            `Arabic-native arbitration: no verdict on ${arbitrableIdx.length} disputed line(s) ` +
-              `(${arbiterProvenance.skip_reason}` +
-              (judgement.attempts.length ? `; ${judgement.attempts.map((a) => `${a.model}: ${a.error}`).join('; ')}` : '') +
-              ')',
-          );
-        } else {
-          arbiterProvenance.model = judgement.model;
+          const choices = judgement.usable && judgement.content
+            ? parseArbiterChoices(judgement.content, asked)
+            : null;
+          if (!choices) {
+            arbiterProvenance.unresolved += batchIdx.length;
+            console.warn(
+              `Arabic-native arbitration: no verdict on ${batchIdx.length} disputed line(s)` +
+                (parties.length ? ` (without ${parties.join(', ')}, which drafted them)` : '') +
+                (judgement.attempts.length ? `; ${judgement.attempts.map((a) => `${a.model}: ${a.error}`).join('; ')}` : ''),
+            );
+            continue;
+          }
+          if (judgement.model && !judgedBy.includes(judgement.model)) judgedBy.push(judgement.model);
+          let resolved = 0;
+          let adopted = 0;
+          let open = 0;
           const byLine = new Map(choices.map((c) => [c.line, c]));
-          for (const i of arbitrableIdx) {
+          for (const i of batchIdx) {
             const choice = byLine.get(i + 1);
             const winner = choice && choice.pick !== null ? ensembleMerge.lines[i].candidates[choice.pick] : null;
             if (!choice || !winner) {
-              arbiterProvenance.unresolved++;
+              open++;
               continue;
             }
             // The judge's pick becomes the line either way; only a confident
@@ -2812,17 +2846,25 @@ serve(async (req) => {
             if (choice.confidence === 'high') {
               ensembleNeedsReview[i] = false;
               ensembleMerge.lines[i].needs_review = false;
-              arbiterProvenance.resolved++;
+              resolved++;
             } else {
-              arbiterProvenance.adopted_unconfirmed++;
+              adopted++;
             }
           }
-          ensembleMerge.agreements.needs_review = ensembleNeedsReview.filter(Boolean).length;
+          arbiterProvenance.resolved += resolved;
+          arbiterProvenance.adopted_unconfirmed += adopted;
+          arbiterProvenance.unresolved += open;
           console.log(
-            `Arabic-native arbitration [${judgement.model}]: ${arbitrableIdx.length} disputed line(s) → ` +
-              `${arbiterProvenance.resolved} resolved, ${arbiterProvenance.adopted_unconfirmed} adopted at low confidence, ` +
-              `${arbiterProvenance.unresolved} left open (${arbiterProvenance.latency_ms}ms)`,
+            `Arabic-native arbitration [${judgement.model}]: ${batchIdx.length} disputed line(s) → ` +
+              `${resolved} resolved, ${adopted} adopted at low confidence, ${open} left open`,
           );
+        }
+        arbiterProvenance.latency_ms = Date.now() - t0;
+        arbiterProvenance.attempted = anyAttempt || anyReply;
+        arbiterProvenance.model = judgedBy.length ? judgedBy.join(' + ') : null;
+        ensembleMerge.agreements.needs_review = ensembleNeedsReview.filter(Boolean).length;
+        if (!judgedBy.length && !arbiterProvenance.skip_reason) {
+          arbiterProvenance.skip_reason = anyReply || anyAttempt ? 'no_usable_reply' : 'no_arabic_model';
         }
       }
 
@@ -2994,8 +3036,9 @@ serve(async (req) => {
         // by a partial deploy was invisible until this.
         build: EDGE_BUILD,
         merge_model: MODEL_IDS.QWEN_FAST,
-        degraded: okCount < 3,
+        degraded: okCount < configuredCount,
         active_models: okCount,
+        configured_models: configuredCount,
         lines: mergedLines.length,
         blank_after_ensemble: blankIdx.length,
         cheap_fill: cheapFilled.size,
@@ -3181,7 +3224,7 @@ serve(async (req) => {
       if (dedicatedTranslations.length > 0) {
         console.log(
           `Applied ensemble translations to ${dedicatedTranslations.length} lines ` +
-            `(active=${translationProvenance.active_models}/3, ` +
+            `(active=${translationProvenance.active_models}/${translationProvenance.configured_models}, ` +
             `needs_review=${translationProvenance.agreements.needs_review})`,
         );
       }

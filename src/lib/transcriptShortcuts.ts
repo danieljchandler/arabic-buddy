@@ -152,8 +152,15 @@ export function resolveShortcut(
       return "merge-next";
     case "M":
       return "merge-prev";
+    // Both spellings, and only with shift actually held. Caps Lock decides the
+    // *case* the browser reports and shift does not cancel it: caps on gives a
+    // bare press `X` with `shiftKey` false, and ⇧X `x` with it true. Keying
+    // off the capital alone therefore let caps-locked typing delete the
+    // selected line with one unmodified keystroke — the opposite of what a
+    // deliberately chorded shortcut is for.
+    case "x":
     case "X":
-      return "delete-line";
+      return shift ? "delete-line" : null;
     case "r":
       return "toggle-reviewed";
     case "t":

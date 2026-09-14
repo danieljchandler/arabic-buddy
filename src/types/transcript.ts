@@ -144,7 +144,20 @@ export type UndoOperation =
    * from. `index` is where it sat, so it returns to its own place rather than
    * to the end of the transcript.
    */
-  | { type: 'DeleteOp'; segment: Segment; index: number }
+  | {
+      type: 'DeleteOp';
+      segment: Segment;
+      index: number;
+      /**
+       * Whether the line's English was marked stale when it was deleted.
+       *
+       * Carried so undo restores the warning along with the line. Without it,
+       * correcting a line's Arabic, deleting it and undoing gives back a line
+       * whose translation describes words that are no longer there, with
+       * nothing on the card or in the toolbar saying so.
+       */
+      wasStale: boolean;
+    }
   | { type: 'RippleTimestampOp'; changes: Array<{ segmentId: string; field: 'start' | 'end'; previousValue: number; newValue: number }> };
 
 /** Result of gap analysis between segments. */

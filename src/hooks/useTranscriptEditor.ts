@@ -207,7 +207,12 @@ export function useTranscriptEditor(
         const idx = prev.findIndex(s => s.id === segmentId);
         if (idx === -1) return prev;
 
-        push({ type: 'DeleteOp', segment: prev[idx], index: idx });
+        push({
+          type: 'DeleteOp',
+          segment: prev[idx],
+          index: idx,
+          wasStale: staleTranslations.has(segmentId),
+        });
 
         const next = [...prev.slice(0, idx), ...prev.slice(idx + 1)];
         // A line nobody can see cannot have a stale translation, and leaving
@@ -223,7 +228,7 @@ export function useTranscriptEditor(
         return next;
       });
     },
-    [push, debounceSave],
+    [push, debounceSave, staleTranslations],
   );
 
   /** Update the Arabic text of a segment. */
@@ -441,6 +446,14 @@ export function useTranscriptEditor(
     const op = undo();
     if (!op) return;
 
+    // The staleness set lives outside the segments, so restoring a deleted
+    // line has to put its warning back by hand. A line that comes back with
+    // English describing words the reviewer already replaced, and nothing
+    // saying so, is worse than one that never left.
+    if (op.type === 'DeleteOp' && op.wasStale) {
+      setStaleTranslations(s => new Set(s).add(op.segment.id));
+    }
+
     setSegments(prev => {
       const next = applyUndo(prev, op);
       debounceSave(next);
@@ -452,6 +465,17 @@ export function useTranscriptEditor(
   const handleRedo = useCallback(() => {
     const op = redo();
     if (!op) return;
+
+    // The other half of the same bookkeeping: deleting the line again takes
+    // its warning back out of the count.
+    if (op.type === 'DeleteOp') {
+      setStaleTranslations(s => {
+        if (!s.has(op.segment.id)) return s;
+        const n = new Set(s);
+        n.delete(op.segment.id);
+        return n;
+      });
+    }
 
     setSegments(prev => {
       const next = applyRedo(prev, op);

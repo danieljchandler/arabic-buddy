@@ -557,6 +557,59 @@ describe("undo and redo", () => {
     expect(result.current.segments[1]).toEqual(THREE[1]);
   });
 
+  it("brings the stale-translation warning back with the line", () => {
+    const { result } = renderHook(() => useTranscriptEditor(THREE));
+    act(() => {
+      result.current.editText("b", "زينة");
+    });
+    act(() => {
+      result.current.remove("b");
+    });
+
+    act(() => {
+      result.current.handleUndo();
+    });
+
+    // The staleness set lives outside the segments, so undo has to restore it
+    // by hand. Otherwise the line comes back with English describing words the
+    // reviewer already replaced, and nothing on the card or in the toolbar
+    // says so — the prompt to re-translate is exactly what they deleted and
+    // then thought better of.
+    expect(result.current.staleTranslations.has("b")).toBe(true);
+  });
+
+  it("takes the warning away again when the delete is redone", () => {
+    const { result } = renderHook(() => useTranscriptEditor(THREE));
+    act(() => {
+      result.current.editText("b", "زينة");
+    });
+    act(() => {
+      result.current.remove("b");
+    });
+    act(() => {
+      result.current.handleUndo();
+    });
+
+    act(() => {
+      result.current.handleRedo();
+    });
+
+    expect(result.current.staleTranslations.has("b")).toBe(false);
+  });
+
+  it("does not invent a warning on a line that never had one", () => {
+    const { result } = renderHook(() => useTranscriptEditor(THREE));
+    act(() => {
+      result.current.remove("b");
+    });
+
+    act(() => {
+      result.current.handleUndo();
+    });
+
+    expect(result.current.staleTranslations.has("b")).toBe(false);
+  });
+
   it("deletes it again on redo", () => {
     const { result } = renderHook(() => useTranscriptEditor(THREE));
     act(() => {

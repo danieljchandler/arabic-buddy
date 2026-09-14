@@ -83,6 +83,19 @@ describe("editing", () => {
     expect(resolveShortcut(press("x"), idle)).toBeNull();
   });
 
+  it("still deletes on shift-x with caps lock on", () => {
+    // Caps Lock decides the case the browser reports and shift does not cancel
+    // it, so a caps-locked ⇧X arrives as a lowercase `x` with shift held.
+    expect(resolveShortcut(press("x", { shiftKey: true }), idle)).toBe("delete-line");
+  });
+
+  it("does not delete on a caps-locked bare x", () => {
+    // The other half of the same quirk, and the dangerous one: caps on without
+    // shift reports `X`. Keying off the capital alone let one unmodified
+    // keystroke delete the selected line.
+    expect(resolveShortcut(press("X"), idle)).toBeNull();
+  });
+
   it("lets shift-x be a capital X inside a text box", () => {
     expect(resolveShortcut(press("X", { shiftKey: true }), typing)).toBeNull();
   });

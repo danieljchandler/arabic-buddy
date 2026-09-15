@@ -102,6 +102,21 @@ serverless endpoint running `vllm/vllm-openai`) is configured, as of
   had placed a worker on and which sat initialising for hours without ever
   serving. Re-sending `gpu.pools` clears exclusions, so restate this one if
   the pools are ever changed.
+- **The image needs a CUDA 13 driver, and the fleet is mixed.**
+  `vllm/vllm-openai:v0.28.0` is built on CUDA 13; on 2026-09-15 the worker
+  landed on an RTX 4090 host with a CUDA 12.8 driver and the container never
+  started (`nvidia-container-cli: unsatisfied condition: cuda>=13.0`, every
+  twenty seconds, for as long as the run lasted). The pipeline sees only the
+  load balancer's 502 page, so the row reads "worker not ready" as if it were
+  booting. Two ways to make placement and image agree, and the endpoint
+  currently has neither: set `gpu.allowedCudaVersions` to `["13.0", "13.1"]`
+  so the scheduler only picks hosts the image runs on (capacity for 24 GB
+  cards at 13.0 was "Low" when checked, so it can leave the endpoint waiting
+  for a host), or pin the image to the same version's `-cu129` tag
+  (`vllm/vllm-openai:v0.28.0-cu129`), which runs on 12.9 and 13.x drivers.
+  Whichever is chosen, `allowedCudaVersions` should name the versions the
+  image accepts, because an empty list means "any", and "any" is what
+  produced a worker that could not start.
 | `STRIPE_SECRET_KEY` | `create-checkout`, `check-subscription`, `customer-portal` |
 
 There is no Lovable AI gateway key any more: every model call goes through

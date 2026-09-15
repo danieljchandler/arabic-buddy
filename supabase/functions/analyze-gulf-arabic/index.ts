@@ -42,7 +42,17 @@ import {
 } from "../_shared/fushaBridge.ts";
 import { ARABIC_OCCASIONAL_ORDER, TRANSCRIPT_TRANSLATION_DRAFTERS, MODEL_IDS, getModelWeight } from "../_shared/modelRegistry.ts";
 import { EDGE_BUILD } from "../_shared/edgeBuild.ts";
-import { tryChatRoute, chatFetch, hasAnyProvider, providerForModel, type Provider } from "../_shared/aiGateway.ts";
+import {
+  tryChatRoute,
+  chatFetch,
+  hasAnyProvider,
+  providerForModel,
+  completionText,
+  describeEmptyCompletion,
+  isHumainModelRejection,
+  humainCatalogueSummary,
+  type Provider,
+} from "../_shared/aiGateway.ts";
 import { splitOverlongLines } from "../_shared/transcriptLineSplit.ts";
 import {
   decideAudio,
@@ -1037,7 +1047,13 @@ async function callAI({
    if (!response.ok) {
      const errorText = await response.text();
      console.error('AI provider error body (first 800 chars):', errorText?.slice?.(0, 800) ?? errorText);
-     return { content: null, error: errorText, status: response.status };
+     // Node refusing the *model* is an access question, not a bug in this
+     // code: say what the key can call, as the judge walk does, so the tier
+     // row reads "request M3 access" rather than "HTTP 400".
+     const hint = providerForModel(model) === 'humain' && isHumainModelRejection(response.status, errorText)
+       ? ` — ${humainCatalogueSummary() ?? "this key's HUMAIN Node catalogue could not be read"}`
+       : '';
+     return { content: null, error: `${errorText}${hint}`, status: response.status };
    }
  
    // Safely read and parse the response body
@@ -1068,7 +1084,20 @@ async function callAI({
      return { content: null, error: 'Failed to parse AI response as JSON', status: 500 };
    }
    
-   const content = data.choices?.[0]?.message?.content;
+   // Read through the gateway's reader rather than off `message.content`
+   // directly. HUMAIN M3 is multimodal and answers in typed content parts,
+   // which a bare read hands back as an array — `safeJsonParse` then fails
+   // on it and the tier is recorded as `parse_failed` when it had in fact
+   // answered. And a 200 with no text is a failure that needs a reason on
+   // the row: a guardrail refusal (`finish_reason=content_filter`), a length
+   // cut and an unread shape all need different fixes, and until this the
+   // drafter row for any of them said `failed` and nothing else.
+   const content = completionText(data);
+   if (!content) {
+     const why = describeEmptyCompletion(data);
+     console.error(`AI provider returned no text (${why})`);
+     return { content: null, error: `empty response body (${why})`, status: response.status };
+   }
     return { content };
     } finally {
       clearTimeout(timeout);

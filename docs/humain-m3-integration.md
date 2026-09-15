@@ -301,6 +301,44 @@ judges reached, both refused, both reasons on the row:
   pools — see `docs/deployment.md`. Whether that brings a cold start inside a
   pipeline run is the next thing to measure.
 
+**What the run on 2026-09-15 said (about 12:54 UTC), read from the
+infrastructure rather than the row.** Both Arabic-native models missed again,
+for two reasons that had not appeared before:
+
+- **Jais never booted, and could not have.** The run-start ping started a
+  worker at 12:54:07Z on an RTX 4090 in `US-IL-1`, and its container failed
+  to start every twenty seconds from then on, each time with the same line
+  from the NVIDIA runtime: `unsatisfied condition: cuda>=13.0, please update
+  your driver`. The `vllm/vllm-openai:v0.28.0` image is built on CUDA 13, and
+  RunPod's 24 GB fleet is mixed — the worker that served on 2026-09-14 landed
+  on a host with a CUDA 13 driver, this one on a host with 12.8, and the
+  endpoint's `allowedCudaVersions` was empty, so the scheduler had no reason
+  to prefer either. Every probe in the run saw the load balancer's 502 page,
+  which the row records as "worker not ready" — correct as far as it goes,
+  but the worker was crash-looping, not starting, and no wait would have
+  found it up. The remedy is on the endpoint, in `docs/deployment.md`:
+  either restrict the endpoint to hosts whose driver satisfies the image, or
+  pin the image to the `-cu129` variant vLLM publishes for the same version.
+- **The drafter path could not say why M3 failed.** `analyze-gulf-arabic`'s
+  `callAI` — the reader every drafter goes through, which #372 put M3 behind
+  — read `message.content` bare. Two shapes M3 is known to answer in were
+  invisible to it: content *parts* (the third run), which arrived as an array
+  and failed the JSON parse, so a full M3 translation would have been rowed
+  as `parse_failed`; and a guardrail refusal (the fourth run), which arrived
+  as `content: null` with a `refusal`, so the tier said `failed` with no
+  error at all. `callAI` now reads through `completionText` and, when a 200
+  carries no text, records `describeEmptyCompletion` on the tier row (and a
+  Node model refusal carries the catalogue hint, as the judge walk's does).
+  Nothing about M3's *access* changed: on the limited preview the guardrail
+  still decides whether the fourth seat is filled on a given clip.
+
+Two things to check on any run that still reports M3 or Jais missing, before
+reading further: the `build` on `engines_used.translation` (or the admin
+build banner) says whether the functions serving the run carry these fixes
+at all — CI does not deploy them (`SUPABASE_ACCESS_TOKEN` is not set on a
+Lovable-managed project) — and the RunPod worker log says whether the Jais
+container ever started.
+
 ### 1d. A say in the translations
 
 `analyze-gulf-arabic` also now puts every line its ensemble could not settle to

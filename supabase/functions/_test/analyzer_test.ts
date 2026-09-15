@@ -1207,6 +1207,134 @@ Deno.test("an Arabic-native peer alone against two generalists is outvoted, and 
   }
 });
 
+Deno.test("an Arabic-native peer answering in content parts is read and votes", async () => {
+  // M3 is natively multimodal and answers `content` as typed parts, not a
+  // string. The judge walk learnt to read that shape on the third live run;
+  // the drafter path still read `message.content` bare, so a full M3
+  // translation came back as an array, failed the JSON parse, and was rowed
+  // as `parse_failed` — one run after being promoted to an equal peer.
+  const partsReply = (text: string) =>
+    json({
+      id: "chatcmpl-parts",
+      object: "chat.completion",
+      choices: [{ index: 0, finish_reason: "stop", message: { role: "assistant", content: [{ type: "text", text }] } }],
+    });
+  const drafters: UpstreamHandler = async (request) => {
+    const body = JSON.parse(await request.clone().text()) as { model: string; messages: Array<{ content: string }> };
+    const m3 = body.model.includes("humain");
+    if (!asksForTranslations(body)) return m3 ? partsReply('{"issues":[]}') : analysisReply();
+    const first = m3 || body.model.includes("gemini") ? "Where have you been" : "Where were you";
+    const reply = JSON.stringify({ translations: [first, "Fine, thank God"], literals: ["lit 1", "lit 2"] });
+    return m3 ? partsReply(reply) : chatCompletion(reply);
+  };
+  const fn = await loadFunction("analyze-gulf-arabic", {
+    env: NODE_ENV,
+    upstreams: allowed({
+      "openrouter.ai": drafters,
+      "generativelanguage.googleapis.com": drafters,
+      "node.humain.test": drafters,
+      "/rest/v1/discover_videos": (request) =>
+        request.method === "GET"
+          ? json({ transcription_status: "processing", engines_used: null }, 200)
+          : json([{ id: PIPELINE_VIDEO }], 200),
+      "/rest/v1/processed_videos": () => json({}, 201),
+      "/functions/v1/process-approved-video": () => json({ success: true }, 202),
+    }),
+  });
+  try {
+    const response = await fn.handler(jsonRequest("analyze-gulf-arabic", {
+      transcript: "وينك اليوم الحمد لله بخير",
+      videoId: PIPELINE_VIDEO,
+    }, { jwt: SERVICE_ROLE_KEY }));
+    assertEquals(response.status, 200);
+    const body = await response.json() as { result?: { lines?: Array<{ translation: string; needs_review?: boolean }> } };
+    await fn.background();
+    // M3 and Gemini agree, so the line is theirs — which is only possible if
+    // M3's parts reply was read as the text it carried.
+    assertEquals(body.result?.lines?.[0].translation, "Where have you been");
+    const save = fn.calls.find((c) => c.url.includes("discover_videos") && c.method === "PATCH" && c.body?.includes("analysis_complete"));
+    const patch = JSON.parse(save?.body ?? "{}") as {
+      engines_used: { translation?: { degraded?: boolean; tiers?: Array<{ name: string; status: string; lines_won: number }> } };
+    };
+    const m3 = patch.engines_used.translation?.tiers?.find((t) => t.name === "humain/humain-m3");
+    assertEquals(m3?.status, "ok");
+    assertEquals(m3?.lines_won, 2);
+    assertEquals(patch.engines_used.translation?.degraded, false);
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("an Arabic-native peer refused by its guardrail is a failed tier whose row says so", async () => {
+  // The limited preview's alignment guardrail answers a 200 with no content
+  // and a `refusal`. Before this the drafter row for that was `failed` with
+  // no error at all, indistinguishable from a dropped connection — and the
+  // fix for a refusal (research-preview access on Node) is nothing like the
+  // fix for a timeout.
+  const refusal = () =>
+    json({
+      id: "chatcmpl-refused",
+      object: "chat.completion",
+      choices: [{
+        index: 0,
+        finish_reason: "content_filter",
+        message: { role: "assistant", content: null, refusal: "I cannot help with that request." },
+      }],
+    });
+  const drafters: UpstreamHandler = async (request) => {
+    const body = JSON.parse(await request.clone().text()) as { model: string; messages: Array<{ content: string }> };
+    if (body.model.includes("humain")) return refusal();
+    if (!asksForTranslations(body)) return analysisReply();
+    return chatCompletion(JSON.stringify({ translations: ["Where were you", "Fine, thank God"], literals: ["lit 1", "lit 2"] }));
+  };
+  const fn = await loadFunction("analyze-gulf-arabic", {
+    env: NODE_ENV,
+    upstreams: allowed({
+      "openrouter.ai": drafters,
+      "generativelanguage.googleapis.com": drafters,
+      "node.humain.test": drafters,
+      "/rest/v1/discover_videos": (request) =>
+        request.method === "GET"
+          ? json({ transcription_status: "processing", engines_used: null }, 200)
+          : json([{ id: PIPELINE_VIDEO }], 200),
+      "/rest/v1/processed_videos": () => json({}, 201),
+      "/functions/v1/process-approved-video": () => json({ success: true }, 202),
+    }),
+  });
+  try {
+    const response = await fn.handler(jsonRequest("analyze-gulf-arabic", {
+      transcript: "وينك اليوم الحمد لله بخير",
+      videoId: PIPELINE_VIDEO,
+    }, { jwt: SERVICE_ROLE_KEY }));
+    assertEquals(response.status, 200);
+    const body = await response.json() as { result?: { lines?: Array<{ translation: string }> } };
+    await fn.background();
+    // The generalists carry the transcript; the refusal costs nothing but the seat.
+    assertEquals(body.result?.lines?.[0].translation, "Where were you");
+    const save = fn.calls.find((c) => c.url.includes("discover_videos") && c.method === "PATCH" && c.body?.includes("analysis_complete"));
+    const patch = JSON.parse(save?.body ?? "{}") as {
+      engines_used: {
+        translation?: {
+          degraded?: boolean;
+          active_models?: number;
+          configured_models?: number;
+          tiers?: Array<{ name: string; status: string; error?: string }>;
+        };
+      };
+    };
+    const translation = patch.engines_used.translation;
+    const m3 = translation?.tiers?.find((t) => t.name === "humain/humain-m3");
+    assertEquals(m3?.status, "failed");
+    assert(m3?.error?.includes("finish_reason=content_filter"), `row names the guardrail: ${m3?.error}`);
+    assert(m3?.error?.includes("refusal="), `row carries the refusal text: ${m3?.error}`);
+    assertEquals(translation?.degraded, true);
+    assertEquals(translation?.active_models, 3);
+    assertEquals(translation?.configured_models, 4);
+  } finally {
+    fn.restore();
+  }
+});
+
 Deno.test("a drafter that answered only some lines still judges the disputes it was no party to", async () => {
   // Three lines. The generalists split on lines 1 and 3 and agree on 2. M3's
   // reply stops after line 1, so on line 1 it is a party to the dispute and

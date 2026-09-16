@@ -966,10 +966,17 @@ member with the highest mean token overlap with its peers — breaking ties
 toward the heavier model and then toward the *shorter* text, which is the
 old rule exactly inverted. And the drafters are asked for the natural
 translation and the word-for-word gloss in one JSON object, which is a standing
-pull toward writing one like the other; the prompt now firewalls them and
+pull toward writing one like the other; the prompt now separates them and
 spells out register, emotional colour and "don't explain or expand", under an
 accuracy clause that still outranks all of it — natural is how you say it, not
-what you say.
+what you say. Note the separation is about how each is *derived*, not about
+how they come out: the rule asks for the translation to be written first and
+independently, and says outright that the two may coincide where a line's
+natural English really is its word-for-word reading ("نعم" is "yes"). An
+earlier draft demanded they "must NOT resemble each other", which is
+unsatisfiable on those lines and invites a drafter to pad the gloss or
+paraphrase the translation to manufacture a difference — the same expansion
+the accuracy clause forbids.
 
 Note what is deliberately *not* changed: `callAI` still sends
 `temperature: 0.2`. Temperature is the knob that trades fidelity for flair, and

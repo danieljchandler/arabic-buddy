@@ -635,7 +635,7 @@ Output ONLY valid JSON matching this schema:
 
 Rules:
 - Both arrays must have exactly the same number of items as there are numbered lines, aligned by index.
-- The two arrays are for two different readers and must NOT resemble each other. Write the natural translation first, as if the gloss did not exist; only then write the gloss. Never let the gloss's word order or word choice leak into the translation.
+- The two arrays are for two different readers. Write the natural translation first, as if the gloss did not exist; only then write the gloss. Never let the gloss's word order or word choice pull the translation toward it. Where a line's natural English genuinely IS its word-for-word reading — "نعم" is "yes", "شكراً" is "thank you" — the two may coincide, and that is correct: never manufacture a difference by padding the gloss or paraphrasing the translation.
 - Literals are a close word-for-word English gloss preserving the Arabic word order (e.g. "what news-your?" for "شخبارك؟"). They may sound stiff or ungrammatical — that is expected; they show learners how the sentence is built. Everything below this line is about the TRANSLATION only.
 
 The translation must say what a native speaker would say in English in that situation — not what the Arabic words add up to:

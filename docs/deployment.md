@@ -108,15 +108,19 @@ serverless endpoint running `vllm/vllm-openai`) is configured, as of
   started (`nvidia-container-cli: unsatisfied condition: cuda>=13.0`, every
   twenty seconds, for as long as the run lasted). The pipeline sees only the
   load balancer's 502 page, so the row reads "worker not ready" as if it were
-  booting. Two ways to make placement and image agree, and the endpoint
-  currently has neither: set `gpu.allowedCudaVersions` to `["13.0", "13.1"]`
-  so the scheduler only picks hosts the image runs on (capacity for 24 GB
-  cards at 13.0 was "Low" when checked, so it can leave the endpoint waiting
-  for a host), or pin the image to the same version's `-cu129` tag
-  (`vllm/vllm-openai:v0.28.0-cu129`), which runs on 12.9 and 13.x drivers.
-  Whichever is chosen, `allowedCudaVersions` should name the versions the
-  image accepts, because an empty list means "any", and "any" is what
-  produced a worker that could not start.
+  booting. Fixed on 2026-09-16 by setting **`gpu.minCudaVersion` to `13.0`**
+  (it was `12.0`, which admits every host in the pool), so the scheduler only
+  picks hosts the image runs on; the release rolled a fresh worker onto an
+  RTX A5000 with a CUDA 13 driver straight away. Two things to know when
+  touching this: RunPod's API treats `minCudaVersion` and
+  `allowedCudaVersions` as mutually exclusive, so a version *list* means
+  clearing the minimum first; and capacity for 24 GB cards on CUDA 13 hosts
+  read "Low" when checked, so a cold start can wait for a host. If that
+  happens often, the alternative is the same version's `-cu129` image
+  (`vllm/vllm-openai:v0.28.0-cu129`) with the minimum lowered to `12.9`,
+  which admits the 12.9 and 13.x hosts. Never leave the minimum below what
+  the image is built for: that is what produced a worker that could not
+  start.
 | `STRIPE_SECRET_KEY` | `create-checkout`, `check-subscription`, `customer-portal` |
 
 There is no Lovable AI gateway key any more: every model call goes through

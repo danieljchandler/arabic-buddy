@@ -118,7 +118,7 @@ describe("streamChat", () => {
     expect((err.body as { error: string }).error).toBe("daily_limit_reached");
   });
 
-  it("stops at [DONE] and ignores non-data lines", async () => {
+  it("ignores non-data lines and any content that follows [DONE]", async () => {
     respond = () =>
       new Response(
         sse([": keepalive\n", frame("a"), "data: [DONE]\n", frame("never")]),
@@ -127,5 +127,91 @@ describe("streamChat", () => {
 
     const full = await streamChat({ functionName: "x", body: {}, onDelta: () => {} });
     expect(full).toBe("a");
+  });
+
+  /**
+   * `assistant-chat` appends a native-speaker review of its own Arabic *after*
+   * the provider's `[DONE]` — the judgment can only be made once the answer is
+   * finished. So the reader keeps draining until the server closes, and the two
+   * events it used to conflate come apart: the content is done at `[DONE]`, the
+   * request is done when the connection is.
+   */
+  describe("the native-review frame", () => {
+    const review = {
+      hikaya: {
+        type: "native_review",
+        model: "humain/humain-m3",
+        corrections: [
+          { arabic: "كيف حالك", suggestion: "شلونك", note: "MSA greeting", kind: "msa" },
+        ],
+      },
+    };
+
+    it("is delivered after [DONE] rather than dropped at it", async () => {
+      respond = () =>
+        new Response(
+          sse([frame("a"), "data: [DONE]\n", `data: ${JSON.stringify(review)}\n`]),
+          { status: 200 },
+        );
+
+      const seen: unknown[] = [];
+      const full = await streamChat({
+        functionName: "assistant-chat",
+        body: {},
+        onDelta: () => {},
+        onNativeReview: (r) => seen.push(r),
+      });
+
+      expect(full).toBe("a");
+      expect(seen).toEqual([review.hikaya]);
+    });
+
+    it("reports the answer finished at [DONE], not when the connection closes", async () => {
+      // What keeps the composer from staying locked for the length of the
+      // review: the caller is told the reply is complete while the stream is
+      // still open behind it.
+      const order: string[] = [];
+      respond = () =>
+        new Response(
+          sse([frame("a"), "data: [DONE]\n", `data: ${JSON.stringify(review)}\n`]),
+          { status: 200 },
+        );
+
+      await streamChat({
+        functionName: "assistant-chat",
+        body: {},
+        onDelta: () => {},
+        onContentComplete: (full) => order.push(`complete:${full}`),
+        onNativeReview: () => order.push("review"),
+      });
+
+      expect(order).toEqual(["complete:a", "review"]);
+    });
+
+    it("reports completion even when the stream closes without a terminator", async () => {
+      respond = () => new Response(sse([frame("a")]), { status: 200 });
+
+      const order: string[] = [];
+      await streamChat({
+        functionName: "x",
+        body: {},
+        onDelta: () => {},
+        onContentComplete: (full) => order.push(full),
+      });
+
+      expect(order).toEqual(["a"]);
+    });
+
+    it("leaves an ordinary provider frame alone", async () => {
+      const seen: unknown[] = [];
+      await streamChat({
+        functionName: "x",
+        body: {},
+        onDelta: () => {},
+        onNativeReview: (r) => seen.push(r),
+      });
+
+      expect(seen).toEqual([]);
+    });
   });
 });

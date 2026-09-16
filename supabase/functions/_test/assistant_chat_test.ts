@@ -559,3 +559,61 @@ Deno.test("assistant-chat truncates runaway histories instead of forwarding them
   assert(!sent.includes('"turn 0"'));
   assertStringIncludes(sent, "turn 59");
 });
+
+// ── The native-speaker review of the assistant's own Arabic ─────────────────
+//
+// The chat streams, which is what left its Arabic unchecked: `askBrain` runs
+// its validator before shipping a draft, and by the time a stream could be
+// judged the learner has read it. So the judgment is appended to the same
+// response after the answer, and the client renders it as a note beside the
+// reply rather than as a rewrite of it. `arabic_review_test.ts` covers the
+// judging; these two cover the seam — that it rides this function's stream, and
+// that a clean answer is left exactly as it was.
+
+/** The Arabic-native roster's only routable rung under the default fixture env. */
+const FANAR_HOST = "api.fanar.qa";
+
+const arabicReply = () => sseCompletion("You could say ", "كيف حالك.");
+
+/** Everything after the answer's own terminator. */
+function afterDone(stream: string): string {
+  const done = stream.indexOf("data: [DONE]");
+  return done === -1 ? "" : stream.slice(done);
+}
+
+Deno.test("assistant-chat appends a native speaker's reading of its own Arabic", async () => {
+  const { response } = await call(
+    "assistant-chat",
+    { messages: [{ role: "user", content: "how do I greet someone?" }], dialect: "Gulf" },
+    subscriber({
+      "openrouter.ai": arabicReply,
+      [FANAR_HOST]: () =>
+        chatCompletion(JSON.stringify([
+          { id: 1, verdict: "msa", suggestion: "شلونك", note: "MSA greeting" },
+        ])),
+    }),
+  );
+
+  const text = await response.text();
+  // The answer itself is untouched — the learner read it as it streamed, and a
+  // note that contradicts what they saw is only honest if what they saw is
+  // still there.
+  assertStringIncludes(text, "كيف حالك");
+  // …and the correction rides the tail of the same response, after the
+  // provider's terminator, since it cannot be made until the answer is whole.
+  const tail = afterDone(text);
+  assertStringIncludes(tail, "native_review");
+  assertStringIncludes(tail, "شلونك");
+});
+
+Deno.test("assistant-chat adds nothing to a reply the native speaker was happy with", async () => {
+  const { response } = await call(
+    "assistant-chat",
+    { messages: [{ role: "user", content: "how do I greet someone?" }], dialect: "Gulf" },
+    subscriber({ "openrouter.ai": arabicReply, [FANAR_HOST]: () => chatCompletion("[]") }),
+  );
+
+  const text = await response.text();
+  assert(!text.includes("native_review"));
+  assertStringIncludes(text, "data: [DONE]");
+});

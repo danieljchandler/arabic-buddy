@@ -15,6 +15,8 @@ import {
 import { detectMsaLeaks, type MsaLeakResult } from './msaLeakDetector.ts';
 import { logMsaViolations, logValidatorResult } from './msaViolationLogger.ts';
 import { validateDialectCrossChecked, type ValidatorResult } from './dialectValidator.ts';
+import { reviewArabicNatively } from './arabicReview.ts';
+import { encodeAppFrame } from './arabicReviewCore.ts';
 import { decideCriticOutcome } from './criticDecision.ts';
 import { emitMetric } from './featureMetrics.ts';
 import { extractUsage } from './llmUsageCore.ts';
@@ -1113,6 +1115,20 @@ export interface StreamBrainTask {
   responseHeaders?: Record<string, string>;
   /** Forward client abort signal so the upstream call cancels too. */
   signal?: AbortSignal;
+  /**
+   * Ask an Arabic-native model to read the Arabic in the finished reply, and
+   * append its corrections to the stream as an app frame.
+   *
+   * Opt-in because it is not free in either sense: it holds the connection
+   * open past the last token (bounded — see `reviewArabicNatively`) and spends
+   * one judge call on a reply that has already shipped. The learner-facing
+   * chat opts in; the short translation streams do not.
+   */
+  nativeReview?: {
+    /** Arabic that came from the app or the learner, not from the model. Never reviewed. */
+    sources?: string[];
+    timeoutMs?: number;
+  };
 }
 
 /** Stream a single-model dialect-aware chat response. Routed like callModel,
@@ -1203,7 +1219,7 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
         }
       } catch { /* never break the passthrough */ }
     },
-    flush() {
+    async flush(controller) {
       if (streamUsage) {
         logLlmUsage({
           functionName: task.purpose,
@@ -1271,6 +1287,39 @@ export async function streamBrain(task: StreamBrainTask): Promise<Response> {
       }
       if (!repairOwnsCompletion) {
         invokeOnComplete(full);
+      }
+
+      // The native review is the one thing here the learner is meant to see,
+      // so it is the one thing awaited: the stream stays open until it answers
+      // or its deadline passes. Everything above is fire-and-forget because it
+      // writes to a log or to memory; this writes to the screen.
+      //
+      // It is appended *after* the upstream's own `[DONE]`, which has already
+      // been forwarded — that terminator is the provider's, and holding it
+      // back would mean buffering the tail of every stream in the app for a
+      // feature one caller opts into. `sseChat` keeps draining past it.
+      if (task.nativeReview && full) {
+        try {
+          const review = await reviewArabicNatively({
+            text: full,
+            dialect: task.dialect,
+            sources: task.nativeReview.sources,
+            signal: task.signal,
+            timeoutMs: task.nativeReview.timeoutMs,
+          });
+          if (review) {
+            controller.enqueue(new TextEncoder().encode(encodeAppFrame(review)));
+            // A second terminator, so a reader that treats `[DONE]` as the end
+            // of the stream rather than the end of the content still sees one
+            // after the frame it did not expect.
+            controller.enqueue(new TextEncoder().encode('data: [DONE]\n\n'));
+          }
+        } catch (err) {
+          // Unreachable by design — `reviewArabicNatively` resolves to null on
+          // every failure — but a throw in `flush` cancels the stream, and the
+          // learner has already read the answer it would cancel.
+          console.warn('[aiBrain.stream] native review failed:', err);
+        }
       }
     },
   });

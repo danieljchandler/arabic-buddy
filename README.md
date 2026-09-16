@@ -422,6 +422,41 @@ assertion about the button still passed. The route sweep (`e2e/routes.spec.ts`)
 now hit-tests the disc on every learner route rather than merely asserting it is
 visible.
 
+**The tutor's own Arabic is reviewed after it has been said.** The chat
+streams, and that is precisely what left its Arabic unchecked: `askBrain` can
+run a repair pass and a native-speaker validator *before* it ships a draft,
+while a stream has been read by the time anyone could judge it. The MSA-leak
+repair in `streamBrain` looked like the missing gate and was not — its
+corrected text only ever reached `onComplete`, which is the memory rewrite, so
+the learner watched the leaky text arrive token by token and nothing they saw
+was ever corrected. So the judgment now happens after the answer:
+`_shared/arabicReview.ts` sends the Arabic runs the tutor *wrote* to the
+Arabic-native roster through `judgeWithArabicNative`, and what comes back is
+appended to the same SSE response as an app frame (`arabicReviewCore.ts`, which
+the browser imports verbatim) and rendered beside the reply as a note.
+
+Three decisions hold it up. It is a **note, not a rewrite** — the learner has
+already read the answer, and silently replacing it would make the assistant
+appear to have said something it did not; both readings stay on screen,
+attributed, so a learner who knows better can see that the reviewer is the one
+that is wrong. Arabic **quoted from the page is never reviewed**: a transcript
+line, an authored lesson, a story is a native speaker's own words, and
+"correcting" it would have the app telling a learner that the clip they are
+watching is wrong — `selectReviewTargets` matches quotations through the vowels
+a tutor adds when it re-types them. And **every failure is silence**: no
+Arabic-native model configured, a refusal, a reply the parser cannot read, a
+suggestion identical to the text, the 8-second deadline — all of them end as no
+note rather than as a bad one. `CHAT_NATIVE_REVIEW=off` switches it off without
+a deploy.
+
+This is also the honest answer to "should an Arabic-native model serve the
+chat?" M3 and Jais 2 are better at Arabic than the model writing the English
+around it, and neither can serve `DEFAULT_CHAT`: M3's preview tier has
+streaming off and adds latency, Jais 2 scales to zero, and `canFallBack` is
+false for both, so either as the chat model would put a learner-facing request
+on a single unbacked route. Here they are additive by construction — one short
+classification call, off the critical path, on text that has already shipped.
+
 **A conversation belongs to the page it was started on.** It used to outlive
 every navigation, so a question asked about a video was still sitting in the
 panel — seed sentence and all — when the disc was tapped three screens later,

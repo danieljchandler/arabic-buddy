@@ -231,6 +231,15 @@ GUIDELINES:
       maxTokens: 1024,
       responseHeaders: corsHeaders,
       signal: req.signal,
+      // Have an Arabic-native model read the Arabic in the answer once it has
+      // been sent, and append what it would have said instead.
+      //
+      // The sources are what the tutor did not write: the line this chat was
+      // opened about, and whatever is on screen. Arabic quoted from there is a
+      // native speaker's own words — a transcript, an authored lesson, a story
+      // — and correcting it would be the app telling a learner that the clip
+      // they are watching is wrong. Only the tutor's own Arabic is judged.
+      nativeReview: { sources: [seedArabic, pageText] },
       // Fold this exchange into the learner's notes once the answer has gone
       // out. Deliberately after the stream and off the request's critical
       // path: nobody should wait on their own memory being updated, and a

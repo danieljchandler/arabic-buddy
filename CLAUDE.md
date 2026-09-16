@@ -290,6 +290,18 @@ declared directly on the Realtime session for voice); on-screen OCR timing via
 `_shared/learnerMemory.ts`. Each layer degrades independently rather than
 erroring.
 
+The chat's *own* Arabic is checked after the fact rather than before, because a
+stream has been read by the time it could be judged: `_shared/arabicReview.ts`
+sends the Arabic the tutor wrote (never Arabic quoted from the page — that is a
+native speaker's own words) to the Arabic-native roster once the answer is
+complete, and appends the verdict to the same SSE response as an app frame that
+renders as a note beside the reply. It is additive by construction and returns
+null on every failure; `CHAT_NATIVE_REVIEW=off` disables it. Note the two
+`streamBrain` consequences: `flush` now awaits that call, so the connection
+outlives the last token, and `sseChat` reads past `[DONE]` — a caller that
+drives a spinner off "the reply is finished" wants `onContentComplete`, not the
+resolved promise.
+
 Three rules about the assistant hold everywhere and are each guarded:
 `ASSISTANT_OFF_ROUTES` in `src/lib/assistantRoutes.ts` is the *single* list of
 where the tutor is switched off (the disc, Cmd/Ctrl+K and the panel all read

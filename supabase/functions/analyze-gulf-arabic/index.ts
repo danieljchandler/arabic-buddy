@@ -52,6 +52,7 @@ import {
   isHumainModelRejection,
   humainCatalogueSummary,
   type Provider,
+  type ReasoningPreference,
 } from "../_shared/aiGateway.ts";
 import { splitOverlongLines } from "../_shared/transcriptLineSplit.ts";
 import {
@@ -605,9 +606,14 @@ No additional text outside JSON.`;
 };
 
 // ─── TRANSLATION PROMPT ──────────────────────────────────────────────────────
-// Used by Gemini 2.5 Flash (primary) and Qwen (fallback).
+// Sent to every drafter in TRANSCRIPT_TRANSLATION_DRAFTERS, unchanged, so the
+// ensemble compares renderings of the same brief rather than of three.
 // Receives the numbered merged transcript produced by Call 1.
 // Produces ONLY per-line translations — no vocabulary, no grammar.
+//
+// The naturalness rules in the prompt carry real weight: the drafters are
+// asked for two things at once, and a word-for-word gloss sitting in the same
+// JSON object is a standing pull toward rendering the translation the same way.
 const getTranslationSystemPrompt = (dialect?: string, visualContext?: string, sonioxTranslation?: string) => {
   const label = dialectShortLabel();
   const dialectNote = DIALECT_MODULE !== 'Gulf'
@@ -629,10 +635,18 @@ Output ONLY valid JSON matching this schema:
 
 Rules:
 - Both arrays must have exactly the same number of items as there are numbered lines, aligned by index.
-- Translations should be natural and idiomatic, not word-for-word.
-- Literals are a close word-for-word English gloss preserving the Arabic word order (e.g. "what news-your?" for "شخبارك؟"). They may sound stiff or ungrammatical — that is expected; they show learners how the sentence is built.
-- Preserve the tone and meaning of Gulf Arabic dialect.
-- Keep each translation concise.
+- The two arrays are for two different readers and must NOT resemble each other. Write the natural translation first, as if the gloss did not exist; only then write the gloss. Never let the gloss's word order or word choice leak into the translation.
+- Literals are a close word-for-word English gloss preserving the Arabic word order (e.g. "what news-your?" for "شخبارك؟"). They may sound stiff or ungrammatical — that is expected; they show learners how the sentence is built. Everything below this line is about the TRANSLATION only.
+
+The translation must say what a native speaker would say in English in that situation — not what the Arabic words add up to:
+- Render the line's FUNCTION, not its vocabulary. A greeting translates as a greeting, a set phrase as the English set phrase, a hedge as a hedge. "شخبارك؟" is "How's it going?", never "What is your news?".
+- Match the register of the speaker: casual speech becomes casual English, contractions and all. Formal or bookish English in the mouth of someone chatting is a mistranslation even when every word is right.
+- Keep the emotional colour — sarcasm, warmth, irritation, teasing, exaggeration. A flat rendering of a line that was not flat has lost its meaning.
+- Do not explain, expand or disambiguate. If the Arabic is brief, terse or vague, the English is too; if it leaves something implicit, leave it implicit. An added clarifying clause is an error, not a service.
+- Prefer the shorter, more idiomatic of two renderings that mean the same thing.
+- Religious and formulaic expressions keep their conventional English rendering where one exists ("الحمد لله" → "thank God"), rather than being unpacked theologically.
+
+Accuracy still outranks all of the above: never change who did what to whom, never drop or invent information, and never guess at a line you cannot make out. Natural is how you say it, not what you say.
 
 No additional text outside JSON.`;
 };
@@ -640,12 +654,50 @@ No additional text outside JSON.`;
 // Returned by the dedicated translation call (one per ensemble model)
 type TranslationAI = { translations: string[]; literals?: string[] };
 
+/**
+ * How much the translation drafters may think before they answer.
+ *
+ * The one call in this function that opts out of the gateway's floor, and the
+ * reason is a regression worth naming. Before 2026-09-05 every drafter ran at
+ * its provider's own default — Sonnet 5 at OpenRouter's `default_effort:
+ * "high"`, Gemini 3.7 Flash at Google's "medium". `fa71c9a` then floored every
+ * model in the lineup to the least it allows, because the *merge* call had
+ * turned into a minutes-long one that spent its output budget thinking and
+ * transcripts were landing without English at all. That was the right fix for
+ * the merge. But the floor lives in `chatFetch`, so it applied to every call
+ * this file makes, and `callTranslationModel` had no way to ask for anything
+ * else: the translation drafters silently went from high/medium to none/low on
+ * the same commit.
+ *
+ * Translation is the one job in this pipeline where that trade is backwards.
+ * Merging ASR variants and pulling out vocabulary are extraction — the answer
+ * is in the input and thinking adds latency, not accuracy. Rendering a dialect
+ * line into English is not: the model has to work out what the line *does*
+ * (a set phrase, a hedge, sarcasm, a greeting that is not a question) before
+ * it can choose a register, and a model answering directly defaults to the
+ * safest reading, which is the literal one. "More literal, missing the nuance"
+ * is exactly the shape of that loss.
+ *
+ * "medium" rather than "high": it restores Gemini precisely to its old level,
+ * and gives Claude a real budget while staying below the "high" that helped
+ * make the pipeline slow. The time comes from the fourth drafter seat, whose
+ * occupant had *mandatory* reasoning and was routinely the slowest of the four
+ * — see TRANSCRIPT_TRANSLATION_DRAFTERS.
+ *
+ * `TRANSLATION_REASONING=off` puts the drafters back on the floor without a
+ * deploy, for when a run budget matters more than the register.
+ */
+const TRANSLATION_REASONING: ReasoningPreference =
+  Deno.env.get('TRANSLATION_REASONING')?.trim().toLowerCase() === 'off'
+    ? 'off'
+    : { effort: 'medium' };
+
 // ============================================================================
-// TRANSLATION ENSEMBLE — Gemini, Claude and HUMAIN M3 as co-equal peers, Qwen
-// as a lower-weight verifier (TRANSCRIPT_TRANSLATION_DRAFTERS; weights from
-// MODEL_WEIGHTS, both in the registry). All run in parallel; per-line winner
-// is chosen by weighted vote with Jaccard token-overlap clustering. Any two
-// peers agreeing always wins.
+// TRANSLATION ENSEMBLE — Claude, Gemini and HUMAIN M3 as co-equal peers
+// (TRANSCRIPT_TRANSLATION_DRAFTERS; weights from MODEL_WEIGHTS, both in the
+// registry). All run in parallel; the per-line winner is chosen by weighted
+// vote over content-word clustering. Any two peers agreeing always wins; a
+// three-way split is a dispute and goes to the Arabic-native arbiter.
 // ============================================================================
 type EnsembleCandidate = {
   name: string;
@@ -684,6 +736,73 @@ type EnsembleLineResult = {
 const AUTHORITATIVE_WEIGHT = 1.0;
 
 /**
+ * How alike two renderings must be to count as the same reading of a line.
+ *
+ * Deliberately plain `jaccard` and not the arbiter module's
+ * `contentSimilarity`, even though that one is stricter and better documented.
+ * They are answering different questions. The arbiter asks "does this
+ * third-party MT rendering back this candidate", where the two sides are
+ * expected to pick different words for the same meaning and the function words
+ * are noise. Clustering asks "are these two the same reading of the line",
+ * and there the function words *are* the reading: `contentSimilarity` drops
+ * auxiliaries and pronouns, so it scores "Where have you been" and "Where were
+ * you" as identical, and — worse — "he told her" and "she told him" as
+ * identical too. Tense, aspect and who-did-what-to-whom is most of what two
+ * drafters disagree about.
+ *
+ * Tried and reverted on 2026-09-16: the ensemble merged genuinely different
+ * readings into one cluster and then had to publish one of them.
+ */
+const SAME_READING_SIMILARITY = 0.6;
+
+/**
+ * Which member of an agreeing cluster becomes the line the learner reads.
+ *
+ * This was `sort((a, b) => b.text.length - a.text.length)[0]` — the longest
+ * text, on the reasoning that longer is "most detailed". That is the single
+ * biggest reason the transcript English reads stiffly, because for translation
+ * the correlation runs the other way: an idiom rendered as an idiom is almost
+ * always shorter than the same line rendered word by word. "شد حيلك" is "hang
+ * in there"; the literal unpacking is "tighten your strength", and the gloss-y
+ * middle ground — "put in more effort and stay strong" — is longer than both.
+ * Sorting on length picked the unpacking every time, so on every line where the
+ * peers agreed on the *meaning* and differed on the *register*, the ensemble
+ * systematically published the most literal register available to it.
+ *
+ * What the cluster actually agrees on is the reading, so the representative
+ * should be the member that best carries it: the one with the highest mean
+ * token overlap with its peers — the centroid. That deliberately does not
+ * reward a member for adding words its peers did not have, which is exactly
+ * what "most detailed" was rewarding. Same measure as the clustering above,
+ * for the reason given at SAME_READING_SIMILARITY.
+ *
+ * Ties break toward the heavier model, then toward the *shorter* text. Two
+ * renderings equally faithful to the cluster's meaning differ only in how much
+ * scaffolding they spell out, and the tighter one is the more idiomatic — the
+ * exact inverse of the old rule, and the reason it is spelled out rather than
+ * left to sort stability.
+ */
+function pickClusterRepresentative<T extends { name: string; weight: number; text: string }>(
+  members: T[],
+): T {
+  if (members.length === 1) return members[0];
+  const centrality = (m: T) => {
+    const others = members.filter((o) => o !== m);
+    if (others.length === 0) return 0;
+    let total = 0;
+    for (const o of others) total += jaccard(m.text, o.text);
+    return total / others.length;
+  };
+  return members
+    .map((m) => ({ m, c: centrality(m) }))
+    .sort((a, b) =>
+      b.c - a.c ||
+      b.m.weight - a.m.weight ||
+      a.m.text.length - b.m.text.length
+    )[0].m;
+}
+
+/**
  * Merge candidate translations for ONE line using weighted clustering.
  * Returns the chosen translation, a needs_review flag, and which models won.
  */
@@ -704,13 +823,13 @@ function mergeOneLine(
     };
   }
 
-  // Cluster by Jaccard >= 0.6
+  // Cluster by content-word overlap — see SAME_READING_SIMILARITY.
   const clusters: Array<{ members: typeof present; weight: number }> = [];
   for (const cand of present) {
     let added = false;
     for (const cluster of clusters) {
       const repr = cluster.members[0].text;
-      if (jaccard(repr, cand.text) >= 0.6) {
+      if (jaccard(repr, cand.text) >= SAME_READING_SIMILARITY) {
         cluster.members.push(cand);
         cluster.weight += cand.weight;
         added = true;
@@ -739,10 +858,9 @@ function mergeOneLine(
     c.members.filter((m) => m.weight >= AUTHORITATIVE_WEIGHT).length;
   const consensusCluster = clusters.find((c) => authoritative(c) >= 2);
   if (consensusCluster) {
-    // Pick the longest (most detailed) translation in that cluster
-    const winner = consensusCluster.members
-      .slice()
-      .sort((a, b) => b.text.length - a.text.length)[0];
+    // The member that best carries the cluster's shared meaning — not the
+    // longest. See pickClusterRepresentative.
+    const winner = pickClusterRepresentative(consensusCluster.members);
     return {
       translation: winner.text.trim(),
       literal: (winner.literal ?? '').trim(),
@@ -752,9 +870,20 @@ function mergeOneLine(
     };
   }
 
-  // Otherwise: top cluster wins if its weight >= 1.5 (e.g. one peer + Qwen)
+  // Otherwise: a cluster heavy enough to stand without two full peers.
+  //
+  // This is the rule the removed Qwen seat used to reach, and reaching it was
+  // the problem: 1.0 + 0.6 cleared the bar, so on a three-way peer split the
+  // lightest drafter in the lineup picked the winner *and* cleared
+  // `needs_review`, which is how the hardest lines in a clip stopped reaching
+  // the Arabic-native arbiter. With three co-equal 1.0 peers no cluster can
+  // reach 1.5 without containing two of them, and the consensus branch above
+  // has already returned in that case — so this branch is unreachable for
+  // today's lineup and is kept only so a future sub-peer drafter is scored
+  // rather than silently ignored. If one is ever added back, weigh it against
+  // that history first.
   if (top.weight >= 1.5) {
-    const winner = top.members.slice().sort((a, b) => b.text.length - a.text.length)[0];
+    const winner = pickClusterRepresentative(top.members);
     return {
       translation: winner.text.trim(),
       literal: (winner.literal ?? '').trim(),
@@ -860,6 +989,7 @@ async function callTranslationModel(opts: {
       systemPrompt: opts.systemPrompt,
       userContent: opts.userContent,
       maxTokens: opts.maxTokens,
+      reasoning: TRANSLATION_REASONING,
     });
     const latencyMs = Date.now() - t0;
     if (!resp.content) {
@@ -992,6 +1122,12 @@ type CallAIArgs = {
   isRetry?: boolean;
   maxTokens?: number;
   model?: string; // defaults to the registry's analyser workhorse (QWEN_FAST)
+  /**
+   * How much the model may think first. Omitted means the gateway's default,
+   * which is the least the model allows — right for the merge and the
+   * extraction passes, wrong for translation. See TRANSLATION_REASONING.
+   */
+  reasoning?: ReasoningPreference;
 };
 
 async function callAI({
@@ -1000,6 +1136,7 @@ async function callAI({
   isRetry = false,
   maxTokens = 4096,
   model = MODEL_IDS.QWEN_FAST,
+  reasoning,
 }: CallAIArgs): Promise<{ content: string | null; error?: string; status?: number }> {
     const controller = new AbortController();
     // Two deadlines on one signal. The first is the wait for headers — a
@@ -1023,7 +1160,7 @@ async function callAI({
         ],
         max_tokens: maxTokens,
         temperature: 0.2,
-      }, { signal: controller.signal, label: 'analyze-gulf-arabic' });
+      }, { signal: controller.signal, label: 'analyze-gulf-arabic', reasoning });
     } catch (e) {
       const elapsedMs = Date.now() - startedAt;
       const isAbort = e instanceof DOMException && e.name === 'AbortError';

@@ -57,8 +57,12 @@ export const MODEL_IDS = {
   // the calls whose answer is English or a label (CEFR scoring, clip
   // verification, trend triage), never for the ones that write Arabic.
   GEMINI_FAST: 'google/gemini-3.7-flash',
-  // Third-leg verifier (weight 0.6). Pinned to the dated snapshot rather than
-  // the bare `qwen/qwen3.8-max`, which is an *alias*: OpenRouter's catalogue
+  // Reasoning-heavy generalist, used by analyze-meme and offered in the
+  // curriculum-chat lineup. It was the transcript ensemble's fourth,
+  // lower-weight translation seat until 2026-09-16 — see
+  // TRANSCRIPT_TRANSLATION_DRAFTERS for why a 0.6 verifier made those
+  // translations worse rather than safer. Pinned to the dated snapshot rather
+  // than the bare `qwen/qwen3.8-max`, which is an *alias*: OpenRouter's catalogue
   // has no such entry and resolves the name to whichever snapshot Alibaba
   // currently points it at (today `-0902`). That is the same silent-drift trap
   // the bare `Fanar` alias is banned for — a model swap nobody committed —
@@ -256,21 +260,41 @@ export const ARABIC_OCCASIONAL_ORDER: string[] = [
 /**
  * Who drafts the transcript pipeline's English, in `analyze-gulf-arabic`.
  *
- * Claude and Gemini are the co-equal generalist peers, HUMAIN M3 the
- * co-equal Arabic-native one, Qwen the lower-weight verifier; the weights are
- * `MODEL_WEIGHTS`, and `mergeOneLine` there decides by weight rather than by
- * name, so this list *is* the lineup. Order matters only for ties: a full
- * disagreement goes to the heaviest candidate listed first.
+ * Three co-equal peers: Claude and Gemini as the generalists, HUMAIN M3 as the
+ * Arabic-native one. The weights are `MODEL_WEIGHTS`, and `mergeOneLine` there
+ * decides by weight rather than by name, so this list *is* the lineup. Order
+ * matters only for ties: a full disagreement goes to the heaviest candidate
+ * listed first.
  *
  * The pipeline includes M3 only when its route is configured
  * (`tryChatRoute`), the same way Jais 2 is silently absent without an
- * endpoint id — a deployment without a HUMAIN key runs the three-model
- * ensemble it always did, with no failed rung in its provenance. Two costs
- * accepted with the promotion: translation spend rises by one call per video,
- * and the ensemble finishes when its slowest drafter does, which the preview
- * tier warns is M3. Because a drafter that disagrees is one of the parties, M3
- * is not asked to arbitrate a dispute it drafted in; that walk goes on to
- * Jais 2 and Fanar.
+ * endpoint id — a deployment without a HUMAIN key runs the two-generalist
+ * ensemble, with no failed rung in its provenance. Because a drafter that
+ * disagrees is one of the parties, M3 is not asked to arbitrate a dispute it
+ * drafted in; that walk goes on to Jais 2 and Fanar.
+ *
+ * **Qwen 3.8 Max was the fourth seat and was removed on 2026-09-16**, because
+ * at weight 0.6 it could not help and could only hurt. Work through what it
+ * actually decided: when two peers agree the consensus rule settles the line
+ * before weight is consulted, so Qwen changes nothing. Its *only* decisive
+ * moment was the three-way peer split — the hardest, most nuance-sensitive
+ * line in the clip — where joining one peer's cluster reached the 1.5 bar
+ * (1.0 + 0.6) and won the line **and cleared `needs_review`**. So the weakest
+ * and most literal drafter in the lineup was settling exactly the lines the
+ * Arabic-native arbiter exists to settle, and suppressing the flag that would
+ * have sent them there. Removing it converts those lines back into disputes,
+ * which is what they are.
+ *
+ * Its other costs were latency and spend: the Max tier's reasoning is
+ * *mandatory* (see REASONING_FLOOR), so it was routinely the slowest drafter,
+ * and the ensemble finishes when its slowest drafter does — on a 300-second
+ * run budget shared with everything after it. That reclaimed time is what pays
+ * for the peers' restored reasoning; see `TRANSLATION_REASONING` in
+ * analyze-gulf-arabic.
+ *
+ * This does not retire `MODEL_IDS.QWEN`: it still serves analyze-meme and the
+ * curriculum-chat lineup, and `QWEN_FAST` is still the analyser's workhorse
+ * for the merge and the vocabulary pass. It is only no longer a translator.
  *
  * Distinct from `MODEL_LINEUPS.TRANSLATION`, which serves every other
  * translation caller through the Brain; M3 has not been added there.
@@ -279,7 +303,6 @@ export const TRANSCRIPT_TRANSLATION_DRAFTERS: string[] = [
   MODEL_IDS.CLAUDE,
   MODEL_IDS.GEMINI_FLASH,
   MODEL_IDS.HUMAIN_M3,
-  MODEL_IDS.QWEN,
 ];
 
 // ---- Aliases consumed by aiBrain.ts ----------------------------------------
@@ -381,6 +404,9 @@ export const MODEL_WEIGHTS: Record<string, number> = {
   // and the weight belongs to the model, not to the lineup slot.
   [MODEL_IDS.GEMINI_FLASH]: 1.0,
   [MODEL_IDS.GEMINI_PRO]: 0.9,
+  // Kept at its verifier weight for the callers that still use it. Nothing in
+  // the transcript ensemble reads it any more; see
+  // TRANSCRIPT_TRANSLATION_DRAFTERS.
   [MODEL_IDS.QWEN]: 0.6,
   [MODEL_IDS.SABA]: 0.7,
   [MODEL_IDS.GPT_MINI]: 0.6,  // second drafter in generate-story

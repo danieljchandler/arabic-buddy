@@ -379,6 +379,15 @@ lines a drafter answered and lost, and the admin provenance panel shows it.
 A run where M3 is outvoted on a third of the lines is the signal to look at
 those lines by hand and, if M3 was right, to revisit the weights.
 
+The ensemble became **three drafters rather than four on 2026-09-16**, when
+Qwen 3.8 Max's 0.6 seat was removed. It never bore on M3's promotion either
+way: with two peers agreeing the consensus rule settles the line before weight
+is consulted, so the 0.6 seat changed nothing there. Where it did bear was the
+three-way peer split — the case M3 was promoted to have a say in — because
+1.0 + 0.6 cleared the 1.5 bar, carrying the line *and* clearing
+`needs_review`, so those lines never reached the arbiter walk described above.
+Removing the seat restores them to it.
+
 Three consequences of drafting, each handled:
 
 - **M3 no longer arbitrates a dispute it drafted in.** A judge that is one of

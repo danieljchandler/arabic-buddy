@@ -901,9 +901,9 @@ Deno.test("records which build and merge model produced the translation, on the 
     assert(translation, "expected translation provenance on the first save");
     assert(typeof translation.build === "string" && translation.build.length > 0);
     assertEquals(translation.merge_model, "qwen/qwen3-235b-a22b");
-    // Without a HUMAIN key the ensemble is the three-model one, and the
+    // Without a HUMAIN key the ensemble is the two generalists, and the
     // absent Arabic-native peer is not a failed rung in the provenance.
-    assertEquals(translation.tiers?.length, 3);
+    assertEquals(translation.tiers?.length, 2);
     assert(!(translation.tiers as Array<{ name: string }>).some((t) => t.name.startsWith("humain/")));
   } finally {
     fn.restore();
@@ -925,11 +925,14 @@ Deno.test("runs the merge and the analysis on the fast workhorse, not the Max ti
       .map((c) => (JSON.parse(c.body ?? "{}") as { model?: string }).model);
     // The merge, its analysis pass and every other default call.
     assert(models.includes("qwen/qwen3-235b-a22b"), `expected the workhorse among ${models.join(", ")}`);
-    // The Max tier still serves as the ensemble's third leg — and nowhere else.
+    // The Max tier is not in this pipeline at all any more. It was the
+    // translation ensemble's fourth, lower-weight seat until 2026-09-16 —
+    // see TRANSCRIPT_TRANSLATION_DRAFTERS for why a 0.6 verifier made the
+    // English more literal rather than safer.
     const maxCalls = fn.calls.filter((c) =>
-      c.url.includes("openrouter.ai") && (c.body ?? "").includes('"qwen/qwen3.8-max"')
+      c.url.includes("openrouter.ai") && (c.body ?? "").includes('"qwen/qwen3.8-max')
     );
-    assert(maxCalls.every((c) => (c.body ?? "").includes('{\\"translations\\"')), "Qwen 3.8 Max only translates");
+    assertEquals(maxCalls.length, 0, "the Max tier no longer translates");
   } finally {
     fn.restore();
   }
@@ -955,13 +958,12 @@ const NODE_AND_FANAR_ENV = { ...NODE_ENV, FANAR_API_KEY: "fixture-fanar" };
 const asksForTranslations = (body: { messages?: Array<{ content?: string }> }) =>
   Boolean(body.messages?.[0]?.content?.includes('"translations"'));
 
-/** Drafters that disagree four ways on line 1 and agree on line 2. */
+/** Drafters that disagree three ways on line 1 and agree on line 2. */
 const splitEnsemble: UpstreamHandler = async (request) => {
   const body = JSON.parse(await request.clone().text()) as { model: string; messages: Array<{ content: string }> };
   if (!asksForTranslations(body)) return analysisReply();
   const model = body.model;
   const first = model.includes("gemini") ? "What's up today"
-    : model.includes("qwen") ? "How's it going today"
     : model.includes("humain") ? "You good today"
     : "How are you today";
   return chatCompletion(JSON.stringify({ translations: [first, "Fine, thank God"], literals: ["lit 1", "lit 2"] }));
@@ -1027,10 +1029,10 @@ async function analyseSplit(pick: string, confidence: string) {
 Deno.test("puts a disputed line to the Arabic-native judge and takes its confident pick", async () => {
   const { lines, provenance, arbiterCalls, m3ArbiterCalls } = await analyseSplit("B", "high");
 
-  // Line 1 split four ways; the ensemble's fallback had handed it to the
+  // Line 1 split three ways; the ensemble's fallback had handed it to the
   // heaviest drafter listed first (Claude) and flagged it. The judge picked B
   // — Gemini's — so that is the line now, off the review queue, and it says
-  // who settled it and on whose text. M3 drafted one of the four, so the
+  // who settled it and on whose text. M3 drafted one of the three, so the
   // judging fell to the next Arabic model that is configured.
   assertEquals(lines[0].translation, "What's up today");
   assertEquals(lines[0].needs_review, false);
@@ -1046,7 +1048,8 @@ Deno.test("puts a disputed line to the Arabic-native judge and takes its confide
   const prompt = JSON.parse(arbiterCalls[0].body ?? "{}") as { messages: Array<{ content: string }> };
   const user = prompt.messages[1].content;
   assert(user.includes("Line 1: شلونك اليوم"), user);
-  assert(user.includes("A. How are you today") && user.includes("B. What's up today") && user.includes("C. You good today") && user.includes("D. How's it going today"), user);
+  assert(user.includes("A. How are you today") && user.includes("B. What's up today") && user.includes("C. You good today"), user);
+  assert(!user.includes("D. "), "the fourth seat is gone — there are three candidates");
   assert(!user.includes("Line 2:"), "an agreed line is not a dispute");
   assert(!/claude|gemini|qwen|humain/i.test(user), "the judge is not told whose translation is whose");
 
@@ -1066,11 +1069,11 @@ Deno.test("puts a disputed line to the Arabic-native judge and takes its confide
 });
 
 Deno.test("adopts a hesitant pick but keeps the line on the review queue", async () => {
-  const { lines, provenance } = await analyseSplit("D", "low");
+  const { lines, provenance } = await analyseSplit("C", "low");
 
   // A native speaker's low-confidence preference is still better evidence
   // than "listed first", so the text changes — but a reviewer still sees it.
-  assertEquals(lines[0].translation, "How's it going today");
+  assertEquals(lines[0].translation, "You good today");
   assertEquals(lines[0].needs_review, true);
   assertEquals(lines[0].review_reason, "ensemble_disagreement");
   assertEquals(lines[0].resolved_by, undefined);
@@ -1139,7 +1142,7 @@ Deno.test("drafts with HUMAIN M3 at the peers' weight: one generalist and the Ar
       };
     };
     const translation = patch.engines_used.translation;
-    assertEquals(translation?.active_models, 4);
+    assertEquals(translation?.active_models, 3);
     assertEquals((translation as { degraded?: boolean } | undefined)?.degraded, false);
     assertEquals(translation?.agreements?.needs_review, 0);
     const byName = Object.fromEntries((translation?.tiers ?? []).map((t) => [t.name, t]));
@@ -1328,8 +1331,8 @@ Deno.test("an Arabic-native peer refused by its guardrail is a failed tier whose
     assert(m3?.error?.includes("finish_reason=content_filter"), `row names the guardrail: ${m3?.error}`);
     assert(m3?.error?.includes("refusal="), `row carries the refusal text: ${m3?.error}`);
     assertEquals(translation?.degraded, true);
-    assertEquals(translation?.active_models, 3);
-    assertEquals(translation?.configured_models, 4);
+    assertEquals(translation?.active_models, 2);
+    assertEquals(translation?.configured_models, 3);
   } finally {
     fn.restore();
   }
@@ -1456,10 +1459,10 @@ Deno.test("records why the arbitration produced nothing, naming the rungs that l
       };
     };
     // A configured drafter that failed is a degraded ensemble, measured
-    // against the four this deployment asked for — not against a fixed three.
+    // against the three this deployment asked for — not against a fixed two.
     const health = patch.engines_used.translation as { degraded?: boolean; active_models?: number; configured_models?: number } | undefined;
-    assertEquals(health?.configured_models, 4);
-    assertEquals(health?.active_models, 3);
+    assertEquals(health?.configured_models, 3);
+    assertEquals(health?.active_models, 2);
     assertEquals(health?.degraded, true);
     // "M3 didn't fire" is answerable from the row now: which rung, and what it said.
     const arbiter = patch.engines_used.translation?.arabic_arbiter;
@@ -1500,6 +1503,124 @@ Deno.test("wakes the deployed Jais worker as soon as a transcript run starts", a
     const firstModelCall = fn.calls.findIndex((c) => c.url.includes("openrouter.ai"));
     const ping = fn.calls.indexOf(runpod[0]);
     assert(ping < firstModelCall, `the ping (call ${ping}) should precede the merge (call ${firstModelCall})`);
+  } finally {
+    fn.restore();
+  }
+});
+
+// ── Naturalness: what the ensemble is allowed to think, and which rendering
+//    of an agreeing cluster it publishes ────────────────────────────────────
+//
+// Both of these are regressions rather than new features. Between 2026-09-05
+// and 2026-09-16 the transcript English drifted steadily more literal, and the
+// two causes were independent:
+//
+//   * `fa71c9a` floored every model in this function to the least reasoning it
+//     allows. That was the right fix for the merge, which had turned into a
+//     minutes-long call, but it applied to the translation drafters too and
+//     they went from high/medium to none/low on the same commit. A model that
+//     answers a translation directly takes the safest reading, which is the
+//     literal one.
+//   * `mergeOneLine` published the *longest* member of an agreeing cluster,
+//     on the reasoning that longer is "most detailed". For translation the
+//     correlation runs the other way round.
+
+Deno.test("lets the translation drafters think, and still floors the merge", async () => {
+  const fn = await loadFunction("analyze-gulf-arabic", {
+    env: { FANAR_API_KEY: undefined },
+    upstreams: allowed({
+      "openrouter.ai": () => analysisReply(),
+      "generativelanguage.googleapis.com": () => analysisReply(),
+    }),
+  });
+  try {
+    await fn.handler(jsonRequest("analyze-gulf-arabic", { transcript: "شلونك اليوم الحمد لله بخير" }));
+
+    const bodies = fn.calls
+      .filter((c) => c.url.includes("openrouter.ai") || c.url.includes("generativelanguage.googleapis.com"))
+      .map((c) => JSON.parse(c.body ?? "{}") as Record<string, unknown>);
+    const translationCalls = bodies.filter((b) => asksForTranslations(b as { messages?: Array<{ content?: string }> }));
+    const otherCalls = bodies.filter((b) => !asksForTranslations(b as { messages?: Array<{ content?: string }> }));
+
+    assert(translationCalls.length > 0, "expected the ensemble to have run");
+    // OpenRouter takes `reasoning: { effort }`, Google's OpenAI-shaped
+    // endpoint takes `reasoning_effort` — aiGateway picks the spelling.
+    for (const body of translationCalls) {
+      const effort = (body.reasoning as { effort?: string } | undefined)?.effort ?? body.reasoning_effort;
+      assertEquals(effort, "medium", `a drafter was asked for ${effort}`);
+    }
+    // Everything else in this function is extraction, and pays no thinking tax.
+    assert(otherCalls.length > 0, "expected the merge and the analysis pass");
+    for (const body of otherCalls) {
+      const effort = (body.reasoning as { effort?: string } | undefined)?.effort ?? body.reasoning_effort;
+      assert(effort !== "medium", `a non-translation call was asked for ${effort}`);
+    }
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("TRANSLATION_REASONING=off puts the drafters back on the floor", async () => {
+  const fn = await loadFunction("analyze-gulf-arabic", {
+    env: { FANAR_API_KEY: undefined, TRANSLATION_REASONING: "off" },
+    upstreams: allowed({
+      "openrouter.ai": () => analysisReply(),
+      "generativelanguage.googleapis.com": () => analysisReply(),
+    }),
+  });
+  try {
+    await fn.handler(jsonRequest("analyze-gulf-arabic", { transcript: "شلونك اليوم الحمد لله بخير" }));
+    const translationCalls = fn.calls
+      .filter((c) => c.url.includes("openrouter.ai") || c.url.includes("generativelanguage.googleapis.com"))
+      .map((c) => JSON.parse(c.body ?? "{}") as Record<string, unknown>)
+      .filter((b) => asksForTranslations(b as { messages?: Array<{ content?: string }> }));
+    assert(translationCalls.length > 0, "expected the ensemble to have run");
+    for (const body of translationCalls) {
+      const effort = (body.reasoning as { effort?: string } | undefined)?.effort ?? body.reasoning_effort;
+      assert(effort !== "medium", `the override did not take: ${effort}`);
+    }
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("publishes the centroid of an agreeing cluster, not its longest member", async () => {
+  // All three peers read the line the same way; one of them spells out more of
+  // it. The extra words are not extra meaning — they are the register drifting
+  // toward the gloss — and the two that agree exactly are the cluster's
+  // centre. Under the old length rule "hang in there buddy" won every time,
+  // which is what made whole transcripts read like an explanation of the
+  // Arabic rather than a translation of it.
+  const drafters: UpstreamHandler = async (request) => {
+    const body = JSON.parse(await request.clone().text()) as { model: string; messages: Array<{ content: string }> };
+    if (!asksForTranslations(body)) {
+      return body.model.includes("humain") ? chatCompletion('{"issues":[]}') : analysisReply();
+    }
+    const first = body.model.includes("gemini") ? "hang in there buddy" : "hang in there";
+    return chatCompletion(JSON.stringify({ translations: [first, "Fine, thank God"], literals: ["lit 1", "lit 2"] }));
+  };
+  const fn = await loadFunction("analyze-gulf-arabic", {
+    env: NODE_ENV,
+    upstreams: allowed({
+      "openrouter.ai": drafters,
+      "generativelanguage.googleapis.com": drafters,
+      "node.humain.test": drafters,
+    }),
+  });
+  try {
+    const response = await fn.handler(jsonRequest("analyze-gulf-arabic", {
+      transcript: "شد حيلك اليوم الحمد لله بخير",
+    }));
+    assertEquals(response.status, 200);
+    const body = await response.json() as {
+      result?: { lines?: Array<{ translation: string; needs_review?: boolean }> };
+    };
+    await fn.background();
+
+    // The cluster holds all three — token overlap is 3/4 — so this is a
+    // consensus line, not a dispute. What changes is which member speaks for it.
+    assertEquals(body.result?.lines?.[0].translation, "hang in there");
+    assertEquals(body.result?.lines?.[0].needs_review, false);
   } finally {
     fn.restore();
   }

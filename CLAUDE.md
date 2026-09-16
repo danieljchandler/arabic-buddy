@@ -207,6 +207,14 @@ harness.
   once without it if the provider rejects it. Pass `reasoning:
   "model-default"` or `{ effort }` to opt a call in. When adding a model, read
   its `reasoning` block on OpenRouter's model list and add its floor.
+  **The floor is a default, not a policy — extraction wants it and translation
+  does not.** Flooring everything is what later made the transcript English
+  read literally: a model answering a translation directly takes the safest
+  reading. The transcript ensemble opts back in via `TRANSLATION_REASONING`
+  in `analyze-gulf-arabic` (default `{ effort: "medium" }`,
+  `TRANSLATION_REASONING=off` to disable); the merge and the vocabulary pass
+  stay on the floor. Before flooring a new call, ask whether its answer is
+  already in its input.
   **OpenRouter is also the safety net:** when a vendor's key is missing, or its
   API answers with a status in aiGateway's fallback set (400/401/403/404/408 and
   5xx — deliberately *not* 429), the same model is retried once through
@@ -263,7 +271,14 @@ HUMAIN M3 also *drafts* in that ensemble at the generalist peers' weight
 (`TRANSCRIPT_TRANSLATION_DRAFTERS`, `MODEL_WEIGHTS`), so a line every
 generalist misread the same way is no longer settled before an Arabic model
 has seen it; a drafter is never asked to arbitrate its own dispute, and a
-deployment without the HUMAIN key runs the three-model ensemble silently.
+deployment without the HUMAIN key runs the two-generalist ensemble silently.
+The drafters are **three co-equal peers and nothing lighter**: Qwen 3.8 Max
+held a fourth seat at weight 0.6 until 2026-09-16, where it could not affect a
+line two peers agreed on and could only decide a three-way split — reaching
+the 1.5 bar, winning the line *and* clearing `needs_review`, so the weakest
+drafter settled exactly the lines the Arabic-native arbiter exists for. Before
+adding a sub-peer drafter back, read that history in
+`TRANSCRIPT_TRANSLATION_DRAFTERS`.
 Two things it must keep: a reply the caller cannot parse is a *failed rung*
 (pass `accept`), not an answer; and a self-hosted rung is probed with a
 one-token ping, never bounded on the whole call, because vLLM sends a

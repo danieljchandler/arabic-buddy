@@ -914,7 +914,8 @@ pipeline function, so an analyser left behind by a partial deploy was
 otherwise invisible.
 
 Why the merge failed in the first place is worth recording, because two
-rounds of timeout tuning treated it as a timing problem. The lineup refresh of
+rounds of timeout tuning treated it as a timing problem — and because the fix
+for it is what later made the translations read literally (see below). The lineup refresh of
 2026-08-31 moved the pipeline onto models that **reason before answering by
 their providers' defaults** — OpenRouter's own metadata has Sonnet 5 at
 `default_effort: "high"` and Qwen 3.8 Max (the merge model) at `"xhigh"` with
@@ -935,6 +936,62 @@ retried once without it. The analyser's own deadlines stay two-phase: 40 s
 (30 s for Fanar) to headers, then a generation budget from
 `generationBudgetMs` — scaled to `max_tokens`, capped at two minutes, and never
 past the run's own `ANALYZE_BUDGET_MS` deadline.
+
+**That floor had a blast radius, and the translations were in it.** It lives in
+`chatFetch`, so it applied to every call `analyze-gulf-arabic` makes, and the
+translation drafters had no way to ask for anything else: on the same commit
+they went from Sonnet 5 at "high" and Gemini 3.7 Flash at "medium" down to
+"none" and "low". For the merge and the vocabulary pass that is right — they
+are extraction, the answer is already in the input, and thinking buys latency
+rather than accuracy. Translation is the one job here where it runs the other
+way. A model has to work out what a line *does* — a set phrase, a hedge,
+sarcasm, a greeting shaped like a question — before it can pick a register, and
+one answering directly takes the safest reading, which is the literal one. The
+reports were of English that had become stiffer, more word-for-word and flatter
+in tone, which is the shape of that loss. `callAI` now takes a `reasoning`
+option and `TRANSLATION_REASONING` (default `{ effort: "medium" }`, restoring
+Gemini exactly and giving Claude a real budget below the old "high") opts the
+ensemble back in; `TRANSLATION_REASONING=off` returns it to the floor without a
+deploy. Nothing else in the function asks for it, and a test pins both halves.
+
+Two other things were pushing the same way, and both are fixed alongside it.
+`mergeOneLine` published the **longest** member of an agreeing cluster, on the
+reasoning that longer is "most detailed" — but for translation the correlation
+is inverted: an idiom rendered as an idiom is shorter than the same line
+rendered word by word ("شد حيلك" is "hang in there"; unpacking it is
+"tighten your strength"). So on every line where the peers agreed on the
+meaning and differed on the register, the ensemble picked the most literal
+register available to it. It now publishes the cluster's **centroid** — the
+member with the highest mean token overlap with its peers — breaking ties
+toward the heavier model and then toward the *shorter* text, which is the
+old rule exactly inverted. And the drafters are asked for the natural
+translation and the word-for-word gloss in one JSON object, which is a standing
+pull toward writing one like the other; the prompt now separates them and
+spells out register, emotional colour and "don't explain or expand", under an
+accuracy clause that still outranks all of it — natural is how you say it, not
+what you say. Note the separation is about how each is *derived*, not about
+how they come out: the rule asks for the translation to be written first and
+independently, and says outright that the two may coincide where a line's
+natural English really is its word-for-word reading ("نعم" is "yes"). An
+earlier draft demanded they "must NOT resemble each other", which is
+unsatisfiable on those lines and invites a drafter to pad the gloss or
+paraphrase the translation to manufacture a difference — the same expansion
+the accuracy clause forbids.
+
+Note what is deliberately *not* changed: `callAI` still sends
+`temperature: 0.2`. Temperature is the knob that trades fidelity for flair, and
+the complaint was never that the English was dull — it was that it was literal.
+
+The clustering measure is worth a warning, because the obvious improvement is
+wrong. `mergeOneLine` clusters on plain `jaccard` and not on the arbiter
+module's stricter, stopword-stripped `contentSimilarity`, even though the two
+sit in the same file. They answer different questions: the arbiter asks whether
+a third-party MT rendering *backs* a candidate, where both sides legitimately
+pick different words and function words are noise; clustering asks whether two
+renderings are the same reading, and there the function words are the reading.
+`contentSimilarity` scores "Where have you been" and "Where were you" as
+identical — and "he told her" and "she told him" as identical too. It was tried
+and reverted on 2026-09-16.
 
 The pipeline reads the *row*, never the analysis's HTTP reply — the gateway
 drops that at 150 seconds while the analysis runs on — so every outcome the

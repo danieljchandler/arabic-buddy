@@ -82,6 +82,34 @@ describe("arabicReviewCore", () => {
         .toEqual([]);
     });
 
+    it("keeps the tutor's own words when they share a breath with the quotation", () => {
+      // "You wrote X, say Y" is one run by the extractor's reckoning — the
+      // comma is glue, not a boundary. Dropping the run whole would let the
+      // correction itself, the one thing worth judging here, through
+      // unreviewed.
+      const targets = selectReviewTargets("You wrote كيف حالك، شلونك is the Gulf form.", {
+        sources: ["is كيف حالك right?"],
+      });
+      expect(targets).toEqual([{ id: 1, arabic: "شلونك" }]);
+    });
+
+    it("leaves a clause that still carries the quotation alone", () => {
+      // Partly the learner's words. Silence is the cheaper mistake: a note
+      // striking through a phrase they wrote reads as the tutor having said it.
+      expect(
+        selectReviewTargets("You wrote كيف حالك زين.", { sources: ["كيف حالك"] }),
+      ).toEqual([]);
+    });
+
+    it("ignores a source too short to be a quotation", () => {
+      // A stray letter in a learner's question is contained in almost any
+      // candidate. Treated as a quotation it would switch the review off for
+      // the rest of the conversation.
+      expect(selectReviewTargets("Say ما أدري.", { sources: ["ا"] })).toEqual([
+        { id: 1, arabic: "ما أدري" },
+      ]);
+    });
+
     it("asks about a one-word answer, which is where the leak word list is weakest", () => {
       expect(selectReviewTargets("It's ذهب.")).toEqual([{ id: 1, arabic: "ذهب" }]);
     });

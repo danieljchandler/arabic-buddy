@@ -9,6 +9,7 @@ import {
   resolveSubvariety,
   sanitizeDialectFeatures,
 } from "../../../../supabase/functions/_shared/dialectSubvarieties";
+import { APP_FRAME_KEY } from "../../../../supabase/functions/_shared/arabicReviewCore";
 import {
   generateAccessId,
   generatePassword,
@@ -48,10 +49,14 @@ export interface FunctionResponse {
    * Set for the handful of functions the app consumes as an SSE stream.
    *
    * Each entry becomes one `data:` frame, JSON-encoded. Objects rather than
-   * strings, because the three streaming callers all parse OpenAI's delta
-   * shape — `parsed.choices[0].delta.content` — so a frame carrying a bare
-   * string would be silently skipped by every one of them. `[DONE]` is
-   * appended by the transport.
+   * strings, because the streaming callers parse OpenAI's delta shape —
+   * `parsed.choices[0].delta.content` — so a frame carrying a bare string
+   * would be silently skipped by every one of them. `[DONE]` is appended by
+   * the transport.
+   *
+   * Not every frame is a delta: `assistant-chat` also emits the app frame its
+   * native review rides in (`streamingWithReview`), which `sseChat` reads
+   * under its own key rather than as content.
    */
   stream?: unknown[];
   /**
@@ -83,6 +88,34 @@ export const streaming = (...pieces: string[]): FunctionResponse => ({
   status: 200,
   body: null,
   stream: pieces.map((content) => ({ choices: [{ delta: { content } }] })),
+});
+
+/**
+ * A streamed reply that an Arabic-native model then left a note on.
+ *
+ * In production the note is appended after the provider's `[DONE]`, since it
+ * cannot be made until the answer is whole; here the transport puts `[DONE]`
+ * last, which is the *harder* ordering for the client to get right — it has to
+ * recognise the frame by its key rather than by its position.
+ */
+export const streamingWithReview = (
+  review: {
+    model: string;
+    corrections: Array<{
+      arabic: string;
+      suggestion: string;
+      note: string;
+      kind: "msa" | "dialect";
+    }>;
+  },
+  ...pieces: string[]
+): FunctionResponse => ({
+  status: 200,
+  body: null,
+  stream: [
+    ...pieces.map((content) => ({ choices: [{ delta: { content } }] })),
+    { [APP_FRAME_KEY]: { type: "native_review", ...review } },
+  ],
 });
 
 /**

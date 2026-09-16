@@ -122,11 +122,14 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
     pinnedRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
   }, []);
 
+  // `reviews` as well as `messages`: a native-review note is content appended
+  // below the last reply without the transcript changing, so a learner parked
+  // at the bottom of a long answer would never see it arrive.
   useEffect(() => {
     if (pinnedRef.current && scrollRef.current) {
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [messages]);
+  }, [messages, reviews]);
 
   // A new question is the learner's own doing, so follow it down regardless of
   // where they had scrolled to while reading the last answer.
@@ -194,8 +197,13 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
       // that window aborts this request. The answer was still finished, and
       // the turn is still worth keeping.
       let completed = false;
-      // Where this reply will sit once the placeholder below is appended.
+      // Where this reply will sit once the placeholder below is appended, and
+      // which conversation that index means. The review outlives the answer,
+      // and neither opening a conversation from History nor starting a new
+      // chat aborts the request it is riding on — so without the epoch a note
+      // could land under whatever reply happens to sit at this index next.
       const replyIndex = nextMessages.length;
+      const epochAtSend = historyRef.current.epoch;
 
       try {
         setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
@@ -215,6 +223,7 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
             setLoading(false);
           },
           onNativeReview: (review) => {
+            if (historyRef.current.epoch !== epochAtSend) return;
             setReviews((prev) => ({ ...prev, [replyIndex]: review }));
           },
           onDelta: (_delta, accumulated) => {
@@ -256,18 +265,32 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
           }
         }
       } finally {
-        // Drop an empty assistant placeholder in EVERY exit path — error,
-        // abort (closing the panel or switching to Voice mid-stream), or a
-        // stream that resolved with zero tokens. Left in place, the empty
-        // message rendered as a permanently spinning ThinkingBubble and was
-        // re-sent on every later turn, which Anthropic rejects — 400ing the
-        // whole conversation until "New chat".
-        setMessages((prev) =>
-          prev.length && prev[prev.length - 1].role === "assistant" && !prev[prev.length - 1].content
-            ? prev.slice(0, -1)
-            : prev,
-        );
-        setLoading(false);
+        // Only the request the panel is still on may tidy up after itself.
+        //
+        // A turn now outlives its own answer by however long the native review
+        // takes, so this block can run *after* the next question has started
+        // streaming — the new `send` aborts this controller, and the rejection
+        // lands here. Unlocking the composer there let a third question abort
+        // the second mid-sentence, and the placeholder cleanup below would
+        // have deleted the *new* turn's empty bubble rather than this one's.
+        // A guard rather than an early return: the history write below is this
+        // turn's own and still owed, whatever the panel has moved on to.
+        if (abortRef.current === ctrl) {
+          // Drop an empty assistant placeholder in EVERY exit path — error,
+          // abort (closing the panel or switching to Voice mid-stream), or a
+          // stream that resolved with zero tokens. Left in place, the empty
+          // message rendered as a permanently spinning ThinkingBubble and was
+          // re-sent on every later turn, which Anthropic rejects — 400ing the
+          // whole conversation until "New chat".
+          setMessages((prev) =>
+            prev.length &&
+            prev[prev.length - 1].role === "assistant" &&
+            !prev[prev.length - 1].content
+              ? prev.slice(0, -1)
+              : prev,
+          );
+          setLoading(false);
+        }
       }
 
       // Write the finished turn to the history. Every conversation is kept,

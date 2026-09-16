@@ -1,7 +1,7 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders, TEST_USER_ID } from "@/test/support/react/harness";
-import { streaming } from "@/test/support/server/functions";
+import { streaming, streamingWithReview } from "@/test/support/server/functions";
 import { aProfile } from "@/test/support/factories";
 import {
   AiAssistantProvider,
@@ -107,6 +107,35 @@ const aHistoryRow = (over: Record<string, unknown> = {}) => ({
 });
 
 describe("AskAiPanel", () => {
+  it("shows what a native speaker would have said, without touching the reply", async () => {
+    // The judgment cannot be made until the answer is whole, so it arrives
+    // after it — as a note beside the reply rather than a rewrite of it. Both
+    // readings stay on screen: a learner who cannot see what they were
+    // originally told has no way to tell which one the app stands behind.
+    const { backend } = render();
+    backend.stubFunction(
+      "assistant-chat",
+      streamingWithReview(
+        {
+          model: "humain/humain-m3",
+          corrections: [
+            { arabic: "كيف حالك", suggestion: "شلونك", note: "MSA greeting", kind: "msa" },
+          ],
+        },
+        "You could say كيف حالك.",
+      ),
+    );
+
+    await open();
+    await ask("How do I greet someone?");
+
+    await waitFor(() => {
+      expect(screen.getByTestId("native-review-note")).toBeInTheDocument();
+    });
+    expect(screen.getByText(/You could say/)).toBeInTheDocument();
+    expect(screen.getByText("شلونك")).toBeInTheDocument();
+  });
+
   it("streams a reply and sends dialect + page context with the question", async () => {
     const { backend } = render();
 

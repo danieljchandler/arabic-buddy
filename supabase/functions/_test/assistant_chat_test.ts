@@ -617,3 +617,27 @@ Deno.test("assistant-chat adds nothing to a reply the native speaker was happy w
   assert(!text.includes("native_review"));
   assertStringIncludes(text, "data: [DONE]");
 });
+
+Deno.test("assistant-chat never puts the learner's own Arabic up for review", async () => {
+  // The learner asks about a phrase they wrote; the tutor quotes it back to
+  // explain it. Striking that phrase through would attribute the learner's
+  // words to the tutor and repeat the explanation they have just read.
+  const { calls, bodies } = await call(
+    "assistant-chat",
+    {
+      messages: [{ role: "user", content: "is كيف حالك right for Gulf?" }],
+      dialect: "Gulf",
+    },
+    subscriber({
+      "openrouter.ai": () => sseCompletion("You wrote كيف حالك, which is MSA. Say ", "شلونك."),
+      [FANAR_HOST]: () =>
+        chatCompletion(JSON.stringify([
+          { id: 1, verdict: "msa", suggestion: "شلونك", note: "MSA greeting" },
+        ])),
+    }),
+  );
+
+  const judged = bodies[calls.findIndex((url) => url.includes(FANAR_HOST))] ?? "";
+  assert(judged.includes("شلونك"), "the tutor's own Arabic is what gets judged");
+  assert(!judged.includes("كيف حالك"), "the learner's phrase must not be up for review");
+});

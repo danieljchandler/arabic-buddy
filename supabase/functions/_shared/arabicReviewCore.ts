@@ -83,6 +83,23 @@ export function foldArabic(text: string): string {
     .trim();
 }
 
+/**
+ * Where a run can be cut when part of it is a quotation.
+ *
+ * Arabic and latin sentence punctuation both, because a run holds either: the
+ * tutor writes `كيف حالك، شلونك` as readily as `كيف حالك, شلونك`, and in both
+ * the comma is the seam between what it is quoting and what it is saying.
+ */
+const CLAUSE_BREAK = /[،؛؟!.…,;:\-–—]+/;
+
+/** A run's clauses, each still carrying Arabic. */
+function clausesOf(run: string): string[] {
+  return run
+    .split(CLAUSE_BREAK)
+    .map((clause) => clause.trim())
+    .filter((clause) => containsArabic(clause));
+}
+
 export interface ReviewTarget {
   /** 1-based, and what the judge is asked to cite. */
   id: number;
@@ -120,22 +137,42 @@ export function selectReviewTargets(text: string, opts: SelectOptions = {}): Rev
     (opts.sources ?? [])
       .flatMap((source) => extractArabicRuns(source ?? ""))
       .map(foldArabic)
-      .filter(Boolean),
+      // A fragment too short to be a target is too short to be a quotation
+      // either. Without this a learner with a stray letter in their question
+      // supplies a source that every candidate contains, and the review
+      // switches itself off for the rest of the conversation.
+      .filter((source) => source.length >= minChars),
   );
+
+  // Substring either way: the tutor quotes a line out of a longer one as
+  // readily as it quotes the whole thing.
+  const isQuotation = (candidate: string): boolean => {
+    const key = foldArabic(candidate);
+    return [...quoted].some((source) => source.includes(key) || key.includes(source));
+  };
 
   const seen = new Set<string>();
   const targets: ReviewTarget[] = [];
 
   for (const run of extractArabicRuns(text)) {
-    const key = foldArabic(run);
-    if (key.length < minChars) continue;
-    if (seen.has(key)) continue;
-    // Substring either way: the tutor quotes a line out of a longer one as
-    // readily as it quotes the whole thing.
-    if ([...quoted].some((source) => source.includes(key) || key.includes(source))) continue;
-    seen.add(key);
-    targets.push({ id: targets.length + 1, arabic: run });
-    if (targets.length >= maxTargets) break;
+    // A run that touches a quotation is not thrown away whole. "You wrote
+    // كيف حالك، say شلونك" is one run by the extractor's reckoning, and
+    // dropping it would let the tutor's own correction — the very thing this
+    // review exists to check — through untouched. Cut at the seam instead and
+    // judge the clauses that are the tutor's.
+    const candidates = isQuotation(run) ? clausesOf(run) : [run];
+
+    for (const candidate of candidates) {
+      // A clause that still carries the quotation is left alone: partly the
+      // learner's words, and silence is the cheaper mistake.
+      if (isQuotation(candidate)) continue;
+      const key = foldArabic(candidate);
+      if (key.length < minChars) continue;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      targets.push({ id: targets.length + 1, arabic: candidate });
+      if (targets.length >= maxTargets) return targets;
+    }
   }
 
   return targets;

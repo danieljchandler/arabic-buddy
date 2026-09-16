@@ -316,9 +316,10 @@ for two reasons that had not appeared before:
   to prefer either. Every probe in the run saw the load balancer's 502 page,
   which the row records as "worker not ready" — correct as far as it goes,
   but the worker was crash-looping, not starting, and no wait would have
-  found it up. The remedy is on the endpoint, in `docs/deployment.md`:
-  either restrict the endpoint to hosts whose driver satisfies the image, or
-  pin the image to the `-cu129` variant vLLM publishes for the same version.
+  found it up. The remedy is on the endpoint and was applied the next day:
+  `gpu.minCudaVersion` raised to `13.0`, so placement matches the image (see
+  `docs/deployment.md`, which also names the `-cu129` image as the
+  alternative if CUDA 13 capacity proves thin).
 - **The drafter path could not say why M3 failed.** `analyze-gulf-arabic`'s
   `callAI` — the reader every drafter goes through, which #372 put M3 behind
   — read `message.content` bare. Two shapes M3 is known to answer in were

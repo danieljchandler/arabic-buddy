@@ -16,6 +16,8 @@ import { TappableArabicText } from "@/components/shared/TappableArabicText";
 import { SavePhraseDialog } from "./SavePhraseDialog";
 import { cn } from "@/lib/utils";
 import { ThinkingBubble } from "@/components/assistant/ThinkingBubble";
+import { NativeReviewNote } from "@/components/assistant/NativeReviewNote";
+import type { NativeReviewFrame } from "../../../supabase/functions/_shared/arabicReviewCore";
 import { toast } from "sonner";
 
 /** First run of Arabic script in a reply — the pre-fill for "save phrase". */
@@ -58,6 +60,14 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
   const [phraseToSave, setPhraseToSave] = useState<string | null>(null);
   // Message indexes already reported this session — one flag per reply.
   const [reported, setReported] = useState<ReadonlySet<number>>(new Set());
+  // Native-speaker reviews, by the index of the reply they read.
+  //
+  // Local to the panel rather than carried on the message: the conversation is
+  // persisted to History and replayed into the model, and a review is neither
+  // — it is an opinion about one rendering of one answer, and a learner
+  // reopening the conversation tomorrow should see what they were told, not a
+  // note from a judge that is not being asked again.
+  const [reviews, setReviews] = useState<Readonly<Record<number, NativeReviewFrame>>>({});
   const scrollRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   // Whether the transcript is parked at the bottom. A reply streams in a token
@@ -136,6 +146,9 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
     if (messages.length === 0) {
       abortRef.current?.abort();
       switchHistoryRow(null);
+      // Reviews are keyed by message index, and the next conversation starts
+      // counting from zero again.
+      setReviews({});
     }
   }, [messages.length, switchHistoryRow]);
 
@@ -145,7 +158,10 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
   // deleted id forever. Guarded on the id actually differing, so it doesn't
   // fire on the panel learning the id of a row we just wrote ourselves.
   useEffect(() => {
-    if (conversationId !== historyRef.current.id) switchHistoryRow(conversationId);
+    if (conversationId !== historyRef.current.id) {
+      switchHistoryRow(conversationId);
+      setReviews({});
+    }
   }, [conversationId, switchHistoryRow]);
 
   const send = useCallback(
@@ -171,7 +187,15 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
       // Only a stream that ran to the end is a turn. An aborted one (New chat,
       // switching to voice, the panel closing) leaves a half-written answer
       // that nobody asked to keep.
+      //
+      // Set when the *content* finishes rather than when the request does: the
+      // connection now stays open past the last token while an Arabic-native
+      // model reads the answer, and a learner who asks their next question in
+      // that window aborts this request. The answer was still finished, and
+      // the turn is still worth keeping.
       let completed = false;
+      // Where this reply will sit once the placeholder below is appended.
+      const replyIndex = nextMessages.length;
 
       try {
         setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
@@ -183,6 +207,15 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
             messages: nextMessages,
             seed: seed ?? undefined,
             pageContext: buildPagePayload(pathname, pageContext),
+          },
+          onContentComplete: (full) => {
+            reply = full;
+            completed = true;
+            // The composer reopens with the last word, not with the review.
+            setLoading(false);
+          },
+          onNativeReview: (review) => {
+            setReviews((prev) => ({ ...prev, [replyIndex]: review }));
           },
           onDelta: (_delta, accumulated) => {
             reply = accumulated;
@@ -197,7 +230,6 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
             });
           },
         });
-        completed = true;
       } catch (err) {
         if ((err as Error)?.name !== "AbortError") {
           if (err instanceof SseChatError) {
@@ -387,6 +419,7 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
                         </button>
                       </div>
                     )}
+                    {reviews[i] && <NativeReviewNote review={reviews[i]} />}
                   </>
                 ) : (
                   <ThinkingBubble />

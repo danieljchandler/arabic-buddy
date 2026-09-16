@@ -434,7 +434,43 @@ a decision about whose reading deserves an equal vote, not a measurement.
 a forty-second merge into a multi-minute one and starved the translation
 ensemble sharing its 300-second budget. Whatever M3's quality, "added latency"
 is disqualifying there until measured. Same for `DEFAULT_CHAT` and anything on
-the realtime path.
+the realtime path — and for the chat that is a statement about the *model
+slot*, not about the chat: see the fourth entry below for what M3 does there
+instead.
+
+**Fourth, and built (2026-09-16): the Ask AI chat's own Arabic, reviewed after
+it has been said.** The question this answers was "should M3 or Jais 2 serve the
+chat instead of Sonnet 5", and the answer is no, for reasons that are about the
+tier rather than the model: the limited preview has **streaming off**, which
+`streamBrain` requires outright; it adds latency to the app's most
+latency-sensitive text path; `canFallBack` is false, so the chat's single
+learner-facing route would have no safety net; two consecutive live runs came
+back `content_filter` on ordinary spoken Gulf and Yemeni (see the 2026-09-14
+run above), which on a validator is a degraded gate and in chat is a learner
+getting nothing; and the chat's system prompt is the best prompt cache in the
+app, which Node documents no `cache_control` for. Jais 2 fails harder and
+earlier — 8B, the weakest judge on the roster, scaling to zero on a path where
+a cold start is a dead assistant.
+
+What was actually missing was a *check*, not a different author. Chat Arabic
+was the only learner-facing Arabic nothing validated: `askBrain` validates
+before it ships a draft, and `streamBrain`'s leak repair only ever corrected
+what `onComplete` stored, never what the learner read. `_shared/arabicReview.ts`
+fills that in, and its shape is chosen so the roster's constraints are
+satisfied rather than tolerated — one short non-streaming classification call,
+after the answer has shipped, bounded at 8s over the whole walk, reached through
+`judgeWithArabicNative` so M3 leads and Jais 2 and Fanar stand behind it, and
+returning null on every failure. `assistant-chat` opts in; the corrections ride
+the tail of its own SSE response and render as a note beside the reply, never as
+a rewrite of it. A deployment with no HUMAIN key and no RunPod endpoint gets
+Fanar; one with none of the three gets no note and no error.
+
+Two things to watch when a key lands. The guardrail applies here too — a refusal
+is silence, so the feature will look switched off rather than broken, and the
+`[arabicReview]` warning is the only place that says which rung refused. And
+this is per chat turn rather than per video, so it is the first M3 consumer
+whose call volume tracks learner activity; the free tier's 40/day cap on
+`assistant-chat` is the ceiling, and `CHAT_NATIVE_REVIEW=off` is the switch.
 
 **Explicitly not:** `UTILITY`. That lineup is the app's highest-volume Arabic
 path; changing it is a cost and latency decision, not a quality one.

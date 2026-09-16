@@ -10,6 +10,10 @@
  * status + JSON body so callers can route 401/402/429 to the right UI.
  */
 import { supabase } from "@/integrations/supabase/client";
+import {
+  readAppFrame,
+  type NativeReviewFrame,
+} from "../../supabase/functions/_shared/arabicReviewCore";
 
 export class SseChatError extends Error {
   status: number;
@@ -29,6 +33,19 @@ export interface StreamChatArgs {
   signal?: AbortSignal;
   /** Called for every token; `accumulated` is the full reply so far. */
   onDelta: (delta: string, accumulated: string) => void;
+  /**
+   * The answer is finished — fired on the provider's `[DONE]`, which is no
+   * longer the same moment as this promise resolving.
+   *
+   * `assistant-chat` appends a native-speaker review of its own Arabic after
+   * that terminator, so the connection outlives the text by up to the review's
+   * deadline. A caller that drives a spinner or a disabled composer off "the
+   * reply is done" wants this, not the resolved promise, or the composer stays
+   * locked for seconds after the last word has landed.
+   */
+  onContentComplete?: (full: string) => void;
+  /** A native-review frame, if the function sent one. */
+  onNativeReview?: (review: NativeReviewFrame) => void;
 }
 
 /** Stream a chat completion from an edge function; resolves to the full reply. */
@@ -37,6 +54,8 @@ export async function streamChat({
   body,
   signal,
   onDelta,
+  onContentComplete,
+  onNativeReview,
 }: StreamChatArgs): Promise<string> {
   const { data: { session } } = await supabase.auth.getSession();
   const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -72,9 +91,19 @@ export async function streamChat({
   const decoder = new TextDecoder();
   let buffer = "";
   let accumulated = "";
-  let done = false;
+  let contentComplete = false;
 
-  while (!done) {
+  const finishContent = () => {
+    if (contentComplete) return;
+    contentComplete = true;
+    onContentComplete?.(accumulated);
+  };
+
+  // Read until the *server* closes, not until `[DONE]`. The two used to be the
+  // same event; they stopped being when the assistant began appending its
+  // native review after the provider's terminator, and a loop that broke on
+  // `[DONE]` would drop that frame on the floor every time.
+  for (;;) {
     const { value, done: readerDone } = await reader.read();
     if (readerDone) break;
     buffer += decoder.decode(value, { stream: true });
@@ -87,8 +116,8 @@ export async function streamChat({
       if (!line.startsWith("data: ")) continue;
       const json = line.slice(6).trim();
       if (json === "[DONE]") {
-        done = true;
-        break;
+        finishContent();
+        continue;
       }
       let frame: { choices?: Array<{ delta?: { content?: string } }>; error?: { message?: string } } | undefined;
       try {
@@ -108,13 +137,26 @@ export async function streamChat({
       if (frame?.error) {
         throw new SseChatError(200, frame, frame.error.message ?? "The reply was interrupted upstream");
       }
+      // App frames ride the same stream under their own key, so a payload of
+      // ours can never be mistaken for a provider frame with an odd shape.
+      const review = readAppFrame(frame);
+      if (review) {
+        onNativeReview?.(review);
+        continue;
+      }
       const delta = frame?.choices?.[0]?.delta?.content;
-      if (delta) {
+      // Content after the terminator is not content. The loop reads past
+      // `[DONE]` now, and dropping these keeps the old guarantee: whatever a
+      // provider emits after saying it is finished never lands in the reply.
+      if (delta && !contentComplete) {
         accumulated += delta;
         onDelta(delta, accumulated);
       }
     }
   }
 
+  // A stream that closed without a terminator still finished — the callback is
+  // a promise about the content, not about the provider's manners.
+  finishContent();
   return accumulated;
 }

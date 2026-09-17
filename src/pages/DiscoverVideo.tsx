@@ -672,14 +672,19 @@ const DiscoverVideo = ({
   const [isSlowListening, setIsSlowListening] = useState(false);
   const slowListenAudioRef = useRef<HTMLAudioElement | null>(null);
   const slowListenTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  // Transcript-primary by default. Reading-while-listening is the one input
-  // mode whose vocabulary gains *grow* by the delayed test (13% → 17%), and
-  // audiovisual viewing alone is the weakest (7% → 5%) — research §3. The
-  // video stays the on-ramp; the transcript is where words stick.
-  const [showFullTranscript, setShowFullTranscript] = useState(true);
+  // The transcript panel starts closed, and the active-line card above the
+  // controls is what tracks playback — the arrows step through lines in place
+  // and the EN/Literal/Fusha switches decide what each line shows. Opening it
+  // by default (for the reading-while-listening gain, research §3) made the
+  // page itself the thing that followed the video: the panel is the last
+  // section of a page that grows with its content, so every line change
+  // dragged the whole page down and the video out from under the reader. The
+  // toggle is still there for anyone who wants the full text.
+  const [showFullTranscript, setShowFullTranscript] = useState(false);
   // Transcript-visible time, counted apart from watch time, so the two can
-  // be compared against what a learner actually retains.
-  const transcriptShownAtRef = useRef<number | null>(Date.now());
+  // be compared against what a learner actually retains. Null until the
+  // learner opens the panel, since it no longer starts open.
+  const transcriptShownAtRef = useRef<number | null>(null);
   useEffect(() => {
     if (showFullTranscript) {
       transcriptShownAtRef.current = Date.now();
@@ -1267,13 +1272,22 @@ const DiscoverVideo = ({
     return () => clearInterval(id);
   }, [playbackMode, isYouTube, isTikTok, isYouTubePlaying, isTiktokAudioPlaying, tiktokAudioReady, timerPlaying]);
 
-  // Auto-scroll to active line
+  // Keep the active line in view *within the transcript panel only*.
+  // scrollIntoView walks up to the nearest scrolling ancestor, which on this
+  // page is the window — so it scrolled the page rather than the panel, and
+  // the video scrolled away as the lines advanced. Scroll the container by
+  // hand instead, and leave it alone when it is not its own scroll region.
   useEffect(() => {
     if (!activeLineId) return;
+    const container = transcriptContainerRef.current;
     const el = lineRefs.current.get(activeLineId);
-    if (el && transcriptContainerRef.current) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
+    if (!container || !el) return;
+    if (container.scrollHeight <= container.clientHeight) return;
+    const containerRect = container.getBoundingClientRect();
+    const lineRect = el.getBoundingClientRect();
+    const delta =
+      lineRect.top - containerRect.top - (containerRect.height - lineRect.height) / 2;
+    container.scrollTo({ top: container.scrollTop + delta, behavior: "smooth" });
   }, [activeLineId]);
 
   // Track view progress for personalized feed (throttled every 10s, marks complete at >=85%)

@@ -178,7 +178,13 @@ harness.
   `RUNPOD_JAIS_8B_ENDPOINT_ID`),
   everything else → OpenRouter (`OPENROUTER_API_KEY`). Fanar and Jais 2 are the
   two vendors with no OpenRouter twin, so neither falls back there —
-  `canFallBack` is what encodes that. `runpod/` is a routing signal rather than
+  `canFallBack` is what encodes that. **Jais is paused: `JAIS_ENABLED` is off
+  by default since 2026-09-18**, which makes `runpod/*` resolve to no address
+  at all, so the rung is skipped exactly as an undeployed one is. It was paused
+  on cost — $10.20 in twelve days, because the endpoint's idle timeout was
+  raised to 1800s while the per-run warm-up ping was still costed against 300s.
+  Don't switch it back on without changing one of those two numbers; see
+  `docs/deployment.md`. `runpod/` is a routing signal rather than
   a vendor namespace: it says the model runs on hardware this project rents, and
   the prefix is stripped on the wire to match the worker's
   `--served-model-name`. It is also the one provider that can be *half*
@@ -285,7 +291,10 @@ one-token ping, never bounded on the whole call, because vLLM sends a
 non-streaming completion's headers only when the body is done. Jais scales to
 zero, so `warmArabicJudges()` pings it at the top of every transcript run
 (`process-approved-video` and `analyze-gulf-arabic`; `JAIS_PIPELINE_WARMUP=off`
-to disable). Writeup: `docs/humain-m3-integration.md` §1c–1d.
+to disable) — moot while `JAIS_ENABLED` is off, since a rung with no route is
+nothing to warm. That ping is what the pause is about: its cost is set by the
+endpoint's idle timeout, a number in the RunPod console that no code here can
+read. Writeup: `docs/humain-m3-integration.md` §1c–1d.
 
 **The learner model** conditions generation on what a learner actually knows.
 `_shared/learnerProfile.ts` assembles known/in-progress/weak vocabulary from

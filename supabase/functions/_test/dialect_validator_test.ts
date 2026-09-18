@@ -397,8 +397,11 @@ Deno.test("a rewrite from either model stands", async () => {
 
 const RUNPOD = "api.runpod.ai";
 const FANAR_HOST = "api.fanar.qa";
-/** A deployed Jais. Absent everywhere else, so the default is "not deployed". */
-const DEPLOYED = { RUNPOD_JAIS_8B_ENDPOINT_ID: "test1endpoint" };
+/**
+ * A live Jais: deployed *and* switched on. Absent everywhere else, so the
+ * default these tests run under is the production default — Jais paused.
+ */
+const DEPLOYED = { RUNPOD_JAIS_8B_ENDPOINT_ID: "test1endpoint", JAIS_ENABLED: "on" };
 
 /** A disagreement (lenient Arabic leg, harsh strong leg) plus a tie-breaker's answer. */
 const split = (tiebreakHost: string, tiebreak: Record<string, unknown>) => ({
@@ -501,7 +504,7 @@ Deno.test("deploying a size the tie-break does not name changes nothing", async 
     assertEquals(up.callsTo(FANAR_HOST).length, 1);
     assertEquals(result.verdict, "pass");
   }, {
-    env: { RUNPOD_JAIS_70B_ENDPOINT_ID: "seventyb" },
+    env: { RUNPOD_JAIS_70B_ENDPOINT_ID: "seventyb", JAIS_ENABLED: "on" },
     upstreams: split(FANAR_HOST, { score: 5 }),
   });
 });

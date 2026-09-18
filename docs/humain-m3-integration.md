@@ -8,6 +8,16 @@ from the contributor surface onward is still a proposal. Where this document
 guessed and Node's spec later said otherwise, the spec wins and the text below
 has been corrected rather than left standing.
 
+> **Jais 2 8B has been paused since 2026-09-18** (`JAIS_ENABLED`, off by
+> default — see `docs/deployment.md`). Everything below that describes Jais as
+> a rung on the ladder is still an accurate account of how the code works and
+> of what the debugging runs found; it is simply a rung with no address
+> configured right now, so the walks described here skip it and go on to Fanar.
+> The §2 diagnosis of cold starts and warm-up pings is the direct ancestor of
+> that pause: the endpoint's idle timeout was raised to 1800 s to fix the cold
+> boots, which fixed them and made every warm-up ping six times more expensive
+> than the cost model behind it assumed.
+
 M3 is HUMAIN's frontier Arabic model (428B MoE, ~23B active, announced at LEAP
 Riyadh on 2026-09-03, weights built with MiniMax), served from HUMAIN Node
 behind an **OpenAI-compatible** `/chat/completions` endpoint. Two preview

@@ -333,12 +333,19 @@ g = 0.07. The pronunciation surfaces show a "week N of 5" progress marker
 against first use, and the feature's `featureMetrics` events carry it, so
 retention past week five becomes a number we watch.
 
-**5c. Transcript-primary playback — as shipped.** In `DiscoverVideo` the
-full transcript is open by default (it was a toggle that started closed);
-the active line, seeking, saving and shadowing were already on it.
-Transcript-visible time is sent as its own analytics event
+**5c. Transcript-primary playback — shipped, then rolled back.** In
+`DiscoverVideo` the full transcript was opened by default; the active line,
+seeking, saving and shadowing were already on it. It is a toggle that starts
+closed again: the panel is the last section of a page with no fixed height, so
+auto-scrolling the active line into view moved the *page* rather than the
+panel, and the video scrolled out from under the reader on every line. What
+tracks playback is the active-line card under the video — arrows step through
+lines in place, and the EN/Literal/Fusha switches decide what each line shows.
+Transcript-visible time is still sent as its own analytics event
 (`transcript_visible`, seconds per video) so it can be compared against
-watch time and retention.
+watch time and retention. Winning the reading-while-listening gain back means
+giving the transcript a scroll region of its own, not opening it into a page
+that scrolls whole.
 Video stays the on-ramp — it has the *lowest* coverage requirement of any mode
 (R3) — and the 0b bands express that difference directly. This is design-led
 and can trail the rest.

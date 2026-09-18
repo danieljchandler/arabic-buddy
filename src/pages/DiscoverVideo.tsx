@@ -1277,8 +1277,18 @@ const DiscoverVideo = ({
   // page is the window — so it scrolled the page rather than the panel, and
   // the video scrolled away as the lines advanced. Scroll the container by
   // hand instead, and leave it alone when it is not its own scroll region.
+  //
+  // Opening the panel is a trigger of its own, not just a line change: the
+  // rows and the container mount only once it is open, so a learner opening
+  // it part-way through a clip would otherwise be dropped at line one until
+  // playback moved on — and with the panel closed by default that is every
+  // learner who opens it. That first placement jumps rather than glides,
+  // since there is no previous position to glide from.
+  const transcriptWasOpenRef = useRef(showFullTranscript);
   useEffect(() => {
-    if (!activeLineId) return;
+    const justOpened = showFullTranscript && !transcriptWasOpenRef.current;
+    transcriptWasOpenRef.current = showFullTranscript;
+    if (!showFullTranscript || !activeLineId) return;
     const container = transcriptContainerRef.current;
     const el = lineRefs.current.get(activeLineId);
     if (!container || !el) return;
@@ -1287,8 +1297,11 @@ const DiscoverVideo = ({
     const lineRect = el.getBoundingClientRect();
     const delta =
       lineRect.top - containerRect.top - (containerRect.height - lineRect.height) / 2;
-    container.scrollTo({ top: container.scrollTop + delta, behavior: "smooth" });
-  }, [activeLineId]);
+    container.scrollTo({
+      top: container.scrollTop + delta,
+      behavior: justOpened ? "auto" : "smooth",
+    });
+  }, [activeLineId, showFullTranscript]);
 
   // Track view progress for personalized feed (throttled every 10s, marks complete at >=85%)
   const lastReportedRef = useRef<{ s: number; completed: boolean }>({ s: 0, completed: false });

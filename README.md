@@ -1086,6 +1086,19 @@ sub-variety reaches the per-line re-translation prompt, so a Ṣaʿīdi line is 
 glossed by an instruction that says "Egyptian Arabic" and leaves the model to
 assume Cairo.
 
+The **title** joined the allow-list for the same reason and was the same
+oversight. The pipeline names a clip from its own transcript, so the title is
+wrong in precisely the way a native speaker is hired to catch — and it was the
+one field on the row a learner reads before watching anything. But it lived on
+the admin-only Details card, and `discover_videos` UPDATE is
+admin/content_reviewer under RLS, so a transcriber who spotted a bad title had
+nowhere to put the correction but a comment somebody else had to action. It is a
+label, not a publishing decision. `title` and `title_arabic` are editable at the
+top of the **Notes & grammar** tab and logged like everything else there; the
+English one is `NOT NULL` and read by every card in Discover, so a blank one is
+refused server-side (a cleared field is a reviewer mid-edit, not an assertion
+that the clip has no name), while a blank Arabic title stores null.
+
 ### Unpublished drafts in the video form
 
 The admin video form holds an entire correction pass in React state until

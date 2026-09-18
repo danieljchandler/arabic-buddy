@@ -2182,6 +2182,8 @@ const AdminVideoForm = () => {
 
             <TabsContent value="notes" className="mt-4">
               <VideoNotesEditor
+                title={existingVideo.title ?? ""}
+                titleArabic={existingVideo.title_arabic ?? ""}
                 culturalContext={existingVideo.cultural_context ?? ""}
                 grammarPoints={(existingVideo.grammar_points as unknown as GrammarPoint[]) ?? []}
                 vocabulary={(existingVideo.vocabulary as unknown as VocabEntry[]) ?? []}
@@ -2200,6 +2202,11 @@ const AdminVideoForm = () => {
                     () => {
                       toast.success("Notes saved");
                       queryClient.invalidateQueries({ queryKey: ["discover-video", videoId] });
+                      // The title is on this form now, and it is what the
+                      // review queue lists each video by — without this the
+                      // reviewer renames a clip and then goes back to a list
+                      // still calling it by the name they just replaced.
+                      queryClient.invalidateQueries({ queryKey: ["admin-discover-videos"] });
                     },
                     (error: unknown) =>
                       toast.error("Could not save the notes", {

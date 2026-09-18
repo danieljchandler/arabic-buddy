@@ -27,7 +27,13 @@ export type RevisionField =
   // changes what every generator downstream thinks the clip is.
   | "dialect"
   | "dialect_subvariety"
-  | "dialect_features";
+  | "dialect_features"
+  // The video's own name, in English and in Arabic. It is the one field a
+  // learner sees before they have watched anything, and the pipeline guesses it
+  // off the transcript — so it is wrong in exactly the way the reviewer is
+  // there to catch, and it is a label rather than a publishing decision.
+  | "title"
+  | "title_arabic";
 
 export type RevisionSource = "human" | "ai_retranslate" | "ai_resegment" | "resync";
 
@@ -208,6 +214,8 @@ export function diffVideoField(
     | "dialect"
     | "dialect_subvariety"
     | "dialect_features"
+    | "title"
+    | "title_arabic"
   >,
   previous: unknown,
   next: unknown,

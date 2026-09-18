@@ -110,6 +110,8 @@ interface TranscriptLine {
 
 interface VideoRow {
   id: string;
+  title: string | null;
+  title_arabic: string | null;
   dialect: string | null;
   dialect_subvariety: string | null;
   dialect_features: unknown;
@@ -123,7 +125,7 @@ async function loadVideo(videoId: string): Promise<VideoRow | null> {
   const { data, error } = await admin()
     .from("discover_videos")
     .select(
-      "id, dialect, dialect_subvariety, dialect_features, transcript_lines, cultural_context, grammar_points, vocabulary",
+      "id, title, title_arabic, dialect, dialect_subvariety, dialect_features, transcript_lines, cultural_context, grammar_points, vocabulary",
     )
     .eq("id", videoId)
     .maybeSingle();
@@ -469,12 +471,21 @@ async function resolveComment(
 }
 
 /**
+ * How long a title may be.
+ *
+ * `discover_videos.title` is unbounded in the schema and read into a single
+ * line of a card, so the bound is about the card rather than about the column:
+ * a pasted paragraph is a mistake, not a title.
+ */
+const MAX_TITLE_LENGTH = 300;
+
+/**
  * The video's own notes: what it is in, and what a learner should take from it.
  *
- * Five columns and no others — cultural context, grammar points, vocabulary,
- * and now the dialect classification. A transcriber has no route to
- * `published`, `source_url` or anything else on the row, and the allow-list is
- * stated as code here rather than as a convention in the client.
+ * Cultural context, grammar points, vocabulary, the dialect classification and
+ * the two titles — and nothing else. A transcriber has no route to `published`,
+ * `source_url` or anything else on the row, and the allow-list is stated as
+ * code here rather than as a convention in the client.
  *
  * Why `dialect` itself is on the list, when it was not before: the reviewer is
  * the only person in the pipeline who can actually hear what the clip is. The
@@ -482,6 +493,13 @@ async function resolveComment(
  * the things it is worst at, and there was nowhere to correct it short of
  * admin. It is a classification, not a publishing decision — the distinction
  * the allow-list has always drawn.
+ *
+ * `title` and `title_arabic` are on it for the same reason and were the same
+ * oversight. The pipeline names a clip from its own transcript, so a title is
+ * wrong in precisely the way a native speaker is hired to catch — and because
+ * the Details card is admin-only, a transcriber who spotted it had nowhere to
+ * put the correction but a comment somebody else had to action. A name is a
+ * label, not a publishing decision.
  */
 async function saveNotes(
   reviewer: Reviewer,
@@ -496,6 +514,57 @@ async function saveNotes(
 
   const updates: Record<string, unknown> = {};
   const revisions: TranscriptRevision[] = [];
+
+  // ── The titles ────────────────────────────────────────────────────────────
+  //
+  // `title` is NOT NULL and is what every card in Discover shows, so a blank
+  // one is refused rather than written: a reviewer clearing the field is far
+  // more likely to be mid-edit than to be asserting the clip has no name. The
+  // Arabic title has no such duty, so blanking it is allowed and stores null.
+  if ("title" in body) {
+    const next = String(body.title ?? "").trim();
+    if (!next) {
+      return json(
+        { error: "empty_title", message: "A video needs a title." },
+        400,
+        cors,
+      );
+    }
+    if (next.length > MAX_TITLE_LENGTH) {
+      return json(
+        {
+          error: "title_too_long",
+          message: `A title cannot be longer than ${MAX_TITLE_LENGTH} characters.`,
+        },
+        400,
+        cors,
+      );
+    }
+    const revision = diffVideoField("title", video.title, next);
+    if (revision) {
+      updates.title = next;
+      revisions.push(revision);
+    }
+  }
+
+  if ("titleArabic" in body) {
+    const next = String(body.titleArabic ?? "").trim();
+    if (next.length > MAX_TITLE_LENGTH) {
+      return json(
+        {
+          error: "title_too_long",
+          message: `A title cannot be longer than ${MAX_TITLE_LENGTH} characters.`,
+        },
+        400,
+        cors,
+      );
+    }
+    const revision = diffVideoField("title_arabic", video.title_arabic, next);
+    if (revision) {
+      updates.title_arabic = next || null;
+      revisions.push(revision);
+    }
+  }
 
   // ── The dialect classification ────────────────────────────────────────────
   //

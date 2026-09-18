@@ -16,10 +16,16 @@ import VideoNotesEditor from "./VideoNotesEditor";
  * The dialect classification joined them for the same reason: the label the
  * pipeline guessed off a thirty-second clip was reaching every generator
  * downstream with nobody able to say it was Ḥijāzi and not Najdi.
+ *
+ * And the title after it. It is generated from the transcript and is the first
+ * thing a learner reads, but it lived on the admin-only Details card — so a
+ * transcriber who could see it was wrong had nowhere to put the correction.
  */
 
 function setup(over: Partial<React.ComponentProps<typeof VideoNotesEditor>> = {}) {
   const props = {
+    title: "Two friends greeting",
+    titleArabic: "صديقان يتسلمان",
     culturalContext: "A greeting exchange.",
     grammarPoints: [{ title: "Negation", explanation: "ما before a verb.", examples: ["ما أدري"] }],
     vocabulary: [{ arabic: "شلونك", english: "how are you", root: "ل و ن" }],
@@ -89,6 +95,8 @@ describe("saving", () => {
 
     await waitFor(() =>
       expect(props.onSave).toHaveBeenCalledWith({
+        title: props.title,
+        titleArabic: props.titleArabic,
         culturalContext: "Revised.",
         grammarPoints: props.grammarPoints,
         vocabulary: props.vocabulary,
@@ -155,6 +163,57 @@ describe("adding and removing", () => {
     fireEvent.click(screen.getByRole("button", { name: "Remove vocabulary 1" }));
 
     expect(screen.getByText("Vocabulary (0)")).toBeInTheDocument();
+  });
+});
+
+describe("the title", () => {
+  it("shows the name the video already has, in both languages", () => {
+    setup();
+
+    expect(screen.getByLabelText("Title")).toHaveValue("Two friends greeting");
+    expect(screen.getByLabelText("Arabic title")).toHaveValue("صديقان يتسلمان");
+  });
+
+  it("sends a corrected title with the rest of the notes", async () => {
+    // The whole point of the change: the pipeline names a clip off its own
+    // transcript, and the reviewer is the person who can see that is wrong.
+    const props = setup();
+
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Two neighbours greeting in the street" },
+    });
+    fireEvent.change(screen.getByLabelText("Arabic title"), {
+      target: { value: "جاران يتسلمان في الشارع" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save notes" }));
+
+    await waitFor(() =>
+      expect(props.onSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Two neighbours greeting in the street",
+          titleArabic: "جاران يتسلمان في الشارع",
+        }),
+      ),
+    );
+  });
+
+  it("counts a renamed video as unsaved work", () => {
+    setup();
+
+    expect(screen.getByRole("button", { name: "Save notes" })).toBeDisabled();
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "A funeral greeting" } });
+    expect(screen.getByRole("button", { name: "Save notes" })).toBeEnabled();
+  });
+
+  it("warns about a blank title instead of blocking the keystroke", () => {
+    // Clearing the field to retype it is the common case; the server is what
+    // refuses an actually-blank save, so the button stays live.
+    setup();
+
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "" } });
+
+    expect(screen.getByText(/needs an English title/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save notes" })).toBeEnabled();
   });
 });
 
@@ -238,6 +297,15 @@ describe("when the video finishes loading", () => {
     // Otherwise the reviewer sees an empty box over a video that has notes, and
     // saving would wipe them.
     expect(screen.getByLabelText("Cultural notes")).toHaveValue("Arrived from the server.");
+  });
+
+  it("takes up the title that arrives", () => {
+    const { view, ...props } = setup({ title: "", titleArabic: "" });
+
+    view.rerender(<VideoNotesEditor {...props} title="Named by the pipeline" titleArabic="عنوان" />);
+
+    expect(screen.getByLabelText("Title")).toHaveValue("Named by the pipeline");
+    expect(screen.getByLabelText("Arabic title")).toHaveValue("عنوان");
   });
 
   it("takes up the dialect classification that arrives", () => {

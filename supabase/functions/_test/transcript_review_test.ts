@@ -28,6 +28,8 @@ const STORED_LINES = [
 
 const VIDEO_ROW = {
   id: VIDEO,
+  title: "Two friends greeting",
+  title_arabic: null,
   dialect: "Kuwaiti",
   dialect_subvariety: null,
   dialect_features: [],
@@ -280,6 +282,87 @@ Deno.test("transcript-review does not let a reviewer touch other columns", async
   for (const write of writes) {
     assertEquals("published" in write, false);
   }
+});
+
+// ── The title ───────────────────────────────────────────────────────────────
+//
+// The pipeline names a clip off its own transcript, so a wrong title is
+// precisely the kind of thing a native speaker is hired to catch — but the
+// field lived on the admin-only Details card, and `discover_videos` UPDATE is
+// admin/content_reviewer under RLS, so a transcriber had no route to it at all.
+// It is a label rather than a publishing decision, so it joins the allow-list,
+// and these tests hold the line where it now sits.
+
+Deno.test("transcript-review lets a transcriber rename a video", async () => {
+  const result = await call({
+    action: "save_notes",
+    videoId: VIDEO,
+    title: "Two neighbours greeting in the street",
+    titleArabic: "جاران يتسلمان في الشارع",
+  });
+
+  assertEquals(result.status, 200);
+  const writes = result.patches("/rest/v1/discover_videos");
+  assertEquals(writes[0].title, "Two neighbours greeting in the street");
+  assertEquals(writes[0].title_arabic, "جاران يتسلمان في الشارع");
+
+  const logged = result.posts("/rest/v1/transcript_line_revisions");
+  assertEquals(logged.length, 2);
+  assertEquals(
+    logged.map((row) => row.field).sort(),
+    ["title", "title_arabic"],
+  );
+  // The log records what was stored, not what the client claimed was stored.
+  assertEquals(logged.find((row) => row.field === "title")?.previous_value, "Two friends greeting");
+  assertEquals(logged[0].changed_by, USER);
+});
+
+Deno.test("transcript-review refuses a blank title", async () => {
+  // `discover_videos.title` is NOT NULL and every card in Discover reads it, so
+  // a cleared field is a reviewer mid-edit rather than an assertion that the
+  // clip has no name.
+  const result = await call({ action: "save_notes", videoId: VIDEO, title: "   " });
+
+  assertEquals(result.status, 400);
+  assertEquals(result.body.error, "empty_title");
+  assertEquals(result.patches("/rest/v1/discover_videos").length, 0);
+});
+
+Deno.test("transcript-review refuses a title that is a pasted paragraph", async () => {
+  const result = await call({
+    action: "save_notes",
+    videoId: VIDEO,
+    title: "x".repeat(301),
+  });
+
+  assertEquals(result.status, 400);
+  assertEquals(result.body.error, "title_too_long");
+});
+
+Deno.test("transcript-review clears an Arabic title a reviewer emptied", async () => {
+  // Unlike the English one, the Arabic title carries no NOT NULL duty — so
+  // emptying it is a decision rather than a slip, and it stores null.
+  const result = await call(
+    { action: "save_notes", videoId: VIDEO, titleArabic: "" },
+    withVideo({ ...VIDEO_ROW, title_arabic: "صديقان" }),
+  );
+
+  assertEquals(result.status, 200);
+  const writes = result.patches("/rest/v1/discover_videos");
+  assertEquals(writes[0].title_arabic, null);
+});
+
+Deno.test("transcript-review does not rename a video the payload left alone", async () => {
+  const result = await call({
+    action: "save_notes",
+    videoId: VIDEO,
+    culturalContext: "A greeting exchange between neighbours.",
+  });
+
+  assertEquals(result.status, 200);
+  const writes = result.patches("/rest/v1/discover_videos");
+  assertEquals("title" in writes[0], false);
+  assertEquals("title_arabic" in writes[0], false);
 });
 
 // ── The dialect classification ──────────────────────────────────────────────

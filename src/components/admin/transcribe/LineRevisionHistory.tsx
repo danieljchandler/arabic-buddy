@@ -20,6 +20,8 @@ const FIELD_LABELS: Record<string, string> = {
   dialect: "Dialect",
   dialect_subvariety: "Sub-dialect",
   dialect_features: "Dialect features",
+  title: "Title",
+  title_arabic: "Arabic title",
 };
 
 const SOURCE_LABELS: Record<TranscriptRevisionRow["source"], string> = {
@@ -29,9 +31,9 @@ const SOURCE_LABELS: Record<TranscriptRevisionRow["source"], string> = {
   resync: "re-timed against the audio",
 };
 
-/** RTL for the Arabic field, LTR for everything else. */
+/** RTL for the fields that hold Arabic, LTR for everything else. */
 function directionFor(field: string): "rtl" | "ltr" {
-  return field === "arabic" ? "rtl" : "ltr";
+  return field === "arabic" || field === "title_arabic" ? "rtl" : "ltr";
 }
 
 function formatWhen(iso: string): string {

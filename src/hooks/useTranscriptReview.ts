@@ -222,6 +222,10 @@ export function useTranscriptReview(videoId: string | undefined) {
       culturalContext?: string;
       grammarPoints?: unknown[];
       vocabulary?: unknown[];
+      /** Refused server-side if it is blank — the column is NOT NULL. */
+      title?: string;
+      /** Blank stores null; the Arabic title is optional. */
+      titleArabic?: string;
       /** The country-level label. Refused server-side if it is not a known one. */
       dialect?: string;
       /** Cleared server-side if it does not belong under `dialect`. */

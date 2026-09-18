@@ -533,6 +533,22 @@ test.describe("the transcript, vocabulary and grammar", () => {
   // one folded in from the native-speaker workspace — and save through the
   // `transcript-review` function, which is what writes the revision log.
 
+  test("keeps the title to the Details card, not both at once", async ({ page, db }) => {
+    // An admin has the Details card, so the notes editor must not offer a
+    // second box over the same column: each sits behind its own save button,
+    // and Update Video would write the Details card's stale copy back over a
+    // rename made down here.
+    seedVideo(db, { transcript_lines: [aLine(0)] });
+
+    await page.goto(`/admin/videos/${VIDEO}/edit`);
+
+    await expect(
+      page.getByPlaceholder("Auto-generated from transcript if left blank"),
+    ).toBeVisible();
+    await expect(page.getByLabel("Title", { exact: true })).toHaveCount(0);
+    await expect(page.getByLabel("Arabic title")).toHaveCount(0);
+  });
+
   test("edits a vocabulary entry and saves it back", async ({ page, db }) => {
     seedVideo(db, {
       transcript_lines: [aLine(0)],

@@ -363,6 +363,32 @@ test.describe("reviewing on the edit page", () => {
       .toBe("A greeting between neighbours.");
   });
 
+  test("lets a transcriber rename the video", async ({ page, db }) => {
+    // The complaint that sent us here: the title is generated off the
+    // transcript, it is the first thing a learner reads, and it lived on the
+    // admin-only Details card — so the one person who could see it was wrong
+    // had nowhere to put the correction.
+    await page.goto(`/admin/videos/${VIDEO}/edit`);
+
+    await page.getByRole("tab", { name: /Notes/ }).click();
+    await page.getByLabel("Title", { exact: true }).fill("Greeting a neighbour in the souq");
+    await page.getByLabel("Arabic title").fill("سلام على جار في السوق");
+    await page.getByRole("button", { name: "Save notes" }).click();
+
+    await expect
+      .poll(() => db.rows("discover_videos").find((r) => r.id === VIDEO)?.title)
+      .toBe("Greeting a neighbour in the souq");
+    expect(db.rows("discover_videos").find((r) => r.id === VIDEO)?.title_arabic).toBe(
+      "سلام على جار في السوق",
+    );
+
+    // And the page's own heading catches up, rather than still calling the clip
+    // by the name they just replaced.
+    await expect(
+      page.getByRole("heading", { name: "Greeting a neighbour in the souq" }),
+    ).toBeVisible();
+  });
+
   test("logs the note change with both versions", async ({ page, db }) => {
     await page.goto(`/admin/videos/${VIDEO}/edit`);
 

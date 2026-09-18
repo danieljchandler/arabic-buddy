@@ -276,6 +276,9 @@ function accessCredentials({ db, userId, body }: FunctionContext): FunctionRespo
 /** Roles `transcript-review` admits. Mirrors `can_review_transcripts()`. */
 const REVIEWER_ROLES = ["admin", "content_reviewer", "transcriber"];
 
+/** Mirrors `MAX_TITLE_LENGTH` in the real function. */
+const MAX_TITLE_LENGTH = 300;
+
 type Row = Record<string, unknown>;
 
 /**
@@ -432,6 +435,34 @@ function transcriptReview({ db, userId, body }: FunctionContext): FunctionRespon
       if (!video) return { status: 404, body: { error: "video_not_found" } };
       const live = db.raw("discover_videos").find((row) => row.id === videoId)!;
       const revisions: TranscriptRevision[] = [];
+
+      // The titles, with the real function's two rules: a blank English title
+      // is refused (the column is NOT NULL and every card reads it), a blank
+      // Arabic one stores null.
+      if ("title" in payload) {
+        const next = String(payload.title ?? "").trim();
+        if (!next) return { status: 400, body: { error: "empty_title" } };
+        if (next.length > MAX_TITLE_LENGTH) {
+          return { status: 400, body: { error: "title_too_long" } };
+        }
+        const revision = diffVideoField("title", video.title, next);
+        if (revision) {
+          live.title = next;
+          revisions.push(revision);
+        }
+      }
+
+      if ("titleArabic" in payload) {
+        const next = String(payload.titleArabic ?? "").trim();
+        if (next.length > MAX_TITLE_LENGTH) {
+          return { status: 400, body: { error: "title_too_long" } };
+        }
+        const revision = diffVideoField("title_arabic", video.title_arabic, next);
+        if (revision) {
+          live.title_arabic = next || null;
+          revisions.push(revision);
+        }
+      }
 
       // The dialect classification, resolved first: the sub-variety and the
       // features are only meaningful relative to whatever the dialect ends up

@@ -1086,6 +1086,30 @@ sub-variety reaches the per-line re-translation prompt, so a Ṣaʿīdi line is 
 glossed by an instruction that says "Egyptian Arabic" and leaves the model to
 assume Cairo.
 
+The **title** joined the allow-list for the same reason and was the same
+oversight. The pipeline names a clip from its own transcript, so the title is
+wrong in precisely the way a native speaker is hired to catch — and it was the
+one field on the row a learner reads before watching anything. But it lived on
+the admin-only Details card, and `discover_videos` UPDATE is
+admin/content_reviewer under RLS, so a transcriber who spotted a bad title had
+nowhere to put the correction but a comment somebody else had to action. It is a
+label, not a publishing decision. `title` and `title_arabic` are editable at the
+top of the **Notes & grammar** tab and logged like everything else there; the
+English one is `NOT NULL` and read by every card in Discover, so a blank one is
+refused server-side (a cleared field is a reviewer mid-edit, not an assertion
+that the clip has no name), while a blank Arabic title stores null.
+
+Unlike the dialect, the title appears there **only for somebody who has no
+Details card** — `VideoNotesEditor` renders it when the prop is supplied and the
+video form supplies it only once the roles have resolved to neither admin nor
+content_reviewer. Two boxes over one column would be two independent drafts of
+it on one page, each behind its own save button: the notes save would submit the
+title that editor loaded rather than the one just typed upstairs, and **Update
+Video** pressed before the refetch lands would write the Details card's stale
+copy back over a rename made below. When the editor does not own the title it
+leaves the keys out of the payload altogether rather than sending them
+unchanged, since `save_notes` keys off the field being present.
+
 ### Unpublished drafts in the video form
 
 The admin video form holds an entire correction pass in React state until

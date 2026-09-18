@@ -232,10 +232,19 @@ tie-breaker is a claim, not a finding. The check is the same one a registry
 bump gets:
 
 ```sh
-RUNPOD_API_KEY=... RUNPOD_JAIS_8B_ENDPOINT_ID=... FANAR_API_KEY=... \
+RUNPOD_API_KEY=... RUNPOD_JAIS_8B_ENDPOINT_ID=... JAIS_ENABLED=on FANAR_API_KEY=... \
   deno run --allow-env --allow-read --allow-net scripts/eval-dialect-live.ts \
   --model runpod/jais-2-8b-chat --compare Fanar-C-2-27B
 ```
+
+`JAIS_ENABLED=on` is required and is not a leftover: the rung is **paused by
+default** on cost (see `docs/deployment.md`), so without it `tryChatRoute`
+returns null and this script exits 2 before making a request. That interacts
+with this measurement in a way worth stating plainly — running it wakes the
+GPU worker, and a wake costs a full idle window of rented time, currently
+1800s. This is the one workload where that is the right trade: it is batch
+work, so one cold start covers the whole golden set. Switch Jais back off when
+the run is done.
 
 Only the 8B is deployed. If you ever want to know what the 70B buys, this
 script is the right place to find out and the only one — it *is* batch work,

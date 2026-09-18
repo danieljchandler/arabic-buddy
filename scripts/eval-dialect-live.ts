@@ -80,12 +80,24 @@ const withDemos = !args.includes("--no-demos");
 // runbook prescribes. `tryChatRoute` asks the precise question — a key *and*
 // somewhere to send it — which is also the half-configured state RunPod alone
 // can be in, where a key is present but no endpoint id names a worker.
+//
+// Since the pause (`JAIS_ENABLED`, off by default — see `jaisEnabled` in
+// aiGateway.ts) a `runpod/` id has a third way to be unroutable, and it is the
+// one an operator here is most likely to hit: this script is *the* tool for
+// deciding whether Jais earns its cost back, so it is run precisely when Jais
+// is switched off everywhere else. Naming only the key and the endpoint id
+// would send that reader to check two secrets that are already set.
 for (const id of [modelArg, compareModel]) {
   if (id && !tryChatRoute(id)) {
+    const runpod = providerForModel(id) === "runpod";
     console.error(
       `No route for ${id} (provider: ${providerForModel(id)}). Export that ` +
-        `provider's key — for runpod/* ids, RUNPOD_API_KEY *and* the size's ` +
-        `RUNPOD_JAIS_<size>_ENDPOINT_ID.`,
+        `provider's key` +
+        (runpod
+          ? ` — for runpod/* ids, RUNPOD_API_KEY *and* the size's ` +
+            `RUNPOD_JAIS_<size>_ENDPOINT_ID, *and* JAIS_ENABLED=on, which is ` +
+            `off by default so a paused Jais cannot be woken by accident.`
+          : `.`),
     );
     Deno.exit(2);
   }

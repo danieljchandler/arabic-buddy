@@ -1099,6 +1099,17 @@ English one is `NOT NULL` and read by every card in Discover, so a blank one is
 refused server-side (a cleared field is a reviewer mid-edit, not an assertion
 that the clip has no name), while a blank Arabic title stores null.
 
+Unlike the dialect, the title appears there **only for somebody who has no
+Details card** — `VideoNotesEditor` renders it when the prop is supplied and the
+video form supplies it only once the roles have resolved to neither admin nor
+content_reviewer. Two boxes over one column would be two independent drafts of
+it on one page, each behind its own save button: the notes save would submit the
+title that editor loaded rather than the one just typed upstairs, and **Update
+Video** pressed before the refetch lands would write the Details card's stale
+copy back over a rename made below. When the editor does not own the title it
+leaves the keys out of the payload altogether rather than sending them
+unchanged, since `save_notes` keys off the field being present.
+
 ### Unpublished drafts in the video form
 
 The admin video form holds an entire correction pass in React state until

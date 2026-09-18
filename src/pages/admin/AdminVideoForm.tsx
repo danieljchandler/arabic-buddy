@@ -151,6 +151,22 @@ const AdminVideoForm = () => {
   // produces writes that match zero rows.
   const canManage = !rolesLoading && (isAdmin || isContentReviewer);
 
+  /**
+   * Whether the notes editor is the only place this person can name the video.
+   *
+   * The Details card above holds the title for everybody who can manage, and
+   * `handleSave` writes it from that card's own state — so handing the notes
+   * editor a second box over the same column would give the page two
+   * independent drafts of it, one behind **Save notes** and one behind
+   * **Update Video**. A rename made downstairs and then an Update Video pressed
+   * before the refetch lands would write the stale upstairs copy back over it.
+   *
+   * Computed from the far side of `canManage` rather than as `!canManage`, so
+   * it is false while the roles are still loading too: an admin must not see a
+   * title box appear and then vanish under what they were typing.
+   */
+  const ownsTitleHere = !rolesLoading && !canManage;
+
   const isEditing = !!videoId;
   const { data: existingVideo, isLoading: loadingVideo } = useDiscoverVideo(videoId);
 
@@ -2182,8 +2198,8 @@ const AdminVideoForm = () => {
 
             <TabsContent value="notes" className="mt-4">
               <VideoNotesEditor
-                title={existingVideo.title ?? ""}
-                titleArabic={existingVideo.title_arabic ?? ""}
+                title={ownsTitleHere ? existingVideo.title ?? "" : undefined}
+                titleArabic={ownsTitleHere ? existingVideo.title_arabic ?? "" : undefined}
                 culturalContext={existingVideo.cultural_context ?? ""}
                 grammarPoints={(existingVideo.grammar_points as unknown as GrammarPoint[]) ?? []}
                 vocabulary={(existingVideo.vocabulary as unknown as VocabEntry[]) ?? []}

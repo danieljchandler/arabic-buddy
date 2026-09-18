@@ -23,10 +23,18 @@ export interface VocabEntry {
 export type { DialectFeature };
 
 interface VideoNotesEditorProps {
-  /** The video's name as a learner sees it, in English. */
-  title: string;
-  /** The Arabic name. Empty until somebody writes one. */
-  titleArabic: string;
+  /**
+   * The video's name as a learner sees it, in English — supplied **only** for a
+   * reviewer who has no other route to it.
+   *
+   * Leave it undefined for anybody who also has the video form's Details card:
+   * two boxes over one column are two independent drafts of it, and the page
+   * has a save button behind each. Whichever they press last wins, including
+   * when it is carrying a value they never typed.
+   */
+  title?: string;
+  /** The Arabic name, on the same terms. Empty until somebody writes one. */
+  titleArabic?: string;
   culturalContext: string;
   grammarPoints: GrammarPoint[];
   vocabulary: VocabEntry[];
@@ -39,8 +47,9 @@ interface VideoNotesEditorProps {
   lines?: FeatureLineOption[];
   busy?: boolean;
   onSave: (input: {
-    title: string;
-    titleArabic: string;
+    /** Absent when this editor is not the one holding the title. */
+    title?: string;
+    titleArabic?: string;
     culturalContext: string;
     grammarPoints: GrammarPoint[];
     vocabulary: VocabEntry[];
@@ -72,6 +81,15 @@ interface VideoNotesEditorProps {
  * about it but leave a comment for somebody else. It sits above the dialect
  * because it is what names the thing everything below is about.
  *
+ * Unlike the rest, the title is shown *only* to a reviewer who has no Details
+ * card — it is there because they are locked out of the admin one, not because
+ * the field belongs in two places. Rendering it for somebody who has both would
+ * put two independent drafts of one column on one page, each behind its own
+ * save button: the notes save would submit the title this editor loaded rather
+ * than the one they just typed upstairs, and **Update Video** pressed before
+ * the refetch lands would write the Details card's stale copy back over a
+ * rename made down here.
+ *
  * Kept as one form with one save, because these fields are argued over together
  * and the revision log reads better as "they revised the notes" than as six
  * separate entries a second apart.
@@ -89,8 +107,10 @@ export function VideoNotesEditor({
   busy = false,
   onSave,
 }: VideoNotesEditorProps) {
-  const [name, setName] = useState(title);
-  const [nameArabic, setNameArabic] = useState(titleArabic);
+  // Undefined means somebody else on the page owns the title; see the props.
+  const editsTitle = title !== undefined;
+  const [name, setName] = useState(title ?? "");
+  const [nameArabic, setNameArabic] = useState(titleArabic ?? "");
   const [context, setContext] = useState(culturalContext);
   const [points, setPoints] = useState<GrammarPoint[]>(grammarPoints);
   const [words, setWords] = useState<VocabEntry[]>(vocabulary);
@@ -99,8 +119,8 @@ export function VideoNotesEditor({
   const [features, setFeatures] = useState<DialectFeature[]>(dialectFeatures);
 
   // Re-seed when the video finishes loading, or when someone else's save lands.
-  useEffect(() => setName(title), [title]);
-  useEffect(() => setNameArabic(titleArabic), [titleArabic]);
+  useEffect(() => setName(title ?? ""), [title]);
+  useEffect(() => setNameArabic(titleArabic ?? ""), [titleArabic]);
   useEffect(() => setContext(culturalContext), [culturalContext]);
   useEffect(() => setPoints(grammarPoints), [grammarPoints]);
   useEffect(() => setWords(vocabulary), [vocabulary]);
@@ -109,8 +129,7 @@ export function VideoNotesEditor({
   useEffect(() => setFeatures(dialectFeatures), [dialectFeatures]);
 
   const dirty =
-    name !== title ||
-    nameArabic !== titleArabic ||
+    (editsTitle && (name !== title || nameArabic !== (titleArabic ?? ""))) ||
     context !== culturalContext ||
     JSON.stringify(points) !== JSON.stringify(grammarPoints) ||
     JSON.stringify(words) !== JSON.stringify(vocabulary) ||
@@ -127,10 +146,12 @@ export function VideoNotesEditor({
   return (
     <div className="space-y-4">
       {/*
-        The clip's name. Blanking the English one is refused server-side rather
-        than here, so a reviewer who clears the field to retype it is not
-        fighting a disabled button halfway through the word.
+        The clip's name, for the reviewer who has no Details card to put it in.
+        Blanking the English one is refused server-side rather than here, so a
+        reviewer who clears the field to retype it is not fighting a disabled
+        button halfway through the word.
       */}
+      {editsTitle && (
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Title</CardTitle>
@@ -157,6 +178,7 @@ export function VideoNotesEditor({
           )}
         </CardContent>
       </Card>
+      )}
 
       {/*
         Under the title, because it frames everything below it: which grammar
@@ -342,8 +364,10 @@ export function VideoNotesEditor({
           disabled={busy || !dirty}
           onClick={() =>
             onSave({
-              title: name,
-              titleArabic: nameArabic,
+              // Omitted entirely rather than sent unchanged: the edge function
+              // keys off the field being present, so a payload without it
+              // cannot race a rename made anywhere else on the page.
+              ...(editsTitle ? { title: name, titleArabic: nameArabic } : {}),
               culturalContext: context,
               grammarPoints: points,
               vocabulary: words,

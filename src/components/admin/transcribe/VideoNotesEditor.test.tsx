@@ -205,6 +205,31 @@ describe("the title", () => {
     expect(screen.getByRole("button", { name: "Save notes" })).toBeEnabled();
   });
 
+  it("is not offered to somebody who already has a Details card", () => {
+    // Two boxes over one column are two independent drafts of it, each behind
+    // its own save button — and the video form's Update Video would write its
+    // stale copy back over a rename made here.
+    setup({ title: undefined, titleArabic: undefined });
+
+    expect(screen.queryByLabelText("Title")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Arabic title")).not.toBeInTheDocument();
+  });
+
+  it("leaves the title out of the payload entirely when it does not own it", async () => {
+    // Omitted rather than sent unchanged: `save_notes` keys off the field being
+    // present, so an absent key cannot race a rename made elsewhere.
+    const onSave = vi.fn();
+    setup({ title: undefined, titleArabic: undefined, onSave });
+
+    fireEvent.change(screen.getByLabelText("Cultural notes"), { target: { value: "Revised." } });
+    fireEvent.click(screen.getByRole("button", { name: "Save notes" }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const sent = onSave.mock.calls[0][0];
+    expect("title" in sent).toBe(false);
+    expect("titleArabic" in sent).toBe(false);
+  });
+
   it("warns about a blank title instead of blocking the keystroke", () => {
     // Clearing the field to retype it is the common case; the server is what
     // refuses an actually-blank save, so the button stays live.

@@ -346,6 +346,126 @@ Deno.test("how-do-i-say survives one gateway being down", async () => {
   assertEquals(body.success, true);
 });
 
+/**
+ * A tool call cut off by `max_tokens`: the arguments stop mid-JSON, which is
+ * what the provider actually returns — not an error, a `finish_reason` of
+ * "length" and an unparsable fragment.
+ */
+const truncatedToolCall = (payload: unknown): UpstreamHandler => () =>
+  json({
+    id: "chatcmpl-fixture",
+    object: "chat.completion",
+    choices: [{
+      index: 0,
+      finish_reason: "length",
+      message: {
+        role: "assistant",
+        content: "",
+        tool_calls: [{
+          id: "call_fixture",
+          type: "function",
+          function: { name: "emit_translation", arguments: JSON.stringify(payload).slice(0, 60) },
+        }],
+      },
+    }],
+    usage: { prompt_tokens: 10, completion_tokens: 4096, total_tokens: 4106 },
+  });
+
+Deno.test("how-do-i-say re-rolls when every drafter's tool call was truncated", async () => {
+  const good = { translations: [aTranslation({ isPreferred: true })] };
+  // Malformed first, well-formed on the re-roll — the flaky case the rescue
+  // ladder is for. Before it existed, council was the one strategy with no
+  // retry at all: two truncated drafts failed the whole request.
+  let attempt = 0;
+  const flaky: UpstreamHandler = (request) => {
+    attempt += 1;
+    return attempt <= 2
+      ? truncatedToolCall(good)(request)
+      : chatCompletion("", good);
+  };
+
+  const { status, body } = await call(
+    "how-do-i-say",
+    { phrase: "how are you" },
+    caller({
+      "generativelanguage.googleapis.com/v1beta/openai": flaky,
+      "openrouter.ai": flaky,
+    }),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(body.success, true);
+});
+
+Deno.test("how-do-i-say re-rolls the malformed drafter, not the first one listed", async () => {
+  const good = { translations: [aTranslation({ isPreferred: true })] };
+  // One drafter out of credits, the other truncated. `Promise.allSettled`
+  // keeps the lineup's order, so reading only the *first* rejection tied
+  // recovery to the order of DEFAULT_DRAFTERS: with Claude (OpenRouter)
+  // listed first, its 402 hid Gemini's recoverable truncation and the
+  // request failed; the same pair the other way round retried.
+  let googleCalls = 0;
+  const { status, body } = await call(
+    "how-do-i-say",
+    { phrase: "how are you" },
+    caller({
+      "openrouter.ai": () => json({ error: "no credits" }, 402),
+      "generativelanguage.googleapis.com/v1beta/openai": (request) => {
+        googleCalls += 1;
+        return googleCalls === 1 ? truncatedToolCall(good)(request) : chatCompletion("", good);
+      },
+    }),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(body.success, true);
+  // The re-roll went to Gemini — the model that answered — rather than to the
+  // one that had no credits to answer with.
+  assertStringIncludes(String((body.result as { llmUsed: string }).llmUsed), "gemini");
+});
+
+Deno.test("how-do-i-say does not re-roll a refusal another generation cannot fix", async () => {
+  // A 402 is not a malformed answer, and a second full generation would come
+  // back with the same one. The credit error must surface on the first pass.
+  let calls = 0;
+  const broke: UpstreamHandler = () => {
+    calls += 1;
+    return json({ error: "no credits" }, 402);
+  };
+
+  const { status } = await call(
+    "how-do-i-say",
+    { phrase: "hello" },
+    caller({
+      "generativelanguage.googleapis.com/v1beta/openai": broke,
+      "openrouter.ai": broke,
+    }),
+  );
+
+  assertEquals(status, 402);
+  // One call per drafter and nothing more.
+  assertEquals(calls, 2);
+});
+
+Deno.test("how-do-i-say keeps the gateway's own words out of the learner's error", async () => {
+  const prose: UpstreamHandler = () => chatCompletion("Sure! You would say shlonak.");
+
+  const { status, body } = await call(
+    "how-do-i-say",
+    { phrase: "how are you" },
+    caller({
+      "generativelanguage.googleapis.com/v1beta/openai": prose,
+      "openrouter.ai": prose,
+    }),
+  );
+
+  assertEquals(status, 500);
+  // The page shows this string in a toast. "anthropic/claude-sonnet-5 returned
+  // invalid JSON in tool call" names a vendor and tells a learner nothing.
+  assertStringIncludes(String(body.error), "could not answer that just now");
+  assert(!String(body.error).includes("anthropic/"));
+});
+
 Deno.test("how-do-i-say turns an anonymous caller away", async () => {
   const { status } = await call(
     "how-do-i-say",

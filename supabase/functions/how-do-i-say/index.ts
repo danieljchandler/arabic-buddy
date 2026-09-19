@@ -151,7 +151,17 @@ serve(async (req) => {
       // matching this function's documented multi-model consensus.
       userPrompt: trimmedPhrase,
       systemPromptExtra: buildExtras(dialect),
-      maxTokens: 2048,
+      // 4096 rather than 2048, because this is the largest tool payload any
+      // Brain caller asks for: up to four translations (Arabic,
+      // transliteration, English and a usage note each), eight vocabulary
+      // entries, cultural notes and gender variants — and in scenario or
+      // conversation mode a situation summary on top. Arabic costs several
+      // tokens a character, and Gemini 3.7 Flash reasons at a *mandatory*
+      // floor whose thinking comes out of this same budget. A payload that
+      // runs past the ceiling is not truncated prose the caller can salvage:
+      // the tool-call arguments stop mid-JSON, `JSON.parse` fails, and the
+      // drafter counts as failed.
+      maxTokens: 4096,
       temperature: 0.4,
       tool: {
         name: "emit_translation",
@@ -280,10 +290,18 @@ serve(async (req) => {
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
         );
       }
+      // Anything else from the Brain is plumbing — a provider status, a model
+      // that would not call the tool. The detail belongs in the logs; what
+      // reached the learner was a string like "anthropic/claude-sonnet-5
+      // returned invalid JSON in tool call", which names a vendor and tells
+      // them nothing they can act on.
       console.error("how-do-i-say brain error:", e.status, e.message);
-    } else {
-      console.error("how-do-i-say error:", e);
+      return new Response(
+        JSON.stringify({ error: "The AI could not answer that just now. Please try again in a moment." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
     }
+    console.error("how-do-i-say error:", e);
     return new Response(
       JSON.stringify({ error: e instanceof Error ? e.message : "Unknown error" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },

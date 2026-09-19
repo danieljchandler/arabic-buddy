@@ -1,7 +1,10 @@
 # The content library — architecture for a third app
 
-**Status:** design, not built. Written 2026-09-19 against Hikaya @ `main` and
-Ingleezy @ `main`.
+**Status:** built. Written 2026-09-19 against Hikaya @ `main` and Ingleezy @
+`main`; the library now lives at
+[`danieljchandler/maktaba`](https://github.com/danieljchandler/maktaba) and
+this app's half of the bridge is `supabase/functions/ingest-from-library`.
+Phases 1–5 of §8 are implemented; §9's open decisions are settled as noted.
 
 A separate repo and a separate app that holds **everything researched or sent
 in** — TikToks, YouTube links, X posts, screenshots, voice notes, articles —
@@ -568,23 +571,42 @@ RPC. *Outcome: "the clip where the guy complains about the AC" finds it.*
 
 ---
 
-## 9. Open decisions
+## 9. Decisions, as settled
 
-1. **Name.** Maktaba (مكتبة, library) is the placeholder and fits the Hikaya /
-   Ingleezy family. `danieljchandler/maktaba` is free.
-2. **Do the two apps' trending harvesters keep writing to their own candidate
-   tables, or does everything route through the library?** Recommendation:
-   leave `trending_video_candidates`, `content_channels` and
-   `social_content_sources` where they are for now — they feed *automated*
-   harvesting that already works — and have the library be the home for
-   *curated* content. Revisit once the library has real volume; merging them
-   later is a data migration, merging them now is a rewrite of three working
-   pipelines.
-3. **Should the library hold the returned transcript, or link to it?**
-   Recommendation: hold a **copy** for search, treat the app's as canonical.
-   Same argument as `sync-hakiya-videos`' snapshot: schema drift degrades to
-   stale text instead of a runtime error.
-4. **Mobile intake.** Most of "people have sent me this" arrives on a phone.
-   Hikaya's `share_target` PWA plumbing (`docs/sharing.md`, `public/sw.js`,
-   `src/lib/shareInbox.ts`) ports almost unchanged and is the difference
-   between a library you feed and one you mean to feed.
+1. **Name: Maktaba**, at `danieljchandler/maktaba`.
+2. **The automated harvesters stay where they are.** `trending_video_candidates`,
+   `content_channels` and `social_content_sources` keep feeding their own
+   pipelines untouched; the library is the home for *curated* content. They
+   may be retired later, but merging them now would be a rewrite of three
+   working pipelines rather than a data migration.
+3. **The library holds a copy of the returned transcript** for search, and
+   treats each app's as canonical. `dispatch-status` pulls it from
+   `ingest-from-library`'s `{ action: "status" }` reply into
+   `items.transcript_text`, so "the clip where he complains about the AC"
+   becomes findable. Same argument as `sync-hakiya-videos`' snapshot: drift
+   degrades to stale text rather than a runtime error.
+4. **Mobile intake is not built yet.** Most of "people have sent me this"
+   arrives on a phone, and this app's `share_target` plumbing
+   (`docs/sharing.md`, `public/sw.js`, `src/lib/shareInbox.ts`) ports almost
+   unchanged. It is the obvious next piece of work on the library.
+
+## 10. What shipped
+
+| Piece | Where |
+| --- | --- |
+| The library | [`danieljchandler/maktaba`](https://github.com/danieljchandler/maktaba) — Vite/React/TS app, its own Supabase project, `supabase db push` from CI |
+| Schema | `supabase/migrations/20260919000000_schema.sql` — items, creators, creator_handles, item_creators, tags, item_tags, item_files, dispatches, access_tokens, RLS, `search_items` |
+| Library functions | `enrich-item`, `dispatch-item`, `dispatch-status`, `import-bundle`, `mint-token`, `cli-query` |
+| This app's half | `supabase/functions/ingest-from-library` + `supabase/migrations/20260919120000_library_bridge.sql` |
+| Ingleezy's half | `supabase/functions/ingest-from-library`, on a ported `_shared/requireRole.ts` |
+| The skills | `.claude/skills/maktaba-{add,research,triage,search,dispatch}` over `scripts/maktaba.ts` |
+
+Two things to do before the button works end to end:
+
+1. **Apply `20260919120000_library_bridge.sql` to this project**, per §4.3 —
+   merging it is not applying it, and `typesDrift` now pins the three columns
+   as known drift until a regeneration picks them up.
+2. **Set `LIBRARY_BRIDGE_SECRET`** here (and the same value as
+   `HIKAYA_BRIDGE_SECRET` in the library), plus `LIBRARY_BRIDGE_USER_ID` —
+   the `created_by` the bridge writes, since there is no user session on that
+   door.

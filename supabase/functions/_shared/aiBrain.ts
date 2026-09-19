@@ -482,6 +482,21 @@ interface CallOptions {
   systemParts?: { stable: string; volatile: string };
 }
 
+/**
+ * True when the model answered but not in the shape it was asked for: a tool
+ * call whose arguments were cut off by `max_tokens`, or prose where a function
+ * call was required.
+ *
+ * Worth distinguishing from every other failure because it is the one class a
+ * re-roll actually fixes — the same request at a lower temperature, with the
+ * tool spelled out, usually comes back well-formed. A refused request (credits,
+ * rate limit) or a spent budget would come back identical.
+ */
+function isMalformedResponse(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err ?? '');
+  return /no tool call|invalid JSON|no parsable JSON/.test(msg);
+}
+
 /** True when the error came from our own AbortSignal.timeout rather than upstream. */
 function isTimeout(err: unknown): boolean {
   if (err instanceof BrainHttpError) return err.status === 504;
@@ -974,21 +989,19 @@ async function runCouncil<T>(task: BrainTask, deadline: Deadline): Promise<Brain
   const passes: PassLog = [];
   const draftStart = Date.now();
 
-  const drafts = await Promise.allSettled(
-    drafters.map((m) =>
-      callModel({
-        model: m,
-        system: sys,
-        systemParts: buildSystemParts(task),
-        user: task.userPrompt,
-        tool: task.tool,
-        maxTokens: task.maxTokens,
-        temperature: task.temperature ?? 0.7,
-        purpose: task.purpose,
-        timeoutMs: callBudget(deadline),
-      }),
-    ),
-  );
+  const draftOpts = (model: string): CallOptions => ({
+    model,
+    system: sys,
+    systemParts: buildSystemParts(task),
+    user: task.userPrompt,
+    tool: task.tool,
+    maxTokens: task.maxTokens,
+    temperature: task.temperature ?? 0.7,
+    purpose: task.purpose,
+    timeoutMs: callBudget(deadline),
+  });
+
+  const drafts = await Promise.allSettled(drafters.map((m) => callModel(draftOpts(m))));
   passes.push({ pass: 'council-drafts', model: drafters.join('+'), ms: Date.now() - draftStart });
 
   const ok = drafts
@@ -998,8 +1011,44 @@ async function runCouncil<T>(task: BrainTask, deadline: Deadline): Promise<Brain
       model: string;
     }>;
   if (ok.length === 0) {
-    const firstErr = drafts.find((s) => s.status === 'rejected') as PromiseRejectedResult | undefined;
-    throw firstErr?.reason ?? new BrainHttpError(500, 'all council drafters failed');
+    const firstErr = (drafts.find((s) => s.status === 'rejected') as PromiseRejectedResult | undefined)?.reason;
+    // Every drafter answered, and none of them in the shape that was asked
+    // for — a tool call truncated by `max_tokens`, or prose where a function
+    // call was required. That is exactly what the rescue ladder exists for (a
+    // tool nudge at a lower temperature, then the stable Gemini chain), and
+    // council was the one strategy that never reached it: solo and
+    // draft_critic go through `callModelWithFallback`, while ensemble treats
+    // its parallel candidates as each other's redundancy. Council's drafters
+    // are its redundancy too — and against a *down* provider that works, which
+    // is what the "survives one gateway being down" test pins. Against a
+    // malformed answer it does not: the drafters share a prompt, a tool schema
+    // and a token ceiling, so they tend to fail together, and until now that
+    // failed the whole request without a single retry.
+    //
+    // Deliberately narrow: only a malformed *answer* is worth re-rolling. A
+    // 402, a 429 or a spent budget would come back the same, so those still
+    // raise immediately rather than buying another full generation.
+    if (isMalformedResponse(firstErr) && remainingMs(deadline) >= MIN_PASS_BUDGET_MS) {
+      console.warn('[council] every drafter answered malformed, running the rescue ladder');
+      const rescueStart = Date.now();
+      const rescued = await callModelWithFallback(draftOpts(drafters[0]), deadline);
+      passes.push({ pass: 'council-rescue', model: rescued.model, ms: Date.now() - rescueStart });
+      // One candidate is nothing to judge between, and a judge pass over it
+      // would only spend a second generation to echo it back.
+      const text = extractScanText(task, rescued.parsed, rescued.raw);
+      return {
+        output: rescued.parsed as T,
+        raw: rescued.raw,
+        strategy: 'council',
+        models: [rescued.model],
+        agreementScore: 0,
+        msaLeaks: scanLeaks(text, task.dialect),
+        msaRepairs: 0,
+        totalLatencyMs: 0,
+        passes,
+      };
+    }
+    throw firstErr ?? new BrainHttpError(500, 'all council drafters failed');
   }
 
   const judgeSys = `${sys}\n\nYou are the judge. You are given ${ok.length} candidate responses, each labeled with a trust weight (1.0 = peer, <1.0 = verifier/tiebreaker). Prefer the higher-weight candidates; only side with a lower-weight candidate when the higher-weight ones clearly drift to MSA or another dialect. Merge the best phrasing if helpful. Never use MSA. Return ONLY the final answer in the same format as the candidates (no commentary).`;

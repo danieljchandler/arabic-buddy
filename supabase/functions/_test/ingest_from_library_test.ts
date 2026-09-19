@@ -30,7 +30,10 @@ function bridgeUpstreams(extra: Record<string, UpstreamHandler> = {}): Record<st
 }
 
 async function call(body: unknown, upstreams: Record<string, UpstreamHandler>, headers: Record<string, string> = {}, env: Record<string, string | undefined> = {}) {
-  const fn = await loadFunction("ingest-from-library", { upstreams, env: { LIBRARY_BRIDGE_SECRET: SECRET, ...env } });
+  const fn = await loadFunction("ingest-from-library", {
+    upstreams,
+    env: { LIBRARY_BRIDGE_SECRET: SECRET, LIBRARY_BRIDGE_USER_ID: BRIDGE_USER, ...env },
+  });
   try {
     const response = await fn.handler(jsonRequest("ingest-from-library", body, { jwt: null, headers }));
     const text = await response.text();

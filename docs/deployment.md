@@ -73,6 +73,42 @@ by the runtime and must not be set by hand.
 | `FANAR_API_KEY` | `Fanar-*` ids (QCRI; no OpenRouter twin, so no fallback) |
 | `RUNPOD_API_KEY` | `runpod/*` ids — Jais 2 on our own Serverless workers (no OpenRouter twin, and no pay-per-token API anywhere, so no fallback) |
 | `RUNPOD_JAIS_8B_ENDPOINT_ID` | Address of the **8B** worker — the only size deployed. Without it `runpod/jais-2-8b-chat` is *unconfigured* rather than broken: the dialect validator's tie-break falls straight through to Fanar, as it did before Jais existed. |
+| `JAIS_ENABLED` | Master switch for the self-hosted rung, **off unless `on`**. Off, `runpod/*` resolves to no address at all — the same unconfigured state as the row above, so every consumer degrades down a path it already had. Off is the default; see "Jais is paused" below. |
+
+> ### ⚠️ Jais is paused (2026-09-18)
+>
+> `JAIS_ENABLED` defaults to **off**, so nothing in the pipeline reaches the
+> RunPod worker and nothing wakes it. The rung was paused on cost: the endpoint
+> billed **$10.20 in its first twelve days**, and $10.02 of that fell in three
+> days — 14 Sep ($4.34), 15 Sep ($2.08), 16 Sep ($3.60) — for very little judged
+> output.
+>
+> The cause is the interaction of two decisions that were each reasonable
+> alone. `JAIS_PIPELINE_WARMUP` pings the worker at the start of every
+> transcript run, on the argument that "one worker boot per import is a
+> rounding error". That argument was costed against a **300 s** idle window.
+> The idle timeout was then raised to **1800 s** on 14 September — the day the
+> spend starts — so each ping began buying half an hour of GPU instead of five
+> minutes, and imports scattered through a day kept one 24 GB worker up almost
+> continuously. Jais 2 8B is also the *weakest* Arabic judge on the roster, so
+> the spend bought the least valuable opinion in the pipeline.
+>
+> Nothing is deleted. The registry id, the endpoint mapping, the validator
+> ladder and every test around them are untouched, and the dialect check and
+> translation arbitration simply walk past to Fanar, exactly as they did before
+> Jais existed. **Before setting `JAIS_ENABLED=on`, fix the economics first**:
+> either drop the endpoint's idle timeout back toward the 300 s the warm-up's
+> cost model assumes, or leave it long and set `JAIS_PIPELINE_WARMUP=off` so
+> waking the worker is a deliberate act rather than a per-run one. Leaving both
+> as they are reproduces the bill.
+>
+> The endpoint (`hakiya-jais2-8b`, `97zlbdryiji38a`) still exists and bills
+> nothing while it is scaled to zero, so pausing in code is enough to stop the
+> GPU spend. The 40 GB HF-cache volume (`hikaya-jais2-hf-cache`, `cnqtje4ldr`,
+> STANDARD, `US-IL-1`) is the only thing still metering, at roughly $0.05–0.09
+> a day. Deleting the volume is what makes the pause free — at the cost of the
+> seven-to-nine-minute cold start it was created to avoid, which any future
+> re-enable would have to pay once to refill.
 
 The Jais endpoint itself (a RunPod load-balancing
 serverless endpoint running `vllm/vllm-openai`) is configured, as of
@@ -88,6 +124,9 @@ serverless endpoint running `vllm/vllm-openai`) is configured, as of
   24 GB Ampere/Ada capacity (RTX 4090 high, RTX A5000 low). A network volume
   pins the endpoint to its data center regardless.
 - **Idle timeout 1800 s** (was 300), so a session of imports shares one boot.
+  This is also what made the warm-up expensive — see the pause notice above.
+  The number lives in the RunPod console, and no code in this repo can read
+  it, so the warm-up's cost model cannot notice when it changes.
   Idle time is billed at the worker's rate, so this is the cost of the
   convenience: up to half an hour of an idle 24 GB card after the last run.
 - **`--enforce-eager` in the vLLM args.** With the weights on the volume a
@@ -142,8 +181,8 @@ There is no Lovable AI gateway key any more: every model call goes through
 `FARASA_API_KEY` (required for tashkeel — the WebAPI refuses anonymous
 traffic), `HUGGINGFACE_API_KEY` (CAMeL dialect ID), `JINA_API_KEY`,
 `FIRECRAWL_API_KEY`, `YOUTUBE_API_KEY`, `RAPIDAPI_KEY`, `COBALT_API_KEY`,
-`DIALECT_VALIDATOR_CROSSCHECK`, `JAIS_TIEBREAK_WARMUP`, `JAIS_PIPELINE_WARMUP`,
-`HUMAIN_M3_MODEL_ID`.
+`DIALECT_VALIDATOR_CROSSCHECK`, `JAIS_ENABLED`, `JAIS_TIEBREAK_WARMUP`,
+`JAIS_PIPELINE_WARMUP`, `HUMAIN_M3_MODEL_ID`.
 
 `HUMAIN_NODE_API_KEY` routes `humain/*` ids to HUMAIN Node. Node's catalogue is
 per key, and M3 is gated behind an approval on the account, so the documented
@@ -160,15 +199,23 @@ prints the catalogue for a key without it touching the repo.
 worker at the start of every transcript run — in `process-approved-video`
 before the ASR fan-out, and again in `analyze-gulf-arabic` before the merge —
 so it is awake by the time the dialect check and the translation arbitration
-need it two to three minutes later. The endpoint scales to zero after five idle
-minutes, so without this it is cold for any video that arrives after a quiet
-spell, and the judge's cold probe correctly bails past it in favour of whoever
-is already awake. On by default because a transcript run is a deliberate act
-whose other model calls already cost dollars: one worker boot per import is a
-rounding error, and the idle window carries a batch of imports on one boot.
+need it two to three minutes later. The endpoint scales to zero once idle, so
+without this it is cold for any video that arrives after a quiet spell, and the
+judge's cold probe correctly bails past it in favour of whoever is already
+awake. It is on by default because a transcript run is a deliberate act whose
+other model calls already cost dollars: one worker boot per import looked like
+a rounding error against them.
 
-`JAIS_TIEBREAK_WARMUP=on` lets a validator tie-break that found the Jais worker
-asleep fire a wake-up behind itself, so the next split lands on a live worker.
+**That last clause is the one that failed**, and `JAIS_ENABLED=off` now makes
+this setting moot in practice — a warm-up has nothing to warm when the rung has
+no address. A boot is only a rounding error if its idle window is short enough
+that one import pays for about one window; at the deployed 1800 s it was six
+times what the argument assumed. If Jais comes back, this switch and the
+endpoint's idle timeout have to be chosen together, because neither is visible
+from where the other is set.
+
+`JAIS_TIEBREAK_WARMUP=on` (moot while `JAIS_ENABLED` is off) lets a validator
+tie-break that found the Jais worker asleep fire a wake-up behind itself, so the next split lands on a live worker.
 It is **off by default, and that default is a cost decision**: the endpoint
 holds at most one worker, so warming without limit converges on a worker running
 continuously — roughly $500/month, which is the `workersMin: 1` bill the

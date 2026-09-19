@@ -80,6 +80,16 @@ const ALLOWED: ReadonlyArray<{ pattern: RegExp; reason: string }> = [
     reason: "Asset filenames in src/assets. Internal, never rendered as text.",
   },
   {
+    pattern: /^hakiya-jais2-8b$/i,
+    reason:
+      "The name of the Jais RunPod Serverless endpoint, as its console shows it " +
+      "— a resource that lives in somebody else's account, not a string this " +
+      "repo can rewrite. docs/deployment.md names it so a reader can find the " +
+      "endpoint the Jais pause is about; the id 97zlbdryiji38a is the same " +
+      "resource. Note the sibling volume was created later as " +
+      "hikaya-jais2-hf-cache, which is why only this one needs an entry.",
+  },
+  {
     pattern: /^hakiya(?:Lockup|Mark|Clip)$/,
     reason:
       "Import bindings and the Feed history-state key. Identifiers, not copy.",

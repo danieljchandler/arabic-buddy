@@ -1482,7 +1482,7 @@ Deno.test("records why the arbitration produced nothing, naming the rungs that l
 
 Deno.test("wakes the deployed Jais worker as soon as a transcript run starts", async () => {
   const fn = await loadFunction("analyze-gulf-arabic", {
-    env: { FANAR_API_KEY: undefined, RUNPOD_JAIS_8B_ENDPOINT_ID: "test1endpoint" },
+    env: { FANAR_API_KEY: undefined, RUNPOD_JAIS_8B_ENDPOINT_ID: "test1endpoint", JAIS_ENABLED: "on" },
     upstreams: allowed({
       "openrouter.ai": () => analysisReply(),
       "generativelanguage.googleapis.com": () => analysisReply(),

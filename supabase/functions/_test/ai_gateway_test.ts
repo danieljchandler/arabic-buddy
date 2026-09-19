@@ -219,8 +219,14 @@ Deno.test("an unconfigured Fanar does not silently become another model", async 
 
 // ── Jais 2 on our own RunPod worker ─────────────────────────────────────────
 
-/** The endpoint id is deployment state, so every RunPod test supplies its own. */
-const DEPLOYED = { RUNPOD_JAIS_8B_ENDPOINT_ID: "test1endpoint" };
+/**
+ * A live Jais: deployed *and* switched on.
+ *
+ * Both halves are deployment state, so every RunPod test supplies its own —
+ * and since `JAIS_ENABLED` defaults off, a test that forgets it gets the
+ * paused rung rather than a route, which is the safer way round.
+ */
+const DEPLOYED = { RUNPOD_JAIS_8B_ENDPOINT_ID: "test1endpoint", JAIS_ENABLED: "on" };
 
 Deno.test("a Jais model goes to our own worker, with the routing prefix stripped", async () => {
   await withGateway(async (mod, up) => {
@@ -254,6 +260,7 @@ Deno.test("a RunPod outage is never retried on OpenRouter", async () => {
 
 Deno.test("a key with no endpoint deployed is unconfigured, not misrouted", async () => {
   await withGateway(async (mod, up) => {
+    // Switched on below, so the address is genuinely the only thing missing.
     // RunPod is the one provider that can be half-configured: an API key is
     // not an address. Nothing is deployed, so there is nowhere to send this,
     // and the error has to name the part that is actually missing rather than
@@ -264,7 +271,7 @@ Deno.test("a key with no endpoint deployed is unconfigured, not misrouted", asyn
       "RUNPOD_JAIS_8B_ENDPOINT_ID",
     );
     assertEquals(up.calls.length, 0);
-  });
+  }, { env: { JAIS_ENABLED: "on" } });
 });
 
 Deno.test("an absent endpoint leaves tryChatRoute null rather than throwing", async () => {
@@ -273,7 +280,39 @@ Deno.test("an absent endpoint leaves tryChatRoute null rather than throwing", as
     // has to be answerable without a request, so the validator can skip it
     // silently instead of turning a quality pass into a failure.
     assertEquals(mod.tryChatRoute("runpod/jais-2-8b-chat"), null);
-  });
+  }, { env: { JAIS_ENABLED: "on" } });
+});
+
+Deno.test("the paused switch unroutes Jais however well it is deployed", async () => {
+  await withGateway(async (mod, up) => {
+    // The whole rung is off by default on cost (see `jaisEnabled`), and the
+    // switch has to beat a *fully* configured deployment for that to mean
+    // anything: a leftover endpoint id in a project's secrets must not be able
+    // to restart the GPU meter on its own. Same null as an undeployed Jais, so
+    // every consumer skips it down the path they already had.
+    assertEquals(mod.tryChatRoute("runpod/jais-2-8b-chat"), null);
+    // And nothing warms a worker it has no address for — this is what stops
+    // the per-run pipeline ping that did the actual spending.
+    assertEquals(mod.warmRoute("runpod/jais-2-8b-chat"), undefined);
+    await Promise.allSettled(up.tasks);
+    assertEquals(up.calls.length, 0);
+
+    // The error names the switch rather than sending the reader to hunt for a
+    // secret that is already set.
+    await assertRejects(
+      () => mod.chatFetch("runpod/jais-2-8b-chat", { messages: [] }),
+      Error,
+      "JAIS_ENABLED",
+    );
+  }, { env: { RUNPOD_JAIS_8B_ENDPOINT_ID: "test1endpoint" } });
+});
+
+Deno.test("the switch alone is not an address either", async () => {
+  await withGateway((mod) => {
+    // The two halves are independent: switching Jais on in a project that
+    // never deployed a worker is still unconfigured, not a broken route.
+    assertEquals(mod.tryChatRoute("runpod/jais-2-8b-chat"), null);
+  }, { env: { JAIS_ENABLED: "on" } });
 });
 
 // ── Waking a worker that scales to zero ─────────────────────────────────────
@@ -349,7 +388,7 @@ Deno.test("a runpod id with no address of its own never borrows a deployed worke
 
     await mod.chatFetch("runpod/jais-2-8b-chat", { messages: [] });
     assertEquals(up.callsTo("eightb.api.runpod.ai").length, 1);
-  }, { env: { RUNPOD_JAIS_8B_ENDPOINT_ID: "eightb" } });
+  }, { env: { RUNPOD_JAIS_8B_ENDPOINT_ID: "eightb", JAIS_ENABLED: "on" } });
 });
 
 Deno.test("asks Jais nothing about reasoning", async () => {

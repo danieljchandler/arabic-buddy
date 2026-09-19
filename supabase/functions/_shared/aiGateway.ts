@@ -45,6 +45,39 @@ export const OPENAI_IMAGE_URL = 'https://api.openai.com/v1/images/generations';
 export const FANAR_CHAT_URL = 'https://api.fanar.qa/v1/chat/completions';
 
 /**
+ * Is the self-hosted Jais rung switched on at all?
+ *
+ * **Off by default since 2026-09-18, and that is a cost decision with a
+ * receipt.** The 8B endpoint billed $10.20 in its first twelve days, $10.02 of
+ * it across three days (14–16 September) that produced barely any judged
+ * output. The mechanism was not a bug in this file: every wake-up — the
+ * run-start `warmArabicJudges()` ping, the tie-break warmer, a probe that found
+ * the worker cold — starts a GPU worker that then bills until its *endpoint's*
+ * idle timeout expires. That timeout was deployed at 1800s, not the 300s the
+ * warm-up's own cost model assumes (see `warmArabicJudges` in
+ * dialectValidator.ts), so each ping bought half an hour of GPU rather than
+ * five minutes, and a day's scattered imports kept one worker up almost
+ * continuously. At 8B this is the *weakest* Arabic judge on the roster, so the
+ * spend bought the least valuable opinion in the pipeline.
+ *
+ * Nothing is deleted: the registry id, the endpoint mapping, the reasoning
+ * floor, the validator ladder and every test around them stay exactly as they
+ * were. This switch only decides whether the rung has an address, because
+ * "no address" is the one Jais-shaped state the whole codebase already handles
+ * and tests — the validator walks past it to Fanar, `warmArabicJudges()` finds
+ * nothing self-hosted to ping, and the translation arbiter drops a rung with no
+ * failed attempt in its provenance. Turning Jais back on is `JAIS_ENABLED=on`
+ * plus the endpoint id, and nothing else.
+ *
+ * Before flipping it on, fix the economics first: drop the endpoint's idle
+ * timeout to something near the 300s the warm-up assumes, or accept that a ping
+ * costs a full idle window and warm deliberately rather than per run.
+ */
+function jaisEnabled(): boolean {
+  return Deno.env.get('JAIS_ENABLED')?.trim().toLowerCase() === 'on';
+}
+
+/**
  * Jais 2 on our own RunPod Serverless worker.
  *
  * The one endpoint here whose URL is not a constant: it is a machine we
@@ -54,6 +87,10 @@ export const FANAR_CHAT_URL = 'https://api.fanar.qa/v1/chat/completions';
  *
  * `RUNPOD_JAIS_BASE_URL` overrides the derived URL — that is the seam the edge
  * tests stub, and the escape hatch if the worker ever moves behind a proxy.
+ *
+ * `JAIS_ENABLED` gates all of it: off, this returns undefined however well the
+ * endpoint is configured, so a secret left behind in a deployment cannot quietly
+ * restart the meter. See `jaisEnabled`.
  */
 export function runpodChatUrl(model: string): string | undefined {
   const suffix = RUNPOD_ENDPOINT_ENV[model];
@@ -61,6 +98,9 @@ export function runpodChatUrl(model: string): string | undefined {
   // guessed: falling back to another size's endpoint would answer as a
   // different model, which is the one thing the registry forbids.
   if (!suffix) return undefined;
+  // Deliberately after the suffix check, so an unknown size stays unroutable
+  // for its own reason rather than for this one.
+  if (!jaisEnabled()) return undefined;
   const explicit = Deno.env.get(`RUNPOD_JAIS_${suffix}_BASE_URL`)?.trim();
   const id = Deno.env.get(`RUNPOD_JAIS_${suffix}_ENDPOINT_ID`)?.trim();
   const base = explicit || (id ? `https://${id}.api.runpod.ai` : '');
@@ -420,11 +460,14 @@ export function tryChatRoute(model: string, provider = providerForModel(model)):
 export function chatRoute(model: string, provider = providerForModel(model)): ChatRoute {
   const route = tryChatRoute(model, provider);
   if (!route) {
-    // RunPod can fail this two ways; naming the key when the endpoint id is
-    // what is missing sends the reader to the wrong secret. HUMAIN cannot —
-    // its base has a default, so a missing key is the only way it gets here.
+    // RunPod can fail this three ways — no key, no endpoint id, or the whole
+    // rung switched off — and naming the key when one of the others is what is
+    // missing sends the reader to the wrong secret. HUMAIN cannot: its base has
+    // a default, so a missing key is the only way it gets here.
     const missing = provider === 'runpod' && keyFor(provider)
-      ? `RUNPOD_JAIS_${RUNPOD_ENDPOINT_ENV[model] ?? '<size>'}_ENDPOINT_ID`
+      ? (jaisEnabled()
+        ? `RUNPOD_JAIS_${RUNPOD_ENDPOINT_ENV[model] ?? '<size>'}_ENDPOINT_ID`
+        : 'JAIS_ENABLED')
       : KEY_ENV[provider];
     throw new GatewayConfigError(
       `${missing} not configured (required for ${model})`,

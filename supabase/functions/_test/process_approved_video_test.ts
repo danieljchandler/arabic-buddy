@@ -2099,7 +2099,7 @@ Deno.test("process-approved-video wakes the Jais worker before the engines run",
   const result = await call({ videoId: VIDEO }, {
     ...backend(),
     "api.runpod.ai": () => chatCompletion("ok"),
-  }, { env: { RUNPOD_JAIS_8B_ENDPOINT_ID: "test1endpoint" } });
+  }, { env: { RUNPOD_JAIS_8B_ENDPOINT_ID: "test1endpoint", JAIS_ENABLED: "on" } });
 
   // The self-hosted Arabic judge scales to zero, and the analysis that needs
   // it is minutes away — about a FlashBoot start. One one-token ping at the

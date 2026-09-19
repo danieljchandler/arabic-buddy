@@ -771,21 +771,34 @@ function pipelineWarmupEnabled(): boolean {
  * the ASR fan-out and the merge, two to three minutes pass before the dialect
  * check and the translation arbitration fire, which is about what a FlashBoot
  * start of the 8B worker takes. Without this the endpoint, which scales to
- * zero after five idle minutes, is cold for every video that arrives more than
- * five minutes after the last, and the probe above correctly bails past it —
- * which is the correct behaviour on a learner's path and the wrong outcome on
- * a batch one, where the whole point of renting the worker was to have it
- * judge transcripts.
+ * zero once it goes idle, is cold for every video that arrives after that
+ * window, and the probe above correctly bails past it — which is the correct
+ * behaviour on a learner's path and the wrong outcome on a batch one, where
+ * the whole point of renting the worker was to have it judge transcripts.
  *
- * Unlike `warmTiebreaker` this is on by default, and the two defaults are the
+ * Unlike `warmTiebreaker` this is on by default, and the two defaults were the
  * same cost decision made about different workloads. A validator split can
  * happen on any learner request at any rate, so warming behind it converges
  * on a worker running continuously; a transcript run is a deliberate, rare
- * act whose other calls already cost dollars, and one worker-boot per import
- * (the 300s idle window carries a batch of imports on one boot) is a rounding
- * error against them. `JAIS_PIPELINE_WARMUP=off` switches it off.
+ * act whose other calls already cost dollars, so one worker-boot per import
+ * looked like a rounding error against them.
  *
- * A no-op for every rung that is not self-hosted, and for an undeployed one.
+ * **That last step did not survive contact with the deployment, and it is why
+ * Jais is switched off by default now** (see `jaisEnabled` in aiGateway.ts).
+ * The argument holds only if a boot's idle window is short enough that one
+ * import pays for roughly one window. The reasoning above assumed 300s; the
+ * endpoint was actually deployed with a 1800s idle timeout, so every ping
+ * bought half an hour of GPU, and imports scattered through a day kept one
+ * worker up almost continuously — $10.02 across three days for very little
+ * judged output. The lesson is not "do not warm": it is that this function's
+ * cost is set by a number living in the RunPod console, not in this file, and
+ * nothing here can see it. Re-check that timeout before `JAIS_ENABLED=on`.
+ *
+ * `JAIS_PIPELINE_WARMUP=off` switches it off independently.
+ *
+ * A no-op for every rung that is not self-hosted, for an undeployed one, and
+ * — since the switch — for Jais generally, because `tryChatRoute` is what it
+ * asks and that now returns null.
  */
 export function warmArabicJudges(): string[] {
   if (!pipelineWarmupEnabled()) return [];

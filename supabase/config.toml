@@ -267,6 +267,13 @@ verify_jwt = true
 [functions.ingest-shared-video]
 verify_jwt = true
 
+# The content-library bridge (docs/content-library-architecture.md §4). The
+# caller is Maktaba, another app with its own auth, so the gate is the
+# x-library-secret header checked inside against LIBRARY_BRIDGE_SECRET —
+# verify_jwt would refuse it at the door.
+[functions.ingest-from-library]
+verify_jwt = false
+
 # Copies a video still into our own bucket so it stops expiring: TikTok's
 # oEmbed hands back a signed URL that dies in about 48 hours. Content-manager-
 # role checked inside; the CDN sends no CORS headers, so the browser cannot do

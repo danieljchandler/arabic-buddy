@@ -111,6 +111,27 @@ const ALLOWED: ReadonlyArray<{ pattern: RegExp; reason: string }> = [
       "throws. Never read back, never displayed, alive for two statements.",
   },
   {
+    pattern: /^sync-hakiya-videos$/,
+    reason:
+      "The name of an edge function in the Ingleezy repo, not this one. It is " +
+      "the snapshot-sync that pulls this app's published videos in as secondary " +
+      "learner content, and docs/content-library-architecture.md names it so a " +
+      "reader can tell the existing pull bridge from the planned push one. " +
+      "Renaming it is a deploy in somebody else's Supabase project, not an edit " +
+      "here — and its HAKIYA_SUPABASE_URL / _ANON_KEY secrets are set in that " +
+      "project too.",
+  },
+  {
+    pattern: /^\d{14}_hakiya_bridge_source\.sql$/,
+    reason:
+      "A migration filename in the Ingleezy repo. Migrations are applied in " +
+      "filename order and the file has already shipped, so its name is history " +
+      "rather than copy. docs/content-library-architecture.md cites it as the " +
+      "live example of the Lovable drift hazard: it adds discover_videos.source, " +
+      "sync-hakiya-videos writes to that column, and it is absent from that " +
+      "repo's generated types because Lovable never ran the SQL.",
+  },
+  {
     pattern: /^HAKIYA(?:[0-9]+|(?:-[A-Z0-9]+)+)?$/,
     reason:
       "The uppercase spelling, which is data rather than the brand. " +

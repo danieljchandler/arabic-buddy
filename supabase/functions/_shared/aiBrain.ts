@@ -1011,10 +1011,24 @@ async function runCouncil<T>(task: BrainTask, deadline: Deadline): Promise<Brain
       model: string;
     }>;
   if (ok.length === 0) {
-    const firstErr = (drafts.find((s) => s.status === 'rejected') as PromiseRejectedResult | undefined)?.reason;
-    // Every drafter answered, and none of them in the shape that was asked
-    // for — a tool call truncated by `max_tokens`, or prose where a function
-    // call was required. That is exactly what the rescue ladder exists for (a
+    const rejected = drafts
+      .map((d, i) => ({ d, model: drafters[i] }))
+      .filter((x) => x.d.status === 'rejected') as Array<{
+        d: PromiseRejectedResult;
+        model: string;
+      }>;
+    const firstErr = rejected[0]?.d.reason;
+    // The drafter that answered malformed, whichever one it was — not
+    // whichever happens to be listed first. `allSettled` preserves the
+    // lineup's order, so reading only the first rejection made recovery depend
+    // on the order of `DEFAULT_DRAFTERS`: Claude out of credits and Gemini
+    // truncated would give up, while the same pair the other way round would
+    // retry. Re-rolling that same model matters too — it is the one that
+    // answered, so it is the one a tool nudge can bring into shape.
+    const malformed = rejected.find((x) => isMalformedResponse(x.d.reason));
+    // A drafter answered, but not in the shape that was asked for — a tool
+    // call truncated by `max_tokens`, or prose where a function call was
+    // required. That is exactly what the rescue ladder exists for (a
     // tool nudge at a lower temperature, then the stable Gemini chain), and
     // council was the one strategy that never reached it: solo and
     // draft_critic go through `callModelWithFallback`, while ensemble treats
@@ -1028,10 +1042,10 @@ async function runCouncil<T>(task: BrainTask, deadline: Deadline): Promise<Brain
     // Deliberately narrow: only a malformed *answer* is worth re-rolling. A
     // 402, a 429 or a spent budget would come back the same, so those still
     // raise immediately rather than buying another full generation.
-    if (isMalformedResponse(firstErr) && remainingMs(deadline) >= MIN_PASS_BUDGET_MS) {
-      console.warn('[council] every drafter answered malformed, running the rescue ladder');
+    if (malformed && remainingMs(deadline) >= MIN_PASS_BUDGET_MS) {
+      console.warn(`[council] ${malformed.model} answered malformed, running the rescue ladder`);
       const rescueStart = Date.now();
-      const rescued = await callModelWithFallback(draftOpts(drafters[0]), deadline);
+      const rescued = await callModelWithFallback(draftOpts(malformed.model), deadline);
       passes.push({ pass: 'council-rescue', model: rescued.model, ms: Date.now() - rescueStart });
       // One candidate is nothing to judge between, and a judge pass over it
       // would only spend a second generation to echo it back.

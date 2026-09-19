@@ -397,6 +397,33 @@ Deno.test("how-do-i-say re-rolls when every drafter's tool call was truncated", 
   assertEquals(body.success, true);
 });
 
+Deno.test("how-do-i-say re-rolls the malformed drafter, not the first one listed", async () => {
+  const good = { translations: [aTranslation({ isPreferred: true })] };
+  // One drafter out of credits, the other truncated. `Promise.allSettled`
+  // keeps the lineup's order, so reading only the *first* rejection tied
+  // recovery to the order of DEFAULT_DRAFTERS: with Claude (OpenRouter)
+  // listed first, its 402 hid Gemini's recoverable truncation and the
+  // request failed; the same pair the other way round retried.
+  let googleCalls = 0;
+  const { status, body } = await call(
+    "how-do-i-say",
+    { phrase: "how are you" },
+    caller({
+      "openrouter.ai": () => json({ error: "no credits" }, 402),
+      "generativelanguage.googleapis.com/v1beta/openai": (request) => {
+        googleCalls += 1;
+        return googleCalls === 1 ? truncatedToolCall(good)(request) : chatCompletion("", good);
+      },
+    }),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(body.success, true);
+  // The re-roll went to Gemini — the model that answered — rather than to the
+  // one that had no credits to answer with.
+  assertStringIncludes(String((body.result as { llmUsed: string }).llmUsed), "gemini");
+});
+
 Deno.test("how-do-i-say does not re-roll a refusal another generation cannot fix", async () => {
   // A 402 is not a malformed answer, and a second full generation would come
   // back with the same one. The credit error must surface on the first pass.

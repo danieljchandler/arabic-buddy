@@ -5914,6 +5914,7 @@ export type Database = {
         Args: { _role: Database["public"]["Enums"]["app_role"] }
         Returns: boolean
       }
+      is_public_profile: { Args: { _user_id: string }; Returns: boolean }
       is_recorder: { Args: never; Returns: boolean }
       is_transcriber: { Args: never; Returns: boolean }
       match_content: {

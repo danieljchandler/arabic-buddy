@@ -49,10 +49,13 @@ export interface ReviewSession {
  * can't offer cards that the destination page would then filter out.
  *
  * Caveat: the curriculum count comes from `useReviewStats`, which counts cards
- * with a schedule that has come due. Never-reviewed curriculum words are also
- * served by `/review` (via `useDueWords`) but aren't counted here, so
- * `totalDue` can understate what that page will actually show. Curriculum is
- * first in DECK_ORDER, so this never causes the session to skip past it.
+ * with a schedule that has come due. `/review` also serves the new cards of
+ * lessons the learner has started (via `useDueWords`), and those aren't counted
+ * here, so `totalDue` can understate what that page will actually show.
+ * Curriculum is first in DECK_ORDER, so this never causes the session to skip
+ * past it. What it can no longer understate is the rest of the curriculum: a
+ * word from a lesson nobody opened is not in the deck at all
+ * (src/lib/curriculumDeck.ts), so the badge and the queue agree about it.
  */
 export function useReviewSession(mixAll = false): ReviewSession {
   const { data: curriculumStats, isLoading: curriculumLoading } = useReviewStats(mixAll);

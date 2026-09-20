@@ -16,6 +16,12 @@ import { useLineAudio } from "./useLineAudio";
  * listening exercise: synthesis is metered against a learner's daily cap, so
  * nothing may be requested until it is asked for, and a clip already paid for
  * must never be bought twice.
+ *
+ * Two of the cases below cannot be reached by the e2e suite at all, which is
+ * why they are pinned here. The Playwright browser runs with
+ * `--autoplay-policy=no-user-gesture-required`, so it cannot see a clip that
+ * lost its user activation while it was being synthesised; and a page mounts
+ * several of these hooks, which no single-hook render exercises.
  */
 
 interface FakeAudio {
@@ -24,7 +30,6 @@ interface FakeAudio {
   pause: ReturnType<typeof vi.fn>;
   onended: (() => void) | null;
   onerror: (() => void) | null;
-  onpause: (() => void) | null;
 }
 
 const fetchSpeechBlob = vi.fn();
@@ -37,15 +42,20 @@ vi.mock("@/contexts/DialectContext", () => ({
   useDialect: () => ({ activeDialect: "Gulf" }),
 }));
 
+/** One element per hook, so what a clip did is read off `plays`, not off a new object. */
 const created: FakeAudio[] = [];
+/** The `src` at each `play()` call, priming clips included. */
+const plays: string[] = [];
 const originalAudio = globalThis.Audio;
 let nextUrl = 0;
+
+/** The clips that were actually speech, i.e. not the silent priming clip. */
+const spoken = () => plays.filter((src) => !src.startsWith("data:"));
 
 const LINES = ["السلام عليكم", "شلونك اليوم", "تمام الحمد لله"];
 
 /** Finish the clip that is currently sounding, the way a real one ends. */
-const endCurrent = async () => {
-  const audio = created[created.length - 1];
+const endCurrent = async (audio: FakeAudio = created[created.length - 1]) => {
   await act(async () => {
     audio.onended?.();
   });
@@ -53,6 +63,7 @@ const endCurrent = async () => {
 
 beforeEach(() => {
   created.length = 0;
+  plays.length = 0;
   nextUrl = 0;
   fetchSpeechBlob.mockReset();
   fetchSpeechBlob.mockImplementation(async () => new Blob(["bytes"]));
@@ -65,12 +76,14 @@ beforeEach(() => {
 
   globalThis.Audio = class {
     src: string;
-    play = vi.fn(() => Promise.resolve());
-    pause = vi.fn(() => this.onpause?.());
+    play = vi.fn(() => {
+      plays.push(this.src);
+      return Promise.resolve();
+    });
+    pause = vi.fn();
     onended: (() => void) | null = null;
     onerror: (() => void) | null = null;
-    onpause: (() => void) | null = null;
-    constructor(src: string) {
+    constructor(src = "") {
       this.src = src;
       created.push(this as unknown as FakeAudio);
     }
@@ -103,8 +116,7 @@ describe("useLineAudio", () => {
       text: LINES[1],
       dialect: "Gulf",
     });
-    expect(created).toHaveLength(1);
-    expect(created[0].play).toHaveBeenCalled();
+    expect(spoken()).toEqual(["blob:clip-1"]);
   });
 
   it("prefers an explicit dialect over the learner's active one", async () => {
@@ -127,7 +139,7 @@ describe("useLineAudio", () => {
 
     await waitFor(() => expect(result.current.playingIndex).toBeNull());
     expect(result.current.isPlayingAll).toBe(false);
-    expect(created).toHaveLength(1);
+    expect(spoken()).toHaveLength(1);
   });
 
   it("walks the whole passage on play all, one line after the next", async () => {
@@ -145,11 +157,7 @@ describe("useLineAudio", () => {
 
     await waitFor(() => expect(result.current.isPlayingAll).toBe(false));
     expect(result.current.playingIndex).toBeNull();
-    expect(created.map((a) => a.src)).toEqual([
-      "blob:clip-1",
-      "blob:clip-2",
-      "blob:clip-3",
-    ]);
+    expect(spoken()).toEqual(["blob:clip-1", "blob:clip-2", "blob:clip-3"]);
   });
 
   it("fetches the next line while the current one is speaking", async () => {
@@ -176,7 +184,8 @@ describe("useLineAudio", () => {
     await waitFor(() => expect(result.current.playingIndex).toBe(0));
 
     expect(fetchSpeechBlob).toHaveBeenCalledTimes(1);
-    expect(created).toHaveLength(2);
+    // Played twice, synthesised once.
+    expect(spoken()).toEqual(["blob:clip-1", "blob:clip-1"]);
   });
 
   it("treats a second tap on the sounding line as stop", async () => {
@@ -204,7 +213,7 @@ describe("useLineAudio", () => {
     // The clip for line 1 was already prefetched; what must not happen is it
     // being played.
     await new Promise((r) => setTimeout(r, 10));
-    expect(created).toHaveLength(1);
+    expect(spoken()).toEqual(["blob:clip-1"]);
   });
 
   it("does not start speaking a clip that landed after the learner stopped", async () => {
@@ -223,7 +232,7 @@ describe("useLineAudio", () => {
     });
 
     await new Promise((r) => setTimeout(r, 10));
-    expect(created).toHaveLength(0);
+    expect(spoken()).toEqual([]);
     expect(result.current.playingIndex).toBeNull();
     expect(result.current.loadingIndex).toBeNull();
   });
@@ -254,7 +263,7 @@ describe("useLineAudio", () => {
     act(() => result.current.playAll());
 
     await waitFor(() => expect(result.current.isPlayingAll).toBe(false));
-    expect(created).toHaveLength(0);
+    expect(spoken()).toEqual([]);
     expect(result.current.loadingIndex).toBeNull();
 
     // A failure is not cached: a 401 that signing in fixes must not leave the
@@ -262,6 +271,61 @@ describe("useLineAudio", () => {
     fetchSpeechBlob.mockResolvedValue(new Blob(["bytes"]));
     act(() => result.current.playLine(0));
     await waitFor(() => expect(result.current.playingIndex).toBe(0));
+  });
+
+  it("spends the tap's activation before the clip it will play exists", async () => {
+    // iOS Safari only lets audio start from inside a gesture, and synthesis
+    // outlives one. Without this the first tap on every line fetched a clip and
+    // silently failed to play it. The e2e browser runs with
+    // --autoplay-policy=no-user-gesture-required and cannot see it.
+    let release: (blob: Blob) => void = () => {};
+    fetchSpeechBlob.mockImplementationOnce(
+      () => new Promise<Blob>((resolve) => { release = resolve; }),
+    );
+    const { result } = renderHook(() => useLineAudio({ lines: LINES }));
+
+    act(() => result.current.playLine(0));
+
+    // Synchronously, while the tap is still the reason anything is happening:
+    // an element exists and has been played.
+    expect(created).toHaveLength(1);
+    expect(plays).toEqual([expect.stringMatching(/^data:audio\/wav/)]);
+
+    await act(async () => release(new Blob(["bytes"])));
+
+    // The same element speaks the line — an element that has played once under
+    // a gesture may be given a new source later.
+    await waitFor(() => expect(result.current.playingIndex).toBe(0));
+    expect(created).toHaveLength(1);
+    expect(spoken()).toEqual(["blob:clip-1"]);
+  });
+
+  it("primes once, not on every tap", async () => {
+    const { result } = renderHook(() => useLineAudio({ lines: LINES }));
+
+    act(() => result.current.playLine(0));
+    await waitFor(() => expect(result.current.playingIndex).toBe(0));
+    act(() => result.current.playLine(1));
+    await waitFor(() => expect(result.current.playingIndex).toBe(1));
+
+    // A second silent clip would cut off the line that is speaking.
+    expect(plays.filter((src) => src.startsWith("data:"))).toHaveLength(1);
+  });
+
+  it("silences another passage on the page rather than talking over it", async () => {
+    // A Souq News page mounts one of these per article and one per headline.
+    // Two clips of Arabic at once are not two things a learner can hear.
+    const headline = renderHook(() => useLineAudio({ lines: ["السوق اليوم"] }));
+    const article = renderHook(() => useLineAudio({ lines: LINES }));
+
+    act(() => headline.result.current.playLine(0));
+    await waitFor(() => expect(headline.result.current.playingIndex).toBe(0));
+
+    act(() => article.result.current.playAll());
+    await waitFor(() => expect(article.result.current.playingIndex).toBe(0));
+
+    await waitFor(() => expect(headline.result.current.playingIndex).toBeNull());
+    expect(created[0].pause).toHaveBeenCalled();
   });
 
   it("stops and releases its clips on unmount", async () => {

@@ -25,6 +25,25 @@ interface UseLineAudioResult {
 }
 
 /**
+ * A 44-byte WAV with no samples — silence, and the shortest legal thing an
+ * `<audio>` element will accept. See `primeElement` for why one is needed.
+ */
+const SILENT_CLIP =
+  "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAIA+AAACABAAZGF0YQAAAAA=";
+
+/**
+ * The one clip sounding anywhere on the page, as a function that silences it.
+ *
+ * A Souq News page mounts one of these hooks per article and one more per
+ * headline, so without a page-wide rule a learner who taps a headline and then
+ * a sentence hears both at once. Overlapping Arabic is not two things they can
+ * hear — it is neither, which is the same reason `useAudioPlayer` owns a single
+ * element for the app's one-off speaker buttons. Module scope rather than
+ * context: the rule is about the sound card, not about a subtree.
+ */
+let sounding: (() => void) | null = null;
+
+/**
  * Speech for a passage that is read one line at a time.
  *
  * Owning all of a passage's lines in a single hook, rather than giving each
@@ -60,7 +79,14 @@ export function useLineAudio({ lines, dialect }: UseLineAudioOptions): UseLineAu
   const clipsRef = useRef(new Map<string, Promise<string | null>>());
   /** Every URL handed out, so unmount can revoke all of them. */
   const createdRef = useRef<string[]>([]);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
+  /**
+   * One element for the passage, kept for the hook's whole life rather than
+   * built per clip — see `primeElement`.
+   */
+  const elementRef = useRef<HTMLAudioElement | null>(null);
+  const primedRef = useRef(false);
+  /** Settles the promise the walk is currently waiting on. */
+  const pendingRef = useRef<((finished: boolean) => void) | null>(null);
   /**
    * Bumped by every stop and every new request. A walk whose id has gone stale
    * drops whatever it was about to do — without it, a synthesis started before
@@ -68,26 +94,55 @@ export function useLineAudio({ lines, dialect }: UseLineAudioOptions): UseLineAu
    */
   const runRef = useRef(0);
 
-  const halt = useCallback(() => {
-    const audio = audioRef.current;
-    if (audio) {
-      audio.onended = null;
-      audio.onerror = null;
-      audioRef.current = null;
-      // `onpause` is deliberately left attached: it is what resolves the
-      // promise the walk is sitting on, so stopping ends the walk rather than
-      // leaving it pending forever.
-      audio.pause();
+  /**
+   * Spend the tap's user activation, while there still is one.
+   *
+   * iOS Safari only lets audio start from inside a gesture, and by the time a
+   * line has been synthesised the gesture is long over — the first tap on every
+   * line would fetch a clip and silently fail to play it, and a read-through
+   * would stop on its first line with nothing to say why. (Our Playwright
+   * Chromium runs with `--autoplay-policy=no-user-gesture-required`, so no e2e
+   * test can see this.)
+   *
+   * So the element is created and played *during* the tap, on a clip of
+   * silence. An element that has played once under a gesture may be given a new
+   * source and played again later, which is what every subsequent line relies
+   * on.
+   */
+  const primeElement = useCallback(() => {
+    let audio = elementRef.current;
+    if (!audio) {
+      audio = new Audio();
+      elementRef.current = audio;
     }
+    if (!primedRef.current) {
+      primedRef.current = true;
+      audio.src = SILENT_CLIP;
+      void audio.play().catch(() => {});
+    }
+    return audio;
+  }, []);
+
+  const halt = useCallback(() => {
+    elementRef.current?.pause();
+    // Settled here rather than from a `pause` listener. Swapping `src` on a
+    // playing element fires `pause` too, so a listener could not tell "the
+    // learner stopped this" from "the next line is starting".
+    pendingRef.current?.(false);
   }, []);
 
   const stop = useCallback(() => {
     runRef.current++;
     halt();
+    if (sounding === stopRef.current) sounding = null;
     setPlayingIndex(null);
     setLoadingIndex(null);
     setIsPlayingAll(false);
   }, [halt]);
+
+  // This instance's own silencer, as the page-wide rule above stores it.
+  const stopRef = useRef(stop);
+  stopRef.current = stop;
 
   const clipFor = useCallback(
     (text: string): Promise<string | null> => {
@@ -122,18 +177,33 @@ export function useLineAudio({ lines, dialect }: UseLineAudioOptions): UseLineAu
 
   /** Resolves true when the clip reached its end, false when it was stopped. */
   const sound = useCallback((url: string) => {
+    const audio = elementRef.current;
+    if (!audio) return Promise.resolve(false);
+
     return new Promise<boolean>((resolve) => {
-      const audio = new Audio(url);
-      audioRef.current = audio;
-      audio.onended = () => resolve(true);
-      audio.onerror = () => resolve(false);
-      audio.onpause = () => resolve(false);
-      audio.play().catch(() => resolve(false));
+      const finish = (finished: boolean) => {
+        // Only the live clip may settle: a `play()` rejected because the next
+        // line replaced the source arrives after that line has started.
+        if (pendingRef.current !== finish) return;
+        pendingRef.current = null;
+        audio.onended = null;
+        audio.onerror = null;
+        resolve(finished);
+      };
+
+      pendingRef.current = finish;
+      audio.onended = () => finish(true);
+      audio.onerror = () => finish(false);
+      audio.src = url;
+      audio.play().catch(() => finish(false));
     });
   }, []);
 
   const walk = useCallback(
     async (from: number, continuous: boolean) => {
+      if (sounding && sounding !== stopRef.current) sounding();
+      sounding = stopRef.current;
+
       const id = ++runRef.current;
       halt();
       setIsPlayingAll(continuous);
@@ -168,6 +238,7 @@ export function useLineAudio({ lines, dialect }: UseLineAudioOptions): UseLineAu
       }
 
       if (id !== runRef.current) return;
+      if (sounding === stopRef.current) sounding = null;
       setPlayingIndex(null);
       setLoadingIndex(null);
       setIsPlayingAll(false);
@@ -177,24 +248,26 @@ export function useLineAudio({ lines, dialect }: UseLineAudioOptions): UseLineAu
 
   const playLine = useCallback(
     (index: number) => {
+      primeElement();
       if (playingIndex === index) {
         stop();
         return;
       }
       void walk(index, false);
     },
-    [playingIndex, stop, walk],
+    [playingIndex, primeElement, stop, walk],
   );
 
   const playAll = useCallback(
     (from = 0) => {
+      primeElement();
       if (isPlayingAll) {
         stop();
         return;
       }
       void walk(from, true);
     },
-    [isPlayingAll, stop, walk],
+    [isPlayingAll, primeElement, stop, walk],
   );
 
   // A new passage silences the old one. Positions mean nothing across a change
@@ -208,8 +281,15 @@ export function useLineAudio({ lines, dialect }: UseLineAudioOptions): UseLineAu
     const clips = clipsRef.current;
     const created = createdRef.current;
     return () => {
+      // The *live* run id, deliberately: bumping it is what tells a walk still
+      // waiting on a synthesis that its passage is gone. A copy taken when the
+      // effect ran would be the one thing that could not do that.
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       runRef.current++;
       halt();
+      if (sounding === stopRef.current) sounding = null;
+      elementRef.current = null;
+      primedRef.current = false;
       created.forEach((url) => URL.revokeObjectURL(url));
       created.length = 0;
       clips.clear();

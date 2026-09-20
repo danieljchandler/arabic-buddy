@@ -16,6 +16,8 @@ import { useAddXP, useIncrementReviews, useCheckAchievements, REVIEW_XP } from '
 import { useDialect } from '@/contexts/DialectContext';
 import { useNewCardCap } from './useNewCardCap';
 import { useRemainingNewCardBudget } from './useNewCardBudget';
+import { useCurriculumDeckScope } from './useCurriculumDeckScope';
+import { selectRequestedCurriculumWords } from '@/lib/curriculumDeck';
 
 export interface WordReview {
   id: string;
@@ -124,6 +126,10 @@ export const useDueWords = (mixAll = false) => {
   // live in the queryFn like the budget, for the same reason: it changes as
   // cards are rated, and it must not flip the key mid-session.
   const { data: srsStats, isLoading: statsLoading } = useSRSStats();
+  // Curriculum cards are opt-in: see src/lib/curriculumDeck.ts. Part of the
+  // query key, unlike the new-card budget, because it changes only when the
+  // learner changes the setting — at which point the deck *should* be rebuilt.
+  const { scope } = useCurriculumDeckScope();
 
   return useQuery({
     // The remaining new-card budget is deliberately NOT part of the key:
@@ -132,7 +138,7 @@ export const useDueWords = (mixAll = false) => {
     // loading swap and a freshly reshuffled deck under the learner's feet,
     // once per new card. The queryFn reads the current budget whenever the
     // deck is genuinely (re)built instead.
-    queryKey: ['due-words', user?.id, mixAll ? 'all' : activeDialect],
+    queryKey: ['due-words', user?.id, mixAll ? 'all' : activeDialect, scope],
     queryFn: async (): Promise<DueCurriculumCard[]> => {
       if (!user) return [];
 
@@ -185,7 +191,32 @@ export const useDueWords = (mixAll = false) => {
 
       const reviewMap = new Map((reviews ?? []).map(r => [r.word_id, r as unknown as WordReview]));
 
-      const withReview: WordWithReview[] = (words ?? []).map(word => {
+      // Lessons the learner has opened. Together with the review rows above
+      // this is what "asked for" means (src/lib/curriculumDeck.ts) — skipped
+      // entirely when the scope is "everything", which needs neither.
+      const startedLessonIds = new Set<string>(
+        scope === 'everything'
+          ? []
+          : (
+              await fetchAllRows<{ lesson_id: string }>((from, to) =>
+                supabase
+                  .from('lesson_progress')
+                  .select('lesson_id')
+                  .eq('user_id', user.id)
+                  .order('lesson_id')
+                  .range(from, to),
+              )
+            ).map((row) => row.lesson_id),
+      );
+
+      // The gate. Everything downstream — the new-card budget, the ordering,
+      // the counts on screen — sees only the words the learner asked for.
+      const requested = selectRequestedCurriculumWords(
+        (words ?? []) as Array<(typeof words)[number] & { lesson_id?: string | null }>,
+        { reviewedWordIds: new Set(reviewMap.keys()), startedLessonIds, scope },
+      );
+
+      const withReview: WordWithReview[] = requested.map(word => {
         const review = reviewMap.get(word.id) || null;
         const lessonData = (word as any).lessons;
         const topicData = (word as any).topics;
@@ -267,6 +298,17 @@ function hasAudio(word: VocabularyWord): boolean {
   return !!word.audio_url || !!word.word_arabic;
 }
 
+/**
+ * Headline numbers for the curriculum deck.
+ *
+ * `dueCount` is what the daily queue and the dock badge read, and it counts
+ * review rows — so it has only ever included words the learner has actually
+ * studied, which is why the badge and the deck disagreed before curriculum
+ * cards became opt-in. `totalWords` and `newCount` describe the *curriculum*
+ * for this dialect rather than this learner's deck: with the default
+ * "requested" scope most of those new words are not queued for review until
+ * their lesson is opened (src/lib/curriculumDeck.ts).
+ */
 export const useReviewStats = (mixAll = false) => {
   const { user } = useAuth();
   const { activeDialect } = useDialect();

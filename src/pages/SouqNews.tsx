@@ -27,6 +27,7 @@ import { useQuery } from "@tanstack/react-query";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
 import { AskAISentence } from "@/components/shared/AskAISentence";
+import { SpeakLineButton } from "@/components/shared/SpeakLineButton";
 import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import { EmptyState } from "@/components/shared/EmptyState";
 
@@ -172,6 +173,7 @@ const SouqNews = () => {
             size="icon"
             onClick={() => refetch()}
             disabled={isFetching}
+            aria-label="Refresh the news"
           >
             <RefreshCw className={cn("h-4 w-4", isFetching && "animate-spin")} />
           </Button>
@@ -225,12 +227,13 @@ const SouqNews = () => {
                   {article.title_dialect}
                 </h2>
 
-                <div className="mb-3">
+                <div className="mb-3 flex items-center gap-1">
                   <AskAISentence
                     arabic={article.title_dialect}
                     english={article.title_english}
                     variant="chip"
                   />
+                  <SpeakLineButton text={article.title_dialect} label="Listen" />
                 </div>
 
                 {/* Arabic body — line by line with reveal */}

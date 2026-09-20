@@ -190,6 +190,7 @@ const DailyStoryPage = () => {
               body={story.body_arabic}
               sentences={lines}
               source="daily-story"
+              dialect={story.dialect}
               revealByDefault={showEnglish}
               arabicClassName="text-lg"
             />

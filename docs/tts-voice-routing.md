@@ -14,6 +14,15 @@ already been made once.
 | `supabase/functions/_shared/ttsVoiceRouting.ts` | Secrets, Munsit catalogue discovery, the three provider calls. |
 | `supabase/functions/tts-speak/index.ts` | The endpoint every client calls. Takes a dialect, never a voice. |
 | `supabase/functions/_shared/listenTts.ts` | Long-form only: voice slots, prosody, clip assembly. |
+| `src/lib/speakArabic.ts` | The browser's only door to `tts-speak`. Serialises requests and decides what counts as audio. |
+
+`speakArabic.ts` is a module rather than a hook on purpose: the serial queue it
+holds only bounds our concurrency against Munsit if there is exactly one of it,
+and a second copy living inside a second hook would silently double it. Every
+speaker button in the app goes through it — `useAzureTTS` for a single piece of
+text that is known up front, `useLineAudio` for a passage read one line at a
+time (Souq News, Today's Story), where clips are synthesised on demand and the
+next line is fetched while the current one is still speaking.
 
 Before this, the mapping was hardcoded in six places that disagreed with each
 other. Yemeni was `ar-YE-MaryamNeural` from a flashcard, `ar-YE-SalehNeural` in

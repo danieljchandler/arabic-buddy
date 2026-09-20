@@ -41,6 +41,35 @@ const spies = vi.hoisted(() => ({
   pair: [] as PairProps[],
 }));
 
+/**
+ * The audio itself belongs to `useLineAudio`, which has its own file. What is
+ * this component's job — and what is tested here — is which lines it hands
+ * over, and whether the controls it draws ask for the right one.
+ */
+const audio = vi.hoisted(() => ({
+  state: {
+    playingIndex: null as number | null,
+    loadingIndex: null as number | null,
+    isPlayingAll: false,
+  },
+  asked: [] as { lines: string[]; dialect?: string }[],
+  playLine: vi.fn(),
+  playAll: vi.fn(),
+  stop: vi.fn(),
+}));
+
+vi.mock("@/hooks/useLineAudio", () => ({
+  useLineAudio: ({ lines, dialect }: { lines: string[]; dialect?: string }) => {
+    audio.asked.push({ lines, dialect });
+    return {
+      ...audio.state,
+      playLine: audio.playLine,
+      playAll: audio.playAll,
+      stop: audio.stop,
+    };
+  },
+}));
+
 vi.mock("@/components/shared/TappableArabicText", () => ({
   TappableArabicText: (props: TappableProps) => {
     spies.tappable.push(props);
@@ -64,6 +93,8 @@ beforeEach(() => {
   spies.tappable = [];
   spies.ask = [];
   spies.pair = [];
+  audio.asked = [];
+  audio.state = { playingIndex: null, loadingIndex: null, isPlayingAll: false };
 });
 
 afterEach(() => {
@@ -83,6 +114,7 @@ interface Options {
   vocabulary?: { word_arabic: string; word_english: string }[];
   source?: string;
   revealByDefault?: boolean;
+  dialect?: string;
 }
 
 function renderArticle({
@@ -91,6 +123,7 @@ function renderArticle({
   vocabulary,
   source = "souq-news",
   revealByDefault,
+  dialect,
 }: Options = {}) {
   return render(
     <SentenceReader
@@ -99,9 +132,13 @@ function renderArticle({
       vocabulary={vocabulary}
       source={source}
       revealByDefault={revealByDefault}
+      dialect={dialect}
     />,
   );
 }
+
+/** What the component last handed the audio hook. */
+const lastAsked = () => audio.asked[audio.asked.length - 1];
 
 const authored = [
   { arabic: "أعلنت قطر عن خط سكة حديد جديد.", english: "Qatar announced a new rail link." },
@@ -339,5 +376,80 @@ describe("SentenceReader — asking the AI about a line", () => {
       english: "",
     });
     expect(spies.tappable[0].sentenceContext.english).toBe("");
+  });
+});
+
+describe("SentenceReader — hearing it said", () => {
+  /**
+   * Reading dialect you have never heard is guesswork: the spelling leaves out
+   * most of the vowels, and the vowels are most of what makes a dialect sound
+   * like itself. A speaker on every line is what turns the page from a reading
+   * exercise into a listening one at the same time.
+   */
+
+  it("offers to speak the same lines it drew", () => {
+    renderArticle({ sentences: authored });
+    expect(lastAsked().lines).toEqual([authored[0].arabic, authored[1].arabic]);
+  });
+
+  it("speaks the split lines when the generator authored none", () => {
+    renderArticle({ body: "سطر أول\nسطر ثاني" });
+    expect(lastAsked().lines).toEqual(["سطر أول", "سطر ثاني"]);
+  });
+
+  it("passes the passage's own dialect through", () => {
+    // Today's Story is generated in a named dialect that need not be the one
+    // the learner has switched to; the voice has to follow the text.
+    renderArticle({ sentences: authored, dialect: "Yemeni" });
+    expect(lastAsked().dialect).toBe("Yemeni");
+  });
+
+  it("plays the line whose speaker was tapped", () => {
+    renderArticle({ sentences: authored });
+    fireEvent.click(screen.getAllByLabelText("Play this line")[1]);
+    expect(audio.playLine).toHaveBeenCalledWith(1);
+  });
+
+  it("reads the whole passage from the top", () => {
+    renderArticle({ sentences: authored });
+    fireEvent.click(screen.getByLabelText("Play every line in order"));
+    expect(audio.playAll).toHaveBeenCalled();
+  });
+
+  it("offers a way out of a read-through it started", () => {
+    audio.state = { playingIndex: 1, loadingIndex: null, isPlayingAll: true };
+    renderArticle({ sentences: authored });
+
+    expect(screen.getByLabelText("Stop reading aloud")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Play every line in order")).not.toBeInTheDocument();
+  });
+
+  it("marks only the line that is sounding", () => {
+    audio.state = { playingIndex: 0, loadingIndex: null, isPlayingAll: false };
+    renderArticle({ sentences: authored });
+
+    expect(screen.getByLabelText("Stop this line")).toBeInTheDocument();
+    expect(screen.getAllByLabelText("Play this line")).toHaveLength(1);
+  });
+
+  it("does not take a second tap on a line still being synthesised", () => {
+    // Synthesis is a round trip to a provider. A second press during it would
+    // buy a second clip, and it is the press a learner makes when nothing has
+    // happened yet.
+    audio.state = { playingIndex: null, loadingIndex: 1, isPlayingAll: false };
+    renderArticle({ sentences: authored });
+
+    const speakers = screen.getAllByLabelText("Play this line");
+    expect(speakers[1]).toBeDisabled();
+    expect(speakers[0]).not.toBeDisabled();
+  });
+});
+
+describe("SentenceReader — nothing to read", () => {
+  it("offers no read-through for an empty body", () => {
+    // The control would be live and do nothing, which reads as broken rather
+    // than as empty.
+    renderArticle({ body: "" });
+    expect(screen.queryByLabelText("Play every line in order")).not.toBeInTheDocument();
   });
 });

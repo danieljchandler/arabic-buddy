@@ -2,8 +2,9 @@ import { useMemo, useRef, useState } from "react";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { TranslationPair } from "@/components/shared/TranslationPair";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2, Pause, Play, Volume2 } from "lucide-react";
 import { pairSentences, type ReaderSentence } from "@/lib/sentences";
+import { useLineAudio } from "@/hooks/useLineAudio";
 import { cn } from "@/lib/utils";
 
 interface SentenceReaderProps {
@@ -18,12 +19,14 @@ interface SentenceReaderProps {
   revealByDefault?: boolean;
   /** Extra classes for the Arabic line — a story reads at a larger size than news. */
   arabicClassName?: string;
+  /** Dialect override for the spoken lines; defaults to the active dialect. */
+  dialect?: string;
 }
 
 /**
  * A body of Arabic read one sentence to a card: every word tappable for a
- * gloss, the English hidden behind a tap so the eye cannot cheat, and an Ask AI
- * chip per line.
+ * gloss, the English hidden behind a tap so the eye cannot cheat, an Ask AI
+ * chip per line, and a speaker on each line so the learner can hear it said.
  *
  * The alternative — the body as one block with a translation under it — is the
  * hardest possible presentation of the hardest thing a learner reads, and it is
@@ -37,6 +40,7 @@ export const SentenceReader = ({
   source,
   revealByDefault = false,
   arabicClassName,
+  dialect,
 }: SentenceReaderProps) => {
   const lines = useMemo<ReaderSentence[]>(() => {
     if (sentences && sentences.length > 0) return sentences;
@@ -74,19 +78,47 @@ export const SentenceReader = ({
       return next;
     });
 
+  const spoken = useMemo(() => lines.map((l) => l.arabic), [lines]);
+  const { playingIndex, loadingIndex, isPlayingAll, playLine, playAll } =
+    useLineAudio({ lines: spoken, dialect });
+
   return (
     <div className="space-y-2">
-      <p className="text-xs text-muted-foreground mb-2">
-        Tap any word for translation · Tap a line to reveal English
-      </p>
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <p className="text-xs text-muted-foreground">
+          Tap any word for translation · Tap a line to reveal English
+        </p>
+        {lines.length > 0 && (
+          <button
+            type="button"
+            onClick={() => playAll()}
+            aria-label={isPlayingAll ? "Stop reading aloud" : "Play every line in order"}
+            className="shrink-0 inline-flex items-center gap-1 rounded-full border border-border/60 px-2.5 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent/40 transition-colors"
+          >
+            {isPlayingAll ? (
+              <Pause className="h-3 w-3" />
+            ) : (
+              <Play className="h-3 w-3" />
+            )}
+            {isPlayingAll ? "Stop" : "Play all"}
+          </button>
+        )}
+      </div>
       {lines.map((line, i) => {
         const isOpen = revealed.has(i);
         const english = line.english ?? "";
         const hasTranslation = Boolean(english || line.literal);
+        const isSounding = playingIndex === i;
+        const isFetching = loadingIndex === i;
         return (
           <div
             key={i}
-            className="rounded-xl border border-border/40 bg-card/40 p-3"
+            className={cn(
+              "rounded-xl border p-3 transition-colors",
+              isSounding
+                ? "border-primary/50 bg-primary/5"
+                : "border-border/40 bg-card/40",
+            )}
           >
             <TappableArabicText
               text={line.arabic}
@@ -127,11 +159,34 @@ export const SentenceReader = ({
                 four-word sentence means a paragraph. An absent translation is
                 better described as absent.
               */}
-              <AskAISentence
-                arabic={line.arabic}
-                english={english}
-                variant="chip"
-              />
+              <div className="flex items-center gap-1 shrink-0">
+                <AskAISentence
+                  arabic={line.arabic}
+                  english={english}
+                  variant="chip"
+                />
+                <button
+                  type="button"
+                  onClick={() => playLine(i)}
+                  disabled={isFetching}
+                  aria-label={isSounding ? "Stop this line" : "Play this line"}
+                  title={isSounding ? "Stop this line" : "Play this line"}
+                  className={cn(
+                    "inline-flex h-7 w-7 items-center justify-center rounded-full transition-colors",
+                    isSounding
+                      ? "text-primary"
+                      : "text-muted-foreground hover:text-foreground hover:bg-accent/40",
+                  )}
+                >
+                  {isFetching ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : isSounding ? (
+                    <Pause className="h-3.5 w-3.5" />
+                  ) : (
+                    <Volume2 className="h-3.5 w-3.5" />
+                  )}
+                </button>
+              </div>
             </div>
             <div
               className={cn(

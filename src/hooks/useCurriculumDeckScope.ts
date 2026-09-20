@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
 import {
-  DEFAULT_CURRICULUM_DECK_SCOPE,
   loadCurriculumDeckScope,
   saveCurriculumDeckScope,
   subscribeCurriculumDeckScope,
@@ -10,17 +9,23 @@ import {
 /**
  * Reactive hook for "which curriculum words belong in my review deck".
  *
- * Reads the default on first render rather than the stored value, then settles
- * in an effect: the review deck is built from this, and a first paint that
- * disagreed with localStorage would build a deck and immediately rebuild it.
+ * Read in the state initialiser, like `useLeechPrefs`, because this value is
+ * part of `useDueWords`' query key. Settling it in an effect instead meant
+ * every mount fired a deck query under the *wrong* key first: the query
+ * function doesn't consume TanStack Query's abort signal, so that discarded
+ * paginated read ran to completion and cached a `requested` deck for a learner
+ * who had asked for `everything`. Twice the table reads, and worse — that
+ * cached empty deck is fresh for five minutes, so a later mount would read it
+ * before the effect ran and `/review` would forward straight past the
+ * curriculum on its `<Navigate>` path.
  */
 export function useCurriculumDeckScope() {
-  const [scope, setScope] = useState<CurriculumDeckScope>(DEFAULT_CURRICULUM_DECK_SCOPE);
+  const [scope, setScope] = useState<CurriculumDeckScope>(loadCurriculumDeckScope);
 
-  useEffect(() => {
-    setScope(loadCurriculumDeckScope());
-    return subscribeCurriculumDeckScope(() => setScope(loadCurriculumDeckScope()));
-  }, []);
+  useEffect(
+    () => subscribeCurriculumDeckScope(() => setScope(loadCurriculumDeckScope())),
+    [],
+  );
 
   const setScopePersist = useCallback((value: CurriculumDeckScope) => {
     setScope(value);

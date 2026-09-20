@@ -197,6 +197,12 @@ export const useUpsertLessonProgress = () => {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [KEY] });
+      // Opening a lesson is how a learner asks for its words
+      // (src/lib/curriculumDeck.ts), and `useDueWords` reads `lesson_progress`
+      // to decide that. Its deck is cached for five minutes and never refetches
+      // on focus, so without this the words of a lesson opened just now would
+      // not reach /review until that cache expired.
+      void queryClient.invalidateQueries({ queryKey: ["due-words"] });
     },
     onError: (err) => {
       // Bookkeeping must never interrupt the lesson in progress.

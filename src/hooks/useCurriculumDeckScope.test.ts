@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCurriculumDeckScope } from "./useCurriculumDeckScope";
 import { saveCurriculumDeckScope } from "@/lib/curriculumDeck";
 
@@ -11,17 +11,23 @@ import { saveCurriculumDeckScope } from "@/lib/curriculumDeck";
  * every curriculum word in the dialect is queued, which is how it used to
  * behave for everybody.
  *
- * Two things this has to get right. It settles in an effect rather than in the
- * state initialiser — the opposite of `useLeechPrefs` — because the value is
- * part of the review query's key, and a first render that disagreed with
- * localStorage would build a deck and immediately throw it away. And it reaches
- * the review screen while it is mounted, because the switch is in Settings.
+ * Two things this has to get right. The stored value is read in the state
+ * initialiser, because it is part of `useDueWords`' query key: settling it in
+ * an effect fired a deck query under the wrong key first, and since that query
+ * doesn't consume TanStack Query's abort signal the discarded read completed
+ * and cached an empty `requested` deck for a learner who wanted `everything` —
+ * which a later mount would then read, sending `/review` straight past the
+ * curriculum on its forwarding `<Navigate>`. And it reaches the review screen
+ * while it is mounted, because the switch is in Settings.
  */
 
 const KEY = "hakiya:curriculum-deck-scope";
 
 beforeEach(() => localStorage.clear());
-afterEach(() => localStorage.clear());
+afterEach(() => {
+  vi.restoreAllMocks();
+  localStorage.clear();
+});
 
 describe("the starting point", () => {
   it("asks for nothing on behalf of a learner who has never chosen", () => {
@@ -38,7 +44,7 @@ describe("the starting point", () => {
     expect(result.current.scope).toBe("everything");
   });
 
-  it("starts from the default on the very first render", () => {
+  it("is known on the very first render", () => {
     localStorage.setItem(KEY, "everything");
 
     const seen: string[] = [];
@@ -48,10 +54,21 @@ describe("the starting point", () => {
       return scope;
     });
 
-    // The safe direction: a first paint that guessed "everything" and was
-    // wrong would have put the whole curriculum in front of the learner.
-    expect(seen[0]).toBe("requested");
-    expect(seen[seen.length - 1]).toBe("everything");
+    // Every render, not just the last: one render under the wrong scope is one
+    // `due-words` query under the wrong key, and that query's result is cached
+    // for five minutes whether or not anything still wants it.
+    expect(seen).toEqual(["everything"]);
+  });
+
+  it("falls back to the default when storage cannot be read", () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("denied");
+    });
+
+    // Reading in the initialiser means the throw happens during render, so it
+    // has to be caught there too — `loadCurriculumDeckScope` does that, and
+    // this pins that the hook never propagates it.
+    expect(renderHook(() => useCurriculumDeckScope()).result.current.scope).toBe("requested");
   });
 });
 

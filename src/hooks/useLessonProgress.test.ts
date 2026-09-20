@@ -1,4 +1,5 @@
 import { act, waitFor } from "@testing-library/react";
+import { QueryClient } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHookWithProviders, TEST_USER_ID } from "@/test/support/react/harness";
 import { aLesson, aLessonProgress, daysAgo, lessonId, stageId } from "@/test/support/factories";
@@ -318,6 +319,22 @@ describe("recording progress", () => {
     // A signed-out learner can still take a lesson; bookkeeping just has
     // nowhere to go, and throwing would surface as a failure mid-lesson.
     expect(harness.backend.db.rows("lesson_progress")).toHaveLength(0);
+  });
+
+  it("drops the cached review deck, so the lesson's words reach /review", async () => {
+    const invalidate = vi.spyOn(QueryClient.prototype, "invalidateQueries");
+    const harness = await renderUpsert();
+
+    await act(async () => {
+      await harness.result.current.hook.mutateAsync({ lessonId: LESSON, wordsSeen: 1 } as never);
+    });
+
+    // Opening a lesson is how a learner asks for its words (curriculumDeck.ts),
+    // and `useDueWords` reads `lesson_progress` to decide that — but its deck is
+    // cached for five minutes and never refetches on focus. Invalidating only
+    // `lesson-progress` meant the ordinary lesson-then-review flow served a deck
+    // built before the lesson was opened.
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["due-words"] });
   });
 
   it("logs a failed save rather than interrupting the lesson", async () => {

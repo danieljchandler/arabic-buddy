@@ -24,6 +24,7 @@ import { HomeLayoutEditor } from '@/components/settings/HomeLayoutEditor';
 import { DisplayPrefsEditor } from '@/components/settings/DisplayPrefsEditor';
 import { TutorMemoryCard } from '@/components/settings/TutorMemoryCard';
 import { useLeechPrefs } from '@/hooks/useLeechPrefs';
+import { useCurriculumDeckScope } from '@/hooks/useCurriculumDeckScope';
 import { useRootFamilyPrefs } from '@/hooks/useRootFamilyPrefs';
 import { useFeatureHints } from '@/hooks/useFeatureHints';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -140,6 +141,7 @@ const Settings = () => {
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
   const { enabled: leechEnabled, setEnabled: setLeechEnabled } = useLeechPrefs();
+  const { scope: curriculumScope, setScope: setCurriculumScope } = useCurriculumDeckScope();
   const { enabled: rootFamiliesEnabled, setEnabled: setRootFamiliesEnabled } = useRootFamilyPrefs();
   const { enabled: hintsEnabled, setEnabled: setHintsEnabled } = useFeatureHints();
   const { subscribed, tier, openCustomerPortal } = useSubscription();
@@ -689,6 +691,25 @@ const Settings = () => {
 
               {/* Review Preferences */}
               <SettingSection icon={AlertTriangle} title="Review Preferences">
+                {/* Off by default: the curriculum used to arrive in the review
+                    deck unasked, mixed in with the words the learner had
+                    collected themselves. Doing a lesson is how you ask for its
+                    words; this is for learners who want the lot. */}
+                <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
+                  <div className="min-w-0 pr-3">
+                    <p className="font-medium text-foreground text-sm">Review the whole curriculum</p>
+                    <p className="text-xs text-muted-foreground">
+                      Off, your flashcards are the words you've collected plus the lessons you've
+                      started. On, every word in the curriculum for your active dialect is queued
+                      for review, including lessons you haven't opened.
+                    </p>
+                  </div>
+                  <Switch
+                    aria-label="Review the whole curriculum"
+                    checked={curriculumScope === 'everything'}
+                    onCheckedChange={(on) => setCurriculumScope(on ? 'everything' : 'requested')}
+                  />
+                </div>
                 <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
                   <div className="min-w-0 pr-3">
                     <p className="font-medium text-foreground text-sm">Flag difficult cards as "leeches"</p>

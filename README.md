@@ -177,6 +177,36 @@ Gating is deliberately **soft**: `lessons.unlock_condition` is free text importe
 from a spreadsheet, not a machine-readable rule, so it's shown as guidance while
 exactly one lesson is marked "Next up" and anything can be opened.
 
+### What reaches the review deck
+
+Curriculum cards are **opt-in**. `/review` used to build its deck from every
+`vocabulary_words` row in the active dialect, so signing up was enough to have
+the whole authored curriculum — stages nobody had opened included — queued for
+spaced repetition, in the same session as the words the learner had collected
+themselves (mined from a clip, saved from a translation, added by hand). The
+daily task counted the two together, so "Review 3 words" opened onto a deck of
+curriculum cards with the learner's own three somewhere behind them.
+
+Two things now count as asking for a curriculum word, and `useDueWords` admits
+nothing else (the decision is pure and tested in `src/lib/curriculumDeck.ts`):
+
+- **Studying it.** Opening a lesson writes `lesson_progress`, answering its quiz
+  writes `word_reviews` — either admits the word. This is the ordinary path and
+  has no setting attached. Legacy topic-backed words have no `lesson_progress`
+  row to be started by, so they arrive only once reviewed.
+- **Asking for the lot.** Settings → Review Preferences → "Review the whole
+  curriculum" (`useCurriculumDeckScope`, off by default) restores the old
+  behaviour for learners who want the curriculum as one big deck.
+
+A word that already carries a `word_reviews` row is always kept, whatever the
+setting: that row is a live FSRS schedule, and dropping it would lose the
+learner's history with the word rather than merely decline to add a card.
+
+Note what did *not* change: `useReviewStats`' `dueCount` — the dock badge, the
+chooser's "N cards ready now", the daily flashcards task — has always counted
+review rows, so it only ever counted studied words. The badge was right and the
+deck was wrong; they agree now.
+
 Lesson plans imported from `.xlsx` (`src/lib/parseLessonXlsx.ts` →
 `useLessonImport`) persist their authored sections. `sound_spotlight`,
 `lesson_sequence` and `real_world_prompts` are rendered to the learner in

@@ -134,6 +134,27 @@ test.describe("reading a library story", () => {
     });
   });
 
+  test("reads a story the conversion never reached in MSA", async ({ page, backend, db }) => {
+    db.seed("authentic_stories", [{ ...STORY, body_dialect: null }]);
+    db.seed("authentic_story_lines", LINES.map((l) => ({
+      ...l,
+      dialect: null,
+      dialect_vocalized: null,
+    })));
+
+    await page.goto(`/reading-library/${storyId(0)}`);
+    await page.getByRole("button", { name: "Play line 1" }).click();
+
+    // It is filed under Egyptian and shows fusha, because that is all it has.
+    // Reading fusha in an Egyptian voice would be a third thing that is
+    // neither of them.
+    await expect.poll(() => backend.callsTo("tts-speak").length).toBeGreaterThan(0);
+    expect(backend.callsTo("tts-speak")[0].body).toMatchObject({
+      text: "أريد أن أذهب إلى السوق",
+      dialect: "MSA",
+    });
+  });
+
   test("plays a stored recording instead of buying one", async ({
     page,
     backend,

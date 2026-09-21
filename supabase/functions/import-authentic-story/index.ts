@@ -175,10 +175,11 @@ Maintain the original text faithfully — do not summarize or alter meaning.`,
     let dialectLines: StoryDialectLine[] = [];
     try {
       dialectLines = await translateStoryLinesToDialect(lines, targetDialect, {
-        // The import is already three model calls deep by the time it gets
-        // here. Bounded so a slow conversion costs the story its dialect —
-        // re-runnable from the edit page — rather than timing out the request
-        // that carries everything else.
+        // Bounded because this is the second model call of a request that
+        // already has a segmentation behind it: a slow conversion should cost
+        // the story its dialect — re-runnable from the edit page — rather than
+        // time out the request carrying the lines, translations and
+        // vocabulary.
         budgetMs: 60_000,
       });
     } catch (translateErr: unknown) {

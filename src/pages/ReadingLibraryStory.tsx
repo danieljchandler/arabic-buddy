@@ -17,6 +17,7 @@ import { SaveUnknownsBar } from '@/components/shared/SaveUnknownsBar';
 import { ArrowLeft, Play, Pause, SkipForward, SkipBack, Volume2, Loader2 } from 'lucide-react';
 import { useLineAudio } from '@/hooks/useLineAudio';
 import {
+  hasDialect,
   storedClipFor,
   storyLineText,
   ttsDialectFor,
@@ -124,10 +125,18 @@ const ReadingLibraryStory = () => {
     () => readable.map((l) => storedClipFor(l, register)),
     [readable, register],
   );
+  /**
+   * A story the conversion never reached is a fusha story, whatever it is
+   * filed under — so it is read by an MSA voice rather than by a Gulf one
+   * doing its best with case endings. Per page and not per line: a story where
+   * one line fell back still reads better in one voice than in two.
+   */
+  const spokenRegister: StoryRegister =
+    register === 'dialect' && readable.some(hasDialect) ? 'dialect' : 'fusha';
   const { playingIndex, loadingIndex, isPlayingAll, playLine, playAll } = useLineAudio({
     lines: spokenLines,
     clips: storedClips,
-    dialect: ttsDialectFor(story?.dialect, register),
+    dialect: ttsDialectFor(story?.dialect, spokenRegister),
   });
 
   // The line shown as a caption under the picture. Defaults to 0 so the

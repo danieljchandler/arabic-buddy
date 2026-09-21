@@ -199,7 +199,7 @@ export async function translateStoryLinesToDialect(
     // story would simply never be converted.
     maxTokens: Math.min(12_000, Math.max(3_000, texts.length * 220)),
     // The re-run can take its time; the import cannot, since it is holding a
-    // request open behind three other model calls.
+    // request open behind the segmentation call that produced these lines.
     ...(opts.budgetMs ? { budgetMs: opts.budgetMs } : {}),
     temperature: 0.3,
     tool: STORY_DIALECT_TOOL,

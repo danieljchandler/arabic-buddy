@@ -1,5 +1,5 @@
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
-import { jsonRequest, loadFunction, optionsRequest } from "./harness.ts";
+import { jsonRequest, loadFunction, loadSharedModule, optionsRequest } from "./harness.ts";
 import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
 
 /**
@@ -8,11 +8,20 @@ import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
  * and `translate-story-dialect`.
  *
  * They are a pipeline — suggest an idea, write its text, import it into lines
- * and vocabulary, then translate those lines into a dialect — and each stage
- * hands its output to the next as a request body. The interesting part is that
+ * and vocabulary, and render those lines in a dialect — and each stage hands
+ * its output to the next as a request body. The interesting part is that
  * three of the four check the caller's *role* rather than a subscription tier,
  * which no learner-facing function does, and the fourth does not check a role
  * at all.
+ *
+ * The dialect step used to be the *fifth* stage and optional: a button on the
+ * edit page that the suggest → generate → import flow never pressed, so every
+ * story reached the shelf in the Modern Standard Arabic its source was written
+ * in. It runs inside the import now, out of `_shared/storyDialect.ts`, and
+ * `translate-story-dialect` re-runs that same converter. Most of what is
+ * asserted below is that pairing: the same conversion from both doors, and an
+ * import that survives the conversion failing rather than losing the
+ * segmentation and vocabulary that already succeeded.
  */
 
 const USER = "00000000-0000-4000-8000-000000000001";
@@ -289,14 +298,38 @@ const processed = {
   vocabulary: [{ arabic: "زمان", english: "time", root: "ز م ن" }],
 };
 
+/**
+ * One gateway answering both of the import's model calls.
+ *
+ * The import segments the text and then converts it, through the same
+ * endpoint; which call is which is only visible from the tool it asked for.
+ * Answering both with the segmentation would hide the bug this exists to
+ * prevent — the aligner falls back to an `arabic` field, so a story whose
+ * "dialect" is a copy of its fusha would look converted.
+ */
+const storyPipeline: UpstreamHandler = async (request) => {
+  const body = await request.text();
+  return body.includes("emit_dialect_lines")
+    ? chatCompletion("", translated)
+    : chatCompletion("", processed);
+};
+
 function importUpstreams(extra: Record<string, UpstreamHandler> = {}) {
   return admin({
-    "generativelanguage.googleapis.com/v1beta/openai": emitting(processed),
-    "openrouter.ai": emitting(processed),
+    "generativelanguage.googleapis.com/v1beta/openai": storyPipeline,
+    "openrouter.ai": storyPipeline,
     "/rest/v1/authentic_stories": () => json({ id: STORY, title: "The Generous Host" }),
     "/rest/v1/authentic_story_lines": () => json([], 201),
     ...extra,
   });
+}
+
+/** The body of the POST that created the story row. */
+function storyInsert(result: { calls: string[]; methods: string[]; bodies: Array<string | null> }) {
+  const index = result.calls.findIndex(
+    (url, i) => url.includes("/rest/v1/authentic_stories") && result.methods[i] === "POST",
+  );
+  return JSON.parse(result.bodies[index] ?? "{}") as Record<string, unknown>;
 }
 
 Deno.test("import-authentic-story needs a title and a body", async () => {
@@ -386,6 +419,70 @@ Deno.test("import-authentic-story writes a row per line, in order", async () => 
   assertEquals(rows[0].english_literal, "was o what was");
   // The second line's gloss is optional and the model omitted it.
   assertEquals(rows[1].english_literal, null);
+});
+
+Deno.test("import-authentic-story stores the dialect beside the fusha", async () => {
+  const result = await call(
+    "import-authentic-story",
+    { title: "T", title_arabic: "ت", body_arabic: "نص", dialect: "Gulf" },
+    importUpstreams(),
+  );
+
+  const saved = storyInsert(result);
+  // The whole fix, in one assertion: an import that only ever wrote
+  // `body_fusha` put Modern Standard Arabic on the shelf of an app that
+  // teaches spoken Arabic, because the conversion was a button nobody pressed.
+  assertEquals(saved.body_fusha, "كان يا ما كان\nفي قديم الزمان");
+  assertEquals(saved.body_dialect, "كان في مرة\nمن زمان");
+  assertEquals(saved.body_dialect_vocalized, "كَان فِي مَرَّة\nمِن زَمَان");
+});
+
+Deno.test("import-authentic-story writes the dialect onto each line", async () => {
+  const result = await call(
+    "import-authentic-story",
+    { title: "T", title_arabic: "ت", body_arabic: "نص" },
+    importUpstreams(),
+  );
+
+  const insert = result.bodies[
+    result.calls.findIndex((url) => url.includes("/rest/v1/authentic_story_lines"))
+  ];
+  const rows = JSON.parse(insert ?? "[]") as Array<Record<string, unknown>>;
+  // Per line and not just as one body: the reader is line by line, and so is
+  // the narration.
+  assertEquals(rows[0].dialect, "كان في مرة");
+  assertEquals(rows[0].dialect_vocalized, "كَان فِي مَرَّة");
+  assertEquals(rows[1].dialect, "من زمان");
+});
+
+Deno.test("import-authentic-story keeps the story when the conversion fails", async () => {
+  const result = await call(
+    "import-authentic-story",
+    { title: "T", title_arabic: "ت", body_arabic: "نص" },
+    importUpstreams({
+      "generativelanguage.googleapis.com/v1beta/openai": async (request) => {
+        const body = await request.text();
+        return body.includes("emit_dialect_lines")
+          ? json({ error: "upstream on fire" }, 500)
+          : chatCompletion("", processed);
+      },
+      "openrouter.ai": async (request) => {
+        const body = await request.text();
+        return body.includes("emit_dialect_lines")
+          ? json({ error: "upstream on fire" }, 500)
+          : chatCompletion("", processed);
+      },
+    }),
+  );
+
+  // The conversion is re-runnable from the edit page; the segmentation, the
+  // translations and the vocabulary are not. Failing the import over the one
+  // that can be repaired would throw away the three that cannot.
+  assertEquals(result.status, 200);
+  const saved = storyInsert(result);
+  assertEquals(saved.body_fusha, "كان يا ما كان\nفي قديم الزمان");
+  assertEquals(saved.body_dialect, null);
+  assertEquals(result.body.dialect_lines, 0);
 });
 
 Deno.test("import-authentic-story reports a model that segmented nothing", async () => {
@@ -576,11 +673,12 @@ Deno.test("translate-story-dialect stops at the shorter of the two lists", async
   assertEquals(patches.length, 1);
 });
 
-Deno.test("translate-story-dialect reports success even when nothing was translated", async () => {
-  // Pinned, not fixed. A model that returned no lines still writes an empty
-  // body_dialect over whatever the story had, and answers `success: true` with
-  // `lines_translated: 0` — so a failed run looks like a completed one and has
-  // erased the previous translation on the way.
+Deno.test("translate-story-dialect leaves the story alone when nothing came back", async () => {
+  // This was pinned as a known bug and is now closed. A model that returned no
+  // lines still wrote an empty `body_dialect` over whatever the story had, so
+  // a failed re-run looked like a completed one *and* erased the translation
+  // it failed to improve. Re-running a conversion must never be able to leave
+  // the story worse than not running it.
   const result = await call(
     "translate-story-dialect",
     { story_id: STORY, dialect: "Gulf" },
@@ -594,7 +692,195 @@ Deno.test("translate-story-dialect reports success even when nothing was transla
   assertEquals(result.body.lines_translated, 0);
 
   const patch = result.calls
-    .map((url, i) => ({ url, method: result.methods[i], body: result.bodies[i] }))
+    .map((url, i) => ({ url, method: result.methods[i] }))
     .find((c) => c.url.includes("/rest/v1/authentic_stories") && c.method === "PATCH");
-  assertEquals(JSON.parse(patch?.body ?? "{}").body_dialect, "");
+  assertEquals(patch, undefined);
+});
+
+Deno.test("translate-story-dialect drops a recording it just invalidated", async () => {
+  const narrated = [
+    {
+      id: "line-0",
+      story_id: STORY,
+      line_index: 0,
+      arabic: "كان يا ما كان",
+      dialect: "شي قديم",
+      dialect_vocalized: "شِي قَدِيم",
+      audio_url: "https://cdn.test/line-0.wav",
+      duration_seconds: 2.4,
+    },
+    {
+      id: "line-1",
+      story_id: STORY,
+      line_index: 1,
+      arabic: "في قديم الزمان",
+      dialect: "من زمان",
+      dialect_vocalized: "مِن زَمَان",
+      audio_url: "https://cdn.test/line-1.wav",
+      duration_seconds: 1.9,
+    },
+  ];
+
+  const result = await call(
+    "translate-story-dialect",
+    { story_id: STORY, dialect: "Gulf" },
+    translateUpstreams({ "/rest/v1/authentic_story_lines": () => json(narrated) }),
+  );
+
+  assertEquals(result.status, 200);
+  assertEquals(result.body.audio_cleared, 1);
+
+  const patches = result.calls
+    .map((url, i) => ({ url, method: result.methods[i], body: result.bodies[i] }))
+    .filter((c) => c.url.includes("/rest/v1/authentic_story_lines") && c.method === "PATCH")
+    .map((c) => JSON.parse(c.body ?? "{}") as Record<string, unknown>);
+
+  // Line 0's words changed, so its recording is of a sentence the page no
+  // longer shows. Nothing on the row says which text a clip was made from, so
+  // the only way to keep the two honest is to drop the clip; the page falls
+  // back to synthesising on demand until an editor regenerates.
+  assertEquals(patches[0].dialect, "كان في مرة");
+  assertEquals(patches[0].audio_url, null);
+  assertEquals(patches[0].duration_seconds, null);
+  // Line 1 came back word for word identical, so its recording still matches.
+  assertEquals(patches[1].dialect, "من زمان");
+  assert(!("audio_url" in patches[1]));
+
+  const storyPatch = result.calls
+    .map((url, i) => ({ url, method: result.methods[i], body: result.bodies[i] }))
+    .filter((c) => c.url.includes("/rest/v1/authentic_stories") && c.method === "PATCH")
+    .map((c) => JSON.parse(c.body ?? "{}") as Record<string, unknown>)
+    .at(-1) ?? {};
+  // And the story stops claiming its narration is ready, or the edit page
+  // offers a "regenerate" nobody can tell is needed.
+  assertEquals(storyPatch.video_status, "none");
+  assertEquals(storyPatch.body_dialect, "كان في مرة\nمن زمان");
+});
+
+Deno.test("translate-story-dialect keeps a line the model skipped", async () => {
+  const result = await call(
+    "translate-story-dialect",
+    { story_id: STORY, dialect: "Gulf" },
+    translateUpstreams({
+      "generativelanguage.googleapis.com/v1beta/openai": emitting({
+        lines: [{ dialect: "كان في مرة", dialect_vocalized: "كَان فِي مَرَّة" }],
+      }),
+      "openrouter.ai": emitting({
+        lines: [{ dialect: "كان في مرة", dialect_vocalized: "كَان فِي مَرَّة" }],
+      }),
+    }),
+  );
+
+  assertEquals(result.status, 200);
+  // A short answer has merged two lines somewhere, and sliding it into place
+  // would file line 2's dialect under line 1. The tail pads instead, and the
+  // unanswered line keeps whatever it had.
+  assertEquals(result.body.lines_translated, 1);
+  const patches = result.calls.filter(
+    (url, i) => url.includes("/rest/v1/authentic_story_lines") && result.methods[i] === "PATCH",
+  );
+  assertEquals(patches.length, 1);
+});
+
+// ── _shared/storyDialect ─────────────────────────────────────────────────────
+
+interface StoryDialectModule {
+  alignStoryDialectLines(
+    parsed: unknown,
+    count: number,
+  ): Array<{ dialect: string; dialect_vocalized: string }>;
+  spokenStoryLine(line: Record<string, string | null | undefined>): string;
+  storyDialectBodies(
+    source: Array<{ arabic?: string | null; arabic_vocalized?: string | null }>,
+    lines: Array<{ dialect: string; dialect_vocalized: string }>,
+  ): { body_dialect: string; body_dialect_vocalized: string };
+  buildStoryDialectPrompt(dialect: string): string;
+}
+
+Deno.test("storyDialect pads a short answer rather than shifting it", async () => {
+  const mod = await loadSharedModule<StoryDialectModule>("storyDialect");
+
+  const aligned = mod.alignStoryDialectLines(
+    { lines: [{ dialect: "أول", dialect_vocalized: "أَوَّل" }] },
+    3,
+  );
+
+  assertEquals(aligned.length, 3);
+  assertEquals(aligned[0].dialect, "أول");
+  // Same rule as the Fusha row: a model that answers with one rendering for
+  // three lines has merged them, and sliding the array into place puts every
+  // later line's dialect under the wrong sentence — which is invisible to
+  // exactly the learner it is for.
+  assertEquals(aligned[1].dialect, "");
+  assertEquals(aligned[2].dialect, "");
+});
+
+Deno.test("storyDialect drops an answer with no Arabic in it", async () => {
+  const mod = await loadSharedModule<StoryDialectModule>("storyDialect");
+
+  const aligned = mod.alignStoryDialectLines(
+    { lines: [{ dialect: "I could not translate this line.", dialect_vocalized: "" }] },
+    1,
+  );
+
+  // The line renders RTL as the sentence the learner is reading, so an English
+  // apology there is not a visible error — it is a wrong lesson.
+  assertEquals(aligned[0].dialect, "");
+});
+
+Deno.test("storyDialect keeps a rendering that only came back vocalized", async () => {
+  const mod = await loadSharedModule<StoryDialectModule>("storyDialect");
+
+  const aligned = mod.alignStoryDialectLines(
+    { lines: [{ dialect: "", dialect_vocalized: "أَبْغَى أَرُوح" }] },
+    1,
+  );
+
+  assertEquals(aligned[0].dialect, "أَبْغَى أَرُوح");
+});
+
+Deno.test("storyDialect narrates the dialect even when only the fusha has tashkeel", async () => {
+  const mod = await loadSharedModule<StoryDialectModule>("storyDialect");
+
+  const spoken = mod.spokenStoryLine({
+    arabic: "أريد أن أذهب",
+    arabic_vocalized: "أُرِيدُ أَنْ أَذْهَبَ",
+    dialect: "أبغى أروح",
+    dialect_vocalized: null,
+  });
+
+  // The narration path asked for `dialect_vocalized || arabic_vocalized ||
+  // dialect`, which reads as a preference for diacritics and is really a
+  // preference for fusha: the page showed the dialect while the speaker read
+  // MSA. Missing tashkeel costs a little precision; the wrong register costs
+  // the lesson.
+  assertEquals(spoken, "أبغى أروح");
+});
+
+Deno.test("storyDialect fills a skipped line's body with its fusha", async () => {
+  const mod = await loadSharedModule<StoryDialectModule>("storyDialect");
+
+  const bodies = mod.storyDialectBodies(
+    [{ arabic: "الأول", arabic_vocalized: "الأَوَّل" }, { arabic: "الثاني" }],
+    [{ dialect: "الأول بالعامية", dialect_vocalized: "" }, { dialect: "", dialect_vocalized: "" }],
+  );
+
+  // `body_dialect` is what the shelf measures coverage from and what the
+  // assistant is handed as the document. A hole in the middle of it is worse
+  // than one fusha sentence.
+  assertEquals(bodies.body_dialect, "الأول بالعامية\nالثاني");
+  assertEquals(bodies.body_dialect_vocalized, "الأول بالعامية\nالثاني");
+});
+
+Deno.test("storyDialect names the fusha source as the trap it is", async () => {
+  const mod = await loadSharedModule<StoryDialectModule>("storyDialect");
+
+  const prompt = mod.buildStoryDialectPrompt("Egyptian");
+
+  // Translating out of MSA drags the answer back toward MSA, so the prompt has
+  // to ask for a restructure rather than a word swap — and name the dialect,
+  // since one prompt serves all three.
+  assertStringIncludes(prompt, "Egyptian");
+  assertStringIncludes(prompt, "TRAP");
+  assertStringIncludes(prompt, "one entry per numbered source line");
 });

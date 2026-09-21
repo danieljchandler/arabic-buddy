@@ -14,8 +14,14 @@ import { AskAISentence } from '@/components/shared/AskAISentence';
 import { TranslationPair } from '@/components/shared/TranslationPair';
 import { MarkUnknownsProvider } from '@/contexts/MarkUnknownsContext';
 import { SaveUnknownsBar } from '@/components/shared/SaveUnknownsBar';
-import { ArrowLeft, Loader2, Play, Pause, SkipForward, SkipBack, BookOpen, Eye, EyeOff } from 'lucide-react';
-import { toast } from 'sonner';
+import { ArrowLeft, Play, Pause, SkipForward, SkipBack, Volume2, Loader2 } from 'lucide-react';
+import { useLineAudio } from '@/hooks/useLineAudio';
+import {
+  storedClipFor,
+  storyLineText,
+  ttsDialectFor,
+  type StoryRegister,
+} from '@/lib/storyReading';
 import { useDocumentTitle } from '@/hooks/useDocumentTitle';
 import { usePageAiContext } from '@/contexts/AiAssistantContext';
 import { cn } from '@/lib/utils';
@@ -74,12 +80,22 @@ const ReadingLibraryStory = () => {
 
   useDocumentTitle(story?.title ? `${story.title} — Reading Library` : 'Reading Library');
 
-  const [showDialect, setShowDialect] = useState(false);
+  /**
+   * Dialect first.
+   *
+   * The library's source texts are public-domain fusha and the app teaches
+   * spoken Arabic, so the dialect rendering is the story — the fusha is the
+   * provenance, kept one switch away for a learner who wants to see what the
+   * original said. This started the other way round, which is how a feature
+   * that had a dialect conversion all along still put MSA in front of
+   * everyone. A line the conversion skipped falls back to its fusha on its
+   * own; see `storyLineText`.
+   */
+  const [register, setRegister] = useState<StoryRegister>('dialect');
+  const showDialect = register === 'dialect';
   const [showEnglish, setShowEnglish] = useState(false);
-  const [currentLineIndex, setCurrentLineIndex] = useState(-1);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const [selectedIdx, setSelectedIdx] = useState(0);
   const [activeSceneIdx, setActiveSceneIdx] = useState(0);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
   const lineRefs = useRef<(HTMLDivElement | null)[]>([]);
 
   const segments: StorySegment[] = Array.isArray(story?.story_video_segments)
@@ -90,13 +106,38 @@ const ReadingLibraryStory = () => {
   const sceneImages = segments.map((s) => (s.image_url || s.url) as string);
   const heroImage = sceneImages[activeSceneIdx] ?? sceneImages[0];
 
-  const hasAudio = lines?.some((l) => l.audio_url);
+  /**
+   * Speech for the story, in the register on screen.
+   *
+   * Lines an editor already had narrated are played from storage and cost
+   * nothing; everything else is synthesised on demand through `tts-speak`,
+   * which picks the voice from the dialect. `storedClipFor` is what keeps the
+   * two honest — a recording made from the dialect text is not played under
+   * the fusha, and vice versa.
+   */
+  const readable = useMemo(() => lines ?? [], [lines]);
+  const spokenLines = useMemo(
+    () => readable.map((l) => storyLineText(l, register)),
+    [readable, register],
+  );
+  const storedClips = useMemo(
+    () => readable.map((l) => storedClipFor(l, register)),
+    [readable, register],
+  );
+  const { playingIndex, loadingIndex, isPlayingAll, playLine, playAll } = useLineAudio({
+    lines: spokenLines,
+    clips: storedClips,
+    dialect: ttsDialectFor(story?.dialect, register),
+  });
 
   // The line shown as a caption under the picture. Defaults to 0 so the
-  // reader always sees the first phrase; updates while audio plays and via
-  // prev/next controls.
-  const focusedIdx = currentLineIndex >= 0 ? currentLineIndex : 0;
-  const focusedLine = lines?.[focusedIdx];
+  // reader always sees the first phrase; follows the audio while it plays and
+  // the prev/next controls otherwise.
+  useEffect(() => {
+    if (playingIndex !== null) setSelectedIdx(playingIndex);
+  }, [playingIndex]);
+  const focusedIdx = playingIndex ?? selectedIdx;
+  const focusedLine = readable[focusedIdx];
 
   // Sync active scene image to focused line
   useEffect(() => {
@@ -108,15 +149,15 @@ const ReadingLibraryStory = () => {
     setActiveSceneIdx(idx);
   }, [focusedIdx, lines?.length, sceneImages.length]);
 
-  // Auto-scroll to current line
+  // Auto-scroll to the line that is sounding
   useEffect(() => {
-    if (currentLineIndex >= 0 && lineRefs.current[currentLineIndex]) {
-      lineRefs.current[currentLineIndex]?.scrollIntoView({
+    if (playingIndex !== null && lineRefs.current[playingIndex]) {
+      lineRefs.current[playingIndex]?.scrollIntoView({
         behavior: 'smooth',
         block: 'center',
       });
     }
-  }, [currentLineIndex]);
+  }, [playingIndex]);
 
   // What the assistant sees: the whole story with the line the learner is on
   // marked, in whichever register they are reading (the dialect toggle swaps
@@ -124,10 +165,7 @@ const ReadingLibraryStory = () => {
   usePageAiContext(
     useMemo(() => {
       if (!story || !lines || lines.length === 0) return null;
-      const textOf = (l: AuthenticStoryLine) =>
-        showDialect
-          ? (l.dialect_vocalized || l.dialect || l.arabic_vocalized || l.arabic)
-          : (l.arabic_vocalized || l.arabic);
+      const textOf = (l: AuthenticStoryLine) => storyLineText(l, register);
       const focus = lines[focusedIdx];
       return {
         kind: 'story' as const,
@@ -146,84 +184,17 @@ const ReadingLibraryStory = () => {
         meta: { dialect: story.dialect ?? undefined },
         position: { index: focusedIdx + 1, total: lines.length },
       };
-    }, [story, lines, focusedIdx, showDialect]),
+    }, [story, lines, focusedIdx, register, showDialect]),
   );
 
-  const mountedRef = useRef(true);
-  useEffect(() => {
-    mountedRef.current = true;
-    return () => {
-      mountedRef.current = false;
-      if (audioRef.current) {
-        audioRef.current.onended = null;
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
-    };
-  }, []);
-
-  const playLine = (index: number) => {
-    if (!mountedRef.current) return;
-    if (!lines || !lines[index]) return;
-    const line = lines[index];
-
-    if (audioRef.current) {
-      audioRef.current.onended = null;
-      audioRef.current.pause();
-      audioRef.current = null;
-    }
-
-    setCurrentLineIndex(index);
-
-    if (!line.audio_url) {
-      setIsPlaying(false);
-      return;
-    }
-
-    const audio = new Audio(line.audio_url);
-    audioRef.current = audio;
-    setIsPlaying(true);
-
-    audio.onended = () => {
-      if (!mountedRef.current) return;
-      if (index + 1 < lines.length) {
-        playLine(index + 1);
-      } else {
-        setIsPlaying(false);
-      }
-    };
-
-    audio.play().catch(() => {
-      if (!mountedRef.current) return;
-      setIsPlaying(false);
-      toast.error('Failed to play audio');
-    });
+  const goTo = (index: number) => {
+    if (index < 0 || index >= readable.length || index === focusedIdx) return;
+    setSelectedIdx(index);
+    // Moving through a story is listening to it, so the new line speaks —
+    // which is what the prev/next buttons did before they were wired to a
+    // stored clip that may not exist.
+    playLine(index);
   };
-
-  const handlePlayPause = () => {
-    if (isPlaying && audioRef.current) {
-      audioRef.current.pause();
-      setIsPlaying(false);
-    } else if (audioRef.current && currentLineIndex >= 0) {
-      audioRef.current.play();
-      setIsPlaying(true);
-    } else {
-      playLine(focusedIdx);
-    }
-  };
-
-  const handleNext = () => {
-    if (!lines) return;
-    const next = Math.min(lines.length - 1, focusedIdx + 1);
-    if (next !== focusedIdx) playLine(next);
-  };
-
-  const handlePrev = () => {
-    if (!lines) return;
-    const prev = Math.max(0, focusedIdx - 1);
-    if (prev !== focusedIdx) playLine(prev);
-  };
-
 
   if (loadingStory || loadingLines) {
     return (
@@ -304,10 +275,7 @@ const ReadingLibraryStory = () => {
             <Card className="p-4 mb-4 border-2 border-primary/20 shadow-soft">
               <div dir="rtl" className="text-xl leading-loose text-center min-h-[3rem]">
                 <TappableArabicText
-                  text={showDialect
-                    ? (focusedLine.dialect_vocalized || focusedLine.dialect || focusedLine.arabic_vocalized || focusedLine.arabic)
-                    : (focusedLine.arabic_vocalized || focusedLine.arabic)
-                  }
+                  text={spokenLines[focusedIdx]}
                   sentenceContext={{ english: focusedLine.english ?? undefined }}
                   source="reading-library"
                 />
@@ -323,30 +291,36 @@ const ReadingLibraryStory = () => {
 
               <div className="flex justify-center mt-2">
                 <AskAISentence
-                  arabic={showDialect
-                    ? (focusedLine.dialect_vocalized || focusedLine.dialect || focusedLine.arabic_vocalized || focusedLine.arabic)
-                    : (focusedLine.arabic_vocalized || focusedLine.arabic)
-                  }
+                  arabic={spokenLines[focusedIdx]}
                   english={focusedLine.english ?? undefined}
                   variant="chip"
                 />
               </div>
 
               <div className="flex items-center justify-between gap-2 mt-4 pt-3 border-t border-border">
-                <Button size="icon" variant="ghost" aria-label="Previous line" onClick={handlePrev} disabled={focusedIdx <= 0}>
+                <Button size="icon" variant="ghost" aria-label="Previous line" onClick={() => goTo(focusedIdx - 1)} disabled={focusedIdx <= 0}>
                   <SkipBack className="h-4 w-4" />
                 </Button>
                 <div className="flex items-center gap-3">
-                  {hasAudio && (
-                    <Button size="icon" variant="default" aria-label={isPlaying ? "Pause" : "Play"} onClick={handlePlayPause} className="h-11 w-11 rounded-full">
-                      {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
-                    </Button>
-                  )}
+                  {/*
+                    Always offered, never gated on a pre-generated recording:
+                    an unnarrated story is spoken on demand in its own dialect,
+                    which is the whole point of having one.
+                  */}
+                  <Button
+                    size="icon"
+                    variant="default"
+                    aria-label={isPlayingAll ? 'Stop reading aloud' : 'Read the story aloud'}
+                    onClick={() => (isPlayingAll ? playAll() : playAll(focusedIdx))}
+                    className="h-11 w-11 rounded-full"
+                  >
+                    {isPlayingAll ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5" />}
+                  </Button>
                   <span className="text-xs text-muted-foreground tabular-nums">
                     {focusedIdx + 1} / {lines.length}
                   </span>
                 </div>
-                <Button size="icon" variant="ghost" aria-label="Next line" onClick={handleNext} disabled={focusedIdx >= lines.length - 1}>
+                <Button size="icon" variant="ghost" aria-label="Next line" onClick={() => goTo(focusedIdx + 1)} disabled={focusedIdx >= lines.length - 1}>
                   <SkipForward className="h-4 w-4" />
                 </Button>
               </div>
@@ -358,8 +332,19 @@ const ReadingLibraryStory = () => {
             <div className="flex flex-wrap items-center gap-4">
               {story.body_dialect && (
                 <div className="flex items-center gap-2">
-                  <Switch checked={showDialect} onCheckedChange={setShowDialect} id="dialect-toggle" />
-                  <Label htmlFor="dialect-toggle" className="text-sm">Dialect</Label>
+                  {/*
+                    Switched on. The label says what turning it off gets you,
+                    because the dialect is the story and the fusha is where it
+                    came from — not the other way round.
+                  */}
+                  <Switch
+                    checked={showDialect}
+                    onCheckedChange={(on) => setRegister(on ? 'dialect' : 'fusha')}
+                    id="dialect-toggle"
+                  />
+                  <Label htmlFor="dialect-toggle" className="text-sm">
+                    {showDialect ? `${story.dialect || 'Dialect'} · tap to see the original` : 'Original (فصحى)'}
+                  </Label>
                 </div>
               )}
               <div className="flex items-center gap-2">
@@ -372,23 +357,19 @@ const ReadingLibraryStory = () => {
 
           {/* Story Lines */}
           <div className="space-y-4">
-            {lines && lines.map((line, idx) => (
+            {readable.map((line, idx) => (
               <div
                 key={line.id}
                 ref={el => { lineRefs.current[idx] = el; }}
                 className={cn(
-                  'rounded-lg p-3 transition-colors cursor-pointer',
-                  currentLineIndex === idx ? 'bg-primary/10 border border-primary/30' : 'hover:bg-muted/50',
+                  'rounded-lg p-3 transition-colors',
+                  playingIndex === idx ? 'bg-primary/10 border border-primary/30' : 'hover:bg-muted/50',
                 )}
-                onClick={() => line.audio_url && playLine(idx)}
               >
                 {/* Arabic text (tappable) */}
                 <div dir="rtl" className="text-lg leading-relaxed">
                   <TappableArabicText
-                    text={showDialect
-                      ? (line.dialect_vocalized || line.dialect || line.arabic_vocalized || line.arabic)
-                      : (line.arabic_vocalized || line.arabic)
-                    }
+                    text={spokenLines[idx]}
                     sentenceContext={{ english: line.english ?? undefined }}
                     source="reading-library"
                   />
@@ -403,6 +384,36 @@ const ReadingLibraryStory = () => {
                     className="mt-1"
                   />
                 )}
+
+                {/*
+                  A speaker per line rather than a tap anywhere on it: the
+                  words in the line are themselves tappable for a gloss, so the
+                  whole row cannot also be a play button without the two
+                  fighting. It was gated on `line.audio_url` before, which
+                  meant a story nobody had narrated could not be heard at all.
+                */}
+                <div className="mt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => playLine(idx)}
+                    disabled={loadingIndex === idx}
+                    aria-label={playingIndex === idx ? `Stop line ${idx + 1}` : `Play line ${idx + 1}`}
+                    className={cn(
+                      'inline-flex h-7 w-7 items-center justify-center rounded-full transition-colors',
+                      playingIndex === idx
+                        ? 'text-primary'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-accent/40',
+                    )}
+                  >
+                    {loadingIndex === idx ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : playingIndex === idx ? (
+                      <Pause className="h-3.5 w-3.5" />
+                    ) : (
+                      <Volume2 className="h-3.5 w-3.5" />
+                    )}
+                  </button>
+                </div>
               </div>
             ))}
           </div>

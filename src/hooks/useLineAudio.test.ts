@@ -188,6 +188,79 @@ describe("useLineAudio", () => {
     expect(spoken()).toEqual(["blob:clip-1", "blob:clip-1"]);
   });
 
+  it("plays a stored recording instead of buying one", async () => {
+    const { result } = renderHook(() =>
+      useLineAudio({ lines: LINES, clips: ["https://cdn.test/line-0.wav", null, null] }),
+    );
+
+    act(() => result.current.playLine(0));
+    await waitFor(() => expect(result.current.playingIndex).toBe(0));
+
+    // A published story is narrated once by an editor. Synthesising it again
+    // per learner would spend their daily cap on audio that already exists.
+    expect(fetchSpeechBlob).not.toHaveBeenCalled();
+    expect(spoken()).toEqual(["https://cdn.test/line-0.wav"]);
+  });
+
+  it("never shows a spinner for a line it does not have to fetch", async () => {
+    const { result } = renderHook(() =>
+      useLineAudio({ lines: LINES, clips: ["https://cdn.test/line-0.wav", null, null] }),
+    );
+
+    act(() => result.current.playLine(0));
+
+    expect(result.current.loadingIndex).toBeNull();
+    await waitFor(() => expect(result.current.playingIndex).toBe(0));
+  });
+
+  it("synthesises the lines a recording does not cover", async () => {
+    const { result } = renderHook(() =>
+      useLineAudio({ lines: LINES, clips: ["https://cdn.test/line-0.wav", "", undefined] }),
+    );
+
+    act(() => result.current.playAll());
+    await waitFor(() => expect(result.current.playingIndex).toBe(0));
+    await endCurrent();
+    await waitFor(() => expect(result.current.playingIndex).toBe(1));
+
+    // Mixed on purpose: a story whose editor narrated the first lines and a
+    // re-translation that dropped the rest still reads all the way through.
+    expect(fetchSpeechBlob.mock.calls.map((c) => c[0].text)).toEqual([LINES[1], LINES[2]]);
+    expect(spoken()).toEqual(["https://cdn.test/line-0.wav", "blob:clip-1"]);
+  });
+
+  it("does not prefetch a line it already has a recording for", async () => {
+    const { result } = renderHook(() =>
+      useLineAudio({ lines: LINES, clips: [null, "https://cdn.test/line-1.wav", null] }),
+    );
+
+    act(() => result.current.playAll());
+    await waitFor(() => expect(result.current.playingIndex).toBe(0));
+    await waitFor(() => expect(fetchSpeechBlob).toHaveBeenCalledTimes(1));
+
+    // The prefetch exists to hide a round trip that a stored clip does not
+    // have; asking for it anyway would buy a clip that is never played.
+    expect(fetchSpeechBlob.mock.calls[0][0].text).toBe(LINES[0]);
+  });
+
+  it("stops when the recordings change under it", async () => {
+    // The reading library swaps every clip when the learner switches between
+    // the dialect and the fusha. Carrying on would finish the sentence in the
+    // register they just navigated away from.
+    const { result, rerender } = renderHook(
+      ({ clips }: { clips: Array<string | null> }) => useLineAudio({ lines: LINES, clips }),
+      { initialProps: { clips: ["https://cdn.test/dialect-0.wav", null, null] } },
+    );
+
+    act(() => result.current.playAll());
+    await waitFor(() => expect(result.current.playingIndex).toBe(0));
+
+    rerender({ clips: [null, null, null] });
+
+    await waitFor(() => expect(result.current.playingIndex).toBeNull());
+    expect(result.current.isPlayingAll).toBe(false);
+  });
+
   it("treats a second tap on the sounding line as stop", async () => {
     const { result } = renderHook(() => useLineAudio({ lines: LINES }));
 

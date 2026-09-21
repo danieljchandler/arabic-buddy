@@ -161,7 +161,17 @@ const AdminReadingLibraryForm = () => {
         body: { story_id: id, dialect: story?.dialect || dialect },
       });
       if (resp.error) throw new Error(resp.error.message);
-      toast.success(`Translated to ${story?.dialect || dialect} dialect`);
+      const cleared = Number(resp.data?.audio_cleared ?? 0);
+      toast.success(
+        `Translated to ${story?.dialect || dialect} dialect`,
+        // A re-translation throws away the narration of every line whose words
+        // changed, because the stored clip is of the old sentence. Saying so
+        // is the difference between "regenerate the audio" and "the audio
+        // mysteriously stopped working".
+        cleared > 0
+          ? { description: `${cleared} line${cleared === 1 ? '' : 's'} need their audio regenerated.` }
+          : undefined,
+      );
       queryClient.invalidateQueries({ queryKey: ['authentic-story-lines', id] });
       queryClient.invalidateQueries({ queryKey: ['authentic-story', id] });
     } catch (e: unknown) {
@@ -458,9 +468,15 @@ const AdminReadingLibraryForm = () => {
                   </Button>
                 )}
 
+                {/*
+                  A re-run, not the first run: the import converts the story
+                  to its dialect on the way in. This is for a conversion that
+                  failed, a story being moved to another dialect, or one an
+                  editor wants redone.
+                */}
                 <Button onClick={handleTranslateDialect} disabled={translating} variant="outline">
                   {translating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Globe className="h-4 w-4 mr-2" />}
-                  Translate to Dialect
+                  {story.body_dialect ? 'Re-translate to Dialect' : 'Translate to Dialect'}
                 </Button>
 
                 <Button onClick={handleGeneratePreview} disabled={generatingPreview} variant="outline">

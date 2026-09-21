@@ -1,10 +1,20 @@
-// translate-story-dialect — Translates Fusha text into a specified dialect with tashkeel
+// translate-story-dialect — Re-runs the fusha→dialect conversion for a story.
+//
+// Every import already lands in dialect (import-authentic-story calls the same
+// shared converter), so this is the *re-run*: a story whose conversion failed
+// at import time, one being moved to another dialect, or one an editor wants
+// redone. The conversion itself lives in `_shared/storyDialect.ts` so the two
+// entry points cannot drift apart.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { askBrain } from "../_shared/aiBrain.ts";
 import { primeDialectPrompt, type Dialect } from "../_shared/dialectHelpers.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { requireContentManager } from "../_shared/requireRole.ts";
+import {
+  hasDialectLines,
+  storyDialectBodies,
+  translateStoryLinesToDialect,
+} from "../_shared/storyDialect.ts";
 
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -52,66 +62,33 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Translate all lines to dialect
-    const arabicLines = lines.map((l: { arabic?: string; arabic_vocalized?: string }) => l.arabic || l.arabic_vocalized).join("\n");
+    const dialectLines = await translateStoryLinesToDialect(lines, targetDialect);
 
-    const translateResult = await askBrain<{
-      lines: Array<{ dialect: string; dialect_vocalized: string }>;
-    }>({
-      purpose: "utility",
-      dialect: targetDialect,
-      strategy: "draft_critic",
-      // No models override: the old single-entry list named a model that is
-      // not in the registry and was silently discarded anyway. The CONTENT
-      // lineup drafts and critiques; enforceDialect makes the critique real
-      // for this fusha→dialect conversion.
-      enforceDialect: true,
-      systemPromptExtra: `You are a native ${targetDialect} Arabic speaker and translator. Convert the given Modern Standard Arabic (Fusha) text into natural, authentic ${targetDialect} dialect Arabic.
-The SOURCE IS FUSHA, AND THAT IS A TRAP: text elicited from an MSA source drifts toward MSA — its word order, its verb forms, its vocabulary (MADAR's corpus builders measured this and translated from English to avoid it). Do not translate word by word. Say what a ${targetDialect} speaker would actually say to mean the same thing, even when that restructures the sentence or swaps the lexeme (نافذة → شباك, أريد → أبغى/عايز, سوف أذهب → بروح/هروح). If a line comes out looking like Fusha with a few dialect words, it is wrong. For each line:
-1. Provide the dialect version in natural Arabic script
-2. Provide the dialect version with full tashkeel (diacritics)
-Keep the meaning faithful but make it sound natural in the dialect. Use authentic dialect vocabulary, grammar patterns, and expressions.`,
-      userPrompt: `Translate these ${lines.length} Fusha Arabic lines into ${targetDialect} dialect:\n${lines.map((l: { arabic?: string }, i: number) => `${i + 1}. ${l.arabic}`).join("\n")}`,
-      // Point the validator at the unvocalized dialect lines only — the
-      // fallback walk would also feed it the tashkeel duplicates.
-      arabicTextPath: (p) =>
-        ((p as { lines?: Array<{ dialect?: string }> } | null)?.lines ?? [])
-          .map((l) => l.dialect ?? "")
-          .join("\n"),
-      maxTokens: 6000,
-      temperature: 0.3,
-      tool: {
-        name: "emit_dialect_lines",
-        description: "Return dialect translations for each line.",
-        parameters: {
-          type: "object",
-          properties: {
-            lines: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  dialect: { type: "string", description: "Dialect Arabic text" },
-                  dialect_vocalized: { type: "string", description: "Dialect Arabic with full tashkeel" },
-                },
-                required: ["dialect", "dialect_vocalized"],
-              },
-            },
-          },
-          required: ["lines"],
-        },
-      },
-    });
-
-    const dialectLines = translateResult.output?.lines ?? [];
-
-    // Update each line with dialect translation
-    for (let i = 0; i < Math.min(lines.length, dialectLines.length); i++) {
+    // Update each line with its dialect translation. A line the model skipped
+    // keeps the dialect it already had rather than being blanked — a re-run
+    // that drops a rendering is worse than one that leaves it alone.
+    //
+    // A line whose words changed also loses its recording. The stored clip was
+    // synthesised from the old text, and nothing on the row says which text a
+    // clip belongs to, so leaving it would have the page show one sentence and
+    // say another. Dropping it costs a re-generation and falls back to
+    // on-demand speech in the meantime.
+    let translated = 0;
+    let audioCleared = 0;
+    for (let i = 0; i < lines.length; i++) {
+      const rendering = dialectLines[i];
+      if (!rendering?.dialect) continue;
+      translated++;
+      const vocalized = rendering.dialect_vocalized || rendering.dialect;
+      const stale = Boolean(lines[i].audio_url) &&
+        (lines[i].dialect !== rendering.dialect || lines[i].dialect_vocalized !== vocalized);
+      if (stale) audioCleared++;
       const { error: updateErr } = await supabaseAdmin
         .from("authentic_story_lines")
         .update({
-          dialect: dialectLines[i].dialect,
-          dialect_vocalized: dialectLines[i].dialect_vocalized,
+          dialect: rendering.dialect,
+          dialect_vocalized: vocalized,
+          ...(stale ? { audio_url: null, duration_seconds: null } : {}),
         })
         .eq("id", lines[i].id);
       if (updateErr) {
@@ -119,22 +96,32 @@ Keep the meaning faithful but make it sound natural in the dialect. Use authenti
       }
     }
 
-    // Update story-level dialect fields
-    const bodyDialect = dialectLines.map(l => l.dialect).join("\n");
-    const bodyDialectVocalized = dialectLines.map(l => l.dialect_vocalized).join("\n");
+    if (hasDialectLines(dialectLines)) {
+      await supabaseAdmin
+        .from("authentic_stories")
+        .update({
+          ...storyDialectBodies(lines, dialectLines),
+          dialect: targetDialect,
+          // Say so on the story too, so the edit page stops claiming the
+          // narration is ready when half of it has just been thrown away.
+          ...(audioCleared > 0
+            ? {
+              video_status: "none",
+              audio_url: null,
+              duration_seconds: null,
+              line_durations: null,
+            }
+            : {}),
+        })
+        .eq("id", story_id);
+    }
 
-    await supabaseAdmin
-      .from("authentic_stories")
-      .update({
-        body_dialect: bodyDialect,
-        body_dialect_vocalized: bodyDialectVocalized,
-        dialect: targetDialect,
-      })
-      .eq("id", story_id);
-
-    return new Response(JSON.stringify({ success: true, lines_translated: dialectLines.length }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ success: true, lines_translated: translated, audio_cleared: audioCleared }),
+      {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   } catch (e: unknown) {
     console.error("translate-story-dialect fatal:", e);
     return new Response(JSON.stringify({ error: "internal", detail: "An unexpected error occurred" }), {

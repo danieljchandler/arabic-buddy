@@ -1,4 +1,5 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@/test/support/react/harness";
 import {
@@ -9,6 +10,7 @@ import {
   reviewId,
   TEST_USER_ID,
   vocabId,
+  wordId,
 } from "@/test/support/factories";
 import type { SupabaseBackend } from "@/test/support/server/handler";
 import { LeechHelperPanel, type LeechKind } from "./LeechHelperPanel";
@@ -56,10 +58,23 @@ const ROW_ID: Record<LeechKind, string> = {
   curriculum: reviewId(0),
 };
 
+/**
+ * A row id no deck holds.
+ *
+ * The filter is the whole of the write's addressing, so a row that is not there
+ * — deleted, or one the policy will not hand over — is the shape of silent
+ * failure this panel has to notice: PostgREST answers a write that matched
+ * nothing with a 200 and no error at all.
+ */
+const MISSING_ROW = vocabId(99);
+
 interface Options {
   kind?: LeechKind;
   mnemonic?: string | null;
   mnemonicImageUrl?: string | null;
+  rowId?: string;
+  /** A query cache to mount the panel against, to read the deck back out of. */
+  client?: QueryClient;
   seed?: (backend: SupabaseBackend) => void;
 }
 
@@ -68,23 +83,32 @@ const panel = (
   kind: LeechKind,
   mnemonic: string | null = null,
   mnemonicImageUrl: string | null = null,
+  rowId: string = ROW_ID[kind],
 ) => (
   <LeechHelperPanel
     kind={kind}
-    rowId={ROW_ID[kind]}
+    rowId={rowId}
     arabic="مطعم"
     english="restaurant"
     transliteration="mat'am"
     dialect="Gulf"
     mnemonic={mnemonic}
     mnemonicImageUrl={mnemonicImageUrl}
-    invalidateKeys={[["due-words"]]}
+    deckKeys={[["due-words"]]}
   />
 );
 
-function render({ kind = "word", mnemonic = null, mnemonicImageUrl = null, seed }: Options = {}) {
+function render({
+  kind = "word",
+  mnemonic = null,
+  mnemonicImageUrl = null,
+  rowId,
+  client,
+  seed,
+}: Options = {}) {
+  const mounted = panel(kind, mnemonic, mnemonicImageUrl, rowId);
   const harness = renderWithProviders(
-    panel(kind, mnemonic, mnemonicImageUrl),
+    client ? <QueryClientProvider client={client}>{mounted}</QueryClientProvider> : mounted,
     {
       persona: "free",
       seed: (backend) => {
@@ -348,6 +372,34 @@ describe("making a memory hook", () => {
 
     await waitFor(() => expect(generateButton()).toBeEnabled());
   });
+
+  it("does not claim a hook it could not keep", async () => {
+    render({ seed: (b) => b.db.failNextWrite("user_vocabulary", 500, { message: "nope" }) });
+
+    await click(generateButton());
+
+    // The save is the whole point of generating one: a hook that lives only in
+    // this render is a hook the learner pays for again tomorrow. PostgREST
+    // reports the refusal on `error` rather than by throwing, and this panel
+    // used to ignore that channel entirely — so a rejected write still toasted
+    // "Mnemonic ready!".
+    await waitFor(() => expect(toasts.error).toHaveBeenCalled());
+    expect(toasts.error.mock.calls[0][0]).toContain("couldn't be saved");
+    expect(toasts.success).not.toHaveBeenCalled();
+  });
+
+  it("does not claim a hook the deck never took", async () => {
+    render({ rowId: MISSING_ROW });
+
+    await click(generateButton());
+
+    // The louder half of the same failure: a write whose filter matches no row
+    // is answered 200 with no error, so nothing on the response says the hook
+    // was dropped. It is the way the curriculum image save fails for a learner
+    // who is not an admin, and it looks identical to success from here.
+    await waitFor(() => expect(toasts.error).toHaveBeenCalled());
+    expect(toasts.success).not.toHaveBeenCalled();
+  });
 });
 
 describe("picturing the memory hook", () => {
@@ -562,6 +614,19 @@ describe("picturing the memory hook", () => {
     expect(toasts.success).not.toHaveBeenCalledWith("Picture ready!");
   });
 
+  it("does not show a picture the deck never took", async () => {
+    render({ mnemonic: "picture a welcome mat", rowId: MISSING_ROW });
+
+    await click(pictureButton());
+
+    // A write that matched no row answers 200 with an empty list rather than an
+    // error, so the picture would otherwise be hung on screen over a card that
+    // has no record of it — and be gone, unexplained, on the next review.
+    await waitFor(() => expect(toasts.error).toHaveBeenCalled());
+    expect(toasts.success).not.toHaveBeenCalledWith("Picture ready!");
+    expect(screen.queryByRole("img", { name: /Mnemonic picture/ })).toBeNull();
+  });
+
   it("can be tried again after a failure", async () => {
     render({
       mnemonic: "picture a welcome mat",
@@ -651,5 +716,100 @@ describe("saying the card is not stuck after all", () => {
     rerender(panel("phrase"));
 
     expect(screen.getByText("Stuck on this one?")).toBeInTheDocument();
+  });
+});
+
+/**
+ * The deck the card came from is a cached array the review screen is walking by
+ * index. Both review hooks refuse to refetch it mid-session for that reason,
+ * and this panel used to invalidate it on every save — which rebuilds the
+ * array between two cards, swaps the row under the panel, and takes the hook
+ * that was just written off the screen with it.
+ */
+describe("keeping the deck in step", () => {
+  const deckKey = ["due-words"];
+
+  const deckClient = (rows: unknown[]) => {
+    // No component observes this deck here, so it must survive on its own:
+    // the default garbage-collection window drops an unobserved entry at once
+    // and the panel would have nothing to patch.
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: Infinity } },
+    });
+    client.setQueryData(deckKey, rows);
+    return client;
+  };
+
+  it("writes the hook into the cached curriculum card", async () => {
+    // A curriculum card carries its schedule row as `review`, so the id the
+    // write used is one level down from the card's own.
+    const client = deckClient([
+      { id: wordId(0), review: { id: reviewId(0), mnemonic: null, mnemonic_image_url: null } },
+    ]);
+    render({ kind: "curriculum", client });
+
+    await click(generateButton());
+
+    await waitFor(() =>
+      expect(
+        (client.getQueryData(deckKey) as Array<{ review: { mnemonic: string | null } }>)[0].review
+          .mnemonic,
+      ).toContain("welcome mat"),
+    );
+  });
+
+  it("writes the hook into a cached saved-word card", async () => {
+    const client = deckClient([{ id: vocabId(0), mnemonic: null, mnemonic_image_url: null }]);
+    render({ client });
+
+    await click(generateButton());
+
+    await waitFor(() =>
+      expect(
+        (client.getQueryData(deckKey) as Array<{ mnemonic: string | null }>)[0].mnemonic,
+      ).toContain("welcome mat"),
+    );
+  });
+
+  it("leaves the rest of the deck alone", async () => {
+    const other = { id: vocabId(1), mnemonic: null, mnemonic_image_url: null };
+    const client = deckClient([{ id: vocabId(0), mnemonic: null, mnemonic_image_url: null }, other]);
+    render({ client });
+
+    await click(generateButton());
+
+    await waitFor(() => expect(toasts.success).toHaveBeenCalledWith("Mnemonic ready!"));
+    // One card's memory hook is one card's: the panel addresses the deck by the
+    // same id its write did.
+    expect((client.getQueryData(deckKey) as Array<{ mnemonic: string | null }>)[1]).toEqual(other);
+  });
+
+  it("does not send the review screen back for a new deck", async () => {
+    const client = deckClient([{ id: vocabId(0), mnemonic: null, mnemonic_image_url: null }]);
+    render({ client });
+
+    await click(generateButton());
+
+    await waitFor(() => expect(toasts.success).toHaveBeenCalledWith("Mnemonic ready!"));
+    // Invalidating is what made the deck rebuild under the learner: the query
+    // function reorders and re-caps the array the page is indexing into, so the
+    // next card is not the one they were on.
+    expect(client.getQueryState(deckKey)?.isInvalidated).toBe(false);
+  });
+
+  it("keeps the picture with the card it was drawn for", async () => {
+    const client = deckClient([
+      { id: vocabId(0), mnemonic: "picture a welcome mat", mnemonic_image_url: null },
+    ]);
+    render({ mnemonic: "picture a welcome mat", client });
+
+    await click(pictureButton());
+
+    await waitFor(() =>
+      expect(
+        (client.getQueryData(deckKey) as Array<{ mnemonic_image_url: string | null }>)[0]
+          .mnemonic_image_url,
+      ).toContain("mnemonic-scene.png"),
+    );
   });
 });

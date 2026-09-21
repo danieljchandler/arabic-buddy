@@ -320,6 +320,77 @@ global "Formal Arabic (MSA)" display preference on every screen that shows the
 row, so asking for MSA once — in Settings, on a transcript, on a video — turns
 it on everywhere.
 
+## The reading library
+
+Authentic short prose — public-domain folktales, fables and short stories —
+imported by an admin and read line by line at `/reading-library`. It is the one
+part of the app whose *source* is Modern Standard Arabic, and the only reason
+that is allowed is that the source is never what a learner sees.
+
+The pipeline is four model calls behind one button. `suggest-stories` proposes
+three real stories that are not already on the shelf;
+`generate-suggested-story-text` writes the full text of the one chosen, in
+fusha and deliberately so (`targetRegister: "msa"`, the app's only such
+caller — the alternative is a prompt that says both "never MSA" and "write
+MSA", which filed a high-severity violation and a fake native-review task on
+every import); `import-authentic-story` segments it into lines, adds tashkeel,
+translates each line to English and extracts vocabulary; and then it converts
+every line into the target dialect.
+
+**That last step is part of the import, not a step after it.** It did not used
+to be: the conversion lived only behind a "Translate to Dialect" button on the
+edit page, and nothing in the suggest → generate → import flow pressed it. So
+the feature had a dialect conversion all along and every story still reached
+the shelf in fusha. The rules now live in `_shared/storyDialect.ts` — the
+prompt, the alignment, and the shape of what gets stored — with two entry
+points over them: the import, where the conversion is non-fatal (a model outage
+costs the story its dialect, which is re-runnable, rather than the
+segmentation, translations and vocabulary that already succeeded), and
+`translate-story-dialect`, which re-runs it for a story being moved to another
+dialect or redone.
+
+Three rules the converter keeps:
+
+- **The fusha source is a trap, and the prompt says so.** Text elicited from an
+  MSA source drifts toward MSA — word order, verb forms, lexis — which MADAR's
+  corpus builders measured and sidestepped by translating from English instead.
+  The instruction asks for what a speaker would actually say, restructuring and
+  swapping the lexeme (نافذة → شباك, أريد → أبغى/عايز), and `enforceDialect`
+  puts the native-speaker validator behind it, because "fusha with a few
+  dialect words" is exactly what the MSA token blacklist cannot see.
+- **Short answers pad; they never shift.** Same rule as the Fusha row, for the
+  same reason: a model that returns nine renderings for ten lines has merged
+  two of them, and sliding the array into place files every later line's
+  dialect under the wrong sentence.
+- **A re-run may never leave a story worse than not running it.** A conversion
+  that comes back empty writes nothing at all — it used to overwrite
+  `body_dialect` with an empty string and answer `success: true`.
+
+**The reader shows the dialect and keeps the fusha one switch away**
+(`src/lib/storyReading.ts`). That defaulted the other way round for as long as
+the feature existed, which is the second half of why everyone was reading MSA.
+A line the conversion skipped falls back to its own fusha rather than rendering
+blank.
+
+**The audio follows the text.** Every line has a speaker and the story has a
+read-through, both through `useLineAudio` → `tts-speak`, which takes a
+*dialect* and resolves the voice server-side — the dialect view is read in the
+story's dialect, the fusha view in MSA. Stored narration (an editor pressing
+"Generate Full Audio") is played instead of synthesised when it was made from
+the register on screen, so a published story costs a learner nothing from their
+daily TTS cap; a dialect recording under the fusha is refused and that line is
+synthesised instead. Keeping those two honest is what `storedClipFor` is for,
+and what makes `translate-story-dialect` drop the recording of every line whose
+words it changed. The controls used to be gated on a stored recording
+existing at all, so a story nobody had narrated could not be heard.
+
+Two narration bugs worth not reintroducing: the generators asked for
+`dialect_vocalized || arabic_vocalized || dialect`, which reads as a preference
+for diacritics and is really a preference for fusha — a story converted without
+tashkeel was narrated in MSA while the page showed the dialect. Both now go
+through `spokenStoryLine`, which takes both dialect forms before either fusha
+one.
+
 ## The learner's mistakes
 
 `learner_errors` collects every pronunciation miss, shadowing gap, sentence-coach

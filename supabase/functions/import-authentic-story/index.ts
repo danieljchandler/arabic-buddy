@@ -1,11 +1,26 @@
 // import-authentic-story — Takes raw Arabic text + metadata, segments into lines,
-// adds tashkeel via AI, translates to English, generates vocabulary list.
+// adds tashkeel via AI, translates to English and into the target dialect, and
+// generates a vocabulary list.
+//
+// The dialect step is not optional. The source texts are public-domain fusha
+// and the app teaches spoken Arabic, so an import that stopped at the fusha
+// put MSA on the learner's shelf — which is what it did, because the
+// conversion only ever ran from an admin button on the edit page that nothing
+// in the suggest → generate → import flow pressed. It runs here now, and
+// `translate-story-dialect` re-runs the same shared converter when an editor
+// wants it redone.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { askBrain } from "../_shared/aiBrain.ts";
 import { primeDialectPrompt, type Dialect } from "../_shared/dialectHelpers.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
+import {
+  hasDialectLines,
+  storyDialectBodies,
+  translateStoryLinesToDialect,
+  type StoryDialectLine,
+} from "../_shared/storyDialect.ts";
 
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
@@ -151,6 +166,32 @@ Maintain the original text faithfully — do not summarize or alter meaning.`,
     const bodyFushaVocalized = lines.map(l => l.arabic_vocalized).join("\n");
     const bodyEnglish = lines.map(l => l.english).join("\n");
 
+    // Step 2: convert those lines into the dialect the story is filed under.
+    //
+    // Non-fatal on purpose. A model outage here costs the story its dialect
+    // rendering, which an editor can re-run from the edit page; failing the
+    // whole import would cost the segmentation, the translation and the
+    // vocabulary that already succeeded.
+    let dialectLines: StoryDialectLine[] = [];
+    try {
+      dialectLines = await translateStoryLinesToDialect(lines, targetDialect, {
+        // Bounded because this is the second model call of a request that
+        // already has a segmentation behind it: a slow conversion should cost
+        // the story its dialect — re-runnable from the edit page — rather than
+        // time out the request carrying the lines, translations and
+        // vocabulary.
+        budgetMs: 60_000,
+      });
+    } catch (translateErr: unknown) {
+      console.warn(
+        "Dialect conversion failed; importing the fusha alone:",
+        translateErr instanceof Error ? translateErr.message : translateErr,
+      );
+    }
+    const dialectBodies = hasDialectLines(dialectLines)
+      ? storyDialectBodies(lines, dialectLines)
+      : null;
+
     // Insert story
     const { data: story, error: insertErr } = await supabaseAdmin
       .from("authentic_stories")
@@ -165,6 +206,8 @@ Maintain the original text faithfully — do not summarize or alter meaning.`,
         body_fusha: bodyFusha,
         body_fusha_vocalized: bodyFushaVocalized,
         body_english: bodyEnglish,
+        body_dialect: dialectBodies?.body_dialect ?? null,
+        body_dialect_vocalized: dialectBodies?.body_dialect_vocalized ?? null,
         dialect: targetDialect,
         difficulty: difficulty || "intermediate",
         vocabulary,
@@ -183,14 +226,19 @@ Maintain the original text faithfully — do not summarize or alter meaning.`,
     }
 
     // Insert story lines
-    const lineRows = lines.map((l, i) => ({
-      story_id: story.id,
-      line_index: i,
-      arabic: l.arabic,
-      arabic_vocalized: l.arabic_vocalized,
-      english: l.english,
-      english_literal: l.literal ?? null,
-    }));
+    const lineRows = lines.map((l, i) => {
+      const rendering = dialectLines[i];
+      return {
+        story_id: story.id,
+        line_index: i,
+        arabic: l.arabic,
+        arabic_vocalized: l.arabic_vocalized,
+        english: l.english,
+        english_literal: l.literal ?? null,
+        dialect: rendering?.dialect || null,
+        dialect_vocalized: rendering?.dialect_vocalized || rendering?.dialect || null,
+      };
+    });
 
     const { error: linesErr } = await supabaseAdmin
       .from("authentic_story_lines")
@@ -200,7 +248,10 @@ Maintain the original text faithfully — do not summarize or alter meaning.`,
       console.warn("Failed to insert lines:", linesErr.message);
     }
 
-    return new Response(JSON.stringify({ story }), {
+    return new Response(JSON.stringify({
+      story,
+      dialect_lines: dialectLines.filter((l) => l.dialect).length,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: unknown) {

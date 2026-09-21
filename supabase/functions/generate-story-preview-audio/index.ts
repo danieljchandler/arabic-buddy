@@ -3,6 +3,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { planProvider, synthesizeLine } from "../_shared/listenTts.ts";
+import { spokenStoryLine } from "../_shared/storyDialect.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { requireContentManager } from "../_shared/requireRole.ts";
 
@@ -75,8 +76,8 @@ Deno.serve(async (req) => {
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      // Prefer vocalized dialect text, fallback to vocalized arabic, then raw arabic
-      const textToSpeak = line.dialect_vocalized || line.arabic_vocalized || line.dialect || line.arabic;
+      // Dialect before fusha, whichever of them carries tashkeel.
+      const textToSpeak = spokenStoryLine(line);
 
       if (!textToSpeak) continue;
 

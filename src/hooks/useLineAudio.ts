@@ -7,6 +7,18 @@ interface UseLineAudioOptions {
   lines: string[];
   /** Dialect override; defaults to the learner's active dialect. */
   dialect?: string;
+  /**
+   * Audio already made for a line, by index.
+   *
+   * Some passages are narrated ahead of time and stored — the reading
+   * library's stories are, by an editor pressing "generate full audio". A URL
+   * here is played as-is instead of being synthesised, so a learner replaying
+   * a published story spends nothing from their daily cap. Leave an entry
+   * empty and that line falls back to synthesis, which is what a page does
+   * when the stored clip does not match the register on screen: a fusha
+   * recording under dialect text is the one thing worse than no audio.
+   */
+  clips?: Array<string | null | undefined>;
 }
 
 interface UseLineAudioResult {
@@ -60,7 +72,7 @@ let sounding: (() => void) | null = null;
  * article, not a listening exercise: synthesising a whole page up front would
  * spend a learner's daily TTS cap on lines they never press play on.
  */
-export function useLineAudio({ lines, dialect }: UseLineAudioOptions): UseLineAudioResult {
+export function useLineAudio({ lines, dialect, clips }: UseLineAudioOptions): UseLineAudioResult {
   const { activeDialect } = useDialect();
   const spokenDialect = dialect ?? activeDialect;
 
@@ -73,6 +85,14 @@ export function useLineAudio({ lines, dialect }: UseLineAudioOptions): UseLineAu
   // through the list as it stood when play was pressed.
   const linesRef = useRef(lines);
   linesRef.current = lines;
+  const presetsRef = useRef(clips);
+  presetsRef.current = clips;
+
+  /** The stored clip for a line, when there is one. */
+  const presetFor = useCallback(
+    (index: number) => presetsRef.current?.[index]?.trim() || null,
+    [],
+  );
 
   /** dialect+text → the clip's blob URL. Holds the promise, so two taps on the
    *  same line while it is still synthesising share one request. */
@@ -147,8 +167,11 @@ export function useLineAudio({ lines, dialect }: UseLineAudioOptions): UseLineAu
   const clipFor = useCallback(
     (text: string): Promise<string | null> => {
       const key = `${spokenDialect}\u0000${text}`;
-      const clips = clipsRef.current;
-      const cached = clips.get(key);
+      // Named for what it is, so it is not read as the `clips` option above —
+      // that one is recordings made earlier, this one is what this passage has
+      // synthesised so far.
+      const cache = clipsRef.current;
+      const cached = cache.get(key);
       if (cached) return cached;
 
       const pending = fetchSpeechBlob({ text, dialect: spokenDialect })
@@ -156,7 +179,7 @@ export function useLineAudio({ lines, dialect }: UseLineAudioOptions): UseLineAu
           if (!blob) {
             // Don't cache a failure: a 401 that a sign-in fixes, or a provider
             // blip, should not make the line permanently mute.
-            clips.delete(key);
+            cache.delete(key);
             return null;
           }
           const url = URL.createObjectURL(blob);
@@ -164,12 +187,12 @@ export function useLineAudio({ lines, dialect }: UseLineAudioOptions): UseLineAu
           return url;
         })
         .catch((err) => {
-          clips.delete(key);
+          cache.delete(key);
           console.error("Line audio failed:", err);
           return null;
         });
 
-      clips.set(key, pending);
+      cache.set(key, pending);
       return pending;
     },
     [spokenDialect],
@@ -217,10 +240,14 @@ export function useLineAudio({ lines, dialect }: UseLineAudioOptions): UseLineAu
           break;
         }
 
-        setLoadingIndex(i);
-        const url = await clipFor(text);
-        if (id !== runRef.current) return;
-        setLoadingIndex(null);
+        // A stored recording needs no round trip, so it never shows a spinner.
+        let url = presetFor(i);
+        if (!url) {
+          setLoadingIndex(i);
+          url = await clipFor(text);
+          if (id !== runRef.current) return;
+          setLoadingIndex(null);
+        }
         if (!url) break;
 
         setPlayingIndex(i);
@@ -229,7 +256,7 @@ export function useLineAudio({ lines, dialect }: UseLineAudioOptions): UseLineAu
           // serial, so this is the whole reason a read-through sounds like a
           // reading rather than a line every few seconds.
           const next = linesRef.current[i + 1]?.trim();
-          if (next) void clipFor(next);
+          if (next && !presetFor(i + 1)) void clipFor(next);
         }
 
         const finished = await sound(url);
@@ -243,7 +270,7 @@ export function useLineAudio({ lines, dialect }: UseLineAudioOptions): UseLineAu
       setLoadingIndex(null);
       setIsPlayingAll(false);
     },
-    [clipFor, halt, sound],
+    [clipFor, halt, presetFor, sound],
   );
 
   const playLine = useCallback(
@@ -272,13 +299,13 @@ export function useLineAudio({ lines, dialect }: UseLineAudioOptions): UseLineAu
 
   // A new passage silences the old one. Positions mean nothing across a change
   // of content, so a read-through must not carry into the next article.
-  const contentKey = `${spokenDialect}\u0000${lines.join("\u0000")}`;
+  const contentKey = `${spokenDialect}\u0000${lines.join("\u0000")}\u0000${(clips ?? []).join("\u0000")}`;
   useEffect(() => {
     stop();
   }, [contentKey, stop]);
 
   useEffect(() => {
-    const clips = clipsRef.current;
+    const cache = clipsRef.current;
     const created = createdRef.current;
     return () => {
       // The *live* run id, deliberately: bumping it is what tells a walk still
@@ -292,7 +319,7 @@ export function useLineAudio({ lines, dialect }: UseLineAudioOptions): UseLineAu
       primedRef.current = false;
       created.forEach((url) => URL.revokeObjectURL(url));
       created.length = 0;
-      clips.clear();
+      cache.clear();
     };
   }, [halt]);
 

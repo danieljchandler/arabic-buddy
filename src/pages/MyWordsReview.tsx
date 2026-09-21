@@ -1222,7 +1222,7 @@ const MyWordsReview = () => {
               dialect={activeDialect}
               mnemonic={currentWord.mnemonic}
               mnemonicImageUrl={currentWord.mnemonic_image_url}
-              invalidateKeys={[["user-vocabulary-due-words"]]}
+              deckKeys={[["user-vocabulary-due-words"]]}
             />
           )}
         </div>

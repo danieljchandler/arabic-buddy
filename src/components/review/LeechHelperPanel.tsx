@@ -32,8 +32,18 @@ interface LeechHelperPanelProps {
   mnemonic: string | null;
   /** The picture drawn from that mnemonic, if the learner has asked for one. */
   mnemonicImageUrl?: string | null;
-  /** Invalidate which query keys after save. */
-  invalidateKeys?: string[][];
+  /**
+   * The cached decks this card is served from.
+   *
+   * Patched in place rather than invalidated. Both review hooks refuse to
+   * refetch their deck mid-session for the same reason — the query function
+   * rebuilds the array the page is indexing into, so a refetch between two
+   * cards silently swaps the card under the learner (useReview.useDueWords
+   * and useUserVocabulary.useUpdateUserVocabularyReview both say so). That is
+   * doubly wrong here: the row under the panel changes, and the hook that was
+   * just saved disappears from the screen as if it had never been written.
+   */
+  deckKeys?: string[][];
 }
 
 const TABLE_BY_KIND: Record<LeechKind, "user_vocabulary" | "user_phrases" | "word_reviews"> = {
@@ -61,7 +71,7 @@ export function LeechHelperPanel({
   dialect,
   mnemonic: initialMnemonic,
   mnemonicImageUrl: initialMnemonicImageUrl = null,
-  invalidateKeys = [],
+  deckKeys = [],
 }: LeechHelperPanelProps) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
@@ -84,14 +94,51 @@ export function LeechHelperPanel({
     setCleared(false);
   }, [rowId]);
 
-  const invalidate = () => {
-    invalidateKeys.forEach((key) =>
-      queryClient.invalidateQueries({ queryKey: key }),
+  /**
+   * Apply a saved patch to the decks already in the cache.
+   *
+   * A card reaches the panel either as the deck row itself (the two personal
+   * decks) or as the `review` hanging off a curriculum word, so both shapes are
+   * matched on the id the write used — nothing else can be mistaken for the row
+   * that was just written.
+   */
+  const patchDecks = (patch: Record<string, unknown>) => {
+    deckKeys.forEach((key) =>
+      queryClient.setQueriesData({ queryKey: key }, (prev: unknown) => {
+        if (!Array.isArray(prev)) return prev;
+        let changed = false;
+        const next = prev.map((row) => {
+          if (!row || typeof row !== "object") return row;
+          const card = row as { id?: string; review?: { id?: string } | null };
+          if (card.id === rowId) {
+            changed = true;
+            return { ...card, ...patch };
+          }
+          if (card.review && card.review.id === rowId) {
+            changed = true;
+            return { ...card, review: { ...card.review, ...patch } };
+          }
+          return row;
+        });
+        return changed ? next : prev;
+      }),
     );
   };
 
   /**
-   * Write to whichever of the three decks this card came from.
+   * Write to whichever of the three decks this card came from, and confirm the
+   * row actually changed.
+   *
+   * Two things make a leech write fail in silence, and this panel used to fall
+   * for both. PostgREST reports a rejected write on the `error` channel rather
+   * than by throwing; and a write whose filter matches nothing — a row the
+   * policy will not hand over, an id that no longer exists — comes back 200
+   * with no error at all, exactly as the curriculum image save does for a
+   * learner who is not an admin (see Review.tsx). Either way the panel toasted
+   * success, kept showing the hook it had just generated, and the learner met
+   * the same bare card the next day, having paid for a mnemonic the database
+   * never received. `.select("id")` is what turns both into a real failure:
+   * a write that changed no row returns an empty list.
    *
    * The cast is the price of one component serving three tables: the union of
    * their Update types has no common member, so `.update()` types to `never`.
@@ -99,9 +146,20 @@ export function LeechHelperPanel({
    * keeps every write on the same `.eq("id", rowId)` — a leech write that lost
    * its filter would rewrite the learner's whole deck.
    */
-  const updateRow = (payload: Record<string, unknown>) =>
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (supabase.from(TABLE_BY_KIND[kind]) as any).update(payload).eq("id", rowId);
+  const updateRow = async (payload: Record<string, unknown>) => {
+    const { data, error } = await (
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (supabase.from(TABLE_BY_KIND[kind]) as any)
+        .update(payload)
+        .eq("id", rowId)
+        .select("id")
+    );
+    if (error) throw new Error(error.message || "The card could not be saved");
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error("That card could not be updated, so nothing was saved");
+    }
+    patchDecks(payload);
+  };
 
 
   const generateMnemonic = async () => {
@@ -127,8 +185,20 @@ export function LeechHelperPanel({
       // up would show the learner a scene that no longer matches the sentence
       // underneath it, which is exactly the confusion a mnemonic must not add.
       setMnemonicImageUrl(null);
-      await updateRow({ mnemonic: text, mnemonic_image_url: null });
-      invalidate();
+      // Shown either way — the generation is already paid for and the hook is
+      // useful for this card right now — but a save that did not land is said
+      // so plainly, because "Mnemonic ready!" over an unwritten row is how a
+      // learner ends up generating the same hook every day.
+      try {
+        await updateRow({ mnemonic: text, mnemonic_image_url: null });
+      } catch (saveErr) {
+        toast.error(
+          saveErr instanceof Error && saveErr.message
+            ? `Mnemonic couldn't be saved: ${saveErr.message}`
+            : "Mnemonic couldn't be saved — it won't be here next time",
+        );
+        return;
+      }
       toast.success("Mnemonic ready!");
     } catch (err: any) {
       const msg = err?.message || "";
@@ -141,33 +211,33 @@ export function LeechHelperPanel({
   };
 
 
-  /** Keep a generated picture on the same row the mnemonic lives on. */
+  /**
+   * Keep a generated picture on the same row the mnemonic lives on.
+   *
+   * `updateRow` throws when the write is refused or changes nothing, and the
+   * image panel awaits this before it shows the picture — so a picture the
+   * learner can see is a picture the database has. Without that the learner
+   * would be shown one that is gone on their next review, and charged for it
+   * again to get it back.
+   */
   const persistMnemonicImage = async (imageUrl: string) => {
-    const { error } = await updateRow({ mnemonic_image_url: imageUrl });
-    // PostgREST reports a rejected write on `error` rather than by throwing,
-    // so without this the learner would be shown a picture that is gone on
-    // their next review — and charged for it again to get it back.
-    if (error) throw new Error(error.message || "Could not save the picture");
-    // Held here as well as in the child, so the panel and the row agree even
-    // before the refetch lands — and so a regenerated mnemonic has one place
-    // to clear the picture from.
+    await updateRow({ mnemonic_image_url: imageUrl });
+    // Held here as well as in the child so the panel and the row agree, and so
+    // a regenerated mnemonic has one place to clear the picture from.
     setMnemonicImageUrl(imageUrl);
-    invalidate();
   };
 
   const dismissLeech = async () => {
     try {
-      // PostgREST reports a rejected write on the `error` channel rather than
-      // by throwing, so without this check a failed clear would still toast
-      // success and hide the panel over a row that is still flagged.
-      const { error } = await updateRow({
+      // `updateRow` throws when the clear is refused or matches no row, so a
+      // failed clear can no longer toast success and hide the panel over a row
+      // that is still flagged.
+      await updateRow({
         is_leech: false,
         lapses: 0,
         ...(HAS_PRODUCTION_LAPSES[kind] ? { production_lapses: 0 } : {}),
       });
-      if (error) throw error;
       setCleared(true);
-      invalidate();
       toast.success("Cleared — we'll stop flagging this card.");
     } catch {
       toast.error("Couldn't clear leech status");

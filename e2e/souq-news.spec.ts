@@ -124,9 +124,83 @@ test.describe("reading the news", () => {
     await page.goto("/souq-news");
     await expect(page.getByRole("heading", { name: "السوق اليوم" })).toBeVisible();
 
-    await page.getByRole("button").filter({ hasText: /^$/ }).last().click();
+    // Named rather than "the last button with no text": the page grew a
+    // speaker on every line, and every one of them is an icon with no text.
+    await page.getByRole("button", { name: "Refresh the news" }).click();
 
     await expect.poll(() => backend.callsTo("souq-news").length).toBeGreaterThan(1);
+  });
+});
+
+test.describe("hearing the article", () => {
+  /**
+   * The reading is only half of it. Dialect spelling leaves out most of the
+   * vowels, and the vowels are most of what makes a dialect sound like itself,
+   * so a learner who only ever reads Souq News is learning to recognise words
+   * they would not catch spoken.
+   *
+   * Asserted on the requests rather than on playback: whether a clip finishes
+   * is the browser's business, but which line was asked for, and in which
+   * dialect, is the feature.
+   */
+  const TWO_LINES = anArticle({
+    body_dialect: "أسعار الخضار نزلت اليوم. والناس فرحانين بالسوق.",
+    sentences: [
+      { arabic: "أسعار الخضار نزلت اليوم.", english: "Vegetable prices fell today." },
+      { arabic: "والناس فرحانين بالسوق.", english: "And people are happy at the market." },
+    ],
+  });
+
+  test.beforeEach(async ({ signInAs, backend }) => {
+    await signInAs("free");
+    stubNews(backend, [TWO_LINES]);
+  });
+
+  test("synthesises nothing for a page nobody has pressed play on", async ({
+    page,
+    backend,
+  }) => {
+    await page.goto("/souq-news");
+    await expect(page.getByRole("heading", { name: "السوق اليوم" })).toBeVisible();
+
+    // Synthesis is metered against the learner's daily cap. A page that spoke
+    // on arrival would spend it on lines they never asked to hear.
+    expect(backend.callsTo("tts-speak")).toHaveLength(0);
+  });
+
+  test("speaks the line whose speaker was tapped", async ({ page, backend }) => {
+    await page.goto("/souq-news");
+    await page.getByRole("button", { name: "Play this line" }).nth(1).click();
+
+    await expect.poll(() => backend.callsTo("tts-speak").length).toBeGreaterThan(0);
+    expect(backend.callsTo("tts-speak")[0].body).toMatchObject({
+      text: "والناس فرحانين بالسوق.",
+      // The voice has to be the dialect the article was written in; a Gulf
+      // story read in MSA is the thing this app exists to avoid.
+      dialect: "Gulf",
+    });
+  });
+
+  test("reads the article through from the top", async ({ page, backend }) => {
+    await page.goto("/souq-news");
+    await page.getByRole("button", { name: "Play every line in order" }).click();
+
+    // Two requests for a two-line article: the second is fetched while the
+    // first is still speaking, so the read-through does not stop for a round
+    // trip between sentences.
+    await expect.poll(() => backend.callsTo("tts-speak").length).toBe(2);
+    expect(backend.callsTo("tts-speak").map((c) => (c.body as { text: string }).text)).toEqual([
+      "أسعار الخضار نزلت اليوم.",
+      "والناس فرحانين بالسوق.",
+    ]);
+  });
+
+  test("speaks the headline too", async ({ page, backend }) => {
+    await page.goto("/souq-news");
+    await page.getByRole("button", { name: "Listen" }).click();
+
+    await expect.poll(() => backend.callsTo("tts-speak").length).toBeGreaterThan(0);
+    expect(backend.callsTo("tts-speak")[0].body).toMatchObject({ text: "السوق اليوم" });
   });
 });
 

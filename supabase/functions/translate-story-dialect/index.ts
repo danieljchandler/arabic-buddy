@@ -12,6 +12,7 @@ import { getCorsHeaders } from "../_shared/cors.ts";
 import { requireContentManager } from "../_shared/requireRole.ts";
 import {
   hasDialectLines,
+  isDialectTarget,
   storyDialectBodies,
   translateStoryLinesToDialect,
 } from "../_shared/storyDialect.ts";
@@ -46,6 +47,22 @@ Deno.serve(async (req) => {
     }
 
     const targetDialect = dialect as Dialect;
+
+    // "MSA (Fusha)" is one of the targets the import form offers, and a story
+    // filed under it is already in the register it is read in. Said out loud
+    // rather than quietly doing nothing: an editor who picked it and pressed
+    // the button is owed the reason, not a success toast over an unchanged
+    // story.
+    if (!isDialectTarget(targetDialect)) {
+      return new Response(
+        JSON.stringify({
+          error: "not_a_dialect",
+          detail: `${targetDialect} is a register, not a dialect — there is nothing to convert it to.`,
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     await primeDialectPrompt(targetDialect);
 
     // Fetch story lines

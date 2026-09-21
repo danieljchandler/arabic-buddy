@@ -1,8 +1,12 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   hasDialect,
+  isDialectTarget,
   lineRegister,
   storedClipFor,
+  storedClipRegister,
   storyLineText,
   ttsDialectFor,
   type ReadableStoryLine,
@@ -92,6 +96,50 @@ describe("the stored recording", () => {
   });
 });
 
+describe("a recording made before the narration path was fixed", () => {
+  /**
+   * The chain that made the clips on disk was `dialect_vocalized ||
+   * arabic_vocalized || dialect`. It agrees with today's `spokenStoryLine`
+   * everywhere except on a line converted to dialect without tashkeel, where
+   * it reached past the dialect for the vocalized fusha. Those rows still
+   * exist, and their clips are fusha while their text is dialect.
+   */
+  const legacy = (over: Partial<ReadableStoryLine> = {}) =>
+    aLine({
+      audio_url: "https://cdn.test/line-0.wav",
+      dialect_vocalized: null,
+      ...over,
+    });
+
+  it("cannot say which register an unvocalized dialect line was narrated in", () => {
+    expect(storedClipRegister(legacy())).toBeNull();
+  });
+
+  it("refuses that clip rather than guessing from the row", () => {
+    // Guessing "dialect" because the row has one is precisely how a fusha
+    // recording ends up playing under dialect text.
+    expect(storedClipFor(legacy(), "dialect")).toBeNull();
+    expect(storedClipFor(legacy(), "fusha")).toBeNull();
+  });
+
+  it("is certain again once the dialect carries tashkeel", () => {
+    // Which is what every writer now stores, falling back to the plain
+    // rendering — so the ambiguous shape cannot be created any more.
+    expect(storedClipRegister(aLine())).toBe("dialect");
+  });
+
+  it("reads a line with nothing vocalized at all as dialect", () => {
+    // Both chains run out of vocalized forms and land on `dialect`.
+    const bare = legacy({ arabic_vocalized: null });
+    expect(storedClipRegister(bare)).toBe("dialect");
+    expect(storedClipFor(bare, "dialect")).toBe("https://cdn.test/line-0.wav");
+  });
+
+  it("reads a line with no dialect as fusha whatever else it has", () => {
+    expect(storedClipRegister(legacy({ dialect: null }))).toBe("fusha");
+  });
+});
+
 describe("which voice reads the page", () => {
   it("uses the story's own dialect for the dialect view", () => {
     expect(ttsDialectFor("Egyptian", "dialect")).toBe("Egyptian");
@@ -105,5 +153,35 @@ describe("which voice reads the page", () => {
 
   it("falls back to Gulf for a story filed under nothing", () => {
     expect(ttsDialectFor(null, "dialect")).toBe("Gulf");
+  });
+});
+
+describe("what counts as a dialect to convert to", () => {
+  it("takes the three dialects and refuses the register", () => {
+    expect(isDialectTarget("Gulf")).toBe(true);
+    expect(isDialectTarget("Egyptian")).toBe(true);
+    expect(isDialectTarget("MSA")).toBe(false);
+    expect(isDialectTarget("fusha")).toBe(false);
+    expect(isDialectTarget(null)).toBe(false);
+  });
+
+  it("agrees with the edge function that enforces it", () => {
+    // Two copies because one runs in the browser and one in Deno, and the
+    // Deno module imports the Brain so it cannot be shared. They have to say
+    // the same thing: this side decides whether to offer the button, that
+    // side refuses the request, and a disagreement means an editor is offered
+    // an action that can only fail.
+    const shared = readFileSync(
+      join(process.cwd(), "supabase", "functions", "_shared", "storyDialect.ts"),
+      "utf8",
+    );
+    const labels = shared.match(/const FUSHA_LABELS = new Set\(\[([^\]]*)\]\)/);
+    expect(labels, "FUSHA_LABELS not found in storyDialect.ts").not.toBeNull();
+    const theirs = [...labels![1].matchAll(/"([^"]+)"/g)].map((m) => m[1]).sort();
+
+    const ours = ["msa", "fusha", "fus7a", "standard", "classical"].sort();
+    expect(theirs).toEqual(ours);
+    // And every one of them is actually refused on this side.
+    theirs.forEach((label) => expect(isDialectTarget(label)).toBe(false));
   });
 });

@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Loader2, Play, Pause, CheckCircle, Volume2, Globe, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
+import { isDialectTarget } from '@/lib/storyReading';
 import type { Database } from '@/integrations/supabase/types';
 
 type AuthenticStoryLine = Database['public']['Tables']['authentic_story_lines']['Row'];
@@ -473,11 +474,18 @@ const AdminReadingLibraryForm = () => {
                   to its dialect on the way in. This is for a conversion that
                   failed, a story being moved to another dialect, or one an
                   editor wants redone.
+
+                  Not offered for a story filed as MSA, which is already in the
+                  register it is read in — the edge function refuses that
+                  target, and a button whose only outcome is an error is worse
+                  than no button.
                 */}
-                <Button onClick={handleTranslateDialect} disabled={translating} variant="outline">
-                  {translating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Globe className="h-4 w-4 mr-2" />}
-                  {story.body_dialect ? 'Re-translate to Dialect' : 'Translate to Dialect'}
-                </Button>
+                {isDialectTarget(story.dialect) && (
+                  <Button onClick={handleTranslateDialect} disabled={translating} variant="outline">
+                    {translating ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Globe className="h-4 w-4 mr-2" />}
+                    {story.body_dialect ? 'Re-translate to Dialect' : 'Translate to Dialect'}
+                  </Button>
+                )}
 
                 <Button onClick={handleGeneratePreview} disabled={generatingPreview} variant="outline">
                   {generatingPreview ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Play className="h-4 w-4 mr-2" />}

@@ -485,6 +485,30 @@ Deno.test("import-authentic-story keeps the story when the conversion fails", as
   assertEquals(result.body.dialect_lines, 0);
 });
 
+Deno.test("import-authentic-story leaves an MSA story in MSA", async () => {
+  const result = await call(
+    "import-authentic-story",
+    { title: "T", title_arabic: "ت", body_arabic: "نص", dialect: "MSA" },
+    importUpstreams(),
+  );
+
+  assertEquals(result.status, 200);
+  const saved = storyInsert(result);
+  // "MSA (Fusha)" is one of the targets the import form offers. A story filed
+  // under it is already in the register it is read in, and the converter's
+  // prompt says anything looking like fusha is wrong — so running it would
+  // have replaced a valid MSA story with a dialect and gone on labelling it
+  // MSA.
+  assertEquals(saved.dialect, "MSA");
+  assertEquals(saved.body_fusha, "كان يا ما كان\nفي قديم الزمان");
+  assertEquals(saved.body_dialect, null);
+  assertEquals(result.body.dialect_lines, 0);
+
+  // And the second model call never happened.
+  const chatCalls = result.calls.filter((url) => url.includes("/chat/completions"));
+  assertEquals(chatCalls.length, 1);
+});
+
 Deno.test("import-authentic-story reports a model that segmented nothing", async () => {
   const result = await call(
     "import-authentic-story",
@@ -785,6 +809,7 @@ Deno.test("translate-story-dialect keeps a line the model skipped", async () => 
 // ── _shared/storyDialect ─────────────────────────────────────────────────────
 
 interface StoryDialectModule {
+  isDialectTarget(dialect: string | null | undefined): boolean;
   alignStoryDialectLines(
     parsed: unknown,
     count: number,
@@ -883,4 +908,31 @@ Deno.test("storyDialect names the fusha source as the trap it is", async () => {
   assertStringIncludes(prompt, "Egyptian");
   assertStringIncludes(prompt, "TRAP");
   assertStringIncludes(prompt, "one entry per numbered source line");
+});
+
+Deno.test("translate-story-dialect refuses a register that is not a dialect", async () => {
+  const result = await call(
+    "translate-story-dialect",
+    { story_id: STORY, dialect: "MSA" },
+    translateUpstreams(),
+  );
+
+  // Said out loud rather than quietly doing nothing: an editor who picked
+  // "MSA (Fusha)" and pressed the button is owed the reason, not a success
+  // toast over an unchanged story.
+  assertEquals(result.status, 400);
+  assertEquals(result.body.error, "not_a_dialect");
+  assertEquals(result.calls.filter((url) => url.includes("/chat/completions")).length, 0);
+});
+
+Deno.test("storyDialect knows a register from a dialect", async () => {
+  const mod = await loadSharedModule<StoryDialectModule>("storyDialect");
+
+  assert(mod.isDialectTarget("Gulf"));
+  assert(mod.isDialectTarget("Egyptian"));
+  // Spelled several ways across the app, and none of them is a dialect.
+  assert(!mod.isDialectTarget("MSA"));
+  assert(!mod.isDialectTarget("msa"));
+  assert(!mod.isDialectTarget("Fusha"));
+  assert(!mod.isDialectTarget(""));
 });

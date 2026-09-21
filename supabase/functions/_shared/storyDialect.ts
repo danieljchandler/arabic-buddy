@@ -30,6 +30,25 @@ export interface StoryDialectLine {
 
 const ARABIC_LETTER = /[ء-ي٠-٩ٱ-ۓ]/;
 
+/** Labels for Modern Standard Arabic, which is a register and not a dialect. */
+const FUSHA_LABELS = new Set(["msa", "fusha", "fus7a", "standard", "classical"]);
+
+/**
+ * Whether there is a dialect to convert *to*.
+ *
+ * The import form offers "MSA (Fusha)" alongside the three dialects, and a
+ * story filed under it is already in the register it is meant to be read in.
+ * Running the converter anyway asks a model to render Modern Standard Arabic
+ * in the MSA dialect, under a prompt that tells it anything looking like fusha
+ * is wrong — so whatever Arabic came back would be stored as `body_dialect`
+ * and shown by default, quietly replacing a valid MSA story with some dialect
+ * while still labelling it MSA.
+ */
+export function isDialectTarget(dialect: string | null | undefined): boolean {
+  const label = (dialect ?? "").trim().toLowerCase();
+  return label.length > 0 && !FUSHA_LABELS.has(label);
+}
+
 /**
  * The instruction, kept next to the alignment rule that reads its output.
  *
@@ -171,8 +190,14 @@ export async function translateStoryLinesToDialect(
   dialect: Dialect,
   opts: { budgetMs?: number } = {},
 ): Promise<StoryDialectLine[]> {
+  const blank = () => source.map(() => ({ dialect: "", dialect_vocalized: "" }));
+
+  // An MSA story is already in its target register; there is nothing to
+  // convert, and converting anyway would overwrite it with a dialect.
+  if (!isDialectTarget(dialect)) return blank();
+
   const texts = source.map(sourceText);
-  if (texts.every((t) => !t)) return source.map(() => ({ dialect: "", dialect_vocalized: "" }));
+  if (texts.every((t) => !t)) return blank();
 
   const result = await askBrain<{ lines?: Array<Partial<StoryDialectLine>> }>({
     purpose: "utility",

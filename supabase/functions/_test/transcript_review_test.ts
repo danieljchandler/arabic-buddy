@@ -317,6 +317,35 @@ Deno.test("transcript-review lets a transcriber rename a video", async () => {
   assertEquals(logged[0].changed_by, USER);
 });
 
+Deno.test("transcript-review says which fields it handled", async () => {
+  // An older deployment answers `{ saved: true }` and drops any key it
+  // predates, which is how a rename came back "saved" and was not. Reporting
+  // what it looked at is what lets the app tell the two apart.
+  const result = await call({
+    action: "save_notes",
+    videoId: VIDEO,
+    title: "Two neighbours greeting in the street",
+    culturalContext: "A greeting.",
+  });
+
+  assertEquals(result.status, 200);
+  assertEquals(result.body.accepted, ["title", "culturalContext"]);
+});
+
+Deno.test("transcript-review renames a video whose stored dialect is off the list", async () => {
+  // The notes form posts the dialect on every save. Refusing the label already
+  // on the row would take the rename down with a field nobody touched.
+  const result = await call(
+    { action: "save_notes", videoId: VIDEO, title: "Renamed", dialect: "Iraqi" },
+    withVideo({ ...VIDEO_ROW, dialect: "Iraqi" }),
+  );
+
+  assertEquals(result.status, 200);
+  const writes = result.patches("/rest/v1/discover_videos");
+  assertEquals(writes[0].title, "Renamed");
+  assertEquals("dialect" in writes[0], false);
+});
+
 Deno.test("transcript-review refuses a blank title", async () => {
   // `discover_videos.title` is NOT NULL and every card in Discover reads it, so
   // a cleared field is a reviewer mid-edit rather than an assertion that the

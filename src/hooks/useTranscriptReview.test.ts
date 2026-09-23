@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { renderHookWithProviders, TEST_USER_ID } from "@/test/support/react/harness";
 import { videoId } from "@/test/support/factories";
 import type { SupabaseBackend } from "@/test/support/server/handler";
-import { useTranscriptReview } from "./useTranscriptReview";
+import { NotesPartlySavedError, useTranscriptReview } from "./useTranscriptReview";
 
 /**
  * The review workspace's data layer.
@@ -299,6 +299,75 @@ describe("notes", () => {
     });
 
     expect(backend.db.rows("discover_videos")[0].grammar_points).toHaveLength(1);
+  });
+});
+
+describe("a rename the server drops", () => {
+  // Edge functions do not deploy on merge. A `transcript-review` from before
+  // titles were on its allow-list answers `{ saved: true }` and ignores the
+  // title — which is how a transcriber's rename came back "Notes saved" and
+  // was not saved. These hold the hook to saying so.
+
+  it("saves a transcriber's new title", async () => {
+    const { result, backend } = render();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await result.current.saveNotes.mutateAsync({ title: "Greeting a neighbour" });
+
+    expect(backend.db.rows("discover_videos")[0].title).toBe("Greeting a neighbour");
+  });
+
+  it("fails loudly when an older deployment ignored the title", async () => {
+    const { result, backend } = render();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    // The reply an older deployment gives: success, and no word about which
+    // fields it looked at.
+    backend.stubFunction("transcript-review", { saved: true, revisions: 0, logged: true });
+
+    const save = result.current.saveNotes.mutateAsync({
+      title: "Greeting a neighbour",
+      culturalContext: "A greeting exchange.",
+    });
+
+    await expect(save).rejects.toBeInstanceOf(NotesPartlySavedError);
+    await expect(save).rejects.toMatchObject({ fields: ["title"] });
+    await expect(save).rejects.toThrow(/deploy transcript-review/);
+  });
+
+  it("does not cry wolf at an older deployment when no title was sent", async () => {
+    const { result, backend } = render();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    backend.stubFunction("transcript-review", { saved: true, revisions: 1, logged: true });
+
+    await expect(
+      result.current.saveNotes.mutateAsync({ culturalContext: "Revised." }),
+    ).resolves.toMatchObject({ saved: true });
+  });
+
+  it("names any field a reporting deployment left off its accepted list", async () => {
+    const { result, backend } = render();
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    backend.stubFunction("transcript-review", {
+      saved: true,
+      revisions: 0,
+      logged: true,
+      accepted: ["culturalContext"],
+    });
+
+    await expect(
+      result.current.saveNotes.mutateAsync({ culturalContext: "x", titleArabic: "تحية" }),
+    ).rejects.toMatchObject({ fields: ["titleArabic"] });
+  });
+
+  it("does not let an unchanged off-list dialect block the rename", async () => {
+    // The notes form posts the dialect on every save. A row the pipeline tagged
+    // with a label the picker does not offer must not refuse a title change.
+    const { result, backend } = render("transcriber", (b) => seedVideo(b, { dialect: "Iraqi" }));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await result.current.saveNotes.mutateAsync({ title: "Renamed", dialect: "Iraqi" });
+
+    expect(backend.db.rows("discover_videos")[0]).toMatchObject({ title: "Renamed", dialect: "Iraqi" });
   });
 });
 

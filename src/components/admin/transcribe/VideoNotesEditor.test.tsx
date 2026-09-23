@@ -87,7 +87,7 @@ describe("saving", () => {
     expect(screen.getByText("Unsaved changes")).toBeInTheDocument();
   });
 
-  it("sends every field together", async () => {
+  it("sends every field together, and an untouched title not at all", async () => {
     const props = setup();
 
     fireEvent.change(screen.getByLabelText("Cultural notes"), { target: { value: "Revised." } });
@@ -95,8 +95,6 @@ describe("saving", () => {
 
     await waitFor(() =>
       expect(props.onSave).toHaveBeenCalledWith({
-        title: props.title,
-        titleArabic: props.titleArabic,
         culturalContext: "Revised.",
         grammarPoints: props.grammarPoints,
         vocabulary: props.vocabulary,
@@ -195,6 +193,19 @@ describe("the title", () => {
         }),
       ),
     );
+  });
+
+  it("sends only the title that changed", async () => {
+    const onSave = vi.fn();
+    setup({ onSave });
+
+    fireEvent.change(screen.getByLabelText("Title"), { target: { value: "A funeral greeting" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save notes" }));
+
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const sent = onSave.mock.calls[0][0];
+    expect(sent.title).toBe("A funeral greeting");
+    expect("titleArabic" in sent).toBe(false);
   });
 
   it("counts a renamed video as unsaved work", () => {

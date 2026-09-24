@@ -366,8 +366,11 @@ export function VideoNotesEditor({
             onSave({
               // Omitted entirely rather than sent unchanged: the edge function
               // keys off the field being present, so a payload without it
-              // cannot race a rename made anywhere else on the page.
-              ...(editsTitle ? { title: name, titleArabic: nameArabic } : {}),
+              // cannot race a rename made anywhere else on the page — and a
+              // title that is sent is one the reviewer changed, so a server
+              // that drops it is a lost edit worth saying so about.
+              ...(editsTitle && name !== title ? { title: name } : {}),
+              ...(editsTitle && nameArabic !== (titleArabic ?? "") ? { titleArabic: nameArabic } : {}),
               culturalContext: context,
               grammarPoints: points,
               vocabulary: words,

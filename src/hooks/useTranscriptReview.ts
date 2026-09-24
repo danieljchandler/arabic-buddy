@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { indexReviews, type LineReview } from "@/lib/reviewStatus";
 import type { TranscriptLine } from "@/types/transcript";
+import { unappliedNoteFields } from "../../supabase/functions/_shared/transcriptRevisionCore";
 
 /**
  * The review workspace's data layer: what has been signed off, what changed,
@@ -66,6 +67,39 @@ async function describeFunctionError(error: unknown): Promise<string> {
     return `The server returned ${response.status}.`;
   }
   return (error as { message?: string } | null)?.message ?? "Unknown error";
+}
+
+/** How a dropped field is named to the person who typed it. */
+const NOTE_FIELD_LABELS: Record<string, string> = {
+  title: "title",
+  titleArabic: "Arabic title",
+  dialect: "dialect",
+  dialectSubvariety: "sub-dialect",
+  dialectFeatures: "dialect features",
+  culturalContext: "cultural notes",
+  grammarPoints: "grammar points",
+  vocabulary: "vocabulary",
+};
+
+/**
+ * A `save_notes` that went through, minus fields the server never looked at.
+ *
+ * Thrown rather than returned, so the page's error path shows it: the one
+ * outcome that must not end in "Notes saved" is a rename the server dropped.
+ * The rest of the save did land, so the page still refetches on this error.
+ */
+export class NotesPartlySavedError extends Error {
+  readonly fields: string[];
+  constructor(fields: string[]) {
+    const names = fields.map((f) => NOTE_FIELD_LABELS[f] ?? f).join(" and ");
+    super(
+      `The server ignored the ${names}. Its transcript-review function is older than ` +
+        "this app — ask Lovable to deploy transcript-review (merging does not deploy it). " +
+        "Everything else was saved.",
+    );
+    this.name = "NotesPartlySavedError";
+    this.fields = fields;
+  }
 }
 
 async function callReview<T>(body: Record<string, unknown>): Promise<T> {
@@ -218,7 +252,7 @@ export function useTranscriptReview(videoId: string | undefined) {
   });
 
   const saveNotes = useMutation({
-    mutationFn: (vars: {
+    mutationFn: async (vars: {
       culturalContext?: string;
       grammarPoints?: unknown[];
       vocabulary?: unknown[];
@@ -231,11 +265,25 @@ export function useTranscriptReview(videoId: string | undefined) {
       /** Cleared server-side if it does not belong under `dialect`. */
       dialectSubvariety?: string | null;
       dialectFeatures?: unknown[];
-    }) => callReview<{ saved: boolean; revisions: number }>({ action: "save_notes", videoId, ...vars }),
+    }) => {
+      const reply = await callReview<{ saved: boolean; revisions: number; accepted?: string[] }>({
+        action: "save_notes",
+        videoId,
+        ...vars,
+      });
+      const sent = Object.keys(vars).filter((key) => vars[key as keyof typeof vars] !== undefined);
+      const dropped = unappliedNoteFields(sent, reply);
+      if (dropped.length > 0) throw new NotesPartlySavedError(dropped);
+      return reply;
+    },
     // The dialect columns live on `discover_videos`, which this hook does not
     // own — the workspace refetches its own video query on success, the same
     // way it already does for the notes.
     onSuccess: () => invalidate("transcript-revisions"),
+    // Partly saved is still saved: the log has new rows either way.
+    onError: (error) => {
+      if (error instanceof NotesPartlySavedError) invalidate("transcript-revisions");
+    },
   });
 
   const reviews = useMemo(

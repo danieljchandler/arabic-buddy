@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  acceptedNoteFields,
   diffTranscriptRevisions,
   diffVideoField,
   formatTiming,
   MAX_REVISIONS_PER_SAVE,
+  unappliedNoteFields,
 } from "../../supabase/functions/_shared/transcriptRevisionCore";
 
 /**
@@ -261,5 +263,31 @@ describe("video-level fields", () => {
 
     expect(revision?.previousValue).toBeNull();
     expect(revision?.newValue).toBe("First note.");
+  });
+});
+
+describe("which save_notes fields a reply shows were dropped", () => {
+  it("reports exactly the fields a request carried", () => {
+    expect(acceptedNoteFields({ action: "save_notes", videoId: "v", title: "x", vocabulary: [] })).toEqual([
+      "title",
+      "vocabulary",
+    ]);
+  });
+
+  it("names nothing when the server accepted everything sent", () => {
+    expect(unappliedNoteFields(["title", "dialect"], { accepted: ["title", "dialect"] })).toEqual([]);
+  });
+
+  it("names a field missing from the accepted list", () => {
+    expect(unappliedNoteFields(["title", "dialect"], { accepted: ["dialect"] })).toEqual(["title"]);
+  });
+
+  it("assumes a reply with no accepted list dropped the titles and nothing else", () => {
+    // Such a reply is from a deployment older than titles on the allow-list;
+    // the other fields it has always handled.
+    expect(
+      unappliedNoteFields(["title", "titleArabic", "culturalContext", "dialect"], { saved: true } as never),
+    ).toEqual(["title", "titleArabic"]);
+    expect(unappliedNoteFields(["culturalContext"], null)).toEqual([]);
   });
 });

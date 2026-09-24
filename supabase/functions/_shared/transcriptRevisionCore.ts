@@ -241,3 +241,53 @@ export function diffVideoField(
     newValue: clip(after) || null,
   };
 }
+
+/**
+ * The payload keys `save_notes` knows how to write, in the client's spelling.
+ *
+ * Echoed back by the function as `accepted` — the subset of these that were
+ * present in the request — so the app can tell a field the server wrote (or
+ * found unchanged) from one it never looked at.
+ *
+ * That distinction is the whole reason this list exists. Edge functions do not
+ * deploy on merge, and a `transcript-review` older than the app answers a save
+ * with `{ saved: true }` while ignoring any key it predates. That is how a
+ * transcriber's corrected title came back "Notes saved" and was not saved: the
+ * function serving it was from before titles were on the allow-list, so the
+ * rename was dropped without a word and the Arabic notes beside it went through.
+ */
+export const SAVE_NOTES_FIELDS = [
+  "title",
+  "titleArabic",
+  "dialect",
+  "dialectSubvariety",
+  "dialectFeatures",
+  "culturalContext",
+  "grammarPoints",
+  "vocabulary",
+] as const;
+
+export type SaveNotesField = (typeof SAVE_NOTES_FIELDS)[number];
+
+/** Which of `SAVE_NOTES_FIELDS` a request carried — what the server reports. */
+export function acceptedNoteFields(body: Record<string, unknown>): SaveNotesField[] {
+  return SAVE_NOTES_FIELDS.filter((field) => field in body);
+}
+
+/**
+ * The fields a `save_notes` reply shows were dropped rather than handled.
+ *
+ * A reply with an `accepted` list is from a function that reports what it did,
+ * so anything sent and not on it was ignored. A reply without one is from a
+ * deployment older than that report — which is also older than the titles, so
+ * those are the fields it is known to have dropped; everything else it handled
+ * before the report existed.
+ */
+export function unappliedNoteFields(
+  sent: readonly string[],
+  reply: { accepted?: unknown } | null | undefined,
+): string[] {
+  const accepted = Array.isArray(reply?.accepted) ? (reply!.accepted as unknown[]) : null;
+  if (accepted) return sent.filter((field) => !accepted.includes(field));
+  return sent.filter((field) => field === "title" || field === "titleArabic");
+}

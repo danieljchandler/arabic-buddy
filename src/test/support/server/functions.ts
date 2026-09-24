@@ -1,6 +1,7 @@
 import type { MemoryDb } from "../postgrest/store";
 import {
   diffTranscriptRevisions,
+  acceptedNoteFields,
   diffVideoField,
   type TranscriptRevision,
 } from "../../../../supabase/functions/_shared/transcriptRevisionCore";
@@ -474,7 +475,8 @@ function transcriptReview({ db, userId, body }: FunctionContext): FunctionRespon
       let dialectMoved = false;
 
       if ("dialect" in payload) {
-        if (!isReviewableDialect(payload.dialect)) {
+        // The label already on the row is not the reviewer's to answer for.
+        if (payload.dialect !== video.dialect && !isReviewableDialect(payload.dialect)) {
           return { status: 400, body: { error: "unknown_dialect" } };
         }
         const next = String(payload.dialect);
@@ -540,7 +542,12 @@ function transcriptReview({ db, userId, body }: FunctionContext): FunctionRespon
       }
 
       logRevisions(revisions, "human");
-      return ok({ saved: true, revisions: revisions.length, logged: true });
+      return ok({
+        saved: true,
+        revisions: revisions.length,
+        logged: true,
+        accepted: acceptedNoteFields(payload),
+      });
     }
 
     default:

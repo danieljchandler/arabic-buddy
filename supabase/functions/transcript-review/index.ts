@@ -37,6 +37,7 @@ import {
 } from "../_shared/dialectSubvarieties.ts";
 import {
   diffTranscriptRevisions,
+  acceptedNoteFields,
   diffVideoField,
   type RevisionSource,
   type TranscriptRevision,
@@ -581,7 +582,12 @@ async function saveNotes(
     // sub-variety, there is no sensible thing to fall back to, and silently
     // keeping the old country while reporting success is the failure mode most
     // likely to go unnoticed.
-    if (!isReviewableDialect(body.dialect)) {
+    //
+    // Except when it is the label already on the row. The notes form posts the
+    // dialect on every save, so a video the pipeline tagged with something off
+    // the picker's list would otherwise refuse *every* save — a renamed title
+    // or a fixed grammar note taken down by a field nobody touched.
+    if (body.dialect !== video.dialect && !isReviewableDialect(body.dialect)) {
       return json({ error: "unknown_dialect", dialect: body.dialect }, 400, cors);
     }
     const next = String(body.dialect);
@@ -649,15 +655,19 @@ async function saveNotes(
     }
   }
 
+  // Which fields this deployment handled, so the app can tell them from the
+  // ones an older deployment would have dropped while still saying "saved".
+  const accepted = acceptedNoteFields(body);
+
   if (Object.keys(updates).length === 0) {
-    return json({ saved: true, revisions: 0, logged: true }, 200, cors);
+    return json({ saved: true, revisions: 0, logged: true, accepted }, 200, cors);
   }
 
   const { error } = await admin().from("discover_videos").update(updates).eq("id", videoId);
   if (error) return json({ error: "save_failed", message: error.message }, 500, cors);
 
   const logged = await recordRevisions(videoId, revisions, reviewer.userId, "human");
-  return json({ saved: true, revisions: revisions.length, logged }, 200, cors);
+  return json({ saved: true, revisions: revisions.length, logged, accepted }, 200, cors);
 }
 
 // ── Entry point ─────────────────────────────────────────────────────────────

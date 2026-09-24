@@ -31,7 +31,7 @@ import VideoNotesEditor, {
   type VocabEntry,
 } from "@/components/admin/transcribe/VideoNotesEditor";
 import type { LineReviewSlot } from "@/components/TranscriptEditor";
-import { useTranscriptReview } from "@/hooks/useTranscriptReview";
+import { NotesPartlySavedError, useTranscriptReview } from "@/hooks/useTranscriptReview";
 import { reviewProgress, reviewStateFor } from "@/lib/reviewStatus";
 import { linesEqual } from "@/lib/transcriptDraft";
 import { ensureLineIds } from "@/lib/transcriptOps";
@@ -2224,10 +2224,20 @@ const AdminVideoForm = () => {
                       // still calling it by the name they just replaced.
                       queryClient.invalidateQueries({ queryKey: ["admin-discover-videos"] });
                     },
-                    (error: unknown) =>
+                    (error: unknown) => {
+                      if (error instanceof NotesPartlySavedError) {
+                        // The rest of the save landed, so the page must show it.
+                        queryClient.invalidateQueries({ queryKey: ["discover-video", videoId] });
+                        toast.error("Not everything was saved", {
+                          description: error.message,
+                          duration: 15000,
+                        });
+                        return;
+                      }
                       toast.error("Could not save the notes", {
                         description: error instanceof Error ? error.message : "Unknown error",
-                      }),
+                      });
+                    },
                   )
                 }
               />

@@ -1,0 +1,44 @@
+[Script Info]
+ScriptType: v4.00+
+PlayResX: 1080
+PlayResY: 1920
+WrapStyle: 0
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Caption,Montserrat SemiBold,56,&H00FFFFFF,&H00FFFFFF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,4,2,2,90,90,250,1
+Style: OnScreen,Montserrat ExtraBold,70,&H00F2F7F9,&H00F2F7F9,&H0035418C,&H00000000,0,0,0,0,100,100,0,0,1,6,0,8,80,80,230,1
+Style: Label,Montserrat ExtraBold,54,&H00363A32,&H00363A32,&H00000000,&H00000000,0,0,0,0,100,100,1,0,1,0,0,5,110,110,0,1
+Style: LabelSmall,Montserrat SemiBold,40,&H00363A32,&H00363A32,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,0,0,5,120,120,0,1
+Style: EndAr,Noto Naskh Arabic,96,&H00F2F7F9,&H00F2F7F9,&H00000000,&H80000000,1,0,0,0,100,100,0,0,1,3,2,8,60,60,700,1
+Style: End,Montserrat ExtraBold,58,&H00F2F7F9,&H00F2F7F9,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,3,2,8,60,60,850,1
+Style: CTA,Montserrat ExtraBold,60,&H00F2F7F9,&H00F2F7F9,&H0035418C,&H00000000,0,0,0,0,100,100,0,0,3,24,0,2,60,60,300,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:03.00,0:00:07.20,Caption,,0,0,0,,{\i1}Hark! Toilet, toilet,\Nwherefore art thou toilet?{\i0}
+Dialogue: 0,0:00:08.00,0:00:12.00,Caption,,0,0,0,,{\i1}To pee, or not to pee:\Nthat is the question.{\i0}
+Dialogue: 0,0:00:12.00,0:00:16.00,Caption,,0,0,0,,Learning Fusha to chat with people\Nis like learning Shakespeare to find a toilet.
+Dialogue: 0,0:00:12.30,0:00:16.00,OnScreen,,0,0,0,,{\fnNoto Naskh Arabic\fs96}فصحى{\fs70} ≈ Shakespeare
+Dialogue: 0,0:00:16.00,0:00:19.50,Caption,,0,0,0,,Hikaya teaches the Arabic people actually speak.
+Dialogue: 0,0:00:19.50,0:00:25.00,Caption,,0,0,0,,Pick Gulf, Egyptian or Yemeni,\Nand scroll short clips of native speakers.
+Dialogue: 0,0:00:19.50,0:00:25.00,OnScreen,,0,0,0,,Gulf · Egyptian · Yemeni
+Dialogue: 0,0:00:25.00,0:00:27.00,Caption,,0,0,0,,Lost on a word? Tap it.
+Dialogue: 0,0:00:27.00,0:00:32.50,Caption,,0,0,0,,You get the English, the literal meaning,\Neven how it would look in Fusha.
+Dialogue: 0,0:00:32.50,0:00:35.00,Caption,,0,0,0,,One more tap saves it.
+Dialogue: 0,0:00:25.00,0:00:35.00,OnScreen,,0,0,0,,Tap any word
+Dialogue: 0,0:00:35.00,0:00:41.00,Caption,,0,0,0,,Saved words come back as flashcards\Nright before you'd forget them.
+Dialogue: 0,0:00:41.00,0:00:46.50,Caption,,0,0,0,,Then say it yourself. Shadow the line,\Nget a score, see which sound to fix.
+Dialogue: 0,0:00:46.50,0:00:51.00,Caption,,0,0,0,,Stuck? Ask the tutor.\NIt knows which line you're on.
+Dialogue: 0,0:00:41.00,0:00:51.00,OnScreen,,0,0,0,,Say it. Fix one sound.
+Dialogue: 0,0:00:16.00,0:00:25.00,Label,,0,0,0,,{\pos(540,860)}SCREEN RECORDING
+Dialogue: 0,0:00:16.00,0:00:25.00,LabelSmall,,0,0,0,,{\pos(540,1000)}Logo, then the home feed.\NTap the dialect pill: Gulf → Egyptian → Yemeni.\NSwipe through three clips.
+Dialogue: 0,0:00:25.00,0:00:35.00,Label,,0,0,0,,{\pos(540,860)}SCREEN RECORDING
+Dialogue: 0,0:00:25.00,0:00:35.00,LabelSmall,,0,0,0,,{\pos(540,1000)}Video player. Tap one word.\NTurn on EN · Literal · Fusha.\NTap "Save to My Words".
+Dialogue: 0,0:00:35.00,0:00:41.00,Label,,0,0,0,,{\pos(540,860)}SCREEN RECORDING
+Dialogue: 0,0:00:35.00,0:00:41.00,LabelSmall,,0,0,0,,{\pos(540,1000)}/review: the saved word as a flashcard.\NFlip it, rate "Good".
+Dialogue: 0,0:00:41.00,0:00:51.00,Label,,0,0,0,,{\pos(540,860)}SCREEN RECORDING
+Dialogue: 0,0:00:41.00,0:00:51.00,LabelSmall,,0,0,0,,{\pos(540,1000)}Shadow tab (non-TikTok clip): repeat the line,\Nscore appears, one sound highlighted.\NThen "Ask" on that line.
+Dialogue: 0,0:00:52.00,0:01:00.00,EndAr,,0,0,0,,{\fad(600,0)}كل حكاية تبدأ بكلمة
+Dialogue: 0,0:00:52.60,0:01:00.00,End,,0,0,0,,{\fad(600,0)}Every story starts with one word.
+Dialogue: 0,0:00:54.50,0:01:00.00,CTA,,0,0,0,,{\fad(400,0)}Join the waitlist · hakiya.app

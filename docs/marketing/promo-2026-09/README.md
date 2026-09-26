@@ -13,3 +13,17 @@ How the rough cut of the 60-second video (`../2026-09-26-one-minute-video.md`) w
   - It needs Montserrat and Noto Naskh Arabic TTFs in `fonts/`, from Google Fonts.
   - ffmpeg must be built with libass.
 - The generated clips have their own AI audio, mixed at 60%. There is no voiceover yet.
+
+## Intro B (Shakespeare)
+
+- `mall.mjs` generates the 12 s mall scene on both models. Kling 3.0 4K was used.
+- `assemble-b.sh MALL.mp4 CAMPFIRE.mp4 OUT.mp4` builds the cut, with captions from `cut-b.ass`.
+  - After the mall scene, a 4 s hold on its last frame carries the Fusha ≈ Shakespeare line.
+  - The campfire's audio is muted.
+
+## Checking generated audio
+
+`stt.py MODEL clip.mp4 …` transcribes clips with faster-whisper (`pip install faster-whisper`; `small` is enough). Run it on every clip before it ships: the video models write dialogue nobody asked for. What it found on the Intro A clips:
+- **Airport clip:** the driver speaks formal Arabic ("ضع هذه الحقيبة في السيارة"), not Egyptian, so the audio has to be replaced.
+- **Campfire clip:** murmured pseudo-Arabic.
+- **Mall clip:** says both lines correctly.

@@ -1,7 +1,7 @@
 # Hikaya — 60-second marketing video script
 
-Written 2026-09-26 from what the repo actually ships. Voiceover is 139 words
-(about 55 s at a relaxed pace). Voiceover linted 5/5 with the slopmonster
+Written 2026-09-26 from what the repo actually ships. Voiceover is 142 words
+(about 57 s at a relaxed pace). Voiceover linted 5/5 with the slopmonster
 `deslop.py`; the rival-model cleanse was not run (no model CLI in the cloud
 session that drafted it).
 
@@ -19,7 +19,7 @@ a 16:9 cut can letterbox the phone over a sadu-weave background.
 | 0:29–0:35 | `/review`: the saved word appears as a flashcard, flip, rate "Good". | Saved words come back as flashcards right before you'd forget them. | — |
 | 0:35–0:45 | Shadow tab: learner repeats the line into the phone, score appears, one sound highlighted. Then the sadu "Ask" button → tutor answers a question about that exact line. | Then say it yourself. Shadow the line, get a score, see which sound to fix. Stuck? Ask the tutor. It knows which line you're on. | Say it. Fix one sound. |
 | 0:45–0:52 | Quick split: Alphabet Journey caravan on one side, the feed on the other. | Start with the alphabet, or jump straight into the clips. It's free. | Free to start |
-| 0:52–1:00 | Campfire scene from the landing page, lockup fades in. | Hikaya. Every story starts with one word. | كل حكاية تبدأ بكلمة · Join the free beta · hakiya.app |
+| 0:52–1:00 | Campfire scene from the landing page, lockup fades in. | Hikaya. Every story starts with one word. Join the waitlist. | كل حكاية تبدأ بكلمة · Join the waitlist · hakiya.app |
 
 ## What each claim rests on
 
@@ -35,10 +35,11 @@ a 16:9 cut can letterbox the phone over a sadu-weave background.
 
 ## Before filming — traps found in the repo
 
-1. **Signup needs an invite code** (`src/pages/Auth.tsx`, "Invite code required").
-   A viewer who clicks "Join the free beta" hits a wall. Either ship with codes
-   to hand out (put one in the caption), open signup, or change the end card to
-   a waitlist. This is the one thing to decide before the video goes out.
+1. **Signup needs an invite code** (`src/pages/Auth.tsx`, "Invite code required"),
+   so the call to action is a waitlist (decided 2026-09-26). **The app has no
+   waitlist yet**: nothing in `src/`, the migrations or `public/` collects an
+   email without an invite code. It has to exist, and the end card's URL has to
+   land on it, before the video goes out.
 2. **Film the Shadow tab on a non-TikTok clip.** QA audit 2026-09-04 (M1): slow
    listen and shadowing audio fail on the TikTok-sourced videos.
 3. **Pick a clip with word-level timing.** Only ~34% of lines had it at the

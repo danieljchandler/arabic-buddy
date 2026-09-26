@@ -12,7 +12,7 @@ a 16:9 cut can letterbox the phone over a sadu-weave background.
 
 | Time | Picture | Voiceover | On-screen text |
 |---|---|---|---|
-| 0:00–0:05 | Back seat of a Cairo taxi at dusk, driver half turns and asks something fast in Egyptian Arabic (real audio, subtitled only as "…?"). Learner's face: blank. | You studied Arabic for a year. Then a taxi driver in Cairo asked you something, and you caught none of it. | — |
+| 0:00–0:05 | Arrivals curb at Cairo airport, dusk. The learner stands by her suitcase, phone in hand; a taxi driver beside his open car grabs the handle and asks something fast in Egyptian Arabic (real audio, subtitled only as "…?"). Her face: blank, polite smile. | You studied Arabic for a year. Then a taxi driver in Cairo asked you something, and you caught none of it. | — |
 | 0:05–0:10 | Dinner with Arab friends at a cafe table. The learner has his Fusha grammar book open by his plate; the table laughs, he looks up, back down at the book, up again, lost. | That's because the textbook taught you Fusha. Nobody speaks Fusha at the shop, or out to dinner with friends. | فصحى ≠ what people say |
 | 0:10–0:19 | Hikaya logo (sadu frame, sand variant) → the home feed. Thumb taps the dialect pill: Gulf → Egyptian → Yemeni. Vertical swipe through three clips. | Hikaya teaches the Arabic people actually speak. Pick Gulf, Egyptian or Yemeni, and scroll short clips of native speakers. | Gulf · Egyptian · Yemeni |
 | 0:19–0:29 | Video player. Subtitle card under the clip. Finger taps one word → popover with meaning. Toggle EN → Literal → Fusha rows on. Tap "Save to My Words", small check animation. | Lost on a word? Tap it. You get the English, the literal meaning, even how it would look in Fusha. One more tap saves it. | Tap any word |

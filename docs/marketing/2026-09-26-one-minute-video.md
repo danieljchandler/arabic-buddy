@@ -21,6 +21,28 @@ a 16:9 cut can letterbox the phone over a sadu-weave background.
 | 0:45–0:52 | Quick split: Alphabet Journey caravan on one side, the feed on the other. | Start with the alphabet, or jump straight into the clips. It's free. | Free to start |
 | 0:52–1:00 | Campfire scene from the landing page, lockup fades in. | Hikaya. Every story starts with one word. Join the waitlist. | كل حكاية تبدأ بكلمة · Join the waitlist · hakiya.app |
 
+## Intro B — the Shakespeare cut
+
+An alternative opening. Shakespeare's English is to a modern mall what
+Fusha is to a Cairo street, so the joke shows the problem instead of
+describing it. One continuous shot, so the actor's face stays the same
+throughout. His lines are spoken in the clip; everything after is voiceover.
+To keep the cut at 60 s, the alphabet beat (Intro A 0:45–0:52) is dropped
+and its "It's free" goes with it.
+
+| Time | Picture | Audio | On-screen text |
+|---|---|---|---|
+| 0:00–0:12 | A Gulf mall. Four friends in their twenties walk toward camera. A young Western man in full Shakespearean costume (doublet, ruff, feathered cap) leaps in front of them. They trade baffled looks, step around him and keep walking. Left alone, he turns away, hand on heart. | HIM: "Hark! Toilet, toilet, wherefore art thou toilet?" … HIM (to himself): "To pee, or not to pee: that is the question." | His lines as captions |
+| 0:12–0:16 | Hold on him alone, slow push-in. | VO: Learning Fusha to chat with people is like learning Shakespeare to find a toilet. | فصحى ≈ Shakespeare |
+| 0:16–0:25 | Feed and the dialect pill, as Intro A 0:10. | VO: Hikaya teaches the Arabic people actually speak. Pick Gulf, Egyptian or Yemeni, and scroll short clips of native speakers. | Gulf · Egyptian · Yemeni |
+| 0:25–0:35 | Tap-a-word, as Intro A 0:19. | VO: as Intro A. | Tap any word |
+| 0:35–0:41 | Flashcards, as Intro A 0:29. | VO: as Intro A. | — |
+| 0:41–0:51 | Shadow tab and Ask, as Intro A 0:35. | VO: as Intro A. | Say it. Fix one sound. |
+| 0:51–1:00 | Campfire end card. | VO: Hikaya. Every story starts with one word. Join the waitlist. | كل حكاية تبدأ بكلمة · Join the waitlist · hakiya.app |
+
+"Wherefore" means *why*, not *where*. He gets even the old language wrong,
+which is the joke.
+
 ## What each claim rests on
 
 | Claim | Where it is in the app |

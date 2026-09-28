@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   filterLines,
+  groupReviewsByVideo,
   indexReviews,
   reviewProgress,
   reviewStateFor,
@@ -112,6 +113,47 @@ describe("reviewProgress", () => {
       unreviewed: 0,
       percent: 0,
     });
+  });
+});
+
+describe("groupReviewsByVideo", () => {
+  const row = (videoId: string, lineId: string, reviewedArabic: string | null = null) => ({
+    videoId,
+    lineId,
+    reviewedArabic,
+    reviewedTranslation: null,
+  });
+
+  it("keeps each video's ticks apart", () => {
+    const byVideo = groupReviewsByVideo([row("v1", "L1"), row("v2", "L1"), row("v1", "L2")]);
+
+    expect([...(byVideo.get("v1")?.keys() ?? [])]).toEqual(["L1", "L2"]);
+    expect([...(byVideo.get("v2")?.keys() ?? [])]).toEqual(["L1"]);
+  });
+
+  it("carries the snapshot the staleness rule needs", () => {
+    const byVideo = groupReviewsByVideo([row("v1", "L1", "شلونك اليوم")]);
+
+    expect(byVideo.get("v1")?.get("L1")).toEqual({
+      reviewedArabic: "شلونك اليوم",
+      reviewedTranslation: null,
+    });
+  });
+
+  it("gives the list the edit page's number, not a row count", () => {
+    // Three rows for a two-line video: a tick left on a line a merge removed,
+    // and one on text that has since changed. Counting rows called this video
+    // done (3 >= 2); its edit page says one line is checked.
+    const lines = [line({ id: "L1" }), line({ id: "L2", arabic: "زين الحمدلله" })];
+    const byVideo = groupReviewsByVideo([
+      row("v1", "L1", "شلونك اليوم"),
+      row("v1", "L2", "زين"),
+      row("v1", "merged-away", "شي ثاني"),
+    ]);
+
+    const progress = reviewProgress(lines, byVideo.get("v1") ?? new Map());
+
+    expect(progress).toMatchObject({ total: 2, reviewed: 1, stale: 1 });
   });
 });
 

@@ -7,6 +7,17 @@ import type { EmbeddedSelect, ExecuteResult, ParsedQuery, Row, SelectField } fro
 
 const JSON_HEADERS = { "content-type": "application/json" };
 
+/**
+ * PostgREST's `max-rows`, which a hosted Supabase project sets to 1000.
+ *
+ * A read never returns more than this, whatever `.limit()` asked for, and the
+ * cut is silent: no error, the first page and nothing else. Without it here a
+ * query that reads a whole growing table passes every test and under-reports
+ * in production once the table outgrows one page — how the video list came to
+ * show fully checked transcripts as barely started.
+ */
+export const MAX_ROWS = 1000;
+
 function fail(status: number, body: unknown): ExecuteResult {
   return { status, body, headers: JSON_HEADERS };
 }
@@ -259,7 +270,7 @@ function read(db: MemoryDb, query: ParsedQuery): ExecuteResult {
   const ordered = applyOrder(filtered, order);
 
   const start = offset ?? 0;
-  const windowed = limit === undefined ? ordered.slice(start) : ordered.slice(start, start + limit);
+  const windowed = ordered.slice(start, start + Math.min(limit ?? MAX_ROWS, MAX_ROWS));
 
   const projected = applyInnerJoins(projectAll(db, table, windowed, fields), fields);
 

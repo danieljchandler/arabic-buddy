@@ -223,6 +223,37 @@ describe("ordering, limits and ranges", () => {
   });
 });
 
+describe("max-rows", () => {
+  // A hosted project caps every read at 1000 rows and says nothing about it.
+  // Without the cap here, a whole-table read passes every test and quietly
+  // under-reports in production.
+  const many = Array.from({ length: 1005 }, (_, i) => ({
+    id: `w${String(i).padStart(4, "0")}`,
+    display_order: i,
+  }));
+  beforeEach(() => backend.db.seed("vocabulary_words", many));
+
+  it("returns the first thousand rows of an unbounded read, with no error", async () => {
+    const { data, error } = await db.from("vocabulary_words").select("id").order("display_order");
+    expect(error).toBeNull();
+    expect(data).toHaveLength(1000);
+  });
+
+  it("caps a limit above it too", async () => {
+    const { data } = await db.from("vocabulary_words").select("id").limit(2000);
+    expect(data).toHaveLength(1000);
+  });
+
+  it("still serves the rest by range", async () => {
+    const { data } = await db
+      .from("vocabulary_words")
+      .select("id")
+      .order("display_order")
+      .range(1000, 1999);
+    expect(data?.map((row) => row.id)).toEqual(["w1000", "w1001", "w1002", "w1003", "w1004"]);
+  });
+});
+
 describe("counts", () => {
   beforeEach(() => backend.db.seed("vocabulary_words", words));
 

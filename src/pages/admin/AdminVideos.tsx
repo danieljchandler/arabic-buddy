@@ -33,6 +33,13 @@ import { needsThumbnail } from "@/lib/thumbnailBackfill";
 import { VideoThumbnail } from "@/components/media/VideoThumbnail";
 import type { TranscriptLine } from "@/types/transcript";
 import { cn } from "@/lib/utils";
+import { fetchAllRows } from "@/lib/fetchAllRows";
+import {
+  groupReviewsByVideo,
+  reviewProgress,
+  type ReviewSnapshot,
+} from "@/lib/reviewStatus";
+import { VIDEO_REVIEW_PROGRESS_KEY } from "@/hooks/useTranscriptReview";
 
 type ReviewFilter = "all" | "needs_review" | "in_progress" | "done";
 
@@ -44,41 +51,77 @@ const FILTER_LABELS: Record<ReviewFilter, string> = {
 };
 
 interface ReviewMeta {
-  /** Review-row count per video — how many lines carry a tick. */
-  reviewCounts: Map<string, number>;
+  /** Each video's review rows, by line id. */
+  reviewsByVideo: Map<string, Map<string, ReviewSnapshot>>;
   /** Open (unresolved) comment count per video. */
   commentCounts: Map<string, number>;
 }
+
+const NO_REVIEWS: ReadonlyMap<string, ReviewSnapshot> = new Map();
 
 /**
  * How much of each video a native speaker has checked, for the whole list.
  *
  * Folded in from the old /admin/transcribe queue. Fetched without an `.in()`
  * filter on purpose: the admin list is unbounded, and a hundred uuids in a
- * PostgREST query string is already ~4 KB of URL — two skinny full-table reads
- * are cheaper and simpler. Errors are swallowed rather than thrown: if the
- * counts cannot be read, the list still manages videos, which is most of its
- * value.
+ * PostgREST query string is already ~4 KB of URL — full-table reads are
+ * cheaper and simpler.
+ *
+ * Paged, not unbounded. PostgREST returns the first 1000 rows of an unbounded
+ * select with no error, and ticks are one row per line across every video, so
+ * a few long transcripts put the table past one page. Past it, whichever rows
+ * the database happened to return last went missing — typically the newest
+ * ticks — and the video a transcriber had just finished showed as barely
+ * started. Ordered by id so the pages cannot overlap or skip.
+ *
+ * The snapshot columns come along because the list holds each video to the
+ * same rule as its edit page (`reviewProgress`), not to a row count: a tick
+ * left on a merged-away line, or on text that has changed since, is not a
+ * checked line in either place.
+ *
+ * A failed read leaves `data` undefined and the list still manages videos,
+ * which is most of its value; the query cache says something went wrong.
  */
 function useReviewMeta() {
   return useQuery({
-    queryKey: ["admin-video-review-counts"],
+    queryKey: VIDEO_REVIEW_PROGRESS_KEY,
     queryFn: async (): Promise<ReviewMeta> => {
-      const [{ data: reviews }, { data: comments }] = await Promise.all([
-        supabase.from("transcript_line_reviews").select("video_id, line_id"),
-        supabase.from("transcript_line_comments").select("video_id, resolved_at"),
+      const [reviews, openComments] = await Promise.all([
+        fetchAllRows<{
+          video_id: string;
+          line_id: string;
+          reviewed_arabic: string | null;
+          reviewed_translation: string | null;
+        }>((from, to) =>
+          supabase
+            .from("transcript_line_reviews")
+            .select("video_id, line_id, reviewed_arabic, reviewed_translation")
+            .order("id")
+            .range(from, to),
+        ),
+        fetchAllRows<{ video_id: string }>((from, to) =>
+          supabase
+            .from("transcript_line_comments")
+            .select("video_id")
+            .is("resolved_at", null)
+            .order("id")
+            .range(from, to),
+        ),
       ]);
 
-      const reviewCounts = new Map<string, number>();
-      for (const row of reviews ?? []) {
-        reviewCounts.set(row.video_id, (reviewCounts.get(row.video_id) ?? 0) + 1);
-      }
+      const reviewsByVideo = groupReviewsByVideo(
+        reviews.map((row) => ({
+          videoId: row.video_id,
+          lineId: row.line_id,
+          reviewedArabic: row.reviewed_arabic,
+          reviewedTranslation: row.reviewed_translation,
+        })),
+      );
       const commentCounts = new Map<string, number>();
-      for (const row of comments ?? []) {
-        if (row.resolved_at) continue;
+      for (const row of openComments) {
         commentCounts.set(row.video_id, (commentCounts.get(row.video_id) ?? 0) + 1);
       }
-      return { reviewCounts, commentCounts };
+      return { reviewsByVideo, commentCounts };
     },
   });
 }
@@ -187,10 +230,15 @@ const AdminVideos = () => {
   const rows = useMemo(() => {
     return (videos ?? []).map((video) => {
       const lines = (video.transcript_lines as unknown as TranscriptLine[]) ?? [];
+      const progress = reviewProgress(
+        lines,
+        reviewMeta?.reviewsByVideo.get(video.id) ?? NO_REVIEWS,
+      );
       return {
         video,
         lineCount: lines.length,
-        reviewedCount: reviewMeta?.reviewCounts.get(video.id) ?? 0,
+        reviewedCount: progress.reviewed,
+        staleCount: progress.stale,
         // The translation ensemble's own doubt: lines where its models
         // disagreed. The best place for a native speaker to start.
         flaggedCount: lines.filter((line) => line.needs_review).length,
@@ -329,8 +377,10 @@ const AdminVideos = () => {
                 Nothing here. Try another filter.
               </p>
             )}
-            {visibleRows.map(({ video, lineCount, reviewedCount, flaggedCount, openComments }) => {
+            {visibleRows.map(({ video, lineCount, reviewedCount, staleCount, flaggedCount, openComments }) => {
               const percent = lineCount === 0 ? 0 : Math.round((reviewedCount / lineCount) * 100);
+              // Not `percent === 100`: 399 of 400 rounds up to it.
+              const fullyChecked = lineCount > 0 && reviewedCount >= lineCount;
               return (
               <Card
                 key={video.id}
@@ -385,10 +435,19 @@ const AdminVideos = () => {
                             Failed
                           </Badge>
                         )}
-                        {video.transcription_status === 'completed' && !video.published && (
+                        {/* The review this badge invites is the one the bar
+                            measures, so once every line is checked it says so
+                            instead of still asking for it. */}
+                        {fullyChecked ? (
                           <Badge variant="outline" className="text-xs text-green-600 border-green-300">
-                            Ready to review
+                            Fully checked
                           </Badge>
+                        ) : (
+                          video.transcription_status === 'completed' && !video.published && (
+                            <Badge variant="outline" className="text-xs text-green-600 border-green-300">
+                              Ready to review
+                            </Badge>
+                          )
                         )}
                       </div>
                     </div>
@@ -408,6 +467,14 @@ const AdminVideos = () => {
                         💬 {openComments}
                       </span>
                     )}
+                    {staleCount > 0 && (
+                      <span
+                        className="rounded bg-amber-100 px-2 py-0.5 text-[11px] text-amber-800 dark:bg-amber-900/40 dark:text-amber-200"
+                        title="Lines edited after they were checked — their ticks need confirming again"
+                      >
+                        {staleCount} changed since being checked
+                      </span>
+                    )}
                     {lineCount > 0 && (
                       <div className="flex items-center gap-2">
                         <span className="text-xs tabular-nums text-muted-foreground">
@@ -417,7 +484,7 @@ const AdminVideos = () => {
                           <div
                             className={cn(
                               "h-full rounded",
-                              percent === 100 ? "bg-green-500" : "bg-blue-500",
+                              fullyChecked ? "bg-green-500" : "bg-blue-500",
                             )}
                             style={{ width: `${percent}%` }}
                           />

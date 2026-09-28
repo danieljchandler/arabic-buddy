@@ -1,9 +1,14 @@
 import { waitFor } from "@testing-library/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { afterEach, describe, expect, it } from "vitest";
 import { renderHookWithProviders, TEST_USER_ID } from "@/test/support/react/harness";
 import { videoId } from "@/test/support/factories";
 import type { SupabaseBackend } from "@/test/support/server/handler";
-import { NotesPartlySavedError, useTranscriptReview } from "./useTranscriptReview";
+import {
+  NotesPartlySavedError,
+  useTranscriptReview,
+  VIDEO_REVIEW_PROGRESS_KEY,
+} from "./useTranscriptReview";
 
 /**
  * The review workspace's data layer.
@@ -108,6 +113,46 @@ describe("signing off a line", () => {
     await expect(
       result.current.setReviewed.mutateAsync({ lineId: "nope", reviewed: true }),
     ).rejects.toThrow();
+  });
+});
+
+describe("the video list's progress", () => {
+  // The list caches its counts like any query. Unless a tick marks them stale,
+  // the reviewer who finishes a video and goes back finds it listed as it was
+  // before they started.
+  function renderWithClient() {
+    const harness = renderHookWithProviders(
+      () => ({ review: useTranscriptReview(VIDEO), client: useQueryClient() }),
+      { persona: "transcriber", seed: seedVideo },
+    );
+    cleanup = harness.cleanup;
+    return harness;
+  }
+
+  it("is marked stale by a tick", async () => {
+    const { result } = renderWithClient();
+    await waitFor(() => expect(result.current.review.loading).toBe(false));
+    result.current.client.setQueryData(VIDEO_REVIEW_PROGRESS_KEY, { cached: true });
+
+    await result.current.review.setReviewed.mutateAsync({ lineId: "L1", reviewed: true });
+
+    expect(result.current.client.getQueryState(VIDEO_REVIEW_PROGRESS_KEY)?.isInvalidated).toBe(
+      true,
+    );
+  });
+
+  it("is marked stale by a transcript save, which can make ticks stale", async () => {
+    const { result } = renderWithClient();
+    await waitFor(() => expect(result.current.review.loading).toBe(false));
+    result.current.client.setQueryData(VIDEO_REVIEW_PROGRESS_KEY, { cached: true });
+
+    await result.current.review.saveLines.mutateAsync({
+      lines: [{ ...LINES[0], arabic: "شخبارك اليوم" }, LINES[1]] as never,
+    });
+
+    expect(result.current.client.getQueryState(VIDEO_REVIEW_PROGRESS_KEY)?.isInvalidated).toBe(
+      true,
+    );
   });
 });
 

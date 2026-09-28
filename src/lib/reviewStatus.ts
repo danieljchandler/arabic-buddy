@@ -24,6 +24,14 @@ export interface LineReview {
   reviewedTranslation: string | null;
 }
 
+/**
+ * The part of a review row that decides whether its tick still holds.
+ *
+ * All the rules below need, so the video list can read just these columns for
+ * every video at once rather than the whole row.
+ */
+export type ReviewSnapshot = Pick<LineReview, "reviewedArabic" | "reviewedTranslation">;
+
 export interface ReviewableLine {
   id: string;
   arabic?: string;
@@ -44,7 +52,7 @@ function sameText(a: string, b: string): boolean {
 }
 
 export function reviewStateFor(
-  review: LineReview | undefined,
+  review: ReviewSnapshot | undefined,
   line: Pick<ReviewableLine, "arabic" | "translation">,
 ): ReviewState {
   if (!review) return "unreviewed";
@@ -84,7 +92,7 @@ export interface ReviewProgress {
  */
 export function reviewProgress(
   lines: readonly ReviewableLine[],
-  reviews: ReadonlyMap<string, LineReview>,
+  reviews: ReadonlyMap<string, ReviewSnapshot>,
 ): ReviewProgress {
   let reviewed = 0;
   let stale = 0;
@@ -110,6 +118,38 @@ export function indexReviews(reviews: readonly LineReview[]): Map<string, LineRe
   return new Map(reviews.map((review) => [review.lineId, review]));
 }
 
+/** A review row as the video list reads it: whose line, and what was approved. */
+export interface VideoLineReview extends ReviewSnapshot {
+  videoId: string;
+  lineId: string;
+}
+
+/**
+ * Index every video's review rows by line, for the video list.
+ *
+ * The list holds each video to `reviewProgress` rather than counting its rows.
+ * A row count is not the same number: it counts a tick on a line that has
+ * since been merged away or deleted, and a tick whose text has moved on, so it
+ * could call a video done that its own edit page says is not.
+ */
+export function groupReviewsByVideo(
+  rows: readonly VideoLineReview[],
+): Map<string, Map<string, ReviewSnapshot>> {
+  const byVideo = new Map<string, Map<string, ReviewSnapshot>>();
+  for (const row of rows) {
+    let lines = byVideo.get(row.videoId);
+    if (!lines) {
+      lines = new Map();
+      byVideo.set(row.videoId, lines);
+    }
+    lines.set(row.lineId, {
+      reviewedArabic: row.reviewedArabic,
+      reviewedTranslation: row.reviewedTranslation,
+    });
+  }
+  return byVideo;
+}
+
 export type LineFilter = "all" | "unreviewed" | "stale" | "commented" | "needs_review";
 
 /**
@@ -123,7 +163,7 @@ export type LineFilter = "all" | "unreviewed" | "stale" | "commented" | "needs_r
 export function filterLines<T extends ReviewableLine & { needs_review?: boolean }>(
   lines: readonly T[],
   filter: LineFilter,
-  reviews: ReadonlyMap<string, LineReview>,
+  reviews: ReadonlyMap<string, ReviewSnapshot>,
   commentedLineIds: ReadonlySet<string>,
 ): T[] {
   switch (filter) {

@@ -1,6 +1,7 @@
 import { expect, test } from "./support/fixtures";
 import { aDiscoverVideo, videoId } from "../src/test/support/factories";
 import type { SupabaseBackend } from "../src/test/support/server/handler";
+import { TEST_USER_ID } from "../src/test/support/server/session";
 
 /**
  * Transcript review, which now lives on the Manage Videos pages: the list at
@@ -157,6 +158,96 @@ test.describe("the list as a review queue", () => {
     await page.getByText("Greeting in the souq").click();
 
     await expect(page).toHaveURL(new RegExp(`/admin/videos/${VIDEO}/edit$`));
+  });
+
+  test("counts every tick, not just the first thousand", async ({ page, signInAs, db }) => {
+    // PostgREST caps an unbounded read at 1000 rows without saying so, and
+    // ticks are one row per line across every video. Past that the list lost
+    // whichever ticks sorted last and showed a finished video as unchecked.
+    await signInAs("transcriber");
+    const lines = Array.from({ length: 1200 }, (_, i) => ({
+      id: `L${i}`,
+      arabic: `سطر ${i}`,
+      translation: `Line ${i}`,
+      startMs: i * 1000,
+      endMs: i * 1000 + 900,
+      tokens: [],
+    }));
+    db.seed("discover_videos", [
+      aDiscoverVideo({
+        id: VIDEO,
+        title: "A long one",
+        published: false,
+        transcription_status: "completed",
+        transcript_lines: lines,
+      }),
+    ]);
+    db.seed(
+      "transcript_line_reviews",
+      lines.map((line) => ({
+        video_id: VIDEO,
+        line_id: line.id,
+        reviewed_by: TEST_USER_ID,
+        reviewed_arabic: line.arabic,
+        reviewed_translation: line.translation,
+      })),
+    );
+
+    await page.goto("/admin/videos");
+
+    await expect(page.getByText("1200/1200")).toBeVisible();
+    await expect(page.getByText("Fully checked", { exact: true })).toBeVisible();
+    await expect(page.getByText("Ready to review")).toHaveCount(0);
+  });
+
+  test("holds a video to its edit page's count, not a row count", async ({ page, signInAs, db }) => {
+    // Two ticks on a two-line video, but one approved text the line no longer
+    // carries. Its edit page says 1 / 2; so must the list.
+    await signInAs("transcriber");
+    seedVideos(db);
+    db.seed("transcript_line_reviews", [
+      {
+        video_id: VIDEO,
+        line_id: "L1",
+        reviewed_by: TEST_USER_ID,
+        reviewed_arabic: "شلونك اليوم",
+        reviewed_translation: "How are you today",
+      },
+      {
+        video_id: VIDEO,
+        line_id: "L2",
+        reviewed_by: TEST_USER_ID,
+        reviewed_arabic: "زين",
+        reviewed_translation: "Fine, thank God",
+      },
+    ]);
+
+    await page.goto("/admin/videos");
+
+    await expect(page.getByText("1/2")).toBeVisible();
+    await expect(page.getByText("1 changed since being checked")).toBeVisible();
+    await expect(page.getByText("Fully checked", { exact: true })).toHaveCount(0);
+  });
+
+  test("shows a video as checked on returning from ticking it", async ({ page, signInAs, db }) => {
+    // Round trip inside the app, the way a reviewer works: the list's counts
+    // are cached, so they must be marked stale by the ticks, not left as read.
+    await signInAs("transcriber");
+    seedVideos(db);
+
+    await page.goto("/admin/videos");
+    await expect(page.getByText("0/2")).toBeVisible();
+    await page.getByText("Greeting in the souq").click();
+
+    await page.getByRole("checkbox", { name: /Mark line 1 as reviewed/ }).click();
+    await expect(page.getByText("1 / 2 lines checked")).toBeVisible();
+    await page.getByRole("checkbox", { name: /Mark line 2 as reviewed/ }).click();
+    await expect(page.getByText("2 / 2 lines checked")).toBeVisible();
+    await page.goBack();
+
+    await expect(page).toHaveURL(/\/admin\/videos$/);
+    await expect(page.getByText("2/2")).toBeVisible();
+    await expect(page.getByText("Fully checked", { exact: true })).toBeVisible();
   });
 
   test("hides the management buttons from a transcriber", async ({ page, signInAs, db }) => {

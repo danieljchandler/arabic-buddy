@@ -102,6 +102,16 @@ export class NotesPartlySavedError extends Error {
   }
 }
 
+/**
+ * The video list's per-video review progress, read by `AdminVideos`.
+ *
+ * Kept here because every write that moves it goes through this hook. The
+ * list's own query is cached like any other, so without invalidating it a
+ * reviewer who ticks the last line and goes back sees the count from before
+ * they started, and the video they just finished still listed as unchecked.
+ */
+export const VIDEO_REVIEW_PROGRESS_KEY = ["admin-video-review-counts"] as const;
+
 async function callReview<T>(body: Record<string, unknown>): Promise<T> {
   const { data, error } = await supabase.functions.invoke("transcript-review", { body });
   if (error) throw new Error(await describeFunctionError(error));
@@ -185,6 +195,8 @@ export function useTranscriptReview(videoId: string | undefined) {
       for (const key of keys) {
         void queryClient.invalidateQueries({ queryKey: [key, videoId] });
       }
+      // Ticks, stale snapshots and open comments are all on the list too.
+      void queryClient.invalidateQueries({ queryKey: VIDEO_REVIEW_PROGRESS_KEY });
     },
     [queryClient, videoId],
   );

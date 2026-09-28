@@ -871,6 +871,15 @@ plus the `transcript-review` function refuse those writes anyway. The old
 `/admin/transcribe` and `/admin/transcribe/:videoId` addresses redirect to the
 merged pages so bookmarks survive.
 
+The list's per-video "checked" figure is the edit page's own number
+(`reviewProgress` in `src/lib/reviewStatus.ts`), not a count of review rows: a
+tick left on a merged-away line, or on text that has changed since, does not
+count in either place. It reads every tick in the project, so it pages past
+PostgREST's silent 1000-row cap (`fetchAllRows`). Before it did, a transcriber
+who had checked a few long videos saw the one they had just finished listed as
+barely started. The in-memory emulator enforces the same cap, so a whole-table
+read that forgets to page fails a test.
+
 Transcript saves go through the same pipeline for every role — an explicit
 **Save transcript** (or the admin's Update Video, which flushes the transcript
 first): local edits are drafted on-device (`useTranscriptDraft`) with a visible

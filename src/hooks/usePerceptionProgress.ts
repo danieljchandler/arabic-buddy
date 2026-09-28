@@ -34,7 +34,7 @@ export interface RoundResult {
 }
 
 export function usePerceptionProgress() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { activeDialect } = useDialect();
   const qc = useQueryClient();
   const key = ["perception-progress", user?.id, activeDialect];
@@ -109,7 +109,10 @@ export function usePerceptionProgress() {
 
   return {
     rows,
-    isLoading: query.isLoading,
+    // The query is disabled until auth resolves a user, and a disabled query
+    // reports isLoading false — so without authLoading this read "ready" while
+    // recordRound would still drop a round on its `!user` guard.
+    isLoading: authLoading || query.isLoading,
     statusFor,
     programme,
     contrasts: CONTRASTS,

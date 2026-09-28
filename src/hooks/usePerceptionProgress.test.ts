@@ -1,5 +1,6 @@
 import { act, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { supabase } from "@/integrations/supabase/client";
 import { renderHookWithProviders } from "@/test/support/react/harness";
 import { aPerceptionProgress } from "@/test/support/factories";
 import { MINUTES_PER_CONTRAST, RESURFACE_AFTER_DAYS } from "@/lib/perceptionPairs";
@@ -23,6 +24,7 @@ afterEach(() => {
   cleanup?.();
   cleanup = undefined;
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 function render(seed: (backend: SupabaseBackend) => void = () => {}) {
@@ -86,6 +88,29 @@ describe("recording a round", () => {
     const rows = backend!.db.rows("user_perception_progress") as Array<Record<string, unknown>>;
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ contrast_id: "qaf-kaf", dialect: "Gulf", attempts: 10, correct: 6, seconds: 90 });
+  });
+
+  it("does not report ready before auth has resolved a user", async () => {
+    // The query waits for a user, and a disabled query reports isLoading
+    // false. Read alone, that let a caller record a round while `user` was
+    // still null, and the round was dropped without a word. Slowing auth down
+    // makes the window wide enough to hit every time rather than on a slow
+    // CI runner only.
+    vi.spyOn(supabase.auth, "onAuthStateChange").mockReturnValue({
+      data: { subscription: { unsubscribe: () => {} } },
+    } as never);
+    const getSession = supabase.auth.getSession.bind(supabase.auth);
+    vi.spyOn(supabase.auth, "getSession").mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve(getSession()), 100)) as never,
+    );
+    const { result } = render();
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    await act(async () => {
+      await result.current.recordRound({ contrastId: "qaf-kaf", attempts: 10, correct: 6, seconds: 90 });
+    });
+
+    await waitFor(() => expect(result.current.statusFor("qaf-kaf").minutes).toBeCloseTo(1.5));
   });
 
   it("completes the contrast when its share of the programme is met", async () => {

@@ -17,6 +17,14 @@ Network 4xx/5xx are only inspected when a page looks broken or logs a console er
 
 4. **Unknown skill id crashes and leaves a sticky crash banner.** `/skills/bogus` (full load) -> error boundary fires, app redirects to /choose with toast "An unexpected error occurred", and sets sessionStorage `__app_last_crash`. Every later page in that tab (e.g. /leaderboard) then rendered only "The app crashed recently / Details logged to the console. Please try again." instead of its content until the key was cleared or the page reloaded again (a later /leaderboard load was fine). Expected: a not-found state for an unknown skill, no crash. Suspect `src/pages/Skill*.tsx` route param handling plus the crash-flag logic that reads `__app_last_crash`.
 
+5. **Every list -> detail SPA navigation fires the global crash handler.** Steps: /discover (filter Gulf) -> tap video card; /stories -> tap "A Day in Oman"; /reading-library -> tap card. Expected: detail opens cleanly. Actual: detail content renders but toast "An unexpected error occurred / Please try again. If the problem persists, let me know what you did." shows, and sessionStorage `__app_last_crash` is set (`{"at":...,"url":".../discover/<id>","payload":{}}`, empty payload). The flag then makes "The app crashed recently / Details logged to the console" banner appear on every later page load (seen on /liked-videos, /reading, /reading-library/<fake>) until cleared. Full load of the same detail URL is clean (no toast). No console errors captured. 3/3 list types reproduce (/discover/:videoId, /stories/:storyId, /reading-library/:id). Not seen for /listen list (uses `<a href>` links, full page nav semantics untested). Suspect a shared error handler (window `error`/`unhandledrejection` listener in the crash-flag code, same as Broken #4) or a component common to these three detail pages that throws during route transition.
+
+6. **`writing-coach` edge function returns 502 on /write submit, with no user-visible error.** Steps: /write -> type "انا اريد اروح السوق" (19 chars) -> Get corrections. Expected: corrections or an error message. Actual: network shows `POST .../functions/v1/writing-coach` 502; after 9s page unchanged (no result, no toast in screenshot). Also the prompt loader on the same page says "Couldn't load a prompt." on every load.
+
+7. **AI-backed pages fail with generic errors (probably same root cause as the credits banner, not verified):** /today/story "Could not generate today's story. Couldn't write today's story. Please try again."; /daily-challenge (Start Today's Challenge) shows "Failed to load today's challenge" on load; /dialect-compare example click shows "Failed to compare dialects. Please try again." (network showed only the OPTIONS 200 in the tool's list). Each tried once.
+
+8. **`/souq-news` renders an empty page.** After ~11s the spinner is gone and the page shows only the title "أخبار السوق / Today's news, told like a friend at the souq" and "Mark unknowns": no articles, no empty state, no error. Only `user_vocabulary` REST calls seen (200). Likely news generation failing silently (see 7).
+
 ## 2. Suspicious
 
 - Cold deep link to `/admin` in a fresh Chrome tab landed on `/admin/login` (sign-in form) with no `sb-*` keys in localStorage; minutes later the same tab was signed in and `/admin` loaded fine. Could not reproduce or explain; either a session-hydration race or the tab group started without the profile session. Re-tested below if noted.
@@ -29,6 +37,13 @@ Network 4xx/5xx are only inspected when a page looks broken or logs a console er
 - `/onboarding` heading renders as "!أهلاً وسهلاً" in DOM text order (the "!" is first in logical order); visually fine in a 0.4 screenshot but check RTL punctuation in source.
 - `/pricing` copy says "You're on the All-In plan" for the admin account (expected for admin/beta? unverified).
 
+- Group 2: `/stories/<fake uuid>` shows "Nothing here yet / This story has no scenes yet. Back to Stories" instead of a not-found state (other fake ids give proper "not found").
+- Group 2: /discover "Browse" filter: Yemeni and Egyptian both show "No videos found" (Advanced level); only Gulf/All show 1 video (UAE, Advanced). The account is Yemeni, so Yemeni learners see an empty Discover. /clips also says "No Yemeni clips published yet".
+- Group 2: /reading-library page title is "Reading Library — Hikaya — Hikaya" (duplicated suffix); the list card at 2560px is very narrow with the title wrapping one word per line.
+- Group 2: /pronunciation "Word" and "Sentence" tabs looked identical in text (both "فلسفة / Listen first"); may be same content by design. Word 1 "فلسفة" (philosophy) as a first Yemeni word is MSA-ish.
+- Group 2: /vocab-games "Match the Pairs" mixes forms in one round, e.g. "تعود - يتعود على" (MSA-style verb pair) beside colloquial "كاس"; not a bug per se, data quality.
+- Group 2: /native-feedback shows Credits 0 and "Feedback credits aren't on sale yet", so the submit path is unreachable for anyone (expected for now?).
+
 ## 3. Passed
 
 - `/` renders landing (signed-out copy shown in an earlier load; signed-in later), no console errors.
@@ -39,6 +54,8 @@ Network 4xx/5xx are only inspected when a page looks broken or logs a console er
 - `/me` renders (level 10, 2706 XP-ish, 1604 due), admin link present.
 - `/admin` renders dashboard as admin.
 - Group 1 passed (rendered content, no console errors, no horizontal overflow at 2560px): /today (content; see suspicious re banner), /skills/listen, /skills/speak, /skills/write, /leaderboard (fresh load; rank #1 shown), /pricing (shows "You're on the All-In plan"), /onboarding (step 1 of 5 only), /reset-password (form only), /curriculum, /learn (flashcards), /learn/96d72ee2... (lesson page), /learn/<fake uuid> and /quiz/<fake uuid> ("Topic not found" + Go Home), /placement (intro), /bridge, /grammar, /alphabet, /alphabet/sounds, /alphabet/alif, /alphabet/checkpoint/0 (locked state), /review (reveal + Good rating worked, +15 XP, next card loaded), /review/my-words, /review/my-phrases ("Deck complete"), /my-words, /mistakes, /analytics, /set-phrases (renders; empty, see suspicious).
+
+- Group 2 passed (rendered, no console errors, no horizontal overflow at 2560px): /discover (empty state for Yemeni/Egyptian, Gulf lists 1 video), /discover/257ebe53-... (real, content + transcript render on full load; SPA nav see Broken #5), /discover/<fake> ("Video not found"), /liked-videos (empty state), /stories (list), /stories/0972f6c9-... (real, scene + choices render; choice click advanced to next scene), /reading (menu), /reading-library (1 item), /reading-library/e0ca411c-... (real, 6 sentences, Gulf), /reading-library/<fake> ("Story not found"), /listen (6 episodes), /listen/7e3eeb2b-... (real, transcript renders), /listen/<fake> ("Episode not found"), /pronunciation (UI loads, Word/Sentence/Shadow tabs switch, Shadow clip shows), /monologue (prompt + Start talking, not started), /clips (empty state), /native-feedback (loads, 0 credits, not submitted), /write (loads, submit empty disabled; see Broken #6), /listening (menu of 3), /dialect-compare (loads; compare fails, Broken #7), /daily-challenge (loads; start fails, Broken #7), /vocab-games (Word Matching: correct pair matched, wrong pair counted a mistake; Memory Cards: two flips OK; Fill in the Blank: wrong answer shows "Not quite" + correct answer), /battles (empty state, buttons not clicked), /battles/<fake> ("Battle not found"), /conversation (loads with topic picker, C1 Yemeni; no network calls to functions and no realtime session on mount, needs tap on "Live voice"; nothing clicked).
 
 ## 4. NOT TESTED, needs Daniel
 
@@ -52,7 +69,10 @@ Network 4xx/5xx are only inspected when a page looks broken or logs a console er
 - Group 1: dialect switch (Gulf/Egyptian) not exercised on these routes; only Yemeni seen. /pricing checkout/portal ("Manage" button), /onboarding steps 2-5 and reset-password submit: present, not exercised. Mic/audio ("Say it", alphabet sound pairs) not tested.
 - Group 1: /alphabet/checkpoint/0 is locked ("Master letters 1-7 first"), so the checkpoint itself was not seen. /learn flashcard "Practice a sentence"/Generate Image/jingle buttons not clicked (AI cost).
 
+- Group 2: NOT TESTED: mic on /pronunciation, /monologue recording, /conversation "Live voice" and topic chat, audio playback on /listen and videos, /native-feedback submit (0 credits), /battles create/challenge, /today/story, /daily-challenge, /dialect-compare and /write results (all failed upstream, so the success states were never seen), /souq-news content, /listening sub-modes (Dictation/Comprehension/Speed not opened), /vocab-games Memory Cards full round. 390px: `resize_window` again reported success but `innerWidth` stayed 2560. Daniel: check phone layout of /discover/:id, /stories/:id, /reading-library, /vocab-games. Dialect switch: only /discover has one (Gulf/Egyptian/Yemeni/All all exercised, ends on Yemeni; it looks local to the page, not the account preference); account dialect not changed.
+
 ## 5. Test data created, to clean up
 
 (none yet)
 - Group 1 (learner core): answered 1 SRS card ("Good") on /review (curriculum deck, "I drink"), +15 XP. No other data created. `__app_last_crash` sessionStorage key was cleared by me in-tab (harmless).
+- Group 2 (content + practice): one /write submission ("انا اريد اروح السوق") that returned 502 (nothing stored as far as seen); a few vocab-games answers; one story choice click on /stories/0972f6c9-... (may store progress); one dialect-compare and one daily-challenge attempt (both failed). `__app_last_crash` cleared in-tab (harmless).

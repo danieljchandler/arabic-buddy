@@ -44,6 +44,11 @@ The sweep is long. A big context makes you confidently wrong, so state lives in 
 
 ## Safety (this hits PRODUCTION Supabase)
 
+- The signed-in account is Daniel's **admin** account, so destructive controls are reachable.
+  Look at admin pages, open forms, check they load and validate, but do not click any button
+  that deletes, bans, grants/revokes roles, mints credentials, publishes to learners, or
+  triggers a bulk pipeline run. Log those as "present, not exercised".
+
 - No Stripe checkout, customer portal, delete-account or role/permission changes.
 - Nothing on `/admin/id-logins` that mints or disables accounts.
 - Don't touch other users' data. Log anything you create so Daniel can clean it up.

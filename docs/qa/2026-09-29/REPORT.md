@@ -5,6 +5,14 @@ Signed-in role: **admin** (danieljchandler@gmail.com, `/admin` dashboard loads, 
 Built-in Claude browser is NOT signed in; not used.
 Method note: results are appended per route *group* (not per route) and committed per group, to keep the run's context small.
 Network 4xx/5xx are only inspected when a page looks broken or logs a console error; a silent failed request may be missed.
+**Hidden-tab caveat (lead, end of run):** every Claude-in-Chrome tab reported `document.visibilityState = "hidden"` and `hasFocus() = false`, including a brand-new tab. `document.startViewTransition` rejects with "Document hidden" in hidden tabs, so Broken #4, #5, #13 and #16 (the global "An unexpected error occurred" toast + `__app_last_crash` banner after SPA navigation) may be artifacts of the test browser and NOT what a real user sees. Not verified in a foreground tab. Evidence it may also be real: `/admin/errors` holds 46 "Failed to fetch dynamically imported module .../src/pages/Index.tsx" client errors from real sessions.
+**Checks run once at the start:** `npm run typecheck` PASSED (exit 0, both tsconfigs). `npm run test:e2e` DID NOT RUN: all 2191+ tests failed at browser launch, not in app code (first failure below).
+```
+1) [chromium] > e2e\access.spec.ts:14:3 > admin console access > an admin reaches the dashboard
+Error: browserType.launch: Executable doesn't exist at C:\Users\danie\AppData\Local\ms-playwright\chromium_headless_shell-1194\chrome-win\headless_shell.exe
+Looks like Playwright Test or Playwright was just installed or updated. Please run the following command to download new browsers: npx playwright install
+```
+**Top five (ranked):** #2 quiz crash, #1 dead canonical domain, #9 translate failing, #3 c-test failing / #6-#8 AI-backed pages failing (probably one root cause, credits), #14/#17 admin edit forms for nonexistent ids.
 
 ## 1. Broken (reproducible)
 
@@ -112,7 +120,9 @@ Group 5 (admin part 2), ranked:
 - Audio playback quality: can't hear audio.
 - Stripe checkout and customer portal (`/pricing`, `/settings`): excluded by safety rules.
 - Email flows (invites, password reset): can't read his inbox.
-- 390px layout: Chrome window is 2560 wide and may refuse to go below ~500px; see per-route notes if achieved.
+- **Playwright e2e suite (`npm run test:e2e`) and CI-equivalent runs**: browsers not installed, all tests fail at launch. Needs a download (`npx playwright install chromium`), which I did not do unattended. Daniel: run it, then `npm run test:e2e` again.
+- **Foreground-tab check of Broken #5/#16**: all automated Chrome tabs are hidden. Daniel: in a normal visible tab, open /stories and click a story (and /discover -> a video); if no "An unexpected error occurred" toast appears, #4/#5/#13/#16 are test-browser artifacts.
+- 390px layout: Chrome window is 2560 wide and `resize_window` reports success but `innerWidth` stays 2560, so no route was seen at phone width. Daniel: check main pages at 390px.
 - Destructive/publishing admin controls: present, not exercised (list per route below).
 - Group 1: 390px check impossible: `resize_window` to 390x800 reported success but `innerWidth` stayed 2560, so no mobile layout was seen for any group-1 route. Daniel: check /today, /curriculum, /review, /my-words, /analytics at phone width.
 - Group 1: dialect switch (Gulf/Egyptian) not exercised on these routes; only Yemeni seen. /pricing checkout/portal ("Manage" button), /onboarding steps 2-5 and reset-password submit: present, not exercised. Mic/audio ("Say it", alphabet sound pairs) not tested.
@@ -130,7 +140,7 @@ Group 5 (admin part 2), ranked:
 
 ## 5. Test data created, to clean up
 
-(none yet)
+Nothing that needs deleting was created. Items below are per-group logs; the ones that may have left a row are: 1 SRS card answered (+15 XP), one how-do-i-say query in /saved-chats history, one story-choice click on /stories/0972f6c9-....
 - Group 1 (learner core): answered 1 SRS card ("Good") on /review (curriculum deck, "I drink"), +15 XP. No other data created. `__app_last_crash` sessionStorage key was cleared by me in-tab (harmless).
 - Group 2 (content + practice): one /write submission ("انا اريد اروح السوق") that returned 502 (nothing stored as far as seen); a few vocab-games answers; one story choice click on /stories/0972f6c9-... (may store progress); one dialect-compare and one daily-challenge attempt (both failed). `__app_last_crash` cleared in-tab (harmless).
 - Group 3: one failed translate attempt (nothing saved as far as seen, /translate/saved still 3 items), one how-do-i-say query "thank you so much" (may have added a row to /saved-chats history, "How do I say..." source; delete there if unwanted), one culture-guide chip message (no reply), one /share-target routed translate. No settings/profile/friends changes. Crash flag cleared in-tab.

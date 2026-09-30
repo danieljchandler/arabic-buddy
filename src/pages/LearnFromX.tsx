@@ -248,6 +248,7 @@ const LearnFromX = () => {
                 onClick={() => handleAnalyze()}
                 disabled={!urlInput.trim() || isLoading}
                 className="shrink-0"
+                aria-label="Analyze post"
               >
                 {isLoading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -339,6 +340,11 @@ const LearnFromX = () => {
                             variant={savedWords.has(vocab.arabic) ? "secondary" : "ghost"}
                             size="icon"
                             className="h-8 w-8 shrink-0"
+                            aria-label={
+                              savedWords.has(vocab.arabic)
+                                ? `${vocab.arabic} is in My Words`
+                                : `Save ${vocab.arabic} to My Words`
+                            }
                             onClick={() => handleSaveWord(vocab)}
                             disabled={savedWords.has(vocab.arabic) || addUserVocabulary.isPending}
                           >

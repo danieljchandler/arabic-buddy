@@ -55,7 +55,7 @@ const TutorUpload = () => {
     processFile(selectedFile);
   }, [processFile]);
 
-  const handleDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+  const handleDrop = useCallback((e: React.DragEvent<HTMLElement>) => {
     e.preventDefault();
     const droppedFile = e.dataTransfer.files?.[0];
     if (droppedFile) processFile(droppedFile);
@@ -87,28 +87,32 @@ const TutorUpload = () => {
             Upload a recording of your tutor speaking Arabic. The system will extract vocabulary candidates for you to review.
           </p>
 
-          <div
+          {/* A label for the file input rather than a clickable div: the
+              input stays in the tab order and the zone is its accessible name,
+              so it can be reached and opened without a mouse. */}
+          <label
+            htmlFor="tutor-upload-file"
             onDrop={handleDrop}
             onDragOver={(e) => e.preventDefault()}
-            onClick={() => fileInputRef.current?.click()}
             className={cn(
-              "border-2 border-dashed rounded-xl p-12 text-center cursor-pointer",
+              "block border-2 border-dashed rounded-xl p-12 text-center cursor-pointer",
               "transition-all duration-200",
-              "border-border hover:border-primary/40 hover:bg-primary/5"
+              "border-border hover:border-primary/40 hover:bg-primary/5",
+              "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2"
             )}
           >
-            <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="font-medium text-foreground mb-1">Drop audio or video file here</p>
-            <p className="text-sm text-muted-foreground">or click to browse · MP3, WAV, M4A, MP4, WebM</p>
-          </div>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="audio/*,video/*"
-            onChange={handleFileSelect}
-            className="hidden"
-          />
+            <Upload className="h-12 w-12 text-muted-foreground mx-auto mb-4" aria-hidden />
+            <span className="block font-medium text-foreground mb-1">Drop audio or video file here</span>
+            <span className="block text-sm text-muted-foreground">or click to browse · MP3, WAV, M4A, MP4, WebM</span>
+            <input
+              id="tutor-upload-file"
+              ref={fileInputRef}
+              type="file"
+              accept="audio/*,video/*"
+              onChange={handleFileSelect}
+              className="sr-only"
+            />
+          </label>
         </div>
       )}
 

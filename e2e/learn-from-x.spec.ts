@@ -104,16 +104,13 @@ test.describe("what it will accept", () => {
     expect(backend.callsTo("scrape-x-post")).toHaveLength(0);
   });
 
-  test("gives the submit control no accessible name", async ({ page }) => {
+  test("names the submit control", async ({ page }) => {
     await page.goto("/learn-from-x");
     await page.getByPlaceholder(/x\.com\/username\/status/).fill(POST_URL);
 
-    // Pinned rather than worked around. The only way to submit by pointer is a
-    // button announced to a screen reader as "button", next to an info hint
-    // that *is* named — so the named control is the one that does nothing.
-    const submit = page.locator("button:has(svg.lucide-search)");
-    await expect(submit).toBeEnabled();
-    expect(await submit.getAttribute("aria-label")).toBeNull();
+    // It was an icon announced as just "button", beside an info hint that was
+    // named — so the named control was the one that did nothing.
+    await expect(page.getByRole("button", { name: "Analyze post" })).toBeEnabled();
   });
 });
 
@@ -252,10 +249,7 @@ test.describe("the result", () => {
     await openTab(page, /Vocabulary/);
     await expect(page.getByText("the weather")).toBeVisible();
 
-    // Icon-only and unnamed, like the submit control — located by its icon
-    // because there is no role+name that reaches it. Counted against the
-    // app-wide icon-button baseline.
-    await page.locator("button:has(svg.lucide-plus)").first().click();
+    await page.getByRole("button", { name: "Save الجو to My Words" }).click();
 
     await expect.poll(() => db.rows("user_vocabulary").length).toBeGreaterThan(0);
     // The sentence travels with the word. A word saved bare is a word reviewed
@@ -272,13 +266,13 @@ test.describe("the result", () => {
   test("confirms the save on the row itself", async ({ page }) => {
     await analyse(page);
     await openTab(page, /Vocabulary/);
-    await page.locator("button:has(svg.lucide-plus)").first().click();
+    await page.getByRole("button", { name: "Save الجو to My Words" }).click();
 
     // The row swaps its plus for a tick and goes disabled. Without that the
     // only feedback is a toast that has already gone, and the same word gets
     // saved twice.
-    await expect(page.locator("button:has(svg.lucide-check)")).toBeVisible();
-    await expect(page.locator("button:has(svg.lucide-check)")).toBeDisabled();
+    await expect(page.getByRole("button", { name: "الجو is in My Words" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "الجو is in My Words" })).toBeDisabled();
   });
 
   test("gives a signed-out visitor no way to save at all", async ({

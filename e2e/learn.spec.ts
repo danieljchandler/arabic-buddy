@@ -671,23 +671,25 @@ test.describe("the standalone quiz", () => {
     seedLesson(db, 5);
   });
 
-  test("crashes on any lesson it could actually quiz", async ({ page, expectConsoleErrors }) => {
-    expectConsoleErrors([/Cannot read properties of undefined/, /ErrorBoundary caught error/]);
-
+  test("asks one question per word and then scores the round", async ({ page }) => {
+    // This used to crash on every lesson with four or more words: Quiz.tsx
+    // shuffled the words in a useEffect, so on the render where the query
+    // resolved `shuffledWords` was still empty and `key={currentWord.id}`
+    // dereferenced undefined (QA sweep 2026-09-29, Broken #2). The list is
+    // derived from the topic now, so the first render already has a word.
     await page.goto(`/quiz/${LESSON}`);
 
-    // A real bug, recorded rather than fixed here. Quiz.tsx shuffles the words
-    // in a useEffect, so on the render where the query resolves `shuffledWords`
-    // is still empty — `key={currentWord.id}` then dereferences undefined and
-    // the route renders the error boundary. It reproduces for every lesson with
-    // four or more words, which is every lesson the page will run at all; with
-    // fewer it returns "Need more words" before reaching the crash, which is
-    // why the route-coverage suite never saw it.
-    //
-    // This test fails once the guard is added. Replace it then with the real
-    // assertions: progress counter, one question per word, and the results
-    // screen.
-    await expect(page.getByRole("heading", { name: /something went wrong/i })).toBeVisible();
+    await expect(page.getByText("1 / 5")).toBeVisible();
+    await expect(page.getByText(/something went wrong/i)).toHaveCount(0);
+
+    const asked = new Set<number>();
+    for (let i = 0; i < 5; i++) asked.add(await answerShown(page));
+    // Five distinct questions: the shuffle reorders, it never repeats or drops.
+    expect(asked.size).toBe(5);
+
+    await expect(page.getByText("5 / 5")).toBeVisible();
+    await page.getByRole("button", { name: /try again/i }).click();
+    await expect(page.getByText("1 / 5")).toBeVisible();
   });
 
   test("refuses to run without enough words to make choices", async ({ page, db }) => {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useTopic, VocabularyWord } from "@/hooks/useTopic";
 import { PageCorner } from "@/components/shell/PageCorner";
@@ -30,7 +30,8 @@ const Quiz = () => {
   const navigate = useNavigate();
   const { data: topic, isLoading, error } = useTopic(lessonId);
   
-  const [shuffledWords, setShuffledWords] = useState<VocabularyWord[]>([]);
+  // Bumped on restart so the memo below reshuffles.
+  const [round, setRound] = useState(0);
   const [quizState, setQuizState] = useState<QuizState>({
     currentIndex: 0,
     score: 0,
@@ -38,11 +39,17 @@ const Quiz = () => {
     isComplete: false,
   });
 
-  useEffect(() => {
-    if (topic?.words && topic.words.length > 0) {
-      setShuffledWords(shuffleArray(topic.words));
-    }
-  }, [topic]);
+  // Derived, not synced. This used to be state filled by an effect after the
+  // topic arrived, which left the first render of every lesson with an empty
+  // list: `currentWord` was undefined and the page crashed reading `.id` off
+  // it (QA sweep 2026-09-29, Broken #2). Short lessons never got that far
+  // because the "need more words" guard ran first, which is why it looked
+  // like every *real* lesson was broken and the fixtures were fine.
+  const shuffledWords = useMemo<VocabularyWord[]>(
+    () => (topic?.words ? shuffleArray(topic.words) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `round` is the reshuffle trigger
+    [topic, round],
+  );
 
   usePageAiContext(
     useMemo(() => {
@@ -58,16 +65,14 @@ const Quiz = () => {
   );
 
   const resetQuiz = useCallback(() => {
-    if (topic?.words) {
-      setShuffledWords(shuffleArray(topic.words));
-      setQuizState({
-        currentIndex: 0,
-        score: 0,
-        answers: [],
-        isComplete: false,
-      });
-    }
-  }, [topic]);
+    setRound((r) => r + 1);
+    setQuizState({
+      currentIndex: 0,
+      score: 0,
+      answers: [],
+      isComplete: false,
+    });
+  }, []);
 
   const handleAnswer = (isCorrect: boolean) => {
     const currentWord = shuffledWords[quizState.currentIndex];
@@ -140,6 +145,21 @@ const Quiz = () => {
 
   // Active quiz
   const currentWord = shuffledWords[quizState.currentIndex];
+  if (!currentWord) {
+    // Cannot happen with the memo above (the list is never shorter than the
+    // topic's words), but a crash is the wrong answer if it ever does.
+    return (
+      <AppShell compact>
+        <div className="mb-6">
+          <PageCorner />
+        </div>
+        <div className="text-center py-12">
+          <p className="text-lg text-muted-foreground mb-6">Nothing left to quiz.</p>
+          <Button onClick={resetQuiz}>Start again</Button>
+        </div>
+      </AppShell>
+    );
+  }
   const otherWords = shuffledWords.filter((_, i) => i !== quizState.currentIndex);
   const progress = (quizState.currentIndex / shuffledWords.length) * 100;
 

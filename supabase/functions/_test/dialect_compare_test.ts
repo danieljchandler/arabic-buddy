@@ -1,6 +1,7 @@
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { NO_AI_PROVIDER, jsonRequest, loadFunction } from "./harness.ts";
 import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 
 /**
  * `dialect-compare` — one word across five Arabic varieties.
@@ -15,6 +16,11 @@ import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
  * It also falls back from the tool call to salvaging JSON out of the message
  * content, because a model told to use a tool sometimes writes the JSON in prose
  * instead, and throwing that away costs the learner a request for no reason.
+ *
+ * The call goes through `askBrain` (solo, learner's dialect as the task
+ * dialect, repair off because the MSA row is the point), so it inherits the
+ * Brain's fallback chain: a refusal from Google walks down to Claude on
+ * OpenRouter, and only when every rung refuses does the status reach the page.
  */
 
 const USER = "00000000-0000-4000-8000-000000000001";
@@ -265,6 +271,25 @@ Deno.test("dialect-compare preserves exhausted credits", async () => {
 
   assertEquals(status, 402);
   assertStringIncludes(String(body.error), "AI credits exhausted");
+});
+
+Deno.test("dialect-compare reaches Claude on OpenRouter when Google refuses", async () => {
+  const { status, body, calls, bodies } = await call(
+    { word: "كيف حالك" },
+    caller({
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "quota" }, 429),
+      "openrouter.ai": emitting(aComparison()),
+    }),
+  );
+
+  // A Google project out of credit answers 429, and a direct call to Google
+  // had nowhere else to go — that is what took this page down in the
+  // 2026-09-29 sweep. Through the Brain the last rung is on another vendor.
+  assertEquals(status, 200);
+  assertEquals((body.comparison as { dialects: unknown[] }).dialects.length, 2);
+  const i = calls.findIndex((u) => u.includes("openrouter.ai") && u.includes("chat/completions"));
+  assert(i >= 0, "expected a call to OpenRouter");
+  assertEquals((JSON.parse(bodies[i] ?? "{}") as { model?: string }).model, MODEL_IDS.CLAUDE);
 });
 
 Deno.test("dialect-compare flattens any other gateway failure to 500", async () => {

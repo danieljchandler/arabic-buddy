@@ -10,6 +10,7 @@ import { PageCorner } from "@/components/shell/PageCorner";
 import { useAuth } from "@/hooks/useAuth";
 import { useAddXP } from "@/hooks/useGamification";
 import { supabase } from "@/integrations/supabase/client";
+import { isCappedError, toInvokeFailureError } from "@/lib/invokeError";
 import { useUserLevel } from "@/hooks/useUserLevel";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
@@ -231,7 +232,8 @@ const DailyChallenge = () => {
         },
       });
 
-      if (error) throw error;
+      if (error) throw await toInvokeFailureError(error, data, "Failed to load today's challenge");
+      if (!data?.challenge) throw new Error("Failed to load today's challenge");
 
       setChallenge(data.challenge);
       setStreakMultiplier(data.streakMultiplier || 1.0);
@@ -243,7 +245,10 @@ const DailyChallenge = () => {
       setSessionComplete(false);
     } catch (e) {
       console.error("Failed to load challenge:", e);
-      toast.error("Failed to load today's challenge");
+      // A cap hit has already shown the upgrade toast; anything else carries
+      // the function's own reason (out of credit, model down) or the fallback.
+      if (isCappedError(e)) return;
+      toast.error(e instanceof Error ? e.message : "Failed to load today's challenge");
     } finally {
       setLoading(false);
     }

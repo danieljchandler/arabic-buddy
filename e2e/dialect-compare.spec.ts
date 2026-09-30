@@ -146,7 +146,7 @@ test.describe("comparing a word", () => {
     expect(backend.lastCallTo("dialect-compare")?.body).toMatchObject({ word: "شكراً" });
   });
 
-  test("always compares from Gulf, whatever the learner is studying", async ({
+  test("compares from the learner's own dialect", async ({
     page,
     signInAs,
     db,
@@ -160,12 +160,11 @@ test.describe("comparing a word", () => {
     await compare(page);
     await expect(page.getByText("شلونك")).toBeVisible();
 
-    // Pinned as-is. `source_dialect` is hardcoded to "Gulf" and the page never
-    // reads `useDialect`, so an Egyptian learner asks "how does this Gulf word
-    // differ elsewhere?" — the reverse of what they want. Every other page in
-    // the app is dialect-aware.
+    // `source_dialect` is the row the function makes especially accurate. It
+    // was hardcoded to "Gulf", so an Egyptian learner asked "how does this
+    // Gulf word differ elsewhere?" — the reverse of what they wanted.
     expect(backend.lastCallTo("dialect-compare")?.body).toMatchObject({
-      source_dialect: "Gulf",
+      source_dialect: "Egyptian",
     });
   });
 });
@@ -248,10 +247,9 @@ test.describe("getting started", () => {
     await page.goto("/dialect-compare");
     await compare(page);
 
-    // Pinned: the message is generic, so a daily cap and an outage read
-    // identically here — unlike the other AI helpers, which surface the
-    // function's own message.
-    await expect(page.getByText("Failed to compare dialects. Please try again.")).toBeVisible();
+    // The function's own message, as on the other AI helpers, so an outage
+    // and a cap do not read identically.
+    await expect(page.getByRole("alert")).toHaveText("model unavailable");
   });
 });
 

@@ -353,6 +353,62 @@ describe("when there is no phrase", () => {
     expect(screen.queryByRole("button", { name: /save as flashcard/i })).not.toBeInTheDocument();
   });
 
+  it("says what went wrong when the function says so", async () => {
+    const { backend } = render({
+      seed: (b) =>
+        b.stubFunctionFailure("phrase-of-the-day", 502, {
+          error: "generation_failed",
+          message: "The phrase model is out of credit.",
+        }),
+    });
+
+    // The 2026-09-29 sweep: every AI card failed with a 5xx whose message
+    // said exactly what was wrong, and the learner saw nothing at all.
+    await waitFor(() =>
+      expect(screen.getByText("The phrase model is out of credit.")).toBeInTheDocument(),
+    );
+    expect(backend.callsTo("phrase-of-the-day")).toHaveLength(1);
+    expect(screen.getByRole("button", { name: /try again/i })).toBeInTheDocument();
+  });
+
+  it("shows a 402 message rather than retrying into it", async () => {
+    const { backend } = render({
+      seed: (b) =>
+        b.stubFunctionFailure("phrase-of-the-day", 402, {
+          error: "payment_required",
+          message: "The AI provider is out of credit.",
+        }),
+    });
+
+    await waitFor(() =>
+      expect(screen.getByText("The AI provider is out of credit.")).toBeInTheDocument(),
+    );
+    // A refusal is not a network blip; asking twice more would not change it.
+    expect(backend.callsTo("phrase-of-the-day")).toHaveLength(1);
+  });
+
+  it("shows the daily cap as the cap, once", async () => {
+    const { backend } = render({ seed: (b) => b.stubFunctionCapped("phrase-of-the-day") });
+
+    await waitFor(() => expect(screen.getByText(/daily free limit/i)).toBeInTheDocument());
+    expect(backend.callsTo("phrase-of-the-day")).toHaveLength(1);
+  });
+
+  it("tries again when asked", async () => {
+    const { backend } = render({
+      seed: (b) => b.stubFunctionFailure("phrase-of-the-day", 500, { error: "gateway down" }),
+    });
+    await waitFor(() => expect(screen.getByRole("button", { name: /try again/i })).toBeInTheDocument());
+
+    backend.stubFunction("phrase-of-the-day", aPhrase());
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /try again/i }));
+    });
+
+    await waitFor(() => expect(screen.getByText("How are you?")).toBeInTheDocument());
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("reports the reason when the generator declines", async () => {
     const { backend } = render({
       seed: (b) =>
@@ -365,5 +421,8 @@ describe("when there is no phrase", () => {
     // A deliberate fallback is not a network failure and must not be retried;
     // the learner is told once and the card stays quiet.
     await waitFor(() => expect(backend.callsTo("phrase-of-the-day")).toHaveLength(1));
+    await waitFor(() =>
+      expect(screen.getByText("Phrase of the day is resting")).toBeInTheDocument(),
+    );
   });
 });

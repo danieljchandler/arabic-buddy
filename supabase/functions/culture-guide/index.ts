@@ -9,6 +9,8 @@ import { getDialectIdentity, getDialectVocabRules, getDialectLabel } from "../_s
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
+import { streamBrain, BrainHttpError } from "../_shared/aiBrain.ts";
+import type { Dialect } from "../_shared/dialectTypes.ts";
 
 
 // Native Gemini endpoint takes the bare model name, so strip the registry's
@@ -81,6 +83,57 @@ function openaiChunk(text: string): string {
   return `data: ${JSON.stringify(payload)}\n\n`;
 }
 
+/** What the learner reads when the model returned a stream with no words in it. */
+function emptyAnswerText(reason: string | null): string {
+  if (reason && /SAFETY|BLOCK|PROHIBITED|RECITATION/i.test(reason)) {
+    return "I can't help with that one. Try asking about a custom, a greeting or a situation.";
+  }
+  return "I couldn't come up with an answer for that. Try asking it another way.";
+}
+
+/**
+ * The same conversation through the Brain, without Google's search tool.
+ * Used when Google itself refuses or fails, so the learner still gets an
+ * answer; the model is the registry's non-Google chat model so a Google
+ * outage cannot take this path down too.
+ */
+async function ungroundedAnswer(
+  messages: Array<{ role: string; content: string }>,
+  dialect: string,
+  corsHeaders: Record<string, string>,
+): Promise<Response> {
+  const history = messages
+    .filter((m) => (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
+    .map((m) => ({ role: m.role as "user" | "assistant", content: m.content }));
+  try {
+    const answer = await streamBrain({
+      purpose: "culture-guide",
+      dialect: dialect as Dialect,
+      messages: history,
+      systemPromptExtra: buildSystemPrompt(dialect).replace(/^- Use Google Search[^\n]*\n?/m, ""),
+      model: MODEL_IDS.CLAUDE_CHAT,
+      temperature: 0.7,
+    });
+    // streamBrain builds its own headers; the CORS ones for this request win.
+    const headers = new Headers(answer.headers);
+    for (const [k, v] of Object.entries(corsHeaders)) headers.set(k, v);
+    return new Response(answer.body, { status: answer.status, headers });
+  } catch (e) {
+    const status = e instanceof BrainHttpError ? e.status : 502;
+    console.error("[culture-guide] fallback failed", status, e instanceof Error ? e.message : e);
+    const message =
+      status === 429
+        ? "The AI is busy right now. Try again in a minute."
+        : status === 402
+          ? "The AI has run out of credit. Try again later."
+          : "The AI couldn't answer. Try again.";
+    return new Response(
+      JSON.stringify({ error: message, message }),
+      { status: status >= 400 && status < 600 ? status : 502, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
+}
+
 function formatSources(metadata: any): string {
   const chunks: any[] = metadata?.groundingChunks ?? [];
   if (!chunks.length) return "";
@@ -136,27 +189,26 @@ serve(async (req) => {
       },
     );
 
-    if (!upstream.ok) {
-      const txt = await upstream.text();
-      console.error("[culture-guide] upstream", upstream.status, txt);
-      if (upstream.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded, please try again in a moment." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-        );
-      }
-      return new Response(
-        JSON.stringify({ error: "AI service error", details: txt }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } },
-      );
+    if (!upstream.ok || !upstream.body) {
+      const txt = upstream.ok ? "" : await upstream.text();
+      console.warn("[culture-guide] upstream", upstream.status, txt.slice(0, 200), "— answering without search grounding");
+      // Google refusing the call (no credit, over quota, bad key) or falling
+      // over is not a reason to show the learner nothing. Answer through the
+      // Brain instead, on the registry's non-Google model, without the
+      // search tool: an ungrounded answer beats an error page. This path is
+      // what the 2026-09-29 sweep hit — Google out of credit — and the page
+      // sat silent for 25 s.
+      return await ungroundedAnswer(messages, dialect, corsHeaders);
     }
-    if (!upstream.body) throw new Error("No upstream body");
 
     // Transform Gemini SSE → OpenAI-shaped SSE chunks the existing client parses.
     const reader = upstream.body.getReader();
     const decoder = new TextDecoder();
     const encoder = new TextEncoder();
     let lastGroundingMetadata: any = null;
+
+    let emittedText = false;
+    let blockedReason: string | null = null;
 
     const stream = new ReadableStream({
       async start(controller) {
@@ -175,10 +227,20 @@ serve(async (req) => {
               if (!payload || payload === "[DONE]") continue;
               try {
                 const json = JSON.parse(payload);
+                // A 200 stream can still carry a refusal: a safety block on the
+                // prompt, or an error object. Both used to be dropped on the
+                // floor, so the client saw a clean empty stream and rendered
+                // nothing at all.
+                if (json.error?.message) blockedReason = String(json.error.message);
+                if (json.promptFeedback?.blockReason) blockedReason = String(json.promptFeedback.blockReason);
                 const cand = json.candidates?.[0];
+                if (cand?.finishReason && cand.finishReason !== "STOP" && cand.finishReason !== "MAX_TOKENS") {
+                  blockedReason = String(cand.finishReason);
+                }
                 const parts = cand?.content?.parts ?? [];
                 for (const p of parts) {
                   if (typeof p?.text === "string" && p.text.length) {
+                    emittedText = true;
                     controller.enqueue(encoder.encode(openaiChunk(p.text)));
                   }
                 }
@@ -190,11 +252,19 @@ serve(async (req) => {
               }
             }
           }
+          if (!emittedText) {
+            console.warn("[culture-guide] empty answer", blockedReason ?? "no text in stream");
+            controller.enqueue(encoder.encode(openaiChunk(emptyAnswerText(blockedReason))));
+          }
           const sourcesMd = formatSources(lastGroundingMetadata);
           if (sourcesMd) controller.enqueue(encoder.encode(openaiChunk(sourcesMd)));
           controller.enqueue(encoder.encode("data: [DONE]\n\n"));
         } catch (e) {
           console.error("[culture-guide] stream err", e);
+          if (!emittedText) {
+            controller.enqueue(encoder.encode(openaiChunk(emptyAnswerText(null))));
+            controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+          }
         } finally {
           controller.close();
         }

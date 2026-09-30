@@ -159,7 +159,12 @@ Hard requirements:
       dialect,
       userPrompt,
       systemPromptExtra: getDialectTransliterationRules(dialect as Dialect),
-      strategy: "solo",
+      // No strategy override: pickStrategy gives this purpose an ensemble
+      // (Claude and Gemini both draft, the lower-MSA-leak phrase wins). It
+      // was pinned to solo Gemini until 2026-09-30, which is the call that
+      // showed learners "AI credits exhausted" when Google alone was refused.
+      // Once per dialect per day, so the second draft costs nothing that
+      // matters.
       maxTokens: 700,
       temperature: 1.0,
       tool: {

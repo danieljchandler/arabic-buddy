@@ -151,6 +151,23 @@ test.describe("when the stream goes wrong", () => {
     await expect(page.getByText(/limit|upgrade|daily/i).first()).toBeVisible();
   });
 
+  test("takes the question back when the stream carried no answer", async ({ page, backend }) => {
+    // `[DONE]` and nothing before it: an upstream that answered with zero
+    // text. Left alone, the question sat in the thread looking answered and
+    // the learner had nothing to go on.
+    backend.stubFunction("culture-guide", () => streaming());
+
+    await page.goto("/culture-guide");
+    await ask(page, "How do I greet elders in Yemen?");
+
+    await expect(page.getByText("No answer came back. Try again.")).toBeVisible();
+    // The question goes back into the box, ready to send again unchanged.
+    await expect(page.getByPlaceholder("Describe your situation…")).toHaveValue(
+      "How do I greet elders in Yemen?",
+    );
+    await expect(page.getByPlaceholder("Describe your situation…")).toBeEnabled();
+  });
+
   test("ends the turn when the stream terminates", async ({ page, backend }) => {
     backend.stubFunction("culture-guide", () => streaming("Done."));
 

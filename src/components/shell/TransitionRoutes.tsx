@@ -22,6 +22,9 @@ import { useReducedMotion } from "@/lib/uiPrefs";
  *
  * Falls back to an instant swap — exactly the old behaviour — when the
  * browser has no View Transitions API or the user prefers reduced motion.
+ *
+ * The transition's own promises are caught and ignored: a skipped or aborted
+ * transition is the browser saying it swapped without animating, not a fault.
  */
 export function TransitionRoutes({ children }: { children: ReactNode }) {
   const location = useLocation();
@@ -34,9 +37,19 @@ export function TransitionRoutes({ children }: { children: ReactNode }) {
       setDisplayed(location);
       return;
     }
-    document.startViewTransition(() => {
+    const transition = document.startViewTransition(() => {
       flushSync(() => setDisplayed(location));
     });
+    // A transition the browser skips (hidden tab, reduced motion flipped
+    // mid-flight) or aborts (a redirect landed before the cross-fade finished)
+    // rejects these promises. The route has still changed — the swap happens
+    // in the callback, which ran — so there is nothing to recover from, and
+    // leaving them unhandled turns every such navigation into an
+    // `unhandledrejection` the global crash handler used to toast about.
+    const quiet = () => {};
+    transition.ready.catch(quiet);
+    transition.updateCallbackDone.catch(quiet);
+    transition.finished.catch(quiet);
   }, [location, displayed.key, reduced]);
 
   return <Routes location={displayed}>{children}</Routes>;

@@ -2,6 +2,7 @@ import { assert, assertEquals, assertStringIncludes } from "https://deno.land/st
 import { FakeTime } from "https://deno.land/std@0.224.0/testing/time.ts";
 import { NO_AI_PROVIDER, jsonRequest, loadFunction } from "./harness.ts";
 import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { GRAMMAR_CATEGORY_IDS } from "../_shared/grammarTaxonomy.ts";
 
 /**
@@ -527,6 +528,44 @@ Deno.test("daily-challenge survives an unreadable learner profile", async () => 
   // The profile is an optimisation, not a requirement. A learner whose deck
   // cannot be read still gets a challenge.
   assertEquals(status, 200);
+});
+
+Deno.test("daily-challenge preserves a refusal from every rung", async () => {
+  for (const [code, message] of [[429, "Rate limit exceeded."], [402, "Not enough AI credits."]] as const) {
+    const { status, body } = await call(
+      "daily-challenge",
+      { dialect: "Gulf" },
+      caller({
+        "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "refused" }, code),
+        "openrouter.ai": () => json({ error: "refused" }, code),
+      }),
+    );
+
+    // Both vendors refusing is the one case the page should hear about; the
+    // strings are what it has always been shown.
+    assertEquals(status, code);
+    assertEquals(body.error, message);
+  }
+});
+
+Deno.test("daily-challenge reaches Claude on OpenRouter when Google refuses", async () => {
+  const { status, body, calls, bodies } = await call(
+    "daily-challenge",
+    { dialect: "Gulf" },
+    caller({
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "quota" }, 429),
+      "openrouter.ai": emitting(aChallenge),
+    }),
+  );
+
+  // A Google project out of credit answers 429; a direct chatFetch had nowhere
+  // else to go and the page died with it (2026-09-29 sweep). Through the Brain
+  // the last rung is on another vendor.
+  assertEquals(status, 200);
+  assert(body.challenge);
+  const i = calls.findIndex((u) => u.includes("openrouter.ai") && u.includes("chat/completions"));
+  assert(i >= 0, "expected a call to OpenRouter");
+  assertEquals((JSON.parse(bodies[i] ?? "{}") as { model?: string }).model, MODEL_IDS.CLAUDE);
 });
 
 Deno.test("daily-challenge says so when no provider is configured", async () => {

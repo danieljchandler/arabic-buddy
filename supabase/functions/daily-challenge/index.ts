@@ -1,10 +1,69 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { getDialectVocabRules, getDialectLabel, getDialectExamples } from "../_shared/dialectHelpers.ts";
+import { getDialectLabel, getDialectExamples, type Dialect } from "../_shared/dialectHelpers.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { buildLearnerProfile } from "../_shared/learnerProfile.ts";
-import { MODEL_IDS } from "../_shared/modelRegistry.ts";
-import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
+import { askBrain, BrainHttpError } from "../_shared/aiBrain.ts";
+import { hasAnyProvider } from "../_shared/aiGateway.ts";
+
+interface Challenge {
+  type: string;
+  title: string;
+  titleArabic: string;
+  questions: Array<Record<string, unknown>>;
+}
+
+// One schema for every weekday's shape: the page switches on `type` and reads
+// whichever question fields that type uses, so the item schema lists them all
+// as optional rather than forcing seven tools for seven days.
+const CHALLENGE_TOOL = {
+  name: "emit_challenge",
+  description: "Return today's daily challenge.",
+  parameters: {
+    type: "object",
+    properties: {
+      type: { type: "string", enum: ["translate", "fill_blank", "unscramble", "match"] },
+      title: { type: "string", description: "English title" },
+      titleArabic: { type: "string", description: "Arabic title" },
+      questions: {
+        type: "array",
+        minItems: 1,
+        items: {
+          type: "object",
+          properties: {
+            prompt: { type: "string", description: "translate: the English (or Arabic) prompt" },
+            answer: { type: "string", description: "The correct answer" },
+            options: {
+              type: "array",
+              items: { type: "string" },
+              description: "translate / fill_blank: the correct answer plus two wrong ones, shuffled",
+            },
+            sentence: { type: "string", description: "fill_blank: the sentence with ___ for the blank" },
+            sentenceEnglish: { type: "string", description: "fill_blank: English translation" },
+            scrambled: { type: "string", description: "unscramble: the letters, shuffled and space-separated" },
+            hint: { type: "string", description: "unscramble: English meaning" },
+            arabic: { type: "string", description: "match: the Arabic word" },
+            english: { type: "string", description: "match: the English word" },
+          },
+        },
+      },
+    },
+    required: ["type", "title", "titleArabic", "questions"],
+  },
+};
+
+/** The page needs a type, two titles and at least one question to draw anything. */
+function validateChallenge(value: unknown): Challenge | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as Record<string, unknown>;
+  if (typeof v.type !== "string" || typeof v.title !== "string" || typeof v.titleArabic !== "string") return null;
+  if (!Array.isArray(v.questions)) return null;
+  const questions = v.questions.filter(
+    (q): q is Record<string, unknown> => !!q && typeof q === "object",
+  );
+  if (questions.length === 0) return null;
+  return { type: v.type, title: v.title, titleArabic: v.titleArabic, questions };
+}
 
 
 serve(async (req) => {
@@ -19,12 +78,12 @@ serve(async (req) => {
 
   try {
     // `userVocab` in the body is deliberately ignored — see vocabContext below.
-    const { streakDays = 0, dialect = "Gulf", difficulty = "beginner" } = await req.json();
+    const { streakDays = 0, dialect: rawDialect = "Gulf", difficulty = "beginner" } = await req.json();
+    const dialect: Dialect = rawDialect === "Egyptian" || rawDialect === "Yemeni" ? rawDialect : "Gulf";
 
     if (!hasAnyProvider()) throw new Error("No AI provider configured");
 
     const dialectLabel = getDialectLabel(dialect);
-    const dialectRules = getDialectVocabRules(dialect);
     const defaultExamples = getDialectExamples(dialect);
 
     const dayOfWeek = new Date().getDay();
@@ -72,13 +131,13 @@ serve(async (req) => {
       ? "Use moderately complex sentences and vocabulary. Include some challenging words but keep it accessible."
       : "Use simple, common vocabulary and short sentences suitable for beginners.";
 
+    // The dialect identity, Rulebook and worked examples come from askBrain;
+    // this is only what is specific to the challenge.
     const systemPrompt = `You are a ${dialectLabel} language challenge generator for a daily challenge feature.
-
-${dialectRules}
 
 Student level: ${difficulty}. ${levelGuidance}
 
-IMPORTANT: Return valid JSON only, no markdown.`;
+Return the challenge ONLY by calling the emit_challenge function, in the JSON shape the request describes.`;
 
     const cultureContext = dialect === "Egyptian"
       ? "Egyptian culture questions about traditions, food, customs from Egypt (Cairo, Alexandria, Upper Egypt)."
@@ -110,45 +169,43 @@ Return JSON: { "type": "translate", "title": "Culture Quiz", "titleArabic": "ا�
 Return JSON: { "type": "translate", "title": "Speed Round", "titleArabic": "جولة سريعة", "questions": [{"prompt": "What does this mean: ${dialectLabel} word", "answer": "Correct English", "options": ["English option 1", "English option 2", "English option 3"]}] }`,
     };
 
-    const response = await chatFetch(MODEL_IDS.GEMINI_FAST, {
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: prompts[todayType] || prompts.translate },
-      ],
-      temperature: 0.8,
-    }, { label: "daily-challenge" });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("AI provider error:", response.status, errorText);
-      if (response.status === 402) {
+    let parsed: unknown = null;
+    try {
+      const brain = await askBrain<unknown>({
+        purpose: "daily-challenge",
+        dialect,
+        strategy: "solo",
+        systemPromptExtra: systemPrompt,
+        userPrompt: prompts[todayType] || prompts.translate,
+        temperature: 0.8,
+        maxTokens: 2048,
+        tool: CHALLENGE_TOOL,
+      });
+      parsed = brain.output;
+    } catch (err) {
+      // askBrain has already walked the fallback chain (same model re-rolled,
+      // then the stable rungs, the last on another vendor), so a status here
+      // means every rung refused. Same statuses and strings as before the move.
+      const status = err instanceof BrainHttpError ? err.status : 0;
+      console.error("AI provider error:", status, err instanceof Error ? err.message : err);
+      if (status === 402) {
         return new Response(
           JSON.stringify({ error: "Not enough AI credits." }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 429) {
+      if (status === 429) {
         return new Response(
           JSON.stringify({ error: "Rate limit exceeded." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      throw new Error(`AI gateway error: ${response.status}`);
+      throw new Error(`AI gateway error: ${status || (err instanceof Error ? err.message : "unknown")}`);
     }
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "{}";
-
-    let challenge;
-    try {
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        challenge = JSON.parse(jsonMatch[0]);
-      } else {
-        throw new Error("No JSON found");
-      }
-    } catch (e) {
-      console.error("Failed to parse challenge:", e, content);
+    let challenge = validateChallenge(parsed);
+    if (!challenge) {
+      console.error("Failed to parse challenge:", JSON.stringify(parsed)?.slice(0, 300));
       const fallbackGreeting = dialect === "Egyptian" ? "أهلاً" : dialect === "Yemeni" ? "مرحبا" : "هلا";
       const fallbackThanks = dialect === "Egyptian" ? "شكراً" : dialect === "Yemeni" ? "مشكور" : "مشكور";
       challenge = {

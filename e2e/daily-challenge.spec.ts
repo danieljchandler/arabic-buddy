@@ -293,7 +293,10 @@ test.describe("where the challenge comes from", () => {
     await page.goto("/daily-challenge");
     await startButton(page).click();
 
-    await expect(page.getByText("Failed to load today's challenge")).toBeVisible();
+    // The function's own reason, not a fixed "failed": during the 2026-09-29
+    // sweep every AI page said "try again" about a vendor that was out of
+    // credit, and nobody could tell the two apart.
+    await expect(page.getByText("model unavailable")).toBeVisible();
     // Back on the landing screen, so it can be retried.
     await expect(startButton(page)).toBeVisible();
   });

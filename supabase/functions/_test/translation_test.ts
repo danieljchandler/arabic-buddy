@@ -641,13 +641,39 @@ Deno.test("translate-text reports an empty translation as 502", async () => {
   assertEquals(body.error, "empty_translation");
 });
 
-Deno.test("translate-text reports a gateway failure as ai_failed", async () => {
+Deno.test("translate-text answers through the Claude rung when Google refuses the call", async () => {
+  // What the 2026-09-29 sweep found: the Google project out of credit answers
+  // 429, the gateway never retries a 429 on OpenRouter, and until 2026-09-30
+  // every rung of the Brain's rescue chain was Google — so translate died with
+  // OpenRouter untouched. The chain ends on a non-Google model now.
+  const { status, body, calls } = await call(
+    "translate-text",
+    { text: "الجو حلو" },
+    caller({
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "quota" }, 429),
+      "openrouter.ai": emitting({ detected_dialect: "Gulf", sentences: [aSentence()] }),
+    }),
+  );
+
+  assertEquals(status, 200);
+  assertEquals((body.sentences as unknown[]).length, 1);
+  assert(calls.some((url) => url.includes("openrouter.ai")));
+  // A refusal is the account's, not the answer's: no same-model re-roll, and
+  // no trying Google's other models either.
+  assertEquals(calls.filter((url) => url.includes("/v1beta/openai")).length, 1);
+});
+
+Deno.test("translate-text reports the primary refusal as ai_failed when every rung is refused", async () => {
   const { status, body } = await call(
     "translate-text",
     { text: "الجو حلو" },
-    caller({ "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "boom" }, 429) }),
+    caller({
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "boom" }, 429),
+      "openrouter.ai": () => json({ error: "boom" }, 429),
+    }),
   );
 
+  // The learner hears "over quota", not whatever the last rung tripped over.
   assertEquals(status, 429);
   assertEquals(body.error, "ai_failed");
 });

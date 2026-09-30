@@ -6,14 +6,24 @@
  * dozen pages were toasting verbatim. The real reason travels in the response
  * body (`{ error, message }`), reachable through `error.context`.
  *
- * The status decides how much of that body a learner gets:
- *  - 429 daily-cap responses become the upgrade toast (via handleCapResponse)
- *    and the caller is told to stand down — the cap is the message.
+ * What a learner gets of that body:
+ *  - 429 daily-cap responses (`error: "daily_limit_reached"`) become the
+ *    upgrade toast (via handleCapResponse) and the caller is told to stand
+ *    down — the cap is the message. Any other 429 (a vendor's rate limit or
+ *    quota refusal relayed by the function) is an ordinary failure, and its
+ *    text is shown like any other body.
  *  - 401 becomes a sign-in prompt.
- *  - Other 4xx bodies are shown: edge functions write those for humans
- *    ("Please record for at least a second", "No speech detected").
- *  - 5xx bodies are NOT shown — many functions put raw upstream internals in
- *    them ("openrouter … 401: {...}") — the caller's fallback speaks instead.
+ *  - A JSON `message` string is shown whatever the status, as long as it
+ *    reads as a sentence: functions write that field for humans ("Please
+ *    record for at least a second", "The model is out of credit"). During the
+ *    2026-09-29 sweep every AI page failed with a 5xx whose message said
+ *    exactly what was wrong, and the learner saw "Please try again".
+ *  - A JSON `error` string is shown only when it reads as a sentence (has
+ *    whitespace, no JSON braces): "model unavailable" is a message,
+ *    "auth_required" is a key, and "openrouter … 401: {...}" is an upstream
+ *    dump — that last one is what 5xx `error` fields regularly carry.
+ *  - A bare non-JSON 4xx body gets the same sentence test; 5xx bare bodies
+ *    are never shown.
  *
  * Usage:
  *   const { data, error } = await supabase.functions.invoke("grammar-drill", { body });
@@ -55,32 +65,76 @@ async function bodyOf(response: Response): Promise<{ error?: unknown; message?: 
   }
 }
 
+async function textOf(response: Response): Promise<string> {
+  try {
+    return await response.clone().text();
+  } catch {
+    return "";
+  }
+}
+
+function asString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+/** Short enough to be a message, not a blob. */
+function humanLength(text: string): boolean {
+  return text.length <= MAX_HUMAN_MESSAGE;
+}
+
+/**
+ * A sentence has whitespace and no JSON in it. Machine keys
+ * ("scene_index_out_of_range") fail the first test; upstream dumps
+ * ("openrouter … 401: {...}") fail the second.
+ */
+function readsAsSentence(text: string): boolean {
+  return humanLength(text) && /\s/.test(text) && !/[{}[\]]/.test(text);
+}
+
+const CAP_ERROR_KEY = "daily_limit_reached";
+
 export async function describeInvokeFailure(
   error: unknown,
   data?: unknown,
   fallback: string = GENERIC_INVOKE_FAILURE,
 ): Promise<InvokeFailure> {
+  const response = contextOf(error);
+  const body = response ? await bodyOf(response) : null;
+
+  // The cap is the body's `error` key, not the status: a vendor's rate limit
+  // or quota refusal is relayed as a 429 too, and an upsell for a provider
+  // outage is the wrong message. `showCapToastIfLimited` on its own treats
+  // every 429 as the cap (it cannot read the body synchronously), so it is
+  // only consulted once the body says so — or when there is no body to read.
+  const capBody = body === null || asString(body.error) === CAP_ERROR_KEY;
+
   // Cap hits first: they carry their own toast (with the Upgrade action), and
   // a page that also toasted its own error would show two.
-  if (showCapToastIfLimited(error, data)) {
+  if (capBody && showCapToastIfLimited(error, data)) {
     return { capped: true, message: "Daily free limit reached." };
   }
 
-  const response = contextOf(error);
   if (response) {
     if (response.status === 401) return { capped: false, message: SIGN_IN_MESSAGE };
 
-    if (response.status < 500) {
-      const body = await bodyOf(response);
-      const text = [body?.message, body?.error].find(
-        (value) => typeof value === "string" && value.trim().length > 0,
-      ) as string | undefined;
-      // Machine keys ("auth_required") and blobs are internals, not messages.
-      if (text && text.length <= MAX_HUMAN_MESSAGE && /\s/.test(text.trim())) {
-        return { capped: false, message: text };
+    if (body) {
+      // The same sentence test as `error`: a function writing for a human
+      // writes a sentence, and a one-word `message` ("boom", "failed") is a
+      // key by another name.
+      const message = asString(body.message);
+      if (message && readsAsSentence(message)) {
+        return { capped: false, message };
       }
+      const errorText = asString(body.error);
+      if (errorText && readsAsSentence(errorText)) {
+        return { capped: false, message: errorText };
+      }
+    } else if (response.status < 500) {
+      // Not JSON: a bare string. 4xx ones are written for humans; a bare 5xx
+      // body is a stack trace or a proxy page.
+      const text = (await textOf(response)).trim();
+      if (text && readsAsSentence(text)) return { capped: false, message: text };
     }
-    // 5xx: the body regularly carries raw upstream internals. Never show it.
     return { capped: false, message: fallback };
   }
 

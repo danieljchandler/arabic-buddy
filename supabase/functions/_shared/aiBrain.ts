@@ -612,7 +612,31 @@ async function callModel(opts: CallOptions): Promise<{ raw: string; parsed: unkn
 // first: this path only runs when the primary model has already burned part of
 // the latency budget, so a stable model that answers beats a stronger one that
 // runs the clock out.
-const STABLE_FALLBACKS = [MODEL_IDS.GEMINI_FAST, MODEL_IDS.GEMINI_FLASH, MODEL_IDS.GEMINI_PRO];
+//
+// The last rung is on a different vendor on purpose. Until 2026-09-30 every
+// rung was Google, so when the Google project ran out of credit (a 429 the
+// gateway deliberately never retries on OpenRouter) every solo and draft call
+// in the app died at Google with OpenRouter untouched — translate, the writing
+// coach, the daily story, the C-test, souq-news. The one feature that stayed
+// up was the council with a Claude drafter. Sonnet is dear for a rescue on a
+// cheap call, but it is the registry's only non-Google text model; swap in a
+// Haiku id here (with its reasoningFloor) if the bill says so.
+const STABLE_FALLBACKS = [
+  MODEL_IDS.GEMINI_FAST,
+  MODEL_IDS.GEMINI_FLASH,
+  MODEL_IDS.GEMINI_PRO,
+  MODEL_IDS.CLAUDE,
+];
+
+/**
+ * A vendor refusing the request outright — bad key, no credit, over quota —
+ * rather than the model fumbling it. Re-rolling the same model buys nothing
+ * (it is the account that is refused, not the answer), so these skip the
+ * same-model retry and go straight down the chain, where the last rung is on
+ * another vendor. Matched on the status BrainHttpError puts after the model
+ * name, never on the body, which may quote any number.
+ */
+const REFUSED = /^[a-z]+ \S+ (401|402|403|429):/;
 
 /**
  * Calls the requested (best) model. If it returns an empty/unparseable response
@@ -630,9 +654,15 @@ async function callModelWithFallback(
   opts: CallOptions,
   deadline: Deadline,
 ): Promise<{ raw: string; parsed: unknown; model: string }> {
-  const recoverable = (msg: string) => /no tool call|invalid JSON|no parsable JSON|timed out|5\d\d/.test(msg);
+  const recoverable = (msg: string) =>
+    /no tool call|invalid JSON|no parsable JSON|timed out|5\d\d/.test(msg) || REFUSED.test(msg);
   let lastErr: unknown;
   let timedOut = false;
+  let refused = false;
+  // The primary's refusal, kept so that when every rung fails the caller
+  // hears "no credit" or "over quota" rather than whatever the last rung
+  // tripped over.
+  let refusal: unknown;
 
   const attempt = async (o: CallOptions, model: string) => {
     const r = await callModel({ ...o, timeoutMs: callBudget(deadline) });
@@ -642,7 +672,10 @@ async function callModelWithFallback(
   const classify = (err: unknown) => {
     lastErr = err;
     timedOut = isTimeout(err);
-    if (!recoverable(err instanceof Error ? err.message : String(err))) throw err;
+    const msg = err instanceof Error ? err.message : String(err);
+    refused = REFUSED.test(msg);
+    if (refused && refusal === undefined) refusal = err;
+    if (!recoverable(msg)) throw err;
   };
 
   // Attempt 1: as requested.
@@ -659,7 +692,7 @@ async function callModelWithFallback(
   // was even tried, leaving the fallback with no deadline left (the Yemeni
   // reading-passage 504s). One re-roll catches the flaky case; a second never
   // did.
-  if (!timedOut && remainingMs(deadline) > MIN_PASS_BUDGET_MS) {
+  if (!timedOut && !refused && remainingMs(deadline) > MIN_PASS_BUDGET_MS) {
     try {
       console.warn(`[aiBrain] ${opts.model} retry #1 (lower temp + tool nudge)`);
       const nudged = opts.tool
@@ -672,8 +705,12 @@ async function callModelWithFallback(
   }
 
   // Last resort: stable fallback chain.
+  const refusedProvider = refused ? providerForModel(opts.model) : null;
   for (const fb of STABLE_FALLBACKS) {
     if (fb === opts.model) continue;
+    // It is the account that was refused, so every model on that vendor is
+    // refused too; only a rung on another vendor can answer.
+    if (refusedProvider && providerForModel(fb) === refusedProvider) continue;
     if (remainingMs(deadline) < MIN_PASS_BUDGET_MS) {
       console.warn(`[aiBrain] out of latency budget, not trying fallback ${fb}`);
       break;
@@ -683,7 +720,7 @@ async function callModelWithFallback(
       return await attempt({ ...opts, model: fb }, fb);
     } catch (err) { lastErr = err; /* try next */ }
   }
-  throw lastErr;
+  throw refusal ?? lastErr;
 }
 
 

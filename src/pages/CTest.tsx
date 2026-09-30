@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useDialect } from "@/contexts/DialectContext";
 import { useUserLevel } from "@/hooks/useUserLevel";
 import { buildCTest, scoreCTest, type CTest as CTestModel } from "@/lib/cTest";
+import { toInvokeFailureError } from "@/lib/invokeError";
 import { track } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 
@@ -62,14 +63,16 @@ const CTestPage = () => {
       const { data, error: e } = await supabase.functions.invoke("reading-passage", {
         body: { difficulty, dialect: activeDialect },
       });
-      if (e) throw e;
+      // The function's own reason (out of credit, model down, cap hit), never
+      // supabase-js's "Edge Function returned a non-2xx status code".
+      if (e) throw await toInvokeFailureError(e, data, "Could not load a passage.");
       const lines = linesFrom(data);
       const built = buildCTest(lines);
       if (built.items.length === 0) throw new Error("The passage was too short to make a test from.");
       setTest(built);
       setAnswers(built.items.map(() => ""));
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not load a passage");
+      setError(e instanceof Error && e.message ? e.message : "Could not load a passage.");
     } finally {
       setLoading(false);
     }

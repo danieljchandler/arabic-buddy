@@ -222,13 +222,20 @@ test.describe("when there is no news", () => {
     expectConsoleErrors,
   }) => {
     expectConsoleErrors([/.*/]);
-    backend.stubFunctionFailure("souq-news");
+    backend.stubFunctionFailure("souq-news", 502, {
+      error: "rewrite_failed",
+      message: "The news model is out of credit.",
+    });
 
     await page.goto("/souq-news");
 
     // The distinction that matters: nothing generated is not the same as
     // nothing happening in the world, and only one of them is worth retrying.
     await expect(page.getByText(/failed to load news/i)).toBeVisible();
+    // And the function's own reason travels with it. A 402/429/5xx arrives
+    // from supabase-js as `error` with `data = null`, so the old branch that
+    // read the credits message off `data.error` never ran.
+    await expect(page.getByText("The news model is out of credit.")).toBeVisible();
     await expect(page.getByRole("button", { name: /try again/i })).toBeVisible();
     await expect(page.getByText(/no news today/i)).toHaveCount(0);
   });

@@ -50,6 +50,10 @@ const YEMENI_SUGGESTIONS = [
 ];
 
 const MAX_HUMAN_REVIEWS_PER_MONTH = 5;
+/** How long one answer may take, start to `[DONE]`, before the turn is given up. */
+const ANSWER_TIMEOUT_MS = 60_000;
+const NO_ANSWER_MESSAGE = "No answer came back. Try again.";
+const TIMEOUT_MESSAGE = "The guide took too long to answer. Try again.";
 
 const CultureGuide = () => {
   const navigate = useNavigate();
@@ -106,8 +110,29 @@ const CultureGuide = () => {
       setIsStreaming(true);
       const controller = new AbortController();
       abortRef.current = controller;
+      // A raw fetch has no timeout of its own: a stream the upstream never
+      // closes would leave the input disabled for good. The abort is our own,
+      // so the catch can tell a timeout from the learner's cancel.
+      let timedOut = false;
+      const timer = setTimeout(() => {
+        timedOut = true;
+        controller.abort();
+      }, ANSWER_TIMEOUT_MS);
 
       let assistantSoFar = "";
+
+      // The stream ended with nothing said (an empty upstream answer, a
+      // refusal the function turned into `[DONE]`). Take the question back
+      // out of the thread and put it back in the box, so it is not left
+      // looking answered and can be sent again unchanged.
+      const withdrawUnanswered = (message: string) => {
+        const last = allMessages[allMessages.length - 1];
+        setMessages((prev) =>
+          prev[prev.length - 1]?.role === "user" ? prev.slice(0, -1) : prev,
+        );
+        if (last?.role === "user") setInput(last.content);
+        toast.error(message);
+      };
 
       try {
         // The session token, not the anon key. The function's daily cap
@@ -181,11 +206,18 @@ const CultureGuide = () => {
             }
           }
         }
+
+        if (!assistantSoFar.trim()) withdrawUnanswered(NO_ANSWER_MESSAGE);
       } catch (err: unknown) {
-        if ((err as Error).name === "AbortError") return;
+        if ((err as Error).name === "AbortError") {
+          if (timedOut && !assistantSoFar.trim()) withdrawUnanswered(TIMEOUT_MESSAGE);
+          else if (timedOut) toast.error(TIMEOUT_MESSAGE);
+          return;
+        }
         const msg = err instanceof Error ? err.message : "Something went wrong";
         toast.error(msg);
       } finally {
+        clearTimeout(timer);
         setIsStreaming(false);
         abortRef.current = null;
       }

@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { toInvokeFailureError } from "@/lib/invokeError";
+import { useDialect } from "@/contexts/DialectContext";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageCorner } from "@/components/shell/PageCorner";
 import { Input } from "@/components/ui/input";
@@ -64,15 +66,21 @@ const exampleWords = [
 ];
 
 export default function DialectCompare() {
+  const { activeDialect } = useDialect();
   const [query, setQuery] = useState("");
   const [comparison, setComparison] = useState<DialectComparison | null>(null);
 
   const compareMutation = useMutation({
     mutationFn: async (word: string) => {
+      // The function compares across every variety it knows; `source_dialect`
+      // is the one it makes especially accurate. That is the learner's own,
+      // not Gulf for everyone — an Egyptian learner was asking how a Gulf
+      // word differs elsewhere, the reverse of what they wanted.
       const { data, error } = await supabase.functions.invoke("dialect-compare", {
-        body: { word, source_dialect: "Gulf" },
+        body: { word, source_dialect: activeDialect },
       });
-      if (error) throw error;
+      if (error) throw await toInvokeFailureError(error, data, "Failed to compare dialects. Please try again.");
+      if (!data?.comparison) throw new Error("Failed to compare dialects. Please try again.");
       return data.comparison as DialectComparison;
     },
     onSuccess: (data) => {
@@ -189,8 +197,10 @@ export default function DialectCompare() {
       {compareMutation.isError && (
         <Card className="border-destructive/50 bg-destructive/5">
           <CardContent className="pt-6">
-            <p className="text-destructive">
-              Failed to compare dialects. Please try again.
+            <p className="text-destructive" role="alert">
+              {compareMutation.error instanceof Error && compareMutation.error.message
+                ? compareMutation.error.message
+                : "Failed to compare dialects. Please try again."}
             </p>
           </CardContent>
         </Card>

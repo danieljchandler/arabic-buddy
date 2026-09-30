@@ -45,8 +45,9 @@ test.describe("loading the form", () => {
     await page.goto("/settings");
 
     await expect(page.getByLabel(/display name/i)).toHaveValue("Sami");
-    await expect(page.getByRole("button", { name: /Egyptian Arabic/ })).toHaveClass(
-      /border-primary/,
+    await expect(page.getByRole("button", { name: /Egyptian Arabic/ })).toHaveAttribute(
+      "aria-pressed",
+      "true",
     );
     // Stored as a label, selected by id — the round trip through
     // reasonIdFromLabel is what makes an edit possible rather than a re-pick.
@@ -80,7 +81,34 @@ test.describe("loading the form", () => {
     await page.goto("/settings");
 
     await expect(page.getByLabel(/display name/i)).toHaveValue("");
-    await expect(page.getByRole("button", { name: /Gulf Arabic/ })).toHaveClass(/border-primary/);
+    await expect(page.getByRole("button", { name: /Gulf Arabic/ })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  test("selects Yemeni for a Yemeni learner", async ({ page, signInAs, db }) => {
+    await signInAs("free");
+    db.seed("profiles", [aProfile({ preferred_dialect: "Yemeni" })]);
+
+    await page.goto("/settings");
+
+    // Yemeni was not on the old list at all, so a Yemeni learner's card showed
+    // nothing selected.
+    await expect(page.getByRole("button", { name: /Yemeni Arabic/ })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("button", { name: /Gulf Arabic/ })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  test("shows the dialect the app is running for a Gulf country saved by the old picker", async ({
+    page,
+    signInAs,
+    db,
+  }) => {
+    await signInAs("free");
+    db.seed("profiles", [aProfile({ preferred_dialect: "Kuwaiti" })]);
+
+    await page.goto("/settings");
+
+    // DialectContext ignores "Kuwaiti", so the app is on its default. The
+    // picker says so rather than showing nothing selected.
+    await expect(page.getByRole("button", { name: /Gulf Arabic/ })).toHaveAttribute("aria-pressed", "true");
   });
 
   test("sends a signed-out visitor to sign in", async ({ page, signInAs }) => {
@@ -212,23 +240,31 @@ test.describe("saving", () => {
     await expect(page.getByText(/settings saved/i)).toHaveCount(0);
   });
 
-  test("offers dialects the app cannot actually switch to", async ({ page, db }) => {
+  test("offers the three dialects the app runs, and no Gulf countries", async ({ page }) => {
     await page.goto("/settings");
 
-    // Recording current behaviour, not endorsing it. DialectContext recognises
-    // only Gulf, Egyptian and Yemeni; Settings offers six Gulf countries as if
-    // they were separate modules and does not offer Yemeni at all. Picking
-    // "Kuwaiti" saves, and every dialect-scoped query then falls back to Gulf
-    // with nothing on screen to say so. Onboarding was fixed for exactly this;
-    // Settings was not. This test fails when it is.
-    await expect(page.getByRole("button", { name: /Kuwaiti/ })).toBeVisible();
-    await expect(page.getByRole("button", { name: /Yemeni/ })).toHaveCount(0);
+    // DialectContext recognises only these. The old list offered six Gulf
+    // countries as if each were a module and left Yemeni out, so picking
+    // "Kuwaiti" saved a value nothing read.
+    for (const name of [/Gulf Arabic/, /Egyptian Arabic/, /Yemeni Arabic/]) {
+      await expect(page.getByRole("button", { name })).toBeVisible();
+    }
+    await expect(page.getByRole("button", { name: /Kuwaiti|Saudi|Emirati/ })).toHaveCount(0);
+  });
 
-    await page.getByRole("button", { name: /Kuwaiti/ }).click();
+  test("switches the app as soon as the dialect is saved", async ({ page, db }) => {
+    await page.goto("/settings");
+
+    await page.getByRole("button", { name: /Egyptian Arabic/ }).click();
     await page.getByRole("button", { name: /^save changes$/i }).click();
     await expect(page.getByText(/settings saved/i)).toBeVisible();
 
-    expect(db.rows("profiles")[0].preferred_dialect).toBe("Kuwaiti");
+    expect(db.rows("profiles")[0].preferred_dialect).toBe("Egyptian");
+    // The active dialect, not just the column: it is what every scoped query
+    // and the theme read, and it used to wait for the next full load.
+    await expect(page.locator("html")).toHaveAttribute("data-dialect", "egyptian");
+    // One write, not the form's and then the context's again.
+    expect(db.writesTo("profiles")).toHaveLength(1);
   });
 });
 

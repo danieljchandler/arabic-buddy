@@ -9,9 +9,9 @@
  * What a learner gets of that body:
  *  - 429 daily-cap responses (`error: "daily_limit_reached"`) become the
  *    upgrade toast (via handleCapResponse) and the caller is told to stand
- *    down — the cap is the message. A 429 that is *not* the cap (a vendor's
- *    quota refusal relayed with a `message`) is an ordinary failure and its
- *    message is shown.
+ *    down — the cap is the message. Any other 429 (a vendor's rate limit or
+ *    quota refusal relayed by the function) is an ordinary failure, and its
+ *    text is shown like any other body.
  *  - 401 becomes a sign-in prompt.
  *  - A JSON `message` string is shown whatever the status, as long as it
  *    reads as a sentence: functions write that field for humans ("Please
@@ -101,15 +101,16 @@ export async function describeInvokeFailure(
   const response = contextOf(error);
   const body = response ? await bodyOf(response) : null;
 
-  // A 429 with a human message that is not the cap (a vendor quota refusal
-  // relayed by the function) is a failure like any other, not an upsell.
-  const vendorRefusal =
-    response?.status === 429 && body !== null && asString(body.error) !== CAP_ERROR_KEY &&
-    asString(body.message) !== undefined;
+  // The cap is the body's `error` key, not the status: a vendor's rate limit
+  // or quota refusal is relayed as a 429 too, and an upsell for a provider
+  // outage is the wrong message. `showCapToastIfLimited` on its own treats
+  // every 429 as the cap (it cannot read the body synchronously), so it is
+  // only consulted once the body says so — or when there is no body to read.
+  const capBody = body === null || asString(body.error) === CAP_ERROR_KEY;
 
   // Cap hits first: they carry their own toast (with the Upgrade action), and
   // a page that also toasted its own error would show two.
-  if (!vendorRefusal && showCapToastIfLimited(error, data)) {
+  if (capBody && showCapToastIfLimited(error, data)) {
     return { capped: true, message: "Daily free limit reached." };
   }
 

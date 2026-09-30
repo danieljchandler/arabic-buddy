@@ -22,7 +22,7 @@
  * are correspondingly generous but still laddered per tier.
  */
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { enforceDailyCap, resolveUserId } from "../_shared/usageCap.ts";
+import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { askBrain, BrainHttpError } from "../_shared/aiBrain.ts";
 import {
   getDialectLabel,
@@ -214,15 +214,17 @@ Deno.serve(async (req) => {
 
   // The prompt is served on every page load, before the learner has written
   // a word. Charging it against the review ladder meant the free tier's ten
-  // coaching passes a day could be spent by opening the page ten times. It
-  // still needs a signed-in learner (the prompt is built from their profile).
+  // coaching passes a day could be spent by opening the page ten times — but
+  // it is still a paid model call with a Retry button next to it, so it gets
+  // a ladder of its own rather than none.
   if (action === "prompt") {
-    const userId = await resolveUserId(req);
-    if (!userId) {
-      return jsonResponse({ error: "auth_required", message: "Please sign in to use this feature." }, 401, cors);
-    }
+    const promptCap = await enforceDailyCap(req, "writing-coach-prompt", 30, cors, {
+      standard: 120,
+      allin: 400,
+    });
+    if (promptCap.limited) return promptCap.response;
     try {
-      const prompt = await makePrompt(userId, dialect);
+      const prompt = await makePrompt(promptCap.userId!, dialect);
       return jsonResponse({ prompt }, 200, cors);
     } catch (err) {
       return coachFailure(err, cors);

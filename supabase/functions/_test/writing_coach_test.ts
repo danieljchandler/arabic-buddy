@@ -298,9 +298,29 @@ Deno.test("writing-coach does not charge the daily ladder for loading a prompt",
   );
 
   // The prompt is served on every page load; ten page loads must not spend
-  // the free tier's ten coaching passes.
+  // the free tier's ten coaching passes. It counts on a ladder of its own.
   assertEquals(result.status, 200);
-  assert(!result.calls.some((url) => url.includes("increment_usage_counter")));
+  const counted = result.calls
+    .map((url, i) => ({ url, body: result.bodies[i] }))
+    .filter((c) => c.url.includes("increment_usage_counter"))
+    .map((c) => (JSON.parse(c.body ?? "{}") as { _key?: string })._key);
+  assertEquals(counted, ["writing-coach-prompt"]);
+});
+
+Deno.test("writing-coach still caps prompt generation on its own ladder", async () => {
+  // Uncapped, a Retry button next to a paid call is a way to spend the
+  // provider's credit from one free account.
+  const result = await call(
+    { action: "prompt", dialect: "Gulf" },
+    upstreams({
+      ...emitting(prompt),
+      "/rest/v1/subscribers": () => json({ subscribed: false, subscription_end: null }),
+      "/rest/v1/rpc/increment_usage_counter": () => json(31),
+    }),
+  );
+
+  assertEquals(result.status, 429);
+  assertEquals(result.body.error, "daily_limit_reached");
 });
 
 Deno.test("writing-coach still asks an anonymous caller to sign in for a prompt", async () => {

@@ -95,8 +95,21 @@ describe("what the body may say", () => {
     expect(toastError).not.toHaveBeenCalled();
   });
 
-  it("still treats a 429 with no message as the cap", async () => {
-    const failure = await describeInvokeFailure(invokeError(429, { error: "rate_limited" }));
+  it("does not mistake a vendor's 429 with only an error line for the cap", async () => {
+    // daily-challenge relays a provider rate limit as { error: "Rate limit
+    // exceeded." } — no `message`. The cap is the `daily_limit_reached` key,
+    // never the status, so this is an outage to report, not an upsell.
+    const failure = await describeInvokeFailure(invokeError(429, { error: "Rate limit exceeded." }));
+    expect(failure).toEqual({ capped: false, message: "Rate limit exceeded." });
+    expect(toastError).not.toHaveBeenCalledWith("Daily free limit reached", expect.anything());
+  });
+
+  it("falls back to the cap toast for a 429 with no readable body", async () => {
+    const failure = await describeInvokeFailure({
+      name: "FunctionsHttpError",
+      message: "Edge Function returned a non-2xx status code",
+      context: new Response("<html>too many requests</html>", { status: 429 }),
+    });
     expect(failure.capped).toBe(true);
   });
 

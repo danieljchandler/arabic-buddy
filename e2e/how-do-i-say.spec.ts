@@ -1,5 +1,5 @@
 import { expect, test } from "./support/fixtures";
-import { TEST_USER_ID } from "../src/test/support/factories";
+import { aProfile, TEST_USER_ID } from "../src/test/support/factories";
 import type { MemoryDb } from "../src/test/support/postgrest/store";
 
 /**
@@ -58,6 +58,20 @@ test.describe("asking", () => {
     await expect
       .poll(() => backend.lastCallTo("how-do-i-say")?.body)
       .toMatchObject({ phrase: "how are you", dialect: "Gulf" });
+  });
+
+  test("names a Yemeni learner's dialect in the answer, not Gulf", async ({ page, db, backend }) => {
+    // The labels were two-way ternaries — Egyptian, else Gulf — so a Yemeni
+    // learner was told a Yemeni answer was Gulf Arabic.
+    db.seed("profiles", [aProfile({ preferred_dialect: "Yemeni" })]);
+    backend.stubFunction("how-do-i-say", { success: true, result: aResult() });
+
+    await page.goto("/how-do-i-say");
+    await page.getByPlaceholder(/Type a phrase/).fill("how are you");
+    await page.getByRole("button", { name: "Ask", exact: true }).click();
+
+    await expect(page.getByRole("heading", { name: "Ways to say it in Yemeni Arabic" })).toBeVisible();
+    expect(backend.lastCallTo("how-do-i-say")?.body).toMatchObject({ dialect: "Yemeni" });
   });
 
   test("offers no Ask button for an empty box", async ({ page }) => {

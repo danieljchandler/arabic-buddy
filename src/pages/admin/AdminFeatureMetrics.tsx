@@ -136,7 +136,9 @@ const AdminFeatureMetrics = () => {
       else if (r.status === "warn") cur.warn++;
       else cur.err++;
       if (r.duration_ms != null) cur.avgDuration += r.duration_ms;
-      if (r.event === "ask_brain" || r.event === "dialect_leak") {
+      // A failed Brain call (status "error") produced no text, so it has no
+      // leak count to average — counting it as zero would flatter the rate.
+      if ((r.event === "ask_brain" || r.event === "dialect_leak") && r.status !== "error") {
         cur.totalLeaks += r.count ?? 0;
         cur.leakSamples++;
       }

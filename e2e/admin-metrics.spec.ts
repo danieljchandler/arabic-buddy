@@ -262,6 +262,21 @@ test.describe("the rollup", () => {
     await expect(summaryRow(page, "ai-brain")).toContainText("2.00");
   });
 
+  test("leaves a failed Brain call out of the leak average", async ({ page, db }) => {
+    // askBrain now records its failures as ask_brain rows with status error.
+    // They produced no text, so averaging them in as zero leaks would make a
+    // bad day look like a clean one.
+    db.seed("feature_metrics", [
+      aFeatureMetric({ id: metricId(0), feature: "ai-brain", event: "ask_brain", status: "warn", count: 2 }),
+      aFeatureMetric({ id: metricId(1), feature: "ai-brain", event: "ask_brain", status: "error", count: null }),
+    ]);
+
+    await page.goto("/admin/metrics");
+
+    await expect(summaryRow(page, "ai-brain")).toContainText("2.00");
+    await expect(summaryRow(page, "ai-brain")).toContainText("50%");
+  });
+
   test("shows an em dash where there is nothing to average", async ({ page, db }) => {
     db.seed("feature_metrics", [
       aFeatureMetric({ feature: "ai-brain", duration_ms: null, count: null }),

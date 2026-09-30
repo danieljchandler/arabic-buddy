@@ -356,6 +356,33 @@ test.describe("the bulk importer", () => {
     await expect(page.getByRole("button", { name: /save all/i })).toBeDisabled();
   });
 
+  test("leaves the microphone alone until a row asks for it", async ({ page }) => {
+    // Each row's recorder starts recording as it mounts; mounted for every row,
+    // it opened the mic on page load, three times over.
+    await page.addInitScript(() => {
+      const w = window as unknown as { __micRequests: number };
+      w.__micRequests = 0;
+      const original = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
+      navigator.mediaDevices.getUserMedia = (constraints) => {
+        w.__micRequests += 1;
+        return original(constraints);
+      };
+    });
+    const micRequests = () =>
+      page.evaluate(() => (window as unknown as { __micRequests: number }).__micRequests);
+
+    await page.goto(`/admin/topics/${TOPIC}/words/bulk`);
+    await expect(page.getByPlaceholder("Arabic word")).toHaveCount(3);
+    expect(await micRequests()).toBe(0);
+
+    await page.getByRole("button", { name: "Record audio for row 2" }).click();
+
+    await expect(page.getByRole("button", { name: /stop/i })).toBeVisible();
+    expect(await micRequests()).toBe(1);
+    // The other rows still offer a Mic of their own.
+    await expect(page.getByRole("button", { name: /^Record audio for row/ })).toHaveCount(2);
+  });
+
   test("counts a row as valid only once both halves are filled", async ({ page }) => {
     await page.goto(`/admin/topics/${TOPIC}/words/bulk`);
 
@@ -383,7 +410,7 @@ test.describe("the bulk importer", () => {
   test("removes a row", async ({ page }) => {
     await page.goto(`/admin/topics/${TOPIC}/words/bulk`);
 
-    await page.locator("button:has(svg.lucide-trash2)").first().click();
+    await page.getByRole("button", { name: "Remove row 1" }).click();
 
     await expect(page.getByPlaceholder("Arabic word")).toHaveCount(2);
   });

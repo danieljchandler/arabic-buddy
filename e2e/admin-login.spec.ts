@@ -6,9 +6,12 @@ import { aRole, TEST_USER_ID } from "../src/test/support/factories";
  *
  * It has to sit outside, because the layout sends unauthenticated visitors
  * here: nesting it would loop. It is also a second, separate sign-in form from
- * `/auth`, with its own validation, its own sign-up mode and its own wording,
- * and it grants nothing on its own — a fresh account lands on the layout's
- * "Access Denied" and is bounced straight back.
+ * `/auth`, with its own validation and its own wording, and it grants nothing
+ * on its own — an account with no staff role lands on the layout's "Access
+ * Denied" and is bounced straight back.
+ *
+ * It used to have a sign-up mode, which called `auth.signUp` with no invite
+ * code: an open registration form on the admin panel. It is sign-in only now.
  */
 
 const EMAIL = "admin@example.com";
@@ -62,15 +65,12 @@ test.describe("the form", () => {
     await expect(field).toHaveAttribute("type", "password");
   });
 
-  test("switches to sign-up and back", async ({ page }) => {
-    await page.getByRole("button", { name: /don't have an account/i }).click();
-
-    await expect(page.getByText(/create an account/i)).toBeVisible();
-    await expect(page.getByRole("button", { name: /^create account$/i })).toBeVisible();
-
-    await page.getByRole("button", { name: /already have an account/i }).click();
-
+  test("offers no way to create an account", async ({ page }) => {
+    // Staff accounts come from a role granted to an invited user, or from an
+    // ID login an admin mints; neither starts here.
     await expect(page.getByRole("button", { name: /^sign in$/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /sign up|create account/i })).toHaveCount(0);
+    await expect(page.getByText(/don't have an account/i)).toHaveCount(0);
   });
 
   test("offers a way back to the learner app", async ({ page }) => {
@@ -189,60 +189,38 @@ test.describe("signing in", () => {
   });
 });
 
-test.describe("signing up", () => {
-  test("a new account is created but granted nothing", async ({ page, signInAs }) => {
-    await signInAs("anonymous");
-    await page.goto("/admin/login");
-
-    await page.getByRole("button", { name: /don't have an account/i }).click();
-    await fillCredentials(page, { email: "newcomer@example.com" });
-    await page.getByRole("button", { name: /^create account$/i }).click();
-
-    await expect(page.getByText(/account created/i)).toBeVisible();
-    await expect(page.getByText(/contact an admin to grant you admin access/i)).toBeVisible();
-  });
-
-  test("an address already in use says to sign in instead", async ({ page, signInAs, backend }) => {
-    await signInAs("anonymous");
-    backend.addUser(TEST_USER_ID, EMAIL);
-
-    await page.goto("/admin/login");
-    await page.getByRole("button", { name: /don't have an account/i }).click();
-    await fillCredentials(page);
-    await page.getByRole("button", { name: /^create account$/i }).click();
-
-    await expect(page.getByText(/account exists/i)).toBeVisible();
-    await expect(page.getByText(/try signing in instead/i)).toBeVisible();
-  });
-
-  test("stays on the form after signing up", async ({ page, signInAs }) => {
-    // Pinned, not fixed. Sign-up leaves the visitor on /admin/login in sign-up
-    // mode with the credentials still filled in — no redirect, and no switch
-    // back to sign-in — so the obvious next action is to submit the same form
-    // again, which now reports the account already exists.
-    await signInAs("anonymous");
-    await page.goto("/admin/login");
-
-    await page.getByRole("button", { name: /don't have an account/i }).click();
-    await fillCredentials(page, { email: "newcomer@example.com" });
-    await page.getByRole("button", { name: /^create account$/i }).click();
-
-    await expect(page.getByText(/account created/i)).toBeVisible();
-    await expect(page).toHaveURL(/\/admin\/login$/);
-    await expect(page.getByRole("button", { name: /^create account$/i })).toBeVisible();
-    await expect(page.getByLabel("Email")).toHaveValue("newcomer@example.com");
-  });
-});
-
 test.describe("who sees it", () => {
-  test("an admin who is already signed in still gets the form", async ({ page, signInAs }) => {
-    // Pinned, not fixed. Nothing redirects an authenticated admin away, so the
-    // page offers to sign in an account that is already signed in.
+  test("an admin who is already signed in lands on the dashboard", async ({ page, signInAs }) => {
     await signInAs("admin");
 
     await page.goto("/admin/login");
 
-    await expect(page.getByRole("heading", { name: /admin panel/i })).toBeVisible();
+    await expect(page).toHaveURL(/\/admin$/);
+    await expect(page.getByText(/Gulf Arabic Module/)).toBeVisible();
+  });
+
+  test("a transcriber who is already signed in lands on their queue", async ({ page, signInAs }) => {
+    await signInAs("transcriber");
+
+    await page.goto("/admin/login");
+
+    await expect(page).toHaveURL(/\/admin\/videos$/);
+  });
+
+  test("a signed-in account with no staff role is told so, not bounced in a loop", async ({
+    page,
+    signInAs,
+  }) => {
+    // The layout sends this account here; sending it back to /admin would
+    // ping-pong between the two pages.
+    await signInAs("free");
+
+    await page.goto("/admin/login");
+
+    await expect(page.getByText(/no access to the admin panel/i)).toBeVisible();
+    await expect(page).toHaveURL(/\/admin\/login$/);
+
+    await page.getByRole("button", { name: /sign in with a different account/i }).click();
     await expect(page.getByRole("button", { name: /^sign in$/i })).toBeVisible();
   });
 });

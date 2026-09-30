@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '@/hooks/useAdminAuth';
 import { Button } from '@/components/ui/button';
@@ -15,15 +15,28 @@ const authSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
+/**
+ * Sign-in only. There was a sign-up mode here that called
+ * `supabase.auth.signUp` with no invite code — an open registration form on
+ * the admin panel, around the closed-beta gate `/auth` applies. Staff accounts
+ * come from an admin granting a role to an invited user, or from
+ * `/admin/id-logins`.
+ */
 const AdminLogin = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { signIn, signUp } = useAdminAuth();
+  const { user, role, loading, signIn, signOut } = useAdminAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Someone already signed in with a staff role has nothing to do here. Only
+  // staff: AdminLayout sends a signed-in account with no role back to this
+  // page, so redirecting every signed-in visitor would bounce between the two.
+  useEffect(() => {
+    if (!loading && user && role) navigate('/admin', { replace: true });
+  }, [loading, user, role, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,39 +55,19 @@ const AdminLogin = () => {
     setIsSubmitting(true);
 
     try {
-      if (isSignUp) {
-        const { error } = await signUp(email, password);
-        if (error) {
-          if (error.message.includes('already registered')) {
-            toast({
-              variant: 'destructive',
-              title: 'Account exists',
-              description: 'This email is already registered. Try signing in instead.',
-            });
-          } else {
-            throw error;
-          }
-        } else {
+      const { error } = await signIn(email, password);
+      if (error) {
+        if (error.message.includes('Invalid login')) {
           toast({
-            title: 'Account created',
-            description: 'Please contact an admin to grant you admin access.',
+            variant: 'destructive',
+            title: 'Invalid credentials',
+            description: 'Please check your email and password.',
           });
+        } else {
+          throw error;
         }
       } else {
-        const { error } = await signIn(email, password);
-        if (error) {
-          if (error.message.includes('Invalid login')) {
-            toast({
-              variant: 'destructive',
-              title: 'Invalid credentials',
-              description: 'Please check your email and password.',
-            });
-          } else {
-            throw error;
-          }
-        } else {
-          navigate('/admin');
-        }
+        navigate('/admin');
       }
     } catch (error: any) {
       toast({
@@ -87,15 +80,47 @@ const AdminLogin = () => {
     }
   };
 
+  if (loading || (user && role)) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Signed in, but not as staff: offering to sign in again read as if the
+  // first sign-in had failed.
+  if (user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <SaduMark title="Hikaya" variant="clear" className="h-14 w-14 mx-auto mb-4" />
+            <CardTitle className="text-2xl font-bold">Admin Panel</CardTitle>
+            <CardDescription>
+              You're signed in as {user.email ?? 'this account'}, which has no access to the admin panel.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <Button className="w-full" onClick={() => signOut()}>
+              Sign in with a different account
+            </Button>
+            <Button variant="outline" className="w-full text-muted-foreground" onClick={() => navigate('/')}>
+              ← Back to Hikaya
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <SaduMark title="Hikaya" variant="clear" className="h-14 w-14 mx-auto mb-4" />
           <CardTitle className="text-2xl font-bold">Admin Panel</CardTitle>
-          <CardDescription>
-            {isSignUp ? 'Create an account' : 'Sign in to manage content'}
-          </CardDescription>
+          <CardDescription>Sign in to manage content</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -138,28 +163,18 @@ const AdminLogin = () => {
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {isSignUp ? 'Creating account...' : 'Signing in...'}
+                  Signing in...
                 </>
               ) : (
-                isSignUp ? 'Create Account' : 'Sign In'
+                'Sign In'
               )}
             </Button>
           </form>
-          
-          <div className="mt-4 text-center">
-            <Button
-              variant="link"
-              onClick={() => setIsSignUp(!isSignUp)}
-              disabled={isSubmitting}
-            >
-              {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
-            </Button>
-          </div>
 
           {/* The other door. A reviewer who was sent an ID number instead of an
               invitation has no email to type here, and would otherwise be stuck
               on this screen looking for one. */}
-          <div className="mt-2 text-center">
+          <div className="mt-4 text-center">
             <Button
               variant="link"
               onClick={() => navigate('/login/id')}

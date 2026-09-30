@@ -269,8 +269,9 @@ const AdminStoryForm = () => {
       const { error: scenesError } = await supabase.from('story_scenes').insert(scenesToInsert);
       if (scenesError) throw scenesError;
 
-      // Both caches, or reopening this story within staleTime shows the old
-      // scenes — and saving that form would write them back over the new ones.
+      // Both caches (every viewer's, by prefix), or reopening this story within
+      // staleTime shows the old scenes — and saving that form would write them
+      // back over the new ones.
       queryClient.invalidateQueries({ queryKey: ['interactive-story', sid] });
       queryClient.invalidateQueries({ queryKey: ['story-scenes', sid] });
       toast.success(isEdit ? 'Story updated!' : 'Story created!');

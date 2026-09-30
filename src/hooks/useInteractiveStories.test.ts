@@ -1,4 +1,5 @@
 import { act, waitFor } from "@testing-library/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { afterEach, describe, expect, it } from "vitest";
 import { renderHookWithProviders } from "@/test/support/react/harness";
 import {
@@ -145,6 +146,21 @@ describe("one story by id", () => {
     );
 
     await waitFor(() => expect(result.current.isError).toBe(true));
+  });
+
+  it("caches per viewer, so one account's answer never serves another", async () => {
+    // RLS decides whether a draft is visible. Keyed on the id alone, a learner's
+    // null (or empty scene list) answered an admin who signed in next — and the
+    // admin form would have saved that empty list over the real scenes.
+    const { result } = render(
+      () => ({ story: useInteractiveStory(STORY), scenes: useStoryScenes(STORY), client: useQueryClient() }),
+      (backend) => backend.db.seed("interactive_stories", [anInteractiveStory({ id: STORY })]),
+    );
+
+    await waitFor(() => expect(result.current.story.isSuccess).toBe(true));
+    const keys = result.current.client.getQueryCache().getAll().map((query) => query.queryKey);
+    expect(keys).toContainEqual(["interactive-story", STORY, TEST_USER_ID]);
+    expect(keys).toContainEqual(["story-scenes", STORY, TEST_USER_ID]);
   });
 
   it("does not query without an id", async () => {

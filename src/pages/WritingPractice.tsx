@@ -14,6 +14,7 @@ import {
   type DrillItem,
 } from "@/lib/typingDrills";
 import { supabase } from "@/integrations/supabase/client";
+import { describeInvokeFailure } from "@/lib/invokeError";
 import { useDialect } from "@/contexts/DialectContext";
 import { labelForKind } from "@/lib/mistakes";
 import { CheckCircle2, Keyboard, Loader2, PenLine, RefreshCw, Sparkles } from "lucide-react";
@@ -64,6 +65,7 @@ const WriteTab = () => {
   const { activeDialect } = useDialect();
   const [prompt, setPrompt] = useState<WritingPrompt | null>(null);
   const [promptLoading, setPromptLoading] = useState(true);
+  const [promptError, setPromptError] = useState<string | null>(null);
   const [showGloss, setShowGloss] = useState(false);
   const [text, setText] = useState("");
   const [review, setReview] = useState<WritingReview | null>(null);
@@ -74,15 +76,18 @@ const WriteTab = () => {
     setReview(null);
     setText("");
     setShowGloss(false);
+    setPromptError(null);
     const { data, error } = await supabase.functions.invoke("writing-coach", {
       body: { action: "prompt", dialect: activeDialect },
     });
     if (!error && data?.prompt?.message_arabic) {
       setPrompt(data.prompt as WritingPrompt);
     } else {
+      // The function's own reason (out of credit, model down, cap hit) is what
+      // the learner reads, not supabase-js's "non-2xx status code".
       setPrompt(null);
-      const message = (data as { message?: string } | null)?.message;
-      if (message) toast.error(message);
+      const failure = await describeInvokeFailure(error, data, "Couldn't load a prompt.");
+      setPromptError(failure.message);
     }
     setPromptLoading(false);
   }, [activeDialect]);
@@ -128,8 +133,9 @@ const WriteTab = () => {
     });
     setBusy(false);
     if (error || !data?.review) {
-      const message = (data as { message?: string } | null)?.message;
-      toast.error(message ?? "Couldn't review that — try again.");
+      const failure = await describeInvokeFailure(error, data, "Couldn't review that — try again.");
+      // A cap hit has already shown the upgrade toast.
+      if (!failure.capped) toast.error(failure.message);
       return;
     }
     setReview(data.review as WritingReview);
@@ -169,8 +175,18 @@ const WriteTab = () => {
           </div>
         </div>
       ) : (
-        <div className="rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground">
-          Couldn't load a prompt. Write anything in Arabic below and get it corrected anyway.
+        <div
+          role="alert"
+          className="space-y-2 rounded-xl border border-border bg-card p-4 text-sm text-muted-foreground"
+        >
+          <p>
+            <span className="font-medium text-foreground">Couldn't load a prompt.</span>
+            {promptError && promptError !== "Couldn't load a prompt." ? ` ${promptError}` : ""}
+          </p>
+          <p>Write anything in Arabic below and get it corrected anyway.</p>
+          <Button variant="outline" size="sm" onClick={() => void loadPrompt()} disabled={busy}>
+            <RefreshCw className="mr-1 h-3.5 w-3.5" /> Retry
+          </Button>
         </div>
       )}
 

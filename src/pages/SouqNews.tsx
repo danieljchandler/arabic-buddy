@@ -13,7 +13,7 @@ import { MarkUnknownsProvider } from "@/contexts/MarkUnknownsContext";
 import { MarkUnknownsToggle } from "@/components/shared/MarkUnknownsToggle";
 import { SaveUnknownsBar } from "@/components/shared/SaveUnknownsBar";
 import { markTaskCompletedToday } from "@/lib/todayCompletion";
-import { toast } from "sonner";
+import { toInvokeFailureError } from "@/lib/invokeError";
 import { cn } from "@/lib/utils";
 import { dialectAccent } from "@/lib/dialectAccent";
 import {
@@ -60,12 +60,12 @@ const SouqNews = () => {
       const { data, error } = await supabase.functions.invoke("souq-news", {
         body: { dialect: activeDialect },
       });
-      if (error) throw error;
-      if (data?.error) {
-        if (data.error.includes("Rate limit")) toast.error(data.error);
-        else if (data.error.includes("credits")) toast.error(data.error);
-        else throw new Error(data.error);
-        return [] as SouqArticle[];
+      // A 402/429/5xx arrives as `error` with `data = null`, so a branch
+      // reading `data.error` for the credits message never ran; the helper
+      // reads the body and keeps the function's own sentence.
+      if (error) throw await toInvokeFailureError(error, data, "Failed to load news.");
+      if (typeof data?.error === "string") {
+        throw new Error(typeof data.message === "string" ? data.message : data.error);
       }
       return (data?.articles || []) as SouqArticle[];
     },
@@ -196,8 +196,11 @@ const SouqNews = () => {
           ))}
         </div>
       ) : error ? (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground mb-4">Failed to load news</p>
+        <div className="text-center py-12" role="alert">
+          <p className="text-foreground font-medium mb-1">Failed to load news</p>
+          {error instanceof Error && error.message && error.message !== "Failed to load news." && (
+            <p className="text-sm text-muted-foreground mb-4">{error.message}</p>
+          )}
           <Button onClick={() => refetch()}>Try Again</Button>
         </div>
       ) : articles && articles.length === 0 ? (

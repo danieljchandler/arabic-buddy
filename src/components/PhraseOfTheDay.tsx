@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { describeInvokeFailure, type InvokeFailure } from "@/lib/invokeError";
 import { useDialect } from "@/contexts/DialectContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useAddUserPhrase } from "@/hooks/useUserPhrases";
@@ -31,6 +32,7 @@ export const PhraseOfTheDay = () => {
 
   const [phrase, setPhrase] = useState<PhraseData | null>(null);
   const [loading, setLoading] = useState(false);
+  const [failure, setFailure] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [showArabic, setShowArabic] = useState(false);
 
@@ -63,6 +65,7 @@ export const PhraseOfTheDay = () => {
     setLoading(true);
     setSaved(false);
     setShowArabic(false);
+    setFailure(null);
     try {
       if (!force) {
         const cached = localStorage.getItem(cacheKey(activeDialect, today));
@@ -84,33 +87,55 @@ export const PhraseOfTheDay = () => {
       };
       if (force && avoidCategories.length) body.avoidCategories = avoidCategories;
 
-      let data: any = null;
-      let lastErr: any = null;
+      type PhraseResponse = PhraseData & {
+        error?: string;
+        message?: string;
+        fallback?: boolean;
+        category?: string;
+        _meta?: { category?: string; msaRepairs?: number };
+      };
+      let data: PhraseResponse | null = null;
+      let lastFailure: InvokeFailure | null = null;
       for (let attempt = 0; attempt < 3; attempt++) {
         const res = await supabase.functions.invoke("phrase-of-the-day", { body });
-        if (!res.error && res.data && !res.data.error) {
-          data = res.data;
-          lastErr = null;
+        const resData = res.data as PhraseResponse | null;
+        if (resData?.fallback) {
+          // A deliberate decline (200 with no phrase), not a failure: told
+          // once, never retried.
+          lastFailure = {
+            capped: false,
+            message: resData.message || "Phrase of the day unavailable right now.",
+          };
           break;
         }
-        if (res.data?.fallback) {
-          toast.error(res.data.message || "Phrase of the day unavailable right now.");
-          lastErr = null;
+        if (!res.error && resData?.phrase_arabic && !resData.error) {
+          data = resData;
+          lastFailure = null;
           break;
         }
-        lastErr = res.error || new Error(res.data?.error || "Unknown error");
-        const msg = String(lastErr?.message || lastErr);
-        if (!/Failed to send|fetch|network|load failed/i.test(msg)) break;
+        // The function's own reason (out of credit, model down, cap hit) —
+        // never supabase-js's "non-2xx status code". Only a transport-level
+        // failure (no response at all) is worth a retry.
+        const err = res.error ?? new Error(resData?.message || resData?.error || "Unknown error");
+        lastFailure = await describeInvokeFailure(err, resData, "Phrase of the day unavailable right now.");
+        const hasResponse = !!(res.error as { context?: unknown } | null)?.context;
+        const msg = String((res.error as { message?: string } | null)?.message ?? "");
+        if (hasResponse || !/Failed to send|fetch|network|load failed/i.test(msg)) break;
         await new Promise((r) => setTimeout(r, 400 * (attempt + 1)));
       }
       if (!data) {
-        if (lastErr) throw lastErr;
+        if (lastFailure) {
+          setFailure(lastFailure.message);
+          // A refresh that failed leaves the old phrase on screen, where the
+          // inline state cannot show; a cap hit has already toasted.
+          if (phrase && !lastFailure.capped) toast.error(lastFailure.message);
+        }
         return;
       }
       setPhrase(data);
 
       // Record this category as seen for the day.
-      const cat = data?.category || data?._meta?.category;
+      const cat = data.category || data._meta?.category;
       if (cat && !avoidCategories.includes(cat)) {
         try {
           localStorage.setItem(
@@ -121,12 +146,13 @@ export const PhraseOfTheDay = () => {
       }
 
       // Don't cache phrases that needed MSA repair — they may still be borderline.
-      const repairs = Number(data?._meta?.msaRepairs ?? 0);
+      const repairs = Number(data._meta?.msaRepairs ?? 0);
       if (repairs === 0 && !force) {
         localStorage.setItem(cacheKey(activeDialect, today), JSON.stringify(data));
       }
-    } catch (e: any) {
-      console.warn("[PhraseOfTheDay] fetch failed:", e?.message || e);
+    } catch (e) {
+      console.warn("[PhraseOfTheDay] fetch failed:", e instanceof Error ? e.message : e);
+      setFailure("Phrase of the day unavailable right now.");
     } finally {
       setLoading(false);
     }
@@ -158,8 +184,8 @@ export const PhraseOfTheDay = () => {
       });
       setSaved(true);
       toast.success("Saved to your flashcards");
-    } catch (e: any) {
-      toast.error(e.message || "Couldn't save");
+    } catch (e) {
+      toast.error(e instanceof Error && e.message ? e.message : "Couldn't save");
     }
   };
 
@@ -279,6 +305,16 @@ export const PhraseOfTheDay = () => {
               </Button>
             )}
           </div>
+        </div>
+      ) : failure ? (
+        <div className="py-4 text-center text-sm text-muted-foreground relative z-10" role="alert">
+          <p>Couldn't get today's phrase.</p>
+          {failure !== "Phrase of the day unavailable right now." && (
+            <p className="mt-1 text-foreground">{failure}</p>
+          )}
+          <Button variant="outline" size="sm" className="mt-3" onClick={() => fetchPhrase(true)} disabled={loading}>
+            <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Try again
+          </Button>
         </div>
       ) : null}
     </div>

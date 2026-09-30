@@ -52,6 +52,19 @@ test.describe("the list", () => {
     await expect(page.getByText("لغيري")).toHaveCount(0);
   });
 
+  test("reviews every dialect when All Dialects is on", async ({ page, db }) => {
+    // The due count follows the toggle, so the deck the button opens must too;
+    // it used to open the active dialect's cards under an all-dialect count.
+    const past = new Date(Date.now() - 86_400_000).toISOString();
+    seedWords(db, 2, (index) => ({ dialect: index === 0 ? "Gulf" : "Egyptian", next_review_at: past }));
+    await page.goto("/my-words");
+
+    await page.getByRole("button", { name: "Gulf", exact: true }).click();
+    await page.getByRole("button", { name: /^Review \d+ due cards?/ }).click();
+
+    await expect(page).toHaveURL(/\/review\/my-words\?mixed=1$/);
+  });
+
   test("says so when nothing has been saved yet", async ({ page, db }) => {
     db.seed("user_vocabulary", []);
     await page.goto("/my-words");

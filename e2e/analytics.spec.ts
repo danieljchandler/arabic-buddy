@@ -190,7 +190,7 @@ test.describe("word mastery", () => {
     await expect(page.getByText("Word Mastery")).toBeVisible();
     await expect(page.getByText("Card Health")).toHaveCount(0);
     await expect(page.getByText("Retention rate")).toBeVisible();
-    await expect(page.getByText("Words studied")).toBeVisible();
+    await expect(page.getByText("Total cards")).toBeVisible();
     await expect(page.getByText("50%").first()).toBeVisible();
   });
 

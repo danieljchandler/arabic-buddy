@@ -19,6 +19,7 @@ import { reviewArabicNatively } from './arabicReview.ts';
 import { encodeAppFrame } from './arabicReviewCore.ts';
 import { decideCriticOutcome } from './criticDecision.ts';
 import { emitMetric } from './featureMetrics.ts';
+import { logEdgeError } from './logError.ts';
 import { extractUsage } from './llmUsageCore.ts';
 import { logLlmUsage } from './llmUsageLogger.ts';
 import { logRepairPair } from './trainingExampleLogger.ts';
@@ -214,7 +215,51 @@ class BrainHttpError extends Error {
 
 // ----------------- Public entry point -----------------
 
+/**
+ * Every Brain call, with its failure recorded on the way out.
+ *
+ * Until 2026-09-30 a failed call left no trace an admin could see: the
+ * `ai-brain` metric below was emitted only on success, and `client_errors`
+ * rows with source 'edge' came from one function, so /admin/errors' Edge tab
+ * was empty by construction while every Google-first feature was down. One
+ * catch here covers every function that calls the Brain. Both sinks are
+ * fire-and-forget and swallow their own errors; the caller still gets the
+ * original throw.
+ */
 export async function askBrain<T = unknown>(task: BrainTask): Promise<BrainResult<T>> {
+  const start = Date.now();
+  try {
+    return await runBrainTask<T>(task);
+  } catch (err) {
+    reportBrainFailure(task, err, Date.now() - start);
+    throw err;
+  }
+}
+
+function reportBrainFailure(task: BrainTask, err: unknown, durationMs: number): void {
+  const status = err instanceof BrainHttpError ? err.status : null;
+  const strategy = task.strategy ?? pickStrategy(task.purpose);
+  try {
+    emitMetric({
+      feature: 'ai-brain',
+      event: 'ask_brain',
+      dialect: task.dialect,
+      status: 'error',
+      durationMs,
+      meta: {
+        purpose: task.purpose,
+        strategy,
+        http_status: status,
+        error: err instanceof Error ? err.message.slice(0, 500) : String(err).slice(0, 500),
+      },
+    });
+    void logEdgeError(task.purpose || 'ai-brain', err, {
+      extra: { source: 'ai-brain', strategy, dialect: task.dialect ?? null, http_status: status },
+    });
+  } catch { /* never throw from the sinks */ }
+}
+
+async function runBrainTask<T>(task: BrainTask): Promise<BrainResult<T>> {
   // One key check for the whole task rather than per model: the per-model
   // resolution (and its OpenRouter fallback) happens inside aiGateway, but a
   // deployment with no AI provider at all should fail here with a message that

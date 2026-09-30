@@ -7,6 +7,13 @@ export type SubscriptionTier = 'standard' | 'allin' | null;
 interface SubscriptionState {
   subscribed: boolean;
   tier: SubscriptionTier;
+  /**
+   * Full access from a role (admin or complimentary), not from a plan —
+   * check-subscription answers before it asks Stripe. There is no plan to
+   * manage, but the account may still pay for one, so the pages keep a quiet
+   * billing link rather than the plan's Manage button.
+   */
+  complimentary: boolean;
   subscriptionEnd: string | null;
   loading: boolean;
 }
@@ -60,13 +67,14 @@ export const useSubscription = () => {
   const [state, setState] = useState<SubscriptionState>({
     subscribed: false,
     tier: null,
+    complimentary: false,
     subscriptionEnd: null,
     loading: true,
   });
 
   const checkSubscription = useCallback(async () => {
     if (!session?.access_token || !user?.id) {
-      setState({ subscribed: false, tier: null, subscriptionEnd: null, loading: false });
+      setState({ subscribed: false, tier: null, complimentary: false, subscriptionEnd: null, loading: false });
       return;
     }
 
@@ -99,7 +107,7 @@ export const useSubscription = () => {
     };
 
     const grantFullAccess = () =>
-      setState({ subscribed: true, tier: 'allin', subscriptionEnd: null, loading: false });
+      setState({ subscribed: true, tier: 'allin', complimentary: true, subscriptionEnd: null, loading: false });
 
     try {
       const { data, error } = await supabase.functions.invoke('check-subscription', {
@@ -136,6 +144,7 @@ export const useSubscription = () => {
       setState({
         subscribed: data.subscribed || false,
         tier: data.tier || null,
+        complimentary: data.complimentary === true,
         subscriptionEnd: data.subscription_end || null,
         loading: false,
       });
@@ -154,7 +163,7 @@ export const useSubscription = () => {
     if (user) {
       checkSubscription();
     } else {
-      setState({ subscribed: false, tier: null, subscriptionEnd: null, loading: false });
+      setState({ subscribed: false, tier: null, complimentary: false, subscriptionEnd: null, loading: false });
     }
   }, [user, checkSubscription]);
 

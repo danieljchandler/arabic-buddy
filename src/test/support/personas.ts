@@ -99,9 +99,15 @@ export function seedPersona(
 
   // useSubscription reads this rather than the table — the tier lives in Stripe,
   // not Postgres, so the function is the only source of truth the client has.
+  // A full-access role is answered before Stripe is consulted, exactly as
+  // check-subscription does: All-In, flagged complimentary, no product and no
+  // end date, since no Stripe customer stands behind it.
+  const fullAccessRole = spec.roles.some((role) => role === "admin" || role === "complimentary");
   backend.stubFunction(
     "check-subscription",
-    subscribed
+    fullAccessRole
+      ? { subscribed: true, tier: "allin", complimentary: true, subscription_end: null }
+      : subscribed
       ? {
           subscribed: true,
           // `tier`, not `subscription_tier`: that is the field

@@ -231,6 +231,23 @@ Deno.test("customer-portal returns a management URL", async () => {
   }
 });
 
+Deno.test("customer-portal says there is nothing billed when Stripe has no customer", async () => {
+  // Complimentary and staff accounts are offered the portal in case they also
+  // pay; for the ones who do not, this is the answer, and it has to read as one.
+  const fn = await loadFunction("customer-portal", { upstreams: upstreams() });
+  try {
+    const response = await fn.handler(jsonRequest("customer-portal", {}));
+
+    assertEquals(response.status, 404);
+    const body = await response.json();
+    assertEquals(body.error, "no_customer");
+    assertEquals(body.message, "There's no billing account for this email, so nothing is being charged.");
+    assertEquals(fn.callsTo("billing_portal").length, 0);
+  } finally {
+    fn.restore();
+  }
+});
+
 Deno.test("customer-portal refuses an unauthenticated caller", async () => {
   const fn = await loadFunction("customer-portal", { upstreams: upstreams({ email: null }) });
   try {

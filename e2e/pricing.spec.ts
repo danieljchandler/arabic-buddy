@@ -95,6 +95,85 @@ test.describe("what each visitor is shown", () => {
     await expect(page.getByRole("button", { name: "Manage Subscription" })).toHaveCount(1);
   });
 
+  test("tells a staff account it has complimentary access, not a plan", async ({ page, signInAs }) => {
+    // An admin is All-In by role, not by a plan, so the plan's Manage button
+    // (which assumes a Stripe customer) is replaced by a quieter billing link.
+    await signInAs("admin");
+
+    await page.goto("/pricing");
+
+    await expect(page.getByText("You have complimentary full access")).toBeVisible();
+    await expect(page.getByText("You're on the All-In plan")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Manage", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Manage Subscription" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Included with your account" })).toBeDisabled();
+  });
+
+  test("still lets a complimentary account that also pays reach its billing", async ({
+    page,
+    signInAs,
+    backend,
+  }) => {
+    // check-subscription answers a role holder before it asks Stripe, so an
+    // admin who is also a paying customer would otherwise have no way to cancel.
+    await signInAs("admin");
+    backend.stubFunction("customer-portal", { url: "https://billing.stripe.test/portal" });
+
+    await page.goto("/pricing");
+    await page.getByRole("button", { name: "Manage billing" }).click();
+
+    await expect.poll(() => openedUrls(page)).toContain("https://billing.stripe.test/portal");
+  });
+
+  test("says plainly when a complimentary account has nothing billed", async ({
+    page,
+    signInAs,
+    backend,
+    expectConsoleErrors,
+  }) => {
+    expectConsoleErrors([/.*/]);
+    await signInAs("admin");
+    backend.stubFunctionFailure("customer-portal", 404, {
+      error: "no_customer",
+      message: "There's no billing account for this email, so nothing is being charged.",
+    });
+
+    await page.goto("/pricing");
+    await page.getByRole("button", { name: "Manage billing" }).click();
+
+    await expect(page.getByText("There's no billing account for this email, so nothing is being charged.")).toBeVisible();
+  });
+
+  test("takes the complimentary flag from the subscription check", async ({ page, signInAs, backend }) => {
+    // check-subscription answers complimentary: true for a full-access role
+    // before it ever reaches Stripe; that answer alone is enough.
+    await signInAs("free");
+    backend.stubFunction("check-subscription", {
+      subscribed: true,
+      tier: "allin",
+      complimentary: true,
+      subscription_end: null,
+    });
+
+    await page.goto("/pricing");
+
+    await expect(page.getByText("You have complimentary full access")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Manage", exact: true })).toHaveCount(0);
+  });
+
+  test("says the same on Settings, with a billing link rather than a plan to manage", async ({
+    page,
+    signInAs,
+  }) => {
+    await signInAs("admin");
+
+    await page.goto("/settings");
+
+    await expect(page.getByText("Complimentary full access")).toBeVisible();
+    await expect(page.getByRole("button", { name: /manage subscription/i })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Manage billing" })).toBeVisible();
+  });
+
   test("offers an All-In subscriber a Standard checkout", async ({ page, signInAs, backend }) => {
     await signInAs("allin");
 

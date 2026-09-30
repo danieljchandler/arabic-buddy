@@ -178,6 +178,52 @@ Deno.test("hf-chat reports an empty reply rather than returning one", async () =
   assertEquals(result.body.error, "Empty response from model");
 });
 
+Deno.test("a failed Brain call reaches the error log and the metrics", async () => {
+  // Both used to be written only on success, so /admin/errors' Edge tab stayed
+  // empty while every Google-first feature was down. One catch in askBrain
+  // covers every function that calls it; hf-chat is the thinnest of them.
+  const down = () => json({ error: { message: "upstream exploded" } }, 500);
+  const fn = await loadFunction("hf-chat", {
+    upstreams: caller({
+      "generativelanguage.googleapis.com": down,
+      "openrouter.ai": down,
+      "/rest/v1/client_errors": () => json({}, 201),
+    }),
+  });
+  try {
+    const response = await fn.handler(jsonRequest("hf-chat", { prompt: "hello", strategy: "solo" }));
+    await response.text();
+    assert(response.status >= 500, `expected a failure, got ${response.status}`);
+
+    // Fire-and-forget sinks: give them a moment to be sent.
+    const posted = async (table: string) => {
+      for (let attempt = 0; attempt < 100; attempt++) {
+        const rows = fn.calls
+          .filter((c) => c.url.includes(`/rest/v1/${table}`) && c.method === "POST")
+          .map((c) => JSON.parse(c.body ?? "{}") as Record<string, unknown>);
+        if (rows.length) return rows;
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+      return [];
+    };
+
+    const [errorRow] = await posted("client_errors");
+    assert(errorRow, "expected a client_errors row");
+    assertEquals(errorRow.source, "edge");
+    assertEquals(errorRow.function_name, "chat");
+    assertStringIncludes(String(errorRow.message), "500");
+
+    const failure = (await posted("feature_metrics")).find(
+      (row) => row.feature === "ai-brain" && row.status === "error",
+    );
+    assert(failure, "expected an ai-brain error metric");
+    assertEquals((failure.meta as Record<string, unknown>).purpose, "chat");
+    assertEquals((failure.meta as Record<string, unknown>).http_status, 500);
+  } finally {
+    fn.restore();
+  }
+});
+
 // ── learn-from-metric ────────────────────────────────────────────────────────
 
 const proposal = {

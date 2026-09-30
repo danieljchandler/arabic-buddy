@@ -14,6 +14,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge';
 import { Check, Loader2, Crown, Sparkles, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { describeInvokeFailure } from '@/lib/invokeError';
 import { InfoHint } from '@/components/InfoHint';
 import { PAGE_HINTS } from '@/lib/pageHints';
 
@@ -21,7 +22,7 @@ const Pricing = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
-  const { subscribed, tier, loading: subLoading, createCheckout, openCustomerPortal } = useSubscription();
+  const { subscribed, tier, complimentary, loading: subLoading, createCheckout, openCustomerPortal } = useSubscription();
   // Annual is the default when available: it is the plan most learners should
   // take (two months free) and the one the business should lead with.
   const [cadence, setCadence] = useState<BillingCadence>(
@@ -49,11 +50,14 @@ const Pricing = () => {
     try {
       await openCustomerPortal();
     } catch (err) {
-      toast({
-        title: 'Error',
-        description: 'Failed to open subscription management. Please try again.',
-        variant: 'destructive',
-      });
+      // The function's own sentence when it has one — "There's no billing
+      // account for this email…" for a complimentary account that does not pay.
+      const { message } = await describeInvokeFailure(
+        err,
+        null,
+        'Failed to open subscription management. Please try again.',
+      );
+      toast({ title: 'Error', description: message, variant: 'destructive' });
     }
   };
 
@@ -94,14 +98,32 @@ const Pricing = () => {
               <div className="mb-8 p-4 bg-primary/10 border border-primary/20 rounded-lg flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Crown className="h-5 w-5 text-primary" />
+                  {/* Staff and complimentary accounts get All-In from a role,
+                      not a plan, so there is no plan to manage. Some of them
+                      pay as well, though, and cancelling has to stay possible:
+                      hence the quieter billing link rather than none. */}
                   <span className="font-medium">
-                    You're on the <span className="text-primary">{SUBSCRIPTION_TIERS[tier].name}</span> plan
+                    {complimentary ? (
+                      <>
+                        You have <span className="text-primary">complimentary full access</span>
+                      </>
+                    ) : (
+                      <>
+                        You're on the <span className="text-primary">{SUBSCRIPTION_TIERS[tier].name}</span> plan
+                      </>
+                    )}
                   </span>
                 </div>
-                <Button variant="outline" size="sm" onClick={handleManageSubscription}>
-                  <Settings className="h-4 w-4 mr-2" />
-                  Manage
-                </Button>
+                {complimentary ? (
+                  <Button variant="link" size="sm" className="text-muted-foreground" onClick={handleManageSubscription}>
+                    Manage billing
+                  </Button>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={handleManageSubscription}>
+                    <Settings className="h-4 w-4 mr-2" />
+                    Manage
+                  </Button>
+                )}
               </div>
             )}
 
@@ -280,7 +302,11 @@ const Pricing = () => {
                   </ul>
                 </CardContent>
                 <CardFooter>
-                  {tier === 'allin' ? (
+                  {tier === 'allin' && complimentary ? (
+                    <Button variant="outline" className="w-full" disabled>
+                      Included with your account
+                    </Button>
+                  ) : tier === 'allin' ? (
                     <Button variant="outline" className="w-full" onClick={handleManageSubscription}>
                       Manage Subscription
                     </Button>

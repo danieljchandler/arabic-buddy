@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { describeInvokeFailure } from '@/lib/invokeError';
 import { Loader2, Check, ArrowLeft, User, Globe2, Target, Eye, Heart, ChevronRight, Camera, AlertTriangle, Info, Compass, Bell, Palette } from 'lucide-react';
 import { AvatarPicker } from '@/components/settings/AvatarPicker';
 import {
@@ -159,7 +160,7 @@ const Settings = () => {
   const { scope: curriculumScope, setScope: setCurriculumScope } = useCurriculumDeckScope();
   const { enabled: rootFamiliesEnabled, setEnabled: setRootFamiliesEnabled } = useRootFamilyPrefs();
   const { enabled: hintsEnabled, setEnabled: setHintsEnabled } = useFeatureHints();
-  const { subscribed, tier, openCustomerPortal } = useSubscription();
+  const { subscribed, tier, complimentary, openCustomerPortal } = useSubscription();
   const [clearingLeeches, setClearingLeeches] = useState(false);
   const [openingPortal, setOpeningPortal] = useState(false);
 
@@ -168,9 +169,9 @@ const Settings = () => {
     try {
       await openCustomerPortal();
     } catch (e) {
-      toast.error('Unable to open subscription portal', {
-        description: e instanceof Error ? e.message : 'Please try again.',
-      });
+      // The function's sentence when it has one, not supabase-js's "non-2xx".
+      const { message } = await describeInvokeFailure(e, null, 'Please try again.');
+      toast.error('Unable to open subscription portal', { description: message });
     } finally {
       setOpeningPortal(false);
     }
@@ -572,14 +573,30 @@ const Settings = () => {
               <SettingSection icon={Heart} title="Subscription">
                 <div className="p-3 rounded-xl bg-card border border-border space-y-2">
                   <p className="text-sm font-medium text-foreground">
-                    {subscribed ? `Active plan: ${tier === 'allin' ? 'All-In' : 'Standard'}` : 'Free plan'}
+                    {complimentary
+                      ? 'Complimentary full access'
+                      : subscribed
+                        ? `Active plan: ${tier === 'allin' ? 'All-In' : 'Standard'}`
+                        : 'Free plan'}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {subscribed
-                      ? 'Manage billing, update payment method, or cancel anytime.'
-                      : 'Upgrade to remove daily limits and unlock everything.'}
+                    {complimentary
+                      ? 'Everything is unlocked for this account. If you also pay through Stripe, you can still manage that billing.'
+                      : subscribed
+                        ? 'Manage billing, update payment method, or cancel anytime.'
+                        : 'Upgrade to remove daily limits and unlock everything.'}
                   </p>
-                  {subscribed ? (
+                  {complimentary ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-muted-foreground"
+                      onClick={handleManageSubscription}
+                      disabled={openingPortal}
+                    >
+                      {openingPortal ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Manage billing'}
+                    </Button>
+                  ) : subscribed ? (
                     <Button
                       variant="outline"
                       size="sm"

@@ -8,7 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowLeft, Plus, Trash2, Check, X, Play, Pause, Upload, FileSpreadsheet, ClipboardPaste } from 'lucide-react';
+import { Loader2, ArrowLeft, Plus, Trash2, Check, X, Play, Pause, Upload, FileSpreadsheet, ClipboardPaste, Mic } from 'lucide-react';
 import { InlineAudioRecorder } from '@/components/admin/InlineAudioRecorder';
 
 interface WordEntry {
@@ -488,14 +488,38 @@ const BulkWordImport = () => {
                     />
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
-                    <InlineAudioRecorder
-                      onSave={(url) => updateEntry(entry.id, 'audioUrl', url)}
-                      onCancel={() => {}}
-                    />
+                    {/* The recorder asks for the microphone as it mounts, so it
+                        mounts only when this row's Mic is pressed. Mounted for
+                        every row, it opened the mic on page load — once per row. */}
+                    {entry.isRecording ? (
+                      <InlineAudioRecorder
+                        onSave={(url) =>
+                          setEntries((prev) =>
+                            prev.map((e) => (e.id === entry.id ? { ...e, audioUrl: url, isRecording: false } : e)),
+                          )
+                        }
+                        onCancel={() => updateEntry(entry.id, 'isRecording', false)}
+                      />
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className={entry.audioUrl ? 'text-primary' : undefined}
+                        aria-label={
+                          entry.audioUrl ? `Record row ${index + 1} again` : `Record audio for row ${index + 1}`
+                        }
+                        title={entry.audioUrl ? 'Audio recorded — record again' : 'Record audio'}
+                        onClick={() => updateEntry(entry.id, 'isRecording', true)}
+                      >
+                        <Mic className="h-4 w-4" />
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="icon"
                       className="text-destructive hover:text-destructive"
+                      aria-label={`Remove row ${index + 1}`}
                       onClick={() => removeEntry(entry.id)}
                     >
                       <Trash2 className="h-4 w-4" />

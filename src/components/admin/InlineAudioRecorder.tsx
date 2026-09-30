@@ -23,12 +23,19 @@ export const InlineAudioRecorder = ({ onSave, onCancel }: InlineAudioRecorderPro
   const streamRef = useRef<MediaStream | null>(null);
 
   const { toast } = useToast();
+  // Which start is current. getUserMedia can take seconds (a first permission
+  // prompt, a Bluetooth headset), and a strip cancelled in that gap unmounted
+  // with no stream to stop — the stream then arrived, started recording in a
+  // component that no longer existed, and held the microphone open until the
+  // tab closed. Unmounting bumps this, so a late stream is stopped on arrival.
+  const startTokenRef = useRef(0);
 
   useEffect(() => {
     // Auto-start recording when mounted
     startRecording();
 
     return () => {
+      startTokenRef.current += 1;
       if (timerRef.current) clearInterval(timerRef.current);
       if (streamRef.current) {
         streamRef.current.getTracks().forEach((track) => track.stop());
@@ -40,8 +47,13 @@ export const InlineAudioRecorder = ({ onSave, onCancel }: InlineAudioRecorderPro
   }, []);
 
   const startRecording = async () => {
+    const token = ++startTokenRef.current;
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (token !== startTokenRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
       streamRef.current = stream;
 
       const mediaRecorder = new MediaRecorder(stream, {
@@ -71,6 +83,8 @@ export const InlineAudioRecorder = ({ onSave, onCancel }: InlineAudioRecorderPro
         setDuration((prev) => prev + 1);
       }, 1000);
     } catch (error) {
+      // Refused after the strip was already cancelled: nothing to report.
+      if (token !== startTokenRef.current) return;
       toast({
         variant: 'destructive',
         title: 'Microphone access denied',

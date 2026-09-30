@@ -235,7 +235,7 @@ const Onboarding = () => {
             <img src={hakiyaLockup} alt="Hikaya" className="h-40 w-40 mx-auto" />
             <div>
               <h1 className="text-3xl font-bold font-heading text-foreground mb-3" dir="rtl">
-                !أهلاً وسهلاً
+                أهلاً وسهلاً!
               </h1>
               <h2 className="text-xl font-semibold text-foreground mb-2">
                 Welcome to Hikaya

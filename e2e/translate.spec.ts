@@ -142,6 +142,27 @@ test.describe("translating a passage", () => {
   });
 });
 
+test.describe("text shared from another app", () => {
+  test("arrives with the link it was shared with", async ({ page, signInAs, backend }) => {
+    // The QA sweep's case: ?url=…&text=hi reached Translate as "hi" alone.
+    // Screening returns only the words, so the link has to be put back.
+    await signInAs("free");
+    stubTranslate(backend);
+    backend.stubFunction("screen-shared-content", {
+      destination: "translate",
+      extractedText: ARABIC,
+      reason: "Arabic text to translate",
+    });
+
+    await page.goto(`/share-target?url=${encodeURIComponent("https://example.com/post")}&text=${encodeURIComponent(ARABIC)}`);
+
+    await expect(page).toHaveURL(/\/translate/);
+    await expect(page.getByRole("textbox")).toHaveValue(`${ARABIC}\nhttps://example.com/post`);
+    // Screening itself judged the words alone.
+    expect(backend.lastCallTo("screen-shared-content")?.body).toMatchObject({ text: ARABIC });
+  });
+});
+
 test.describe("when the translator fails", () => {
   test.beforeEach(async ({ signInAs }) => {
     await signInAs("free");

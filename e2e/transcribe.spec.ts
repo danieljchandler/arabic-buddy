@@ -118,7 +118,7 @@ test.describe("what a learner may upload", () => {
     await page.goto("/transcribe");
     await chooseFile(page);
 
-    await page.getByText("clip.mp3").locator("xpath=../..").getByRole("button").click();
+    await page.getByRole("button", { name: "Remove file" }).click();
 
     await expect(page.getByText("Click or drag a file here")).toBeVisible();
     await expect(page.getByRole("button", { name: "Start Transcription" })).toHaveCount(0);

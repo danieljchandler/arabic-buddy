@@ -1246,7 +1246,7 @@ const Transcribe = () => {
                           <p className="font-medium text-foreground">{file.name}</p>
                           <p className="text-sm text-muted-foreground">{formatFileSize(file.size)}</p>
                         </div>
-                        <Button variant="ghost" size="icon" onClick={clearFile} disabled={isProcessing}>
+                        <Button variant="ghost" size="icon" onClick={clearFile} disabled={isProcessing} aria-label="Remove file">
                           <X className="h-4 w-4" />
                         </Button>
                       </div>
@@ -1553,7 +1553,14 @@ const Transcribe = () => {
                       <div className="flex items-center gap-2">
                         <span className="text-muted-foreground">{item.english}</span>
                         {isAuthenticated && (
-                          <Button variant={isSavedWord ? "secondary" : "ghost"} size="icon" className="h-8 w-8" onClick={handleAddWord} disabled={isSavedWord || addUserVocabulary.isPending}>
+                          <Button
+                            variant={isSavedWord ? "secondary" : "ghost"}
+                            size="icon"
+                            className="h-8 w-8"
+                            aria-label={isSavedWord ? `${item.arabic} is in My Words` : `Save ${item.arabic} to My Words`}
+                            onClick={handleAddWord}
+                            disabled={isSavedWord || addUserVocabulary.isPending}
+                          >
                             {isSavedWord ? <Check className="h-4 w-4 text-primary" /> : <Plus className="h-4 w-4" />}
                           </Button>
                         )}

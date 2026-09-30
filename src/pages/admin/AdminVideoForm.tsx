@@ -44,6 +44,9 @@ import { extractFramesWithTimestamps } from "@/lib/videoFrameExtractor";
 import { extractAudioForAsr } from "@/lib/audioToWav";
 import { resolveStagedVideoAudioUrl, STAGED_AUDIO_EXTENSIONS } from "@/lib/videoAudioStaging";
 import { VideoThumbnail } from "@/components/media/VideoThumbnail";
+import { QueryErrorState } from "@/components/shared/QueryErrorState";
+import { RecordNotFound } from "@/components/shared/RecordNotFound";
+import { isMissingRowError } from "@/lib/queryErrors";
 // The same array the review workspace offers and the `transcript-review` write
 // path validates against. Two copies would drift, and the one that drifts is
 // always the one enforcing.
@@ -168,7 +171,12 @@ const AdminVideoForm = () => {
   const ownsTitleHere = !rolesLoading && !canManage;
 
   const isEditing = !!videoId;
-  const { data: existingVideo, isLoading: loadingVideo } = useDiscoverVideo(videoId);
+  const {
+    data: existingVideo,
+    isLoading: loadingVideo,
+    error: videoError,
+    refetch: refetchVideo,
+  } = useDiscoverVideo(videoId);
 
   // The poll above is what notices a transcription run that has died mid-way
   // (a worker torn down between two stages leaves the row on `processing`
@@ -1511,6 +1519,28 @@ const AdminVideoForm = () => {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
+    );
+  }
+
+  // Without this the "Add Video" form rendered under an edit title, and Update
+  // Video reported success for a row that was never there. /admin/memes/:id
+  // and /admin/transcribe/:id redirect here, so they get this too.
+  if (isEditing && !existingVideo) {
+    if (videoError && !isMissingRowError(videoError)) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <QueryErrorState error={videoError} title="Couldn't load this video" onRetry={() => refetchVideo()} />
+        </div>
+      );
+    }
+    return (
+      <RecordNotFound
+        layout="screen"
+        title="Video not found"
+        body="No video has this id. It may have been deleted."
+        backTo="/admin/videos"
+        backLabel="Back to videos"
+      />
     );
   }
 

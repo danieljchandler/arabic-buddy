@@ -12,6 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, Loader2, Play, Pause, CheckCircle, Volume2, Globe, Image as ImageIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import { isDialectTarget } from '@/lib/storyReading';
+import { QueryErrorState } from '@/components/shared/QueryErrorState';
+import { RecordNotFound } from '@/components/shared/RecordNotFound';
 import type { Database } from '@/integrations/supabase/types';
 
 type AuthenticStoryLine = Database['public']['Tables']['authentic_story_lines']['Row'];
@@ -60,7 +62,12 @@ const AdminReadingLibraryForm = () => {
   const sceneUploadRef = useRef<HTMLInputElement | null>(null);
 
   // Load existing story when editing
-  const { data: story, isLoading: loadingStory } = useQuery({
+  const {
+    data: story,
+    isLoading: loadingStory,
+    error: storyError,
+    refetch: refetchStory,
+  } = useQuery({
     queryKey: ['authentic-story', id],
     queryFn: async () => {
       if (!id) return null;
@@ -68,7 +75,7 @@ const AdminReadingLibraryForm = () => {
         .from('authentic_stories')
         .select('*')
         .eq('id', id)
-        .single();
+        .maybeSingle();
       if (error) throw error;
       return data;
     },
@@ -338,6 +345,27 @@ const AdminReadingLibraryForm = () => {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
+    );
+  }
+
+  // Without this the import form rendered under an "Edit" title, and every
+  // action on it (translate, audio, publish) aimed at an id that is not there.
+  if (isEditing && !story) {
+    if (storyError) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <QueryErrorState error={storyError} title="Couldn't load this story" onRetry={() => refetchStory()} />
+        </div>
+      );
+    }
+    return (
+      <RecordNotFound
+        layout="screen"
+        title="Story not found"
+        body="No story in the reading library has this id. It may have been deleted."
+        backTo="/admin/reading-library"
+        backLabel="Back to the reading library"
+      />
     );
   }
 

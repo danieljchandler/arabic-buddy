@@ -237,6 +237,16 @@ test.describe("editing a topic", () => {
     await expect(page.getByRole("button", { name: "Update Topic" })).toBeVisible();
   });
 
+  test("says so when the id names no topic, instead of an empty form", async ({ page, db }) => {
+    await page.goto(`/admin/topics/${topicId(9)}/edit`);
+
+    await expect(page.getByRole("heading", { name: "Topic not found" })).toBeVisible();
+    await expect(page.getByLabel("English Name")).toHaveCount(0);
+    expect(db.writesTo("topics")).toHaveLength(0);
+    await page.getByRole("link", { name: "Back to topics" }).click();
+    await expect(page).toHaveURL(/\/admin\/topics$/);
+  });
+
   test("keeps the icon and colour the topic was saved with", async ({ page }) => {
     await page.goto(`/admin/topics/${topicId(0)}/edit`);
 

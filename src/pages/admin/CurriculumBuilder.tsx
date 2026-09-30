@@ -24,6 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { useStages } from '@/hooks/useStages';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { RecordNotFound } from '@/components/shared/RecordNotFound';
 
 const CurriculumBuilder = () => {
   const navigate = useNavigate();
@@ -33,6 +34,8 @@ const CurriculumBuilder = () => {
 
   const {
     sessions,
+    sessionsLoading,
+    sessionsError,
     messages,
     activeSessionId,
     setActiveSessionId,
@@ -196,7 +199,15 @@ const CurriculumBuilder = () => {
         setSessionsOpen(false);
       }}
       onNewSession={handleNewSession}
-      onArchiveSession={(id) => archiveSession.mutate(id)}
+      onArchiveSession={(id) =>
+        archiveSession.mutate(id, {
+          // The URL would otherwise name a session the list no longer holds,
+          // which is exactly what the not-found state below reports.
+          onSuccess: () => {
+            if (id === routeSessionId) navigate('/admin/curriculum-builder', { replace: true });
+          },
+        })
+      }
     />
   );
 
@@ -213,6 +224,20 @@ const CurriculumBuilder = () => {
       onSaveEdits={updateMessageStructured}
     />
   );
+
+  // The list holds only active sessions, so an archived session's id lands
+  // here too. Only once the list has loaded: until then everything is "missing".
+  if (routeSessionId && !sessionsLoading && !sessionsError && !sessions.some((s) => s.id === routeSessionId)) {
+    return (
+      <RecordNotFound
+        layout="screen"
+        title="Session not found"
+        body="No open curriculum session has this id. It may have been archived."
+        backTo="/admin/curriculum-builder"
+        backLabel="Back to the curriculum builder"
+      />
+    );
+  }
 
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col">

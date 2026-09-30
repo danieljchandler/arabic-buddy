@@ -126,6 +126,34 @@ test.describe("the single-word form", () => {
     db.seed("topics", [aTopic({ id: TOPIC, name: "Colours", icon: "🎨" })]);
   });
 
+  test("says so when the word id names nothing", async ({ page, db }) => {
+    db.seed("vocabulary_words", [aVocabularyWord({ id: wordId(0), topic_id: TOPIC })]);
+
+    await page.goto(`/admin/topics/${TOPIC}/words/${wordId(9)}/edit`);
+
+    await expect(page.getByRole("heading", { name: "Word not found" })).toBeVisible();
+    await expect(page.getByLabel("Arabic Word")).toHaveCount(0);
+    await page.getByRole("link", { name: "Back to words" }).click();
+    await expect(page).toHaveURL(new RegExp(`/admin/topics/${TOPIC}/words$`));
+  });
+
+  test("does not edit another topic's word under this one", async ({ page, db }) => {
+    db.seed("vocabulary_words", [aVocabularyWord({ id: wordId(0), topic_id: topicId(1) })]);
+
+    await page.goto(`/admin/topics/${TOPIC}/words/${wordId(0)}/edit`);
+
+    await expect(page.getByRole("heading", { name: "Word not found" })).toBeVisible();
+  });
+
+  test("will not add a word to a topic that does not exist", async ({ page, db }) => {
+    db.seed("vocabulary_words", []);
+
+    await page.goto(`/admin/topics/${topicId(9)}/words/new`);
+
+    await expect(page.getByRole("heading", { name: "Topic not found" })).toBeVisible();
+    await expect(page.getByLabel("Arabic Word")).toHaveCount(0);
+  });
+
   test("creates a word with the values entered", async ({ page, db }) => {
     db.seed("vocabulary_words", []);
     await page.goto(`/admin/topics/${TOPIC}/words/new`);

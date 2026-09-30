@@ -12,6 +12,8 @@ import { Loader2, ArrowLeft, Sparkles } from 'lucide-react';
 import { ImageUploader } from '@/components/admin/ImageUploader';
 import { AudioUploader } from '@/components/admin/AudioUploader';
 import { ImagePositionEditor } from '@/components/admin/ImagePositionEditor';
+import { QueryErrorState } from '@/components/shared/QueryErrorState';
+import { RecordNotFound } from '@/components/shared/RecordNotFound';
 
 const WordForm = () => {
   const navigate = useNavigate();
@@ -77,7 +79,12 @@ const WordForm = () => {
   };
 
   // Fetch topic info
-  const { data: topic } = useQuery({
+  const {
+    data: topic,
+    isLoading: loadingTopic,
+    error: topicError,
+    refetch: refetchTopic,
+  } = useQuery({
     queryKey: ['topic-info', topicId],
     queryFn: async () => {
       if (!topicId) throw new Error('Missing topicId in route');
@@ -85,7 +92,7 @@ const WordForm = () => {
         .from('topics')
         .select('name, name_arabic, icon, gradient')
         .eq('id', topicId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       return data;
@@ -94,7 +101,12 @@ const WordForm = () => {
   });
 
   // Fetch existing word if editing
-  const { data: existingWord, isLoading: loadingWord } = useQuery({
+  const {
+    data: existingWord,
+    isLoading: loadingWord,
+    error: wordError,
+    refetch: refetchWord,
+  } = useQuery({
     queryKey: ['word', wordId],
     queryFn: async () => {
       if (!wordId) return null;
@@ -102,7 +114,7 @@ const WordForm = () => {
         .from('vocabulary_words')
         .select('*')
         .eq('id', wordId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       return data;
@@ -189,11 +201,55 @@ const WordForm = () => {
     mutation.mutate();
   };
 
-  if (loadingWord) {
+  if (loadingTopic || loadingWord) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
+    );
+  }
+
+  // Both ids have to name something: a new word under a missing topic would be
+  // inserted as an orphan, and an edit of a missing word "saves" into nothing.
+  const loadError = (!topic && topicError) || (isEditing && !existingWord && wordError);
+  if (loadError) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <QueryErrorState
+          error={loadError}
+          title="Couldn't load this word"
+          onRetry={() => {
+            refetchTopic();
+            if (isEditing) refetchWord();
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (!topic) {
+    return (
+      <RecordNotFound
+        layout="screen"
+        title="Topic not found"
+        body="No topic has this id. It may have been deleted."
+        backTo="/admin/topics"
+        backLabel="Back to topics"
+      />
+    );
+  }
+
+  // A word from another topic is not found here either: saving would send the
+  // editor back to a list the word is not on.
+  if (isEditing && (!existingWord || existingWord.topic_id !== topicId)) {
+    return (
+      <RecordNotFound
+        layout="screen"
+        title="Word not found"
+        body="This topic has no word with this id. It may have been deleted."
+        backTo={`/admin/topics/${topicId}/words`}
+        backLabel="Back to words"
+      />
     );
   }
 

@@ -21,6 +21,8 @@ import { stripTashkil } from "@/lib/bibleDisplayPrefs";
 import { toast } from "sonner";
 import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
+import { QueryErrorState } from "@/components/shared/QueryErrorState";
+import { RecordNotFound } from "@/components/shared/RecordNotFound";
 
 type BibleLesson = {
   id: string;
@@ -48,6 +50,13 @@ const BibleLessons = () => {
   const [lessons, setLessons] = useState<BibleLesson[]>([]);
   const [active, setActive] = useState<BibleLesson | null>(null);
   const [loading, setLoading] = useState(true);
+  // A deep link to a lesson not in the list: looked up on its own, and when
+  // that finds nothing the page says so rather than showing the list as if
+  // the link had been to it.
+  const [lookup, setLookup] = useState<
+    { state: "idle" } | { state: "loading" } | { state: "missing" } | { state: "failed"; error: unknown }
+  >({ state: "idle" });
+  const [lookupAttempt, setLookupAttempt] = useState(0);
 
   // Display preferences (from Settings)
   const { prefs, update: updatePrefs } = useBibleDisplayPrefs();
@@ -83,23 +92,41 @@ const BibleLessons = () => {
   useEffect(() => {
     if (!lessonId) {
       setActive(null);
+      setLookup({ state: "idle" });
       return;
     }
     const found = lessons.find((l) => l.id === lessonId);
     if (found) {
       setActive(found);
+      setLookup({ state: "idle" });
       return;
     }
+    // Same gate as the list: nobody without access queries the lessons.
+    if (!hasAccess) return;
     // Direct deep link — fetch single lesson
+    let cancelled = false;
+    setActive(null);
+    setLookup({ state: "loading" });
     (async () => {
       const { data, error } = await supabase
         .from("bible_lessons")
         .select("*")
         .eq("id", lessonId)
         .maybeSingle();
-      if (!error && data) setActive(data as BibleLesson);
+      if (cancelled) return;
+      if (error) {
+        setLookup({ state: "failed", error });
+      } else if (!data) {
+        setLookup({ state: "missing" });
+      } else {
+        setActive(data as BibleLesson);
+        setLookup({ state: "idle" });
+      }
     })();
-  }, [lessonId, lessons]);
+    return () => {
+      cancelled = true;
+    };
+  }, [lessonId, lessons, hasAccess, lookupAttempt]);
 
   // ── Access gate ─────────────────────────────────────────────────────────
   if (accessLoading) {
@@ -125,6 +152,42 @@ const BibleLessons = () => {
           </p>
           <PageCorner />
         </div>
+      </AppShell>
+    );
+  }
+
+  // ── A deep link that names no lesson ────────────────────────────────────
+  if (lessonId && !active && lookup.state === "missing") {
+    return (
+      <AppShell>
+        <div className="mb-6"><PageCorner /></div>
+        <RecordNotFound
+          title="Lesson not found"
+          body="It may have been unpublished, or the link is wrong."
+          backTo="/bible/lessons"
+          backLabel="Back to Bible Lessons"
+        />
+      </AppShell>
+    );
+  }
+
+  if (lessonId && !active && lookup.state === "failed") {
+    return (
+      <AppShell>
+        <div className="mb-6"><PageCorner /></div>
+        <QueryErrorState
+          error={lookup.error}
+          title="This lesson didn't load"
+          onRetry={() => setLookupAttempt((n) => n + 1)}
+        />
+      </AppShell>
+    );
+  }
+
+  if (lessonId && !active && lookup.state === "loading") {
+    return (
+      <AppShell>
+        <LoadingPanel variant="page" />
       </AppShell>
     );
   }

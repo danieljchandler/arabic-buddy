@@ -171,6 +171,17 @@ test.describe("importing a new story", () => {
 });
 
 test.describe("the editor for an imported story", () => {
+  test("says so when the id names no story, instead of the import form", async ({ page, db }) => {
+    seedStory(db);
+
+    await page.goto(`/admin/reading-library/${storyId(9)}/edit`);
+
+    await expect(page.getByRole("heading", { name: "Story not found" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Edit Authentic Story" })).toHaveCount(0);
+    await page.getByRole("link", { name: "Back to the reading library" }).click();
+    await expect(page).toHaveURL(/\/admin\/reading-library$/);
+  });
+
   test("loads the story's metadata back into the form", async ({ page, db }) => {
     seedStory(db);
 

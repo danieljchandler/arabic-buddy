@@ -195,6 +195,25 @@ test.describe("getting oriented", () => {
     await expect(page.getByRole("heading", { name: "Household objects" })).toBeVisible();
   });
 
+  test("says so when the URL names no session", async ({ page, db }) => {
+    seedSession(db);
+
+    await page.goto(`/admin/curriculum-builder/${chatSessionId(9)}`);
+
+    await expect(page.getByRole("heading", { name: "Session not found" })).toBeVisible();
+    await page.getByRole("link", { name: "Back to the curriculum builder" }).click();
+    await expect(page).toHaveURL(/\/admin\/curriculum-builder$/);
+    await expect(page.locator("h1")).toHaveText("Curriculum Builder");
+  });
+
+  test("treats an archived session's URL as not found", async ({ page, db }) => {
+    seedSession(db, { session: { status: "archived" } });
+
+    await page.goto(`/admin/curriculum-builder/${SESSION}`);
+
+    await expect(page.getByRole("heading", { name: "Session not found" })).toBeVisible();
+  });
+
   test("invites the first message in an empty session", async ({ page, db }) => {
     seedSession(db);
 

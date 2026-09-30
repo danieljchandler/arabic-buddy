@@ -259,6 +259,16 @@ test.describe("reading a lesson", () => {
     await expect(page.getByText("The Good Samaritan")).toBeVisible();
   });
 
+  test("says a link to no lesson is not found, instead of showing the list", async ({ page }) => {
+    await page.goto("/bible/lessons/bbbbbbbb-0000-4000-8000-000000000009");
+
+    await expect(page.getByRole("heading", { name: "Lesson not found" })).toBeVisible();
+    await expect(page.getByText("The Good Samaritan")).toHaveCount(0);
+    await page.getByRole("link", { name: "Back to Bible Lessons" }).click();
+    await expect(page).toHaveURL(/\/bible\/lessons$/);
+    await expect(page.getByText("The Good Samaritan")).toBeVisible();
+  });
+
   test("numbers the verses from where the passage starts", async ({ page }) => {
     await page.goto(`/bible/lessons/${LESSON}`);
 

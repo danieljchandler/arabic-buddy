@@ -310,6 +310,18 @@ test.describe("playing through a story", () => {
     await page.getByRole("button", { name: "Back to Stories" }).click();
     await expect(page).toHaveURL(/\/stories$/);
   });
+
+  test("says a story that does not exist is not found, not that it is empty", async ({ page, db }) => {
+    db.seed("interactive_stories", []);
+    db.seed("story_scenes", []);
+
+    await page.goto(`/stories/${STORY}`);
+
+    await expect(page.getByRole("heading", { name: "Story not found" })).toBeVisible();
+    await expect(page.getByText(/This story has no scenes yet/i)).toHaveCount(0);
+    await page.getByRole("link", { name: "Back to Stories" }).click();
+    await expect(page).toHaveURL(/\/stories$/);
+  });
 });
 
 test.describe("reading aids", () => {

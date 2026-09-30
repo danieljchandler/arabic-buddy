@@ -69,6 +69,17 @@ export function classifyQueryError(error: unknown): QueryErrorKind {
 }
 
 /**
+ * The lookup worked and the row is not there: `.single()` answers a missing
+ * row with PGRST116 (PostgREST's 406) rather than a null. A page opening one
+ * record by id wants "not found" for this and QueryErrorState for anything
+ * else. Prefer `.maybeSingle()` in a query you own, which returns null
+ * instead; this is for the shared hooks that still throw.
+ */
+export function isMissingRowError(error: unknown): boolean {
+  return codeOf(error) === "PGRST116";
+}
+
+/**
  * React Query `retry` policy. One more try for anything that might be
  * transient (network, 5xx); none for a 4xx, whose answer will not change —
  * re-asking a 401 four times was what the crawl saw on every public page.

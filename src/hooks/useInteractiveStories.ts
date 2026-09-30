@@ -72,9 +72,36 @@ export function useAllStories() {
   });
 }
 
-export function useStoryScenes(storyId: string | undefined) {
+/**
+ * One story's own row. Null rather than an error when the id names nothing —
+ * or, for a learner, a story RLS still holds back as a draft — so the page can
+ * say "not found" and keep QueryErrorState for a read that actually failed.
+ */
+export function useInteractiveStory(storyId: string | undefined) {
+  const { user } = useAuth();
   return useQuery({
-    queryKey: ['story-scenes', storyId],
+    // Keyed on the viewer too: RLS decides whether a draft is visible, so a
+    // null cached for a learner must not answer an admin who signs in next.
+    queryKey: ['interactive-story', storyId, user?.id ?? null],
+    enabled: !!storyId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('interactive_stories')
+        .select('*')
+        .eq('id', storyId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data as InteractiveStory | null;
+    },
+  });
+}
+
+export function useStoryScenes(storyId: string | undefined) {
+  const { user } = useAuth();
+  return useQuery({
+    // Keyed on the viewer, like the story: a learner's empty list for a draft,
+    // served to the admin form, would be saved over the real scenes.
+    queryKey: ['story-scenes', storyId, user?.id ?? null],
     enabled: !!storyId,
     queryFn: async () => {
       const { data, error } = await supabase

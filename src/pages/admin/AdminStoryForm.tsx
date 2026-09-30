@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useStoryScenes, type StoryScene } from '@/hooks/useInteractiveStories';
+import { useInteractiveStory, useStoryScenes, type StoryScene } from '@/hooks/useInteractiveStories';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -16,6 +17,8 @@ import { Slider } from '@/components/ui/slider';
 import { ArrowLeft, Plus, Trash2, Save, Loader2, GripVertical, Sparkles, Wand2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SaduMark } from '@/components/brand/SaduMark';
+import { QueryErrorState } from '@/components/shared/QueryErrorState';
+import { RecordNotFound } from '@/components/shared/RecordNotFound';
 
 interface SceneForm {
   id?: string;
@@ -46,6 +49,7 @@ const AdminStoryForm = () => {
   const navigate = useNavigate();
   const { storyId } = useParams();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const isEdit = !!storyId;
 
   const [title, setTitle] = useState('');
@@ -64,28 +68,29 @@ const AdminStoryForm = () => {
   const [aiSceneCount, setAiSceneCount] = useState(5);
   const [generating, setGenerating] = useState(false);
 
-  const { data: existingScenes } = useStoryScenes(storyId);
+  const {
+    data: existingStory,
+    isLoading: loadingStory,
+    error: storyError,
+    refetch: refetchStory,
+  } = useInteractiveStory(storyId);
+  const {
+    data: existingScenes,
+    isLoading: loadingScenes,
+    error: scenesError,
+    refetch: refetchScenes,
+  } = useStoryScenes(storyId);
 
   // Load existing story
   useEffect(() => {
-    if (!storyId) return;
-    const load = async () => {
-      const { data, error } = await supabase
-        .from('interactive_stories')
-        .select('*')
-        .eq('id', storyId)
-        .single();
-      if (data && !error) {
-        setTitle(data.title);
-        setTitleArabic(data.title_arabic);
-        setDescription(data.description);
-        setDescriptionArabic(data.description_arabic);
-        setDialect(data.dialect);
-        setDifficulty(data.difficulty);
-      }
-    };
-    load();
-  }, [storyId]);
+    if (!existingStory) return;
+    setTitle(existingStory.title);
+    setTitleArabic(existingStory.title_arabic);
+    setDescription(existingStory.description);
+    setDescriptionArabic(existingStory.description_arabic);
+    setDialect(existingStory.dialect);
+    setDifficulty(existingStory.difficulty);
+  }, [existingStory]);
 
   // Load existing scenes
   useEffect(() => {
@@ -207,6 +212,10 @@ const AdminStoryForm = () => {
 
   const handleSave = async () => {
     if (!user) return;
+    // Saving an edit replaces every scene, so it must only ever run against a
+    // story row that was actually loaded. The form is not rendered otherwise;
+    // this is the second lock on the same door.
+    if (isEdit && (!existingStory || !existingScenes)) return;
     if (!title.trim()) {
       toast.error('Title is required');
       return;
@@ -217,11 +226,17 @@ const AdminStoryForm = () => {
       let sid = storyId;
 
       if (isEdit) {
-        const { error } = await supabase
+        const { data: updated, error } = await supabase
           .from('interactive_stories')
           .update({ title, title_arabic: titleArabic, description, description_arabic: descriptionArabic, dialect, difficulty })
-          .eq('id', storyId!);
+          .eq('id', storyId!)
+          .select('id');
         if (error) throw error;
+        // An update that matched nothing is not an error to PostgREST. Stop
+        // here rather than replace scenes under a story that is not there.
+        if (!updated || updated.length === 0) {
+          throw new Error('This story no longer exists, so nothing was saved.');
+        }
       } else {
         const { data, error } = await supabase
           .from('interactive_stories')
@@ -234,7 +249,8 @@ const AdminStoryForm = () => {
 
       // Delete old scenes then insert new ones
       if (isEdit) {
-        await supabase.from('story_scenes').delete().eq('story_id', sid!);
+        const { error: deleteError } = await supabase.from('story_scenes').delete().eq('story_id', sid!);
+        if (deleteError) throw deleteError;
       }
 
       const scenesToInsert = scenes.map((s) => ({
@@ -253,6 +269,10 @@ const AdminStoryForm = () => {
       const { error: scenesError } = await supabase.from('story_scenes').insert(scenesToInsert);
       if (scenesError) throw scenesError;
 
+      // Both caches, or reopening this story within staleTime shows the old
+      // scenes — and saving that form would write them back over the new ones.
+      queryClient.invalidateQueries({ queryKey: ['interactive-story', sid] });
+      queryClient.invalidateQueries({ queryKey: ['story-scenes', sid] });
       toast.success(isEdit ? 'Story updated!' : 'Story created!');
       navigate('/admin/stories');
     } catch (err: any) {
@@ -261,6 +281,41 @@ const AdminStoryForm = () => {
       setSaving(false);
     }
   };
+
+  if (isEdit && (loadingStory || loadingScenes)) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (isEdit && (!existingStory || !existingScenes)) {
+    const loadError = storyError ?? scenesError;
+    if (loadError) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <QueryErrorState
+            error={loadError}
+            title="Couldn't load this story"
+            onRetry={() => {
+              refetchStory();
+              refetchScenes();
+            }}
+          />
+        </div>
+      );
+    }
+    return (
+      <RecordNotFound
+        layout="screen"
+        title="Story not found"
+        body="No story has this id. It may have been deleted."
+        backTo="/admin/stories"
+        backLabel="Back to stories"
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">

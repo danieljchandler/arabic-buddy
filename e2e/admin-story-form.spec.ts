@@ -214,6 +214,20 @@ test.describe("a new story", () => {
 });
 
 test.describe("editing an existing story", () => {
+  test("says so when the id names no story, and never touches the scenes", async ({ page, db }) => {
+    // The save replaces every scene under the id. On a missing story that used
+    // to insert orphan scenes; now there is no form to save.
+    seedStory(db);
+
+    await page.goto(`/admin/stories/${interactiveStoryId(9)}/edit`);
+
+    await expect(page.getByRole("heading", { name: "Story not found" })).toBeVisible();
+    await expect(saveButton(page)).toHaveCount(0);
+    expect(db.writesTo("story_scenes")).toHaveLength(0);
+    await page.getByRole("link", { name: "Back to stories" }).click();
+    await expect(page).toHaveURL(/\/admin\/stories$/);
+  });
+
   test("loads the story's details into the form", async ({ page, db }) => {
     seedStory(db);
 

@@ -48,7 +48,7 @@ const usePublishedStories = (filters: { difficulty?: string; dialect?: string })
   });
 
 const ReadingLibrary = () => {
-  useDocumentTitle('Reading Library — Hikaya');
+  useDocumentTitle('Reading Library');
   const navigate = useNavigate();
   const [difficulty, setDifficulty] = useState('all');
   const [dialect, setDialect] = useState('all');

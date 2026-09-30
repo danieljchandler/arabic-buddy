@@ -42,6 +42,12 @@ describe("setting a title", () => {
     expect(document.title).toBe(BASE);
   });
 
+  it("does not double the brand when the caller already added it", () => {
+    renderHook(() => useDocumentTitle("Listen — Hikaya"));
+
+    expect(document.title).toBe("Listen — Hikaya");
+  });
+
   it("keeps a title that is only meaningful in Arabic", () => {
     renderHook(() => useDocumentTitle("مفرداتي"));
 

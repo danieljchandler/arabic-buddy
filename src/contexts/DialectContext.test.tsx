@@ -145,6 +145,29 @@ describe("switching", () => {
     expect(rendered.backend.db.writesTo("profiles")).toHaveLength(0);
   });
 
+  it("switches without a second write when the caller has saved it already", async () => {
+    // Settings writes preferred_dialect with the rest of its form; a second
+    // update from here would race the first for no gain.
+    const rendered = renderHookWithProviders(() => useDialect(), {
+      persona: "free",
+      seed: (backend) => backend.db.seed("profiles", [aProfile({ preferred_dialect: "Gulf" })]),
+    });
+    cleanup = rendered.cleanup;
+    // Let the mount-time profile sync land first, or it adopts "Gulf" over
+    // the switch below.
+    await waitFor(() =>
+      expect(rendered.backend.db.reads.some((read) => read.table === "profiles")).toBe(true),
+    );
+    await act(() => new Promise((resolve) => setTimeout(resolve, 20)));
+
+    act(() => rendered.result.current.setDialect("Yemeni", { persist: false }));
+
+    await waitFor(() => expect(rendered.result.current.activeDialect).toBe("Yemeni"));
+    expect(localStorage.getItem(STORAGE_KEY)).toBe("Yemeni");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(rendered.backend.db.writesTo("profiles")).toHaveLength(0);
+  });
+
   it("still switches locally when the profile write fails", async () => {
     // Losing the cross-device preference is a nuisance; refusing to switch the
     // dialect the learner just asked for is worse.

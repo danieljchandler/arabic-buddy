@@ -5,9 +5,18 @@ import { toast } from 'sonner';
 
 export type DialectModule = 'Gulf' | 'Egyptian' | 'Yemeni';
 
+interface SetDialectOptions {
+  /**
+   * False when the caller has just written `profiles.preferred_dialect` itself
+   * — Settings saves it with the rest of its form — so the switch does not
+   * send a second, redundant write racing the first.
+   */
+  persist?: boolean;
+}
+
 interface DialectContextType {
   activeDialect: DialectModule;
-  setDialect: (dialect: DialectModule) => void;
+  setDialect: (dialect: DialectModule, options?: SetDialectOptions) => void;
 }
 
 const DialectContext = createContext<DialectContextType>({
@@ -96,7 +105,7 @@ export const DialectProvider = ({ children }: { children: ReactNode }) => {
     applyDialectTheme(activeDialect);
   }, [activeDialect]);
 
-  const setDialect = (dialect: DialectModule) => {
+  const setDialect = (dialect: DialectModule, { persist = true }: SetDialectOptions = {}) => {
     setActiveDialect(dialect);
     try { localStorage.setItem(STORAGE_KEY, dialect); } catch {}
 
@@ -107,6 +116,8 @@ export const DialectProvider = ({ children }: { children: ReactNode }) => {
         return typeof key === 'string' && DIALECT_DEPENDENT_KEYS.includes(key);
       },
     });
+
+    if (!persist) return;
 
     // Persist to profile if authenticated — with error handling
     supabase.auth.getUser().then(({ data: { user } }) => {

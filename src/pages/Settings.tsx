@@ -37,6 +37,8 @@ import { useFsrsWeights } from '@/hooks/useFsrsWeights';
 import { useFsrsFit } from '@/hooks/useFsrsFit';
 import { MIN_REVIEWS_TO_FIT } from '@/lib/fsrsFit';
 import { LEARNING_REASONS, reasonLabel, reasonIdFromLabel } from '@/data/learningReasons';
+import { DIALECTS as DIALECT_IDS, DIALECT_FLAGS, DIALECT_LABELS, type Dialect } from '@/config';
+import { useDialect } from '@/contexts/DialectContext';
 
 /**
  * The four groups the page's fifteen settings fall into, in the order they are
@@ -90,16 +92,29 @@ const GROUP = Object.fromEntries(GROUPS.map((g) => [g.id, g])) as Record<
   SettingsGroupMeta
 >;
 
-const DIALECTS = [
-  { id: 'Gulf', label: 'Gulf Arabic', labelAr: 'خليجي', flag: '🌊' },
-  { id: 'Egyptian', label: 'Egyptian Arabic', labelAr: 'مصري', flag: '🇪🇬' },
-  { id: 'Saudi', label: 'Saudi', labelAr: 'سعودي', flag: '🇸🇦' },
-  { id: 'Kuwaiti', label: 'Kuwaiti', labelAr: 'كويتي', flag: '🇰🇼' },
-  { id: 'Emirati', label: 'Emirati', labelAr: 'إماراتي', flag: '🇦🇪' },
-  { id: 'Qatari', label: 'Qatari', labelAr: 'قطري', flag: '🇶🇦' },
-  { id: 'Bahraini', label: 'Bahraini', labelAr: 'بحريني', flag: '🇧🇭' },
-  { id: 'Omani', label: 'Omani', labelAr: 'عماني', flag: '🇴🇲' },
-];
+/**
+ * The three dialect modules — the only values DialectContext recognises.
+ * This list used to be its own eight entries: six Gulf countries as if each
+ * were a module, and no Yemeni. Picking "Saudi" saved a value the context
+ * ignores, so the app stayed on whatever it was on with nothing to say so.
+ * Onboarding had the same mistake and was fixed first (see its DIALECTS).
+ */
+const DIALECT_NAMES_AR: Record<Dialect, string> = {
+  Gulf: 'خليجي',
+  Egyptian: 'مصري',
+  Yemeni: 'يمني',
+};
+const DIALECTS = DIALECT_IDS.map((id) => ({
+  id,
+  label: DIALECT_LABELS[id],
+  labelAr: DIALECT_NAMES_AR[id],
+  // Gulf is the wave, as on onboarding's picker: the module is shared across
+  // the GCC, and config's Saudi flag would say otherwise.
+  flag: id === 'Gulf' ? '🌊' : DIALECT_FLAGS[id],
+}));
+
+const isDialect = (value: unknown): value is Dialect =>
+  typeof value === 'string' && (DIALECT_IDS as readonly string[]).includes(value);
 
 const LEVELS = [
   { id: 'beginner', label: 'Complete Beginner', cefr: 'Pre-A1', icon: '🌱' },
@@ -186,7 +201,11 @@ const Settings = () => {
 
   const [displayName, setDisplayName] = useState('');
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [dialect, setDialect] = useState('Gulf');
+  const { activeDialect, setDialect: setAppDialect } = useDialect();
+  const [dialect, setDialect] = useState<Dialect>(activeDialect);
+  // Read by the profile load without making it re-run on every switch.
+  const activeDialectRef = useRef(activeDialect);
+  activeDialectRef.current = activeDialect;
   const [level, setLevel] = useState('beginner');
   const [goal, setGoal] = useState('regular');
   const [showOnLeaderboard, setShowOnLeaderboard] = useState(true);
@@ -212,11 +231,16 @@ const Settings = () => {
    * absence, everything that needed no saving at all.
    */
   const [savedSnapshot, setSavedSnapshot] = useState<string | null>(null);
+  // A stored preferred_dialect that is not a module — a Gulf country the old
+  // picker saved. The page shows the dialect the app runs instead, but the
+  // server still reads the raw value (the feed pool, the nightly story), so it
+  // must read as unsaved until the learner saves the module over it.
+  const [legacyDialect, setLegacyDialect] = useState<string | null>(null);
 
   // Order matters for the comparison, so build it in one place.
-  const currentSnapshot = JSON.stringify([
+  const snapshotWith = (dialectValue: string) => JSON.stringify([
     displayName.trim(),
-    dialect,
+    dialectValue,
     level,
     goal,
     showOnLeaderboard,
@@ -225,6 +249,7 @@ const Settings = () => {
     reason,
     [...interests].sort(),
   ]);
+  const currentSnapshot = snapshotWith(dialect);
   // Never "dirty" before the profile has loaded: the defaults above would
   // otherwise read as edits and offer to save them over the real values.
   const isDirty = savedSnapshot !== null && savedSnapshot !== currentSnapshot;
@@ -234,10 +259,13 @@ const Settings = () => {
   // Taken in an effect rather than at the end of load(), whose closure still
   // holds the pre-load values, and only once: `?? current` never overwrites a
   // real baseline with a later edit.
+  // The one exception is a legacy dialect, whose baseline is what is actually
+  // stored, so the save bar offers to replace it.
   useEffect(() => {
     if (loading) return;
-    setSavedSnapshot((prev) => prev ?? currentSnapshot);
-  }, [loading, currentSnapshot]);
+    setSavedSnapshot((prev) => prev ?? snapshotWith(legacyDialect ?? dialect));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- snapshotWith reads the same state currentSnapshot encodes
+  }, [loading, currentSnapshot, legacyDialect]);
 
   const push = usePushNotifications();
 
@@ -267,7 +295,13 @@ const Settings = () => {
         const p = data as any;
         setDisplayName(p.display_name || '');
         setAvatarUrl(p.avatar_url || null);
-        setDialect(p.preferred_dialect || 'Gulf');
+        // A stored value that is not a module (a Gulf country saved by the old
+        // picker, or null) is one the app never switched to: show the dialect
+        // it is actually running instead.
+        setDialect(isDialect(p.preferred_dialect) ? p.preferred_dialect : activeDialectRef.current);
+        setLegacyDialect(
+          p.preferred_dialect && !isDialect(p.preferred_dialect) ? String(p.preferred_dialect) : null,
+        );
         setLevel(p.proficiency_level || 'beginner');
         setGoal(p.weekly_goal || 'regular');
         setShowOnLeaderboard(p.show_on_leaderboard ?? true);
@@ -393,6 +427,11 @@ const Settings = () => {
         } as any, { onConflict: 'user_id,week_start_date' });
       }
 
+      // Switch the app now, as onboarding does, rather than on the next load.
+      // The profile write above already carries the dialect.
+      if (dialect !== activeDialect) setAppDialect(dialect, { persist: false });
+
+      setLegacyDialect(null);
       setSavedSnapshot(currentSnapshot);
       toast.success('Settings saved!');
     } catch (e) {
@@ -572,10 +611,17 @@ const Settings = () => {
             <SettingsGroup group={GROUP.learning}>
               {/* Dialect Section */}
               <SettingSection icon={Globe2} title="Preferred Dialect">
+                {legacyDialect && (
+                  <p className="mb-2 text-xs text-muted-foreground">
+                    Your profile still says “{legacyDialect}”, which is part of Gulf Arabic here. Save to update it.
+                  </p>
+                )}
                 <div className="grid grid-cols-2 gap-2 lg:grid-cols-3">
                   {DIALECTS.map((d) => (
                     <button
                       key={d.id}
+                      type="button"
+                      aria-pressed={dialect === d.id}
                       onClick={() => setDialect(d.id)}
                       className={cn(
                         'flex items-center gap-2 p-3 rounded-xl border-2 transition-all duration-200 text-left',

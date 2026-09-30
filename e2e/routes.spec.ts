@@ -53,7 +53,10 @@ async function waitForPage(page: Page): Promise<void> {
  * bug, and it is cheap to run on a sweep that is already loading every page.
  */
 async function expectAskAiReachable(page: Page, route: RouteSpec): Promise<void> {
-  const button = page.getByRole("button", { name: "Ask AI" });
+  // By its aria-label, not role + name: a page's own "Ask AI" chip (the
+  // AskAISentence on /write's prompt, once it loads) is also a button named
+  // "Ask AI", and matching both made this fail whenever the prompt won the race.
+  const button = page.getByLabel("Ask AI", { exact: true });
   await expect(button, `${route.path} has no Ask AI button`).toBeVisible();
 
   const covered = await button.evaluate((el) => {

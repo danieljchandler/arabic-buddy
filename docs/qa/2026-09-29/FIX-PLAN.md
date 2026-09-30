@@ -133,34 +133,68 @@ directly (the manifest already names it at `manifest.ts:106`; nothing exercises 
 
 ## 3. Solo AI calls survive a dead vendor; errors reach the learner (#3, #6, #7, #8, #9, #10, #18)
 
-Two halves. The server half removes the single point of failure; the client half
-makes the next outage say what happened instead of "Please try again".
+**What actually happened (2026-09-30, Daniel):** the Google API project had no
+credit; OpenRouter still had credit. Google answers an exhausted quota with a
+**429**, and 429 is the one status `aiGateway.ts:484-488` deliberately never
+retries on OpenRouter, so every Google-first call died at Google with OpenRouter
+untouched. `how-do-i-say` survived because its council has a Claude drafter that
+routes to OpenRouter in the first place. The 429 exclusion was written for the
+app's *own* usage cap ("slow down"), which is a different 429 from a vendor's
+billing refusal; the fix below keeps that distinction.
 
-**Server** — `supabase/functions/_shared/aiBrain.ts`, `aiGateway.ts`,
-`culture-guide/index.ts`, `writing-coach/index.ts`, `souq-news/index.ts`.
+**The model choice is fine; the plumbing is not.** Gemini Flash stays the primary
+for these calls: `modelRegistry.ts:41-60` argues it (cheapest full tier that still
+writes dialect, 92 on Artificial Analysis's Arabic index, deliberately not Flash
+Lite), and `scripts/eval-dialect-live.ts --compare` is there to test any swap
+against the golden set. What is wrong is that nothing here has a rung on a second
+vendor: `STABLE_FALLBACKS` (`aiBrain.ts:615`) is a "model won't emit a tool call"
+rescue that steps Flash → Flash → Pro, all Google; `draft_critic` drafts on that
+chain first (daily story, c-test) and dies with it; and `translate-text:80` and
+`phrase-of-the-day:162` pin `strategy: "solo"` over the picker's own `ensemble`
+(`aiBrain.ts:376-390`; `translate-text` also uses a purpose string the picker
+doesn't know). Three functions bypass the Brain entirely and call `chatFetch`
+on Gemini directly with no strategy, no dialect demonstrations and no MSA
+repair: `daily-challenge:113`, `dialect-compare:146`, `souq-news:183`. That is a
+CLAUDE.md rule ("every edge function that generates or judges Arabic content
+calls through this"), and it is the real cause of souq-news's 74% Yemeni error
+rate. `culture-guide:120` goes further and calls Google's SSE endpoint raw for
+its search tool.
 
-- `aiBrain.ts:615` `STABLE_FALLBACKS`: append a non-Google rung. The registry's
-  only OpenRouter-served model today is `MODEL_IDS.CLAUDE` (Sonnet 5,
-  `modelRegistry.ts:31`), which is dear for a fallback on cheap solo calls; add a
-  Haiku id to the registry (with its `reasoningFloor`, per CLAUDE.md) and use that.
-  `UTILITY` is Gemini-only (`:160`), so it cannot be the source. `:633`'s retry
-  regex only matches 5xx and parse failures; add `402|429|401|403` so a vendor
-  refusing the key falls through to the next rung rather than surfacing.
-- `aiGateway.ts:488`: do **not** add 402 to `FALLBACK_STATUSES`. That set means
-  "retry the same model through OpenRouter", and an OpenRouter 402 retried on
-  OpenRouter is a loop. The vendor swap belongs in `aiBrain`'s rung list, above.
+**Server** — `_shared/aiBrain.ts`, `_shared/aiGateway.ts`, and the functions named.
+
+- `aiBrain.ts:615` `STABLE_FALLBACKS`: append `MODEL_IDS.CLAUDE` (Sonnet 5 via
+  OpenRouter, already the TRANSLATION drafter and CONTENT critic) as the last
+  rung. `:633`'s `recoverable` regex only matches parse failures and 5xx; add
+  `401|402|403|429` so a vendor refusing the key or the bill falls through to
+  the next rung. That alone would have kept every failing feature up during the
+  sweep. Sonnet is dear for a fallback on cheap solo calls; if the bill matters,
+  add a Haiku id to the registry (with its `reasoningFloor`, per CLAUDE.md) and
+  use that instead. `UTILITY` is Gemini-only (`:160`) and cannot be the source.
+- `aiGateway.ts:488`: leave `FALLBACK_STATUSES` alone. That set means "retry the
+  same model through OpenRouter"; the vendor swap belongs in the Brain's rung
+  list, where a 429 from Google and a 429 from the usage cap are distinguishable
+  (the cap never reaches `callModel`).
+- `translate-text`: drop `strategy: "solo"` and use the TRANSLATION lineup
+  (Claude + Gemini ensemble, lowest-MSA-leak wins). Learner-facing translation is
+  the one place worth paying for the ensemble; cost roughly doubles per call.
+  Daniel's call; the Claude fallback rung above is the minimum.
+- `phrase-of-the-day`: drop the `solo` override and let the picker's `ensemble`
+  run. Once per dialect per day, so nearly free.
+- `daily-challenge`, `dialect-compare`, `souq-news`: move onto `askBrain`
+  (UTILITY lineup, solo) so they inherit demonstrations, repair and the
+  fallback. `dialect-compare` also has `source_dialect` hardcoded to "Gulf"
+  client-side (`DialectCompare.tsx:73`). `souq-news:260` should validate the
+  rewrite's JSON shape before making a card.
+- `culture-guide`: move onto `streamBrain()` like the assistant and see whether
+  answers get worse without Google search grounding (for "how do I greet elders
+  in Yemen" it is probably not doing much). If it must stay direct: emit an SSE
+  `error` frame when the upstream stream carried `json.error` / `promptFeedback`
+  or produced zero text (`:176-197`) instead of `[DONE]` on an empty answer, and
+  add the Claude fallback for a refused Google call.
 - `writing-coach/index.ts:273`: stop rewriting every throw as 502 `coach_failed`.
   Let `BrainHttpError` 402/429 through with their status and a `message` string.
-  Don't charge the daily cap (`:213`) for `action: "prompt"`: today every page load
-  spends one of the free tier's 10.
-- `culture-guide/index.ts:120`: it bypasses the gateway and calls Google's SSE
-  endpoint directly with `GEMINI_API_KEY` and no fallback. Minimum fix: emit an
-  SSE `error` frame when the upstream stream carried `json.error` / `promptFeedback`
-  or produced zero text (`:176-197`), instead of `[DONE]` on an empty answer. Better:
-  move it onto `streamBrain()` like the assistant, keeping the `googleSearch` tool
-  only where the gateway supports it. Which of the two is a judgement call on how
-  much the search tool is worth; the minimum fix is a day, the move is a PR of its own.
-- `souq-news/index.ts:260`: validate the rewrite's JSON shape before making a card.
+  Don't charge the daily cap (`:213`) for `action: "prompt"`: today every page
+  load spends one of the free tier's 10.
 
 **Client** — `src/lib/invokeError.ts` and the six pages that don't use it.
 
@@ -168,25 +202,24 @@ makes the next outage say what happened instead of "Please try again".
   every 5xx body. Show a `message` field whenever the body is JSON with one; keep
   the whitespace heuristic only for bare strings.
 - Route the six pages through `toInvokeFailureError`: `WritingPractice.tsx:77,121`,
-  `DailyChallenge.tsx:226` (currently discards the body), `DialectCompare.tsx:72`
-  (also hardcodes `source_dialect: "Gulf"` at `:73`; use `activeDialect`),
+  `DailyChallenge.tsx:226` (currently discards the body), `DialectCompare.tsx:72`,
   `CTest.tsx:62` (shows supabase-js's raw "Edge Function returned a non-2xx status
   code"), `SouqNews.tsx:57` (its `data?.error` credits branch at `:64` can never
   run: a 402 arrives as `error` with `data = null`), `PhraseOfTheDay.tsx:90`.
 - `CultureGuide.tsx:188`: when the stream ends with `assistantSoFar` empty, toast
-  "No answer came back" and remove the user bubble or mark it failed. Add a fetch
-  timeout.
+  "No answer came back" and mark the user bubble failed. Add a fetch timeout.
 - `/souq-news` blank page: the code cannot render nothing (`SouqNews.tsx:188-210`
-  covers loading, error, empty, cards). Treat it as unexplained until the foreground
-  retest in section 0 captures the POST status; if it recurs, it is a `useQuery`
-  state the page does not handle (`articles === undefined` with neither flag).
+  covers loading, error, empty, cards). Treat it as unexplained until a foreground
+  retest captures the POST status; if it recurs, it is a `useQuery` state the page
+  does not handle (`articles === undefined` with neither flag).
 
 Tests: `_test/` cases for `translate-text` and `writing-coach` with `NO_AI_PROVIDER`
-and with a 402 stub on the Google route asserting the OpenRouter rung is tried and
-the response carries a `message`; a `culture-guide` test asserting an empty upstream
-stream yields an error frame. Client: extend `src/lib/invokeError.test.ts` for the
-JSON `message` case. Drift guards: `edgeFunctionCoverage` already names all of these;
-no new function or module, unless `crashFilter` (package 1) or a new client helper.
+and with a 429 stub on the Google route asserting the Claude rung is tried and the
+response carries a `message`; a `culture-guide` test asserting an empty upstream
+stream yields an error frame; `edgeFunctionCoverage` already names all of these.
+Client: extend `src/lib/invokeError.test.ts` for the JSON `message` case. Before
+merging the translate-text ensemble, run `scripts/eval-dialect-live.ts` on the
+golden set with and without it.
 
 ## 4. Domain (#1)
 

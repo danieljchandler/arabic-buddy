@@ -144,7 +144,7 @@ const Settings = () => {
   const { scope: curriculumScope, setScope: setCurriculumScope } = useCurriculumDeckScope();
   const { enabled: rootFamiliesEnabled, setEnabled: setRootFamiliesEnabled } = useRootFamilyPrefs();
   const { enabled: hintsEnabled, setEnabled: setHintsEnabled } = useFeatureHints();
-  const { subscribed, tier, openCustomerPortal } = useSubscription();
+  const { subscribed, tier, complimentary, openCustomerPortal } = useSubscription();
   const [clearingLeeches, setClearingLeeches] = useState(false);
   const [openingPortal, setOpeningPortal] = useState(false);
 
@@ -533,14 +533,20 @@ const Settings = () => {
               <SettingSection icon={Heart} title="Subscription">
                 <div className="p-3 rounded-xl bg-card border border-border space-y-2">
                   <p className="text-sm font-medium text-foreground">
-                    {subscribed ? `Active plan: ${tier === 'allin' ? 'All-In' : 'Standard'}` : 'Free plan'}
+                    {complimentary
+                      ? 'Full access (staff)'
+                      : subscribed
+                        ? `Active plan: ${tier === 'allin' ? 'All-In' : 'Standard'}`
+                        : 'Free plan'}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    {subscribed
-                      ? 'Manage billing, update payment method, or cancel anytime.'
-                      : 'Upgrade to remove daily limits and unlock everything.'}
+                    {complimentary
+                      ? 'Everything is unlocked for this account. There is no billing to manage.'
+                      : subscribed
+                        ? 'Manage billing, update payment method, or cancel anytime.'
+                        : 'Upgrade to remove daily limits and unlock everything.'}
                   </p>
-                  {subscribed ? (
+                  {complimentary ? null : subscribed ? (
                     <Button
                       variant="outline"
                       size="sm"

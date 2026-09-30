@@ -95,6 +95,46 @@ test.describe("what each visitor is shown", () => {
     await expect(page.getByRole("button", { name: "Manage Subscription" })).toHaveCount(1);
   });
 
+  test("tells a staff account it has full access, with no portal to fail", async ({ page, signInAs }) => {
+    // An admin is All-In by role, not through Stripe, so there is no customer
+    // and the billing portal would error. It used to be offered anyway.
+    await signInAs("admin");
+
+    await page.goto("/pricing");
+
+    await expect(page.getByText("You have full access (staff)")).toBeVisible();
+    await expect(page.getByText("You're on the All-In plan")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Manage", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Manage Subscription" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Included with your account" })).toBeDisabled();
+  });
+
+  test("takes the complimentary flag from the subscription check", async ({ page, signInAs, backend }) => {
+    // check-subscription answers complimentary: true for a full-access role
+    // before it ever reaches Stripe; that answer alone is enough.
+    await signInAs("free");
+    backend.stubFunction("check-subscription", {
+      subscribed: true,
+      tier: "allin",
+      complimentary: true,
+      subscription_end: null,
+    });
+
+    await page.goto("/pricing");
+
+    await expect(page.getByText("You have full access (staff)")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Manage", exact: true })).toHaveCount(0);
+  });
+
+  test("says the same on Settings, without a Manage subscription button", async ({ page, signInAs }) => {
+    await signInAs("admin");
+
+    await page.goto("/settings");
+
+    await expect(page.getByText("Full access (staff)")).toBeVisible();
+    await expect(page.getByRole("button", { name: /manage subscription/i })).toHaveCount(0);
+  });
+
   test("offers an All-In subscriber a Standard checkout", async ({ page, signInAs, backend }) => {
     await signInAs("allin");
 

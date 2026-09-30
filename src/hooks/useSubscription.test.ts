@@ -74,6 +74,20 @@ describe("resolving the plan", () => {
 
     await settled(rendered);
     expect(rendered.result.current.tier).toBe("allin");
+    // Paid through Stripe, so the billing portal is theirs to use.
+    expect(rendered.result.current.complimentary).toBe(false);
+  });
+
+  it("marks full access from a role as complimentary", async () => {
+    // check-subscription answers this for admin and complimentary roles before
+    // Stripe is asked. No customer stands behind it, so Pricing and Settings
+    // must not offer a portal that can only fail.
+    const rendered = renderHookWithProviders(() => useSubscription(), { persona: "admin" });
+    cleanup = rendered.cleanup;
+
+    await settled(rendered);
+    expect(rendered.result.current.tier).toBe("allin");
+    expect(rendered.result.current.complimentary).toBe(true);
   });
 
   it("does not ask at all when signed out", async () => {
@@ -111,6 +125,8 @@ describe("resolving the plan", () => {
     await settled(rendered);
     expect(rendered.result.current.subscribed).toBe(true);
     expect(rendered.result.current.tier).toBe("allin");
+    // Granted by the role lookup, not by Stripe.
+    expect(rendered.result.current.complimentary).toBe(true);
   });
 
   it("treats a failed check as unsubscribed rather than hanging", async () => {

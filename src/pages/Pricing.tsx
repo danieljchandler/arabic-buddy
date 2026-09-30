@@ -21,7 +21,7 @@ const Pricing = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
-  const { subscribed, tier, loading: subLoading, createCheckout, openCustomerPortal } = useSubscription();
+  const { subscribed, tier, complimentary, loading: subLoading, createCheckout, openCustomerPortal } = useSubscription();
   // Annual is the default when available: it is the plan most learners should
   // take (two months free) and the one the business should lead with.
   const [cadence, setCadence] = useState<BillingCadence>(
@@ -94,14 +94,27 @@ const Pricing = () => {
               <div className="mb-8 p-4 bg-primary/10 border border-primary/20 rounded-lg flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Crown className="h-5 w-5 text-primary" />
+                  {/* Staff and complimentary accounts get All-In from a role,
+                      with no Stripe customer behind it: there is no plan to
+                      manage, and the portal would only fail. */}
                   <span className="font-medium">
-                    You're on the <span className="text-primary">{SUBSCRIPTION_TIERS[tier].name}</span> plan
+                    {complimentary ? (
+                      <>
+                        You have <span className="text-primary">full access</span> (staff)
+                      </>
+                    ) : (
+                      <>
+                        You're on the <span className="text-primary">{SUBSCRIPTION_TIERS[tier].name}</span> plan
+                      </>
+                    )}
                   </span>
                 </div>
-                <Button variant="outline" size="sm" onClick={handleManageSubscription}>
-                  <Settings className="h-4 w-4 mr-2" />
-                  Manage
-                </Button>
+                {!complimentary && (
+                  <Button variant="outline" size="sm" onClick={handleManageSubscription}>
+                    <Settings className="h-4 w-4 mr-2" />
+                    Manage
+                  </Button>
+                )}
               </div>
             )}
 
@@ -280,7 +293,11 @@ const Pricing = () => {
                   </ul>
                 </CardContent>
                 <CardFooter>
-                  {tier === 'allin' ? (
+                  {tier === 'allin' && complimentary ? (
+                    <Button variant="outline" className="w-full" disabled>
+                      Included with your account
+                    </Button>
+                  ) : tier === 'allin' ? (
                     <Button variant="outline" className="w-full" onClick={handleManageSubscription}>
                       Manage Subscription
                     </Button>

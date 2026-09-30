@@ -8,6 +8,8 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft } from 'lucide-react';
+import { QueryErrorState } from '@/components/shared/QueryErrorState';
+import { RecordNotFound } from '@/components/shared/RecordNotFound';
 
 const GRADIENT_OPTIONS = [
   { value: 'bg-gradient-green', label: 'Desert Green' },
@@ -33,7 +35,12 @@ const TopicForm = () => {
   const [gradient, setGradient] = useState('bg-gradient-green');
 
   // Fetch existing topic if editing
-  const { data: existingTopic, isLoading: loadingTopic } = useQuery({
+  const {
+    data: existingTopic,
+    isLoading: loadingTopic,
+    error: topicError,
+    refetch: refetchTopic,
+  } = useQuery({
     queryKey: ['topic', topicId],
     queryFn: async () => {
       if (!topicId) return null;
@@ -41,7 +48,7 @@ const TopicForm = () => {
         .from('topics')
         .select('*')
         .eq('id', topicId)
-        .single();
+        .maybeSingle();
 
       if (error) throw error;
       return data;
@@ -128,6 +135,27 @@ const TopicForm = () => {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
       </div>
+    );
+  }
+
+  // An edit form for a row that is not there would "save" into nothing and
+  // report success; say so instead.
+  if (isEditing && !existingTopic) {
+    if (topicError) {
+      return (
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <QueryErrorState error={topicError} title="Couldn't load this topic" onRetry={() => refetchTopic()} />
+        </div>
+      );
+    }
+    return (
+      <RecordNotFound
+        layout="screen"
+        title="Topic not found"
+        body="No topic has this id. It may have been deleted."
+        backTo="/admin/topics"
+        backLabel="Back to topics"
+      />
     );
   }
 

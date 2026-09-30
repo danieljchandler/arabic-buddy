@@ -271,6 +271,7 @@ export function useCurriculumChat() {
   return {
     sessions: sessionsQuery.data ?? [],
     sessionsLoading: sessionsQuery.isLoading,
+    sessionsError: sessionsQuery.error,
     messages: messagesQuery.data ?? [],
     messagesLoading: messagesQuery.isLoading,
     activeSessionId,

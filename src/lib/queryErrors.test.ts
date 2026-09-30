@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyQueryError, describeQueryError, httpStatusOf, shouldRetryQuery } from "./queryErrors";
+import { classifyQueryError, describeQueryError, httpStatusOf, isMissingRowError, shouldRetryQuery } from "./queryErrors";
 
 /**
  * The retry policy is the part that changes traffic: a 401 must never be
@@ -46,6 +46,19 @@ describe("classifyQueryError", () => {
   it("does not mistake an HTML-for-JSON parse error for an auth problem", () => {
     // The ErrorBoundary learned this the hard way; keep the same rule here.
     expect(classifyQueryError(new SyntaxError("Unexpected token < in JSON at position 0"))).toBe("server");
+  });
+});
+
+describe("isMissingRowError", () => {
+  it("recognises .single() finding no row", () => {
+    expect(isMissingRowError({ code: "PGRST116", message: "JSON object requested, multiple (or no) rows returned" })).toBe(true);
+  });
+
+  it("is false for every other failure, so those still read as failures", () => {
+    expect(isMissingRowError({ code: "42501", message: "permission denied" })).toBe(false);
+    expect(isMissingRowError(new TypeError("Failed to fetch"))).toBe(false);
+    expect(isMissingRowError(new FunctionsHttpErrorLike(404))).toBe(false);
+    expect(isMissingRowError(undefined)).toBe(false);
   });
 });
 

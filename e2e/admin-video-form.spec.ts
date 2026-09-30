@@ -321,6 +321,26 @@ test.describe("the thumbnail", () => {
 });
 
 test.describe("editing an existing video", () => {
+  test("says so when the id names no video, instead of an empty form", async ({ page, db }) => {
+    seedVideo(db);
+
+    await page.goto(`/admin/videos/${makeVideoId(9)}/edit`);
+
+    await expect(page.getByRole("heading", { name: "Video not found" })).toBeVisible();
+    await expect(saveButton(page)).toHaveCount(0);
+    await page.getByRole("link", { name: "Back to videos" }).click();
+    await expect(page).toHaveURL(/\/admin\/videos$/);
+  });
+
+  test("says a failed load failed, rather than that the video is missing", async ({ page, db }) => {
+    db.failAlways("discover_videos", 500, { message: "boom" });
+
+    await page.goto(`/admin/videos/${VIDEO}/edit`);
+
+    await expect(page.getByRole("heading", { name: "Couldn't load this video" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Video not found" })).toHaveCount(0);
+  });
+
   test("loads the video into the form", async ({ page, db }) => {
     seedVideo(db);
 

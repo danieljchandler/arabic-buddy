@@ -4,15 +4,17 @@ import type { PageContextLine } from '@/lib/pageAiContext';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import {
+  useInteractiveStory,
   useStoryScenes,
   useStoryProgress,
   useUpsertStoryProgress,
   type StoryScene,
 } from '@/hooks/useInteractiveStories';
 import { useAddUserVocabulary } from '@/hooks/useUserVocabulary';
-import { supabase } from '@/integrations/supabase/client';
 import { AppShell } from '@/components/layout/AppShell';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { QueryErrorState } from '@/components/shared/QueryErrorState';
+import { RecordNotFound } from '@/components/shared/RecordNotFound';
 import { LoadingPanel } from '@/components/loading/LoadingPanel';
 import { PageCorner } from '@/components/shell/PageCorner';
 import { Button } from '@/components/ui/button';
@@ -65,6 +67,7 @@ const StoryPlayer = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { activeDialect } = useDialect();
+  const { data: story, isLoading: storyLoading, error: storyError, refetch: refetchStory } = useInteractiveStory(storyId);
   const { data: scenes, isLoading: scenesLoading } = useStoryScenes(storyId);
   const { data: progress } = useStoryProgress(storyId);
   const upsertProgress = useUpsertStoryProgress();
@@ -74,21 +77,9 @@ const StoryPlayer = () => {
   const [pathTaken, setPathTaken] = useState<number[]>([0]);
   const [showTranslation, setShowTranslation] = useState(false);
   const [lineByLine, setLineByLine] = useState(false);
-  const [storyTitle, setStoryTitle] = useState('');
   const [savedWords, setSavedWords] = useState<Set<string>>(new Set());
 
-  // Load story title
-  useEffect(() => {
-    if (!storyId) return;
-    supabase
-      .from('interactive_stories')
-      .select('title, title_arabic')
-      .eq('id', storyId)
-      .single()
-      .then(({ data }) => {
-        if (data) setStoryTitle(data.title);
-      });
-  }, [storyId]);
+  const storyTitle = story?.title ?? '';
 
   // Restore progress
   useEffect(() => {
@@ -189,10 +180,30 @@ const StoryPlayer = () => {
     }
   };
 
-  if (scenesLoading) {
+  if (scenesLoading || storyLoading) {
     return (
       <AppShell>
         <LoadingPanel variant="page" task="story" />
+      </AppShell>
+    );
+  }
+
+  // Before the "no scenes" state: a story that does not exist has no scenes
+  // either, and "Nothing here yet" told the reader to wait for one.
+  if (!story) {
+    return (
+      <AppShell>
+        <div className="mb-6"><PageCorner /></div>
+        {storyError ? (
+          <QueryErrorState error={storyError} title="This story didn't load" onRetry={() => refetchStory()} />
+        ) : (
+          <RecordNotFound
+            title="Story not found"
+            body="It may have been removed, or the link is wrong."
+            backTo="/stories"
+            backLabel="Back to Stories"
+          />
+        )}
       </AppShell>
     );
   }

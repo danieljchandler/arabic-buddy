@@ -72,6 +72,27 @@ export function useAllStories() {
   });
 }
 
+/**
+ * One story's own row. Null rather than an error when the id names nothing —
+ * or, for a learner, a story RLS still holds back as a draft — so the page can
+ * say "not found" and keep QueryErrorState for a read that actually failed.
+ */
+export function useInteractiveStory(storyId: string | undefined) {
+  return useQuery({
+    queryKey: ['interactive-story', storyId],
+    enabled: !!storyId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('interactive_stories')
+        .select('*')
+        .eq('id', storyId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data as InteractiveStory | null;
+    },
+  });
+}
+
 export function useStoryScenes(storyId: string | undefined) {
   return useQuery({
     queryKey: ['story-scenes', storyId],

@@ -10,6 +10,7 @@ import {
 } from "@/test/support/factories";
 import {
   useAllStories,
+  useInteractiveStory,
   usePublishedStories,
   useStoryProgress,
   useStoryScenes,
@@ -115,6 +116,42 @@ describe("the story shelf", () => {
     );
 
     await waitFor(() => expect(result.current.isError).toBe(true));
+  });
+});
+
+describe("one story by id", () => {
+  it("returns its row", async () => {
+    const { result } = render(() => useInteractiveStory(STORY), (backend) =>
+      backend.db.seed("interactive_stories", [anInteractiveStory({ id: STORY, title: "At the souq" })]),
+    );
+
+    await waitFor(() => expect(result.current.data?.title).toBe("At the souq"));
+  });
+
+  it("answers null, not an error, for an id that names nothing", async () => {
+    const { result } = render(() => useInteractiveStory(interactiveStoryId(9)), (backend) =>
+      backend.db.seed("interactive_stories", [anInteractiveStory({ id: STORY })]),
+    );
+
+    // The player and the admin form both turn null into "Story not found";
+    // an error would put a missing story behind a retry button instead.
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(result.current.data).toBeNull();
+  });
+
+  it("surfaces a failed read as an error", async () => {
+    const { result } = render(() => useInteractiveStory(STORY), (backend) =>
+      backend.db.failAlways("interactive_stories", 500, { message: "boom" }),
+    );
+
+    await waitFor(() => expect(result.current.isError).toBe(true));
+  });
+
+  it("does not query without an id", async () => {
+    const { result, backend } = render(() => useInteractiveStory(undefined));
+
+    await waitFor(() => expect(result.current.fetchStatus).toBe("idle"));
+    expect(backend.db.reads.filter((read) => read.table === "interactive_stories")).toEqual([]);
   });
 });
 

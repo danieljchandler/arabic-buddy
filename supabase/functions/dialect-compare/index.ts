@@ -1,14 +1,19 @@
 // dialect-compare — reference tool showing how a word/phrase differs across the
-// major Arabic dialect families. Unlike the single-dialect learning functions
-// this DELIBERATELY produces MSA and several dialects side by side, so it does
-// NOT run through the single-dialect Brain / MSA-leak guard. Accuracy comes from
-// a low temperature and a structured tool-call (no brittle markdown-fence
-// parsing), with strict validation of the returned shape.
+// major Arabic dialect families. It DELIBERATELY produces MSA and several
+// dialects side by side, which shapes how it uses the Brain: the learner's own
+// dialect is the task dialect (so its identity block, Rulebook and worked
+// examples anchor the row the learner will actually use, and the fallback
+// chain keeps the feature up when one vendor refuses), the leak scan reads
+// only that row, and the repair pass is off — it rewrites the whole output
+// "in dialect ONLY", which would erase the MSA and Levantine rows the page
+// exists to show. Accuracy comes from a low temperature and a structured
+// tool call, with strict validation of the returned shape.
 
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
-import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
+import { askBrain, BrainHttpError } from "../_shared/aiBrain.ts";
+import { hasAnyProvider } from "../_shared/aiGateway.ts";
+import type { Dialect } from "../_shared/dialectHelpers.ts";
 
 interface DialectVariant {
   dialect: string;
@@ -70,6 +75,17 @@ const TOOL_PARAMETERS = {
   required: ["word_arabic", "word_english", "dialects"],
 } as const;
 
+/** The row in the comparison that is in the learner's own dialect. */
+function ownRowText(parsed: unknown, dialect: Dialect): string {
+  const dialects = (parsed as { dialects?: unknown } | null)?.dialects;
+  if (!Array.isArray(dialects)) return "";
+  const label = `${dialect} Arabic`;
+  const row = dialects.find(
+    (d) => d && typeof d === "object" && (d as { dialect?: unknown }).dialect === label,
+  ) as Record<string, unknown> | undefined;
+  return typeof row?.word === "string" ? row.word : "";
+}
+
 function validateComparison(value: unknown): DialectComparison | null {
   if (!value || typeof value !== "object") return null;
   const v = value as Record<string, unknown>;
@@ -114,6 +130,7 @@ Deno.serve(async (req) => {
 
   try {
     const { word, source_dialect = "Gulf" } = await req.json();
+    const dialect: Dialect = source_dialect === "Egyptian" || source_dialect === "Yemeni" ? source_dialect : "Gulf";
 
     if (!word || typeof word !== "string") {
       return new Response(
@@ -143,59 +160,44 @@ Be precise and authentic. Return the result ONLY by calling the emit_comparison 
 
     const userPrompt = `Compare how "${word}" is expressed across Gulf, Egyptian, Levantine, Yemeni Arabic, and MSA. The learner's own dialect is ${source_dialect}, so make the ${source_dialect} row especially accurate.`;
 
-    const response = await chatFetch(MODEL_IDS.GEMINI_FLASH, {
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
-      ],
-      temperature: 0.2,
-      max_tokens: 2000,
-      tools: [
-        {
-          type: "function",
-          function: {
-            name: "emit_comparison",
-            description: "Return the cross-dialect comparison.",
-            parameters: TOOL_PARAMETERS,
-          },
+    let parsed: unknown = null;
+    try {
+      const brain = await askBrain<unknown>({
+        purpose: "dialect-compare",
+        dialect,
+        strategy: "solo",
+        systemPromptExtra: systemPrompt,
+        userPrompt,
+        temperature: 0.2,
+        maxTokens: 2000,
+        // Not a request for dialect-only output: see the header comment.
+        skipRepair: true,
+        arabicTextPath: (p) => ownRowText(p, dialect),
+        tool: {
+          name: "emit_comparison",
+          description: "Return the cross-dialect comparison.",
+          parameters: TOOL_PARAMETERS,
         },
-      ],
-      tool_choice: { type: "function", function: { name: "emit_comparison" } },
-    }, { label: "dialect-compare" });
-
-    if (!response.ok) {
-      const errText = await response.text();
-      console.warn("dialect-compare gateway error:", response.status, errText.slice(0, 200));
-      if (response.status === 429) {
+      });
+      parsed = brain.output;
+    } catch (err) {
+      // Every rung of the Brain's chain refused (or answered unusably). The
+      // statuses and strings are the ones the page has always been shown.
+      const status = err instanceof BrainHttpError ? err.status : 0;
+      console.warn("dialect-compare brain error:", status, (err instanceof Error ? err.message : String(err)).slice(0, 200));
+      if (status === 429) {
         return new Response(
           JSON.stringify({ error: "Rate limited — please try again in a moment." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 402) {
+      if (status === 402) {
         return new Response(
           JSON.stringify({ error: "AI credits exhausted — please add credits." }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
       throw new Error("AI model failed for dialect comparison");
-    }
-
-    const data = await response.json();
-    const message = data.choices?.[0]?.message;
-    const toolArgs = message?.tool_calls?.[0]?.function?.arguments;
-
-    // Prefer the structured tool call; fall back to salvaging JSON from content.
-    let parsed: unknown = null;
-    if (typeof toolArgs === "string" && toolArgs.trim()) {
-      try { parsed = JSON.parse(toolArgs); } catch { /* fall through */ }
-    }
-    if (parsed === null) {
-      const content = typeof message?.content === "string" ? message.content : "";
-      const jsonMatch = content.match(/\{[\s\S]*\}/);
-      if (jsonMatch) {
-        try { parsed = JSON.parse(jsonMatch[0]); } catch { /* fall through */ }
-      }
     }
 
     const comparison = validateComparison(parsed);

@@ -1,11 +1,121 @@
-import { getDialectIdentity, getDialectVocabRules, getTashkeelMandate, getDialectTransliterationRules, type Dialect } from "../_shared/dialectHelpers.ts";
+import { getTashkeelMandate, getDialectTransliterationRules, type Dialect } from "../_shared/dialectHelpers.ts";
 import { emitMetric } from "../_shared/featureMetrics.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
-import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
+import { askBrain, BrainHttpError } from "../_shared/aiBrain.ts";
+import { hasAnyProvider } from "../_shared/aiGateway.ts";
 
 const FEATURE = "souq-news";
+
+interface Sentence {
+  arabic: string;
+  transliteration: string;
+  english: string;
+  literal: string;
+}
+
+interface VocabItem {
+  word_arabic: string;
+  word_english: string;
+}
+
+/** What the card renders. Anything the model adds beyond this is dropped. */
+interface Retelling {
+  title_dialect: string;
+  body_dialect: string;
+  sentences: Sentence[];
+  title_english: string;
+  summary_english: string;
+  vocabulary: VocabItem[];
+}
+
+const RETELLING_TOOL = {
+  name: "emit_retelling",
+  description: "Return one news story retold as souq gossip in dialect.",
+  parameters: {
+    type: "object",
+    properties: {
+      title_dialect: { type: "string", description: "Catchy dialect headline, Arabic script, fully vocalized" },
+      body_dialect: { type: "string", description: "The story retold in dialect, 3-5 sentences, fully vocalized, as one string" },
+      sentences: {
+        type: "array",
+        minItems: 1,
+        items: {
+          type: "object",
+          properties: {
+            arabic: { type: "string", description: "One sentence of body_dialect, verbatim" },
+            transliteration: { type: "string", description: "Latin-letter transliteration" },
+            english: { type: "string", description: "Faithful natural English translation" },
+            literal: { type: "string", description: "Word-for-word English gloss in Arabic word order" },
+          },
+          required: ["arabic", "transliteration", "english", "literal"],
+        },
+      },
+      title_english: { type: "string", description: "English translation of the headline" },
+      summary_english: { type: "string", description: "Brief English summary, 1-2 sentences" },
+      vocabulary: {
+        type: "array",
+        items: {
+          type: "object",
+          properties: {
+            word_arabic: { type: "string" },
+            word_english: { type: "string" },
+          },
+          required: ["word_arabic", "word_english"],
+        },
+        description: "2-3 key dialect words from the retelling",
+      },
+    },
+    required: ["title_dialect", "body_dialect", "sentences", "title_english", "summary_english", "vocabulary"],
+  },
+};
+
+const nonEmpty = (v: unknown): v is string => typeof v === "string" && v.trim().length > 0;
+
+/**
+ * The card reads every one of these fields unconditionally, so a rewrite
+ * missing any of them used to render as a card with blanks in it (and the
+ * per-sentence player as nothing at all). Returns the reason it was refused,
+ * or the retelling.
+ */
+function validateRetelling(value: unknown): { ok: true; retelling: Retelling } | { ok: false; reason: string } {
+  if (!value || typeof value !== "object") return { ok: false, reason: "not an object" };
+  const v = value as Record<string, unknown>;
+  for (const key of ["title_dialect", "body_dialect", "title_english", "summary_english"] as const) {
+    if (!nonEmpty(v[key])) return { ok: false, reason: `missing ${key}` };
+  }
+  if (!Array.isArray(v.sentences)) return { ok: false, reason: "missing sentences" };
+  const sentences: Sentence[] = [];
+  for (const raw of v.sentences) {
+    if (!raw || typeof raw !== "object") continue;
+    const s = raw as Record<string, unknown>;
+    if (!nonEmpty(s.arabic)) continue;
+    sentences.push({
+      arabic: s.arabic,
+      transliteration: typeof s.transliteration === "string" ? s.transliteration : "",
+      english: typeof s.english === "string" ? s.english : "",
+      literal: typeof s.literal === "string" ? s.literal : "",
+    });
+  }
+  if (sentences.length === 0) return { ok: false, reason: "no sentences with Arabic" };
+  const vocabulary: VocabItem[] = Array.isArray(v.vocabulary)
+    ? v.vocabulary
+        .filter((w): w is Record<string, unknown> => !!w && typeof w === "object")
+        .filter((w) => nonEmpty(w.word_arabic) && nonEmpty(w.word_english))
+        .map((w) => ({ word_arabic: w.word_arabic as string, word_english: w.word_english as string }))
+    : [];
+  return {
+    ok: true,
+    retelling: {
+      title_dialect: v.title_dialect as string,
+      body_dialect: v.body_dialect as string,
+      sentences,
+      title_english: v.title_english as string,
+      summary_english: v.summary_english as string,
+      vocabulary,
+    },
+  };
+}
 
 const REGION_QUERIES: Record<string, string> = {
   Gulf: "Saudi Arabia UAE Qatar Kuwait Bahrain Oman news today",
@@ -137,14 +247,10 @@ Deno.serve(async (req) => {
       );
     }
 
-    const dialectIdentity = getDialectIdentity(dialect as Dialect);
-    const vocabRules = getDialectVocabRules(dialect as Dialect);
+    // The dialect identity, Rulebook and worked examples come from askBrain.
+    const brainDialect: Dialect = dialect === "Egyptian" || dialect === "Yemeni" ? dialect : "Gulf";
 
-    const systemPrompt = `${dialectIdentity}
-
-${vocabRules}
-
-You are retelling news stories to a friend at the souq (market). Your tone is:
+    const systemPrompt = `You are retelling news stories to a friend at the souq (market). Your tone is:
 - Casual, animated, expressive — like real gossip between friends
 - You use filler words and exclamations natural to the dialect
 - You stay ACCURATE to the facts — no fabrication
@@ -157,7 +263,7 @@ ${getTashkeelMandate()}
 ${getDialectTransliterationRules(dialect as Dialect)}
 - Provide a Latin-letter transliteration for each sentence in "sentences", following the rules above.
 
-For each article, return a JSON object with:
+For each article, return through the emit_retelling function:
 - "title_dialect": A catchy dialect headline (Arabic), fully vocalized
 - "body_dialect": The story retold in dialect (Arabic, 3-5 sentences, fully vocalized) — this is the full body as one string
 - "sentences": Array of {"arabic": "...", "transliteration": "...", "english": "...", "literal": "..."} — split body_dialect into its individual sentences, provide a Latin-letter transliteration, a faithful natural English translation, and a "literal" word-for-word English gloss (preserving Arabic word order; may sound stiff — it shows how each sentence is built) for EACH sentence. The arabic values concatenated must equal body_dialect.
@@ -165,7 +271,7 @@ For each article, return a JSON object with:
 - "summary_english": Brief English summary (1-2 sentences)
 - "vocabulary": Array of 2-3 key dialect words from your retelling, each as {"word_arabic": "...", "word_english": "..."}
 
-Return ONLY the JSON object, no markdown fencing. CRITICAL: use ONLY ASCII punctuation for JSON structure (commas \`,\`, colons \`:\`, quotes \`"\`). Never use Arabic comma \`،\` or Arabic semicolon \`؛\` as JSON separators — they are valid only inside string values.`;
+Return ONLY the function call, no prose.`;
 
     let creditsExhausted = false;
     let rateLimited = false;
@@ -180,20 +286,23 @@ Return ONLY the JSON object, no markdown fencing. CRITICAL: use ONLY ASCII punct
 
         const aiStart = Date.now();
         try {
-          const aiRes = await chatFetch(MODEL_IDS.GEMINI_FAST, {
-            response_format: { type: "json_object" },
-            messages: [
-              { role: "system", content: systemPrompt },
-              {
-                role: "user",
-                content: `Rewrite this news article as souq gossip in dialect:\n\nTitle: ${article.title || "No title"}\n\nContent: ${content}`,
-              },
-            ],
-          }, { label: FEATURE });
-
-          if (!aiRes.ok) {
-            const status = aiRes.status;
-            const errBody = await aiRes.text();
+          let output: unknown;
+          try {
+            const brain = await askBrain<unknown>({
+              purpose: FEATURE,
+              dialect: brainDialect,
+              strategy: "solo",
+              systemPromptExtra: systemPrompt,
+              userPrompt: `Rewrite this news article as souq gossip in dialect:\n\nTitle: ${article.title || "No title"}\n\nContent: ${content}`,
+              maxTokens: 2048,
+              tool: RETELLING_TOOL,
+            });
+            output = brain.output;
+          } catch (err) {
+            // The Brain has already walked its fallback chain (the last rung
+            // on another vendor), so a status here is every rung refusing.
+            const status = err instanceof BrainHttpError ? err.status : 0;
+            const errBody = err instanceof Error ? err.message : String(err);
             console.error("AI error:", status, errBody);
             if (status === 429) rateLimited = true;
             if (status === 402) creditsExhausted = true;
@@ -209,56 +318,36 @@ Return ONLY the JSON object, no markdown fencing. CRITICAL: use ONLY ASCII punct
             return null;
           }
 
-          const aiData = await aiRes.json();
-          const raw = aiData.choices?.[0]?.message?.content || "";
-
-          let cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
-          const firstBrace = cleaned.indexOf("{");
-          const lastBrace = cleaned.lastIndexOf("}");
-          if (firstBrace !== -1 && lastBrace > firstBrace) {
-            cleaned = cleaned.slice(firstBrace, lastBrace + 1);
-          }
-          let parsed;
-          let repairUsed = false;
-          try {
-            parsed = JSON.parse(cleaned);
-          } catch (_e1) {
-            const repaired = cleaned
-              .replace(/(["}\]\d])\s*،/g, "$1,")
-              .replace(/(["}\]\d])\s*؛/g, "$1;");
-            try {
-              parsed = JSON.parse(repaired);
-              repairUsed = true;
-            } catch (parseErr) {
-              parseErrors++;
-              console.error("JSON parse failed. Raw (first 500):", raw.slice(0, 500));
-              emitMetric({
-                feature: FEATURE,
-                event: "json_parse",
-                dialect,
-                status: "error",
-                durationMs: Date.now() - aiStart,
-                meta: {
-                  article: (article.title || "").slice(0, 200),
-                  raw_preview: raw.slice(0, 400),
-                  error: parseErr instanceof Error ? parseErr.message : String(parseErr),
-                },
-              });
-              throw parseErr;
-            }
+          const checked = validateRetelling(output);
+          if (!checked.ok) {
+            parseErrors++;
+            console.error("souq-news: unusable rewrite:", checked.reason, JSON.stringify(output)?.slice(0, 500));
+            emitMetric({
+              feature: FEATURE,
+              event: "json_parse",
+              dialect,
+              status: "error",
+              durationMs: Date.now() - aiStart,
+              meta: {
+                article: (article.title || "").slice(0, 200),
+                raw_preview: JSON.stringify(output)?.slice(0, 400) ?? "",
+                error: checked.reason,
+              },
+            });
+            return null;
           }
 
           emitMetric({
             feature: FEATURE,
             event: "ai_rewrite",
             dialect,
-            status: repairUsed ? "warn" : "ok",
+            status: "ok",
             durationMs: Date.now() - aiStart,
-            meta: { repair_used: repairUsed, article: (article.title || "").slice(0, 200) },
+            meta: { article: (article.title || "").slice(0, 200) },
           });
 
           return {
-            ...parsed,
+            ...checked.retelling,
             source_url: article.url || null,
             published_at: new Date().toISOString(),
           };

@@ -1,6 +1,7 @@
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { NO_AI_PROVIDER, jsonRequest, loadFunction } from "./harness.ts";
 import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
+import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 
 /**
  * Souq News — real headlines retold as market gossip, plus a quiz on them.
@@ -12,10 +13,14 @@ import { chatCompletion, json, type UpstreamHandler } from "./upstreams.ts";
  * not cost the other three, but every article failing for the same reason has
  * to surface as that reason rather than as an empty feed.
  *
- * The JSON repair pass is the detail worth pinning. The model is writing Arabic
- * and routinely uses an Arabic comma `،` as a JSON separator, which is a parse
- * error — so a failed parse is retried with those characters swapped for their
- * ASCII equivalents before the article is given up on.
+ * The rewrite goes through `askBrain` (solo, with a tool schema), so each
+ * article inherits the Brain's fallback chain: a refused or malformed answer is
+ * re-rolled and then walked down the stable rungs, the last of them on another
+ * vendor. Two consequences for these tests. A stub that answers differently on
+ * the *second* call is describing the chain, not the feature, so per-article
+ * behaviour is keyed off the article's title in the request body instead. And
+ * the old Arabic-comma JSON repair is gone with the prose JSON it repaired: a
+ * tool call's arguments are serialised by the provider.
  */
 
 const USER = "00000000-0000-4000-8000-000000000001";
@@ -66,6 +71,14 @@ const aRetelling = (over: Record<string, unknown> = {}) => ({
 /** The rewrite model, which answers a JSON object as prose. */
 const retelling = (payload: unknown): UpstreamHandler => () =>
   chatCompletion(typeof payload === "string" ? payload : JSON.stringify(payload));
+
+/**
+ * One answer for the article titled `title`, another for every other article.
+ * The Brain retries and falls back per article, so "the first call fails" is
+ * not a statement about any one article; "article A fails" is.
+ */
+const perArticle = (title: string, forTitle: () => Response, otherwise: () => Response): UpstreamHandler =>
+  async (req) => ((await req.text()).includes(`Title: ${title}`) ? forTitle() : otherwise());
 
 async function call(
   name: string,
@@ -214,18 +227,16 @@ Deno.test("souq-news rewrites at most four stories", async () => {
 });
 
 Deno.test("souq-news keeps the articles that worked when one fails to parse", async () => {
-  let attempt = 0;
   const { status, body } = await call(
     "souq-news",
     { dialect: "Gulf" },
     caller({
       "api.firecrawl.dev": firecrawl(["A", "B"]),
-      "generativelanguage.googleapis.com/v1beta/openai": () => {
-        attempt += 1;
-        return attempt === 1
-          ? chatCompletion("I would rather not.")
-          : chatCompletion(JSON.stringify(aRetelling()));
-      },
+      "generativelanguage.googleapis.com/v1beta/openai": perArticle(
+        "A",
+        () => chatCompletion("I would rather not."),
+        () => chatCompletion(JSON.stringify(aRetelling())),
+      ),
     }),
   );
 
@@ -235,22 +246,66 @@ Deno.test("souq-news keeps the articles that worked when one fails to parse", as
   assertEquals((body.articles as unknown[]).length, 1);
 });
 
-Deno.test("souq-news repairs Arabic punctuation used as JSON separators", async () => {
-  const withArabicCommas = JSON.stringify(aRetelling()).replace(/","/g, '"،"');
-  const { status, body } = await call(
+Deno.test("souq-news skips a rewrite missing what the card renders", async () => {
+  for (
+    const [payload, missing] of [
+      [aRetelling({ body_dialect: "" }), "body_dialect"],
+      [aRetelling({ title_english: undefined }), "title_english"],
+      [aRetelling({ sentences: [] }), "sentences"],
+      [aRetelling({ sentences: [{ english: "no arabic" }] }), "sentences"],
+      [{ headline: "wrong shape entirely" }, "title_dialect"],
+    ] as Array<[unknown, string]>
+  ) {
+    const fn = await loadFunction("souq-news", {
+      upstreams: caller({
+        "api.firecrawl.dev": firecrawl(["A", "B"]),
+        "generativelanguage.googleapis.com/v1beta/openai": perArticle(
+          "A",
+          () => chatCompletion("", payload),
+          () => chatCompletion("", aRetelling()),
+        ),
+      }),
+    });
+    try {
+      const response = await fn.handler(jsonRequest("souq-news", { dialect: "Gulf" }));
+      const body = await response.json();
+
+      // The card reads every field unconditionally, so a rewrite missing one
+      // used to ship as a card with blanks in it — or, with no sentences, a
+      // story the per-sentence player could not play. Now the article is
+      // skipped and the other one still comes through.
+      assertEquals(response.status, 200, missing);
+      assertEquals((body.articles as unknown[]).length, 1, missing);
+
+      // ...and the skip is recorded where the dashboard can see it. The metric
+      // sink is fire-and-forget, so give it a moment to post.
+      const metricPosted = () =>
+        fn.calls.some((c) => c.url.includes("feature_metrics") && (c.body ?? "").includes('"json_parse"'));
+      for (let attempt = 0; attempt < 100 && !metricPosted(); attempt++) {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+      assert(metricPosted(), `no json_parse metric for ${missing}`);
+    } finally {
+      fn.restore();
+    }
+  }
+});
+
+Deno.test("souq-news drops fields the card does not render", async () => {
+  const { body } = await call(
     "souq-news",
     { dialect: "Gulf" },
     caller({
       "api.firecrawl.dev": firecrawl(["A"]),
-      "generativelanguage.googleapis.com/v1beta/openai": retelling(withArabicCommas),
+      "generativelanguage.googleapis.com/v1beta/openai": () =>
+        chatCompletion("", aRetelling({ chain_of_thought: "First I read the article..." })),
     }),
   );
 
-  // The model is writing Arabic and reaches for `،` where JSON needs `,`. It is
-  // the single most common way a perfectly good retelling is thrown away, so
-  // the parse is retried with the Arabic punctuation swapped out.
-  assertEquals(status, 200);
-  assertEquals((body.articles as unknown[]).length, 1);
+  const article = (body.articles as Array<Record<string, unknown>>)[0];
+  assertEquals(article.chain_of_thought, undefined);
+  assertEquals(article.title_english, "Prices are up again");
+  assertEquals(article.source_url, "https://news.test/0");
 });
 
 Deno.test("souq-news strips markdown fences from the rewrite", async () => {
@@ -312,18 +367,16 @@ Deno.test("souq-news searches the region matching the dialect", async () => {
 });
 
 Deno.test("souq-news reports exhausted credits even when some articles worked", async () => {
-  let attempt = 0;
   const { status, body } = await call(
     "souq-news",
     { dialect: "Gulf" },
     caller({
       "api.firecrawl.dev": firecrawl(["A", "B"]),
-      "generativelanguage.googleapis.com/v1beta/openai": () => {
-        attempt += 1;
-        return attempt === 1
-          ? json({ error: "no credits" }, 402)
-          : chatCompletion(JSON.stringify(aRetelling()));
-      },
+      "generativelanguage.googleapis.com/v1beta/openai": perArticle(
+        "A",
+        () => json({ error: "no credits" }, 402),
+        () => chatCompletion(JSON.stringify(aRetelling())),
+      ),
     }),
   );
 
@@ -335,18 +388,16 @@ Deno.test("souq-news reports exhausted credits even when some articles worked", 
 });
 
 Deno.test("souq-news reports a rate limit only when nothing survived", async () => {
-  let attempt = 0;
   const partial = await call(
     "souq-news",
     { dialect: "Gulf" },
     caller({
       "api.firecrawl.dev": firecrawl(["A", "B"]),
-      "generativelanguage.googleapis.com/v1beta/openai": () => {
-        attempt += 1;
-        return attempt === 1
-          ? json({ error: "slow down" }, 429)
-          : chatCompletion(JSON.stringify(aRetelling()));
-      },
+      "generativelanguage.googleapis.com/v1beta/openai": perArticle(
+        "A",
+        () => json({ error: "slow down" }, 429),
+        () => chatCompletion(JSON.stringify(aRetelling())),
+      ),
     }),
   );
 
@@ -364,6 +415,28 @@ Deno.test("souq-news reports a rate limit only when nothing survived", async () 
   assertEquals(partial.status, 200);
   assertEquals((partial.body.articles as unknown[]).length, 1);
   assertEquals(total.status, 429);
+});
+
+Deno.test("souq-news reaches Claude on OpenRouter when Google refuses", async () => {
+  const { status, body, calls, bodies } = await call(
+    "souq-news",
+    { dialect: "Gulf" },
+    caller({
+      "api.firecrawl.dev": firecrawl(["A"]),
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "quota" }, 429),
+      "openrouter.ai": () => chatCompletion("", aRetelling()),
+    }),
+  );
+
+  // What took the feature down in the 2026-09-29 sweep: the Google project
+  // was out of credit, Google says that with a 429, and a direct chatFetch
+  // had nowhere else to go. Through the Brain the last rung is on another
+  // vendor, so the feed comes back and no error is reported at all.
+  assertEquals(status, 200);
+  assertEquals((body.articles as unknown[]).length, 1);
+  const i = calls.findIndex((u) => u.includes("openrouter.ai") && u.includes("chat/completions"));
+  assert(i >= 0, "expected a call to OpenRouter");
+  assertEquals((JSON.parse(bodies[i] ?? "{}") as { model?: string }).model, MODEL_IDS.CLAUDE);
 });
 
 Deno.test("souq-news passes a failed search's status through", async () => {

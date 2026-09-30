@@ -375,7 +375,8 @@ const MyWords = () => {
           className="w-full mb-6 gap-2"
           size="lg"
         >
-          Review {stats.dueCount} due words
+          {/* Counts each direction (Arabic→English and back) as its own card. */}
+          Review {stats.dueCount} due {stats.dueCount === 1 ? "card" : "cards"}
           <ChevronRight className="h-4 w-4" />
         </Button>
       )}

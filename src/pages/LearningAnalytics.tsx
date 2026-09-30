@@ -167,7 +167,11 @@ const LearningAnalytics = () => {
 
         {/* Hero Stats */}
         <div className="grid grid-cols-2 gap-3">
-          <StatCard icon={BookOpen} label="Total Words" value={analytics.totalWords} accent />
+          {/* Curriculum words reviewed plus saved words, across every dialect. Not
+              "Total Words": /profile and /my-words count saved words only, so the
+              same label showed three numbers. The "Total cards" tile below counts
+              review cards, which is different again. */}
+          <StatCard icon={BookOpen} label="Words studied" value={analytics.totalWords} accent />
           <StatCard icon={Star} label="Mastered" value={analytics.masteredWords} sublabel={`${masteryPercent}%`} />
           <StatCard icon={Target} label="Accuracy" value={`${analytics.accuracy}%`} sublabel={`${analytics.totalReviews} reviews`} />
           <StatCard icon={Zap} label="XP" value={analytics.totalXP.toLocaleString()} sublabel={`Level ${analytics.level}`} />

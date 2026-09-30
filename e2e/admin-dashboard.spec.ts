@@ -42,8 +42,8 @@ test.describe("the counters", () => {
 
     await page.goto("/admin");
 
-    await expect(page.getByText("Total Lessons").locator("..")).toContainText("2");
-    await expect(page.getByText("Total Words").locator("..")).toContainText("2");
+    await expect(page.getByText("Lessons in this dialect").locator("..")).toContainText("2");
+    await expect(page.getByText("Words in this dialect").locator("..")).toContainText("2");
     await expect(page.getByText("Average Words/Lesson").locator("..")).toContainText("1");
   });
 
@@ -71,7 +71,7 @@ test.describe("the counters", () => {
 
     await expect(page.getByText("Cairo lesson")).toBeVisible();
     await expect(page.getByText("Gulf lesson")).toHaveCount(0);
-    await expect(page.getByText("Total Lessons").locator("..")).toContainText("2");
+    await expect(page.getByText("Lessons in this dialect").locator("..")).toContainText("2");
   });
 });
 
@@ -321,7 +321,7 @@ test.describe("when the data will not load", () => {
 
     await page.goto("/admin");
 
-    await expect(page.getByText("Total Words").locator("..")).toContainText("0");
+    await expect(page.getByText("Words in this dialect").locator("..")).toContainText("0");
   });
 });
 

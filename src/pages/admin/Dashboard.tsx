@@ -118,13 +118,13 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Total Lessons</CardDescription>
+              <CardDescription>Lessons in this dialect</CardDescription>
               <CardTitle className="text-4xl">{lessonCount}</CardTitle>
             </CardHeader>
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardDescription>Total Words</CardDescription>
+              <CardDescription>Words in this dialect</CardDescription>
               <CardTitle className="text-4xl">{wordCount}</CardTitle>
             </CardHeader>
           </Card>

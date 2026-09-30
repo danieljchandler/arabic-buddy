@@ -17,6 +17,7 @@ import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
 import { lazyRetry } from "@/lib/lazyRetry";
 import { PageSkeleton } from "@/components/ui/skeleton-page";
 import { logClientError } from "@/lib/errorLog";
+import { describeCrash, isBenignRejection } from "@/lib/crashFilter";
 import { captureReferralFromUrl } from "@/lib/referralHandoff";
 
 // ─── Lazy-loaded page components ─────────────────────────────────────────────
@@ -170,11 +171,12 @@ const App = () => {
 
     const CRASH_KEY = "__app_last_crash";
 
-    const persistCrash = (payload: unknown) => {
+    const persistCrash = (reason: unknown) => {
       try {
         sessionStorage.setItem(
           CRASH_KEY,
-          JSON.stringify({ at: new Date().toISOString(), url: window.location.href, payload }),
+          // An Error stringifies to `{}`, so keep its name and message by hand.
+          JSON.stringify({ at: new Date().toISOString(), url: window.location.href, payload: describeCrash(reason) }),
         );
       } catch {
         // ignore
@@ -187,12 +189,7 @@ const App = () => {
       if (raw) {
         sessionStorage.removeItem(CRASH_KEY);
         const parsed = JSON.parse(raw) as { at?: string; url?: string; payload?: unknown };
-        const msg =
-          parsed?.payload instanceof Error
-            ? parsed.payload.message
-            : typeof parsed?.payload === "string"
-              ? parsed.payload
-              : "";
+        const msg = describeCrash(parsed?.payload).message;
 
         toast.error("The app crashed recently", {
           description: msg || "Details logged to the console. Please try again.",
@@ -204,6 +201,12 @@ const App = () => {
     }
 
     const onUnhandledRejection = (event: PromiseRejectionEvent) => {
+      // A skipped view transition or an aborted fetch rejects a promise too.
+      // Those are cancellations, not crashes: stay quiet (see crashFilter.ts).
+      if (isBenignRejection(event.reason)) {
+        event.preventDefault();
+        return;
+      }
       console.error("Unhandled promise rejection:", event.reason);
       persistCrash(event.reason);
       void logClientError({
@@ -226,6 +229,10 @@ const App = () => {
         return;
       }
       if (!event.error && !event.message) {
+        return;
+      }
+      if (isBenignRejection(event.error ?? event.message)) {
+        event.preventDefault();
         return;
       }
       console.error("Global error:", event.error ?? event.message);

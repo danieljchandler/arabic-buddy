@@ -55,6 +55,11 @@ test.describe("a skill page", () => {
     // A mistyped skill is a mistyped URL, not a page. The chooser is the
     // honest answer to "which one did you mean".
     await expect(page).toHaveURL(/\/choose$/);
+    // The redirect is a second navigation landing before the first one's view
+    // transition finished; the browser rejects that transition's promise, and
+    // the global crash handler used to toast about it (QA sweep 2026-09-29,
+    // Broken #4/#16). A mistyped URL must not look like a crash.
+    await expect(page.getByText("An unexpected error occurred")).toHaveCount(0);
   });
 
   test("keeps a way back to the chooser", async ({ page }) => {

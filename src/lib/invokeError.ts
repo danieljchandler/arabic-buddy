@@ -13,11 +13,11 @@
  *    quota refusal relayed with a `message`) is an ordinary failure and its
  *    message is shown.
  *  - 401 becomes a sign-in prompt.
- *  - A JSON `message` string is shown whatever the status: functions write
- *    that field for humans ("Please record for at least a second", "The
- *    model is out of credit"). During the 2026-09-29 sweep every AI page
- *    failed with a 5xx whose message said exactly what was wrong, and the
- *    learner saw "Please try again".
+ *  - A JSON `message` string is shown whatever the status, as long as it
+ *    reads as a sentence: functions write that field for humans ("Please
+ *    record for at least a second", "The model is out of credit"). During the
+ *    2026-09-29 sweep every AI page failed with a 5xx whose message said
+ *    exactly what was wrong, and the learner saw "Please try again".
  *  - A JSON `error` string is shown only when it reads as a sentence (has
  *    whitespace, no JSON braces): "model unavailable" is a message,
  *    "auth_required" is a key, and "openrouter … 401: {...}" is an upstream
@@ -117,8 +117,11 @@ export async function describeInvokeFailure(
     if (response.status === 401) return { capped: false, message: SIGN_IN_MESSAGE };
 
     if (body) {
+      // The same sentence test as `error`: a function writing for a human
+      // writes a sentence, and a one-word `message` ("boom", "failed") is a
+      // key by another name.
       const message = asString(body.message);
-      if (message && humanLength(message) && !/[{}[\]]/.test(message)) {
+      if (message && readsAsSentence(message)) {
         return { capped: false, message };
       }
       const errorText = asString(body.error);

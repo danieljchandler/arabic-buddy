@@ -497,6 +497,66 @@ Deno.test("culture-guide drops citations that carry no URI", async () => {
   assert(!answer.includes("Sources"));
 });
 
+Deno.test("culture-guide answers ungrounded through the Brain when Google refuses the call", async () => {
+  // The 2026-09-29 sweep: the Google project was out of credit, the native
+  // endpoint answered 429, and the page sat silent. Google refusing is not a
+  // reason to show nothing — the same conversation goes through the Brain on
+  // the registry's non-Google model, without the search tool.
+  const { response, calls } = await call(
+    "culture-guide",
+    { messages: [{ role: "user", content: "How do I greet my host?" }], dialect: "Gulf" },
+    subscriber({
+      "generativelanguage.googleapis.com": () => json({ error: { message: "quota" } }, 429),
+      "openrouter.ai": () => sseCompletion("Greet him ", "warmly."),
+      "/rest/v1/dialect_prompts": () => json([]),
+      "/rest/v1/dialect_rules": () => json([]),
+    }),
+  );
+
+  assertEquals(response.status, 200);
+  assertEquals(response.headers.get("content-type"), "text/event-stream");
+  assertEquals(await deltasOf(response), ["Greet him ", "warmly."]);
+  assert(calls.some((url) => url.includes("openrouter.ai")));
+});
+
+Deno.test("culture-guide says so when every route is refused", async () => {
+  const { response } = await call(
+    "culture-guide",
+    { messages: [{ role: "user", content: "hi" }] },
+    subscriber({
+      "generativelanguage.googleapis.com": () => json({ error: { message: "no credit" } }, 402),
+      "openrouter.ai": () => json({ error: "no credit" }, 402),
+      "/rest/v1/dialect_prompts": () => json([]),
+      "/rest/v1/dialect_rules": () => json([]),
+    }),
+  );
+
+  assertEquals(response.status, 402);
+  const body = JSON.parse(await response.text()) as { message?: string };
+  assertStringIncludes(body.message ?? "", "credit");
+});
+
+Deno.test("culture-guide writes something when Gemini streams no words", async () => {
+  // A 200 stream with no text — a safety block, or an error object riding the
+  // stream — used to reach the client as a clean empty answer: no bubble, no
+  // toast, no spinner. The page looked answered and was not.
+  const { response } = await call(
+    "culture-guide",
+    { messages: [{ role: "user", content: "hi" }] },
+    subscriber({
+      "generativelanguage.googleapis.com": () =>
+        new Response(
+          `data: ${JSON.stringify({ promptFeedback: { blockReason: "SAFETY" } })}\n\n`,
+          { status: 200, headers: { "content-type": "text/event-stream" } },
+        ),
+    }),
+  );
+
+  const { deltas, done } = await readSse(response);
+  assert(done);
+  assertStringIncludes(deltas.join(""), "can't help with that one");
+});
+
 Deno.test("culture-guide survives a malformed frame mid-stream", async () => {
   const { response } = await call(
     "culture-guide",
@@ -594,30 +654,36 @@ Deno.test("culture-guide drops system turns the client may have sent", async () 
   assertEquals(sent.contents.length, 1);
 });
 
-Deno.test("culture-guide reports a rate-limited Gemini as 429", async () => {
+Deno.test("culture-guide reports a rate limit as 429 when the fallback is rate-limited too", async () => {
   const { response } = await call(
     "culture-guide",
     { messages: [{ role: "user", content: "hi" }] },
     subscriber({
       "generativelanguage.googleapis.com": () => json({ error: "quota" }, 429),
+      "openrouter.ai": () => json({ error: "quota" }, 429),
+      "/rest/v1/dialect_prompts": () => json([]),
+      "/rest/v1/dialect_rules": () => json([]),
     }),
   );
 
   assertEquals(response.status, 429);
-  assertStringIncludes((await response.json()).error, "Rate limit exceeded");
+  assertStringIncludes((await response.json()).message, "busy");
 });
 
-Deno.test("culture-guide reports any other Gemini failure as 500", async () => {
+Deno.test("culture-guide reports any other failure with a message the page can show", async () => {
   const { response } = await call(
     "culture-guide",
     { messages: [{ role: "user", content: "hi" }] },
     subscriber({
       "generativelanguage.googleapis.com": () => json({ error: "boom" }, 500),
+      "openrouter.ai": () => json({ error: "boom" }, 500),
+      "/rest/v1/dialect_prompts": () => json([]),
+      "/rest/v1/dialect_rules": () => json([]),
     }),
   );
 
-  assertEquals(response.status, 500);
-  assertEquals((await response.json()).error, "AI service error");
+  assert(response.status >= 500);
+  assertStringIncludes((await response.json()).message, "couldn't answer");
 });
 
 Deno.test("culture-guide says so when its key is missing", async () => {

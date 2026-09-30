@@ -258,6 +258,57 @@ Deno.test("writing-coach reports a model failure without leaking a 500", async (
 
 // ── Prompt ──────────────────────────────────────────────────────────────────
 
+Deno.test("writing-coach reviews through the Claude rung when Google refuses the call", async () => {
+  const result = await call(
+    arabicReply,
+    upstreams({
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "quota" }, 429),
+      "openrouter.ai": () => chatCompletion("", review),
+    }),
+  );
+
+  assertEquals(result.status, 200);
+  assertEquals((result.body.review as Record<string, unknown>).verdict, review.verdict);
+});
+
+Deno.test("writing-coach says the AI is out of credit rather than 'coach failed'", async () => {
+  // A 402 from every vendor used to come back as a bare 502 coach_failed with
+  // no message, which the page rendered as "Couldn't review that".
+  const result = await call(
+    arabicReply,
+    upstreams({
+      "generativelanguage.googleapis.com/v1beta/openai": () => json({ error: "no credits" }, 402),
+      "openrouter.ai": () => json({ error: "no credits" }, 402),
+    }),
+  );
+
+  assertEquals(result.status, 402);
+  assertEquals(result.body.error, "no_credit");
+  assertStringIncludes(String(result.body.message), "credit");
+});
+
+Deno.test("writing-coach does not charge the daily ladder for loading a prompt", async () => {
+  const result = await call(
+    { action: "prompt", dialect: "Gulf" },
+    upstreams({
+      ...emitting(prompt),
+      // Past the ladder: a review would be refused here.
+      "/rest/v1/rpc/increment_usage_counter": () => json(11),
+    }),
+  );
+
+  // The prompt is served on every page load; ten page loads must not spend
+  // the free tier's ten coaching passes.
+  assertEquals(result.status, 200);
+  assert(!result.calls.some((url) => url.includes("increment_usage_counter")));
+});
+
+Deno.test("writing-coach still asks an anonymous caller to sign in for a prompt", async () => {
+  const result = await call({ action: "prompt", dialect: "Gulf" }, upstreams(emitting(prompt)), { jwt: null });
+
+  assertEquals(result.status, 401);
+});
+
 Deno.test("writing-coach hands back a message to reply to", async () => {
   const result = await call(
     { action: "prompt", dialect: "Egyptian" },

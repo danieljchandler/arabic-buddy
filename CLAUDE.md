@@ -228,6 +228,15 @@ harness.
   tests: "the upstream is down" means stubbing both routes, and "the AI is not
   configured" means unsetting every provider key (`NO_AI_PROVIDER` in the edge
   harness), not one.
+  **The Brain's own rescue chain ends on a non-Google rung.** `STABLE_FALLBACKS`
+  in `aiBrain.ts` was Google-only until 2026-09-30, so when the Google project
+  ran out of credit (a 429, which the gateway never retries) every solo and
+  draft call died with OpenRouter untouched; only the council with a Claude
+  drafter stayed up. A vendor refusal (401/402/403/429) now skips the same-model
+  re-roll and every rung on that vendor, and the chain ends on `MODEL_IDS.CLAUDE`;
+  when every rung fails, the primary's refusal is what the caller sees. The
+  three functions that called `chatFetch` directly (`daily-challenge`,
+  `dialect-compare`, `souq-news`) were moved onto `askBrain` for the same reason.
 - **`contract/` and `_test/schemaContract.test.ts` check different things.**
   The former replays all migrations against stock Postgres (can the schema be
   rebuilt from scratch); the latter statically checks every `.from()`/`.rpc()`/

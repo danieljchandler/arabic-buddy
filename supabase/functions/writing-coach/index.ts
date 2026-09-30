@@ -22,8 +22,8 @@
  * are correspondingly generous but still laddered per tier.
  */
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { enforceDailyCap } from "../_shared/usageCap.ts";
-import { askBrain } from "../_shared/aiBrain.ts";
+import { enforceDailyCap, resolveUserId } from "../_shared/usageCap.ts";
+import { askBrain, BrainHttpError } from "../_shared/aiBrain.ts";
 import {
   getDialectLabel,
   getDialectTransliterationRules,
@@ -207,8 +207,29 @@ Deno.serve(async (req) => {
   const cors = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
 
-  // A review is a full coaching pass and a prompt is a generation, so both
-  // count against one shared ladder.
+  const body = await req.json().catch(() => ({}));
+  const action: string = (body?.action as string) || "review";
+  const rawDialect: string = (body?.dialect as string) || "Gulf";
+  const dialect = (KNOWN_DIALECTS.has(rawDialect) ? rawDialect : "Gulf") as Dialect;
+
+  // The prompt is served on every page load, before the learner has written
+  // a word. Charging it against the review ladder meant the free tier's ten
+  // coaching passes a day could be spent by opening the page ten times. It
+  // still needs a signed-in learner (the prompt is built from their profile).
+  if (action === "prompt") {
+    const userId = await resolveUserId(req);
+    if (!userId) {
+      return jsonResponse({ error: "auth_required", message: "Please sign in to use this feature." }, 401, cors);
+    }
+    try {
+      const prompt = await makePrompt(userId, dialect);
+      return jsonResponse({ prompt }, 200, cors);
+    } catch (err) {
+      return coachFailure(err, cors);
+    }
+  }
+
+  // A review is a full coaching pass; that is what the ladder counts.
   const cap = await enforceDailyCap(req, "writing-coach", 10, cors, {
     standard: 40,
     allin: 120,
@@ -216,15 +237,6 @@ Deno.serve(async (req) => {
   if (cap.limited) return cap.response;
 
   try {
-    const body = await req.json().catch(() => ({}));
-    const action: string = (body?.action as string) || "review";
-    const rawDialect: string = (body?.dialect as string) || "Gulf";
-    const dialect = (KNOWN_DIALECTS.has(rawDialect) ? rawDialect : "Gulf") as Dialect;
-
-    if (action === "prompt") {
-      const prompt = await makePrompt(cap.userId!, dialect);
-      return jsonResponse({ prompt }, 200, cors);
-    }
 
     if (action !== "review") {
       return jsonResponse({ error: "unknown_action" }, 400, cors);
@@ -271,8 +283,35 @@ Deno.serve(async (req) => {
 
     return jsonResponse({ review }, 200, cors);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error("writing-coach error:", msg);
-    return jsonResponse({ error: "coach_failed", detail: msg.slice(0, 400) }, 502, cors);
+    return coachFailure(err, cors);
   }
 });
+
+/**
+ * A vendor refusing the call is not a coach failure, and rewriting it as a
+ * bare 502 is what hid the Google 429 behind "Couldn't review that" during the
+ * 2026-09-29 sweep. Pass the status through with something the page can show;
+ * the client only surfaces a body that carries `message`.
+ */
+function coachFailure(err: unknown, cors: Record<string, string>): Response {
+  const msg = err instanceof Error ? err.message : String(err);
+  console.error("writing-coach error:", msg);
+  if (err instanceof BrainHttpError && (err.status === 402 || err.status === 429)) {
+    return jsonResponse(
+      {
+        error: err.status === 429 ? "rate_limited" : "no_credit",
+        message:
+          err.status === 429
+            ? "The AI is busy right now. Try again in a minute."
+            : "The AI has run out of credit. Try again later.",
+      },
+      err.status,
+      cors,
+    );
+  }
+  return jsonResponse(
+    { error: "coach_failed", message: "The coach couldn't answer. Try again.", detail: msg.slice(0, 400) },
+    502,
+    cors,
+  );
+}

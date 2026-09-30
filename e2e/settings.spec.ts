@@ -109,6 +109,27 @@ test.describe("loading the form", () => {
     // DialectContext ignores "Kuwaiti", so the app is on its default. The
     // picker says so rather than showing nothing selected.
     await expect(page.getByRole("button", { name: /Gulf Arabic/ })).toHaveAttribute("aria-pressed", "true");
+
+    // But the server still reads the raw value (the feed pool, the nightly
+    // story), so the page loads unsaved and offers to write the module over it.
+    await expect(page.getByText(/still says “Kuwaiti”/)).toBeVisible();
+    await expect(page.getByText(/unsaved changes/i)).toBeVisible();
+    await page.getByRole("button", { name: /^save changes$/i }).click();
+    await expect(page.getByText(/settings saved/i)).toBeVisible();
+
+    expect(db.rows("profiles")[0].preferred_dialect).toBe("Gulf");
+    await expect(page.getByText(/still says “Kuwaiti”/)).toHaveCount(0);
+    await expect(page.getByText(/unsaved changes/i)).toHaveCount(0);
+  });
+
+  test("does not call a profile with no dialect set unsaved", async ({ page, signInAs, db }) => {
+    await signInAs("free");
+    db.seed("profiles", [aProfile({ preferred_dialect: null })]);
+
+    await page.goto("/settings");
+
+    await expect(page.getByRole("button", { name: /Gulf Arabic/ })).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByText(/unsaved changes/i)).toHaveCount(0);
   });
 
   test("sends a signed-out visitor to sign in", async ({ page, signInAs }) => {

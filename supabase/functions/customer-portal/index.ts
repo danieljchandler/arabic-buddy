@@ -42,7 +42,17 @@ serve(async (req) => {
     const stripe = new Stripe(stripeKey, { apiVersion: "2025-08-27.basil" });
     const customers = await stripe.customers.list({ email: user.email, limit: 1 });
     if (customers.data.length === 0) {
-      throw new Error("No Stripe customer found for this user");
+      // Not a failure: a complimentary or staff account with nothing billed.
+      // Pricing offers those accounts this portal in case they also pay, so the
+      // answer has to read as a sentence rather than a 500.
+      logStep("No Stripe customer for this email");
+      return new Response(
+        JSON.stringify({
+          error: "no_customer",
+          message: "There's no billing account for this email, so nothing is being charged.",
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" }, status: 404 },
+      );
     }
     const customerId = customers.data[0].id;
     logStep("Found Stripe customer", { customerId });

@@ -14,6 +14,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from '@/components/ui/badge';
 import { Check, Loader2, Crown, Sparkles, Settings } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { describeInvokeFailure } from '@/lib/invokeError';
 import { InfoHint } from '@/components/InfoHint';
 import { PAGE_HINTS } from '@/lib/pageHints';
 
@@ -49,11 +50,14 @@ const Pricing = () => {
     try {
       await openCustomerPortal();
     } catch (err) {
-      toast({
-        title: 'Error',
-        description: 'Failed to open subscription management. Please try again.',
-        variant: 'destructive',
-      });
+      // The function's own sentence when it has one — "There's no billing
+      // account for this email…" for a complimentary account that does not pay.
+      const { message } = await describeInvokeFailure(
+        err,
+        null,
+        'Failed to open subscription management. Please try again.',
+      );
+      toast({ title: 'Error', description: message, variant: 'destructive' });
     }
   };
 
@@ -95,12 +99,13 @@ const Pricing = () => {
                 <div className="flex items-center gap-3">
                   <Crown className="h-5 w-5 text-primary" />
                   {/* Staff and complimentary accounts get All-In from a role,
-                      with no Stripe customer behind it: there is no plan to
-                      manage, and the portal would only fail. */}
+                      not a plan, so there is no plan to manage. Some of them
+                      pay as well, though, and cancelling has to stay possible:
+                      hence the quieter billing link rather than none. */}
                   <span className="font-medium">
                     {complimentary ? (
                       <>
-                        You have <span className="text-primary">full access</span> (staff)
+                        You have <span className="text-primary">complimentary full access</span>
                       </>
                     ) : (
                       <>
@@ -109,7 +114,11 @@ const Pricing = () => {
                     )}
                   </span>
                 </div>
-                {!complimentary && (
+                {complimentary ? (
+                  <Button variant="link" size="sm" className="text-muted-foreground" onClick={handleManageSubscription}>
+                    Manage billing
+                  </Button>
+                ) : (
                   <Button variant="outline" size="sm" onClick={handleManageSubscription}>
                     <Settings className="h-4 w-4 mr-2" />
                     Manage

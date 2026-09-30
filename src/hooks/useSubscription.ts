@@ -8,9 +8,10 @@ interface SubscriptionState {
   subscribed: boolean;
   tier: SubscriptionTier;
   /**
-   * Full access from a role (admin or complimentary), not from Stripe. Such an
-   * account has no Stripe customer, so there is no billing portal to manage
-   * and a "Manage" button for it can only fail.
+   * Full access from a role (admin or complimentary), not from a plan —
+   * check-subscription answers before it asks Stripe. There is no plan to
+   * manage, but the account may still pay for one, so the pages keep a quiet
+   * billing link rather than the plan's Manage button.
    */
   complimentary: boolean;
   subscriptionEnd: string | null;

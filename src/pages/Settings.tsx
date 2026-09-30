@@ -11,6 +11,7 @@ import { Switch } from '@/components/ui/switch';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { describeInvokeFailure } from '@/lib/invokeError';
 import { Loader2, Check, ArrowLeft, User, Globe2, Target, Eye, Heart, ChevronRight, Camera, AlertTriangle, Info, Compass, Bell, Palette } from 'lucide-react';
 import { AvatarPicker } from '@/components/settings/AvatarPicker';
 import {
@@ -153,9 +154,9 @@ const Settings = () => {
     try {
       await openCustomerPortal();
     } catch (e) {
-      toast.error('Unable to open subscription portal', {
-        description: e instanceof Error ? e.message : 'Please try again.',
-      });
+      // The function's sentence when it has one, not supabase-js's "non-2xx".
+      const { message } = await describeInvokeFailure(e, null, 'Please try again.');
+      toast.error('Unable to open subscription portal', { description: message });
     } finally {
       setOpeningPortal(false);
     }
@@ -534,19 +535,29 @@ const Settings = () => {
                 <div className="p-3 rounded-xl bg-card border border-border space-y-2">
                   <p className="text-sm font-medium text-foreground">
                     {complimentary
-                      ? 'Full access (staff)'
+                      ? 'Complimentary full access'
                       : subscribed
                         ? `Active plan: ${tier === 'allin' ? 'All-In' : 'Standard'}`
                         : 'Free plan'}
                   </p>
                   <p className="text-xs text-muted-foreground">
                     {complimentary
-                      ? 'Everything is unlocked for this account. There is no billing to manage.'
+                      ? 'Everything is unlocked for this account. If you also pay through Stripe, you can still manage that billing.'
                       : subscribed
                         ? 'Manage billing, update payment method, or cancel anytime.'
                         : 'Upgrade to remove daily limits and unlock everything.'}
                   </p>
-                  {complimentary ? null : subscribed ? (
+                  {complimentary ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-muted-foreground"
+                      onClick={handleManageSubscription}
+                      disabled={openingPortal}
+                    >
+                      {openingPortal ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Manage billing'}
+                    </Button>
+                  ) : subscribed ? (
                     <Button
                       variant="outline"
                       size="sm"

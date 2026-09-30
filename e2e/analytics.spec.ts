@@ -89,7 +89,7 @@ test.describe("the headline figures", () => {
 
     // Two decks, one total. A learner does not think of them separately, and
     // splitting the figure would make both look smaller than their effort.
-    await expect(page.getByText("Total Words")).toBeVisible();
+    await expect(page.getByText("Words studied")).toBeVisible();
     await expect(page.getByText("2", { exact: true }).first()).toBeVisible();
   });
 
@@ -358,7 +358,7 @@ test.describe("when the data will not load", () => {
     // reach. So the intended behaviour never happens: the learner gets an
     // indefinite spinner with no message and no retry.
     await expect(page.locator("svg.lucide-loader-circle")).toBeVisible();
-    await expect(page.getByText("Total Words")).toHaveCount(0);
+    await expect(page.getByText("Words studied")).toHaveCount(0);
     await expect(page.getByText(/failed|error|try again/i)).toHaveCount(0);
   });
 
@@ -381,7 +381,7 @@ test.describe("when the data will not load", () => {
     // Only the two word sources are rethrown; streaks, XP and difficulty are
     // read with `?? default`, so losing them degrades individual tiles rather
     // than the page.
-    await expect(page.getByText("Total Words")).toBeVisible();
+    await expect(page.getByText("Words studied")).toBeVisible();
     await expect(page.getByText("Best: 0")).toBeVisible();
   });
 });

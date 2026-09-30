@@ -36,7 +36,8 @@ export const SessionProgress = ({
         />
       </div>
       <p className="text-center text-xs text-muted-foreground mt-2">
-        {deckLabel} · {position} / {total} due
+        {/* The session's queue, after the new-card cap — not everything due. */}
+        {deckLabel} · {position} / {total} this session
         {elsewhere > 0 && ` · ${elsewhere} more in other decks`}
       </p>
       {children}

@@ -73,7 +73,7 @@ export const MyWordsSection = () => {
             onClick={() => navigate(mixAll ? "/review/my-words?mixed=1" : "/review/my-words")}
             className="gap-1.5"
           >
-            Review {stats.dueCount} due
+            Review {stats.dueCount} due {stats.dueCount === 1 ? "card" : "cards"}
             <ChevronRight className="h-4 w-4" />
           </Button>
         )}

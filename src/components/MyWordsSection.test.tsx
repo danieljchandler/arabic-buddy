@@ -246,7 +246,7 @@ describe("MyWordsSection — the review prompt", () => {
 
   it("says how many are waiting", async () => {
     render({ seed: seedWords(2, due) });
-    expect(await screen.findByRole("button", { name: /Review 2 due/ })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Review 2 due cards/ })).toBeInTheDocument();
   });
 
   it("counts a production review separately from a recognition one", async () => {

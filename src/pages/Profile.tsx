@@ -12,6 +12,7 @@ import { ArrowLeft, Flame, Sparkles, BookOpen, Trophy, Settings as SettingsIcon 
 import { cn } from "@/lib/utils";
 import { ReferralCard } from "@/components/social/ReferralCard";
 import { LevelJourneyCard } from "@/components/social/LevelJourneyCard";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 
 interface DialectStudy {
   dialect: string;
@@ -53,19 +54,35 @@ const Profile = () => {
     setLoading(true);
     setError(null);
     try {
-      const [{ data: prof }, { data: vocab }, { data: streakRow }] = await Promise.all([
+      const [
+        { data: prof, error: profError },
+        { data: vocab },
+        { data: streakRow, error: streakError },
+      ] = await Promise.all([
         (supabase.from("profiles" as never) as any)
           .select("display_name, avatar_url, created_at, preferred_dialect")
           .eq("user_id", user.id)
           .maybeSingle(),
-        (supabase.from("user_vocabulary" as never) as any)
-          .select("dialect, interval_days")
-          .eq("user_id", user.id),
+        // Paged: an unbounded select stops at PostgREST's 1000 rows without
+        // saying so, and this page reported exactly 1000 words for anyone past it.
+        fetchAllRows<{ dialect: string | null; interval_days: number | null }>((from, to) =>
+          (supabase.from("user_vocabulary" as never) as any)
+            .select("id, dialect, interval_days")
+            .eq("user_id", user.id)
+            .order("id")
+            .range(from, to),
+        ).then((data) => ({ data })),
         (supabase.from("review_streaks" as never) as any)
           .select("current_streak, longest_streak")
           .eq("user_id", user.id)
           .maybeSingle(),
       ]);
+
+      // A PostgREST failure resolves with `error` rather than throwing, so
+      // without this the catch below never ran and a failed load rendered as
+      // a brand-new account. (fetchAllRows throws on its own.)
+      if (profError) throw profError;
+      if (streakError) throw streakError;
 
       setProfile(prof ?? null);
 

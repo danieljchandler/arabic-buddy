@@ -92,7 +92,7 @@ test.describe("signed in — review session", () => {
 
     await expect(page.getByText("كلمة1")).toBeVisible();
     // Progress spans the whole day, not just the deck in front of you.
-    await expect(page.getByText(/Curriculum · 1 \/ 2 due · 5 more in other decks/)).toBeVisible();
+    await expect(page.getByText(/Curriculum · 1 \/ 2 this session · 5 more in other decks/)).toBeVisible();
   });
 
   test("forwards past an empty deck into one that has cards", async ({ page }) => {
@@ -102,7 +102,7 @@ test.describe("signed in — review session", () => {
     await page.goto("/review");
 
     await expect(page).toHaveURL(/\/review\/my-words$/);
-    await expect(page.getByText(/My Words · 1 \/ 3 due/)).toBeVisible();
+    await expect(page.getByText(/My Words · 1 \/ 3 this session/)).toBeVisible();
   });
 
   test("offers the next deck instead of dead-ending when a deck is clear", async ({ page }) => {

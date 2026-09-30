@@ -122,6 +122,20 @@ test.describe("the headline stats", () => {
     seedProfile(db);
   });
 
+  test("counts every saved word, not just the first thousand", async ({ page, db }) => {
+    // An unbounded select stops at PostgREST's 1000 rows without saying so;
+    // the QA sweep's account showed "Words 1000" beside 2145 on /analytics.
+    db.seed(
+      "user_vocabulary",
+      Array.from({ length: 1003 }, (_, index) => aWord(`w${index}`, "Gulf", index < 3 ? 30 : 0)),
+    );
+
+    await page.goto("/profile");
+
+    await expect(page.getByText("1003", { exact: true }).first()).toBeVisible();
+    await expect(page.getByText("3 mature")).toBeVisible();
+  });
+
   test("counts saved words and how many are mature", async ({ page, db }) => {
     db.seed("user_vocabulary", [
       aWord("a", "Gulf", 30),
@@ -332,7 +346,7 @@ test.describe("badges", () => {
 });
 
 test.describe("when the profile will not load", () => {
-  test("shows an empty passport instead of saying anything went wrong", async ({
+  test("says so and offers a retry, rather than showing an empty passport", async ({
     page,
     signInAs,
     db,
@@ -347,17 +361,11 @@ test.describe("when the profile will not load", () => {
 
     await page.goto("/profile");
 
-    // Pinned, not endorsed. The load is wrapped in a try/catch that sets an
-    // error banner and offers a retry — but a PostgREST failure resolves as
-    // `{ data: null, error }` rather than throwing, so nothing is caught and
-    // neither the banner nor the "Try again" button can ever appear. The
-    // learner sees a fully-rendered passport belonging to "Traveler" with zero
-    // words, zero streak and no stamps, which is indistinguishable from a
-    // brand-new account.
-    await expect(page.getByRole("heading", { name: "Traveler" })).toBeVisible();
-    await expect(page.getByText("No stamps yet")).toBeVisible();
-    await expect(page.getByText(/Failed to load profile data/)).toHaveCount(0);
-    await expect(page.getByRole("button", { name: "Try again" })).toHaveCount(0);
+    // A PostgREST failure resolves as `{ data: null, error }` rather than
+    // throwing, so the try/catch around the load used to catch nothing and the
+    // learner saw a passport indistinguishable from a brand-new account.
+    await expect(page.getByText("Failed to load profile data. Please try again.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
   });
 });
 

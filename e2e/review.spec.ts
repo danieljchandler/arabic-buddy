@@ -155,7 +155,7 @@ test.describe("curriculum cards are the ones the learner asked for", () => {
     await expect(page.getByText("مفتوح")).toBeVisible();
     // The deck is one card, not two: a lesson nobody opened contributes
     // nothing, however many words it holds.
-    await expect(page.getByText(/Curriculum · 1 \/ 1 due/)).toBeVisible();
+    await expect(page.getByText(/Curriculum · 1 \/ 1 this session/)).toBeVisible();
     await expect(page.getByText("مغلق")).toHaveCount(0);
   });
 
@@ -170,7 +170,7 @@ test.describe("curriculum cards are the ones the learner asked for", () => {
 
     // The old behaviour, kept behind the Settings switch rather than deleted:
     // both words are queued, including the one from the unopened lesson.
-    await expect(page.getByText(/Curriculum · 1 \/ 2 due/)).toBeVisible();
+    await expect(page.getByText(/Curriculum · 1 \/ 2 this session/)).toBeVisible();
   });
 
   test("forwards into the learner's own words rather than inventing a deck", async ({ page }) => {

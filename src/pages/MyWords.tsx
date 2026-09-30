@@ -371,11 +371,15 @@ const MyWords = () => {
       {/* Review button */}
       {stats && stats.dueCount > 0 && (
         <Button
-          onClick={() => navigate("/review/my-words")}
+          // With All Dialects on, the count spans every dialect, so the deck
+          // must too — MyWordsSection learned this first.
+          // (A template literal so routeReachability still sees the link.)
+          onClick={() => navigate(`/review/my-words${mixAll ? "?mixed=1" : ""}`)}
           className="w-full mb-6 gap-2"
           size="lg"
         >
-          Review {stats.dueCount} due words
+          {/* Counts each direction (Arabic→English and back) as its own card. */}
+          Review {stats.dueCount} due {stats.dueCount === 1 ? "card" : "cards"}
           <ChevronRight className="h-4 w-4" />
         </Button>
       )}

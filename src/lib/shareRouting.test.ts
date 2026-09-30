@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { classifyShare, extractSharedUrl, isVideoPlatformUrl } from "./shareRouting";
+import { classifyShare, extractSharedUrl, isVideoPlatformUrl, withSharedUrl } from "./shareRouting";
 
 /**
  * The deterministic half of share routing: what can be decided without an AI
@@ -101,10 +101,24 @@ describe("classifyShare", () => {
     });
   });
 
-  it("screens the caption of an unknown link rather than dead-ending", () => {
+  it("screens the caption of an unknown link, keeping the link beside it", () => {
     expect(
       classifyShare({ ...base, text: "وش معنى هالكلمة؟ https://blog.example.com/post" }),
-    ).toEqual({ action: "screen-text", text: "وش معنى هالكلمة؟" });
+    ).toEqual({
+      action: "screen-text",
+      text: "وش معنى هالكلمة؟",
+      url: "https://blog.example.com/post",
+    });
+  });
+
+  it("keeps a link that came in the url field, not the text", () => {
+    // The QA sweep's case: ?url=https://example.com&text=hi reached Translate
+    // as "hi" alone.
+    expect(classifyShare({ ...base, text: "hi", url: "https://example.com" })).toEqual({
+      action: "screen-text",
+      text: "hi",
+      url: "https://example.com",
+    });
   });
 
   it("falls back to the title when that is all the share carried", () => {
@@ -151,5 +165,20 @@ describe("classifyShare", () => {
       action: "file-unsupported",
       file: pdf,
     });
+  });
+});
+
+describe("withSharedUrl", () => {
+  it("puts the link back on its own line", () => {
+    expect(withSharedUrl("hi", "https://example.com")).toBe("hi\nhttps://example.com");
+  });
+
+  it("leaves text that already carries it, and text with no link, alone", () => {
+    expect(withSharedUrl("see https://example.com", "https://example.com")).toBe("see https://example.com");
+    expect(withSharedUrl("hi")).toBe("hi");
+  });
+
+  it("is the link alone when there is no text", () => {
+    expect(withSharedUrl("", "https://example.com")).toBe("https://example.com");
   });
 });

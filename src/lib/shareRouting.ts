@@ -18,8 +18,12 @@ export type ShareRoute =
   | { action: "video-url-unsupported"; url: string }
   /** A file whose type no feature can take — named, so the UI can say which. */
   | { action: "file-unsupported"; file: File }
-  /** Needs the AI screening call. */
-  | { action: "screen-text"; text: string }
+  /**
+   * Needs the AI screening call. `url` is an unrecognised link the text came
+   * with: screening judges the words alone, so it travels beside them and is
+   * put back on whatever text is handed on (see `withSharedUrl`).
+   */
+  | { action: "screen-text"; text: string; url?: string }
   | { action: "screen-image"; file: File }
   /** Nothing usable in the payload. */
   | { action: "empty" };
@@ -93,6 +97,15 @@ export function classifySharedFile(file: File): SharedFileKind {
   return null;
 }
 
+/**
+ * Put a shared link back on the text handed to the next page, on its own line,
+ * unless the text already carries it.
+ */
+export function withSharedUrl(text: string, url?: string): string {
+  if (!url || text.includes(url)) return text;
+  return text ? `${text}\n${url}` : url;
+}
+
 export function classifyShare(input: ShareInput): ShareRoute {
   const file = input.files[0];
   if (file) {
@@ -117,10 +130,11 @@ export function classifyShare(input: ShareInput): ShareRoute {
         ? { action: "video-pipeline", url }
         : { action: "video-url-unsupported", url };
     }
-    // Unknown link: screen whatever caption came with it, or the URL itself
-    // tells us nothing — fall through to text screening / empty.
+    // Unknown link: screen whatever caption came with it, keeping the link
+    // alongside (it used to be dropped, so "hi" reached Translate without the
+    // page it was about). With no caption the URL alone tells us nothing.
     const caption = textWithoutUrl(input.text, url);
-    if (caption) return { action: "screen-text", text: caption };
+    if (caption) return { action: "screen-text", text: caption, url };
     return { action: "empty" };
   }
 

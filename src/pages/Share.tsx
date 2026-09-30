@@ -10,7 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useDialect } from "@/contexts/DialectContext";
 import { takeSharedPayload, stashSharedPayload, setShareHandoff } from "@/lib/shareInbox";
-import { classifyShare, type ShareRoute } from "@/lib/shareRouting";
+import { classifyShare, withSharedUrl, type ShareRoute } from "@/lib/shareRouting";
 import { toast } from "sonner";
 import {
   Share2,
@@ -129,7 +129,7 @@ const Share = () => {
   );
 
   const screenContent = useCallback(
-    async (input: { text?: string; imageFile?: File }) => {
+    async (input: { text?: string; url?: string; imageFile?: File }) => {
       setPhase({
         name: "screening",
         detail: input.imageFile ? "Reading your image…" : "Reading your text…",
@@ -154,7 +154,7 @@ const Share = () => {
         const message = await readInvokeError(error);
         toast.error("Couldn't screen the shared content", { description: message });
         setPhase({ name: "manual", note: input.text ?? null });
-        if (input.text) setManualText(input.text);
+        if (input.text) setManualText(withSharedUrl(input.text, input.url));
         return;
       }
 
@@ -162,7 +162,9 @@ const Share = () => {
       const extractedText: string = typeof data?.extractedText === "string" ? data.extractedText : "";
 
       if (destination === "translate" && extractedText) {
-        setShareHandoff({ kind: "text", text: extractedText });
+        // Screening returns only the words; the link they came with goes back
+        // on so Translate shows what was actually shared.
+        setShareHandoff({ kind: "text", text: withSharedUrl(extractedText, input.url) });
         goTo("/translate", "Translate");
       } else if (destination === "how_do_i_say" && extractedText) {
         setShareHandoff({ kind: "text", text: extractedText });
@@ -172,7 +174,7 @@ const Share = () => {
         goTo("/meme", "Meme Analyzer");
       } else {
         setPhase({ name: "manual", note: input.text ?? null });
-        if (input.text) setManualText(input.text);
+        if (input.text) setManualText(withSharedUrl(input.text, input.url));
         if (data?.reason) {
           toast.info("Not sure where this belongs", { description: data.reason });
         }
@@ -207,7 +209,7 @@ const Share = () => {
           setPhase({ name: "video-unsupported", url: route.url });
           break;
         case "screen-text":
-          await screenContent({ text: route.text });
+          await screenContent({ text: route.text, url: route.url });
           break;
         case "screen-image":
           await screenContent({ imageFile: route.file });

@@ -290,4 +290,32 @@ describe("leaving the form", () => {
 
     expect(tracks.stop).toHaveBeenCalled();
   });
+
+  it("releases a microphone that arrives after the row was closed", async () => {
+    // A first permission prompt or a Bluetooth headset can hold getUserMedia
+    // for seconds, and the Stop and X buttons are live the whole time. Closing
+    // in that gap used to leave the stream running with nothing to stop it.
+    let grant!: (stream: MediaStream) => void;
+    media.getUserMedia.mockReturnValueOnce(new Promise<MediaStream>((resolve) => (grant = resolve)));
+    const { unmount, onCancel } = await render();
+
+    unmount();
+    await act(async () => grant({ getTracks: () => [tracks] } as unknown as MediaStream));
+
+    expect(tracks.stop).toHaveBeenCalled();
+    expect(FakeMediaRecorder.instances).toHaveLength(0);
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it("says nothing about a refusal that comes after the row was closed", async () => {
+    let refuse!: (error: Error) => void;
+    media.getUserMedia.mockReturnValueOnce(new Promise<MediaStream>((_, reject) => (refuse = reject)));
+    const { unmount, onCancel } = await render();
+
+    unmount();
+    await act(async () => refuse(new Error("NotAllowedError")));
+
+    expect(toast).not.toHaveBeenCalled();
+    expect(onCancel).not.toHaveBeenCalled();
+  });
 });

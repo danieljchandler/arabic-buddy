@@ -1,4 +1,4 @@
-import { useRef, useCallback } from "react";
+import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { AppShell } from "@/components/layout/AppShell";
 import { PageCorner } from "@/components/shell/PageCorner";
@@ -19,7 +19,6 @@ const TutorUpload = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const {
     step,
     file,
@@ -106,7 +105,6 @@ const TutorUpload = () => {
             <span className="block text-sm text-muted-foreground">or click to browse · MP3, WAV, M4A, MP4, WebM</span>
             <input
               id="tutor-upload-file"
-              ref={fileInputRef}
               type="file"
               accept="audio/*,video/*"
               onChange={handleFileSelect}

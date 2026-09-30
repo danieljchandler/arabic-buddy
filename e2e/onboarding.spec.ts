@@ -60,6 +60,14 @@ test.describe("onboarding", () => {
     await expect(page.getByText("Step 1 of 5")).toBeVisible();
   });
 
+  test("writes the greeting's exclamation mark after the words", async ({ page }) => {
+    await page.goto("/onboarding");
+
+    // In logical order, so bidi puts it at the end of the right-to-left line.
+    // Typed first, it rendered as a stray "!" on the right, before the greeting.
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("أهلاً وسهلاً!");
+  });
+
   test("walks forward through all five steps", async ({ page }) => {
     await page.goto("/onboarding");
 

@@ -1,5 +1,11 @@
 # CLAUDE.md
 
+## Memory map
+- Hub: `projects/hikaya.md` in the vault (state, decisions, open items; read it first)
+- NotebookLM: "hakiya"
+- Chan Plan project: none
+- Drive: `C:\ai\projects\arabic-app` (machines A and B only, not in a cloud session)
+
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## What this is

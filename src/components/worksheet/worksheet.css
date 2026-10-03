@@ -14,14 +14,17 @@
   max-width: 190mm;
   margin: 0 auto;
   padding: 12mm 12mm 16mm;
-  font-family: "Open Sans", "Noto Sans Arabic", sans-serif;
+  /* Through the brand's font variables (src/index.css), like every other
+     surface: index.html only loads the active brand's faces, so a literal
+     family that brand doesn't use prints in a system fallback. */
+  font-family: var(--font-sans);
   font-size: 11pt;
   line-height: 1.45;
 }
 
 /* Arabic: Naskh for print, generous leading so harakat clear the line above. */
 .ws-ar {
-  font-family: "Noto Naskh Arabic", "Noto Sans Arabic", "Traditional Arabic", serif;
+  font-family: var(--font-naskh);
   font-size: 15pt;
   line-height: 2.1;
 }
@@ -113,7 +116,7 @@
   padding: 0 1mm;
   border: 0.75pt solid var(--ws-rule);
   border-radius: 1mm;
-  font-family: "Open Sans", sans-serif;
+  font-family: var(--font-sans);
   font-size: 9pt;
   line-height: 1;
   flex-shrink: 0;

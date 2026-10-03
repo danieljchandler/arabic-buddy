@@ -1,6 +1,31 @@
 # Brand refresh: after watercolor
 
-Status: **exploration, nothing decided.** October 2026.
+Status: **direction chosen: Ink, with subtle sadu.** October 2026.
+
+## Decision (3 October 2026)
+
+The owner chose **Direction B, Ink**, with these changes:
+
+- **Subtle sadu from Weave, in two forms only:**
+  - Tone-on-tone sadu pressed into the dark oxblood and ink panels. This is the
+    same "weave pressed into dark glass" technique the feed's play button
+    already uses.
+  - Small sadu-diamond accents: dividers, progress-bar ends and meta bullets.
+  - No sadu bands and no full-strength pattern panels.
+- **Kept exactly as they are:**
+  - The TikTok-style feed as the opening page.
+  - The sadu play button (`SaduPlayButton`, `sadu-play.svg`).
+  - The Ask AI button (`AskAiFab`, `sadu-ask.svg`).
+  - The avatar presets and picker (`public/avatars/`, `AvatarPicker`).
+- **Logo: undecided between two Ink marks.** Both are vowelled حِكَايَة with a
+  kasra:
+  - *clean*, a flat bubble with a waveform;
+  - *faint sadu fill*, which keeps today's woven fill as near-invisible
+    texture.
+- **Build in parallel with the final mockups.** Ink is built into the app
+  behind `?brand=ink` (add `&mark=sadu` for the second logo). It becomes the
+  default once the owner signs off.
+
 
 The owner is no longer sure about the watercolor look and pointed at six contemporary
 Arabic brand identities on Behance as the direction they like:

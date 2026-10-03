@@ -19,45 +19,40 @@ directions are on a separate design canvas, linked from the PR.
 
 ## What the references have in common
 
-A caveat first. Behance blocks automated access, so the projects were researched
-through open sources rather than read directly. **Only Thmanyah is documented
-outside Behance.** For the other five we know the title and category and
-nothing else. NAJD is very probably a Saudi men's shawl (shemagh) brand, and
-Aioshah is a shawarma restaurant with packaging. Treat anything said about
-those five beyond that as inference, and add screenshots here if a decision
-comes to depend on them.
+Behance blocks automated access, so these notes come from screenshots the owner
+shared plus open sources (Milk Network's Thmanyah case study).
 
-**Thmanyah** (Saudi podcast and documentary network). The identity is by Milk
-Network, with the Arabic logotype refined by Wael Morcos
-([case study](https://milknetwork.com/work/thmanyah/)):
+| Reference | What it is | What it does |
+|---|---|---|
+| **BADEE3** (Khiall Studio, 2026) | A cultural storytelling platform | Naskh-rooted, high-contrast display Arabic (Arsenica Arabic) with **dramatically stretched kashida**: رياضـــة, ثقافـــة. Palette: oxblood, mustard and cream, with a near-black green. Tiny corner meta-labels on every panel. Warm, sepia, cinematic photography with huge Arabic words over it. |
+| **NAJD** | Boutique residential compound, "For houses carry a spirit" | Najdi triangular ventilation patterns become a **triangle pattern system** and an emblem. A sweeping calligraphic نجد. Muted forest, sage, winter green, pastel yellow and teak. Times for Latin; **IBM Plex Sans Arabic** for paragraphs. |
+| **Ajdadi** | Palestinian streetwear | One vivid green with a dark green and cream. A chunky, interlaced calligraphic logotype. **Tatreez cross-stitch drawn as pixel grids**, even as lettering. |
+| **Aioshah®** (JDS, Riyadh, 2025) | Shawarma brand | "This isn't heritage placed on packaging. It's heritage transformed into a branding system." A **sadu stepped-diamond emblem**, sadu label tapes, and badge-row lockups. Black, eggshell, a pure red and two evergreens. Kepler serif for Latin. |
+| **SAMT** (2026) | Modern thobes and menswear | A chunky logotype, سَمْت, whose **diacritics are graphic elements**, set with a heavy old-style serif "SAMT". Coral, navy, cobalt and cream. A lattice pattern, a **circular compass seal**, and sunlit film photography. |
+| **Thmanyah** (Milk Network) | Saudi podcast and media network | A Naskh-style serif display paired with a no-contrast sans. **Highlighted-text bars.** Big numerals. A black and warm off-white core with flat accent tiles. |
 
-- **Mark.** A single Arabic numeral, ٨ ("eight"), drawn as a solid shape. The
-  wordmark is a heavy **Naskh-style** ثمانية set beside a high-contrast serif
-  `thmanyah`.
-- **Type.** Thmanyah's own families: Serif Display, Serif Text and Sans
-  ([font.thmanyah.com](https://font.thmanyah.com/)). The serifs are deliberately
-  calligraphic, and the Sans has no contrast. All three are free for commercial
-  use, including apps, but they are **not OFL**: they cannot be redistributed or
-  modified. Using them would also make Hikaya look like Thmanyah.
-- **Colour.** A black and warm off-white core, two main accents (a blue and a
-  red), and a wide secondary set, all used as flat tiles.
-- **Signature devices.**
-  - *Highlighted text*: headline words set on solid highlighter bars.
-  - Huge numerals.
-  - A strict type scale.
-  - Flat, slightly retro illustration and duotone photography.
+The shared language:
 
-The reasonable reading of the whole set, verified for Thmanyah and consistent
-with the categories of the rest:
+1. **The Arabic word is the logo.** It is custom, Naskh-rooted and dramatic:
+   stretched kashida, and diacritics drawn as graphics.
+2. **Heritage geometry turned into a system.** Sadu diamonds, Najdi triangles,
+   tatreez pixels and lattices appear as emblems, bands, tapes and full-bleed
+   panels, in two or three flat colours. Never as decoration.
+3. **A classical serif for Latin,** and a clean sans for body text.
+4. **A cream ground, one deep dark and one hot accent,** with plenty of
+   full-bleed dark panels.
+5. **Warm, cinematic photography of real people,** with huge Arabic words set
+   over it.
+6. **Nothing cartoonish:** no rounded app-style playfulness, no gradients.
 
-1. **The Arabic word is the logo.** The letterform is the hero, not a picture.
-2. **Calligraphic roots, modern drawing.** A Naskh- or Kufi-flavoured display
-   face, paired with a quiet sans for interface text.
-3. **Flat solid colour fields.** No textures and no gradients. A small core
-   palette and a disciplined accent set.
-4. **Heritage geometry used sparingly.** Sadu weave, Najdi triangular parapets
-   and stitch lines appear as edges, dividers and badges, never as wallpaper.
-5. **Sticker and badge systems,** in the street-food references.
+Three things here suit Hikaya particularly well:
+
+- Hikaya already has sadu, so Aioshah's line is the thesis: the heritage should
+  become the system rather than sit on top of it.
+- The stretched kashida suits a **spoken**-dialect app, because elongation is
+  how speech sounds: حكـــاية.
+- Hikaya has real native-speaker video. Stills from clips can be the
+  photography layer that replaces the painted scenes.
 
 ## What the current system is made of
 
@@ -91,67 +86,67 @@ The full inventory is in the PR. These are the parts a refresh has to deal with:
 
 ## Three directions
 
-All three keep the mark's idea. They differ in how far they move from today.
+All three keep the mark's idea, with one cluster of references behind each.
+Mockups for every direction are on the canvas: a brand sheet plus Today,
+Choose, a word card and the landing page.
 
 ### A. Weave (نسيج): the closest evolution
 
-Today's palette and sadu, rebuilt flat and precise in the spirit of heritage-modern
-identities like NAJD and SAMT.
+Aioshah, NAJD and Ajdadi.
 
-- **Colour:**
-  - Ground: sand #EEDFCB. Surface: cream #FBF6EE. Ink: #24201D.
-  - Desert Red #8C4135 stays the hero.
-  - Deep Desert green #44663D finally becomes a real second colour.
-  - Saffron #D9A441 for highlights.
-- **Type:** Reem Kufi for Arabic display, Alexandria for Latin headings, IBM Plex
-  Sans Arabic for UI and reading.
+- **Colour:** Desert Red #8C4135 stays the hero, on a pastel sand ground
+  #F2E6CF. Deep Desert green, named in today's palette but never used,
+  arrives as **evergreen #1F3A2C** full-bleed panels. Sage #7D7F5F and saffron
+  #D9A441 are accents.
+- **Type:** Aref Ruqaa for Arabic display, Newsreader serif for Latin headings,
+  IBM Plex Sans Arabic for UI and reading text.
 - **Devices:**
-  - A modular vector sadu band replaces the painted one.
-  - Najdi parapet "teeth" as edges.
-  - Skill tiles become solid colour blocks with flat geometric illustrations.
-- **Cost:** the lowest. The palette and tokens barely move. Most of the work is
-  illustration and the mark.
+  - A sadu stepped-diamond emblem as the secondary symbol.
+  - A Najdi triangle pattern.
+  - Sadu label tapes.
+  - Skill tiles as solid blocks, each with its own pattern motif.
+- **Cost:** the lowest. The palette barely moves. The work is the mark, the
+  pattern kit, and swapping painted scenes for photography and pattern.
 
 ### B. Ink (حبر): editorial and audio-first
 
-In the spirit of Thmanyah: paper, black ink and a single red. Huge Naskh Arabic
-display type does the work that illustration does today.
+BADEE3 and Thmanyah.
 
-- **Colour:** paper #F3EEE6, ink #121212, Signal Red #B23A27, sand #D9C4A3.
-- **Type:** Noto Naskh Arabic (or Amiri) for Arabic display and learner text,
-  Readex Pro for Latin and UI, IBM Plex Mono for numerals.
+- **Colour:** desert red deepens to **oxblood #6B1F1F**, with **mustard #E2B65C**
+  on cream #EFE6CF and near-black #1A1C17.
+- **Type:** Rakkas for Arabic display, with stretched kashida. DM Serif Display
+  for Latin headlines, Readex Pro for UI, Noto Naskh Arabic for learner text.
 - **Devices:**
-  - The logo's **waveform** becomes the graphic system: scrubbers, progress,
-    dividers and skill tiles.
-  - **Highlighter bars** mark the dialect word, the word just heard, or the
-    active task.
-  - Big numerals.
-  - No illustration.
-- **Cost:** medium. The look changes the most, but it needs the least art: the
-  44 illustrations are removed rather than redrawn.
+  - The logo's waveform becomes the graphic system.
+  - Highlighter bars mark the dialect word or the word just heard.
+  - BADEE3-style corner meta-labels.
+  - Photography with huge Arabic words over it.
+- **Cost:** medium. The look changes most, but the art needed is photography,
+  not 44 redrawn illustrations.
 
-### C. Souq (سوق): playful and loud
+### C. Souq (سوق): bold and colourful
 
-In the spirit of street-food identities: saturated flat colour, chunky rounded
-Arabic display type, a sticker system, thick ink outlines with hard offset
-shadows, and bold outlined cartoon objects.
+SAMT and Aioshah.
 
-- **Colour:** cream #FFF3DF, ink #1E1A17, terracotta #B8432A, saffron #F4B740,
-  palm green #2E6A4E, plum #5B2C45, rose #F3B4A6.
-- **Type:** Lalezar for display, Baloo Bhaijaan 2 for UI.
-- **Cost:** the highest. It needs a full illustration set in the new style, and
-  the component styling changes everywhere (borders, shadows, radii).
-- **Option:** works well as a *sub-brand* for games, battles, streaks and
-  rewards, even if the core app goes another way.
+- **Colour:** coral #D4553D (deep coral #B5432F for buttons), navy #13293A,
+  cobalt #2C5F8F and cream #EFE3BF.
+- **Type:** Lalezar for Arabic display, with the logotype's harakat drawn as
+  graphic elements. Young Serif for Latin, Alexandria for UI.
+- **Devices:**
+  - A lattice pattern.
+  - A circular seal.
+  - Label-tape lockups.
+  - Sunlit lifestyle photography.
+- **Cost:** medium to high. The palette moves furthest from today. Desert red
+  survives only as coral, and sand as cream.
 
 ### Mixing them
 
-The directions share the mark and the sand-and-red family, so they can be
-combined. The likeliest strong combination is **Weave's palette and sadu with
-Ink's typography**: Naskh display for Arabic, highlighter bars for dialect
-words, big numerals. That keeps the most identity and captures what the
-verified reference does best. Souq's stickers could then be held back for
-gamification.
+The directions share the mark, the warm ground and the photography layer, so
+they can be combined. The likeliest strong mix is **Weave's palette and sadu
+system with Ink's typographic moves**: kashida display, highlighter bars for
+dialect words, big numerals. That keeps the most identity and borrows what
+BADEE3 and Thmanyah do best.
 
 ## Previewing a direction in the real app
 
@@ -194,7 +189,8 @@ Each phase ships on its own and leaves the app coherent.
 5. **Illustration system.**
    - Change `STYLE` in `scripts/generate-illustrations.mjs` and the story-cover
      prompt **first**, so new content stops arriving in watercolor.
-   - Regenerate or replace the 44 files (Ink removes most of them instead).
+   - Replace the 44 files with photography (clip stills, or commissioned or
+     generated cinematic stills), pattern panels, or both.
    - Replace the campfire and caravan loops.
    - Decide whether existing story covers are regenerated or left as they are.
 6. **Components.**
@@ -213,5 +209,5 @@ Each phase ships on its own and leaves the app coherent.
 - Which direction, or which mix?
 - Should the logotype be redrawn by a type designer? This is recommended: the
   current calligraphy exists only as a raster.
-- Should Souq become a gamification sub-brand regardless of the main direction?
+- Should the photography layer be stills from the app's own native-speaker clips, commissioned, or generated?
 - Should existing generated story covers be regenerated in the new style?

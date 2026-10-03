@@ -59,8 +59,10 @@ function backend(
   const {
     video = aVideo(),
     isAdmin = true,
+    // download-media sends the bytes as `audioBase64` only, whatever the
+    // media; the `mediaBase64` duplicate was dropped to save worker memory.
     download = () => json({
-      mediaBase64: btoa("fake mp4"),
+      audioBase64: btoa("fake mp4"),
       contentType: "video/mp4",
       size: 1024 * 512,
     }),
@@ -203,7 +205,7 @@ Deno.test("reextract-on-screen-text reads the whole video, not sampled stills", 
 
 Deno.test("reextract-on-screen-text says plainly when only the audio came back", async () => {
   const { status, body } = await call({ videoId: VIDEO }, backend({
-    download: () => json({ mediaBase64: btoa("fake mp3"), contentType: "audio/mpeg", size: 4096 }),
+    download: () => json({ audioBase64: btoa("fake mp3"), contentType: "audio/mpeg", size: 4096 }),
   }));
 
   // Several of download-media's strategies are audio extractors. Reading a
@@ -215,7 +217,7 @@ Deno.test("reextract-on-screen-text says plainly when only the audio came back",
 
 Deno.test("reextract-on-screen-text refuses a video too big to send inline", async () => {
   const { status, body } = await call({ videoId: VIDEO }, backend({
-    download: () => json({ mediaBase64: btoa("x"), contentType: "video/mp4", size: 40 * 1024 * 1024 }),
+    download: () => json({ audioBase64: btoa("x"), contentType: "video/mp4", size: 40 * 1024 * 1024 }),
   }));
 
   assertEquals(status, 500);

@@ -436,16 +436,18 @@ Deno.test("download-media asks Cobalt for the muxed video when told to", async (
   assertEquals(body.contentType, "video/mp4");
 });
 
-Deno.test("download-media returns the bytes under both names", async () => {
+Deno.test("download-media returns the bytes once, under audioBase64", async () => {
   const { body } = await call(
     { url: YT, wantVideo: true },
     caller({ "co.imput.net": cobalt("https://cdn.test/clip.mp4"), "cdn.test": videoBytes() }),
   );
 
-  // `audioBase64` is the long-standing field every existing caller reads;
-  // `mediaBase64` is the same bytes under a name that does not lie about a video.
-  assertEquals(body.mediaBase64, body.audioBase64);
+  // `audioBase64` is the field every caller reads (reextract-on-screen-text
+  // reads `mediaBase64 ?? audioBase64`). The `mediaBase64` duplicate was
+  // dropped on purpose: two copies of an ~11MB clip in one JSON body helped
+  // push the worker past its memory limit (WORKER_RESOURCE_LIMIT / 546).
   assert(String(body.audioBase64).length > 0);
+  assertEquals("mediaBase64" in body, false);
 });
 
 Deno.test("download-media skips the audio-only YouTube extractors for a video request", async () => {

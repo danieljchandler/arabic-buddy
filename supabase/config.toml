@@ -372,3 +372,8 @@ verify_jwt = false
 # reviewer/admin-only; this is the one door learners have to that audio.
 [functions.discover-video-audio]
 verify_jwt = true
+
+# Printable worksheets (/print/worksheet). Builds the spec from the caller's
+# own weak and due words; enforceDailyCap rejects anonymous callers inside.
+[functions.generate-worksheet]
+verify_jwt = false

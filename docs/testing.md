@@ -266,3 +266,30 @@ against native review rather than shipping on the delta alone.
   `msaLeakDetector`'s word-list verdict when `ALDI_HF_MODEL` (and a
   HuggingFace key) is set; it is log-only and inert otherwise. Compare the
   two signals against native-review outcomes before making either a gate.
+
+## Printed worksheets
+
+`/print/worksheet` lays out a `generate-worksheet` spec for paper, and the
+browser's print dialog is the PDF renderer. Edge functions can't run Chromium.
+jsdom can't shape Arabic or paginate, so `WorksheetSheet.test.tsx` checks
+structure only: `dir="rtl"` and `lang="ar"` on every Arabic block, item numbers
+boxed rather than written as "1.", and right-to-left writing lines.
+
+`e2e/print-worksheet.spec.ts` covers the page in the hermetic suite. Its last
+test is a local Arabic print check that runs only when asked:
+
+```sh
+WORKSHEET_PRINT_CHECK_DIR=test-results/print-check npx playwright test e2e/print-worksheet.spec.ts
+```
+
+It lets the Google Fonts request through, waits for Noto Naskh Arabic, then
+writes a print-media screenshot and a `page.pdf()` of
+`/print/worksheet?sample=1` for a person to look at. Check four things: the
+letters join, the harakat show, the writing lines run right to left with the
+margin on the right, and the digits inside Arabic lines stay in order
+("الساعة 11", "12 ريال").
+
+Chrome's PDF text layer for Arabic doesn't survive copy and paste: the page
+prints correctly but the extracted text is scrambled. Use the browser to read
+or search, and the PDF for printing. The sample is
+`src/lib/worksheetSample.ts`. Its Arabic is a draft for a native reader.

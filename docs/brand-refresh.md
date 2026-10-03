@@ -41,8 +41,9 @@ The shared language:
 3. **A classical serif for Latin,** and a clean sans for body text.
 4. **A cream ground, one deep dark and one hot accent,** with plenty of
    full-bleed dark panels.
-5. **Warm, cinematic photography of real people,** with huge Arabic words set
-   over it.
+5. **Huge Arabic words used as images.** In the references these are often set
+   over photography, but Hikaya will not use photographic imagery (see
+   below).
 6. **Nothing cartoonish:** no rounded app-style playfulness, no gradients.
 
 Three things here suit Hikaya particularly well:
@@ -51,8 +52,9 @@ Three things here suit Hikaya particularly well:
   become the system rather than sit on top of it.
 - The stretched kashida suits a **spoken**-dialect app, because elongation is
   how speech sounds: حكـــاية.
-- Hikaya has real native-speaker video. Stills from clips can be the
-  photography layer that replaces the painted scenes.
+- **The owner has ruled out photography and photo-realistic imagery.** The
+  painted scenes are replaced by pattern panels, typography (the word as the
+  image) and flat graphic illustration, never photos.
 
 ## What the current system is made of
 
@@ -106,7 +108,8 @@ Aioshah, NAJD and Ajdadi.
   - Sadu label tapes.
   - Skill tiles as solid blocks, each with its own pattern motif.
 - **Cost:** the lowest. The palette barely moves. The work is the mark, the
-  pattern kit, and swapping painted scenes for photography and pattern.
+  pattern kit, and swapping painted scenes for pattern panels and flat
+  geometric illustration.
 
 ### B. Ink (حبر): editorial and audio-first
 
@@ -120,9 +123,10 @@ BADEE3 and Thmanyah.
   - The logo's waveform becomes the graphic system.
   - Highlighter bars mark the dialect word or the word just heard.
   - BADEE3-style corner meta-labels.
-  - Photography with huge Arabic words over it.
-- **Cost:** medium. The look changes most, but the art needed is photography,
-  not 44 redrawn illustrations.
+  - Type as the only imagery: giant cropped letterforms and a tonal texture of
+    calligraphy letters.
+- **Cost:** medium. The look changes most, but it needs almost no art: most of
+  the 44 illustrations are removed rather than redrawn.
 
 ### C. Souq (سوق): bold and colourful
 
@@ -136,13 +140,13 @@ SAMT and Aioshah.
   - A lattice pattern.
   - A circular seal.
   - Label-tape lockups.
-  - Sunlit lifestyle photography.
+  - Flat, two-to-three-colour poster illustration in a screenprint style.
 - **Cost:** medium to high. The palette moves furthest from today. Desert red
   survives only as coral, and sand as cream.
 
 ### Mixing them
 
-The directions share the mark, the warm ground and the photography layer, so
+The directions share the mark and the warm ground, so
 they can be combined. The likeliest strong mix is **Weave's palette and sadu
 system with Ink's typographic moves**: kashida display, highlighter bars for
 dialect words, big numerals. That keeps the most identity and borrows what
@@ -189,8 +193,8 @@ Each phase ships on its own and leaves the app coherent.
 5. **Illustration system.**
    - Change `STYLE` in `scripts/generate-illustrations.mjs` and the story-cover
      prompt **first**, so new content stops arriving in watercolor.
-   - Replace the 44 files with photography (clip stills, or commissioned or
-     generated cinematic stills), pattern panels, or both.
+   - Replace the 44 files with pattern panels and flat graphic illustration in
+     the chosen direction's palette. No photographs.
    - Replace the campfire and caravan loops.
    - Decide whether existing story covers are regenerated or left as they are.
 6. **Components.**
@@ -209,5 +213,4 @@ Each phase ships on its own and leaves the app coherent.
 - Which direction, or which mix?
 - Should the logotype be redrawn by a type designer? This is recommended: the
   current calligraphy exists only as a raster.
-- Should the photography layer be stills from the app's own native-speaker clips, commissioned, or generated?
 - Should existing generated story covers be regenerated in the new style?

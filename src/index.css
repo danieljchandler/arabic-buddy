@@ -131,6 +131,27 @@
     --sidebar-accent-foreground: 150 5% 15%;
     --sidebar-border: 38 35% 80%;
     --sidebar-ring: 8 47% 34%;
+
+    /* Type families, as variables so a brand direction can swap them in one
+       place (src/styles/brand-preview.css). These are exactly the stacks the
+       app has always used; tailwind.config.ts's fontFamily and the rules
+       below read them, so the default rendering is unchanged. A component
+       that sets a face inline writes `fontFamily: "var(--font-…)"`, never a
+       literal stack, or a direction cannot reach it. */
+    --font-sans: 'Open Sans', 'Noto Sans Arabic', sans-serif;
+    --font-heading: 'Montserrat', 'Noto Sans Arabic', sans-serif;
+    --font-arabic: 'Noto Sans Arabic', 'Open Sans', sans-serif;
+    /* Arabic-first display (vocabulary, Arabic titles). Same stack as
+       --font-arabic today; separate so a direction can give it a display face. */
+    --font-arabic-display: 'Noto Sans Arabic', 'Open Sans', sans-serif;
+    /* Tailwind's `font-cairo`, which has always been Noto Naskh. */
+    --font-naskh: 'Noto Naskh Arabic', 'Noto Sans Arabic', serif;
+    /* Transcript lines — the video page, the line-by-line and admin
+       transcript editors, the transcribe page — and their Fusha row. The
+       Naskh stack those surfaces have always carried, with Windows'
+       Traditional Arabic as the fallback; its own variable so a direction
+       sets it next to --font-naskh. */
+    --font-transcript: 'Noto Naskh Arabic', 'Traditional Arabic', serif;
   }
 
   /* ── Night majlis ─────────────────────────────────────────────────────
@@ -213,7 +234,7 @@
 
   body {
     @apply bg-background text-foreground;
-    font-family: 'Open Sans', 'Noto Sans Arabic', sans-serif;
+    font-family: var(--font-sans);
     font-size: 1rem;
     line-height: 1.6;
     -webkit-font-smoothing: antialiased;
@@ -227,7 +248,7 @@
 
   /* Locked heading rhythm — Montserrat, tight tracking, no competing weights */
   h1, h2, h3, h4 {
-    font-family: 'Montserrat', 'Noto Sans Arabic', sans-serif;
+    font-family: var(--font-heading);
     font-weight: 700;
     color: hsl(var(--foreground));
   }
@@ -273,15 +294,15 @@
   }
 
   .font-sans {
-    font-family: 'Open Sans', 'Noto Sans Arabic', sans-serif;
+    font-family: var(--font-sans);
   }
 
   .font-heading {
-    font-family: 'Montserrat', 'Noto Sans Arabic', sans-serif;
+    font-family: var(--font-heading);
   }
 
   .font-arabic {
-    font-family: 'Noto Sans Arabic', 'Open Sans', sans-serif;
+    font-family: var(--font-arabic);
     line-height: 1.7;
   }
 
@@ -313,13 +334,13 @@
 
   /* Arabic-first display — used for vocabulary and titles in Arabic */
   .text-arabic-display {
-    font-family: 'Noto Sans Arabic', 'Open Sans', sans-serif;
+    font-family: var(--font-arabic-display);
     font-weight: 700;
     line-height: 1.4;
     letter-spacing: 0;
   }
   .text-arabic-body {
-    font-family: 'Noto Sans Arabic', 'Open Sans', sans-serif;
+    font-family: var(--font-arabic);
     font-weight: 500;
     line-height: 1.75;
   }
@@ -329,7 +350,7 @@
     @apply text-arabic-display;
   }
   .text-english-secondary {
-    font-family: 'Open Sans', 'Noto Sans Arabic', sans-serif;
+    font-family: var(--font-sans);
     font-weight: 500;
     color: hsl(var(--muted-foreground));
   }

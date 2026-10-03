@@ -2,7 +2,7 @@ import { MonitorPlay } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ScreenTextLine } from "@/lib/onScreenText";
 
-const ARABIC_FONT = "'Noto Naskh Arabic', 'Noto Sans Arabic', serif";
+const ARABIC_FONT = "var(--font-naskh)";
 
 interface OnScreenTextPanelProps {
   lines: ScreenTextLine[];

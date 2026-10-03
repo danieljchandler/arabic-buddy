@@ -1,5 +1,7 @@
 import { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { useIsInk } from "@/hooks/useBrandPreview";
+import { SaduDiamond } from "@/components/brand/SaduDiamond";
 import caughtUpArt from "@/assets/illustrations/empty-caught-up.webp";
 import nothingArt from "@/assets/illustrations/empty-nothing.webp";
 import noLessonsArt from "@/assets/illustrations/empty-no-lessons.webp";
@@ -41,6 +43,28 @@ const ART = {
   "no-results": noResultsArt,
 } as const;
 
+/**
+ * The Ink brand preview has no illustrations, so under it each piece of art
+ * becomes a letter: the first letter of a spoken word that names the
+ * absence, set large in Rakkas on a paper plate. The word itself rides
+ * underneath, small — the plate is a glyph, not a riddle.
+ */
+const INK_LETTER: Record<keyof typeof ART, { letter: string; word: string }> = {
+  /** ممتاز — "excellent", said across the Gulf, Egypt and Yemen. Not خلاص:
+   *  Rakkas draws dots as short dashes, so a lone خ on the plate read as غ. */
+  "caught-up": { letter: "م", word: "ممتاز" },
+  /** حكاية — every story starts somewhere. */
+  "nothing-yet": { letter: "ح", word: "حكاية" },
+  /** درس — a lesson. */
+  "no-lessons": { letter: "د", word: "درس" },
+  /** سباق — a race nobody has run yet. */
+  "no-rankings": { letter: "س", word: "سباق" },
+  /** كلام — talk, what a saved phrase is. */
+  "no-phrases": { letter: "ك", word: "كلام" },
+  /** بحث — a search. */
+  "no-results": { letter: "ب", word: "بحث" },
+};
+
 export interface EmptyStateProps {
   art?: keyof typeof ART;
   title: string;
@@ -65,19 +89,50 @@ export function EmptyState({
   size = "md",
 }: EmptyStateProps) {
   const actions = action ?? children;
+  const ink = useIsInk();
+  const glyph = INK_LETTER[art];
   return (
     <div className={cn("flex flex-col items-center justify-center py-12 px-4 text-center", className)}>
-      <img
-        src={ART[art]}
-        alt=""
-        aria-hidden
-        loading="lazy"
-        draggable={false}
-        className={cn(
-          "rounded-full object-cover bg-card-cream ring-1 ring-border/60 shadow-soft select-none mb-4 animate-scale-in",
-          size === "md" ? "h-36 w-36" : "h-24 w-24",
-        )}
-      />
+      {ink ? (
+        <span
+          aria-hidden="true"
+          data-ink-plate={art}
+          className={cn(
+            "pointer-events-none relative mb-4 grid place-items-center overflow-hidden rounded-[4px] bg-muted text-primary",
+            size === "md" ? "h-36 w-36" : "h-24 w-24",
+          )}
+        >
+          <SaduDiamond size={size === "md" ? 10 : 8} className="absolute left-2.5 top-2.5" />
+          <span
+            lang="ar"
+            className={cn("font-ink-display leading-none", size === "md" ? "-mt-6 text-[88px]" : "-mt-4 text-[56px]")}
+          >
+            {glyph.letter}
+          </span>
+          <span
+            lang="ar"
+            dir="rtl"
+            className={cn(
+              "absolute inset-x-0 bottom-1.5 text-center leading-none text-muted-foreground",
+              size === "md" ? "text-xs" : "text-[10px]",
+            )}
+          >
+            {glyph.word}
+          </span>
+        </span>
+      ) : (
+        <img
+          src={ART[art]}
+          alt=""
+          aria-hidden
+          loading="lazy"
+          draggable={false}
+          className={cn(
+            "rounded-full object-cover bg-card-cream ring-1 ring-border/60 shadow-soft select-none mb-4 animate-scale-in",
+            size === "md" ? "h-36 w-36" : "h-24 w-24",
+          )}
+        />
+      )}
       <h2 className="font-heading text-lg font-bold text-foreground mb-1.5">{title}</h2>
       {body && <p className="text-sm text-muted-foreground max-w-sm leading-relaxed">{body}</p>}
       {actions && (

@@ -53,6 +53,11 @@ export interface Activity {
 
 export interface Skill extends Surface {
   arabic: string;
+  /** The same word set as display type, its kashida (ـ) stretched the way a
+   *  voice draws a word out. Only the Ink brand preview's type-led tiles use
+   *  it; it is the word, not a translation, so `arabic` stays the one read
+   *  aloud. */
+  arabicDisplay: string;
   /** The tile's accent: four steps from charcoal to Desert Red, all inside the
    *  brand ramp. Tints, not hues — the old hubs accented tiles sky-blue, amber
    *  and emerald, colours left over from before the brand guide. Carried here
@@ -77,6 +82,7 @@ export const SKILLS: Skill[] = [
     id: "listen",
     label: "Listen",
     arabic: "استماع",
+    arabicDisplay: "استمـــاع",
     to: "/skills/listen",
     tint: "hsl(var(--ramp-1))",
     art: skillListenArt,
@@ -113,6 +119,7 @@ export const SKILLS: Skill[] = [
     id: "read",
     label: "Read",
     arabic: "قراءة",
+    arabicDisplay: "قـــراءة",
     to: "/skills/read",
     tint: "hsl(var(--ramp-2))",
     art: skillReadArt,
@@ -155,6 +162,7 @@ export const SKILLS: Skill[] = [
     id: "speak",
     label: "Speak",
     arabic: "تحدّث",
+    arabicDisplay: "تحـــدّث",
     to: "/skills/speak",
     tint: "hsl(var(--ramp-3))",
     art: skillSpeakArt,
@@ -192,6 +200,7 @@ export const SKILLS: Skill[] = [
     id: "write",
     label: "Write",
     arabic: "كتابة",
+    arabicDisplay: "كتـــابة",
     to: "/skills/write",
     tint: "hsl(var(--ramp-4))",
     art: skillWriteArt,

@@ -1,5 +1,9 @@
+import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import hakiyaLockup from "@/assets/hakiya-lockup.webp";
+import { useIsInk } from "@/hooks/useBrandPreview";
+import { HikayaInkMark } from "@/components/brand/HikayaInkMark";
+import inkAppIcon from "@/assets/brand/hikaya-sadu-harakat-icon.svg";
 
 /**
  * The Hikaya mark, back in the top-left corner where it belongs.
@@ -28,8 +32,30 @@ import hakiyaLockup from "@/assets/hakiya-lockup.webp";
  * Not a link. Home is two taps away in the dock and one swipe away on the
  * feed, and a second control pointing at the same place is the mistake the
  * page corner was rebuilt to stop making.
+ *
+ * Under Ink (the default brand) the corner draws the redrawn Ink mark
+ * instead. The feed ("/") keeps its layout exactly — a square tile in the
+ * corner over the clip — so there the tile is the Ink app icon at the same
+ * 48px footprint rather than the wide mark, which would crowd the dialect
+ * control. Same accessible name either way.
  */
 export function BrandMark({ className }: { className?: string }) {
+  const ink = useIsInk();
+  const onFeed = useLocation().pathname === "/";
+  if (ink && onFeed) {
+    return (
+      <img
+        src={inkAppIcon}
+        alt="Hikaya"
+        className={cn("h-12 w-12 shrink-0 select-none", className)}
+        draggable={false}
+      />
+    );
+  }
+  if (ink) {
+    // 48px tall, the raster's height: the corner keeps its footprint.
+    return <HikayaInkMark size={48} className={className} />;
+  }
   return (
     <img
       src={hakiyaLockup}

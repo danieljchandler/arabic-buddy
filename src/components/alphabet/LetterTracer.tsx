@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { RotateCcw, Check, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { prefersReducedMotion } from "@/lib/uiPrefs";
+import { useBrandPreview } from "@/hooks/useBrandPreview";
 
 interface LetterTracerProps {
   letter: string;
@@ -59,8 +60,12 @@ export const LetterTracer = ({ letter, onComplete }: LetterTracerProps) => {
 
 
   const SIZE = 320;
+  // The mask below reads --font-arabic, which the active brand sets; a brand
+  // switch mid-exercise has to rebuild it, or coverage is scored against the
+  // previous brand's glyph while the learner traces the new one.
+  const brand = useBrandPreview();
 
-  // Render guide glyph once per letter
+  // Render guide glyph once per letter (and per brand)
   useEffect(() => {
     const guide = document.createElement("canvas");
     guide.width = SIZE;
@@ -68,7 +73,15 @@ export const LetterTracer = ({ letter, onComplete }: LetterTracerProps) => {
     const gctx = guide.getContext("2d")!;
     gctx.clearRect(0, 0, SIZE, SIZE);
     gctx.fillStyle = "#000";
-    gctx.font = "260px 'Noto Sans Arabic', serif";
+    // The mask has to be the face the learner sees: the visible guide below
+    // is drawn in var(--font-arabic), which a brand direction can swap
+    // (src/styles/brand-preview.css). Canvas cannot read a CSS variable, so
+    // resolve it here; the fallback is the variable's default from index.css,
+    // for a document with no stylesheet.
+    const arabicFace =
+      getComputedStyle(document.documentElement).getPropertyValue("--font-arabic").trim() ||
+      "'Noto Sans Arabic', 'Open Sans', sans-serif";
+    gctx.font = `260px ${arabicFace}`;
     gctx.textAlign = "center";
     gctx.textBaseline = "middle";
     gctx.fillText(letter, SIZE / 2, SIZE / 2 + 10);
@@ -83,7 +96,7 @@ export const LetterTracer = ({ letter, onComplete }: LetterTracerProps) => {
     completedRef.current = false;
     setCoverage(0);
     setDone(false);
-  }, [letter]);
+  }, [letter, brand]);
 
   const getPoint = (e: PointerEvent | React.PointerEvent): { x: number; y: number } => {
     const c = canvasRef.current!;
@@ -200,7 +213,7 @@ export const LetterTracer = ({ letter, onComplete }: LetterTracerProps) => {
         {/* Guide glyph */}
         <div
           className="absolute inset-0 flex items-center justify-center pointer-events-none text-foreground/15"
-          style={{ fontFamily: "'Noto Sans Arabic', serif", fontSize: 260, lineHeight: 1 }}
+          style={{ fontFamily: "var(--font-arabic)", fontSize: 260, lineHeight: 1 }}
         >
           {letter}
         </div>

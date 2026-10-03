@@ -121,6 +121,15 @@ harness.
   Never hand-edit `types.ts` beyond a revert; when the `typesDrift` guard
   names a migration, apply it to the project (ask Lovable to run it, or
   `supabase db push` with a token) and let the regeneration carry the columns.
+- **The brand is Ink, and its default lives in `index.html`.** `<html
+  data-brand="ink" data-brand-default="ink">` plus the Ink fonts in the static
+  `<link>`; `src/lib/brandPreview.ts` reads the declaration, and components
+  branch on `useIsInk()`. Vitest renders without that declaration, so a
+  component test sees the previous (watercolor) look unless it sets
+  `data-brand-default` or a preview; Playwright loads the real `index.html`
+  and sees Ink. `?brand=current|weave|souq|off` previews layer on top. The
+  logo is the outlined SVG set in `src/assets/brand/` — never retype حِكَايَة
+  in live text for the mark. See `docs/brand-refresh.md`.
 - **Unit coverage is gated per-directory, not globally.** `vitest.config.ts`
   sets thresholds for `src/components/**`, `src/hooks/**`, `src/lib/**` and
   `src/contexts/**` only (`src/pages/**` is covered by Playwright and would

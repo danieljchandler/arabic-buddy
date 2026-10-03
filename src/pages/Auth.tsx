@@ -14,6 +14,8 @@ import { useToast } from "@/hooks/use-toast";
 // never will.
 import hakiyaLockup from "@/assets/hakiya-lockup.webp";
 import { LoadingPanel } from "@/components/loading/LoadingPanel";
+import { useIsInk } from "@/hooks/useBrandPreview";
+import { HikayaInkMark } from "@/components/brand/HikayaInkMark";
 
 // Lightweight inline validators — dropping `zod` here saves ~12 kB gz on the Auth chunk.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -40,6 +42,8 @@ const Auth = () => {
   const redirectTo = from?.pathname ? `${from.pathname}${from.search ?? ""}` : undefined;
   const { toast } = useToast();
   const { signIn, signUp, isAuthenticated, loading } = useAuth();
+  // The Ink brand preview draws its own lockup in place of the raster.
+  const ink = useIsInk();
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -179,7 +183,11 @@ const Auth = () => {
       <div className="max-w-sm mx-auto">
         {/* Logo and Title */}
         <div className="text-center mb-10">
-          <img src={hakiyaLockup} alt="Hikaya" className="h-32 w-32 mx-auto mb-5" />
+          {ink ? (
+            <HikayaInkMark wordmark size={112} className="mx-auto mb-5" />
+          ) : (
+            <img src={hakiyaLockup} alt="Hikaya" className="h-32 w-32 mx-auto mb-5" />
+          )}
           <h1 className="text-2xl font-bold text-foreground mb-2 font-heading">
             {isLogin ? "Welcome Back" : "Join Hikaya"}
           </h1>

@@ -93,7 +93,7 @@ export const MyWordsSection = () => {
             <div className="flex items-center gap-4">
               <span
                 className="text-xl font-bold text-foreground"
-                style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
+                style={{ fontFamily: "var(--font-naskh)" }}
                 dir="rtl"
               >
                 {word.word_arabic}

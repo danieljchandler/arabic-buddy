@@ -22,6 +22,7 @@ export const ASSISTANT_OFF_ROUTES: ReadonlyArray<readonly [prefix: string, reaso
     "a guided first run that asks its own questions — a second assistant on top of it competes with the flow",
   ],
   ["/admin", "the staff console; the tutor is a learner-facing feature and has no context for it"],
+  ["/print", "print layouts: whatever is on the page ends up on the paper, the Ask AI button included"],
 ] as const;
 
 /** True when the assistant (disc, shortcut and panel) is switched off here. */

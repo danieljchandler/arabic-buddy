@@ -64,6 +64,7 @@ const CTest = lazyPage(() => import("./pages/CTest"));
 const WordClips = lazyPage(() => import("./pages/WordClips"));
 const NativeFeedback = lazyPage(() => import("./pages/NativeFeedback"));
 const WritingPractice = lazyPage(() => import("./pages/WritingPractice"));
+const PrintWorksheet = lazyPage(() => import("./pages/PrintWorksheet"));
 const ConversationSimulator = lazyPage(() => import("./pages/ConversationSimulator"));
 const DialectCompare = lazyPage(() => import("./pages/DialectCompare"));
 const ListeningPractice = lazyPage(() => import("./pages/ListeningPractice"));
@@ -364,6 +365,11 @@ const App = () => {
             <Route path="/write" element={
               <ErrorBoundary name="WritingPracticeRoute">
                 <ProtectedRoute><WritingPractice /></ProtectedRoute>
+              </ErrorBoundary>
+            } />
+            <Route path="/print/worksheet" element={
+              <ErrorBoundary name="PrintWorksheetRoute">
+                <ProtectedRoute><PrintWorksheet /></ProtectedRoute>
               </ErrorBoundary>
             } />
 

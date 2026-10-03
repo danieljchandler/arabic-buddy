@@ -156,6 +156,7 @@ export const ROUTES: RouteSpec[] = [
   // Fetches a writing prompt on mount; the default writing-coach stub in
   // src/test/support/server/functions.ts answers it.
   { path: "/write", gate: "auth", boundary: "WritingPracticeRoute" },
+  { path: "/print/worksheet", gate: "auth", boundary: "PrintWorksheetRoute" },
   {
     path: "/conversation",
     gate: "public",

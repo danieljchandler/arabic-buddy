@@ -184,9 +184,10 @@ const ALLOWED_PHRASES: ReadonlyArray<{ file: string; phrase: string; reason: str
     file: "CLAUDE.md",
     phrase: 'NotebookLM: "hakiya"',
     reason:
-      "The memory map's pointer to the NotebookLM notebook, which really is named " +
-      "that. It is the name of something outside this repo, quoted so it can be " +
-      "found; spelling it Hikaya would point at a notebook that does not exist.",
+      "The memory map's pointer to the NotebookLM notebook, which is named that. " +
+      "It is a resource in Google's account, not copy in this repo, so the quote " +
+      "has to match what NotebookLM shows or the pointer leads nowhere. Rename the " +
+      "notebook first, then this line.",
   },
   {
     file: "CLAUDE.md",

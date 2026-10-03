@@ -73,6 +73,7 @@ const ASSISTANT_OFF_BY_DESIGN: Record<string, string> = {
   "/reset-password": "reached from an email link; a password form is not a lesson",
   "/onboarding": "a guided first run that asks its own questions",
   "/admin/login": "the staff console's door — public only so staff can reach it",
+  "/print/worksheet": "a print layout; the floating button would print on the page",
 };
 
 describe("the Ask AI button reaches every page", () => {

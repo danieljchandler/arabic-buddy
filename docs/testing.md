@@ -266,3 +266,124 @@ against native review rather than shipping on the delta alone.
   `msaLeakDetector`'s word-list verdict when `ALDI_HF_MODEL` (and a
   HuggingFace key) is set; it is log-only and inert otherwise. Compare the
   two signals against native-review outcomes before making either a gate.
+
+## The AI canary
+
+Every test above runs against fakes, so none of them notices the thing the
+2026-09-29 sweep found: eight AI features failing in production for days,
+silently, because a vendor ran out of credit. `.github/workflows/ai-canary.yml`
+is the check that does. Once a day (and from the Actions tab on demand) it signs
+in as a dedicated canary account marked subscriber and calls six learner-facing
+functions — `translate-text`, `culture-guide`, `writing-coach` (the `prompt`
+action, which writes nothing), `reading-passage`, `souq-news` and
+`assistant-chat` — with the golden set's "where are you going now" row in Gulf,
+Egyptian and Yemeni. A check fails on a non-2xx, an empty answer or one of the
+functions' own canned "nothing came back" texts, any `detectMsaLeaks` hit for
+the dialect asked for, or a latency over the function's ceiling. `souq-news`
+runs one dialect a day, rotating, because each call spends Firecrawl credits.
+
+It also judges spend, through `ai-canary-spend`: the last 24 hours of
+`llm_usage_logs.cost_usd` against a daily ceiling and against the trailing
+week, and the OpenRouter key's remaining limit (a key with no limit fails too).
+That function exists because `llm_usage_logs` is admin-read-only and the
+OpenRouter key lives only in Supabase; reading them from GitHub would mean
+copying the service-role key or the OpenRouter key there. It returns totals
+only, and the canary prints thresholds rather than amounts, because this
+repository's Actions logs are public. `CANARY_PRINT_AMOUNTS=1` shows them on a
+local run.
+
+The deciding logic is `scripts/ai-canary-core.ts`, covered with a mocked
+network by `src/test/aiCanary.test.ts`; `scripts/ai-canary.ts` only reads the
+environment and prints. Until its four secrets exist the workflow fails on
+purpose and names them (`canary not configured: missing ...`).
+
+| Where | Name | What |
+| --- | --- | --- |
+| GitHub secret | `HIKAYA_SUPABASE_ANON_KEY` | the public anon/publishable key the frontend ships |
+| GitHub secret | `HIKAYA_CANARY_EMAIL`, `HIKAYA_CANARY_PASSWORD` | the canary account |
+| GitHub secret | `HIKAYA_AI_CANARY_SECRET` | a random string, equal to the next row |
+| Supabase function secret | `AI_CANARY_SECRET` | the same random string |
+| GitHub variable (optional) | `CANARY_MAX_DAILY_USD`, `CANARY_SPIKE_RATIO`, `CANARY_SPIKE_FLOOR_USD`, `CANARY_MIN_OPENROUTER_USD`, `CANARY_REQUIRE_OPENROUTER_LIMIT`, `CANARY_SOUQ_ALL_DIALECTS` | thresholds; defaults in `ai-canary-core.ts` |
+
+Run it locally with the same variables exported:
+`deno run --allow-env --allow-read --allow-net scripts/ai-canary.ts [--only translate-text,souq-news]`.
+`HIKAYA_SUPABASE_URL` overrides the project read from `supabase/config.toml`.
+Each run costs a few cents. To see it go red on purpose, point it at a project
+where one function's model id is wrong and run `--only` that function.
+
+## Tutor behaviour
+
+`scripts/eval-dialect-live.ts` measures whether a *model* writes dialect.
+`scripts/eval-tutor-live.ts` measures whether the *tutor* behaves. It sends the
+36 cases in `supabase/functions/_test/eval/tutor/cases.jsonl` to the deployed
+`assistant-chat` as a signed-in learner, over HTTP rather than through the UI,
+so the real prompt, page context, retrieval and tools are what get tested. The
+cases cover nine behaviours, four cases each across Gulf, Egyptian and Yemeni:
+
+- a question about the focused line
+- staying in dialect
+- naming the learner's error
+- English input
+- Arabizi input
+- out of scope
+- instructions planted in a source page the tutor reads with `read_source`
+- instructions planted in the page context or the seed
+- the learner asking for Fusha
+
+Most of the Arabic comes from the golden set. What doesn't is a draft for a
+native reader.
+
+Each case states what it expects: `in_scope`, the `dialect` the reply must be
+clean in (null where writing MSA is the point, as when the tutor names the
+learner's MSA), `must_mention` (a list of any-of lists) and `must_not_mention`.
+Each run appends one line per case to `runs.jsonl` beside the cases, with the
+reply, latency, the answer's cost when the provider streams one (OpenRouter
+does), and the automatic verdict. `--rate` then goes through the replies for a
+thumbs up or down; a down needs a note, and the ratings go to `ratings.jsonl`.
+`--down` lists the down-rated replies, which are the input for prompt fixes and
+new golden rows. The automatic checks are a floor. A reply can pass all of them
+and still be poor Arabic, and catching that is what the ratings are for.
+
+```sh
+deno run --allow-read scripts/eval-tutor-live.ts --validate      # offline; CI runs the same check
+deno run --allow-env --allow-read --allow-write --allow-net scripts/eval-tutor-live.ts [--dialect Yemeni] [--category names_error]
+deno run --allow-env --allow-read --allow-write --allow-net scripts/eval-tutor-live.ts --rate
+```
+
+It needs `HIKAYA_SUPABASE_ANON_KEY` and an account, exported in your own shell.
+Use `HIKAYA_EVAL_EMAIL` / `HIKAYA_EVAL_PASSWORD`, which falls back to the AI
+canary's account. A dedicated account is better, because the tutor keeps notes
+on each learner between chats. The offline half,
+`supabase/functions/_test/eval_tutor_test.ts`, runs in the edge job. It
+validates the case file, which is the same check as `--validate`, and
+exercises the scoring, streaming and rating logic against a mocked network.
+The four `injection_source` cases read
+`eval/tutor/fixtures/injected-source.md` from this repository's `main` branch,
+so they cannot pass until that file has merged.
+
+## Printed worksheets
+
+`/print/worksheet` lays out a `generate-worksheet` spec for paper, and the
+browser's print dialog is the PDF renderer. Edge functions can't run Chromium.
+jsdom can't shape Arabic or paginate, so `WorksheetSheet.test.tsx` checks
+structure only: `dir="rtl"` and `lang="ar"` on every Arabic block, item numbers
+boxed rather than written as "1.", and right-to-left writing lines.
+
+`e2e/print-worksheet.spec.ts` covers the page in the hermetic suite. Its last
+test is a local Arabic print check that runs only when asked:
+
+```sh
+WORKSHEET_PRINT_CHECK_DIR=test-results/print-check npx playwright test e2e/print-worksheet.spec.ts
+```
+
+It lets the Google Fonts request through, waits for Noto Naskh Arabic, then
+writes a print-media screenshot and a `page.pdf()` of
+`/print/worksheet?sample=1` for a person to look at. Check four things: the
+letters join, the harakat show, the writing lines run right to left with the
+margin on the right, and the digits inside Arabic lines stay in order
+("الساعة 11", "12 ريال").
+
+Chrome's PDF text layer for Arabic doesn't survive copy and paste: the page
+prints correctly but the extracted text is scrambled. Use the browser to read
+or search, and the PDF for printing. The sample is
+`src/lib/worksheetSample.ts`. Its Arabic is a draft for a native reader.

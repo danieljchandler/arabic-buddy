@@ -130,7 +130,7 @@ Each dance went through the same three steps, using the Higgsfield MCP.
 
    Add `-t <seconds>` to the two video commands to trim a clip.
 
-The full set (14 stills, 16 clips, retakes included) cost about 165 Higgsfield
+The full set (14 stills, 16 clips, retakes included) cost 161 Higgsfield
 credits.
 
 ## Adding a dance

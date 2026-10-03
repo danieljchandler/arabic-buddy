@@ -266,6 +266,13 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <AiAssistantProvider>
+          {/* The full-screen "you did it" moment — lesson finished, deck
+              cleared, daily goal, badge, streak milestone. Pages fire it with
+              celebrate() from @/lib/celebrations; this renders it, in a portal.
+              Ahead of the routes on purpose: sibling effects run in tree
+              order, so the host is listening before a page that mounts
+              already-celebratable (Today with every task done) fires. */}
+          <CelebrationHost />
           <Suspense fallback={<PageSkeleton />}>
           <TransitionRoutes>
             {/* Public learning app */}
@@ -589,10 +596,6 @@ const App = () => {
               AppShell (the video player, Transcribe, Learn from X). */}
           <AskAiFab />
           <AssistantMount />
-          {/* The full-screen "you did it" moment — lesson finished, deck
-              cleared, daily goal, badge, streak milestone. Pages fire it with
-              celebrate() from @/lib/celebrations; this renders it. */}
-          <CelebrationHost />
           </AiAssistantProvider>
         </BrowserRouter>
       </TooltipProvider>

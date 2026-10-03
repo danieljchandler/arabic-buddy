@@ -90,10 +90,12 @@ function CelebrationScreen({ shown, onClose }: { shown: Shown; onClose: () => vo
         <DialogPrimitive.Overlay className="fixed inset-0 z-[100] bg-background/85 backdrop-blur-sm data-[state=open]:animate-in data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
           data-testid="celebration"
-          // Land on Continue: one tap (or Enter) and the learner is back.
+          // Land on Continue: one tap (or Enter) and the learner is back. No
+          // scroll: on a short phone the card overflows, and scrolling down
+          // to the button would cut the top off the dance.
           onOpenAutoFocus={(e) => {
             e.preventDefault();
-            continueRef.current?.focus();
+            continueRef.current?.focus({ preventScroll: true });
           }}
           className="fixed inset-0 z-[101] overflow-y-auto focus:outline-none"
         >
@@ -105,7 +107,7 @@ function CelebrationScreen({ shown, onClose }: { shown: Shown; onClose: () => vo
           >
             <div className="relative w-full max-w-sm rounded-[2rem] bg-card p-5 text-center shadow-elegant ring-1 ring-border/60 animate-scale-in">
               <SparkleBurst />
-              <DanceClip key={shown.id} scene={scene} className="mx-auto max-w-[42vh]" />
+              <DanceClip key={shown.id} scene={scene} className="mx-auto max-w-[38vh]" />
 
               <p lang="ar" dir="rtl" className="mt-4 font-arabic text-4xl font-bold leading-tight text-primary">
                 {cheer.ar}

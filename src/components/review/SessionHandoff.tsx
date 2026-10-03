@@ -1,7 +1,9 @@
+import { useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import caughtUpArt from "@/assets/illustrations/empty-caught-up.webp";
 import { SparkleBurst } from "@/components/gamification/SparkleBurst";
 import { Button } from "@/components/ui/button";
+import { celebrate } from "@/lib/celebrations";
 import type { ReviewDeckId, ReviewSession } from "@/hooks/useReviewSession";
 
 interface SessionHandoffProps {
@@ -17,6 +19,11 @@ interface SessionHandoffProps {
   fallbackRoute: string;
   /** Optional extra content (e.g. per-deck stats) above the action button. */
   children?: React.ReactNode;
+  /**
+   * Cards rated in this visit. Clearing the last due deck after reviewing
+   * something is a celebration; arriving with nothing due is not.
+   */
+  reviewed?: number;
 }
 
 const plural = (count: number, noun: string) => `${count} ${noun}${count === 1 ? "" : "s"}`;
@@ -35,9 +42,19 @@ export const SessionHandoff = ({
   fallbackLabel,
   fallbackRoute,
   children,
+  reviewed = 0,
 }: SessionHandoffProps) => {
   const navigate = useNavigate();
   const next = session.nextDeck(deckId);
+
+  // Every deck clear, in this sitting: the full celebration screen, once.
+  const caughtUp = !next && !session.isLoading && reviewed > 0;
+  const celebrated = useRef(false);
+  useEffect(() => {
+    if (!caughtUp || celebrated.current) return;
+    celebrated.current = true;
+    celebrate({ kind: "deck", detail: reviewed });
+  }, [caughtUp, reviewed]);
 
   return (
     <div className="relative text-center max-w-sm mx-auto py-12">

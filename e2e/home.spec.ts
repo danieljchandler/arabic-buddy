@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./support/fixtures";
+import { dismissCelebration, expect, test, type Page } from "./support/fixtures";
 import {
   aDiscoverVideo,
   aProfile,
@@ -230,7 +230,16 @@ test.describe("the daily queue", () => {
 
     await page.goto("/today");
 
+    // The first time today: the full celebration screen…
+    const celebration = page.getByTestId("celebration");
+    await expect(celebration.getByRole("heading", { name: "Daily goal reached!" })).toBeVisible();
+    await dismissCelebration(page);
     await expect(page.getByText("Daily goal complete")).toBeVisible();
+
+    // …and only the first time. Coming back to the page shows the quiet card.
+    await page.reload();
+    await expect(page.getByText("Daily goal complete")).toBeVisible();
+    await expect(celebration).toHaveCount(0);
   });
 });
 

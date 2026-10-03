@@ -36,6 +36,7 @@ import { DailyGoalRing } from "@/components/today/DailyGoalRing";
 import { TaskRow } from "@/components/today/TaskRow";
 import { WatchTodayCard } from "@/components/today/WatchTodayCard";
 import { getDailyGoal, setDailyGoal } from "@/lib/todayCompletion";
+import { celebrate, claimDailyGoalCelebration } from "@/lib/celebrations";
 import { ContinueCard } from "@/components/ContinueCard";
 import { LandingPage } from "@/components/LandingPage";
 
@@ -129,6 +130,16 @@ const Index = () => {
   const visibleTasks = todayTasks.filter((t) => !t.hidden);
   const tasksCompleted = visibleTasks.filter((t) => t.done).length;
   const tasksTotal = visibleTasks.length;
+  const allTasksDone = tasksCompleted > 0 && tasksCompleted === tasksTotal;
+
+  // The first time today's list reads all-done: the full celebration screen.
+  // The inline "Daily goal complete" card below stays as the quiet version
+  // every later visit shows.
+  useEffect(() => {
+    if (allTasksDone && isAuthenticated && claimDailyGoalCelebration()) {
+      celebrate({ kind: "goal" });
+    }
+  }, [allTasksDone, isAuthenticated]);
 
   // Video leads the page as a full card at the very top rather than as a row
   // buried in the queue, so it is pulled out of the list here — it still counts
@@ -358,7 +369,7 @@ const Index = () => {
                 )}
               </div>
 
-              {tasksCompleted > 0 && tasksCompleted === tasksTotal && (
+              {allTasksDone && (
                 <div className="relative rounded-2xl border border-primary/30 bg-primary/5 p-4 text-center animate-scale-in">
                   <SparkleBurst />
                   <Sparkles className="h-6 w-6 mx-auto mb-1 text-primary" />

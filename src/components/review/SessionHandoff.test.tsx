@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReviewDeckId, ReviewDeckInfo, ReviewSession } from "@/hooks/useReviewSession";
+import { subscribeCelebrations, type CelebrationEvent } from "@/lib/celebrations";
 import { SessionHandoff } from "./SessionHandoff";
 
 /**
@@ -46,6 +47,8 @@ interface Options {
   deckId?: ReviewDeckId;
   message?: string;
   children?: React.ReactNode;
+  reviewed?: number;
+  isLoading?: boolean;
 }
 
 function renderHandoff({
@@ -53,13 +56,16 @@ function renderHandoff({
   deckId = "curriculum",
   message = "Nothing left in the curriculum deck.",
   children,
+  reviewed,
+  isLoading = false,
 }: Options = {}) {
   return render(
     <MemoryRouter>
       <SessionHandoff
         deckId={deckId}
-        session={aSession(next)}
+        session={{ ...aSession(next), isLoading }}
         message={message}
+        reviewed={reviewed}
         fallbackLabel="Back to review"
         fallbackRoute="/review"
       >
@@ -162,5 +168,53 @@ describe("SessionHandoff — the caller's extra content", () => {
   it("renders without any", () => {
     renderHandoff({ next: null });
     expect(screen.getByRole("heading", { name: "All caught up!" })).toBeInTheDocument();
+  });
+});
+
+describe("SessionHandoff — the celebration screen", () => {
+  let events: CelebrationEvent[];
+  let unsubscribe: () => void;
+
+  beforeEach(() => {
+    events = [];
+    unsubscribe = subscribeCelebrations((event) => events.push(event));
+  });
+  afterEach(() => unsubscribe());
+
+  it("fires once the last due deck is cleared in this sitting", () => {
+    const { rerender } = renderHandoff({ next: null, reviewed: 12 });
+    expect(events).toEqual([{ kind: "deck", detail: 12 }]);
+
+    // A re-render of the same screen is the same moment.
+    rerender(
+      <MemoryRouter>
+        <SessionHandoff
+          deckId="curriculum"
+          session={aSession(null)}
+          message="done"
+          fallbackLabel="Back"
+          fallbackRoute="/review"
+          reviewed={12}
+        />
+      </MemoryRouter>,
+    );
+    expect(events).toHaveLength(1);
+  });
+
+  it("does not fire for a learner who arrived with nothing due", () => {
+    renderHandoff({ next: null, reviewed: 0 });
+    renderHandoff({ next: null });
+    expect(events).toEqual([]);
+  });
+
+  it("waits while another deck still has cards", () => {
+    renderHandoff({ next: aDeck(), reviewed: 12 });
+    expect(events).toEqual([]);
+  });
+
+  it("waits until the other decks' counts have loaded", () => {
+    // Mid-load, "no next deck" only means "not known yet".
+    renderHandoff({ next: null, reviewed: 12, isLoading: true });
+    expect(events).toEqual([]);
   });
 });

@@ -467,6 +467,7 @@ const Review = () => {
         <SessionHandoff
           deckId="curriculum"
           session={session}
+          reviewed={sessionCount}
           // A brand-new learner has reviewed nothing: "you've reviewed all
           // your words" was a lie, and "Back to Topics" went home. Point them
           // at learning their first words instead.

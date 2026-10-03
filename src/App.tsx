@@ -12,6 +12,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { DialectProvider } from "@/contexts/DialectContext";
 import { AiAssistantProvider } from "@/contexts/AiAssistantContext";
 import { AssistantMount } from "@/components/assistant/AssistantMount";
+import { CelebrationHost } from "@/components/celebration/CelebrationHost";
 import { AskAiFab } from "@/components/assistant/AskAiFab";
 import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
 import { lazyRetry } from "@/lib/lazyRetry";
@@ -588,6 +589,10 @@ const App = () => {
               AppShell (the video player, Transcribe, Learn from X). */}
           <AskAiFab />
           <AssistantMount />
+          {/* The full-screen "you did it" moment — lesson finished, deck
+              cleared, daily goal, badge, streak milestone. Pages fire it with
+              celebrate() from @/lib/celebrations; this renders it. */}
+          <CelebrationHost />
           </AiAssistantProvider>
         </BrowserRouter>
       </TooltipProvider>

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./support/fixtures";
+import { dismissCelebration, expect, test, type Page } from "./support/fixtures";
 import {
   aLesson,
   aLessonProgress,
@@ -150,6 +150,8 @@ async function completeBlock(page: Page, size = BLOCK): Promise<number[]> {
 async function skipProduce(page: Page) {
   await expect(page.getByText("Use it before you lose it")).toBeVisible();
   await page.getByRole("button", { name: "Skip and finish" }).click();
+  // Finishing is a celebration; the score screen is behind it.
+  await dismissCelebration(page);
 }
 
 test.describe("working through a lesson", () => {
@@ -310,6 +312,7 @@ test.describe("working through a lesson", () => {
     // And the lesson still finishes normally, once the sheet is put away.
     await page.getByRole("button", { name: "Close" }).click();
     await page.getByRole("button", { name: "Finish lesson" }).click();
+    await dismissCelebration(page);
     await expect(page.getByRole("heading", { name: /excellent work/i })).toBeVisible();
   });
 
@@ -337,6 +340,25 @@ test.describe("working through a lesson", () => {
     await expect(page.getByRole("heading", { name: /excellent work/i })).toBeVisible();
     await expect(page.getByText("100%")).toBeVisible();
     await expect(page.getByText("4 / 4 correct")).toBeVisible();
+  });
+
+  test("celebrates the finish with a dance from the learner's dialect", async ({ page }) => {
+    await page.goto(`/learn/${LESSON}`);
+    await completeBlock(page);
+    await expect(page.getByText("Use it before you lose it")).toBeVisible();
+    await page.getByRole("button", { name: "Skip and finish" }).click();
+
+    const celebration = page.getByTestId("celebration");
+    await expect(celebration.getByRole("heading", { name: "Lesson complete!" })).toBeVisible();
+    // The free persona learns Gulf, so the dance is one of the Gulf rotation —
+    // never Yemen's or Egypt's.
+    await expect(
+      celebration.getByText(/Al-Ardah|Khaleeji dance|Al-Ayyala|Al-Razha|Omani funūn|Al-Mizmar/),
+    ).toBeVisible();
+
+    await celebration.getByRole("button", { name: "Continue", exact: true }).click();
+    await expect(celebration).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: /excellent work/i })).toBeVisible();
   });
 
   test("scores a mixed session honestly", async ({ page }) => {

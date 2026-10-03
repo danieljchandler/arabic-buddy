@@ -1,6 +1,6 @@
 ---
 name: ui-snipe
-description: Bring a component from 21st.dev, CodePen, Aceternity UI, React Bits or Magic UI into Hikaya ("UI sniping"), re-skinned to the Lahja design system and made safe for Arabic, RTL, reduced motion and CI. Use when the user pastes a 21st.dev "Copy prompt", a component URL or CodePen code, or asks to snipe, borrow or add a UI component, effect or animation from a library or another site.
+description: Bring a component from 21st.dev, CodePen, Aceternity UI, React Bits or Magic UI into Hikaya ("UI sniping"), re-skinned to the Ink brand and made safe for Arabic, RTL, reduced motion and CI. Use when the user pastes a 21st.dev "Copy prompt", a component URL or CodePen code, or asks to snipe, borrow or add a UI component, effect or animation from a library or another site.
 ---
 
 # UI sniping for Hikaya
@@ -16,6 +16,16 @@ more".
 contributes *behaviour and structure*: the interaction, the layout idea, the
 choreography. Colour, type, easing, radius, shadow and imagery always come
 from Hikaya. If the result still looks like the source's demo, it is not done.
+
+The brand is **Ink**, and it is the default. It is editorial and type-led:
+- cream paper, near-black ink, oxblood as the one colour, mustard only as a
+  highlight;
+- hairline borders, square-ish corners, no shadows;
+- no pictures.
+
+Read `docs/brand-refresh.md` (the "Decision" and "Keep, retire" sections)
+before a snipe that changes how a surface looks. Ink's own building blocks are
+in `src/components/ink/`.
 
 ## Inputs
 
@@ -56,7 +66,14 @@ Stop and say so if any of these apply:
   | Confetti, sparkles, burst | `src/components/gamification/SparkleBurst.tsx` |
   | Skeleton shimmer | `src/components/ui/skeleton.tsx` |
   | Carousel, slider | `src/components/ui/carousel.tsx` (embla) |
-  | Generic grid, noise or dot backgrounds | `SaduBanner`, `public/assets/sadu-tile.svg`, `sadu-watermark.svg` |
+  | Grid, noise, dot or aurora backgrounds | nothing: Ink's ground is flat paper |
+  | Dividers, bullets, small ornaments | `src/components/brand/SaduDiamond.tsx` (6–14px, `currentColor`) |
+  | Hero images, illustrations, decorative pictures | type, `src/components/ink/InkWaveform.tsx` (the voice drawn as bars), a mustard highlighter stroke; see `InkLandingHero` and `InkSkillTile` |
+  | A logo or wordmark | the SVGs in `src/assets/brand/` / `HikayaInkMark`; never retype حِكَايَة as live text for the mark |
+
+  The decision also rules out sadu *bands* and full-strength pattern panels:
+  sadu appears only as `SaduDiamond` accents and as tone-on-tone weave pressed
+  into dark panels (`InkReviewBar`, `SaduPlayButton`).
 
   `src/components/design-system/index.ts` says it outright: *extend these
   components rather than introduce new visual styles*.
@@ -124,20 +141,29 @@ options in order:
 landing page, use them only if they are lazy, pause when off screen, and have
 a static fallback.
 
-## Step 3: Re-skin to Lahja
+## Step 3: Re-skin to Ink
 
 Read [conversion.md](conversion.md) and apply it to every class and
-style in the snipe. The rules that matter most:
+style in the snipe. Ink sets its tokens in `src/styles/brand-preview.css`
+(`:root[data-brand="ink"]`), on top of the base values in `src/index.css`.
+Write the semantic token, never the value, and the brand reaches it. The
+rules that matter most:
 
 - **Colour.** Use semantic tokens only (`bg-card`, `text-foreground`,
-  `text-muted-foreground`, `bg-primary`, `border-border`, `text-success`,
-  plus `plum`, `desert-red` and `bg-card-cream`). Some palette variables in
-  `src/index.css`, such as `--olive` and `--dialect-*`, are not mapped to
-  Tailwind colours. Reach those through `hsl(var(--olive))`, or ask before
-  adding them to `tailwind.config.ts`.
-  - Text must reach **4.5:1 against the sand that the sadu border art
-    tints**, which is darker than the flat page. `src/index.css` records the
-    measurements behind `--primary` and `--muted-foreground`.
+  `text-muted-foreground`, `bg-primary`, `bg-accent`, `border-border`,
+  `text-success`).
+  - Under Ink, `primary` is oxblood, the one colour, and `accent` is mustard,
+    a highlight only. Use `bg-accent text-accent-foreground` for a
+    highlighter mark. `text-accent` is remapped to a darker mustard so it
+    passes as text; don't rebuild it with `text-[hsl(var(--accent))]`.
+  - `plum`, `desert-red` and `bg-card-cream` still exist, but under Ink they
+    resolve to ink, oxblood and card.
+  - Some palette variables, such as `--olive` and `--dialect-*`, are not
+    mapped to Tailwind colours. Reach those through `hsl(var(--olive))`, or
+    ask before adding them to `tailwind.config.ts`.
+  - Text must reach **4.5:1 against `--background`, `--card` and `--muted`,
+    in light and dark**. The values sit next to each other in
+    `brand-preview.css`.
   - A snipe's light-grey secondary text never passes. Use
     `text-muted-foreground`.
 - **Type.**
@@ -145,19 +171,35 @@ style in the snipe. The rules that matter most:
     `text-subtitle`, `text-title`, `text-headline`, `text-display`) instead of
     `text-sm` through `text-7xl`.
   - Fonts: `font-heading` for display text, `font-sans` for body,
-    `font-arabic` or `font-cairo` for Arabic.
+    `font-arabic` or `font-cairo` for Arabic. These read the
+    `--font-*` variables, and under Ink they are DM Serif Display with Rakkas,
+    Readex Pro, and Hikaya Naskh.
+  - An inline style writes `fontFamily: "var(--font-…)"`, never a literal
+    stack, or the brand cannot reach it.
+  - Ink's display faces ship one weight and faux bold is switched off. Build
+    heading hierarchy from the size scale, not from `font-black`.
 - **Motion.**
   - Easing: the default easing *is* the Lahja curve, so delete `ease-*`
     classes and custom cubic-beziers.
   - Durations: 240ms (scale-in), 320ms (slide), 360ms (fade-up).
   - In JS, use `[0.16, 1, 0.3, 1]` as the easing.
-- **Shape.** Corners: `rounded-md` to `rounded-3xl`, all derived from
-  `--radius`. Shadows: `shadow-soft`, `shadow-card`, `shadow-elegant`,
-  `shadow-button`.
+- **Shape and depth.**
+  - Corners: use `rounded-sm` to `rounded-3xl`, all derived from `--radius`,
+    which Ink sets to a square-ish 0.25rem. Save `rounded-full` for things
+    that are actually round, such as avatars and the play button.
+  - Depth: under Ink every `shadow-*` token is `none`, and separation is a
+    hairline `border border-border`. Never write an arbitrary
+    `shadow-[...]`; it would survive Ink.
 - **Dark mode.** It is class-based (`useTheme`), and the tokens already flip.
   Delete `dark:` overrides that pin raw colours.
-- **Imagery.** Use the app's own assets (`src/assets/`, `public/assets/`).
-  No hot-linked stock photos.
+- **Imagery.** No photography or photo-realistic imagery anywhere; the owner
+  ruled it out. Ink's imagery is type, the voice drawn as bars
+  (`InkWaveform`), highlighter strokes and the odd `SaduDiamond`. Don't
+  hot-link stock images.
+- **Branching on the brand.** If Ink needs something tokens cannot express
+  (a different layout or a type-led variant), branch on `useIsInk()` from
+  `@/hooks/useBrandPreview`, as `src/components/ink/` does. Don't branch
+  otherwise.
 
 ## Step 4: Arabic and RTL
 
@@ -241,6 +283,13 @@ style in the snipe. The rules that matter most:
   `src/components/**` is gated at 73 / 77 / 85 (lines / functions /
   branches), only a couple of points under the measured figures, so a few
   untested components are enough to fail the unit job.
+
+  Vitest renders the *previous* look, because `index.html`'s
+  `data-brand="ink"` declaration isn't there. A test that needs Ink either
+  sets `BRAND_DEFAULT_ATTRIBUTE` to `"ink"` on `document.documentElement` or
+  calls `setBrandPreview("ink")` (both from `@/lib/brandPreview`), and undoes
+  it afterwards, as `src/hooks/useBrandPreview.test.ts` does. If the
+  component branches on `useIsInk()`, test both sides.
 - **Run the checks:**
   - `npx vitest run <test file>`
   - `npm run typecheck`
@@ -248,11 +297,11 @@ style in the snipe. The rules that matter most:
   - `npm run test:coverage`
   - the Playwright spec for any route page you touched
 - **Look at it.** Use the `run` skill, or `npm run dev` plus a Playwright
-  screenshot. Capture:
+  screenshot. The real `index.html` loads, so this is Ink. Capture:
   - 390px and desktop widths;
   - light and dark themes;
   - once with `page.emulateMedia({ reducedMotion: "reduce" })`;
-  - over the sadu-tinted sand, not only on a card.
+  - on the page background, not only on a card.
 
   Then refine in small, screenshot-driven requests (Jack's last step).
 
@@ -261,7 +310,7 @@ style in the snipe. The rules that matter most:
 For anything that matters (the landing page, celebration moments, review):
 
 1. Bring two to four candidates.
-2. Render them side by side in Hikaya tokens with real Arabic.
+2. Render them side by side in Ink's tokens with real Arabic.
 3. Let the user pick.
 4. Record the decision in `docs/<surface>-directions.md`, the way
    `docs/play-button-directions.md` and `docs/mark-framing.md` do: the

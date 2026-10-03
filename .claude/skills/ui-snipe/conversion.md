@@ -3,6 +3,8 @@
 Apply this to every class and inline style in the sniped code. The left
 column lists what 21st.dev, Aceternity, Magic UI and CodePen code typically
 contains. Tokens are defined in `tailwind.config.ts` and `src/index.css`.
+Ink, the default brand, overrides their values in `src/styles/brand-preview.css`.
+Write the token, and both resolve correctly.
 
 ## Framework leftovers (most 21st.dev code is written for Next.js)
 
@@ -12,27 +14,29 @@ contains. Tokens are defined in `tailwind.config.ts` and `src/index.css`.
 | `next/link` | `Link` / `NavLink` from `react-router-dom` |
 | `next/image` | a plain `<img>` with `loading="lazy"`, explicit `width`/`height`, and real `alt` text (or `alt=""` with `aria-hidden` for ornament) |
 | `next/font`, `font-[Inter]`, Geist | `font-heading` / `font-sans` / `font-arabic` |
+| inline `fontFamily: "Inter, sans-serif"` | `fontFamily: "var(--font-sans)"` (or `--font-heading`, `--font-arabic`); never a literal stack |
 | `clsx(...)`, `twMerge(clsx(...))` | `cn(...)` from `@/lib/utils` |
 | `@tabler/icons-react`, `react-icons`, `@radix-ui/react-icons`, emoji used as icons | the matching `lucide-react` icon (already a dependency) |
-| Unsplash or other hot-linked images | an asset from `src/assets/` or `public/assets/`; ask if nothing fits |
+| Unsplash, stock photos, any photo-realistic image | none: photography is ruled out. Use type, `InkWaveform`, a highlighter stroke or `SaduDiamond`; ask if nothing fits |
 
 ## Colour
 
 | Snipe | Hikaya |
 |---|---|
-| `bg-white`, `bg-neutral-50`, `bg-zinc-50` (raised surface) | `bg-card` (or `bg-card-cream`) |
+| `bg-white`, `bg-neutral-50`, `bg-zinc-50` (raised surface) | `bg-card` plus a hairline `border border-border` |
 | `bg-neutral-100`, `bg-gray-100` (recessed surface) | `bg-muted` |
-| `bg-black`, `bg-zinc-900`, `bg-neutral-950` (dark panel in light mode) | `bg-secondary text-secondary-foreground` |
+| `bg-black`, `bg-zinc-900`, `bg-neutral-950` (dark panel in light mode) | `bg-secondary text-secondary-foreground` (an ink panel under Ink), or `bg-primary text-primary-foreground` for an oxblood one |
 | `text-black`, `text-neutral-900`, `text-zinc-800` | `text-foreground` |
-| `text-neutral-400/500/600`, `text-gray-*`, `text-white/60` | `text-muted-foreground` (the only grey that passes 4.5:1 on tinted sand) |
-| `bg-blue-*`, `bg-indigo-*`, `bg-violet-*` (the brand/CTA colour) | `bg-primary text-primary-foreground` |
-| `from-purple-500 to-pink-500` and other rainbow gradients | token gradients only, e.g. `from-primary/15 to-transparent`; a gradient is rarely needed |
+| `text-neutral-400/500/600`, `text-gray-*`, `text-white/60` | `text-muted-foreground` (the only grey that passes 4.5:1 on background, card and muted in both themes) |
+| `bg-blue-*`, `bg-indigo-*`, `bg-violet-*` (the brand/CTA colour) | `bg-primary text-primary-foreground` (oxblood under Ink) |
+| `bg-yellow-*`, `bg-amber-*`, marker or highlight effects | `bg-accent text-accent-foreground` (mustard), as a highlighter only, never a second brand colour |
+| `from-purple-500 to-pink-500` and other rainbow gradients | a flat token fill; Ink is flat colour on paper, so drop the gradient |
 | `text-green-*`, `bg-emerald-*` | `text-success`, `bg-success text-success-foreground` |
 | `text-red-*`, `bg-red-*` | `text-destructive`, `bg-destructive text-destructive-foreground` |
 | `border-neutral-200`, `border-white/10`, `border-zinc-800` | `border-border` |
 | `ring-blue-500`, custom focus outlines | `focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background` |
 | `dark:bg-*`, `dark:text-*` pinned to raw colours | delete them; the tokens flip under `.dark` |
-| `bg-white/10 backdrop-blur` (glass) | `bg-card/80 backdrop-blur-sm`, used sparingly, with contrast re-checked over the sadu art |
+| `bg-white/10 backdrop-blur` (glass) | `bg-card border border-border`; Ink has no glass |
 
 ## Type
 
@@ -47,6 +51,7 @@ contains. Tokens are defined in `tailwind.config.ts` and `src/index.css`.
 | `text-5xl` and up | `text-display` |
 | `uppercase tracking-widest text-xs` (eyebrow label) | `text-overline uppercase` (Latin only) |
 | any `tracking-*`, `text-caption` or `text-overline` on Arabic | remove the tracking, or add `tracking-normal`; set Arabic at `text-body-sm` or larger |
+| `font-black` / `font-extrabold` carrying heading hierarchy | a step up the size scale; Ink's display faces have one weight and faux bold is off |
 
 ## Motion
 
@@ -70,13 +75,12 @@ contains. Tokens are defined in `tailwind.config.ts` and `src/index.css`.
 
 | Snipe | Hikaya |
 |---|---|
-| `rounded-[14px]` or other arbitrary radii | the nearest of `rounded-sm` … `rounded-3xl` (all derived from `--radius`) |
-| `shadow-sm` | `shadow-soft` |
-| `shadow-md`, `shadow-lg` | `shadow-card` |
-| `shadow-xl`, `shadow-2xl` | `shadow-elegant` |
-| button shadows | `shadow-button` |
-| `shadow-[0_0_40px_rgba(...)]` glow | delete it, or rebuild it from a token colour at low alpha |
-| grid, dot, noise, aurora or beam backgrounds | `SaduBanner`, `public/assets/sadu-tile.svg` / `sadu-watermark.svg`, or nothing |
+| `rounded-[14px]` or other arbitrary radii | the nearest of `rounded-sm` … `rounded-3xl` (all derived from `--radius`, a square-ish 0.25rem under Ink) |
+| `rounded-full` pills and chips | `rounded-md`; keep `rounded-full` for things that are round (avatars, the play button) |
+| `shadow-sm`, `shadow-md`, `shadow-lg`, `shadow-xl` | a hairline `border border-border`. If the previous look needs depth too, the token classes (`shadow-soft`, `shadow-card`, `shadow-elegant`, `shadow-button`) are safe, because they are `none` under Ink |
+| `shadow-[0_0_40px_rgba(...)]` glow, or any arbitrary shadow | delete it; an arbitrary shadow survives Ink's no-shadow rule |
+| grid, dot, noise, aurora or beam backgrounds | nothing; Ink's ground is flat paper |
+| sadu bands, pattern strips, `SaduBanner` | not under Ink. Use `SaduDiamond` (6–14px) for a divider or bullet; pressed tone-on-tone weave belongs only on dark panels (`InkReviewBar`) |
 
 ## Direction (RTL)
 

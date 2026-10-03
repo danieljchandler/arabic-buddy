@@ -24,6 +24,7 @@ import { Loader2, Trophy, RotateCcw } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { SaduMark } from "@/components/brand/SaduMark";
 import { recordContinue, clearContinue } from "@/lib/continueProgress";
+import { celebrate } from "@/lib/celebrations";
 import { useDialect } from "@/contexts/DialectContext";
 import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import { SoundSpotlight } from "@/components/learn/SoundSpotlight";
@@ -303,6 +304,7 @@ const Learn = () => {
   const handleProduceFinish = () => {
     setProduceOpen(false);
     setIsComplete(true);
+    celebrate({ kind: "lesson", detail: isMixedMode ? undefined : topic?.name || undefined });
     if (!isMixedMode && lessonId && user) {
       upsertProgress.mutate({
         lessonId,

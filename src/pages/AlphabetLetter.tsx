@@ -15,6 +15,7 @@ import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
 import { useDialect } from "@/contexts/DialectContext";
 import { Button } from "@/components/ui/button";
 import { tapFeedback } from "@/lib/tapFeedback";
+import { celebrate } from "@/lib/celebrations";
 import { ChevronLeft, ChevronRight, Check, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -67,7 +68,11 @@ const AlphabetLetter = () => {
     setDone((d) => ({ ...d, [step]: true }));
     fireXPPopup(5);
     try {
-      await completeStep({ letterCode: letter.code, step, ...extra });
+      const result = await completeStep({ letterCode: letter.code, step, ...extra });
+      // The step that completes the letter for the first time. Revisiting a
+      // mastered letter rebuilds `allDone` from saved progress, but
+      // completeStep only reports `mastered` once.
+      if (result?.mastered) celebrate({ kind: "lesson", detail: `${letter.name_translit} (${letter.isolated})` });
     } catch (e) {
       console.error(e);
     }

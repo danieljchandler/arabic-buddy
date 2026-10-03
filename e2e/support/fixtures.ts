@@ -205,5 +205,21 @@ test.beforeEach(async ({ backend, allowConsoleErrors }) => {
   void allowConsoleErrors;
 });
 
+/**
+ * Close the full-screen celebration (lesson finished, deck cleared, daily
+ * goal, badge, streak milestone) and wait for it to go.
+ *
+ * It is a modal: while it is up, Radix hides the page behind it from the
+ * accessibility tree, so a `getByRole` aimed at the screen underneath finds
+ * nothing. A spec that walks through one of those moments and then carries on
+ * has to say so, which is the point — it is a screen the learner sees too.
+ */
+export async function dismissCelebration(page: Page) {
+  const celebration = page.getByTestId("celebration");
+  await expect(celebration).toBeVisible();
+  await celebration.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(celebration).toHaveCount(0);
+}
+
 export { expect };
 export type { Page, Persona };

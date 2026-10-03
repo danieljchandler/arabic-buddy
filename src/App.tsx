@@ -12,6 +12,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { DialectProvider } from "@/contexts/DialectContext";
 import { AiAssistantProvider } from "@/contexts/AiAssistantContext";
 import { AssistantMount } from "@/components/assistant/AssistantMount";
+import { CelebrationHost } from "@/components/celebration/CelebrationHost";
 import { AskAiFab } from "@/components/assistant/AskAiFab";
 import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
 import { lazyRetry } from "@/lib/lazyRetry";
@@ -265,6 +266,13 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <AiAssistantProvider>
+          {/* The full-screen "you did it" moment — lesson finished, deck
+              cleared, daily goal, badge, streak milestone. Pages fire it with
+              celebrate() from @/lib/celebrations; this renders it, in a portal.
+              Ahead of the routes on purpose: sibling effects run in tree
+              order, so the host is listening before a page that mounts
+              already-celebratable (Today with every task done) fires. */}
+          <CelebrationHost />
           <Suspense fallback={<PageSkeleton />}>
           <TransitionRoutes>
             {/* Public learning app */}

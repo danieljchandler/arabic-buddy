@@ -828,6 +828,7 @@ const MyWordsReview = () => {
         <SessionHandoff
           deckId="my-words"
           session={session}
+          reviewed={sessionCount}
           message="No saved words due for review right now."
           fallbackLabel="Back to My Words"
           fallbackRoute="/my-words"

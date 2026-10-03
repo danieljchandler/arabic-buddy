@@ -270,6 +270,31 @@ caught. `src/test/curriculumSeed.test.ts` fails when the seed migration is
 stale. `npm run curriculum:check` is the same check for authors, with
 `--dialect`, `--stage` and `--partial` while a stage is half-written.
 
+## Celebration screens
+
+Finishing a lesson, mastering an alphabet letter, clearing every review deck,
+completing the day's list, earning a badge or reaching a streak milestone
+opens a full-screen celebration. It shows a few seconds of watercolor dance
+from the region of the learner's dialect, which then holds its final pose,
+with a cheer in that dialect and a line about the dance.
+
+- Gulf has six dances: Ardah, Khaleeji, Ayyala, Razha, Omani funūn, Mizmar.
+- Yemeni has four: Bara'a, Sana'ani, Bara'a of Haraz, Zafeen.
+- Egyptian has four: Tahtib, Raqs al-Assaya, Tanoura, Nubian kaff.
+
+Each dialect's dances rotate in order. Pages fire a moment with `celebrate()`
+from `src/lib/celebrations.ts`, and `CelebrationHost` (mounted once in
+`App.tsx`) renders it. A second moment that lands while the screen is open
+becomes a line on it rather than a second screen. The daily goal is
+celebrated once a day, and a streak milestone once per run. Badges use this
+screen instead of the toast they had before.
+
+The cheers are run through `detectMsaLeaks` in the tests. The clips are
+480px, silent, about 280KB each, and under reduced motion only the still is
+shown. How they were made (Higgsfield stills and Kling motion, with the app's
+own art as the style reference), the research behind each costume, and how to
+add a dance are in `docs/celebrations.md`.
+
 ## Project layout
 
 - `src/` — React app (pages, components, hooks, domain logic in `src/lib`)

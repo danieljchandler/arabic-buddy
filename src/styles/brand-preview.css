@@ -1,0 +1,413 @@
+/* ── Brand preview: three candidate directions, opt-in only ────────────────
+   Applied only while <html> carries data-brand="weave|ink|souq", which only a
+   ?brand= link sets (src/lib/brandPreview.ts). With no attribute none of
+   these selectors match, so the default look is untouched.
+
+   Every rule is :root[data-brand=…]-scoped. That is 0,2,0 for the light
+   blocks, which beats both :root and .dark (0,1,0) in index.css — so each
+   dark block below has to restate every token its light block sets, or the
+   light value would leak into night mode. The dark blocks are 0,3,0, and
+   also match a `.dark` *descendant*, because the feed wraps itself in
+   `class="dark"` and would otherwise fall back to night majlis inside the
+   preview.
+
+   Token values are the brief's hex colours converted to the space-separated
+   HSL triplets index.css uses (hex kept in the trailing comment). Where a
+   brief value was nudged it was to clear 4.5:1 as text, measured against
+   both --background and --card (and, for the dialect accents and ramp,
+   against the 12–15% wash of themselves they sit on):
+     weave  sage #7D7F5F -> #5F6147 for --ramp-3 (it is used as text);
+            Egyptian #9A6A10 -> #885D0E
+     ink    Egyptian/ramp-3 #8A6416 -> #7F5C14 / #7B5914
+     souq   Deep coral #B5432F -> #A13C2A for --primary (#B5432F measured
+            4.31:1 on the cream ground, and text-primary is the most used
+            colour word in the app — often on a bg-primary/10 chip, which
+            this clears too), #AB3F2C for Gulf, #A73E2B for --ramp-4;
+            Palm #2E6A4E -> #2C664B for --success (same chip pattern)
+     weave  dark --primary #D27C68 -> #D4816E (bg-primary/10 chips on card)
+   Known, by design of the brief: weave's saffron and ink's mustard --accent
+   carry ink text, so they are backgrounds only — the few `text-accent`
+   call sites (an icon or two, CandidateCard, Discover's level chip) read
+   low in those two directions. */
+
+/* Ink's Arabic text is Noto Naskh, but Readex Pro (its Latin UI face) also
+   has Arabic glyphs, and Noto Naskh ships a Latin subset — so neither order
+   of a plain stack gives "Arabic in Naskh, Latin in Readex". This alias is
+   Noto Naskh's Arabic subset only (Google's own file and unicode-range, from
+   the css2 response; gstatic URLs are immutable), so a stack that lists it
+   first renders Arabic in Naskh and falls through to Readex for Latin.
+   Downloaded only if an element using it renders Arabic. */
+@font-face {
+  font-family: "Hikaya Naskh Arabic";
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/notonaskharabic/v44/RrQKbpV-9Dd1b1OAGA6M9PkyDuVBeN2DHV20Lg.woff2) format("woff2");
+  unicode-range: U+0600-06FF, U+0750-077F, U+0870-088E, U+0890-0891, U+0897-08E1, U+08E3-08FF,
+    U+200C-200E, U+204F, U+2E41, U+FB50-FDFF, U+FE70-FE74, U+FE76-FEFC;
+}
+
+/* ── Shared to every direction ───────────────────────────────────────── */
+
+:root[data-brand] {
+  /* The painted band scaled with the viewport; the vector band is a fixed
+     12px strip, and every page offset reads this. */
+  --sadu-band-height: 12px;
+}
+
+/* Retire the watercolour: flat ground plus the direction's vector band.
+   !important only because AppBackdrop sets the painted image as an inline
+   style, which nothing else can outrank. The opacity and mask resets undo
+   opacity-95 / dark:opacity-60 and the night-mode mask in index.css — with
+   a flat ground there is no sand field left to mask. */
+:root[data-brand] .app-backdrop {
+  background-color: hsl(var(--background));
+  background-image: var(--brand-band) !important;
+  background-size: auto var(--sadu-band-height) !important;
+  background-repeat: repeat-x !important;
+  background-position: left top !important;
+  opacity: 1;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+/* ── Weave: flat heritage-modern ─────────────────────────────────────────
+   Today's sand and Desert Red, flattened: evergreen in place of charcoal,
+   saffron highlights, no soft shadows, sadu band redrawn as vector.
+   Newsreader for Latin headings with Aref Ruqaa behind it — Newsreader has
+   no Arabic, so Arabic in a heading falls to Ruqaa — and IBM Plex Sans
+   Arabic for body and Arabic text. */
+:root[data-brand="weave"] {
+  --background: 39 57.4% 88%;                /* #F2E6CF */
+  --foreground: 60 7.1% 11%;                 /* #1E1E1A */
+  --card: 37 61.9% 95.9%;                    /* #FBF6EE */
+  --card-foreground: 60 7.1% 11%;            /* #1E1E1A */
+  --popover: 37 61.9% 95.9%;                 /* #FBF6EE */
+  --popover-foreground: 60 7.1% 11%;         /* #1E1E1A */
+  --primary: 8 45.1% 37.8%;                  /* #8C4135 */
+  --primary-foreground: 0 0% 100%;           /* #FFFFFF */
+  --secondary: 149 30.3% 17.5%;              /* #1F3A2C */
+  --secondary-foreground: 39 57.4% 88%;      /* #F2E6CF */
+  --accent: 39 66.7% 55.3%;                  /* #D9A441 */
+  --accent-foreground: 60 7.1% 11%;          /* #1E1E1A */
+  --muted: 38 55.6% 91.2%;                   /* #F5ECDC */
+  --muted-foreground: 30 10.6% 33.3%;        /* #5E554C */
+  --border: 33 36.1% 76.7%;                  /* #D9C6AE */
+  --input: 33 36.1% 76.7%;                   /* #D9C6AE */
+  --ring: 8 45.1% 37.8%;                     /* #8C4135 */
+  --success: 141 33.3% 26.5%;                /* #2D5A3D */
+  --success-foreground: 0 0% 100%;           /* #FFFFFF */
+  --destructive: 4 69.8% 37.6%;              /* #A3271D */
+  --destructive-foreground: 0 0% 100%;       /* #FFFFFF */
+  --desert-red: 8 49.7% 28.8%;               /* #6E2F25 */
+  --plum: 149 30.3% 17.5%;                   /* #1F3A2C */
+  --plum-foreground: 39 57.4% 88%;           /* #F2E6CF */
+  --card-cream: 37 61.9% 95.9%;              /* #FBF6EE */
+  --ramp-1: 60 7.1% 11%;                     /* #1E1E1A */
+  --ramp-2: 149 30.3% 17.5%;                 /* #1F3A2C */
+  --ramp-3: 65 15.5% 32.9%;                  /* #5F6147 */
+  --ramp-4: 8 45.1% 37.8%;                   /* #8C4135 */
+  --dialect-gulf: 8 45.1% 37.8%;             /* #8C4135 */
+  --dialect-egyptian: 39 81.3% 29.4%;        /* #885D0E */
+  --dialect-yemeni: 149 30.3% 17.5%;         /* #1F3A2C */
+  --sidebar-background: 37 61.9% 95.9%;      /* #FBF6EE */
+  --sidebar-foreground: 60 7.1% 11%;         /* #1E1E1A */
+  --sidebar-primary: 8 45.1% 37.8%;          /* #8C4135 */
+  --sidebar-primary-foreground: 0 0% 100%;   /* #FFFFFF */
+  --sidebar-accent: 38 55.6% 91.2%;          /* #F5ECDC */
+  --sidebar-accent-foreground: 60 7.1% 11%;  /* #1E1E1A */
+  --sidebar-border: 33 36.1% 76.7%;          /* #D9C6AE */
+  --sidebar-ring: 8 45.1% 37.8%;             /* #8C4135 */
+  --radius: 0.875rem;
+
+  --shadow-soft: none;
+  --shadow-card: none;
+  --shadow-elegant: none;
+  --shadow-button: none;
+  --shadow-topic: none;
+  /* Hover still needs to say something: a 1px line instead of a lift. */
+  --shadow-topic-hover: 0 0 0 1px hsl(8 45.1% 37.8% / 0.45);
+
+  --font-sans: "IBM Plex Sans Arabic", "Noto Sans Arabic", sans-serif;
+  --font-heading: "Newsreader", "Aref Ruqaa", "IBM Plex Sans Arabic", serif;
+  --font-arabic: "IBM Plex Sans Arabic", "Noto Sans Arabic", sans-serif;
+  --font-arabic-display: "Aref Ruqaa", "IBM Plex Sans Arabic", serif;
+  --font-naskh: "IBM Plex Sans Arabic", "Noto Naskh Arabic", sans-serif;
+
+  /* Najdi triangles meeting at the tile seams, a stepped sadu diamond
+     between them: red field, evergreen selvedges, cream motifs. */
+  --brand-band: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='12' viewBox='0 0 24 12'><rect width='24' height='12' fill='%238C4135'/><rect width='24' height='2' fill='%231F3A2C'/><rect y='10' width='24' height='2' fill='%231F3A2C'/><path d='M0 2h4L0 6zM24 2h-4l4 4zM0 10h4L0 6zM24 10h-4l4-4z' fill='%23F2E6CF'/><path d='M11 3h2v1h1v1h1v2h-1v1h-1v1h-2V8h-1V7H9V5h1V4h1z' fill='%23F2E6CF'/><path d='M11 5h2v2h-2z' fill='%231F3A2C'/></svg>");
+}
+
+:root.dark[data-brand="weave"],
+:root[data-brand="weave"] .dark {
+  --background: 48 10.6% 9.2%;               /* #1A1915 */
+  --foreground: 39 57.4% 88%;                /* #F2E6CF */
+  --card: 43 10.4% 13.1%;                    /* #25231E */
+  --card-foreground: 39 57.4% 88%;           /* #F2E6CF */
+  --popover: 43 10.4% 13.1%;                 /* #25231E */
+  --popover-foreground: 39 57.4% 88%;        /* #F2E6CF */
+  --primary: 11 54.3% 63.1%;                 /* #D4816E */
+  --primary-foreground: 48 10.6% 9.2%;       /* #1A1915 */
+  --secondary: 142 23.2% 63.7%;              /* #8DB89D */
+  --secondary-foreground: 48 10.6% 9.2%;     /* #1A1915 */
+  --accent: 39 66.7% 55.3%;                  /* #D9A441 */
+  --accent-foreground: 48 10.6% 9.2%;        /* #1A1915 */
+  --muted: 40 10.8% 16.3%;                   /* #2E2B25 */
+  --muted-foreground: 34 17.9% 69.4%;        /* #BFB3A3 */
+  --border: 47 8.7% 20.2%;                   /* #38362F */
+  --input: 47 8.7% 20.2%;                    /* #38362F */
+  --ring: 11 54.3% 63.1%;                    /* #D4816E */
+  --success: 142 23.2% 63.7%;                /* #8DB89D */
+  --success-foreground: 48 10.6% 9.2%;       /* #1A1915 */
+  --destructive: 6 76.8% 67.8%;              /* #EC7B6E */
+  --destructive-foreground: 48 10.6% 9.2%;   /* #1A1915 */
+  --desert-red: 12 57.9% 66.5%;              /* #DB8C78 */
+  --plum: 139 23.7% 68.6%;                   /* #9CC2A8 */
+  --plum-foreground: 48 10.6% 9.2%;          /* #1A1915 */
+  --card-cream: 38 10.5% 14.9%;              /* #2A2722 */
+  --ramp-1: 39 39.5% 83.1%;                  /* #E5D9C3 */
+  --ramp-2: 142 23.2% 63.7%;                 /* #8DB89D */
+  --ramp-3: 63 20.7% 65.9%;                  /* #B8BA96 */
+  --ramp-4: 11 54.3% 65.7%;                  /* #D78A78 */
+  --dialect-gulf: 11 54.3% 65.7%;            /* #D78A78 */
+  --dialect-egyptian: 39 66.7% 55.3%;        /* #D9A441 */
+  --dialect-yemeni: 142 23.2% 63.7%;         /* #8DB89D */
+  --sidebar-background: 43 10.4% 13.1%;      /* #25231E */
+  --sidebar-foreground: 39 57.4% 88%;        /* #F2E6CF */
+  --sidebar-primary: 11 54.3% 63.1%;         /* #D4816E */
+  --sidebar-primary-foreground: 48 10.6% 9.2%; /* #1A1915 */
+  --sidebar-accent: 40 10.8% 16.3%;          /* #2E2B25 */
+  --sidebar-accent-foreground: 39 57.4% 88%; /* #F2E6CF */
+  --sidebar-border: 47 8.7% 20.2%;           /* #38362F */
+  --sidebar-ring: 11 54.3% 63.1%;            /* #D4816E */
+  --shadow-topic-hover: 0 0 0 1px hsl(11 54.3% 63.1% / 0.5);
+}
+
+/* ── Ink: editorial ──────────────────────────────────────────────────────
+   Cream paper, near-black ink, oxblood as the one colour, mustard as the
+   highlight. Hairline borders, square-ish corners, no shadows. DM Serif
+   Display for Latin headings with Rakkas behind it for Arabic (DM Serif has
+   no Arabic), Readex Pro for UI, Noto Naskh (via the alias above) for all
+   Arabic text. */
+:root[data-brand="ink"] {
+  --background: 43 50% 87.5%;                /* #EFE6CF */
+  --foreground: 84 9.8% 10%;                 /* #1A1C17 */
+  --card: 42 55.6% 92.9%;                    /* #F7F1E3 */
+  --card-foreground: 84 9.8% 10%;            /* #1A1C17 */
+  --popover: 42 55.6% 92.9%;                 /* #F7F1E3 */
+  --popover-foreground: 84 9.8% 10%;         /* #1A1C17 */
+  --primary: 0 55.1% 27.1%;                  /* #6B1F1F */
+  --primary-foreground: 43 50% 87.5%;        /* #EFE6CF */
+  --secondary: 84 9.8% 10%;                  /* #1A1C17 */
+  --secondary-foreground: 43 50% 87.5%;      /* #EFE6CF */
+  --accent: 40 69.8% 62.4%;                  /* #E2B65C */
+  --accent-foreground: 84 9.8% 10%;          /* #1A1C17 */
+  --muted: 43 41.9% 83.1%;                   /* #E6DCC2 */
+  --muted-foreground: 26 8% 34.1%;           /* #5E5650 */
+  --border: 45 23.3% 76.5%;                  /* #D1CAB5 */
+  --input: 45 23.3% 76.5%;                   /* #D1CAB5 */
+  --ring: 0 55.1% 27.1%;                     /* #6B1F1F */
+  --success: 136 32.8% 26.9%;                /* #2E5B3A */
+  --success-foreground: 43 50% 87.5%;        /* #EFE6CF */
+  --destructive: 3 71.1% 36.7%;              /* #A0221B */
+  --destructive-foreground: 0 0% 100%;       /* #FFFFFF */
+  --desert-red: 0 55.1% 27.1%;               /* #6B1F1F */
+  --plum: 84 9.8% 10%;                       /* #1A1C17 */
+  --plum-foreground: 43 50% 87.5%;           /* #EFE6CF */
+  --card-cream: 42 55.6% 92.9%;              /* #F7F1E3 */
+  --ramp-1: 84 9.8% 10%;                     /* #1A1C17 */
+  --ramp-2: 26 8% 34.1%;                     /* #5E5650 */
+  --ramp-3: 40 72% 28%;                      /* #7B5914 */
+  --ramp-4: 0 55.1% 27.1%;                   /* #6B1F1F */
+  --dialect-gulf: 0 55.1% 27.1%;             /* #6B1F1F */
+  --dialect-egyptian: 40 72.8% 28.8%;        /* #7F5C14 */
+  --dialect-yemeni: 84 9.8% 10%;             /* #1A1C17 */
+  --sidebar-background: 42 55.6% 92.9%;      /* #F7F1E3 */
+  --sidebar-foreground: 84 9.8% 10%;         /* #1A1C17 */
+  --sidebar-primary: 0 55.1% 27.1%;          /* #6B1F1F */
+  --sidebar-primary-foreground: 43 50% 87.5%; /* #EFE6CF */
+  --sidebar-accent: 43 41.9% 83.1%;          /* #E6DCC2 */
+  --sidebar-accent-foreground: 84 9.8% 10%;  /* #1A1C17 */
+  --sidebar-border: 45 23.3% 76.5%;          /* #D1CAB5 */
+  --sidebar-ring: 0 55.1% 27.1%;             /* #6B1F1F */
+  --radius: 0.25rem;
+
+  --shadow-soft: none;
+  --shadow-card: none;
+  --shadow-elegant: none;
+  --shadow-button: none;
+  --shadow-topic: none;
+  --shadow-topic-hover: 0 0 0 1px hsl(84 9.8% 10% / 0.6);
+
+  --font-sans: "Hikaya Naskh Arabic", "Readex Pro", sans-serif;
+  --font-heading: "DM Serif Display", "Rakkas", serif;
+  --font-arabic: "Hikaya Naskh Arabic", "Readex Pro", serif;
+  --font-arabic-display: "Hikaya Naskh Arabic", "Readex Pro", serif;
+  --font-naskh: "Hikaya Naskh Arabic", "Readex Pro", serif;
+  /* DM Serif Display and Rakkas ship one weight. Headings ask for 700, and a
+     browser-smeared faux bold of a display serif is worse than its own
+     weight, which is already heavy. */
+  font-synthesis-weight: none;
+
+  /* An oxblood rule over a thin mustard one — a masthead, not a pattern. */
+  --brand-band: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='12' viewBox='0 0 8 12'><rect width='8' height='3' fill='%236B1F1F'/><rect y='5' width='8' height='2' fill='%23E2B65C'/></svg>");
+}
+
+:root.dark[data-brand="ink"],
+:root[data-brand="ink"] .dark {
+  --background: 80 7.7% 7.6%;                /* #141512 */
+  --foreground: 43 50% 87.5%;                /* #EFE6CF */
+  --card: 84 8.5% 11.6%;                     /* #1E201B */
+  --card-foreground: 43 50% 87.5%;           /* #EFE6CF */
+  --popover: 84 8.5% 11.6%;                  /* #1E201B */
+  --popover-foreground: 43 50% 87.5%;        /* #EFE6CF */
+  --primary: 5 53.9% 67.6%;                  /* #D98880 */
+  --primary-foreground: 80 7.7% 7.6%;        /* #141512 */
+  --secondary: 43 50% 87.5%;                 /* #EFE6CF */
+  --secondary-foreground: 80 7.7% 7.6%;      /* #141512 */
+  --accent: 40 69.8% 62.4%;                  /* #E2B65C */
+  --accent-foreground: 80 7.7% 7.6%;         /* #141512 */
+  --muted: 80 7.7% 15.3%;                    /* #282A24 */
+  --muted-foreground: 34 13.1% 65.7%;        /* #B3A99C */
+  --border: 51 7.4% 18.6%;                   /* #33322C */
+  --input: 51 7.4% 18.6%;                    /* #33322C */
+  --ring: 40 69.8% 62.4%;                    /* #E2B65C */
+  --success: 136 29.2% 65.1%;                /* #8CC09A */
+  --success-foreground: 80 7.7% 7.6%;        /* #141512 */
+  --destructive: 0 78.9% 72.2%;              /* #F08080 */
+  --destructive-foreground: 80 7.7% 7.6%;    /* #141512 */
+  --desert-red: 5 53.9% 67.6%;               /* #D98880 */
+  --plum: 43 50% 87.5%;                      /* #EFE6CF */
+  --plum-foreground: 80 7.7% 7.6%;           /* #141512 */
+  --card-cream: 80 9.1% 12.9%;               /* #22241E */
+  --ramp-1: 43 50% 87.5%;                    /* #EFE6CF */
+  --ramp-2: 34 13.1% 65.7%;                  /* #B3A99C */
+  --ramp-3: 40 69.8% 62.4%;                  /* #E2B65C */
+  --ramp-4: 5 53.9% 67.6%;                   /* #D98880 */
+  --dialect-gulf: 5 53.9% 67.6%;             /* #D98880 */
+  --dialect-egyptian: 40 69.8% 62.4%;        /* #E2B65C */
+  --dialect-yemeni: 43 50% 87.5%;            /* #EFE6CF */
+  --sidebar-background: 84 8.5% 11.6%;       /* #1E201B */
+  --sidebar-foreground: 43 50% 87.5%;        /* #EFE6CF */
+  --sidebar-primary: 5 53.9% 67.6%;          /* #D98880 */
+  --sidebar-primary-foreground: 80 7.7% 7.6%; /* #141512 */
+  --sidebar-accent: 80 7.7% 15.3%;           /* #282A24 */
+  --sidebar-accent-foreground: 43 50% 87.5%; /* #EFE6CF */
+  --sidebar-border: 51 7.4% 18.6%;           /* #33322C */
+  --sidebar-ring: 40 69.8% 62.4%;            /* #E2B65C */
+  --shadow-topic-hover: 0 0 0 1px hsl(43 50% 87.5% / 0.5);
+  --brand-band: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='12' viewBox='0 0 8 12'><rect width='8' height='3' fill='%23D98880'/><rect y='5' width='8' height='2' fill='%23E2B65C'/></svg>");
+}
+
+/* ── Souq: playful ───────────────────────────────────────────────────────
+   Cream and navy with deep coral and cobalt. Flat (no shadows, ordinary
+   borders), medium corners. Young Serif for Latin headings with Lalezar
+   behind it for Arabic (Young Serif has no Arabic), Alexandria for UI and
+   Arabic UI. */
+:root[data-brand="souq"] {
+  --background: 45 60% 84.3%;                /* #EFE3BF */
+  --foreground: 208 38.7% 12.2%;             /* #13202B */
+  --card: 45 70.6% 93.3%;                    /* #FAF4E2 */
+  --card-foreground: 208 38.7% 12.2%;        /* #13202B */
+  --popover: 45 70.6% 93.3%;                 /* #FAF4E2 */
+  --popover-foreground: 208 38.7% 12.2%;     /* #13202B */
+  --primary: 9 58.6% 39.8%;                  /* #A13C2A */
+  --primary-foreground: 45 70.6% 93.3%;      /* #FAF4E2 */
+  --secondary: 206 50.6% 15.1%;              /* #13293A */
+  --secondary-foreground: 45 60% 84.3%;      /* #EFE3BF */
+  --accent: 209 52.9% 36.7%;                 /* #2C5F8F */
+  --accent-foreground: 45 70.6% 93.3%;       /* #FAF4E2 */
+  --muted: 45 61.9% 87.6%;                   /* #F3E9CC */
+  --muted-foreground: 206 11.9% 34.7%;       /* #4E5A63 */
+  --border: 51 22.2% 71.8%;                  /* #C7C2A7 */
+  --input: 51 22.2% 71.8%;                   /* #C7C2A7 */
+  --ring: 209 52.9% 36.7%;                   /* #2C5F8F */
+  --success: 152 39.7% 28.6%;                /* #2C664B */
+  --success-foreground: 45 70.6% 93.3%;      /* #FAF4E2 */
+  --destructive: 5 72.3% 38.2%;              /* #A8261B */
+  --destructive-foreground: 45 70.6% 93.3%;  /* #FAF4E2 */
+  --desert-red: 12 65.8% 36.7%;              /* #9B3820 */
+  --plum: 206 50.6% 15.1%;                   /* #13293A */
+  --plum-foreground: 45 60% 84.3%;           /* #EFE3BF */
+  --card-cream: 45 70.6% 93.3%;              /* #FAF4E2 */
+  --ramp-1: 206 50.6% 15.1%;                 /* #13293A */
+  --ramp-2: 209 52.9% 36.7%;                 /* #2C5F8F */
+  --ramp-3: 206 11.9% 34.7%;                 /* #4E5A63 */
+  --ramp-4: 9 59% 41.2%;                     /* #A73E2B */
+  --dialect-gulf: 9 59.1% 42.2%;             /* #AB3F2C */
+  --dialect-egyptian: 209 52.9% 36.7%;       /* #2C5F8F */
+  --dialect-yemeni: 206 50.6% 15.1%;         /* #13293A */
+  --sidebar-background: 45 70.6% 93.3%;      /* #FAF4E2 */
+  --sidebar-foreground: 208 38.7% 12.2%;     /* #13202B */
+  --sidebar-primary: 9 58.6% 39.8%;          /* #A13C2A */
+  --sidebar-primary-foreground: 45 70.6% 93.3%; /* #FAF4E2 */
+  --sidebar-accent: 45 61.9% 87.6%;          /* #F3E9CC */
+  --sidebar-accent-foreground: 208 38.7% 12.2%; /* #13202B */
+  --sidebar-border: 51 22.2% 71.8%;          /* #C7C2A7 */
+  --sidebar-ring: 209 52.9% 36.7%;           /* #2C5F8F */
+  --radius: 0.5rem;
+
+  --shadow-soft: none;
+  --shadow-card: none;
+  --shadow-elegant: none;
+  --shadow-button: none;
+  --shadow-topic: none;
+  --shadow-topic-hover: 0 0 0 1px hsl(209 52.9% 36.7% / 0.6);
+
+  --font-sans: "Alexandria", "Noto Sans Arabic", sans-serif;
+  --font-heading: "Young Serif", "Lalezar", serif;
+  --font-arabic: "Alexandria", "Noto Sans Arabic", sans-serif;
+  --font-arabic-display: "Lalezar", "Alexandria", sans-serif;
+  --font-naskh: "Alexandria", "Noto Sans Arabic", sans-serif;
+  /* Young Serif and Lalezar ship one weight; see the note under ink. */
+  font-synthesis-weight: none;
+
+  /* A lattice of crossed, elongated diamonds: coral on navy, cream studs. */
+  --brand-band: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='28' height='12' viewBox='0 0 28 12'><rect width='28' height='12' fill='%2313293A'/><path d='M0 0L14 12L28 0M0 12L14 0L28 12' fill='none' stroke='%23D4553D' stroke-width='1.6'/><circle cx='7' cy='6' r='1.3' fill='%23EFE3BF'/><circle cx='21' cy='6' r='1.3' fill='%23EFE3BF'/></svg>");
+}
+
+:root.dark[data-brand="souq"],
+:root[data-brand="souq"] .dark {
+  --background: 207 40% 9.8%;                /* #0F1A23 */
+  --foreground: 45 60% 84.3%;                /* #EFE3BF */
+  --card: 209 36% 14.7%;                     /* #182633 */
+  --card-foreground: 45 60% 84.3%;           /* #EFE3BF */
+  --popover: 209 36% 14.7%;                  /* #182633 */
+  --popover-foreground: 45 60% 84.3%;        /* #EFE3BF */
+  --primary: 11 72.5% 68.6%;                 /* #E98A75 */
+  --primary-foreground: 207 40% 9.8%;        /* #0F1A23 */
+  --secondary: 210 51% 70.4%;                /* #8DB4DA */
+  --secondary-foreground: 207 40% 9.8%;      /* #0F1A23 */
+  --accent: 210 51% 70.4%;                   /* #8DB4DA */
+  --accent-foreground: 207 40% 9.8%;         /* #0F1A23 */
+  --muted: 208 32.6% 18%;                    /* #1F2F3D */
+  --muted-foreground: 203 10.3% 69.4%;       /* #A9B3B9 */
+  --border: 193 8.1% 21.8%;                  /* #333A3C */
+  --input: 193 8.1% 21.8%;                   /* #333A3C */
+  --ring: 210 51% 70.4%;                     /* #8DB4DA */
+  --success: 149 36.9% 63.3%;                /* #7FC4A0 */
+  --success-foreground: 207 40% 9.8%;        /* #0F1A23 */
+  --destructive: 4 82% 67.3%;                /* #F07067 */
+  --destructive-foreground: 207 40% 9.8%;    /* #0F1A23 */
+  --desert-red: 14 77.5% 70.4%;              /* #EE9479 */
+  --plum: 211 47% 77.1%;                     /* #A9C4E0 */
+  --plum-foreground: 207 40% 9.8%;           /* #0F1A23 */
+  --card-cream: 208 34.1% 16.1%;             /* #1B2A37 */
+  --ramp-1: 45 60% 84.3%;                    /* #EFE3BF */
+  --ramp-2: 210 51% 70.4%;                   /* #8DB4DA */
+  --ramp-3: 203 10.3% 69.4%;                 /* #A9B3B9 */
+  --ramp-4: 11 72.5% 68.6%;                  /* #E98A75 */
+  --dialect-gulf: 11 72.5% 68.6%;            /* #E98A75 */
+  --dialect-egyptian: 210 51% 70.4%;         /* #8DB4DA */
+  --dialect-yemeni: 45 60% 84.3%;            /* #EFE3BF */
+  --sidebar-background: 209 36% 14.7%;       /* #182633 */
+  --sidebar-foreground: 45 60% 84.3%;        /* #EFE3BF */
+  --sidebar-primary: 11 72.5% 68.6%;         /* #E98A75 */
+  --sidebar-primary-foreground: 207 40% 9.8%; /* #0F1A23 */
+  --sidebar-accent: 208 32.6% 18%;           /* #1F2F3D */
+  --sidebar-accent-foreground: 45 60% 84.3%; /* #EFE3BF */
+  --sidebar-border: 193 8.1% 21.8%;          /* #333A3C */
+  --sidebar-ring: 210 51% 70.4%;             /* #8DB4DA */
+  --shadow-topic-hover: 0 0 0 1px hsl(210 51% 70.4% / 0.6);
+}

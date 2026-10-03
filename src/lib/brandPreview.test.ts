@@ -1,0 +1,234 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  BRAND_DIRECTIONS,
+  BRAND_FONT_LINK_ID,
+  BRAND_PREVIEW_STORAGE_KEY,
+  applyBrandPreview,
+  getBrandDirection,
+  getBrandPreview,
+  initBrandPreview,
+  isBrandDirectionId,
+  parseBrandParam,
+  readStoredBrandPreview,
+  setBrandPreview,
+  subscribeBrandPreview,
+  writeStoredBrandPreview,
+} from "./brandPreview";
+
+/**
+ * The opt-in brand preview (brandPreview.ts).
+ *
+ * The property everything else hangs off: nobody sees a preview without a
+ * `?brand=` link. With no parameter and nothing stored, boot must leave
+ * <html> without `data-brand` and inject no font link — that is what keeps
+ * the default experience untouched. The rest is the plumbing a preview needs
+ * to be usable on a deploy preview: it survives navigation (storage), it can
+ * be switched off, it never throws on the boot path when storage does, and
+ * switching directions does not pile up stylesheet links.
+ */
+
+const fontLinks = () => document.querySelectorAll(`#${BRAND_FONT_LINK_ID}`);
+
+function reset() {
+  localStorage.clear();
+  document.documentElement.removeAttribute("data-brand");
+  document.getElementById(BRAND_FONT_LINK_ID)?.remove();
+}
+
+beforeEach(reset);
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  // Module state outlives a test; put it back to "no preview".
+  setBrandPreview(null);
+  reset();
+});
+
+describe("the directions", () => {
+  it("lists weave, ink and souq, each with a label and a Google Fonts stylesheet", () => {
+    expect(BRAND_DIRECTIONS.map((d) => d.id)).toEqual(["weave", "ink", "souq"]);
+    for (const d of BRAND_DIRECTIONS) {
+      expect(d.label).toBeTruthy();
+      expect(d.summary).toBeTruthy();
+      expect(d.fontsHref).toMatch(/^https:\/\/fonts\.googleapis\.com\/css2\?family=/);
+      expect(d.fontsHref).toMatch(/display=swap$/);
+    }
+  });
+
+  it("recognises only its own ids", () => {
+    expect(isBrandDirectionId("ink")).toBe(true);
+    expect(isBrandDirectionId("current")).toBe(false);
+    expect(isBrandDirectionId("INK")).toBe(false);
+    expect(isBrandDirectionId(undefined)).toBe(false);
+    expect(getBrandDirection("souq").label).toBe("Souq");
+  });
+});
+
+describe("parseBrandParam", () => {
+  it("reads a direction, case- and whitespace-insensitively", () => {
+    expect(parseBrandParam("?brand=weave")).toBe("weave");
+    expect(parseBrandParam("?foo=1&brand=Ink")).toBe("ink");
+    expect(parseBrandParam("?brand=%20souq%20")).toBe("souq");
+  });
+
+  it("treats off and current as switching the preview off", () => {
+    expect(parseBrandParam("?brand=off")).toBe("off");
+    expect(parseBrandParam("?brand=current")).toBe("off");
+  });
+
+  it("ignores an absent or unknown value rather than reading it as off", () => {
+    // A typo must not silently end a preview someone is in the middle of.
+    expect(parseBrandParam("")).toBeNull();
+    expect(parseBrandParam("?dialect=gulf")).toBeNull();
+    expect(parseBrandParam("?brand=neon")).toBeNull();
+    expect(parseBrandParam("?brand=")).toBeNull();
+  });
+});
+
+describe("storage", () => {
+  it("round-trips a state under the new-spelling key, and removes it on null", () => {
+    writeStoredBrandPreview("ink");
+    expect(localStorage.getItem(BRAND_PREVIEW_STORAGE_KEY)).toBe("ink");
+    expect(BRAND_PREVIEW_STORAGE_KEY).toBe("hikaya_brand_preview");
+    expect(readStoredBrandPreview()).toBe("ink");
+
+    writeStoredBrandPreview("current");
+    expect(readStoredBrandPreview()).toBe("current");
+
+    writeStoredBrandPreview(null);
+    expect(localStorage.getItem(BRAND_PREVIEW_STORAGE_KEY)).toBeNull();
+    expect(readStoredBrandPreview()).toBeNull();
+  });
+
+  it("ignores a corrupted stored value", () => {
+    localStorage.setItem(BRAND_PREVIEW_STORAGE_KEY, "neon");
+    expect(readStoredBrandPreview()).toBeNull();
+  });
+
+  it("never throws when storage does (private mode, blocked site data)", () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("SecurityError");
+    });
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("QuotaExceededError");
+    });
+    vi.spyOn(Storage.prototype, "removeItem").mockImplementation(() => {
+      throw new Error("SecurityError");
+    });
+    expect(readStoredBrandPreview()).toBeNull();
+    expect(() => writeStoredBrandPreview("weave")).not.toThrow();
+    expect(() => writeStoredBrandPreview(null)).not.toThrow();
+  });
+});
+
+describe("applyBrandPreview", () => {
+  it("stamps data-brand and injects the direction's font link once", () => {
+    applyBrandPreview("weave");
+    expect(document.documentElement.getAttribute("data-brand")).toBe("weave");
+    const links = fontLinks();
+    expect(links).toHaveLength(1);
+    const link = links[0] as HTMLLinkElement;
+    expect(link.rel).toBe("stylesheet");
+    expect(link.getAttribute("href")).toBe(getBrandDirection("weave").fontsHref);
+    expect(link.parentElement).toBe(document.head);
+
+    // Idempotent: applying again does not add a second link.
+    applyBrandPreview("weave");
+    expect(fontLinks()).toHaveLength(1);
+  });
+
+  it("retargets the same link when the direction changes", () => {
+    applyBrandPreview("weave");
+    applyBrandPreview("souq");
+    expect(document.documentElement.getAttribute("data-brand")).toBe("souq");
+    expect(fontLinks()).toHaveLength(1);
+    expect(fontLinks()[0].getAttribute("href")).toBe(getBrandDirection("souq").fontsHref);
+  });
+
+  it("clears both the attribute and the link for current and for off", () => {
+    applyBrandPreview("ink");
+    applyBrandPreview("current");
+    expect(document.documentElement.hasAttribute("data-brand")).toBe(false);
+    expect(fontLinks()).toHaveLength(0);
+
+    applyBrandPreview("ink");
+    applyBrandPreview(null);
+    expect(document.documentElement.hasAttribute("data-brand")).toBe(false);
+    expect(fontLinks()).toHaveLength(0);
+  });
+});
+
+describe("initBrandPreview (boot)", () => {
+  it("does nothing at all for someone who never asked", () => {
+    expect(initBrandPreview("")).toBeNull();
+    expect(document.documentElement.hasAttribute("data-brand")).toBe(false);
+    expect(fontLinks()).toHaveLength(0);
+    expect(localStorage.getItem(BRAND_PREVIEW_STORAGE_KEY)).toBeNull();
+    expect(getBrandPreview()).toBeNull();
+  });
+
+  it("switches a direction on from the URL and remembers it", () => {
+    expect(initBrandPreview("?brand=ink")).toBe("ink");
+    expect(document.documentElement.getAttribute("data-brand")).toBe("ink");
+    expect(localStorage.getItem(BRAND_PREVIEW_STORAGE_KEY)).toBe("ink");
+    expect(getBrandPreview()).toBe("ink");
+  });
+
+  it("keeps a remembered preview on a later page load with no parameter", () => {
+    localStorage.setItem(BRAND_PREVIEW_STORAGE_KEY, "souq");
+    expect(initBrandPreview("?dialect=gulf")).toBe("souq");
+    expect(document.documentElement.getAttribute("data-brand")).toBe("souq");
+  });
+
+  it("forgets the preview on ?brand=off", () => {
+    localStorage.setItem(BRAND_PREVIEW_STORAGE_KEY, "weave");
+    expect(initBrandPreview("?brand=off")).toBeNull();
+    expect(localStorage.getItem(BRAND_PREVIEW_STORAGE_KEY)).toBeNull();
+    expect(document.documentElement.hasAttribute("data-brand")).toBe(false);
+  });
+
+  it("still applies a URL preview for the session when storage refuses it", () => {
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("QuotaExceededError");
+    });
+    expect(initBrandPreview("?brand=weave")).toBe("weave");
+    expect(document.documentElement.getAttribute("data-brand")).toBe("weave");
+    expect(getBrandPreview()).toBe("weave");
+  });
+
+  it("reads window.location by default", () => {
+    window.history.replaceState(null, "", "/today?brand=souq");
+    try {
+      expect(initBrandPreview()).toBe("souq");
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
+});
+
+describe("the store", () => {
+  it("notifies subscribers on every change and stops after unsubscribe", () => {
+    const seen: Array<string | null> = [];
+    const unsubscribe = subscribeBrandPreview(() => seen.push(getBrandPreview()));
+
+    setBrandPreview("weave");
+    setBrandPreview("current");
+    setBrandPreview(null);
+    unsubscribe();
+    setBrandPreview("ink");
+
+    expect(seen).toEqual(["weave", "current", null]);
+    expect(getBrandPreview()).toBe("ink");
+    expect(document.documentElement.getAttribute("data-brand")).toBe("ink");
+    expect(localStorage.getItem(BRAND_PREVIEW_STORAGE_KEY)).toBe("ink");
+  });
+
+  it("falls back to storage when boot never ran (a fresh module)", async () => {
+    // Tests and any tree rendered without main.tsx skip initBrandPreview; the
+    // switcher must still see a remembered preview rather than none.
+    vi.resetModules();
+    localStorage.setItem(BRAND_PREVIEW_STORAGE_KEY, "weave");
+    const fresh = await import("./brandPreview");
+    expect(fresh.getBrandPreview()).toBe("weave");
+  });
+});

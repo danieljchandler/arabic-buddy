@@ -13,6 +13,7 @@ import { DialectProvider } from "@/contexts/DialectContext";
 import { AiAssistantProvider } from "@/contexts/AiAssistantContext";
 import { AssistantMount } from "@/components/assistant/AssistantMount";
 import { AskAiFab } from "@/components/assistant/AskAiFab";
+import { BrandPreviewSwitcher } from "@/components/shell/BrandPreviewSwitcher";
 import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
 import { lazyRetry } from "@/lib/lazyRetry";
 import { PageSkeleton } from "@/components/ui/skeleton-page";
@@ -588,6 +589,8 @@ const App = () => {
               AppShell (the video player, Transcribe, Learn from X). */}
           <AskAiFab />
           <AssistantMount />
+          {/* Renders nothing unless a ?brand= preview link switched one on. */}
+          <BrandPreviewSwitcher />
           </AiAssistantProvider>
         </BrowserRouter>
       </TooltipProvider>

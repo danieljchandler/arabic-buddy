@@ -1,14 +1,19 @@
 import { createRoot } from "react-dom/client";
 import "./index.css";
+import "./styles/brand-preview.css";
 import "./lib/storageBootstrap";
 import { runBrandMigration } from "./lib/brandMigration";
 import { registerServiceWorker } from "./lib/serviceWorker";
 import { applyTheme, getThemePref } from "./hooks/useTheme";
+import { initBrandPreview } from "./lib/brandPreview";
 
 runBrandMigration();
 registerServiceWorker();
 // Stamp the stored theme before first render so dark mode never flashes light.
 applyTheme(getThemePref());
+// Opt-in brand preview (?brand=weave|ink|souq): stamped before first render
+// for the same reason. A no-op for anyone who has not asked for one.
+initBrandPreview();
 
 
 const root = document.getElementById("root");

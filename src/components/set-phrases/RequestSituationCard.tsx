@@ -151,7 +151,7 @@ export const RequestSituationCard = () => {
               key={i}
               className="p-3 rounded-lg bg-card border border-border"
             >
-              <p className="text-lg font-semibold" dir="rtl" style={{ fontFamily: "'Noto Sans Arabic', sans-serif" }}>
+              <p className="text-lg font-semibold" dir="rtl" style={{ fontFamily: "var(--font-arabic)" }}>
                 {p.phrase_arabic}
               </p>
               {p.transliteration && (

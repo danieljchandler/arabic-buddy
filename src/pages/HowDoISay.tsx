@@ -213,8 +213,7 @@ const HowDoISay = () => {
 
       <div className="mb-4 mt-4">
         <h1
-          className="text-2xl font-bold text-foreground flex items-center gap-2"
-          style={{ fontFamily: "'Montserrat', sans-serif" }}
+          className="text-2xl font-bold text-foreground flex items-center gap-2 font-heading"
         >
           <MessageCircleQuestion className="h-7 w-7 text-primary" />
           How do I say…?
@@ -393,7 +392,7 @@ const HowDoISay = () => {
                         <p
                           className="text-2xl font-semibold text-foreground leading-snug"
                           dir="rtl"
-                          style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
+                          style={{ fontFamily: "var(--font-naskh)" }}
                         >
                           {t.arabic}
                         </p>
@@ -495,7 +494,7 @@ const HowDoISay = () => {
                         <span
                           className="text-lg font-semibold text-foreground shrink-0"
                           dir="rtl"
-                          style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
+                          style={{ fontFamily: "var(--font-naskh)" }}
                         >
                           {word.arabic}
                         </span>

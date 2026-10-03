@@ -188,7 +188,7 @@ const InlineToken = ({
               </div>
               <p
                 className="text-xl font-bold text-foreground mb-1"
-                style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
+                style={{ fontFamily: "var(--font-naskh)" }}
                 dir="rtl"
               >
                 {compoundSurface}
@@ -279,7 +279,7 @@ const InlineToken = ({
           <div className="text-center border-b border-border pb-2">
             <p 
               className="text-xl font-bold text-foreground mb-1"
-              style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
+              style={{ fontFamily: "var(--font-naskh)" }}
               dir="rtl"
             >
               {token.surface}
@@ -609,7 +609,7 @@ interface TranscriptLineCardProps {
          <div
            className="flex-1 text-lg leading-loose cursor-pointer"
            dir="rtl"
-           style={{ fontFamily: "'Noto Naskh Arabic', 'Traditional Arabic', serif" }}
+           style={{ fontFamily: "var(--font-transcript)" }}
            onClick={(e) => {
              if ((e.target as HTMLElement).closest("[data-token]")) return;
              onToggle();
@@ -726,7 +726,7 @@ interface TranscriptLineCardProps {
            showTranslation ? "max-h-64 opacity-100 mt-3" : "max-h-0 opacity-0"
          )}
        >
-          <div className="pt-3 border-t border-border/50 space-y-2" style={{ fontFamily: "'Open Sans', sans-serif" }}>
+          <div className="pt-3 border-t border-border/50 space-y-2 font-sans">
             <TranslationPair
               variant="compact"
               literal={line.literal}
@@ -887,8 +887,7 @@ export const LineByLineTranscript = ({
      <div className="space-y-4">
        <div className="flex items-center justify-between">
          <h3
-           className="text-lg font-semibold text-foreground"
-           style={{ fontFamily: "'Montserrat', sans-serif" }}
+           className="text-lg font-semibold text-foreground font-heading"
           >
             Sentences
          </h3>

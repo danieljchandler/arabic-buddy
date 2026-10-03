@@ -21,7 +21,9 @@
  * the audio is what makes the rest of the session usable.
  */
 
-const VERSION = 'v1';
+// v2: the Ink brand replaced the favicon and manifest colours; a new version
+// drops the v1 shell cache so returning visitors don't keep the old icons.
+const VERSION = 'v2';
 const SHELL_CACHE = `hakiya-shell-${VERSION}`;
 const ASSET_CACHE = `hakiya-assets-${VERSION}`;
 const AUDIO_CACHE = `hakiya-audio-${VERSION}`;

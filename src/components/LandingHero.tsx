@@ -2,6 +2,8 @@ import { useNavigate } from "react-router-dom";
 import { ArrowRight, Globe2 } from "lucide-react";
 import { Button, CampfireMedallion } from "@/components/design-system";
 import { Reveal } from "@/components/shared/Reveal";
+import { InkLandingHero } from "@/components/ink/InkLandingHero";
+import { useIsInk } from "@/hooks/useBrandPreview";
 import hakiyaLockup from "@/assets/hakiya-lockup.webp";
 import valueVoicesArt from "@/assets/illustrations/value-voices.webp";
 import valueMemoryArt from "@/assets/illustrations/value-memory.webp";
@@ -22,9 +24,15 @@ import dialectYemeniArt from "@/assets/illustrations/dialect-yemeni.webp";
  * The journey/caravan metaphor is not gone, just moved to where it earns its
  * keep: the placement quiz ("wherever you are in your journey") and the
  * Alphabet Journey's 28-stop caravan.
+ *
+ * Under the Ink brand preview (`?brand=ink`) the whole hero is Ink's own
+ * (src/components/ink/InkLandingHero.tsx): the same copy and CTAs, set as
+ * type instead of painted scenes.
  */
 export function LandingHero() {
   const navigate = useNavigate();
+  const ink = useIsInk();
+  if (ink) return <InkLandingHero />;
 
   return (
     <section className="py-6">

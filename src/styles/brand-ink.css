@@ -1,0 +1,76 @@
+/* ── Ink: the component layer's CSS ────────────────────────────────────────
+   brand-preview.css re-skins tokens for every direction; this file carries
+   only what Ink's own components need on top of that (src/components/brand,
+   the Ink branches of Choose, MajlisWelcome, EmptyState and the landing hero).
+   Those branches render only while the preview is `ink`, and every rule here
+   that could touch an existing element is scoped to :root[data-brand="ink"],
+   so the default look is untouched.
+
+   Imported after brand-preview.css (src/main.tsx). */
+
+/* The faces Ink's type-led pieces name directly. brand-preview.css already
+   points --font-heading at DM Serif Display, but Rakkas has no token of its
+   own there (Ink's Arabic text face is Naskh), and these pieces want display
+   Arabic, not text Arabic. Outside ink the variables are unset and the
+   classes fall back to the ordinary stacks. */
+:root[data-brand="ink"] {
+  --font-ink-display: "Rakkas", "Hikaya Naskh Arabic", serif;
+  --font-ink-serif: "DM Serif Display", "Rakkas", serif;
+  --font-ink-ui: "Readex Pro", sans-serif;
+}
+
+.font-ink-display {
+  font-family: var(--font-ink-display, var(--font-arabic-display));
+  font-weight: 400;
+}
+
+/* Rakkas sits high in its em box: 1.5 is the line-height the mockups set
+   every Rakkas line at, and anything tighter clips the kashida's swash.
+   Element-level specificity on purpose (the :where adds nothing, the :is
+   adds one type selector): enough to beat index.css's base `p { text-body }`
+   line-height, which loads earlier, while a leading-* utility beside it —
+   a class — still wins. */
+:where(.font-ink-display):is(p, span, div, li, a, h1, h2, h3) {
+  line-height: 1.5;
+}
+
+/* DM Serif Display ships one weight; headings ask for 700 and ink turns
+   off faux bold, so state the real weight rather than lean on that. */
+.font-ink-serif {
+  font-family: var(--font-ink-serif, var(--font-heading));
+  font-weight: 400;
+}
+
+/* The tiny uppercase corner label the editorial grammar runs on. */
+.ink-meta {
+  font-family: var(--font-ink-ui, var(--font-sans));
+  font-size: 0.59375rem; /* 9.5px */
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+/* ── Sadu pressed into dark panels ──────────────────────────────────────
+   The owner's first of two sadu allowances (INK-FINAL §1): tone-on-tone,
+   the technique of today's play button. A stepped-diamond lattice drawn
+   in black at 10% and white at 3% over whatever the panel is, which on
+   oxblood #6B1F1F lands at about #601C1C / #6F2525 and on ink #1A1C17 at
+   about #171915 / #1F211C — a few percent of luminance either way. It must
+   read as texture on a second look and never on the first.
+
+   Only on dark panels: the attribute goes on oxblood and ink surfaces and
+   nowhere else, and never on cream. background-image alone, so a panel's
+   own background-color (inline or utility) stays underneath it. */
+:root[data-brand="ink"] [data-ink-sadu] {
+  background-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24'><path d='M3 11h2v2h-2zM5 9h2v2h-2zM5 13h2v2h-2zM7 7h2v2h-2zM7 15h2v2h-2zM9 5h2v2h-2zM9 17h2v2h-2zM11 3h2v2h-2zM11 19h2v2h-2zM13 5h2v2h-2zM13 17h2v2h-2zM15 7h2v2h-2zM15 15h2v2h-2zM17 9h2v2h-2zM17 13h2v2h-2zM19 11h2v2h-2z' fill='%23000' fill-opacity='.1'/><path d='M9 11h2v2h-2zM11 9h2v2h-2zM11 11h2v2h-2zM11 13h2v2h-2zM13 11h2v2h-2zM-1 -1h2v2h-2zM-1 1h2v2h-2zM-1 21h2v2h-2zM-1 23h2v2h-2zM1 -1h2v2h-2zM1 23h2v2h-2zM21 -1h2v2h-2zM21 23h2v2h-2zM23 -1h2v2h-2zM23 1h2v2h-2zM23 21h2v2h-2zM23 23h2v2h-2z' fill='%23fff' fill-opacity='.03'/></svg>");
+  background-size: 24px 24px;
+  background-repeat: repeat;
+}
+
+/* A panel coloured from a token rather than a fixed oxblood or ink (the
+   skill page's header wears its ramp tint) turns light in night mode,
+   because the ramp inverts there. Sadu never lands on cream, so it goes. */
+:root.dark[data-brand="ink"] [data-ink-sadu="tinted"] {
+  background-image: none;
+}

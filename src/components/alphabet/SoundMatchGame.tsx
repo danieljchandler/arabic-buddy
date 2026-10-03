@@ -124,7 +124,7 @@ export const SoundMatchGame = ({ letter, pool, onComplete }: SoundMatchGameProps
                 showResult && !correct && shakeWrong && "animate-shake",
                 done && !isPicked && l.code === round.target.code && "border-green-500/60 bg-green-500/5",
               )}
-              style={{ fontFamily: "'Noto Sans Arabic', serif", fontSize: 56, lineHeight: 1 }}
+              style={{ fontFamily: "var(--font-arabic)", fontSize: 56, lineHeight: 1 }}
             >
               {l.isolated}
             </button>
@@ -139,7 +139,7 @@ export const SoundMatchGame = ({ letter, pool, onComplete }: SoundMatchGameProps
           ) : (
             <span className="text-muted-foreground">
               The letter was{" "}
-              <span className="font-bold text-foreground" style={{ fontFamily: "'Noto Sans Arabic', serif" }}>
+              <span className="font-bold text-foreground" style={{ fontFamily: "var(--font-arabic)" }}>
                 {round.target.isolated}
               </span>{" "}
               ({round.target.name_translit})

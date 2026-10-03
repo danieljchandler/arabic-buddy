@@ -148,8 +148,7 @@ export default function MsaBridge() {
             </Badge>
           </div>
           <h1
-            className="text-2xl sm:text-3xl font-bold text-plum mb-2 leading-tight"
-            style={{ fontFamily: "'Montserrat', sans-serif" }}
+            className="text-2xl sm:text-3xl font-bold text-plum mb-2 leading-tight font-heading"
           >
             Bridge your Modern Standard Arabic into dialect
           </h1>
@@ -235,8 +234,7 @@ export default function MsaBridge() {
                 >
                   <div>
                     <h2
-                      className="font-bold text-foreground text-sm sm:text-base"
-                      style={{ fontFamily: "'Montserrat', sans-serif" }}
+                      className="font-bold text-foreground text-sm sm:text-base font-heading"
                     >
                       {meta.label}
                     </h2>

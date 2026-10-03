@@ -218,7 +218,7 @@ const LearnFromX = () => {
               <Twitter className="h-4 w-4 text-primary" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-foreground inline-flex items-center gap-2" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+              <h1 className="text-lg font-bold text-foreground inline-flex items-center gap-2 font-heading">
                 Learn from X Post
                 <InfoHint {...PAGE_HINTS["learn-from-x"]} />
               </h1>
@@ -269,7 +269,7 @@ const LearnFromX = () => {
               <div className="mt-3 space-y-2">
                 <LoadingPanel task="analyze" variant="inline" size="sm" />
                 <div className="p-3 rounded-lg bg-muted/50 border border-border">
-                  <p className="text-sm text-foreground leading-relaxed" dir="rtl" style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}>
+                  <p className="text-sm text-foreground leading-relaxed" dir="rtl" style={{ fontFamily: "var(--font-naskh)" }}>
                     {extractedText}
                   </p>
                 </div>
@@ -323,7 +323,7 @@ const LearnFromX = () => {
                             <span
                               className="text-xl font-bold text-foreground"
                               dir="rtl"
-                              style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
+                              style={{ fontFamily: "var(--font-naskh)" }}
                             >
                               {vocab.arabic}
                             </span>
@@ -388,7 +388,7 @@ const LearnFromX = () => {
                       {gp.examples && gp.examples.length > 0 && (
                         <ul className="space-y-1">
                           {gp.examples.map((ex, j) => (
-                            <li key={j} className="text-sm text-foreground bg-muted/50 rounded px-2 py-1" dir="rtl" style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}>
+                            <li key={j} className="text-sm text-foreground bg-muted/50 rounded px-2 py-1" dir="rtl" style={{ fontFamily: "var(--font-naskh)" }}>
                               {ex}
                             </li>
                           ))}

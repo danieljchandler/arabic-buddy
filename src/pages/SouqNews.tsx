@@ -225,7 +225,7 @@ const SouqNews = () => {
                 <h2
                   className="text-lg font-bold text-foreground leading-relaxed mb-3"
                   dir="rtl"
-                  style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
+                  style={{ fontFamily: "var(--font-naskh)" }}
                 >
                   {article.title_dialect}
                 </h2>

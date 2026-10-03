@@ -1392,7 +1392,7 @@ const Transcribe = () => {
                       <p
                         className="text-lg font-semibold text-foreground text-right flex-1"
                         dir="rtl"
-                        style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
+                        style={{ fontFamily: "var(--font-naskh)" }}
                       >
                         {seg.text}
                       </p>
@@ -1486,7 +1486,7 @@ const Transcribe = () => {
               </div>
             </CardHeader>
             <CardContent>
-              <p className="text-right text-lg leading-relaxed text-foreground" dir="rtl" style={{ fontFamily: "'Noto Naskh Arabic', 'Traditional Arabic', serif" }}>
+              <p className="text-right text-lg leading-relaxed text-foreground" dir="rtl" style={{ fontFamily: "var(--font-transcript)" }}>
                 {transcript}
               </p>
             </CardContent>
@@ -1547,7 +1547,7 @@ const Transcribe = () => {
                   return (
                     <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border">
                       <div className="flex items-center gap-3">
-                        <span className="text-2xl font-bold text-foreground" style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}>{item.arabic}</span>
+                        <span className="text-2xl font-bold text-foreground" style={{ fontFamily: "var(--font-naskh)" }}>{item.arabic}</span>
                         {item.root && <Badge variant="outline" className="font-mono text-xs">{item.root}</Badge>}
                       </div>
                       <div className="flex items-center gap-2">

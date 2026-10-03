@@ -74,7 +74,7 @@ export const MAX_CASES = 40;
 export const MIN_PER_CATEGORY = 2;
 export const MIN_PER_DIALECT = 8;
 
-const ARABIC = /[؀-ۿ]/;
+const ARABIC = /[\u0600-\u06FF]/;
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const isStr = (v: unknown): v is string => typeof v === "string" && v.trim().length > 0;
 

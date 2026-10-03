@@ -1,5 +1,8 @@
+import { useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import hakiyaLockup from "@/assets/hakiya-lockup.webp";
+import { useIsInk } from "@/hooks/useBrandPreview";
+import { HikayaInkMark } from "@/components/brand/HikayaInkMark";
 
 /**
  * The Hikaya mark, back in the top-left corner where it belongs.
@@ -28,8 +31,20 @@ import hakiyaLockup from "@/assets/hakiya-lockup.webp";
  * Not a link. Home is two taps away in the dock and one swipe away on the
  * feed, and a second control pointing at the same place is the mistake the
  * page corner was rebuilt to stop making.
+ *
+ * Under the Ink brand preview (`?brand=ink`) the corner draws the redrawn
+ * Ink mark instead — everywhere except the feed. The owner decided the feed
+ * keeps its current brand tile exactly as it is, and the feed is "/", so the
+ * route is the one place that exception can be read without touching
+ * Feed.tsx. Same accessible name either way.
  */
 export function BrandMark({ className }: { className?: string }) {
+  const ink = useIsInk();
+  const onFeed = useLocation().pathname === "/";
+  if (ink && !onFeed) {
+    // 48px tall, the raster's height: the corner keeps its footprint.
+    return <HikayaInkMark size={48} className={className} />;
+  }
   return (
     <img
       src={hakiyaLockup}

@@ -12,6 +12,9 @@ import { useAlphabetProgress } from "@/hooks/useAlphabetProgress";
 import { useSRSStats } from "@/hooks/useSRSStats";
 import { useAllLessons } from "@/hooks/useLessons";
 import { useDialect } from "@/contexts/DialectContext";
+import { useIsInk } from "@/hooks/useBrandPreview";
+import { InkReviewBar } from "@/components/ink/InkReviewBar";
+import { InkSkillTile } from "@/components/ink/InkSkillTile";
 import { ARABIC_LETTERS } from "@/data/arabicAlphabet";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +32,10 @@ import { cn } from "@/lib/utils";
  * feed goes dark, because only the feed is media.
  *
  * Reached by tapping Skills in the dock or by swiping the feed leftward.
+ *
+ * Under the Ink brand preview (`?brand=ink`) the title, the Review bar and
+ * the four skill tiles render their Ink versions (src/components/ink): type
+ * instead of watercolour. Same links, same labels, same order.
  */
 
 const ICONS = {
@@ -51,6 +58,7 @@ const Choose = () => {
   const noLessonsYet = lessonsLoaded && (lessons?.length ?? 0) === 0;
   const { data: srs } = useSRSStats();
   const due = srs?.totalDueNow ?? 0;
+  const ink = useIsInk();
 
   return (
     <AppShell>
@@ -75,37 +83,54 @@ const Choose = () => {
           </Link>
         </header>
 
-        <h1 className="pb-1.5 pt-3 text-[28px] font-bold leading-tight">
-          What do you want to do?
-        </h1>
+        {ink ? (
+          <div className="mt-2 border-t border-foreground pb-1 pt-2">
+            <div className="ink-meta flex justify-between text-muted-foreground">
+              <span>Hikaya · Skills</span>
+              <span>04 skills · 02 paths</span>
+            </div>
+            <h1 className="font-ink-serif mt-1.5 text-[34px] leading-[1.05] tracking-[-0.01em]">
+              What do you <br />
+              want to <span className="bg-[#E2B65C] px-1.5 text-[#1A1C17]">do?</span>
+            </h1>
+          </div>
+        ) : (
+          <h1 className="pb-1.5 pt-3 text-[28px] font-bold leading-tight">
+            What do you want to do?
+          </h1>
+        )}
 
         {/* Review sits above the skills because on most days it is the answer.
             The four skills are what you do to learn something new; this is what
             makes the things you already met stick, and it is the half of the
             app that decays if it is skipped. It leads with the count, because
             "23 waiting" is a reason to tap and "Review" on its own is not. */}
-        <Link
-          to="/review"
-          className={cn(
-            "flex items-center gap-3.5 rounded-2xl bg-primary px-4 py-4 text-primary-foreground",
-            "transition-transform active:scale-[0.99]",
-          )}
-        >
-          <Layers className="h-6 w-6 shrink-0" />
-          <span className="min-w-0 flex-1">
-            <span className="block text-lg font-bold leading-tight">Review</span>
-            <span className="block text-xs text-primary-foreground">
-              {due > 0
-                ? `${due} ${due === 1 ? "card" : "cards"} ready now`
-                : "Nothing due — you are caught up"}
+        {ink ? (
+          <InkReviewBar due={due} />
+        ) : (
+          <Link
+            to="/review"
+            className={cn(
+              "flex items-center gap-3.5 rounded-2xl bg-primary px-4 py-4 text-primary-foreground",
+              "transition-transform active:scale-[0.99]",
+            )}
+          >
+            <Layers className="h-6 w-6 shrink-0" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-lg font-bold leading-tight">Review</span>
+              <span className="block text-xs text-primary-foreground">
+                {due > 0
+                  ? `${due} ${due === 1 ? "card" : "cards"} ready now`
+                  : "Nothing due — you are caught up"}
+              </span>
             </span>
-          </span>
-          {due > 0 && (
-            <span className="rounded-full bg-primary-foreground/20 px-3 py-1 text-base font-bold tabular-nums">
-              {due}
-            </span>
-          )}
-        </Link>
+            {due > 0 && (
+              <span className="rounded-full bg-primary-foreground/20 px-3 py-1 text-base font-bold tabular-nums">
+                {due}
+              </span>
+            )}
+          </Link>
+        )}
 
         {/* The four skills. Each one opens the skill, not a single activity
             inside it: sending "Read" straight to /reading is what left Souq
@@ -115,6 +140,7 @@ const Choose = () => {
             the whole screen rather than half of it over a playing video. */}
         <div className="grid grid-cols-2 gap-2.5">
           {SKILLS.map((s, i) => {
+            if (ink) return <InkSkillTile key={s.id} skill={s} index={i} />;
             const Icon = ICONS[s.icon as keyof typeof ICONS];
             return (
               <Link

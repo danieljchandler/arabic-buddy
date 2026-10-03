@@ -10,6 +10,7 @@ import { SKILL_BY_ID, type Activity } from "@/lib/surfaces";
 import { useSwipeSurfaces } from "@/hooks/useSwipeSurfaces";
 import { useAuth } from "@/hooks/useAuth";
 import { useBibleAccess } from "@/hooks/useBibleAccess";
+import { useIsInk } from "@/hooks/useBrandPreview";
 import { cn } from "@/lib/utils";
 
 /**
@@ -44,6 +45,7 @@ const Skill = () => {
   // A skill sits one page forward of the chooser, so a backward swipe —
   // rightward — returns to it, the same way the chooser returns to the feed.
   const swipe = useSwipeSurfaces({ onPrev: () => navigate("/choose") });
+  const ink = useIsInk();
 
   const skill = skillId ? SKILL_BY_ID.get(skillId) : undefined;
   // An unknown skill is a mistyped URL, not a page. The chooser is the honest
@@ -68,8 +70,12 @@ const Skill = () => {
         </header>
 
         {/* The skill wears its own tile colour, so arriving here reads as
-            opening the block you just tapped rather than landing somewhere new. */}
+            opening the block you just tapped rather than landing somewhere new.
+            data-ink-sadu is inert outside the Ink brand preview; under it,
+            brand-ink.css presses a faint sadu into this panel ("tinted": the
+            ramp turns light in night mode, and the weave goes with it). */}
         <div
+          data-ink-sadu="tinted"
           className="mt-3 flex items-end justify-between rounded-2xl p-5 text-white"
           style={{ backgroundColor: skill.tint }}
         >
@@ -78,9 +84,15 @@ const Skill = () => {
                 the foreground colour, which beats colour inherited from the tile,
                 so the label rendered charcoal on the charcoal Listen tile. */}
             <h1 className="text-[28px] font-bold leading-tight text-white">{skill.label}</h1>
-            <span dir="rtl" lang="ar" className="font-arabic text-[15px] text-white/60">
-              {skill.arabic}
-            </span>
+            {ink ? (
+              <span dir="rtl" lang="ar" className="font-ink-display text-[30px] text-[#E2B65C]">
+                {skill.arabicDisplay}
+              </span>
+            ) : (
+              <span dir="rtl" lang="ar" className="font-arabic text-[15px] text-white/60">
+                {skill.arabic}
+              </span>
+            )}
           </span>
           {(() => {
             const Icon = ICONS[skill.icon];

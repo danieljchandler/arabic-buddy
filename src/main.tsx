@@ -1,6 +1,7 @@
 import { createRoot } from "react-dom/client";
 import "./index.css";
 import "./styles/brand-preview.css";
+import "./styles/brand-ink.css";
 import "./lib/storageBootstrap";
 import { runBrandMigration } from "./lib/brandMigration";
 import { registerServiceWorker } from "./lib/serviceWorker";

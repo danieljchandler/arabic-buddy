@@ -2,17 +2,24 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   BRAND_DIRECTIONS,
   BRAND_FONT_LINK_ID,
+  BRAND_MARK_STORAGE_KEY,
   BRAND_PREVIEW_STORAGE_KEY,
+  DEFAULT_INK_MARK,
   applyBrandPreview,
   getBrandDirection,
   getBrandPreview,
+  getMarkVariant,
   initBrandPreview,
   isBrandDirectionId,
   parseBrandParam,
+  parseMarkParam,
   readStoredBrandPreview,
+  readStoredMarkVariant,
   setBrandPreview,
+  setMarkVariant,
   subscribeBrandPreview,
   writeStoredBrandPreview,
+  writeStoredMarkVariant,
 } from "./brandPreview";
 
 /**
@@ -230,5 +237,106 @@ describe("the store", () => {
     localStorage.setItem(BRAND_PREVIEW_STORAGE_KEY, "weave");
     const fresh = await import("./brandPreview");
     expect(fresh.getBrandPreview()).toBe("weave");
+  });
+});
+
+/**
+ * Ink's two marks (`?mark=sadu|clean`). The owner chose the faint-sadu mark
+ * as the primary, so it is the default and is never written down; the clean
+ * redraw is the secondary, and choosing it behaves like the preview it rides
+ * with: read off the URL, remembered on the device, ignored when misspelt,
+ * and forgotten when the preview ends.
+ */
+describe("the Ink mark variant", () => {
+  it("defaults to the sadu mark", () => {
+    expect(DEFAULT_INK_MARK).toBe("sadu");
+    expect(getMarkVariant()).toBe("sadu");
+  });
+
+  it("parses sadu and clean, case-insensitively, and ignores anything else", () => {
+    expect(parseMarkParam("?mark=sadu")).toBe("sadu");
+    expect(parseMarkParam("?brand=ink&mark=%20Clean%20")).toBe("clean");
+    expect(parseMarkParam("")).toBeNull();
+    expect(parseMarkParam("?mark=")).toBeNull();
+    expect(parseMarkParam("?mark=weave")).toBeNull();
+  });
+
+  it("stores clean under its own new-spelling key and the default as nothing", () => {
+    expect(BRAND_MARK_STORAGE_KEY).toBe("hikaya_brand_mark");
+    expect(readStoredMarkVariant()).toBe("sadu");
+
+    writeStoredMarkVariant("clean");
+    expect(localStorage.getItem(BRAND_MARK_STORAGE_KEY)).toBe("clean");
+    expect(readStoredMarkVariant()).toBe("clean");
+
+    writeStoredMarkVariant("sadu");
+    expect(localStorage.getItem(BRAND_MARK_STORAGE_KEY)).toBeNull();
+    expect(readStoredMarkVariant()).toBe("sadu");
+
+    localStorage.setItem(BRAND_MARK_STORAGE_KEY, "neon");
+    expect(readStoredMarkVariant()).toBe("sadu");
+  });
+
+  it("falls back to the default, without throwing, when storage does", () => {
+    vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+      throw new Error("SecurityError");
+    });
+    vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+      throw new Error("QuotaExceededError");
+    });
+    expect(readStoredMarkVariant()).toBe("sadu");
+    expect(() => writeStoredMarkVariant("clean")).not.toThrow();
+  });
+
+  it("is read off the URL at boot and remembered for the next load", () => {
+    initBrandPreview("?brand=ink&mark=clean");
+    expect(getMarkVariant()).toBe("clean");
+    expect(localStorage.getItem(BRAND_MARK_STORAGE_KEY)).toBe("clean");
+
+    // A later load with no parameter keeps it.
+    initBrandPreview("");
+    expect(getMarkVariant()).toBe("clean");
+
+    // ?mark=sadu switches back and stores nothing.
+    initBrandPreview("?mark=sadu");
+    expect(getMarkVariant()).toBe("sadu");
+    expect(localStorage.getItem(BRAND_MARK_STORAGE_KEY)).toBeNull();
+  });
+
+  it("leaves storage alone for someone who never asked", () => {
+    initBrandPreview("");
+    expect(getMarkVariant()).toBe("sadu");
+    expect(localStorage.getItem(BRAND_MARK_STORAGE_KEY)).toBeNull();
+  });
+
+  it("is forgotten with the preview, by ?brand=off or by the switcher's ×", () => {
+    initBrandPreview("?brand=ink&mark=clean");
+    initBrandPreview("?brand=off&mark=clean");
+    expect(getMarkVariant()).toBe("sadu");
+    expect(localStorage.getItem(BRAND_MARK_STORAGE_KEY)).toBeNull();
+
+    setBrandPreview("ink");
+    setMarkVariant("clean");
+    expect(getMarkVariant()).toBe("clean");
+    setBrandPreview(null);
+    expect(getMarkVariant()).toBe("sadu");
+    expect(localStorage.getItem(BRAND_MARK_STORAGE_KEY)).toBeNull();
+  });
+
+  it("notifies the same subscribers the preview does", () => {
+    const seen: string[] = [];
+    const unsubscribe = subscribeBrandPreview(() => seen.push(getMarkVariant()));
+    setMarkVariant("clean");
+    setMarkVariant("sadu");
+    unsubscribe();
+    setMarkVariant("clean");
+    expect(seen).toEqual(["clean", "sadu"]);
+  });
+
+  it("reads a remembered choice when boot never ran (a fresh module)", async () => {
+    vi.resetModules();
+    localStorage.setItem(BRAND_MARK_STORAGE_KEY, "clean");
+    const fresh = await import("./brandPreview");
+    expect(fresh.getMarkVariant()).toBe("clean");
   });
 });

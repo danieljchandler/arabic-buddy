@@ -40,6 +40,18 @@ export const BRAND_PREVIEW_STORAGE_KEY = "hikaya_brand_preview";
 export const BRAND_PREVIEW_PARAM = "brand";
 export const BRAND_FONT_LINK_ID = "hikaya-brand-preview-fonts";
 
+/**
+ * Which of Ink's two marks the preview draws. The owner chose the bubble
+ * with a faint tone-on-tone sadu pressed into it as the primary mark, so
+ * `sadu` is the default; the flat redraw stays available as the secondary,
+ * and `?mark=clean` (or `?mark=sadu` to go back) flips it on a live page. It
+ * is remembered beside the preview itself — and forgotten with it.
+ */
+export type InkMarkVariant = "clean" | "sadu";
+export const DEFAULT_INK_MARK: InkMarkVariant = "sadu";
+export const BRAND_MARK_STORAGE_KEY = "hikaya_brand_mark";
+export const BRAND_MARK_PARAM = "mark";
+
 const GOOGLE_FONTS = "https://fonts.googleapis.com/css2?";
 
 /**
@@ -124,6 +136,34 @@ export function writeStoredBrandPreview(state: BrandPreviewState | null): void {
 }
 
 /**
+ * Read `?mark=` off a query string. Like `?brand=`, an unknown value is
+ * ignored (null) rather than read as a reset.
+ */
+export function parseMarkParam(search: string): InkMarkVariant | null {
+  const raw = new URLSearchParams(search).get(BRAND_MARK_PARAM);
+  const value = raw?.trim().toLowerCase();
+  return value === "clean" || value === "sadu" ? value : null;
+}
+
+export function readStoredMarkVariant(): InkMarkVariant {
+  try {
+    return window.localStorage.getItem(BRAND_MARK_STORAGE_KEY) === "clean" ? "clean" : DEFAULT_INK_MARK;
+  } catch {
+    return DEFAULT_INK_MARK;
+  }
+}
+
+/** The default (sadu) is stored as nothing at all; only "clean" is written. */
+export function writeStoredMarkVariant(variant: InkMarkVariant): void {
+  try {
+    if (variant === DEFAULT_INK_MARK) window.localStorage.removeItem(BRAND_MARK_STORAGE_KEY);
+    else window.localStorage.setItem(BRAND_MARK_STORAGE_KEY, variant);
+  } catch {
+    // best-effort persistence
+  }
+}
+
+/**
  * Stamp a state onto the document: the `data-brand` attribute the token
  * overrides key off, and the direction's font stylesheet. Idempotent — the
  * link is found by id and retargeted rather than duplicated, and both are
@@ -158,6 +198,7 @@ export function applyBrandPreview(state: BrandPreviewState | null, doc: Document
 // for the session even when it cannot be remembered.
 
 let current: BrandPreviewState | null | undefined;
+let currentMark: InkMarkVariant | undefined;
 const subscribers = new Set<() => void>();
 
 export function getBrandPreview(): BrandPreviewState | null {
@@ -165,10 +206,26 @@ export function getBrandPreview(): BrandPreviewState | null {
   return current;
 }
 
+/** Ending the preview (null) forgets the mark choice too. */
 export function setBrandPreview(state: BrandPreviewState | null): void {
   current = state;
   writeStoredBrandPreview(state);
+  if (state === null) {
+    currentMark = DEFAULT_INK_MARK;
+    writeStoredMarkVariant(DEFAULT_INK_MARK);
+  }
   applyBrandPreview(state);
+  subscribers.forEach((fn) => fn());
+}
+
+export function getMarkVariant(): InkMarkVariant {
+  if (currentMark === undefined) currentMark = readStoredMarkVariant();
+  return currentMark;
+}
+
+export function setMarkVariant(variant: InkMarkVariant): void {
+  currentMark = variant;
+  writeStoredMarkVariant(variant);
   subscribers.forEach((fn) => fn());
 }
 
@@ -181,7 +238,8 @@ export function subscribeBrandPreview(onChange: () => void): () => void {
 
 /**
  * Boot: honour `?brand=` if present, otherwise whatever was remembered, and
- * apply it before first render. Returns the state it settled on.
+ * apply it before first render. Returns the state it settled on. `?mark=`
+ * rides along the same way; `?brand=off` resets it to the default mark.
  */
 export function initBrandPreview(search: string = window.location.search): BrandPreviewState | null {
   const param = parseBrandParam(search);
@@ -190,6 +248,12 @@ export function initBrandPreview(search: string = window.location.search): Brand
 
   // The param wins even when storage refuses to hold it.
   current = param === "off" ? null : param ?? readStoredBrandPreview();
+
+  const mark = parseMarkParam(search);
+  if (param === "off") writeStoredMarkVariant(DEFAULT_INK_MARK);
+  else if (mark !== null) writeStoredMarkVariant(mark);
+  currentMark = param === "off" ? DEFAULT_INK_MARK : mark ?? readStoredMarkVariant();
+
   applyBrandPreview(current);
   return current;
 }

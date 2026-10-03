@@ -20,6 +20,8 @@ import {
   Check,
 } from 'lucide-react';
 import { getTopicCategories } from '@/data/listenTopics';
+import { useIsInk } from '@/hooks/useBrandPreview';
+import { HikayaInkMark } from '@/components/brand/HikayaInkMark';
 import { LEARNING_REASONS, reasonLabel } from '@/data/learningReasons';
 // The stacked logo lockup, not hakiya-icon.png — that file is a 712 kB render
 // whose artwork floats inside a much larger canvas (see BrandMark's comment).
@@ -81,6 +83,8 @@ const GOALS = [
 const Onboarding = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading } = useAuth();
+  // The Ink brand preview draws its own lockup in place of the raster.
+  const ink = useIsInk();
   // The app-wide dialect, not just this wizard's draft. DialectContext syncs
   // from the profile only on mount — before this wizard writes it — so a pick
   // that stays local never reaches the feed, the curriculum or the placement
@@ -232,7 +236,11 @@ const Onboarding = () => {
         {/* ─── WELCOME ─────────────────────────── */}
         {step === 'welcome' && (
           <div className="text-center space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
-            <img src={hakiyaLockup} alt="Hikaya" className="h-40 w-40 mx-auto" />
+            {ink ? (
+              <HikayaInkMark wordmark size={120} className="mx-auto" />
+            ) : (
+              <img src={hakiyaLockup} alt="Hikaya" className="h-40 w-40 mx-auto" />
+            )}
             <div>
               <h1 className="text-3xl font-bold font-heading text-foreground mb-3" dir="rtl">
                 أهلاً وسهلاً!

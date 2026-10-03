@@ -74,7 +74,10 @@ const Skill = () => {
           style={{ backgroundColor: skill.tint }}
         >
           <span className="flex flex-col gap-0.5">
-            <h1 className="text-[28px] font-bold leading-tight">{skill.label}</h1>
+            {/* text-white on the h1 itself: the base `h1` rule in index.css sets
+                the foreground colour, which beats colour inherited from the tile,
+                so the label rendered charcoal on the charcoal Listen tile. */}
+            <h1 className="text-[28px] font-bold leading-tight text-white">{skill.label}</h1>
             <span dir="rtl" lang="ar" className="font-arabic text-[15px] text-white/60">
               {skill.arabic}
             </span>

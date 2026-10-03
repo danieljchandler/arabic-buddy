@@ -37,6 +37,10 @@ const NO_LINK_NEEDED: Record<string, string> = {
   "/today/story": "opened from the daily dashboard, which builds the path from data",
   "/share": "the target of the native share sheet, not of any in-app link",
   "/share-target": "the PWA share_target endpoint — the OS links here, the app does not",
+  // DECISION FOR DANIEL: where the worksheet button lives (My Words, the
+  // review summary, a printable section of /me) is a product call, so the
+  // route ships unlinked until it is made.
+  "/print/worksheet": "unlinked on purpose until a home for it is chosen; reached by URL",
 };
 
 // Resolved from the working directory rather than import.meta.url: under the

@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { RotateCcw, Check, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { prefersReducedMotion } from "@/lib/uiPrefs";
+import { useBrandPreview } from "@/hooks/useBrandPreview";
 
 interface LetterTracerProps {
   letter: string;
@@ -59,8 +60,12 @@ export const LetterTracer = ({ letter, onComplete }: LetterTracerProps) => {
 
 
   const SIZE = 320;
+  // The mask below reads --font-arabic, which the active brand sets; a brand
+  // switch mid-exercise has to rebuild it, or coverage is scored against the
+  // previous brand's glyph while the learner traces the new one.
+  const brand = useBrandPreview();
 
-  // Render guide glyph once per letter
+  // Render guide glyph once per letter (and per brand)
   useEffect(() => {
     const guide = document.createElement("canvas");
     guide.width = SIZE;
@@ -91,7 +96,7 @@ export const LetterTracer = ({ letter, onComplete }: LetterTracerProps) => {
     completedRef.current = false;
     setCoverage(0);
     setDone(false);
-  }, [letter]);
+  }, [letter, brand]);
 
   const getPoint = (e: PointerEvent | React.PointerEvent): { x: number; y: number } => {
     const c = canvasRef.current!;

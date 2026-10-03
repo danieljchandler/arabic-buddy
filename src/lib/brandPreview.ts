@@ -293,6 +293,27 @@ export function subscribeBrandPreview(onChange: () => void): () => void {
  * apply it before first render. Returns the state it settled on. `?mark=`
  * rides along the same way; `?brand=off` resets it to the default mark.
  */
+/**
+ * Take `?brand=` and `?mark=` out of the address bar once boot has read them.
+ * They are a one-time switch: left in place, they would outrank every later
+ * choice on a refresh — pick Ink in the switcher after opening `?brand=weave`,
+ * reload, and the stale parameter silently puts Weave back (the × likewise
+ * reopened a preview it had just closed). The stored choice carries it from
+ * here; the cost is a private window, where storage refuses it, losing the
+ * preview on reload. Other parameters and the hash are kept.
+ */
+export function stripPreviewParams(win: Window = window): void {
+  const url = new URL(win.location.href);
+  if (!url.searchParams.has(BRAND_PREVIEW_PARAM) && !url.searchParams.has(BRAND_MARK_PARAM)) return;
+  url.searchParams.delete(BRAND_PREVIEW_PARAM);
+  url.searchParams.delete(BRAND_MARK_PARAM);
+  try {
+    win.history.replaceState(win.history.state, "", url.pathname + url.search + url.hash);
+  } catch {
+    // A sandboxed frame can refuse; the preview still applies this load.
+  }
+}
+
 export function initBrandPreview(search: string = window.location.search): BrandPreviewState | null {
   const param = parseBrandParam(search);
   if (param === "off") writeStoredBrandPreview(null);
@@ -307,5 +328,6 @@ export function initBrandPreview(search: string = window.location.search): Brand
   currentMark = param === "off" ? DEFAULT_INK_MARK : mark ?? readStoredMarkVariant();
 
   applyBrandPreview(current);
+  stripPreviewParams();
   return current;
 }

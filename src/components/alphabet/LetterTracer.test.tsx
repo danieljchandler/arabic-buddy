@@ -1,6 +1,7 @@
 import { act, fireEvent, render as rtlRender, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { LetterTracer } from "./LetterTracer";
+import { setBrandPreview } from "@/lib/brandPreview";
 
 /**
  * Tracing a letter with a finger.
@@ -451,5 +452,25 @@ describe("the sparkle trail", () => {
 
     // The trail is decoration; losing it must not cost the exercise.
     expect(onComplete).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("switching brand mid-exercise", () => {
+  afterEach(() => {
+    act(() => setBrandPreview(null));
+    document.documentElement.style.removeProperty("--font-arabic");
+  });
+
+  it("rebuilds the mask in the new brand's face", () => {
+    render({ letter: "ب" });
+    const before = contexts.length;
+
+    // The brand's token layer swaps --font-arabic; the mask has to follow, or
+    // coverage is scored against a glyph the learner can no longer see.
+    document.documentElement.style.setProperty("--font-arabic", '"Hikaya Naskh Arabic", serif');
+    act(() => setBrandPreview("ink"));
+
+    expect(contexts.length).toBeGreaterThan(before);
+    expect(contexts[contexts.length - 1].font).toBe('260px "Hikaya Naskh Arabic", serif');
   });
 });

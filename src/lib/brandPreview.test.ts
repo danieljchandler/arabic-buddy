@@ -218,6 +218,34 @@ describe("initBrandPreview (boot)", () => {
       window.history.replaceState(null, "", "/");
     }
   });
+
+  it("takes ?brand= and ?mark= out of the address once read, keeping the rest", () => {
+    window.history.replaceState(null, "", "/today?dialect=gulf&brand=weave&mark=clean#top");
+    try {
+      expect(initBrandPreview()).toBe("weave");
+      expect(window.location.pathname).toBe("/today");
+      expect(window.location.search).toBe("?dialect=gulf");
+      expect(window.location.hash).toBe("#top");
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
+  it("lets a switcher choice survive a reload of the page the preview was opened on", () => {
+    // Opened as ?brand=weave, then Ink picked in the switcher: a reload must
+    // keep Ink. With the parameter left in the address it put Weave back.
+    window.history.replaceState(null, "", "/choose?brand=weave");
+    try {
+      initBrandPreview();
+      setBrandPreview("ink");
+      expect(initBrandPreview()).toBe("ink");
+      // And the × stays closed across a reload rather than reopening Weave.
+      setBrandPreview(null);
+      expect(initBrandPreview()).toBeNull();
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
 });
 
 describe("the store", () => {

@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 import {
   DEFAULT_INK_MARK,
-  getBrandPreview,
+  getActiveBrand,
   getMarkVariant,
   subscribeBrandPreview,
   type BrandPreviewState,
@@ -9,23 +9,21 @@ import {
 } from "@/lib/brandPreview";
 
 /**
- * The opt-in brand preview (src/lib/brandPreview.ts), as React state.
+ * The brand being rendered (src/lib/brandPreview.ts), as React state.
  *
  * The token layer re-skins every page from CSS alone, but a few components
  * have to render something else under a direction — Ink's type-led tiles and
  * redrawn mark instead of the watercolour art and the raster logo. They read
- * the preview through this, so they re-render the moment the switcher flips
- * it, and for anyone who never opened a `?brand=` link it is `null` and the
- * default branch is the only one that ever runs.
- *
- * The server snapshot is `null` / the default mark: no preview is the
- * default look.
+ * the active brand through this: an explicit `?brand=` preview if someone
+ * asked for one, otherwise the default index.html declares (Ink), otherwise
+ * `"current"`, the previous look. They re-render the moment the switcher
+ * flips it.
  */
-export function useBrandPreview(): BrandPreviewState | null {
-  return useSyncExternalStore(subscribeBrandPreview, getBrandPreview, () => null);
+export function useBrandPreview(): BrandPreviewState {
+  return useSyncExternalStore(subscribeBrandPreview, getActiveBrand, getActiveBrand);
 }
 
-/** True only while the Ink direction is the one being previewed. */
+/** True while Ink is the brand being rendered — by default, or by preview. */
 export function useIsInk(): boolean {
   return useBrandPreview() === "ink";
 }

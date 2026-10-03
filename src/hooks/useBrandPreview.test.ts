@@ -1,6 +1,6 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import { setBrandPreview, setMarkVariant } from "@/lib/brandPreview";
+import { BRAND_DEFAULT_ATTRIBUTE, setBrandPreview, setMarkVariant } from "@/lib/brandPreview";
 import { useBrandPreview, useInkMarkVariant, useIsInk } from "./useBrandPreview";
 
 /**
@@ -18,16 +18,29 @@ import { useBrandPreview, useInkMarkVariant, useIsInk } from "./useBrandPreview"
 afterEach(() => {
   act(() => setBrandPreview(null));
   localStorage.clear();
+  document.documentElement.removeAttribute(BRAND_DEFAULT_ATTRIBUTE);
 });
 
 describe("useBrandPreview", () => {
-  it("is null, not ink, and the primary (sadu) mark when nobody asked for a preview", () => {
+  it("is the previous look, not ink, with the primary (sadu) mark when no default is declared", () => {
     const { result } = renderHook(() => ({
       preview: useBrandPreview(),
       ink: useIsInk(),
       mark: useInkMarkVariant(),
     }));
-    expect(result.current).toEqual({ preview: null, ink: false, mark: "sadu" });
+    expect(result.current).toEqual({ preview: "current", ink: false, mark: "sadu" });
+  });
+
+  it("is Ink with no preview at all once index.html declares it the default", () => {
+    document.documentElement.setAttribute(BRAND_DEFAULT_ATTRIBUTE, "ink");
+    const { result } = renderHook(() => ({ preview: useBrandPreview(), ink: useIsInk() }));
+    expect(result.current).toEqual({ preview: "ink", ink: true });
+
+    // A preview still wins over the default, and ending it comes back to Ink.
+    act(() => setBrandPreview("current"));
+    expect(result.current).toEqual({ preview: "current", ink: false });
+    act(() => setBrandPreview(null));
+    expect(result.current).toEqual({ preview: "ink", ink: true });
   });
 
   it("follows the switcher live", () => {
@@ -43,7 +56,7 @@ describe("useBrandPreview", () => {
     expect(result.current).toEqual({ preview: "current", ink: false });
 
     act(() => setBrandPreview(null));
-    expect(result.current).toEqual({ preview: null, ink: false });
+    expect(result.current).toEqual({ preview: "current", ink: false });
   });
 
   it("follows the mark variant, and drops it when the preview ends", () => {

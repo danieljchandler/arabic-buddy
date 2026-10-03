@@ -29,8 +29,8 @@ const OPTIONS: { id: BrandPreviewState; label: string; ariaLabel: string; title:
   {
     id: "current",
     label: "Current",
-    ariaLabel: "Preview the current look",
-    title: "Today's watercolour look",
+    ariaLabel: "Preview the previous look",
+    title: "The previous watercolour look",
   },
   ...BRAND_DIRECTIONS.map((d) => ({
     id: d.id,

@@ -1,6 +1,9 @@
 # Brand refresh: after watercolor
 
-Status: **direction chosen: Ink, with subtle sadu.** October 2026.
+Status: **Ink is the default brand**, with subtle sadu. October 2026.
+
+The design system, with the logo set, tokens and brand book, is the
+"Hikaya" design-system artifact, linked from the PR.
 
 ## Decision (3 October 2026)
 
@@ -177,15 +180,42 @@ system with Ink's typographic moves**: kashida display, highlighter bars for
 dialect words, big numerals. That keeps the most identity and borrows what
 BADEE3 and Thmanyah do best.
 
-## Previewing a direction in the real app
+## How the default brand is wired
 
-Append `?brand=weave`, `?brand=ink` or `?brand=souq` to any URL, including a
-deploy preview. The choice is remembered on that device, and a small switcher
-appears to flip between directions. `?brand=off` returns to the current look.
+Ink is declared as the default in `index.html` with
+`<html data-brand="ink" data-brand-default="ink">`, and its fonts are the
+static `<link>` there, so the first paint is already Ink.
 
-The preview swaps tokens, fonts, radius, shadows and the page backdrop. It does
-**not** redraw the logo, the illustrations or the video loops; the mockups cover
-those. People who don't opt in see no change.
+The pieces:
+
+- **Tokens:** `src/styles/brand-preview.css`, under `:root[data-brand="ink"]`.
+- **Ink-only rules:** `src/styles/brand-ink.css`.
+- **Components:** they branch on `useIsInk()` (`src/hooks/useBrandPreview.ts`):
+  - the Ink mark (`HikayaInkMark`, drawn from the outlined SVGs in
+    `src/assets/brand/`);
+  - the type-led Choose tiles;
+  - the oxblood Today greeting;
+  - the letterform empty states;
+  - the editorial landing hero.
+- **Icons:** the favicon, app icons, manifest colours and `og-image.jpg` come
+  from the logo set.
+
+Previews still layer on top for comparison:
+
+- `?brand=current` shows the previous watercolor look and loads its fonts on
+  demand.
+- `?brand=weave` and `?brand=souq` show the other two directions.
+- `?brand=off` returns to the default.
+- `&mark=clean` switches to the secondary logo.
+
+The floating switcher appears only after one of those links.
+
+**Rolling back** is deleting the two attributes and restoring the old font
+link in `index.html`. Nothing else has to change.
+
+**Unit tests** run without the declaration, so a component test sees the
+previous look unless it sets `data-brand-default` (or a preview) itself.
+End-to-end tests load the real `index.html` and see Ink.
 
 ## Migration plan
 

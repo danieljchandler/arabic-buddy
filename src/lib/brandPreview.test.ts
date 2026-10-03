@@ -1,11 +1,14 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  BRAND_DEFAULT_ATTRIBUTE,
   BRAND_DIRECTIONS,
   BRAND_FONT_LINK_ID,
   BRAND_MARK_STORAGE_KEY,
   BRAND_PREVIEW_STORAGE_KEY,
   DEFAULT_INK_MARK,
+  LEGACY_FONTS_HREF,
   applyBrandPreview,
+  getActiveBrand,
   getBrandDirection,
   getBrandPreview,
   getMarkVariant,
@@ -13,6 +16,7 @@ import {
   isBrandDirectionId,
   parseBrandParam,
   parseMarkParam,
+  readDeclaredDefaultBrand,
   readStoredBrandPreview,
   readStoredMarkVariant,
   setBrandPreview,
@@ -39,6 +43,7 @@ const fontLinks = () => document.querySelectorAll(`#${BRAND_FONT_LINK_ID}`);
 function reset() {
   localStorage.clear();
   document.documentElement.removeAttribute("data-brand");
+  document.documentElement.removeAttribute(BRAND_DEFAULT_ATTRIBUTE);
   document.getElementById(BRAND_FONT_LINK_ID)?.remove();
 }
 
@@ -78,9 +83,11 @@ describe("parseBrandParam", () => {
     expect(parseBrandParam("?brand=%20souq%20")).toBe("souq");
   });
 
-  it("treats off and current as switching the preview off", () => {
+  it("reads off as forgetting the preview, and current as the previous look", () => {
     expect(parseBrandParam("?brand=off")).toBe("off");
-    expect(parseBrandParam("?brand=current")).toBe("off");
+    // Not a reset: with a default brand shipped, "current" is the watercolour
+    // look shown on purpose, for comparison.
+    expect(parseBrandParam("?brand=current")).toBe("current");
   });
 
   it("ignores an absent or unknown value rather than reading it as off", () => {
@@ -338,5 +345,75 @@ describe("the Ink mark variant", () => {
     localStorage.setItem(BRAND_MARK_STORAGE_KEY, "clean");
     const fresh = await import("./brandPreview");
     expect(fresh.getMarkVariant()).toBe("clean");
+  });
+});
+
+/**
+ * The default brand index.html declares (`data-brand-default`). With one
+ * declared, "no preview" means that brand rather than the previous look: it
+ * is stamped at boot, its faces are the static <link> so no extra stylesheet
+ * is injected for it, and `current` has to fetch the previous look's faces
+ * itself. Previews stay an explicit layer on top.
+ */
+describe("a declared default brand", () => {
+  const declareInk = () => document.documentElement.setAttribute(BRAND_DEFAULT_ATTRIBUTE, "ink");
+
+  it("reads the declaration, and ignores one that names nothing we know", () => {
+    expect(readDeclaredDefaultBrand()).toBeNull();
+    declareInk();
+    expect(readDeclaredDefaultBrand()).toBe("ink");
+    document.documentElement.setAttribute(BRAND_DEFAULT_ATTRIBUTE, "neon");
+    expect(readDeclaredDefaultBrand()).toBeNull();
+  });
+
+  it("is what no preview renders, with no extra font link (index.html carries its faces)", () => {
+    declareInk();
+    applyBrandPreview(null);
+    expect(document.documentElement.getAttribute("data-brand")).toBe("ink");
+    expect(fontLinks()).toHaveLength(0);
+  });
+
+  it("makes the previous look fetch its own faces", () => {
+    declareInk();
+    applyBrandPreview("current");
+    expect(document.documentElement.hasAttribute("data-brand")).toBe(false);
+    expect(fontLinks()).toHaveLength(1);
+    expect(fontLinks()[0].getAttribute("href")).toBe(LEGACY_FONTS_HREF);
+  });
+
+  it("adds another direction's faces over it, and drops them on the way back", () => {
+    declareInk();
+    applyBrandPreview("weave");
+    expect(document.documentElement.getAttribute("data-brand")).toBe("weave");
+    expect(fontLinks()[0].getAttribute("href")).toBe(getBrandDirection("weave").fontsHref);
+    applyBrandPreview("ink");
+    expect(document.documentElement.getAttribute("data-brand")).toBe("ink");
+    expect(fontLinks()).toHaveLength(0);
+  });
+
+  it("is the active brand until someone asks for a preview", () => {
+    expect(getActiveBrand()).toBe("current");
+    declareInk();
+    expect(getActiveBrand()).toBe("ink");
+    setBrandPreview("souq");
+    expect(getActiveBrand()).toBe("souq");
+    setBrandPreview("current");
+    expect(getActiveBrand()).toBe("current");
+    setBrandPreview(null);
+    expect(getActiveBrand()).toBe("ink");
+  });
+
+  it("boots into it, ?brand=off comes back to it, and ?brand=current is remembered", () => {
+    declareInk();
+    expect(initBrandPreview("")).toBeNull();
+    expect(document.documentElement.getAttribute("data-brand")).toBe("ink");
+
+    expect(initBrandPreview("?brand=current")).toBe("current");
+    expect(localStorage.getItem(BRAND_PREVIEW_STORAGE_KEY)).toBe("current");
+    expect(document.documentElement.hasAttribute("data-brand")).toBe(false);
+
+    expect(initBrandPreview("?brand=off")).toBeNull();
+    expect(localStorage.getItem(BRAND_PREVIEW_STORAGE_KEY)).toBeNull();
+    expect(document.documentElement.getAttribute("data-brand")).toBe("ink");
   });
 });

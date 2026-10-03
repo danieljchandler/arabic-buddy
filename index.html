@@ -1,9 +1,9 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-brand="ink" data-brand-default="ink">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#F9F7F2" />
+    <meta name="theme-color" content="#EFE6CF" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
 
@@ -11,13 +11,18 @@
     <link rel="preconnect" href="https://ovscskaijvclaxelkdyf.supabase.co" crossorigin />
     <link rel="dns-prefetch" href="https://ovscskaijvclaxelkdyf.supabase.co" />
 
-    <!-- Fonts: preconnect + link (not a CSS @import) so the Arabic faces start
-         downloading in parallel with the bundle instead of after index.css parses -->
+    <!-- Fonts: preconnect + link (not a CSS @import) so the faces start
+         downloading in parallel with the bundle instead of after index.css parses.
+         These are the Ink brand's faces (data-brand-default above): Rakkas for
+         Arabic display, DM Serif Display for Latin headlines, Readex Pro for UI.
+         Noto Naskh Arabic comes through the "Hikaya Naskh Arabic" @font-face in
+         src/styles/brand-preview.css. The previous look's faces load on demand
+         for ?brand=current (LEGACY_FONTS_HREF in src/lib/brandPreview.ts). -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       rel="stylesheet"
-      href="https://fonts.googleapis.com/css2?family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Rakkas&family=DM+Serif+Display&family=Readex+Pro:wght@300..700&display=swap"
     />
     <title>Hikaya — Learn Spoken Arabic: Gulf, Egyptian & Yemeni</title>
     <meta name="description" content="Learn real spoken Arabic one story at a time — Gulf, Egyptian, and Yemeni dialects — with native audio, smart flashcards, and lessons built from real media. Start free." />

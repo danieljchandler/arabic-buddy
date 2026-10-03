@@ -76,27 +76,29 @@ const Skill = () => {
             ramp turns light in night mode, and the weave goes with it). */}
         <div
           data-ink-sadu="tinted"
-          className="mt-3 flex items-end justify-between rounded-2xl p-5 text-white"
+          className="mt-3 flex items-end justify-between rounded-2xl p-5 text-white dark:text-background"
           style={{ backgroundColor: skill.tint }}
         >
           <span className="flex flex-col gap-0.5">
             {/* text-white on the h1 itself: the base `h1` rule in index.css sets
                 the foreground colour, which beats colour inherited from the tile,
-                so the label rendered charcoal on the charcoal Listen tile. */}
-            <h1 className="text-[28px] font-bold leading-tight text-white">{skill.label}</h1>
+                so the label rendered charcoal on the charcoal Listen tile. At
+                night the ramp behind it turns light, so the text turns dark
+                (text-background) rather than staying white on a pale tile. */}
+            <h1 className="text-[28px] font-bold leading-tight text-white dark:text-background">{skill.label}</h1>
             {ink ? (
-              <span dir="rtl" lang="ar" className="font-ink-display text-[30px] text-[#E2B65C]">
+              <span dir="rtl" lang="ar" className="font-ink-display text-[30px] text-[#E2B65C] dark:text-background">
                 {skill.arabicDisplay}
               </span>
             ) : (
-              <span dir="rtl" lang="ar" className="font-arabic text-[15px] text-white/60">
+              <span dir="rtl" lang="ar" className="font-arabic text-[15px] text-white/60 dark:text-background/70">
                 {skill.arabic}
               </span>
             )}
           </span>
           {(() => {
             const Icon = ICONS[skill.icon];
-            return Icon ? <Icon className="h-8 w-8 text-white/35" /> : null;
+            return Icon ? <Icon className="h-8 w-8 text-white/35 dark:text-background/40" /> : null;
           })()}
         </div>
 

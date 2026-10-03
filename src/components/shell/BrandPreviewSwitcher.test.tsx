@@ -56,7 +56,7 @@ describe("BrandPreviewSwitcher", () => {
       "true",
     );
     for (const name of [
-      "Preview the current look",
+      "Preview the previous look",
       "Preview the Weave direction",
       "Preview the Souq direction",
     ]) {
@@ -94,11 +94,11 @@ describe("BrandPreviewSwitcher", () => {
     act(() => setBrandPreview("weave"));
     render();
 
-    fireEvent.click(screen.getByRole("button", { name: "Preview the current look" }));
+    fireEvent.click(screen.getByRole("button", { name: "Preview the previous look" }));
 
     expect(html().hasAttribute("data-brand")).toBe(false);
     expect(document.getElementById(BRAND_FONT_LINK_ID)).toBeNull();
-    expect(screen.getByRole("button", { name: "Preview the current look" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Preview the previous look" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );

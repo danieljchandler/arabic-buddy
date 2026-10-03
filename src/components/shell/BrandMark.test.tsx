@@ -1,21 +1,22 @@
 import { act, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it } from "vitest";
-import { setBrandPreview } from "@/lib/brandPreview";
+import { BRAND_DEFAULT_ATTRIBUTE, setBrandPreview } from "@/lib/brandPreview";
 import { BrandMark } from "./BrandMark";
 
 /**
  * The corner mark.
  *
- * For everyone who has not opted into a brand preview it is the supplied
- * lockup raster and nothing else. Under the Ink preview it is the redrawn
- * Ink mark — except on the feed ("/"), whose brand tile the owner decided to
- * keep exactly as it is. The accessible name is "Hikaya" in every case;
+ * Under Ink — the default brand index.html declares, or a preview — it is
+ * the redrawn Ink mark, and on the feed ("/"), which keeps its square corner
+ * tile, the Ink app icon at the same footprint. On the previous look it is
+ * the supplied lockup raster. The accessible name is "Hikaya" in every case;
  * shell.spec and feed.spec find the mark by it.
  */
 
 afterEach(() => {
   act(() => setBrandPreview(null));
+  document.documentElement.removeAttribute(BRAND_DEFAULT_ATTRIBUTE);
 });
 
 const renderAt = (path: string) =>
@@ -26,7 +27,7 @@ const renderAt = (path: string) =>
   );
 
 describe("BrandMark", () => {
-  it("is the lockup raster for anyone not previewing", () => {
+  it("is the lockup raster on the previous look (no default declared)", () => {
     renderAt("/choose");
     const mark = screen.getByRole("img", { name: "Hikaya" });
     expect(mark.tagName).toBe("IMG");
@@ -54,9 +55,18 @@ describe("BrandMark", () => {
     expect(mark.querySelector("img")).toHaveAttribute("height", "48");
   });
 
-  it("leaves the feed's brand tile alone, even under Ink", () => {
+  it("is the Ink app icon on the feed, at the old tile's 48px footprint", () => {
     act(() => setBrandPreview("ink"));
     renderAt("/");
-    expect(screen.getByRole("img", { name: "Hikaya" }).tagName).toBe("IMG");
+    const tile = screen.getByRole("img", { name: "Hikaya" });
+    expect(tile.tagName).toBe("IMG");
+    expect(tile.getAttribute("src")).toMatch(/icon/);
+    expect(tile).toHaveClass("h-12", "w-12");
+  });
+
+  it("draws the Ink mark with no preview once Ink is the declared default", () => {
+    document.documentElement.setAttribute(BRAND_DEFAULT_ATTRIBUTE, "ink");
+    renderAt("/choose");
+    expect(screen.getByRole("img", { name: "Hikaya" })).toHaveAttribute("data-ink-mark", "sadu");
   });
 });

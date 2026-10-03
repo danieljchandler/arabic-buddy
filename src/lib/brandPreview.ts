@@ -9,9 +9,17 @@
  * `data-brand` on <html>) and remembers the choice, so clicking around keeps
  * it. `?brand=off` (or `?brand=current`) forgets it again.
  *
- * Nothing here runs unless asked: with no parameter and nothing stored, boot
- * leaves <html> without the attribute, injects no font link, and the floating
- * switcher renders nothing — the default experience is byte-for-byte today's.
+ * The default brand is declared in index.html, not here: `<html
+ * data-brand="ink" data-brand-default="ink">`, with that direction's fonts in
+ * a static <link>, so the first paint is already in it before any script
+ * runs. Boot reads the declaration and treats it as what "no preview" means —
+ * so a preview is still an opt-in layer on top, `?brand=off` comes back to the
+ * default rather than to the watercolour, and `?brand=current` shows the old
+ * look for comparison while the retirement lands. Rolling the brand back is
+ * deleting those two attributes (and restoring the old font link).
+ *
+ * The floating switcher still renders only for someone who asked for a
+ * preview by URL; the default brand alone shows nothing extra.
  *
  * Dependency-free on purpose, like brandMigration.ts: main.tsx calls it before
  * React mounts, so the first paint is already in the chosen direction.
@@ -20,9 +28,10 @@
 export type BrandDirectionId = "weave" | "ink" | "souq";
 
 /**
- * What the switcher can be showing. `current` is "previewing, but on today's
- * look": the in-app Current button keeps the switcher on screen so the owner
- * can flip back and forth. Only the × (or `?brand=off`) ends the preview.
+ * What the switcher can be showing. `current` is the previous (watercolour)
+ * look, which is not a direction and has no data-brand: the in-app Current
+ * button keeps the switcher on screen so the owner can flip back and forth.
+ * Only the × (or `?brand=off`) ends the preview, returning to the default.
  */
 export type BrandPreviewState = BrandDirectionId | "current";
 
@@ -39,6 +48,8 @@ export interface BrandDirection {
 export const BRAND_PREVIEW_STORAGE_KEY = "hikaya_brand_preview";
 export const BRAND_PREVIEW_PARAM = "brand";
 export const BRAND_FONT_LINK_ID = "hikaya-brand-preview-fonts";
+/** Where index.html declares the default brand. Never written at runtime. */
+export const BRAND_DEFAULT_ATTRIBUTE = "data-brand-default";
 
 /**
  * Which of Ink's two marks the preview draws. The owner chose the bubble
@@ -91,6 +102,16 @@ export function isBrandDirectionId(value: unknown): value is BrandDirectionId {
   return BRAND_DIRECTIONS.some((d) => d.id === value);
 }
 
+/**
+ * The faces the previous (watercolour) look was built on. They used to be the
+ * static <link> in index.html; once a default brand ships, that link carries
+ * the brand's faces instead, so `current` fetches these itself.
+ */
+export const LEGACY_FONTS_HREF =
+  GOOGLE_FONTS +
+  "family=Noto+Naskh+Arabic:wght@400;500;600;700&family=Noto+Sans+Arabic:wght@400;500;600;700" +
+  "&family=Montserrat:wght@600;700&family=Open+Sans:wght@400;500&display=swap";
+
 export function getBrandDirection(id: BrandDirectionId): BrandDirection {
   // isBrandDirectionId narrows every caller, so the find cannot miss.
   return BRAND_DIRECTIONS.find((d) => d.id === id)!;
@@ -99,16 +120,18 @@ export function getBrandDirection(id: BrandDirectionId): BrandDirection {
 /**
  * Read `?brand=` off a query string.
  *
- * Returns a direction to switch on, `"off"` to forget the preview, or `null`
+ * Returns a direction (or `"current"`, the previous look) to switch on,
+ * `"off"` to forget the preview and return to the default brand, or `null`
  * when the parameter is absent or names nothing we know — an unknown value is
  * ignored rather than treated as "off", so a typo never silently ends a
  * preview someone is in the middle of.
  */
-export function parseBrandParam(search: string): BrandDirectionId | "off" | null {
+export function parseBrandParam(search: string): BrandPreviewState | "off" | null {
   const raw = new URLSearchParams(search).get(BRAND_PREVIEW_PARAM);
   if (raw === null) return null;
   const value = raw.trim().toLowerCase();
-  if (value === "off" || value === "current") return "off";
+  if (value === "off") return "off";
+  if (value === "current") return "current";
   return isBrandDirectionId(value) ? value : null;
 }
 
@@ -163,24 +186,18 @@ export function writeStoredMarkVariant(variant: InkMarkVariant): void {
   }
 }
 
-/**
- * Stamp a state onto the document: the `data-brand` attribute the token
- * overrides key off, and the direction's font stylesheet. Idempotent — the
- * link is found by id and retargeted rather than duplicated, and both are
- * removed when the state has no direction to show.
- */
-export function applyBrandPreview(state: BrandPreviewState | null, doc: Document = document): void {
-  const root = doc.documentElement;
-  const existing = doc.getElementById(BRAND_FONT_LINK_ID) as HTMLLinkElement | null;
+/** The brand index.html declares as the default, or null when it declares none. */
+export function readDeclaredDefaultBrand(doc: Document = document): BrandDirectionId | null {
+  const declared = doc.documentElement.getAttribute(BRAND_DEFAULT_ATTRIBUTE);
+  return isBrandDirectionId(declared) ? declared : null;
+}
 
-  if (state === null || state === "current") {
-    root.removeAttribute("data-brand");
+function setFontLink(doc: Document, href: string | null): void {
+  const existing = doc.getElementById(BRAND_FONT_LINK_ID) as HTMLLinkElement | null;
+  if (href === null) {
     existing?.remove();
     return;
   }
-
-  root.setAttribute("data-brand", state);
-  const href = getBrandDirection(state).fontsHref;
   if (existing) {
     if (existing.getAttribute("href") !== href) existing.setAttribute("href", href);
     return;
@@ -192,6 +209,31 @@ export function applyBrandPreview(state: BrandPreviewState | null, doc: Document
   doc.head.appendChild(link);
 }
 
+/**
+ * Stamp a state onto the document: the `data-brand` attribute the token
+ * overrides key off, and whatever font stylesheet index.html does not already
+ * carry. `null` (no preview) means the declared default brand. Idempotent —
+ * the link is found by id and retargeted rather than duplicated, and removed
+ * when the static link already covers what is shown.
+ */
+export function applyBrandPreview(state: BrandPreviewState | null, doc: Document = document): void {
+  const root = doc.documentElement;
+  const fallback = readDeclaredDefaultBrand(doc);
+  const shown = state ?? fallback;
+
+  if (shown === null || shown === "current") {
+    root.removeAttribute("data-brand");
+    // With a default brand declared, the static link holds the brand's faces,
+    // so the previous look has to fetch its own; without one it is the static
+    // link, and nothing extra is needed.
+    setFontLink(doc, fallback === null ? null : LEGACY_FONTS_HREF);
+    return;
+  }
+
+  root.setAttribute("data-brand", shown);
+  setFontLink(doc, shown === fallback ? null : getBrandDirection(shown).fontsHref);
+}
+
 // ── The store the switcher subscribes to ─────────────────────────────────
 // Module state rather than a localStorage read per render: storage can throw
 // (private mode), and a URL-activated preview must still show its switcher
@@ -201,9 +243,19 @@ let current: BrandPreviewState | null | undefined;
 let currentMark: InkMarkVariant | undefined;
 const subscribers = new Set<() => void>();
 
+/** The preview someone explicitly asked for, or null — what the switcher shows. */
 export function getBrandPreview(): BrandPreviewState | null {
   if (current === undefined) current = readStoredBrandPreview();
   return current;
+}
+
+/**
+ * What is actually rendered: the explicit preview if there is one, otherwise
+ * the default brand index.html declares, otherwise the previous look. This is
+ * what components branch on.
+ */
+export function getActiveBrand(): BrandPreviewState {
+  return getBrandPreview() ?? readDeclaredDefaultBrand() ?? "current";
 }
 
 /** Ending the preview (null) forgets the mark choice too. */

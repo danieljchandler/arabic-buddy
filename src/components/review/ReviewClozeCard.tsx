@@ -127,7 +127,7 @@ export const ReviewClozeCard = ({
       {/* Sentence with blank */}
       <div
         className="text-3xl leading-loose text-foreground mb-7"
-        style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
+        style={{ fontFamily: "var(--font-naskh)" }}
         dir="rtl"
       >
         <span>{cloze.before}</span>
@@ -184,7 +184,7 @@ export const ReviewClozeCard = ({
                 reveal && isPicked && !isTarget && "border-red-600 bg-red-500/12",
                 reveal && !isTarget && !isPicked && "opacity-50",
               )}
-              style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
+              style={{ fontFamily: "var(--font-naskh)" }}
               dir="rtl"
             >
               <span className="inline-flex items-center gap-1.5">

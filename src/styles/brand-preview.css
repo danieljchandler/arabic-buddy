@@ -25,10 +25,9 @@
             this clears too), #AB3F2C for Gulf, #A73E2B for --ramp-4;
             Palm #2E6A4E -> #2C664B for --success (same chip pattern)
      weave  dark --primary #D27C68 -> #D4816E (bg-primary/10 chips on card)
-   Known, by design of the brief: weave's saffron and ink's mustard --accent
-   carry ink text, so they are backgrounds only — the few `text-accent`
-   call sites (an icon or two, CandidateCard, Discover's level chip) read
-   low in those two directions. */
+   Weave's saffron and ink's mustard --accent carry ink text, so they are
+   backgrounds; the few `text-accent` call sites read --accent-text instead
+   in those two directions (the `.text-accent` rule under "Shared"). */
 
 /* Ink's Arabic text is Noto Naskh, but Readex Pro (its Latin UI face) also
    has Arabic glyphs, and Noto Naskh ships a Latin subset — so neither order
@@ -71,6 +70,21 @@
   mask-image: none;
 }
 
+/* `text-accent` used as text. In weave and ink --accent is a saffron or
+   mustard *background* carrying ink-coloured text, so as a text colour it
+   measured 1.8:1 (weave) and 1.5:1 (ink) on the page. Those two directions
+   set --accent-text: the accent's own hue darkened until it clears 4.5:1 on
+   --background, --card, --muted and the bg-accent/10 wash of Discover's
+   level chip. Not --primary: that chip's Beginner tier is already
+   text-primary, and CandidateCard's "Low confidence" note should still read
+   as caution, not as the brand colour. Their dark blocks set --accent-text
+   back to the accent itself, which already clears 6.9:1 on a near-black
+   ground. Souq's cobalt accent is a text-safe colour and needs nothing. */
+:root[data-brand="weave"] .text-accent,
+:root[data-brand="ink"] .text-accent {
+  color: hsl(var(--accent-text));
+}
+
 /* ── Weave: flat heritage-modern ─────────────────────────────────────────
    Today's sand and Desert Red, flattened: evergreen in place of charcoal,
    saffron highlights, no soft shadows, sadu band redrawn as vector.
@@ -90,6 +104,7 @@
   --secondary-foreground: 39 57.4% 88%;      /* #F2E6CF */
   --accent: 39 66.7% 55.3%;                  /* #D9A441 */
   --accent-foreground: 60 7.1% 11%;          /* #1E1E1A */
+  --accent-text: 39 81.3% 28%;               /* #81590D — see .text-accent */
   --muted: 38 55.6% 91.2%;                   /* #F5ECDC */
   --muted-foreground: 30 10.6% 33.3%;        /* #5E554C */
   --border: 33 36.1% 76.7%;                  /* #D9C6AE */
@@ -133,6 +148,7 @@
   --font-arabic: "IBM Plex Sans Arabic", "Noto Sans Arabic", sans-serif;
   --font-arabic-display: "Aref Ruqaa", "IBM Plex Sans Arabic", serif;
   --font-naskh: "IBM Plex Sans Arabic", "Noto Naskh Arabic", sans-serif;
+  --font-transcript: "IBM Plex Sans Arabic", "Noto Naskh Arabic", sans-serif;
 
   /* Najdi triangles meeting at the tile seams, a stepped sadu diamond
      between them: red field, evergreen selvedges, cream motifs. */
@@ -153,6 +169,7 @@
   --secondary-foreground: 48 10.6% 9.2%;     /* #1A1915 */
   --accent: 39 66.7% 55.3%;                  /* #D9A441 */
   --accent-foreground: 48 10.6% 9.2%;        /* #1A1915 */
+  --accent-text: 39 66.7% 55.3%;             /* #D9A441 */
   --muted: 40 10.8% 16.3%;                   /* #2E2B25 */
   --muted-foreground: 34 17.9% 69.4%;        /* #BFB3A3 */
   --border: 47 8.7% 20.2%;                   /* #38362F */
@@ -203,6 +220,7 @@
   --secondary-foreground: 43 50% 87.5%;      /* #EFE6CF */
   --accent: 40 69.8% 62.4%;                  /* #E2B65C */
   --accent-foreground: 84 9.8% 10%;          /* #1A1C17 */
+  --accent-text: 40 72% 28%;                 /* #7B5914 — see .text-accent */
   --muted: 43 41.9% 83.1%;                   /* #E6DCC2 */
   --muted-foreground: 26 8% 34.1%;           /* #5E5650 */
   --border: 45 23.3% 76.5%;                  /* #D1CAB5 */
@@ -245,6 +263,7 @@
   --font-arabic: "Hikaya Naskh Arabic", "Readex Pro", serif;
   --font-arabic-display: "Hikaya Naskh Arabic", "Readex Pro", serif;
   --font-naskh: "Hikaya Naskh Arabic", "Readex Pro", serif;
+  --font-transcript: "Hikaya Naskh Arabic", "Readex Pro", serif;
   /* DM Serif Display and Rakkas ship one weight. Headings ask for 700, and a
      browser-smeared faux bold of a display serif is worse than its own
      weight, which is already heavy. */
@@ -268,6 +287,7 @@
   --secondary-foreground: 80 7.7% 7.6%;      /* #141512 */
   --accent: 40 69.8% 62.4%;                  /* #E2B65C */
   --accent-foreground: 80 7.7% 7.6%;         /* #141512 */
+  --accent-text: 40 69.8% 62.4%;             /* #E2B65C */
   --muted: 80 7.7% 15.3%;                    /* #282A24 */
   --muted-foreground: 34 13.1% 65.7%;        /* #B3A99C */
   --border: 51 7.4% 18.6%;                   /* #33322C */
@@ -360,6 +380,7 @@
   --font-arabic: "Alexandria", "Noto Sans Arabic", sans-serif;
   --font-arabic-display: "Lalezar", "Alexandria", sans-serif;
   --font-naskh: "Alexandria", "Noto Sans Arabic", sans-serif;
+  --font-transcript: "Alexandria", "Noto Sans Arabic", sans-serif;
   /* Young Serif and Lalezar ship one weight; see the note under ink. */
   font-synthesis-weight: none;
 

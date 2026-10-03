@@ -94,7 +94,7 @@ const WordMatchingGame = ({ words, onComplete }: { words: WordPair[]; onComplete
                   ? "bg-primary text-primary-foreground border-primary shadow-elegant scale-[1.02]"
                   : "bg-card border-border hover:border-primary/40"
               )}
-              style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
+              style={{ fontFamily: "var(--font-naskh)" }}
               dir="rtl"
             >
               {w.word_arabic}
@@ -232,7 +232,7 @@ const MemoryCardGame = ({ words, onComplete }: { words: WordPair[]; onComplete: 
                     matched.has(card.pairId) ? "text-primary" : "text-foreground"
                   )}
                   dir={card.isArabic ? "rtl" : "ltr"}
-                  style={card.isArabic ? { fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" } : undefined}
+                  style={card.isArabic ? { fontFamily: "var(--font-naskh)" } : undefined}
                 >
                   {card.text}
                 </span>
@@ -315,7 +315,7 @@ const FillBlankGame = ({ words, onComplete }: { words: WordPair[]; onComplete: (
         <p
           className="text-4xl font-bold text-foreground"
           dir="rtl"
-          style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
+          style={{ fontFamily: "var(--font-naskh)" }}
         >
           {word.word_arabic}
         </p>

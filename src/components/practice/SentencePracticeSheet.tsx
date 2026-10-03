@@ -137,7 +137,7 @@ export function SentencePracticeSheet({ open, onOpenChange, targetArabic, target
             <span
               dir="rtl"
               className="font-semibold text-foreground"
-              style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
+              style={{ fontFamily: "var(--font-naskh)" }}
             >
               {targetArabic}
             </span>
@@ -207,7 +207,7 @@ export function SentencePracticeSheet({ open, onOpenChange, targetArabic, target
                       <div
                         dir="rtl"
                         className="text-lg leading-relaxed"
-                        style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
+                        style={{ fontFamily: "var(--font-naskh)" }}
                       >
                         <TappableArabicText text={feedback.transcript} source="sentence-practice" />
                       </div>
@@ -245,7 +245,7 @@ export function SentencePracticeSheet({ open, onOpenChange, targetArabic, target
                       <div
                         dir="rtl"
                         className="text-lg leading-relaxed"
-                        style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
+                        style={{ fontFamily: "var(--font-naskh)" }}
                       >
                         <TappableArabicText
                           text={feedback.natural_rewrite}
@@ -274,7 +274,7 @@ export function SentencePracticeSheet({ open, onOpenChange, targetArabic, target
                             <div
                               dir="rtl"
                               className="text-base leading-relaxed"
-                              style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
+                              style={{ fontFamily: "var(--font-naskh)" }}
                             >
                               <TappableArabicText
                                 text={alt.arabic}

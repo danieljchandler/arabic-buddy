@@ -59,7 +59,7 @@ export const FourFacesPanel = ({ letter }: FourFacesPanelProps) => {
                 "text-5xl text-foreground mb-1",
                 isActive && "animate-face-morph text-primary",
               )}
-              style={{ fontFamily: "'Noto Sans Arabic', serif", lineHeight: 1 }}
+              style={{ fontFamily: "var(--font-arabic)", lineHeight: 1 }}
             >
               {letter[f.key]}
             </p>

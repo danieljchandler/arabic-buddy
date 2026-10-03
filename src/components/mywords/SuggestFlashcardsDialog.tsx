@@ -150,7 +150,7 @@ export const SuggestFlashcardsDialog = ({ open, onOpenChange }: Props) => {
                   <div className="flex items-baseline justify-between gap-2">
                     <span
                       className="text-lg font-bold text-foreground"
-                      style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
+                      style={{ fontFamily: "var(--font-naskh)" }}
                       dir="rtl"
                     >
                       {c.word_arabic}

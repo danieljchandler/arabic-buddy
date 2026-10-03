@@ -85,7 +85,7 @@ export const GenerateImageDialog = ({ word, open, onOpenChange, onImageSaved }: 
 
         <div className="space-y-4">
           <div className="text-center p-3 rounded-lg bg-muted/50">
-            <p className="text-lg font-bold" dir="rtl" style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}>
+            <p className="text-lg font-bold" dir="rtl" style={{ fontFamily: "var(--font-naskh)" }}>
               {word?.word_arabic}
             </p>
             <p className="text-sm text-muted-foreground">{word?.word_english}</p>

@@ -138,7 +138,7 @@ const AlphabetLetter = () => {
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           Step {stepIdx + 1} of {LETTER_STEPS.length}
         </p>
-        <h2 className="text-lg font-bold text-foreground mt-0.5" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+        <h2 className="text-lg font-bold text-foreground mt-0.5 font-heading">
           {STEP_LABELS[step]}
         </h2>
       </header>
@@ -149,7 +149,7 @@ const AlphabetLetter = () => {
           <div className="space-y-6 text-center">
             <div
               className="text-[180px] text-primary leading-none"
-              style={{ fontFamily: "'Noto Sans Arabic', serif" }}
+              style={{ fontFamily: "var(--font-arabic)" }}
             >
               {letter.isolated}
             </div>
@@ -163,7 +163,7 @@ const AlphabetLetter = () => {
                     <div key={v.glyph} className="flex flex-col items-center min-w-[64px]">
                       <span
                         className="text-4xl text-foreground leading-none"
-                        style={{ fontFamily: "'Noto Sans Arabic', serif" }}
+                        style={{ fontFamily: "var(--font-arabic)" }}
                       >
                         {v.glyph}
                       </span>
@@ -177,7 +177,7 @@ const AlphabetLetter = () => {
             )}
             <div>
               {prefs.showArabic && (
-                <p className="text-3xl text-foreground" style={{ fontFamily: "'Noto Sans Arabic', serif" }}>
+                <p className="text-3xl text-foreground" style={{ fontFamily: "var(--font-arabic)" }}>
                   {letter.name_ar}
                 </p>
               )}
@@ -222,7 +222,7 @@ const AlphabetLetter = () => {
               >
                 <LetterAudioButton text={ex.ar} size="md" label={`Play ${ex.ar}`} />
                 <div className="flex-1 min-w-0 text-right" dir="rtl">
-                  <p className="text-3xl text-foreground" style={{ fontFamily: "'Noto Sans Arabic', serif" }}>
+                  <p className="text-3xl text-foreground" style={{ fontFamily: "var(--font-arabic)" }}>
                     {ex.ar}
                   </p>
                   {prefs.showEnglish && (

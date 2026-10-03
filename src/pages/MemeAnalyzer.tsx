@@ -519,7 +519,7 @@ const MemeAnalyzer = () => {
                         <span
                           className="text-lg font-semibold text-foreground"
                           dir="rtl"
-                          style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
+                          style={{ fontFamily: "var(--font-naskh)" }}
                         >
                           {word.arabic}
                         </span>

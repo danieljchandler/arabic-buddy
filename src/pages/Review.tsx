@@ -660,7 +660,7 @@ const Review = () => {
             ) : (
               <p
                 className="text-4xl font-bold text-foreground mb-6 break-words max-w-full"
-                style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
+                style={{ fontFamily: "var(--font-naskh)" }}
                 dir="rtl"
               >
                 {currentWord.word_arabic}
@@ -750,7 +750,7 @@ const Review = () => {
                     <div
                       className="text-sm leading-relaxed space-y-1"
                       dir="rtl"
-                      style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
+                      style={{ fontFamily: "var(--font-naskh)" }}
                     >
                       {review.jingle_lyrics.split(/\r?\n/).map((line, i) =>
                         line.trim() ? (
@@ -789,7 +789,7 @@ const Review = () => {
                 {isProduction ? (
                   <p
                     className="text-3xl font-bold text-foreground break-words"
-                    style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', serif" }}
+                    style={{ fontFamily: "var(--font-naskh)" }}
                     dir="rtl"
                   >
                     {currentWord.word_arabic}

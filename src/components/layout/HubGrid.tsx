@@ -32,8 +32,7 @@ export function HubSection({ title, subtitle, tiles }: HubSectionProps) {
       <div className="px-1 mb-3 flex items-baseline gap-3">
         <span className="h-px flex-1 bg-plum/15" aria-hidden />
         <h2
-          className="text-[10px] font-bold text-plum/65 uppercase tracking-[0.18em]"
-          style={{ fontFamily: "'Montserrat', sans-serif" }}
+          className="text-[10px] font-bold text-plum/65 uppercase tracking-[0.18em] font-heading"
         >
           {title}
         </h2>
@@ -93,8 +92,7 @@ export function HubHeader({ title, subtitle }: HubHeaderProps) {
   return (
     <header className="mb-6 pt-1">
       <h1
-        className="text-3xl font-bold text-plum tracking-tight"
-        style={{ fontFamily: "'Montserrat', sans-serif" }}
+        className="text-3xl font-bold text-plum tracking-tight font-heading"
       >
         {title}
       </h1>

@@ -572,7 +572,8 @@ export const TappableArabicText = ({
         // Naskh is the face for vocalised Arabic, but the fallback has to stay
         // an Arabic-capable one: bare `serif` lands on a face with no Arabic
         // coverage, and the system substitute positions tashkil badly.
-        style={{ fontFamily: "'Noto Naskh Arabic', 'Noto Sans Arabic', 'Open Sans', sans-serif" }}
+        // --font-naskh keeps Noto Sans Arabic ahead of the generic (index.css).
+        style={{ fontFamily: "var(--font-naskh)" }}
       >
         {/*
           A real space between words, not just the flex `gap`. Dropping the

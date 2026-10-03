@@ -182,6 +182,14 @@ const ALLOWED_PHRASES: ReadonlyArray<{ file: string; phrase: string; reason: str
   },
   {
     file: "CLAUDE.md",
+    phrase: 'NotebookLM: "hakiya"',
+    reason:
+      "The memory map's pointer to the NotebookLM notebook, which really is named " +
+      "that. It is the name of something outside this repo, quoted so it can be " +
+      "found; spelling it Hikaya would point at a notebook that does not exist.",
+  },
+  {
+    file: "CLAUDE.md",
     phrase: "`hakiya*` localStorage keys",
     reason:
       "The same entry, listing what the allow-list covers. Pinned to the phrase " +

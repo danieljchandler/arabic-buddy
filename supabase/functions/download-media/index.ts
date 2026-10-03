@@ -5,9 +5,22 @@ import { assertPublicHttpUrl, BlockedUrlError, safeFetch } from "../_shared/safe
 import { isServiceRoleCall } from "../_shared/requireRole.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 
+// Chunked: the old `Array.from(data, ...)` built one JS string per byte (an
+// ~11MB clip became 11M strings), which blew the edge worker's memory limit
+// (WORKER_RESOURCE_LIMIT / 546). Encoding in 3-byte-aligned chunks keeps the
+// peak close to the size of the output itself.
 function encodeBase64(data: Uint8Array): string {
-  const binString = Array.from(data, (b) => String.fromCharCode(b)).join('');
-  return btoa(binString);
+  const CHUNK = 0x8000 * 3;
+  const parts: string[] = [];
+  for (let i = 0; i < data.length; i += CHUNK) {
+    const slice = data.subarray(i, i + CHUNK);
+    let bin = "";
+    for (let j = 0; j < slice.length; j += 0x8000) {
+      bin += String.fromCharCode(...slice.subarray(j, j + 0x8000));
+    }
+    parts.push(btoa(bin));
+  }
+  return parts.join("");
 }
 
 
@@ -965,11 +978,10 @@ serve(async (req) => {
     const makeSuccessResponse = (result: { base64: string; contentType: string; size: number; filename: string }, extras?: Record<string, unknown>) =>
       new Response(
         JSON.stringify({
-          // `audioBase64` is the long-standing field name and every existing
-          // caller reads it; `mediaBase64` is the same bytes under a name that
-          // does not lie when the payload is a video.
+          // `audioBase64` is the field every caller reads. A duplicate
+          // `mediaBase64` copy used to ride alongside it, doubling the JSON
+          // body and helping push large clips past the worker memory limit.
           audioBase64: result.base64,
-          mediaBase64: result.base64,
           contentType: result.contentType,
           size: result.size,
           filename: result.filename,

@@ -1,0 +1,66 @@
+name: AI canary
+
+# Once a day, as a real subscriber: do the learner-facing AI features answer,
+# in dialect, in reasonable time, and is spend where it should be? The
+# 2026-09-29 sweep found eight AI features failing silently for days because
+# nothing called them. This calls them. A red run is GitHub's failure email,
+# which Hermes relays.
+#
+# Until its secrets exist it fails on purpose, naming them: a canary that skips
+# quietly is the failure it exists to catch. Setup is in the PR that added this
+# file and at the top of scripts/ai-canary.ts.
+#
+# Each run costs a few cents of model calls plus one Firecrawl search set.
+on:
+  schedule:
+    # 05:17 UTC is 08:17 in Riyadh and Sanaa. Off the hour, where GitHub's
+    # scheduled runs queue less.
+    - cron: "17 5 * * *"
+  workflow_dispatch:
+    inputs:
+      only:
+        description: >-
+          Functions to check, space or comma separated (e.g. "translate-text souq-news").
+          Blank checks all of them.
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ai-canary
+  cancel-in-progress: false
+
+jobs:
+  canary:
+    name: AI canary
+    # Forks inherit the schedule but not the secrets; don't let them go red.
+    if: github.repository == 'danieljchandler/arabic-buddy'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # Same pin as the edge job in ci.yml, for the same reason.
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.9.5
+
+      - name: Run the canary
+        env:
+          HIKAYA_SUPABASE_ANON_KEY: ${{ secrets.HIKAYA_SUPABASE_ANON_KEY }}
+          HIKAYA_CANARY_EMAIL: ${{ secrets.HIKAYA_CANARY_EMAIL }}
+          HIKAYA_CANARY_PASSWORD: ${{ secrets.HIKAYA_CANARY_PASSWORD }}
+          HIKAYA_AI_CANARY_SECRET: ${{ secrets.HIKAYA_AI_CANARY_SECRET }}
+          CANARY_ONLY: ${{ github.event.inputs.only }}
+          # Optional repository variables (Settings > Secrets and variables >
+          # Actions > Variables). Unset means the defaults in ai-canary-core.ts.
+          CANARY_MAX_DAILY_USD: ${{ vars.CANARY_MAX_DAILY_USD }}
+          CANARY_SPIKE_RATIO: ${{ vars.CANARY_SPIKE_RATIO }}
+          CANARY_SPIKE_FLOOR_USD: ${{ vars.CANARY_SPIKE_FLOOR_USD }}
+          CANARY_MIN_OPENROUTER_USD: ${{ vars.CANARY_MIN_OPENROUTER_USD }}
+          CANARY_REQUIRE_OPENROUTER_LIMIT: ${{ vars.CANARY_REQUIRE_OPENROUTER_LIMIT }}
+          CANARY_SOUQ_ALL_DIALECTS: ${{ vars.CANARY_SOUQ_ALL_DIALECTS }}
+        # Write access only to the runner's temp dir, for the step summary.
+        run: deno run --allow-env --allow-read --allow-net --allow-write="$RUNNER_TEMP" scripts/ai-canary.ts

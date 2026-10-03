@@ -184,6 +184,9 @@ Each phase ships on its own and leaves the app coherent.
 4. **Vectorise the mark.**
    - Commission or draw an SVG master. **Draw حكاية as lettering rather than
      setting it in a font**, so the logotype is ownable.
+   - **Fix the vowelling.** The current raster puts a fatha on the ح
+     (حَكاية), which reads *ḥakāya*: the old "Hakiya" spelling. The app is
+     *Hikaya*, so the new mark should carry a kasra: حِكَايَة.
    - Regenerate the favicon, app icons, `og-image.jpg` and the manifest and
      `theme-color` values.
    - Update `BrandMark`, `LandingHero`, `Auth`, `Onboarding` and `SaduMark`.

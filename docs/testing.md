@@ -267,6 +267,50 @@ against native review rather than shipping on the delta alone.
   HuggingFace key) is set; it is log-only and inert otherwise. Compare the
   two signals against native-review outcomes before making either a gate.
 
+## The AI canary
+
+Every test above runs against fakes, so none of them notices the thing the
+2026-09-29 sweep found: eight AI features failing in production for days,
+silently, because a vendor ran out of credit. `.github/workflows/ai-canary.yml`
+is the check that does. Once a day (and from the Actions tab on demand) it signs
+in as a dedicated canary account marked subscriber and calls six learner-facing
+functions — `translate-text`, `culture-guide`, `writing-coach` (the `prompt`
+action, which writes nothing), `reading-passage`, `souq-news` and
+`assistant-chat` — with the golden set's "where are you going now" row in Gulf,
+Egyptian and Yemeni. A check fails on a non-2xx, an empty answer or one of the
+functions' own canned "nothing came back" texts, any `detectMsaLeaks` hit for
+the dialect asked for, or a latency over the function's ceiling. `souq-news`
+runs one dialect a day, rotating, because each call spends Firecrawl credits.
+
+It also judges spend, through `ai-canary-spend`: the last 24 hours of
+`llm_usage_logs.cost_usd` against a daily ceiling and against the trailing
+week, and the OpenRouter key's remaining limit (a key with no limit fails too).
+That function exists because `llm_usage_logs` is admin-read-only and the
+OpenRouter key lives only in Supabase; reading them from GitHub would mean
+copying the service-role key or the OpenRouter key there. It returns totals
+only, and the canary prints thresholds rather than amounts, because this
+repository's Actions logs are public. `CANARY_PRINT_AMOUNTS=1` shows them on a
+local run.
+
+The deciding logic is `scripts/ai-canary-core.ts`, covered with a mocked
+network by `src/test/aiCanary.test.ts`; `scripts/ai-canary.ts` only reads the
+environment and prints. Until its four secrets exist the workflow fails on
+purpose and names them (`canary not configured: missing ...`).
+
+| Where | Name | What |
+| --- | --- | --- |
+| GitHub secret | `HIKAYA_SUPABASE_ANON_KEY` | the public anon/publishable key the frontend ships |
+| GitHub secret | `HIKAYA_CANARY_EMAIL`, `HIKAYA_CANARY_PASSWORD` | the canary account |
+| GitHub secret | `HIKAYA_AI_CANARY_SECRET` | a random string, equal to the next row |
+| Supabase function secret | `AI_CANARY_SECRET` | the same random string |
+| GitHub variable (optional) | `CANARY_MAX_DAILY_USD`, `CANARY_SPIKE_RATIO`, `CANARY_SPIKE_FLOOR_USD`, `CANARY_MIN_OPENROUTER_USD`, `CANARY_REQUIRE_OPENROUTER_LIMIT`, `CANARY_SOUQ_ALL_DIALECTS` | thresholds; defaults in `ai-canary-core.ts` |
+
+Run it locally with the same variables exported:
+`deno run --allow-env --allow-read --allow-net scripts/ai-canary.ts [--only translate-text,souq-news]`.
+`HIKAYA_SUPABASE_URL` overrides the project read from `supabase/config.toml`.
+Each run costs a few cents. To see it go red on purpose, point it at a project
+where one function's model id is wrong and run `--only` that function.
+
 ## Tutor behaviour
 
 `scripts/eval-dialect-live.ts` measures whether a *model* writes dialect.

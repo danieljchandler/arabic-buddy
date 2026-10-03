@@ -377,3 +377,10 @@ verify_jwt = true
 # own weak and due words; enforceDailyCap rejects anonymous callers inside.
 [functions.generate-worksheet]
 verify_jwt = false
+
+# The spend half of the daily AI canary (scripts/ai-canary.ts). Returns two
+# totals: llm_usage_logs cost over 24h/7d and the OpenRouter key's remaining
+# limit. The scheduled canary calls it with the AI_CANARY_SECRET header and
+# holds no admin session, so no JWT; a person must be admin, checked inside.
+[functions.ai-canary-spend]
+verify_jwt = false

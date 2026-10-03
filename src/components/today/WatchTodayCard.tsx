@@ -57,8 +57,7 @@ export function WatchTodayCard({ done = false, className }: WatchTodayCardProps)
           <Play className="h-4 w-4 text-primary fill-primary" aria-hidden />
         </div>
         <h2
-          className="text-lg font-bold text-foreground flex items-center gap-1.5"
-          style={{ fontFamily: "'Montserrat', sans-serif" }}
+          className="text-lg font-bold text-foreground flex items-center gap-1.5 font-heading"
         >
           Watch today's video
           <InfoHint

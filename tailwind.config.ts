@@ -18,11 +18,14 @@ export default {
       },
     },
     extend: {
+      // Read from variables defined on :root in index.css (same stacks these
+      // used to list literally), so a brand direction can swap the families
+      // without touching a call site — see src/styles/brand-preview.css.
       fontFamily: {
-        sans: ["Open Sans", "Noto Sans Arabic", "sans-serif"],
-        heading: ["Montserrat", "Noto Sans Arabic", "sans-serif"],
-        arabic: ["Noto Sans Arabic", "Open Sans", "sans-serif"],
-        cairo: ["Noto Naskh Arabic", "Noto Sans Arabic", "serif"],
+        sans: ["var(--font-sans)"],
+        heading: ["var(--font-heading)"],
+        arabic: ["var(--font-arabic)"],
+        cairo: ["var(--font-naskh)"],
       },
       fontSize: {
         // Locked typographic scale — 1.25 ratio, Lahja rhythm

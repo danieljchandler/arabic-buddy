@@ -395,10 +395,7 @@ const Index = () => {
                   className="w-full p-4 rounded-2xl bg-gradient-to-br from-card-cream via-muted to-muted border border-plum/25 flex items-center gap-3 transition-all hover:border-plum/50 hover:shadow-card active:scale-[0.99] text-left relative overflow-hidden"
                 >
                   <div className="h-12 w-12 rounded-full bg-card-cream border-2 border-plum flex items-center justify-center shrink-0 shadow-soft">
-                    <span
-                      className="text-2xl text-plum"
-                      style={{ fontFamily: "'Noto Sans Arabic', serif", lineHeight: 1 }}
-                    >
+                    <span className="font-arabic text-2xl text-plum" style={{ lineHeight: 1 }}>
                       {currentLetter.isolated}
                     </span>
                   </div>

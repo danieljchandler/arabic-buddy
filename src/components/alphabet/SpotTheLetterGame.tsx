@@ -94,7 +94,7 @@ export const SpotTheLetterGame = ({ letter, pool, onComplete }: SpotTheLetterGam
         <p className="text-sm text-muted-foreground">Tap every word containing</p>
         <p
           className="text-5xl font-bold text-primary mt-1"
-          style={{ fontFamily: "'Noto Sans Arabic', serif" }}
+          style={{ fontFamily: "var(--font-arabic)" }}
         >
           {letter.isolated}
         </p>
@@ -119,7 +119,7 @@ export const SpotTheLetterGame = ({ letter, pool, onComplete }: SpotTheLetterGam
                 correct && "border-green-500 bg-green-500/10 animate-correct-pulse",
                 wrong && "border-red-500 bg-red-500/10 animate-shake",
               )}
-              style={{ fontFamily: "'Noto Sans Arabic', serif" }}
+              style={{ fontFamily: "var(--font-arabic)" }}
             >
               {w}
               {showResult && (

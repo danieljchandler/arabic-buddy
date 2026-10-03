@@ -6,6 +6,7 @@ import { useUserXP, useWeeklyGoal } from "@/hooks/useGamification";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 import { dialectAccent } from "@/lib/dialectAccent";
+import { useIsInk } from "@/hooks/useBrandPreview";
 
 /**
  * A — Majlis welcome panel
@@ -33,15 +34,21 @@ function compactXp(xp: number): string {
   return `${thousands < 10 ? thousands.toFixed(1).replace(/\.0$/, "") : Math.round(thousands)}k`;
 }
 
-function greetingFor(hour: number): { ar: string; en: string } {
-  if (hour < 5) return { ar: "تصبح على خير", en: "Late night" };
-  if (hour < 12) return { ar: "صَبَاحُ الخَيْر", en: "Good morning" };
-  if (hour < 17) return { ar: "نَهَارَك سَعِيد", en: "Good afternoon" };
-  if (hour < 22) return { ar: "مَسَاءُ الخَيْر", en: "Good evening" };
-  return { ar: "تصبح على خير", en: "Good night" };
+/**
+ * `display` is the same greeting set as display type for the Ink brand
+ * preview — unvowelled, its kashida drawn out the way the voice draws it.
+ * It is decoration over `ar`, which stays the version read aloud.
+ */
+function greetingFor(hour: number): { ar: string; en: string; display: string } {
+  if (hour < 5) return { ar: "تصبح على خير", en: "Late night", display: "تصبـــح على خيـــر" };
+  if (hour < 12) return { ar: "صَبَاحُ الخَيْر", en: "Good morning", display: "صبـــاح الخيـــر" };
+  if (hour < 17) return { ar: "نَهَارَك سَعِيد", en: "Good afternoon", display: "نهـــارك سعيـــد" };
+  if (hour < 22) return { ar: "مَسَاءُ الخَيْر", en: "Good evening", display: "مســـاء الخيـــر" };
+  return { ar: "تصبح على خير", en: "Good night", display: "تصبـــح على خيـــر" };
 }
 
 export function MajlisWelcome() {
+  const ink = useIsInk();
   const { user, isAuthenticated } = useAuth();
   const { activeDialect } = useDialect();
   const { data: weekly } = useWeeklyGoal();
@@ -97,6 +104,18 @@ export function MajlisWelcome() {
 
   const accent = dialectAccent(activeDialect);
 
+  if (ink) {
+    return (
+      <InkWelcome
+        greeting={greeting}
+        name={isAuthenticated ? name : ""}
+        dialect={activeDialect}
+        streak={isAuthenticated ? streak?.current_streak ?? 0 : null}
+        xp={isAuthenticated ? { earned, target, pct } : null}
+      />
+    );
+  }
+
   return (
     <div
       className={cn(
@@ -134,10 +153,7 @@ export function MajlisWelcome() {
           >
             {greeting.ar}
           </p>
-          <p
-            className="mt-1 text-sm text-plum"
-            style={{ fontFamily: "'Open Sans', sans-serif" }}
-          >
+          <p className="mt-1 font-sans text-sm text-plum">
             {greeting.en}
             {isAuthenticated && name ? `, ${name}` : ""}
           </p>
@@ -209,10 +225,7 @@ export function MajlisWelcome() {
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center leading-none">
-              <span
-                className="text-[15px] font-bold text-plum"
-                style={{ fontFamily: "'Montserrat', sans-serif" }}
-              >
+              <span className="font-heading text-[15px] font-bold text-plum">
                 {compactXp(earned)}
               </span>
               {/* Named for its period: three XP figures share the home screen
@@ -225,6 +238,174 @@ export function MajlisWelcome() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ── Ink brand preview ────────────────────────────────────────────────────
+// Rendered instead of the panel above only while `?brand=ink` is on. The
+// same facts — the greeting in the time of day's register, the dialect, the
+// streak, the week's XP — set as the Ink-Today artboard sets them: an
+// oxblood panel with the sadu pressed in, the Arabic in Rakkas with its
+// kashida drawn out, the English in the serif, then a hairline band for the
+// week. Full-bleed on a phone, as in the artboard; a plain panel from sm.
+
+const DIALECT_ARABIC: Record<string, { initial: string; name: string }> = {
+  Gulf: { initial: "خ", name: "خليجي" },
+  Egyptian: { initial: "م", name: "مصري" },
+  Yemeni: { initial: "ي", name: "يمني" },
+};
+
+const ARABIC_DIGITS = "٠١٢٣٤٥٦٧٨٩";
+const toArabicDigits = (n: number) => String(n).replace(/\d/g, (d) => ARABIC_DIGITS[Number(d)]);
+
+/** The streak's week of bars: heights only, the run decides which are lit. */
+const WEEK_BARS = [50, 75, 62, 100, 70, 88, 56];
+
+/** Ticks round the ring: 40 of them, a short stroke and a gap each. */
+const RING_TICKS = 40;
+
+function inkDateLabel(date: Date): string {
+  const weekday = date.toLocaleDateString("en-GB", { weekday: "short" });
+  const month = date.toLocaleDateString("en-GB", { month: "short" });
+  return `${weekday} · ${String(date.getDate()).padStart(2, "0")} ${month}`;
+}
+
+function InkWelcome({
+  greeting,
+  name,
+  dialect,
+  streak,
+  xp,
+}: {
+  greeting: { ar: string; en: string; display: string };
+  name: string;
+  dialect: string;
+  /** null for a signed-out visitor: there is nothing to have a streak of. */
+  streak: number | null;
+  xp: { earned: number; target: number; pct: number } | null;
+}) {
+  const ar = DIALECT_ARABIC[dialect];
+  const R = 26;
+  const C = 2 * Math.PI * R;
+  const tick = C / RING_TICKS;
+  const lit = xp ? Math.round((xp.pct / 100) * RING_TICKS) : 0;
+  const ticks = `1.6 ${(tick - 1.6).toFixed(3)}`;
+
+  return (
+    <div className="-mx-4 mb-4 sm:mx-0" data-ink-welcome="">
+      <section
+        data-ink-sadu=""
+        className="bg-[#6B1F1F] px-5 pb-4 pt-3.5 text-[#EFE6CF] sm:rounded-[4px]"
+      >
+        <div className="ink-meta flex justify-between text-[#D5BEAC]">
+          <span>Hikaya · Today</span>
+          <span>{inkDateLabel(new Date())}</span>
+        </div>
+        <p
+          aria-hidden="true"
+          lang="ar"
+          dir="rtl"
+          className="font-ink-display pointer-events-none mt-1 text-right text-[44px] sm:text-[52px]"
+        >
+          {greeting.display}
+        </p>
+        <p lang="ar" dir="rtl" className="sr-only">
+          {greeting.ar}
+        </p>
+        <p className="font-ink-serif text-[26px] leading-tight">
+          {greeting.en}
+          {name ? `, ${name}` : ""}
+        </p>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <span className="inline-flex h-7 items-center gap-1.5 rounded-[4px] border border-[#EFE6CF]/55 pl-[3px] pr-2.5 text-[12.5px] font-medium">
+            {ar && (
+              <span
+                aria-hidden="true"
+                lang="ar"
+                className="grid h-5 w-5 place-items-center rounded-full bg-[#E2B65C] text-[11px] font-bold text-[#1A1C17]"
+              >
+                {ar.initial}
+              </span>
+            )}
+            <span>{dialect}</span>
+            {ar && (
+              <>
+                {" · "}
+                <span lang="ar" dir="rtl">
+                  {ar.name}
+                </span>
+              </>
+            )}
+          </span>
+          {streak !== null && (
+            <span className="inline-flex items-center gap-2.5" title={`${streak}-day streak`}>
+              {/* A week of bars, one per day of the run, lit in mustard. */}
+              <span aria-hidden="true" className="pointer-events-none flex h-4 items-end gap-[3px]">
+                {WEEK_BARS.map((h, i) => (
+                  <i
+                    key={i}
+                    data-lit={i < streak ? "" : undefined}
+                    className={cn("block w-[3px]", i < streak ? "bg-[#E2B65C]" : "bg-[#EFE6CF]/30")}
+                    style={{ height: `${h}%` }}
+                  />
+                ))}
+              </span>
+              <span className="text-[12.5px] font-medium">
+                {streak} {streak === 1 ? "day" : "days"}
+              </span>
+              {/* The run in Arabic numerals too; a lone ٠ reads as a stray dot. */}
+              {streak > 0 && (
+                <span aria-hidden="true" lang="ar" className="font-ink-display text-xl text-[#E2B65C]">
+                  {toArabicDigits(streak)}
+                </span>
+              )}
+            </span>
+          )}
+        </div>
+      </section>
+
+      {xp && (
+        <section
+          className="flex items-center gap-4 border-b border-border px-5 py-3.5 sm:px-1"
+          title={`${xp.earned} / ${xp.target} XP this week`}
+        >
+          <span className="relative h-16 w-16 shrink-0">
+            <svg viewBox="0 0 64 64" className="h-full w-full -rotate-90" aria-hidden="true">
+              <circle
+                cx="32"
+                cy="32"
+                r={R}
+                fill="none"
+                strokeWidth="8"
+                strokeDasharray={ticks}
+                className="stroke-foreground/20"
+              />
+              <circle
+                data-ink-ring=""
+                cx="32"
+                cy="32"
+                r={R}
+                fill="none"
+                strokeWidth="8"
+                strokeDasharray={lit > 0 ? `${Array(lit).fill(ticks).join(" ")} 0 ${C.toFixed(1)}` : `0 ${C.toFixed(1)}`}
+                className="stroke-primary transition-[stroke-dasharray] duration-700 ease-out"
+              />
+            </svg>
+            <span className="absolute inset-0 grid place-items-center text-[10px] font-semibold tracking-[0.1em]">
+              XP
+            </span>
+          </span>
+          <span className="flex flex-col gap-0.5">
+            <span className="ink-meta text-muted-foreground">Weekly XP</span>
+            <span className="flex items-baseline gap-1.5">
+              <span className="font-ink-serif text-[34px] leading-none text-primary">{compactXp(xp.earned)}</span>
+              <span className="font-ink-serif text-[22px] leading-none">/ {xp.target}</span>
+              <span className="text-[13px] text-muted-foreground">this week</span>
+            </span>
+          </span>
+        </section>
+      )}
     </div>
   );
 }

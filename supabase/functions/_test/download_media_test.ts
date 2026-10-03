@@ -436,18 +436,43 @@ Deno.test("download-media asks Cobalt for the muxed video when told to", async (
   assertEquals(body.contentType, "video/mp4");
 });
 
-Deno.test("download-media returns the bytes once, as audioBase64", async () => {
+Deno.test("download-media returns the bytes once, under audioBase64", async () => {
   const { body } = await call(
     { url: YT, wantVideo: true },
     caller({ "co.imput.net": cobalt("https://cdn.test/clip.mp4"), "cdn.test": videoBytes() }),
   );
 
-  // `audioBase64` is the field every caller reads, video or not. A duplicate
-  // `mediaBase64` copy used to ride alongside it; it doubled the JSON body and
-  // helped push large clips past the edge worker's memory limit, so it is gone
-  // and must stay gone.
+  // `audioBase64` is the field every caller reads. A duplicate `mediaBase64`
+  // copy used to ride alongside it, doubling the JSON body and helping push
+  // large clips past the worker memory limit, so it was dropped on purpose.
+  // reextract-on-screen-text, the one reader of the other name, falls back
+  // to `audioBase64`.
   assertEquals("mediaBase64" in body, false);
   assert(String(body.audioBase64).length > 0);
+});
+
+Deno.test("download-media's chunked base64 round-trips across chunk boundaries", async () => {
+  // The encoder works in 3-byte-aligned chunks of 98,304 bytes so a large clip
+  // never becomes one JS string per byte. A payload spanning several chunks,
+  // with a pattern that would show a dropped, duplicated or misaligned chunk,
+  // must decode back to exactly what the CDN sent.
+  const size = 98_304 * 2 + 1_234;
+  const sent = Uint8Array.from({ length: size }, (_, i) => (i * 31 + (i >> 8)) & 0xff);
+  const { body } = await call(
+    { url: YT, wantVideo: true },
+    caller({
+      "co.imput.net": cobalt("https://cdn.test/clip.mp4"),
+      "cdn.test": () =>
+        new Response(sent, {
+          status: 200,
+          headers: { "content-type": "video/mp4", "content-length": String(size) },
+        }),
+    }),
+  );
+
+  const decoded = Uint8Array.from(atob(String(body.audioBase64)), (c) => c.charCodeAt(0));
+  assertEquals(decoded.length, size);
+  assertEquals(decoded, sent);
 });
 
 Deno.test("download-media skips the audio-only YouTube extractors for a video request", async () => {

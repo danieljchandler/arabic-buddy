@@ -10,6 +10,7 @@ import {
 } from "@/test/support/factories";
 import { localDateKey } from "@/lib/localDate";
 import type { SupabaseBackend } from "@/test/support/server/handler";
+import { setBrandPreview } from "@/lib/brandPreview";
 import { MajlisWelcome } from "./MajlisWelcome";
 
 /**
@@ -343,6 +344,145 @@ describe("the panel itself", () => {
     // chips unclickable.
     for (const layer of document.querySelectorAll("[aria-hidden]")) {
       expect(layer.className).toContain("pointer-events-none");
+    }
+    await settle();
+  });
+});
+
+/**
+ * Under the Ink brand preview (`?brand=ink`) the same facts are set as the
+ * Ink-Today artboard sets them: an oxblood panel with sadu pressed in, the
+ * greeting in Rakkas with its kashida drawn out, the English in the serif,
+ * then a hairline band for the week. What it must keep from the default
+ * panel is everything the tests above pin as information — the register of
+ * the greeting, the name, the dialect, the streak and the week's XP.
+ */
+describe("under the Ink preview", () => {
+  beforeEach(() => {
+    act(() => setBrandPreview("ink"));
+  });
+  afterEach(() => {
+    act(() => setBrandPreview(null));
+  });
+
+  const panel = () => document.querySelector("[data-ink-welcome] section[data-ink-sadu]")!;
+
+  it("sets the greeting as display type, and reads it in its vowelled form", async () => {
+    render();
+
+    expect(panel()).not.toBeNull();
+    // Drawn: unvowelled, the kashida stretched. Hidden from screen readers…
+    const display = screen.getByText("صبـــاح الخيـــر");
+    expect(display).toHaveAttribute("aria-hidden", "true");
+    expect(display.className).toContain("font-ink-display");
+    // …which hear the vowelled greeting instead.
+    expect(screen.getByText("صَبَاحُ الخَيْر")).toHaveClass("sr-only");
+    await waitFor(() => expect(screen.getByText("Good morning, Layla")).toHaveClass("font-ink-serif"));
+    // The watercolour panel's watermark is not drawn.
+    expect(document.querySelector('[style*="sadu-watermark"]')).toBeNull();
+    await settle();
+  });
+
+  it.each([
+    [3, "تصبـــح على خيـــر", "Late night"],
+    [14, "نهـــارك سعيـــد", "Good afternoon"],
+    [19, "مســـاء الخيـــر", "Good evening"],
+    [23, "تصبـــح على خيـــر", "Good night"],
+  ])("keeps the time of day's register at %i:00", async (hour, display, english) => {
+    vi.setSystemTime(new Date(2026, 7, 12, hour, 0));
+    render();
+
+    expect(screen.getByText(display)).toHaveAttribute("dir", "rtl");
+    expect(screen.getByText(new RegExp(english))).toBeInTheDocument();
+    await settle();
+  });
+
+  it("dates the panel in the corner", async () => {
+    render();
+    expect(panel()).toHaveTextContent("Hikaya · Today");
+    expect(panel()).toHaveTextContent("Wed · 12 Aug");
+    await settle();
+  });
+
+  it("names the dialect in English and Arabic", async () => {
+    localStorage.setItem("hakiya_dialect_module", "Egyptian");
+    render();
+
+    expect(screen.getByText("Egyptian")).toBeInTheDocument();
+    expect(screen.getByText("مصري")).toHaveAttribute("lang", "ar");
+    // No flag emoji under Ink: the initial letter is the marker.
+    expect(screen.queryByText("🇪🇬")).toBeNull();
+    expect(screen.getByText("م")).toHaveAttribute("aria-hidden", "true");
+    await settle();
+  });
+
+  it("shows the streak as days, with a bar lit per day of the run", async () => {
+    render({ streak: 4 });
+
+    const streak = await screen.findByTitle("4-day streak");
+    expect(streak).toHaveTextContent("4 days");
+    expect(streak).toHaveTextContent("٤");
+    expect(streak.querySelectorAll("i")).toHaveLength(7);
+    expect(streak.querySelectorAll("i[data-lit]")).toHaveLength(4);
+    await settle();
+  });
+
+  it("says one day in the singular", async () => {
+    render({ streak: 1 });
+    expect(await screen.findByTitle("1-day streak")).toHaveTextContent(/^1 day(?!s)/);
+    await settle();
+  });
+
+  it("shows a learner who has never reviewed as zero days, nothing lit", async () => {
+    render({ streak: null });
+    const zero = await screen.findByTitle("0-day streak");
+    expect(zero).toHaveTextContent("0 days");
+    // No lone ٠ beside it: at that size it reads as a stray dot.
+    expect(zero).not.toHaveTextContent("٠");
+    expect(zero.querySelectorAll("i[data-lit]")).toHaveLength(0);
+    await settle();
+  });
+
+  it("rings the week in ticks, in proportion to the target", async () => {
+    render({ earned: 120, target: 300 });
+
+    const week = await screen.findByTitle("120 / 300 XP this week");
+    expect(week).toHaveTextContent("Weekly XP");
+    expect(week).toHaveTextContent("120");
+    expect(week).toHaveTextContent("/ 300");
+    // 40% of 40 ticks lit: 16 dash–gap pairs, then the rest of the lap empty.
+    const dashes = document.querySelector("[data-ink-ring]")!.getAttribute("stroke-dasharray")!.split(" ");
+    expect(dashes).toHaveLength(16 * 2 + 2);
+    expect(dashes[0]).toBe("1.6");
+    expect(dashes.at(-2)).toBe("0");
+  });
+
+  it("leaves the ring unlit at the start of the week", async () => {
+    render({
+      earned: 0,
+      target: 300,
+      seed: (backend) => backend.db.seed("user_xp", [aUserXp({ user_id: TEST_USER_ID, xp_today: 0 })]),
+    });
+
+    await screen.findByTitle("0 / 300 XP this week");
+    expect(document.querySelector("[data-ink-ring]")!.getAttribute("stroke-dasharray")).toMatch(/^0 /);
+  });
+
+  it("greets a signed-out visitor without a name, a streak or a week", async () => {
+    render({ persona: "anonymous" });
+    await settleAuth();
+
+    expect(screen.getByText("Good morning")).toBeInTheDocument();
+    expect(screen.queryByText(/day streak/)).toBeNull();
+    expect(screen.queryByText("Weekly XP")).toBeNull();
+    expect(document.querySelectorAll("circle")).toHaveLength(0);
+  });
+
+  it("keeps its decoration out of the way of the pointer", async () => {
+    render();
+    for (const layer of document.querySelectorAll('[data-ink-welcome] p[aria-hidden], [data-ink-welcome] span[aria-hidden]')) {
+      const decorative = layer.className.includes("pointer-events-none") || layer.textContent!.length <= 2;
+      expect(decorative).toBe(true);
     }
     await settle();
   });

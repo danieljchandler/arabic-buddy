@@ -153,7 +153,7 @@ export function OnboardingTour() {
         style={{ top: tooltipTop }}
       >
         <div className="flex items-start justify-between gap-2 mb-1">
-          <h3 className="font-bold text-foreground" style={{ fontFamily: "'Montserrat', sans-serif" }}>
+          <h3 className="font-bold text-foreground font-heading">
             {step.title}
           </h3>
           <button

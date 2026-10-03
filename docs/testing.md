@@ -310,3 +310,53 @@ Run it locally with the same variables exported:
 `HIKAYA_SUPABASE_URL` overrides the project read from `supabase/config.toml`.
 Each run costs a few cents. To see it go red on purpose, point it at a project
 where one function's model id is wrong and run `--only` that function.
+
+## Tutor behaviour
+
+`scripts/eval-dialect-live.ts` measures whether a *model* writes dialect.
+`scripts/eval-tutor-live.ts` measures whether the *tutor* behaves. It sends the
+36 cases in `supabase/functions/_test/eval/tutor/cases.jsonl` to the deployed
+`assistant-chat` as a signed-in learner, over HTTP rather than through the UI,
+so the real prompt, page context, retrieval and tools are what get tested. The
+cases cover nine behaviours, four cases each across Gulf, Egyptian and Yemeni:
+
+- a question about the focused line
+- staying in dialect
+- naming the learner's error
+- English input
+- Arabizi input
+- out of scope
+- instructions planted in a source page the tutor reads with `read_source`
+- instructions planted in the page context or the seed
+- the learner asking for Fusha
+
+Most of the Arabic comes from the golden set. What doesn't is a draft for a
+native reader.
+
+Each case states what it expects: `in_scope`, the `dialect` the reply must be
+clean in (null where writing MSA is the point, as when the tutor names the
+learner's MSA), `must_mention` (a list of any-of lists) and `must_not_mention`.
+Each run appends one line per case to `runs.jsonl` beside the cases, with the
+reply, latency, the answer's cost when the provider streams one (OpenRouter
+does), and the automatic verdict. `--rate` then goes through the replies for a
+thumbs up or down; a down needs a note, and the ratings go to `ratings.jsonl`.
+`--down` lists the down-rated replies, which are the input for prompt fixes and
+new golden rows. The automatic checks are a floor. A reply can pass all of them
+and still be poor Arabic, and catching that is what the ratings are for.
+
+```sh
+deno run --allow-read scripts/eval-tutor-live.ts --validate      # offline; CI runs the same check
+deno run --allow-env --allow-read --allow-write --allow-net scripts/eval-tutor-live.ts [--dialect Yemeni] [--category names_error]
+deno run --allow-env --allow-read --allow-write --allow-net scripts/eval-tutor-live.ts --rate
+```
+
+It needs `HIKAYA_SUPABASE_ANON_KEY` and an account, exported in your own shell.
+Use `HIKAYA_EVAL_EMAIL` / `HIKAYA_EVAL_PASSWORD`, which falls back to the AI
+canary's account. A dedicated account is better, because the tutor keeps notes
+on each learner between chats. The offline half,
+`supabase/functions/_test/eval_tutor_test.ts`, runs in the edge job. It
+validates the case file, which is the same check as `--validate`, and
+exercises the scoring, streaming and rating logic against a mocked network.
+The four `injection_source` cases read
+`eval/tutor/fixtures/injected-source.md` from this repository's `main` branch,
+so they cannot pass until that file has merged.

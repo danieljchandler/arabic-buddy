@@ -47,6 +47,9 @@ export interface BackendOptions {
  * identical behaviour. A scenario written for a component test transfers to a
  * browser test unchanged.
  */
+/** How long a staged storage object's clip runs unless a spec asks otherwise. */
+const DEFAULT_STAGED_CLIP_MS = 2000;
+
 export class SupabaseBackend {
   readonly db = new MemoryDb();
   readonly functionCalls: FunctionCall[] = [];
@@ -323,7 +326,7 @@ export class SupabaseBackend {
     }
 
     const userId = userIdFromAuthHeader(request.headers.get("authorization")) ?? this.sessionUserId;
-    const response = normalise(handler({ db: this.db, userId, body }));
+    const response = normalise(handler({ db: this.db, userId, body, signedStorageToken: this.signedStorageToken() }));
 
     if (response.stream) return this.sse(response);
     if (response.bytes) return this.binary(response);
@@ -439,7 +442,33 @@ export class SupabaseBackend {
 
   // ── Storage ────────────────────────────────────────────────────────────────
 
-  private storageObjects = new Map<string, string>();
+  /** Key → how long the clip served for it runs; uploads during a test get the default. */
+  private storageObjects = new Map<string, { durationMs: number }>();
+
+  /**
+   * Which generation of signed URL is current. Every signed URL the double
+   * hands out carries `token=fixture-<generation>`; `expireSignedStorageUrls`
+   * moves the generation on, and a download with an older token answers 400
+   * the way storage answers an expired signature. A bare `token=fixture` is
+   * generation 0.
+   */
+  private signedStorageGeneration = 0;
+
+  /** Expire every signed storage URL handed out so far — what the clock does to a real one. */
+  expireSignedStorageUrls(): void {
+    this.signedStorageGeneration += 1;
+  }
+
+  /** The token a signed URL minted now carries. */
+  signedStorageToken(): string {
+    return `fixture-${this.signedStorageGeneration}`;
+  }
+
+  private signedStorageTokenExpired(token: string): boolean {
+    const match = /^fixture(?:-(\d+))?$/.exec(token);
+    if (!match) return false;
+    return Number(match[1] ?? 0) < this.signedStorageGeneration;
+  }
 
   /**
    * Pretend `bucket/path` was uploaded before the test started.
@@ -447,9 +476,12 @@ export class SupabaseBackend {
    * This is how a spec stages the audio the pipeline would have left behind —
    * e.g. `video-audio/<id>.wav`, which is what decides whether the Discover
    * player runs TikTok's real hidden-audio sync or the legacy manual timer.
+   * `durationMs` is how long the served clip runs (default two seconds): a spec
+   * that has to watch playback for longer — a frame falling behind the audio
+   * and catching up — asks for more.
    */
-  stageObject(key: string): void {
-    this.storageObjects.set(key, "uploaded");
+  stageObject(key: string, options: { durationMs?: number } = {}): void {
+    this.storageObjects.set(key, { durationMs: options.durationMs ?? DEFAULT_STAGED_CLIP_MS });
   }
 
   private async handleStorage(request: Request, url: URL): Promise<Response> {
@@ -466,12 +498,12 @@ export class SupabaseBackend {
       if (!this.storageObjects.has(key)) {
         return this.json(400, { error: "Object not found", message: "Object not found" });
       }
-      return this.json(200, { signedURL: `/storage/v1/object/public/${key}?token=fixture` });
+      return this.json(200, { signedURL: `/storage/v1/object/public/${key}?token=${this.signedStorageToken()}` });
     }
 
     if (request.method === "POST" || request.method === "PUT") {
       const key = path.replace(/^object\//, "");
-      this.storageObjects.set(key, "uploaded");
+      this.storageObjects.set(key, { durationMs: DEFAULT_STAGED_CLIP_MS });
       return this.json(200, { Key: key, Id: key });
     }
 
@@ -485,11 +517,18 @@ export class SupabaseBackend {
     // not JSON: media elements pointed at a public/signed URL have to reach
     // `loadedmetadata` (and survive a seek) for player state to advance the
     // way it does in production. Two seconds of silence gives a phrase-length
-    // window to seek into.
+    // window to seek into; a spec that staged the object can ask for more.
     const downloadKey = path.replace(/^object\/(?:public\/)?/, "");
-    if (this.storageObjects.has(downloadKey)) {
+    const staged = this.storageObjects.get(downloadKey);
+    const token = url.searchParams.get("token");
+    if (staged && token !== null && this.signedStorageTokenExpired(token)) {
+      // Storage's own answer to an expired signature, CORS and all, so a media
+      // element with crossOrigin="anonymous" sees a source error, not a CORS one.
+      return this.json(400, { statusCode: "400", error: "InvalidJWT", message: "jwt expired" });
+    }
+    if (staged) {
       // Blob wrapper: this TS lib's BodyInit doesn't accept a bare Uint8Array.
-      return new Response(new Blob([silentWav(2000)]), {
+      return new Response(new Blob([silentWav(staged.durationMs)]), {
         status: 200,
         headers: { ...CORS_HEADERS, "content-type": "audio/wav" },
       });

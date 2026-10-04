@@ -106,6 +106,24 @@ which is every dropdown, select, popover and dialog in the app — opens on
 `pointerdown`/`keydown` and inspects `event.pointerType`, none of which a bare
 `fireEvent.click` dispatches.
 
+## Third-party frames
+
+The Playwright suite blocks every host but the stubbed Supabase, so a page that
+embeds someone else's player renders a blocked frame. For the one frame the app
+actually drives — TikTok's `player/v1` on the Discover video page, a muted
+picture kept on our own audio's clock — `e2e/support/fakeTikTokPlayer.ts`
+serves a stand-in that speaks the documented embed protocol (`onPlayerReady`,
+`onStateChange`, `onCurrentTime`; `play`, `pause`, `seekTo`, `mute`), keeps a
+clock, answers `play` after a real player's latency, and can stall, refuse
+autoplay and take a tap. Two knobs on the backend go with it:
+`backend.stageObject(key, { durationMs })` sets how long the staged audio runs,
+and `backend.expireSignedStorageUrls()` ages every signed URL the double has
+handed out, so a spec can watch the frame fall behind and recover, or the page
+ask for a fresh URL. The describe "keeping the TikTok frame on the audio clock"
+in `e2e/discover.spec.ts` is the coverage. The protocol the fake speaks was
+read off developers.tiktok.com's embed-player page, not inferred from the app;
+when TikTok changes it, change the fake with it.
+
 ## Edge functions
 
 The 84 functions in `supabase/functions/` are Deno, and every one of them calls

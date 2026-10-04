@@ -9,9 +9,18 @@
  * playback after twelve failing storage calls (six extensions × two keys).
  *
  * This runs under the service role and answers a signed-in caller with a
- * ten-minute signed URL for a *published* video, or `{ url: null, reason }`
- * when nothing is staged so the client drops into timer mode without an
- * error. The bucket stays private; nothing here references the TikTok source.
+ * signed URL for a *published* video, or `{ url: null, reason }` when nothing
+ * is staged so the client drops into timer mode without an error. The bucket
+ * stays private; nothing here references the TikTok source.
+ *
+ * The URL has to outlive a study session, not a request. The `<audio>` element
+ * streams it with range requests for as long as the page is open, and slow
+ * listen opens it again per phrase; at the ten minutes this first shipped
+ * with, a learner in phrase mode hit the expiry mid-clip — the audio stopped
+ * dead, the muted frame kept going, and the transcript froze with it (the
+ * browser-side signing this replaced minted an hour). Four hours covers any
+ * sitting; the client also asks again on a playback error, so an expired URL
+ * is a hitch rather than an ending.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -22,7 +31,7 @@ const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 /** The staged-audio naming convention process-approved-video and the admin uploader use, in the order both pick. */
 const AUDIO_EXTENSIONS = ["wav", "mp4", "m4a", "webm", "mp3", "opus"];
-const URL_TTL_SECONDS = 600;
+const URL_TTL_SECONDS = 4 * 60 * 60;
 
 let cached: ReturnType<typeof createClient> | null = null;
 function admin() {

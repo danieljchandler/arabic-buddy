@@ -148,7 +148,7 @@ harness.
   seed migration by hand. `curriculum/tracks/SCHEMA.md` is the authoring guide;
   the README section "The authored tracks" is the writeup.
 - **The lint ratchet has a hard-coded baseline.** `scripts/lint-ratchet.mjs`
-  pins `BASELINE` (currently 530 errors). If you legitimately reduce the count,
+  pins `BASELINE` (currently 521 errors). If you legitimately reduce the count,
   lower `BASELINE` in the same commit — the script prints the new number.
 - **Flashcard scheduling is FSRS-6, not FSRS-4.5 or SM-2, and the weights are
   meant to be fitted.** `src/lib/spacedRepetition.ts` implements the FSRS-6

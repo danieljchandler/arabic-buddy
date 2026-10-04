@@ -45,6 +45,7 @@ export const SUBSCRIPTION_TIERS = {
       'Live AI voice conversations — 2 hours/month',
       'More AI flashcard images & word jingles each day',
       'Unlimited Transcribe, Meme Analyzer & How Do I Say',
+      'Talk any video through with the tutor, quizzed on the words you saved',
     ],
   },
   allin: {

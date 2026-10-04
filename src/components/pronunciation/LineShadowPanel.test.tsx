@@ -130,9 +130,11 @@ interface Options {
   clip?: ShadowClip;
   nativeClipWav?: Blob | null;
   externalYouTubeController?: ExternalYouTubeController | null;
+  onResult?: (result: ShadowScoreResult) => void;
+  recordAttempt?: boolean;
 }
 
-function render({ clip = A_CLIP, nativeClipWav, externalYouTubeController }: Options = {}) {
+function render({ clip = A_CLIP, nativeClipWav, externalYouTubeController, onResult, recordAttempt }: Options = {}) {
   const onClose = vi.fn();
   const harness = renderWithProviders(
     <LineShadowPanel
@@ -140,6 +142,8 @@ function render({ clip = A_CLIP, nativeClipWav, externalYouTubeController }: Opt
       nativeClipWav={nativeClipWav}
       externalYouTubeController={externalYouTubeController}
       onClose={onClose}
+      onResult={onResult}
+      recordAttempt={recordAttempt}
     />,
   );
   cleanup = harness.cleanup;
@@ -315,6 +319,26 @@ describe("scoring against the clip", () => {
       expect.any(Blob),
       expect.objectContaining({ referenceText: "وين رايح؟" }),
     );
+  });
+
+  it("files the take under its clip by default", async () => {
+    render();
+    await takeScoring();
+    expect(scorer.score).toHaveBeenCalledWith(expect.any(Blob), expect.objectContaining({ clipRef: "clip-1" }));
+  });
+
+  it("keeps a take out of the practice history when asked to", async () => {
+    // The post-video debrief: a check-in on one video, not practice on the clip.
+    render({ recordAttempt: false });
+    await takeScoring();
+    expect(scorer.score).toHaveBeenCalledWith(expect.any(Blob), expect.not.objectContaining({ clipRef: expect.anything() }));
+  });
+
+  it("tells its host how the take scored", async () => {
+    const onResult = vi.fn();
+    render({ onResult });
+    await takeScoring({ overall: 67 });
+    await waitFor(() => expect(onResult).toHaveBeenCalledWith(expect.objectContaining({ overall: 67 })));
   });
 
   it("hands over the clip audio so the sound can be compared too", async () => {

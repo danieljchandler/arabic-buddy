@@ -50,6 +50,11 @@ describe("the tier table", () => {
     expect(FEATURE_REQUIREMENTS.live_voice).toBe("standard");
   });
 
+  it("puts the post-video debrief on Standard, matching the server", () => {
+    // video-debrief calls requireActiveSubscription, which any paid tier satisfies.
+    expect(FEATURE_REQUIREMENTS.video_debrief).toBe("standard");
+  });
+
   it("reserves early access for All-In", () => {
     expect(FEATURE_REQUIREMENTS.early_access).toBe("allin");
   });
@@ -94,6 +99,7 @@ describe("agreement with the Pricing page", () => {
     expect(subscription).toMatch(/Meme Analyzer/i);
     expect(subscription).toMatch(/How Do I Say/i);
     expect(subscription).toMatch(/voice conversations/i);
+    expect(subscription).toMatch(/Talk any video through with the tutor/i);
   });
 
   it("sells the All-In features this module gates behind All-In", () => {

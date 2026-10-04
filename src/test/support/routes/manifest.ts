@@ -131,6 +131,7 @@ export const ROUTES: RouteSpec[] = [
   // ── Discover ───────────────────────────────────────────────────────────────
   { path: "/discover", gate: "public", boundary: "DiscoverRoute" },
   { path: "/discover/:videoId", params: { videoId: VIDEO_ID }, gate: "public", boundary: "DiscoverVideoRoute" },
+  { path: "/debrief/:videoId", params: { videoId: VIDEO_ID }, gate: "auth", boundary: "VideoDebriefRoute" },
   { path: "/liked-videos", gate: "auth", boundary: "LikedVideosRoute" },
 
   // ── Stories, reading, listening ────────────────────────────────────────────

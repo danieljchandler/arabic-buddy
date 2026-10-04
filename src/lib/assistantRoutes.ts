@@ -23,6 +23,10 @@ export const ASSISTANT_OFF_ROUTES: ReadonlyArray<readonly [prefix: string, reaso
   ],
   ["/admin", "the staff console; the tutor is a learner-facing feature and has no context for it"],
   ["/print", "print layouts: whatever is on the page ends up on the paper, the Ask AI button included"],
+  [
+    "/debrief",
+    "the post-video debrief is itself a tutor chat about the video — a second assistant over it would be two tutors talking past each other",
+  ],
 ] as const;
 
 /** True when the assistant (disc, shortcut and panel) is switched off here. */

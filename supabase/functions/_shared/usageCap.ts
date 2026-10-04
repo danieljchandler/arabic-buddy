@@ -165,6 +165,8 @@ export async function getSubscriptionTier(userId: string): Promise<SubscriptionT
 export async function requireActiveSubscription(
   req: Request,
   corsHeaders: Record<string, string>,
+  /** What the paywall says. Defaults to the live-voice wording it was written for. */
+  message = "Live voice for the AI assistant is available on a paid plan.",
 ): Promise<CapResult> {
   const userId = await getUserId(req);
   if (!userId) {
@@ -190,7 +192,7 @@ export async function requireActiveSubscription(
     response: new Response(
       JSON.stringify({
         error: "subscription_required",
-        message: "Live voice for the AI assistant is available on a paid plan.",
+        message,
         upgrade_url: "/pricing",
       }),
       { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } },

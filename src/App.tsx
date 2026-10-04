@@ -52,6 +52,7 @@ const MyPhrasesReview = lazyPage(() => import("./pages/MyPhrasesReview"));
 const MemeAnalyzer = lazyPage(() => import("./pages/MemeAnalyzer"));
 const Discover = lazyPage(() => import("./pages/Discover"));
 const DiscoverVideo = lazyPage(() => import("./pages/DiscoverVideo"));
+const VideoDebrief = lazyPage(() => import("./pages/VideoDebrief"));
 const LearnFromX = lazyPage(() => import("./pages/LearnFromX"));
 const Share = lazyPage(() => import("./pages/Share"));
 const HowDoISay = lazyPage(() => import("./pages/HowDoISay"));
@@ -316,6 +317,7 @@ const App = () => {
             <Route path="/quiz/:lessonId" element={<ErrorBoundary name="QuizRoute"><Quiz /></ErrorBoundary>} />
             <Route path="/discover" element={<ErrorBoundary name="DiscoverRoute"><Discover /></ErrorBoundary>} />
             <Route path="/discover/:videoId" element={<ErrorBoundary name="DiscoverVideoRoute"><DiscoverVideo /></ErrorBoundary>} />
+            <Route path="/debrief/:videoId" element={<ErrorBoundary name="VideoDebriefRoute"><ProtectedRoute><VideoDebrief /></ProtectedRoute></ErrorBoundary>} />
             <Route path="/learn-from-x" element={
               <ErrorBoundary name="LearnFromXRoute">
                 <LearnFromX />

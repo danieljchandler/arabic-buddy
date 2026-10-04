@@ -705,6 +705,73 @@ them erase it; the table has SELECT and DELETE policies for them and no INSERT
 or UPDATE, because a client-supplied "here is what you remember about me" is a
 prompt-injection surface with a database behind it.
 
+## Talking a video through (the debrief)
+
+Under every Discover video sits a "Check what you understood" card. It opens
+`/debrief/:videoId` (`src/pages/VideoDebrief.tsx`): a guided chat with the
+tutor about the video just watched, in up to six steps shown as a checklist —
+**the gist**, **what happened** (a few comprehension questions), **your words**
+(a quiz), **say it** (shadow one or two lines), **your questions**, and a
+**recap**. The tutor runs each step in the chat and ends it with a
+`[[STEP_DONE]]` marker that the page turns into a Continue button; the learner
+can skip ahead at any time. Subscribers only (`requireActiveSubscription` in the
+function, `RequireSubscription` on the page, `video_debrief` in
+`featureAccess.ts`), and the floating Ask AI button is off there — the page is
+already a tutor.
+
+Two layers feed it, and the split is the point:
+
+- **The study guide** is per video and the same for everyone: a summary, a gist
+  question and two to five comprehension questions *with their answer key and
+  the lines that answer them*, lines worth shadowing, talking points, and the
+  expressions worth explaining. A model reads the whole transcript and its
+  translations once (`_shared/videoStudyGuide.ts`) and the result is cached in
+  `video_study_guides` — service-role only, since it holds the answers. So a
+  debrief turn carries the guide plus only the transcript lines it cites (and a
+  neighbour either side); only the open-questions step, where any moment is fair
+  game, sends the whole transcript. The guide records a hash of the transcript
+  it was written from, and a reviewer's later edit makes it stale; it is
+  rewritten the next time anyone opens the debrief.
+- **The learner's marks** are live and read server-side on every request: the
+  words they saved from this video (`user_vocabulary.source_video_id`, new; older
+  "discover" rows are matched by the sentence they were saved with), the words
+  they tapped for a meaning and did not save (`video_word_lookups`, written
+  fire-and-forget from the word popover), and the video's key vocabulary to make
+  up the number. Saved first, then looked-up, then key words, five at most.
+
+Guides arrive three ways: the ingest pipeline asks `video-study-guide` for one
+after the CEFR rating; an admin's **Prepare debrief guides** button on
+`/admin/videos` walks the existing library by cursor, two videos per request;
+and the debrief writes a missing or stale one on the spot (the learner waits a
+few seconds, once per video).
+
+The word quiz is multiple choice, its wrong options the meanings of *other*
+words from the same video (`buildWordQuiz`); with too few to choose from, a card
+becomes recall. A quiz answer on a **saved** word is a recognition review of its
+flashcard — the same FSRS call, retention target and fitted weights as My Words
+(`useDebriefWordReview`; right = Good, wrong = Again), and a first rating spends
+one of the day's new cards. The shadowing card is the video page's
+`LineShadowPanel` with `recordAttempt={false}`, reporting the learner's best
+take. Every finished card is reported back into the conversation in words the
+tutor's prompt tells it to expect (`describeQuizResults`,
+`describeShadowResult`), so it can explain a missed word through the line it
+came from. The tutor pitches its language by CEFR: English with each question
+repeated in dialect at A1–A2, mostly dialect with glosses at B1–B2, dialect
+throughout from C1. Its own Arabic gets the same post-stream native-speaker
+review as the Ask AI chat.
+
+Everything that decides — guide validation, staleness, word and line
+selection, the quiz, the prompts — is pure, in `_shared/videoDebriefCore.ts`
+(`src/test/videoDebriefCore.test.ts`); the page's half (what follows a tutor
+message, what is sent) is `src/lib/videoDebrief.ts`. Edge tests:
+`supabase/functions/_test/video_debrief_test.ts`; end to end:
+`e2e/video-debrief.spec.ts`.
+
+Migration `20261004120000_video_debrief` must be applied to the live project
+(see CLAUDE.md). Until it is, everything degrades rather than breaks: guides are
+generated but not cached, look-ups are not recorded, saved words fall back to
+the sentence match, and the backfill button says what is missing.
+
 ## Grammar mastery
 
 Vocabulary has a full SRS; grammar used to have nothing. A Grammar Drills score

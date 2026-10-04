@@ -1142,6 +1142,47 @@ Discover player keeps a deliberate `LINE_END_GRACE_MS` (500 ms) past each
 line's end so captions don't flicker off during short pauses; the reverse scan
 means a line that has started always beats its predecessor's grace.
 
+### Playing a TikTok clip in step with its audio
+
+TikTok's `player/v1` iframe is a muted picture; the sound is our own copy of
+the clip's audio from the private `video-audio` bucket, which a signed-in
+learner fetches through `discover-video-audio`, and that hidden `<audio>` is
+the clock everything else reads: the active line, phrase-end pauses, slow
+listen, view tracking. The frame is driven to the audio over TikTok's embed
+protocol (`postMessage` with `x-tiktok-player: true`; the "Embed player" page
+on developers.tiktok.com documents it), and how often it is driven has a
+history worth knowing before touching `src/pages/DiscoverVideo.tsx`:
+
+- `autoplay=1&muted=1` lets the frame start on its own, which is what makes it
+  accept commands at all — a cross-origin frame ignores `play` until it has
+  played once. That first "playing" is parked at zero before the learner has
+  pressed anything.
+- The frame is seeked to the audio once per play run (#212). Seeking it on
+  every tick made the picture choppy and fed itself, since a fresh seek
+  briefly reports a transitional position that reads as more drift (#211).
+- What that left open: a frame that stalled to buffer came back behind the
+  audio and stayed there for the rest of the clip, with nothing to say so. The
+  player's own `onCurrentTime` reports are now held against the audio by
+  `src/lib/tiktokFrameSync.ts`, and the frame is re-seeked only when they
+  disagree by more than 0.4 s on two consecutive reports, never within 1.5 s
+  of a seek. Normal playback never trips it.
+- `onPlayerError` 3002 (muted autoplay refused) puts the "tap the video" hint
+  up at once rather than after the four-second retry budget: without the
+  autoplay, no command will start the frame.
+- The signed audio URL lasts four hours, not the ten minutes it first shipped
+  with — a learner in phrase mode reached the expiry mid-clip, the audio
+  stopped dead and the muted frame rolled on. The page also asks for a fresh
+  URL on a playback error and resumes from the same second, and slow listen
+  retries once the same way. The URL is resolved per video id rather than per
+  row object, so a refetched row cannot swap the element's source under a
+  playing clip.
+
+The handshake runs against a stand-in player in the hermetic suite
+(`e2e/support/fakeTikTokPlayer.ts`, driven from `e2e/discover.spec.ts`) that
+speaks the same protocol, keeps a clock, and can stall, refuse autoplay and
+take a tap. Until it existed, every regression in this path was found in
+production.
+
 `discover_videos.dialect` stops at the country — "Saudi", "Kuwaiti",
 "Egyptian" — which is roughly the resolution of a passport rather than of a
 dialect. A Jeddah clip and a Riyadh clip land on the same label, a Ṣaʿīdi clip

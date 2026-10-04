@@ -41,6 +41,12 @@ export interface FunctionContext {
   db: MemoryDb;
   userId: string | null;
   body: unknown;
+  /**
+   * The token a signed storage URL minted by this call should carry, so the
+   * storage double can expire it later (`expireSignedStorageUrls`). Optional
+   * because most functions never mint one.
+   */
+  signedStorageToken?: string;
 }
 
 export interface FunctionResponse {
@@ -559,12 +565,12 @@ function transcriptReview({ db, userId, body }: FunctionContext): FunctionRespon
 const CONTENT_ROLES = ["admin", "content_reviewer"];
 
 /**
- * A working `discover-video-audio`: a ten-minute signed URL for a published
+ * A working `discover-video-audio`: a session-length signed URL for a published
  * video's own audio copy, for a signed-in caller. The real function lists the
  * private bucket under the service role; the emulator has no bucket, so every
  * published video counts as having a staged wav.
  */
-function discoverVideoAudio({ db, userId, body }: FunctionContext): FunctionResponse {
+function discoverVideoAudio({ db, userId, body, signedStorageToken }: FunctionContext): FunctionResponse {
   if (!userId) return { status: 401, body: { error: "auth_required" } };
   const payload = (body ?? {}) as Row;
   const videoId = String(payload.videoId ?? "");
@@ -574,9 +580,9 @@ function discoverVideoAudio({ db, userId, body }: FunctionContext): FunctionResp
   // spec that staged `video-audio/<id>.wav` gets a URL the double serves.
   const path = `${videoId}.wav`;
   return ok({
-    url: `https://e2e.supabase.co/storage/v1/object/public/video-audio/${path}?token=fixture`,
+    url: `https://e2e.supabase.co/storage/v1/object/public/video-audio/${path}?token=${signedStorageToken ?? "fixture"}`,
     path,
-    expiresAt: new Date(Date.now() + 600_000).toISOString(),
+    expiresAt: new Date(Date.now() + 4 * 3_600_000).toISOString(),
   });
 }
 

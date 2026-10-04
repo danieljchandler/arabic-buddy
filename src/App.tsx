@@ -1,5 +1,6 @@
 import { useEffect, lazy, Suspense, type ComponentType } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
+import { CelebrationPreview } from "@/components/celebrations/CelebrationPreview";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { shouldRetryQuery } from "@/lib/queryErrors";
@@ -265,6 +266,7 @@ const App = () => {
       <DialectProvider>
       <TooltipProvider>
         <Sonner />
+        <CelebrationPreview />
         <BrowserRouter>
           <AiAssistantProvider>
           <Suspense fallback={<PageSkeleton />}>

@@ -33,6 +33,8 @@ import { useLessonProgressFor, useUpsertLessonProgress } from "@/hooks/useLesson
 import { ListChecks, Mic, Sparkles } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { SentencePracticeSheet } from "@/components/practice/SentencePracticeSheet";
+import { CelebrationOverlay } from "@/components/celebrations/CelebrationOverlay";
+import { danceForDialect } from "@/lib/celebrations";
 
 type Phase = "intro" | "quiz" | "produce";
 
@@ -78,6 +80,10 @@ const Learn = () => {
   const completed = wordsCompleted(flow, words.length);
   const [sessionResults, setSessionResults] = useState({ correct: 0, total: 0 });
   const [isComplete, setIsComplete] = useState(false);
+  // The dialect's dance, played once over the complete screen the first time
+  // a lesson is finished. Dialects without a dance yet keep the plain screen.
+  const dance = danceForDialect(activeDialect);
+  const [celebrating, setCelebrating] = useState(false);
   // The produce step's coaching sheet, and whether a take was actually made —
   // finishing without one is allowed, it just isn't pretended to be practice.
   const [produceOpen, setProduceOpen] = useState(false);
@@ -303,6 +309,9 @@ const Learn = () => {
   const handleProduceFinish = () => {
     setProduceOpen(false);
     setIsComplete(true);
+    // savedProgress is the state from before this finish, so "not completed"
+    // means this is the first time. Practice Again finds it completed.
+    if (dance && !isMixedMode && savedProgress?.status !== "completed") setCelebrating(true);
     if (!isMixedMode && lessonId && user) {
       upsertProgress.mutate({
         lessonId,
@@ -450,6 +459,16 @@ const Learn = () => {
             </p>
           )}
         </div>
+
+        {dance && (
+          <CelebrationOverlay
+            open={celebrating}
+            dance={dance}
+            tier="medium"
+            headline="Lesson complete"
+            onClose={() => setCelebrating(false)}
+          />
+        )}
       </AppShell>
     );
   }

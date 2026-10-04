@@ -147,9 +147,22 @@ async function completeBlock(page: Page, size = BLOCK): Promise<number[]> {
  * Phase 4c). Skipping is a legitimate path — the step is an invitation, not
  * a gate — and it is the neutral one for specs whose subject is the quiz.
  */
-async function skipProduce(page: Page) {
+async function skipProduce(page: Page, { celebrates = true } = {}) {
   await expect(page.getByText("Use it before you lose it")).toBeVisible();
   await page.getByRole("button", { name: "Skip and finish" }).click();
+  if (celebrates) await dismissCelebration(page);
+}
+
+/**
+ * The first finish of a lesson plays the dialect's dance over the complete
+ * screen (the default dialect, Gulf, has the Ardah). It leaves by itself after
+ * a few seconds; specs about the score step past it rather than wait.
+ */
+async function dismissCelebration(page: Page) {
+  const dialog = page.getByRole("dialog", { name: /Lesson complete/ });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Continue" }).click();
+  await expect(dialog).toBeHidden();
 }
 
 test.describe("working through a lesson", () => {
@@ -310,6 +323,7 @@ test.describe("working through a lesson", () => {
     // And the lesson still finishes normally, once the sheet is put away.
     await page.getByRole("button", { name: "Close" }).click();
     await page.getByRole("button", { name: "Finish lesson" }).click();
+    await dismissCelebration(page);
     await expect(page.getByRole("heading", { name: /excellent work/i })).toBeVisible();
   });
 
@@ -616,7 +630,7 @@ test.describe("picking up where the learner left off", () => {
     await introduceBlock(page);
     await missShown(page);
     for (let i = 0; i < 3; i++) await answerShown(page);
-    await skipProduce(page);
+    await skipProduce(page, { celebrates: false });
     await expect(page.getByText("75%")).toBeVisible();
 
     // "Best score" has to mean best; overwriting it turns practice into a way
@@ -624,6 +638,67 @@ test.describe("picking up where the learner left off", () => {
     await expect
       .poll(() => Number(db.rows("lesson_progress")[0]?.best_score), { timeout: 10_000 })
       .toBe(100);
+  });
+});
+
+test.describe("celebrating a finished lesson", () => {
+  test.beforeEach(async ({ signInAs, db }) => {
+    await signInAs("free");
+    seedLesson(db, 4);
+  });
+
+  test("plays the Ardah the first time a Gulf learner finishes, then gets out of the way", async ({
+    page,
+  }) => {
+    await page.goto(`/learn/${LESSON}`);
+    await completeBlock(page);
+    await skipProduce(page, { celebrates: false });
+
+    const dialog = page.getByRole("dialog", { name: "كفو! Lesson complete" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("img", { name: "Al-Ardah, a dance from Najd, Saudi Arabia" })).toBeVisible();
+    // Nobody has to dismiss it: it plays its three seconds and leaves.
+    await expect(dialog).toBeHidden();
+    await expect(page.getByRole("heading", { name: /excellent work/i })).toBeVisible();
+  });
+
+  test("does not replay for a lesson finished before", async ({ page, db }) => {
+    db.seed("lesson_progress", [
+      aLessonProgress({
+        lesson_id: LESSON,
+        status: "completed",
+        last_word_index: 3,
+        words_total: 4,
+        best_score: 100,
+        completed_at: daysAgo(2),
+      }),
+    ]);
+    await page.goto(`/learn/${LESSON}`);
+    await completeBlock(page);
+    await skipProduce(page, { celebrates: false });
+
+    await expect(page.getByRole("heading", { name: /excellent work/i })).toBeVisible();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  });
+
+  test("keeps the plain screen for a dialect whose dance isn't made yet", async ({
+    page,
+    signInAs,
+  }) => {
+    await signInAs("anonymous");
+    await page.addInitScript(() => localStorage.setItem("hakiya_dialect_module", "Egyptian"));
+    await page.goto(`/learn/${LESSON}`);
+    await completeBlock(page);
+    await skipProduce(page, { celebrates: false });
+
+    await expect(page.getByRole("heading", { name: /excellent work/i })).toBeVisible();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  });
+
+  test("a preview link plays the scene on any page and leaves the address clean", async ({ page }) => {
+    await page.goto(`/learn/${LESSON}?celebrate=ardah`);
+    await expect(page.getByRole("dialog", { name: "كفو! Preview" })).toBeVisible();
+    await expect(page).not.toHaveURL(/celebrate=/);
   });
 });
 

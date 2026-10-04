@@ -1,0 +1,29 @@
+Ardah (العرضة النجدية) reference footage -- sources
+Downloaded 2026-10-04 with yt-dlp 2026.08.19. Reference only.
+Full-length videos are local only: C:\media\ardah\ (not in Drive, not in git).
+
+ardah1.mp4
+  URL:      https://www.youtube.com/watch?v=0dinIKjrgW0
+  Title:    Alardah Alnajdiyah, dance, drumming and poetry in Saudi Arabia
+  Channel:  UNESCO (official Intangible Cultural Heritage listing video)
+  Uploaded: 2015-12-02
+  Length:   9:46
+  Format:   1080p H.264 + AAC
+
+ardah2.mp4
+  URL:      https://www.youtube.com/watch?v=F3oeDEStN8s
+  Title:    خادم الحرمين الشريفين يرعى حفل العرضة السعودية ضمن نشاطات مهرجان الجنادرية ٣٢ (الحفل كامل)
+            (King Salman patronises the Saudi Ardah ceremony, Janadriyah festival 32 -- full ceremony)
+  Channel:  وزارة الحرس الوطني (Ministry of National Guard)
+  Uploaded: 2018-02-27
+  Length:   38:18
+  Format:   1080p H.264 + AAC
+
+ardah3.mp4
+  URL:      https://www.youtube.com/watch?v=YV1dQPYWUTI
+  Title:    العرضة السعودية في حفل افتتاح حي الطريف.
+            (The Saudi Ardah at the opening ceremony of the At-Turaif district)
+  Channel:  السعودية (Saudi TV)
+  Uploaded: 2018-12-09
+  Length:   18:03
+  Format:   720p H.264 + AAC (native; YouTube's 1080p for this video is AI-upscaled, so not used)

@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   ARDAH,
+  ARDAH_BEAT_MS,
+  ARDAH_DRUM_MS,
+  ARDAH_SWAY_DEG,
+  ARDAH_SWAY_PERIOD_MS,
   TIER_DURATION_MS,
   danceById,
   danceForDialect,
@@ -58,14 +62,13 @@ describe("poseAt", () => {
   it("keeps the hand-placed wobble small", () => {
     for (let step = 1; step < 200; step++) {
       const f = poseAt(ARDAH, step * ARDAH.beatMs);
-      expect(Math.abs(f.rotateDeg)).toBeLessThanOrEqual(2.5);
-      expect(Math.abs(f.shiftPct)).toBeLessThanOrEqual(3);
+      expect(Math.abs(f.rotateDeg)).toBeLessThanOrEqual(1.5);
+      expect(Math.abs(f.shiftPct)).toBeLessThanOrEqual(2);
     }
   });
 
-  it("strikes the drum on every half beat", () => {
-    const half = ARDAH.beatMs / 2;
-    expect([0, 1, 2, 3].map((i) => poseAt(ARDAH, i * half).drummerPose)).toEqual([0, 1, 0, 1]);
+  it("changes the drummer's still on its own stroke clock", () => {
+    expect([0, 1, 2, 3].map((i) => poseAt(ARDAH, i * ARDAH.drumMs).drummerPose)).toEqual([0, 1, 0, 1]);
   });
 
   it("treats a negative clock as the start", () => {
@@ -85,11 +88,23 @@ describe("jitter", () => {
 });
 
 describe("the Ardah itself", () => {
-  it("returns to the home pose between big moves", () => {
-    // Every other beat is the dip: without it the swap reads as a slideshow.
+  it("uses only the three poses the reference keyframes show", () => {
+    // 0 rest (keyframes 5, 6) · 1 swords forward (7) · 2 swords overhead (8).
+    // The first draft had a dip, a stamp and a leap, which no keyframe shows.
+    expect(new Set(ARDAH.sequence)).toEqual(new Set([0, 1, 2]));
+  });
+
+  it("returns to the rest pose between the big moves", () => {
     ARDAH.sequence.forEach((pose, i) => {
-      if (i % 2 === 1) expect(pose).toBe(1);
+      if (i % 2 === 0) expect(pose).toBe(0);
     });
+  });
+
+  it("takes its timing from the named placeholder constants, so they can be measured in one place", () => {
+    expect(ARDAH.beatMs).toBe(ARDAH_BEAT_MS);
+    expect(ARDAH.drumMs).toBe(ARDAH_DRUM_MS);
+    expect(ARDAH.swayDeg).toBe(ARDAH_SWAY_DEG);
+    expect(ARDAH.swayPeriodMs).toBe(ARDAH_SWAY_PERIOD_MS);
   });
 
   it("praises in Gulf Arabic", () => {

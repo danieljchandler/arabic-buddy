@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { useReducedMotion } from "@/lib/uiPrefs";
 import { poseAt, type CelebrationTier, type DanceDefinition } from "@/lib/celebrations";
 import { DANCE_ART } from "./danceArt";
@@ -6,12 +6,14 @@ import { NajdiFrame } from "./NajdiFrame";
 import "./celebration.css";
 
 /**
- * The collage stage: a grayscale cutout dancer snapping from pose to pose on
- * the beat, over mustard paper with faint print, an oxblood circle, a scrap of
- * grid paper, tape, and the dance's name in a Najdi frame. Only the dancers
- * are pictures; everything else is drawn here so it stays on-brand.
+ * The collage stage: a grayscale cutout row of dancers snapping from pose to
+ * pose and swaying together, a drummer in the open space the row faces, over
+ * mustard paper with faint print, an oxblood circle, a scrap of grid paper,
+ * tape, and the dance's name in a Najdi frame. Only the dancers are pictures;
+ * everything else is drawn here so it stays on-brand.
  *
- * Under reduced motion it holds the first pose, which `poseAt` keeps untilted.
+ * Under reduced motion it holds the first pose, which `poseAt` keeps untilted,
+ * and the row doesn't sway.
  */
 
 // Faint print for the paper: dance and place names only, so there is no
@@ -39,10 +41,12 @@ export function CelebrationScene({ dance, tier, headline }: CelebrationSceneProp
     setElapsed(0);
     if (reduced) return;
     const start = Date.now();
-    // Half a beat: the drummer moves on every half, the dancer on every beat.
-    const id = window.setInterval(() => setElapsed(Date.now() - start), dance.beatMs / 2);
+    // Tick at the finer of the two clocks so neither the row nor the drummer
+    // lands late.
+    const tick = Math.min(dance.beatMs, dance.drumMs);
+    const id = window.setInterval(() => setElapsed(Date.now() - start), tick);
     return () => window.clearInterval(id);
-  }, [reduced, dance.beatMs]);
+  }, [reduced, dance.beatMs, dance.drumMs]);
 
   const art = DANCE_ART[dance.id];
   const frame = poseAt(dance, elapsed);
@@ -83,20 +87,33 @@ export function CelebrationScene({ dance, tier, headline }: CelebrationSceneProp
         </div>
       )}
 
+      {/* The sway tilts the whole row from side to side. No keyframe shows
+          it (the reference README describes it from clip_ardah3), so it is a
+          plain rigid tilt with placeholder timing; see ARDAH_SWAY_*. */}
       <div
-        className={`cel-figure cel-dancer ${frame.step === 0 || reduced ? "" : frame.step % 2 ? "cel-pop-a" : "cel-pop-b"}`}
-        style={{ transform: `translateX(${frame.shiftPct}%) rotate(${frame.rotateDeg}deg)` }}
+        className={`cel-figure cel-row ${reduced ? "" : "cel-sway"}`}
+        style={
+          {
+            "--cel-sway-deg": `${dance.swayDeg}deg`,
+            "--cel-sway-ms": `${dance.swayPeriodMs}ms`,
+          } as CSSProperties
+        }
         aria-hidden="true"
       >
-        {art.dancer.map((src, i) => (
-          <img
-            key={src}
-            src={src}
-            alt=""
-            data-pose={i}
-            style={{ visibility: i === frame.pose ? "visible" : "hidden" }}
-          />
-        ))}
+        <div
+          className={`cel-row-still ${frame.step === 0 || reduced ? "" : frame.step % 2 ? "cel-pop-a" : "cel-pop-b"}`}
+          style={{ transform: `translateX(${frame.shiftPct}%) rotate(${frame.rotateDeg}deg)` }}
+        >
+          {art.row.map((src, i) => (
+            <img
+              key={src}
+              src={src}
+              alt=""
+              data-pose={i}
+              style={{ visibility: i === frame.pose ? "visible" : "hidden" }}
+            />
+          ))}
+        </div>
       </div>
 
       <div className="cel-labels" aria-hidden="true">

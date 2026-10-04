@@ -8,28 +8,63 @@ The first dance is the Saudi **Ardah** (العرضة). It plays for Gulf learner
 first time they finish a curriculum lesson. Dialects without a dance yet keep
 the plain lesson-complete screen.
 
-## Status: the Ardah poses are provisional
+## Status: the Ardah is drawn from reference keyframes; timing is still to measure
 
-The current stills were **not** based on footage of a real Ardah. They were
-generated from written descriptions, and the tempo is a guess.
+The stills were redrawn from the twelve reference keyframes in
+`docs/reference/ardah/` (PR #411; the README there describes each one). Every
+state comes from a keyframe. The timing doesn't yet: it lives in named TODO
+constants until it is measured against the 30-second clips, which are in Drive
+and not in the repo.
 
-What is probably right:
-- The costume: thobe, shemagh and agal, and the crossed bandolier.
-- A sword raised overhead, and swaying.
-- A drummer.
+| State | Still | Keyframes (README entries) |
+|---|---|---|
+| Row at rest: sword at the chest, blade diagonal up the way the row faces, other hand just below it | `row-1.webp` | 5 (ardah1 4:16), 6 (ardah2 23:12) |
+| Swords forward at waist height, arm extended, blades parallel and slightly down | `row-2.webp` | 7 (ardah1 6:12) |
+| Sword arm straight up, blade tilted back, other hand open at chest-to-chin height | `row-3.webp` | 8 (ardah2 37:04) |
+| Drummer, frame drum overhead, hooked stick against the face | `drummer-1.webp` | 9 (ardah1 2:48) |
+| Drummer, drum at head height, stick held away | `drummer-2.webp` | 11 (ardah1 5:24) |
+| Costume: white thobe, white shemagh and black agal, crossed black straps (one with cartridge loops), gold-embroidered belt, curved dagger hilt up at the centre front | all row stills | 5, 12 (also 4, 7) |
+| Drummer costume: black mid-thigh jacket with heavy gold embroidery, red-and-white shemagh worn loose without an agal, mid-step in black shoes | drummer stills | 3, 9, 11 |
+| Formation: men shoulder to shoulder in a row, drummers in the open space the row faces | the stage layout | 1, 2, 3, 4 |
+| Sway: the whole row tilts side to side | CSS, no still | none (README: clip_ardah3 0:01–0:11) |
 
-What is probably wrong:
-- **The dip, the stamp and the leap.** The Najdi Ardah is a slow, stately
-  dance of men in rows, swaying and lifting their swords together to the
-  drums and a poet's verses. It doesn't have leaps.
-- **A solo dancer.** The Ardah is danced in rows.
+**Timing, all placeholders, all `TODO(timing)` in `src/lib/celebrations.ts`:**
+- `ARDAH_BEAT_MS`: time between the row's pose changes.
+- `ARDAH_DRUM_MS`: the drummer's stroke.
+- `ARDAH_SWAY_DEG`: how far the row leans each way.
+- `ARDAH_SWAY_PERIOD_MS`: one sway, there and back.
+- The order of the poses, `ARDAH.sequence`: the keyframes show the poses but
+  not the order they come in.
 
-Before this ships to learners:
-1. Get 10–20 seconds of clear reference footage.
-2. Mark the key poses with timestamps.
-3. Regenerate the stills to match them, and time `beatMs` against the drums.
-4. Show a row rather than a solo.
-5. Have a Saudi reviewer sign it off.
+**Assumptions made where the keyframes are silent:**
+- **Feet in the sword rows** are never visible. The thobe reaches the floor
+  over plain dark shoes, and the feet don't step.
+- **The sword hand.** Keyframe 5 shows the right hand. In 7 and 8 it can't be
+  read, so the right hand is used throughout.
+- **The other hand.** In the forward pose it hangs at the side by the belt,
+  because keyframe 7 doesn't show it.
+- **Robes.** All three row stills use the white-thobe costume from keyframes
+  5 and 12. The rows in keyframes 6 and 8, where two of the poses come from,
+  wear green robes.
+- **Facing.** The row faces frame-left in every state, so the pose swap
+  doesn't flip it. In keyframe 8 the faces turn up and frame-right; here they
+  turn up toward the raised swords.
+- **Size of the row.** Three men stand in for rows of 9–20, and only one row
+  is shown. The facing row and the green flag (keyframes 1 and 5) are left
+  out: the flag carries text that would have to be drawn exactly.
+- **Drums.** Only the frame drum is drawn. The large drums held at waist
+  height (keyframes 4 and 10) are not.
+- **The sway** is a rigid tilt of the whole row, because no still shows how
+  the bodies move in it.
+- **The style.** Snapping between poses, and the small tilt and shift on each
+  swap, are the collage style, not motion taken from the footage.
+- **The performers** are generated people. Their poses were described to the
+  image model in words, from the keyframes. The real frames were never
+  uploaded, so no real performer's likeness is in the art.
+
+**Before this ships to learners:**
+1. Time the constants above from the clips.
+2. Get a Saudi reviewer's sign-off.
 
 ## The look
 
@@ -50,8 +85,8 @@ drawn in code, so they follow the brand and can carry live text.
 
 ## How the dancers move: pose swap
 
-A dance is a handful of stills of one performer. The scene snaps from one still
-to the next on the beat. Each swap lands with a small jolt, a slight tilt and a
+A dance is a handful of stills of one row of performers. The scene snaps from
+one still to the next on the beat, and the row sways as one. Each swap lands with a small jolt, a slight tilt and a
 small sideways shift, so every frame looks hand-placed.
 
 This was chosen over cut-out video footage and hinged photo puppets for these
@@ -66,12 +101,13 @@ board linked from the PR that introduced this.
 
 | Tier   | Length | Used for (today)              | Contents          |
 |--------|--------|-------------------------------|-------------------|
-| small  | 1.5 s  | nothing yet                   | dancer            |
-| medium | 3 s    | first finish of a lesson      | dancer + drummer  |
-| large  | 6 s    | nothing yet (stage complete?) | dancer + drummer  |
+| small  | 1.5 s  | nothing yet                   | row               |
+| medium | 3 s    | first finish of a lesson      | row + drummer     |
+| large  | 6 s    | nothing yet (stage complete?) | row + drummer     |
 
 The celebration closes itself when its tier ends. Continue, Escape, or a tap
-outside the stage ends it sooner. Under reduced motion it holds the first pose.
+outside the stage ends it sooner. Under reduced motion it holds the first pose
+and doesn't sway.
 
 ## Where the code is
 
@@ -92,30 +128,37 @@ so a reload doesn't replay it.
 
 ## Making a new dance
 
-1. **Choose the poses from reference footage, not from memory.** Pick 5–6
+1. **Choose the poses from reference footage, not from memory.** Pick the key
    poses from real performances, with timestamps, including one "home" pose
-   to return to between moves. Add a musician in two positions if the dance
-   has one. Time the beat against the footage's drums.
+   to return to between moves, and write down only what each frame shows.
+   `docs/reference/ardah/README.md` is the model. Add a musician in two
+   positions if the dance has one. Time the beat against the footage's
+   drums.
 2. **Generate the photos** on Higgsfield with `gpt_image_2_5` at high quality,
    portrait 2:3, at 1.5 credits each.
    - Generate the first pose alone.
    - Pass its job id as an `image_references` input for every other pose of
      the same performer, which keeps the same face and costume.
-   - Describe the costume precisely.
+   - Describe the costume and each pose precisely, in words, from the
+     reference notes. Don't upload real frames as references: the generated
+     people must not borrow a real performer's face.
    - Ask for the whole body in frame with empty space around it, on a plain
      flat **mid-grey** seamless backdrop with no floor shadow. A white thobe
      on a pale backdrop defeats the background removal.
 3. **Cut them out:**
 
    ```sh
-   pip install "rembg[cpu]" pillow numpy
+   pip install "rembg[cpu]" pillow numpy scipy
    python scripts/celebrations/make_cutouts.py dancer src/assets/celebrations/<dance> pose1.png …
    python scripts/celebrations/make_cutouts.py drummer src/assets/celebrations/<dance> drum1.png drum2.png
    ```
 
-   Check that the performer is the same size in every still. Generation
-   sometimes frames one pose closer. If it does, scale that still down and
-   anchor it at the bottom centre, as was done for Ardah poses 5 and 6.
+   Check that the performers are the same size and stand in the same place
+   in every still. Generation sometimes frames one pose differently: the
+   Ardah's raised-sword still came out with smaller men, because the model
+   made room for the swords. That still was split into its three men, and
+   each was scaled about his own feet to the rest pose's size and position
+   before the sticker finish.
 4. **Add the dance** to `DANCES` in `src/lib/celebrations.ts` (title, gloss,
    region, praise in the dialect, beat, sequence) and its stills to
    `danceArt.ts`. If the dance belongs to another dialect, draw that dialect's

@@ -100,8 +100,18 @@
    never waits on a network fetch. */
 .cel-figure { bottom: 1.5%; transform-origin: 50% 100%; }
 .cel-figure img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: 50% 100%; }
-.cel-dancer { z-index: 4; left: 33%; width: 54%; height: 62%; }
-.cel-drummer { z-index: 3; left: -2%; width: 36%; height: 44%; bottom: 13%; }
+/* The row stands on the right and faces left, toward the open space where the
+   drummer is (keyframes 1, 3 and 4 put the drummers between the rows). */
+.cel-row { z-index: 4; left: 22%; width: 78%; height: 66%; }
+.cel-row-still { position: absolute; inset: 0; transform-origin: 50% 100%; }
+.cel-drummer { z-index: 5; left: -2%; width: 38%; height: 50%; }
+
+/* The sway: the row leans one way, then the other, as one. */
+@keyframes cel-sway {
+  0%, 100% { rotate: calc(var(--cel-sway-deg) * -1); }
+  50% { rotate: var(--cel-sway-deg); }
+}
+.cel-sway { animation: cel-sway var(--cel-sway-ms) ease-in-out infinite; }
 
 /* Each swap lands with a small jolt. Two identical keyframes, alternated by
    beat, restart the animation without remounting the images. */
@@ -110,9 +120,11 @@
 .cel-pop-a { animation: cel-pop-a 140ms ease-out; }
 .cel-pop-b { animation: cel-pop-b 140ms ease-out; }
 
+/* Under the frame rather than at the foot of the stage, where they would
+   cover the drummer's legs. */
 .cel-labels {
   left: 5%;
-  bottom: 4%;
+  top: 31%;
   z-index: 6;
   display: flex;
   flex-direction: column;
@@ -129,5 +141,5 @@
 .cel-headline { font: 600 14px/1.9 var(--font-ink-ui, var(--font-sans)); }
 
 @media (prefers-reduced-motion: reduce) {
-  .cel-pop-a, .cel-pop-b { animation: none; }
+  .cel-pop-a, .cel-pop-b, .cel-sway { animation: none; }
 }

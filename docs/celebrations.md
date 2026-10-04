@@ -8,13 +8,14 @@ The first dance is the Saudi **Ardah** (العرضة). It plays for Gulf learner
 first time they finish a curriculum lesson. Dialects without a dance yet keep
 the plain lesson-complete screen.
 
-## Status: the Ardah is drawn from reference keyframes; timing is still to measure
+## Status: the Ardah is drawn from reference keyframes and timed from the footage
 
 The stills were redrawn from the twelve reference keyframes in
-`docs/reference/ardah/` (PR #411; the README there describes each one). Every
-state comes from a keyframe. The timing doesn't yet: it lives in named TODO
-constants until it is measured against the 30-second clips, which are in Drive
-and not in the repo.
+`docs/reference/ardah/` (PR #411; the README there describes each one). The
+timing comes from `docs/reference/ardah/timing.md`, which was measured from the
+clips and full videos (audio onsets, frame-timed drum strikes, the sway timed
+by eye). Every state comes from a keyframe, and every timing number comes from
+a measurement, except the one marked TODO below.
 
 | State | Still | Keyframes (README entries) |
 |---|---|---|
@@ -26,15 +27,34 @@ and not in the repo.
 | Costume: white thobe, white shemagh and black agal, crossed black straps (one with cartridge loops), gold-embroidered belt, curved dagger hilt up at the centre front | all row stills | 5, 12 (also 4, 7) |
 | Drummer costume: black mid-thigh jacket with heavy gold embroidery, red-and-white shemagh worn loose without an agal, mid-step in black shoes | drummer stills | 3, 9, 11 |
 | Formation: men shoulder to shoulder in a row, drummers in the open space the row faces | the stage layout | 1, 2, 3, 4 |
-| Sway: the whole row tilts side to side | CSS, no still | none (README: clip_ardah3 0:01–0:11) |
+| Sway: the whole row rocks side to side | CSS, no still | none (README: clip_ardah3 0:01–0:11; timing.md §2–3) |
 
-**Timing, all placeholders, all `TODO(timing)` in `src/lib/celebrations.ts`:**
-- `ARDAH_BEAT_MS`: time between the row's pose changes.
-- `ARDAH_DRUM_MS`: the drummer's stroke.
-- `ARDAH_SWAY_DEG`: how far the row leans each way.
-- `ARDAH_SWAY_PERIOD_MS`: one sway, there and back.
-- The order of the poses, `ARDAH.sequence`: the keyframes show the poses but
-  not the order they come in.
+**Timing, in `src/lib/celebrations.ts`, from `timing.md`.** The three
+performances run at slightly different tempos. Following the timing notes, one
+tempo is chosen and the rest is derived from it.
+
+| Constant | Value | Source |
+|---|---|---|
+| `ARDAH_DRUM_STROKE_MS` | 1170 | The big-drum cycle in ardah2. Audio median 1172 ms (IQR 1167–1175); ten frame-timed stick strikes average 1190 ms. High confidence |
+| `ARDAH_BEAT_MS` | = stroke (1170) | One pose per drum cycle. The one shot with repeated pose changes (ardah1 369.3–374.6 s) changes every 1.10–1.30 s, mean 1.20 s. Low confidence: a single shot |
+| `ARDAH_DRUM_MS` | stroke ÷ 2 (585) | Each drummer strikes once per cycle and draws the stick back between strikes. The two stills each hold half a cycle |
+| `ARDAH_SWAY_PERIOD_MS` | 2 × stroke (2340) | One sway is two drum cycles: ardah3 measures 2175–2225 ms (6 pulses) at its own tempo |
+| `ARDAH_SWAY_DEG` | 3 | **TODO, not measured.** See below |
+| `ARDAH.sequence` | rest, forward, rest, then overhead held for four beats | Rest and forward alternate one per cycle; overhead is held for whole shots (≥ 26.8 s) with a pump per cycle, which the jolt on each beat stands for |
+
+**Three findings from the timing that the scene only approximates:**
+- **The 45° sway is the swords, not the bodies.** The timing notes measure
+  about 45° each way for blades swung overhead: an arm swing (ardah3
+  441–452 s). The scene tilts the whole row, which stands for the gentler body
+  rock seen at rest (ardah1 342–346 and 375–379 s). That rock's lean was never
+  measured, so it stays a small 3°. Drawing the blade swing itself would need
+  two more stills: overhead swung right and swung left.
+- **Forward has a sub-motion.** The blades thrust out level, lift about 45°,
+  come back level, then retract, all within the 1.2 s pose (ardah1 370–371 s
+  and 372.4–373.6 s). The forward still shows the level thrust only.
+- **The entry into overhead.** No shot shows the change into or out of
+  overhead. Entering it from rest is an assumption, chosen so the 6 s scene
+  reaches it (at 3.5 s) and the 3 s scene shows the rest/forward alternation.
 
 **Assumptions made where the keyframes are silent:**
 - **Feet in the sword rows** are never visible. The thobe reaches the floor
@@ -55,16 +75,15 @@ and not in the repo.
 - **Drums.** Only the frame drum is drawn. The large drums held at waist
   height (keyframes 4 and 10) are not.
 - **The sway** is a rigid tilt of the whole row, because no still shows how
-  the bodies move in it.
+  the bodies move in it (see the findings above).
 - **The style.** Snapping between poses, and the small tilt and shift on each
   swap, are the collage style, not motion taken from the footage.
 - **The performers** are generated people. Their poses were described to the
   image model in words, from the keyframes. The real frames were never
   uploaded, so no real performer's likeness is in the art.
 
-**Before this ships to learners:**
-1. Time the constants above from the clips.
-2. Get a Saudi reviewer's sign-off.
+**Before this ships to learners:** a Saudi reviewer's sign-off. Measuring the
+body rock's lean (`ARDAH_SWAY_DEG`) would close the last TODO.
 
 ## The look
 

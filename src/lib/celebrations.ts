@@ -53,19 +53,43 @@ export interface DanceDefinition {
 }
 
 /*
- * The Ardah's timing. TODO: every number here is a placeholder, not a
- * measurement. Time them from the 30-second reference clips (drums in
- * clip_ardah1 and clip_ardah2, the sway at the start of clip_ardah3), which
- * are in Drive, not in the repo. docs/reference/ardah/README.md lists them.
+ * The Ardah's timing, measured from the reference footage in
+ * docs/reference/ardah/timing.md. The three performances run at slightly
+ * different tempos, so one tempo is chosen (the drum cycle) and the rest is
+ * derived from it, the way the timing notes recommend: the relationships
+ * between the numbers held up better than any single figure.
  */
-/** TODO(timing): time between the row's pose changes, in ms. Placeholder. */
-export const ARDAH_BEAT_MS = 600;
-/** TODO(timing): the drummer's stroke. Placeholder: twice per pose change. */
-export const ARDAH_DRUM_MS = 300;
-/** TODO(timing): the sway's lean each way. Placeholder, and no keyframe shows it. */
+/**
+ * One big-drum cycle. ardah2's drums: median 1172 ms over 302 twenty-second
+ * windows (IQR 1167–1175), and 1190 ms from ten stick strikes timed frame by
+ * frame. High confidence for ardah2.
+ */
+export const ARDAH_DRUM_STROKE_MS = 1170;
+/**
+ * One pose per drum cycle. The one shot where a row changes pose repeatedly
+ * (ardah1 369.3–374.6 s) changes every 1.10–1.30 s, mean 1.20 s, against that
+ * troupe's 1142 ms drum cycle. Locked to the cycle so the row and the drummer
+ * stay in step. Low confidence: a single shot.
+ */
+export const ARDAH_BEAT_MS = ARDAH_DRUM_STROKE_MS;
+/**
+ * The drummer's two stills each hold half a cycle: the strike, then the stick
+ * drawn back across the face (each drummer strikes once per cycle).
+ */
+export const ARDAH_DRUM_MS = ARDAH_DRUM_STROKE_MS / 2;
+/**
+ * One sway, there and back: two drum cycles. ardah3 measures 2175–2225 ms at
+ * its own tempo, 6 pulses, which is two of its cycles; the rows' body rock in
+ * ardah1 has a similar period (about 2.05–2.3 s, weak).
+ */
+export const ARDAH_SWAY_PERIOD_MS = 2 * ARDAH_DRUM_STROKE_MS;
+/**
+ * TODO(timing): the body rock's lean each way is not measured. The timing
+ * notes measure about 45° each way for the BLADES swinging overhead (an arm
+ * swing, not a body tilt); the scene tilts the whole row, which stands for the
+ * gentler body rock seen in rest, so it stays small.
+ */
 export const ARDAH_SWAY_DEG = 3;
-/** TODO(timing): one sway, there and back. Placeholder. */
-export const ARDAH_SWAY_PERIOD_MS = 2400;
 
 export const ARDAH: DanceDefinition = {
   id: "ardah",
@@ -83,9 +107,14 @@ export const ARDAH: DanceDefinition = {
   //   0 rest: sword at the chest, blade diagonal up the way the row faces (5, 6)
   //   1 swords forward at waist height, blades parallel, slightly down (7)
   //   2 sword arm straight up, blade tilted back, other hand open (8)
-  // The order is an assumption: the stills show the poses, not their order.
-  // TODO(timing): check it against the clips.
-  sequence: [0, 1, 0, 2],
+  // The order follows timing.md: rest and forward alternate, one per drum
+  // cycle (ardah1 369.3–374.6 s), and overhead is a section of its own, held
+  // for whole shots (≥ 26.8 s in ardah2) with the swords pumping once per
+  // cycle, which the jolt on every beat stands for. No shot shows the change
+  // into or out of overhead, so entering it from rest is an assumption, chosen
+  // so the 6 s scene reaches it (at the fourth beat) and the 3 s one shows
+  // the rest/forward alternation.
+  sequence: [0, 1, 0, 2, 2, 2, 2],
   //   0 frame drum overhead, hooked stick against the face (9)
   //   1 drum at head height, stick held away from it (11)
   drummerSequence: [0, 1],

@@ -3,6 +3,7 @@ import {
   ARDAH,
   ARDAH_BEAT_MS,
   ARDAH_DRUM_MS,
+  ARDAH_DRUM_STROKE_MS,
   ARDAH_SWAY_DEG,
   ARDAH_SWAY_PERIOD_MS,
   TIER_DURATION_MS,
@@ -94,13 +95,30 @@ describe("the Ardah itself", () => {
     expect(new Set(ARDAH.sequence)).toEqual(new Set([0, 1, 2]));
   });
 
-  it("returns to the rest pose between the big moves", () => {
-    ARDAH.sequence.forEach((pose, i) => {
-      if (i % 2 === 0) expect(pose).toBe(0);
-    });
+  it("alternates rest and forward, then holds overhead as a section of its own", () => {
+    // timing.md: rest and forward alternate one per drum cycle; overhead is
+    // held for whole shots, never a single beat.
+    expect(ARDAH.sequence.slice(0, 3)).toEqual([0, 1, 0]);
+    const overhead = ARDAH.sequence.map((p, i) => (p === 2 ? i : -1)).filter((i) => i >= 0);
+    expect(overhead.length).toBeGreaterThanOrEqual(3);
+    expect(overhead).toEqual(overhead.map((_, k) => overhead[0] + k)); // one unbroken run
   });
 
-  it("takes its timing from the named placeholder constants, so they can be measured in one place", () => {
+  it("reaches overhead inside the six-second scene and shows the alternation in the three-second one", () => {
+    const firstOverhead = ARDAH.sequence.indexOf(2) * ARDAH.beatMs;
+    expect(firstOverhead).toBeLessThan(TIER_DURATION_MS.large);
+    expect(new Set([0, 1, 2].map((s) => ARDAH.sequence[s])).size).toBeGreaterThan(1);
+    expect(ARDAH.sequence.slice(0, Math.ceil(TIER_DURATION_MS.medium / ARDAH.beatMs))).not.toContain(2);
+  });
+
+  it("keeps the measured relationships: a pose per drum cycle, a sway every two", () => {
+    expect(ARDAH_DRUM_STROKE_MS).toBe(1170);
+    expect(ARDAH_BEAT_MS).toBe(ARDAH_DRUM_STROKE_MS);
+    expect(ARDAH_DRUM_MS * 2).toBe(ARDAH_DRUM_STROKE_MS);
+    expect(ARDAH_SWAY_PERIOD_MS).toBe(2 * ARDAH_DRUM_STROKE_MS);
+  });
+
+  it("takes its timing from the named constants, so they live in one place", () => {
     expect(ARDAH.beatMs).toBe(ARDAH_BEAT_MS);
     expect(ARDAH.drumMs).toBe(ARDAH_DRUM_MS);
     expect(ARDAH.swayDeg).toBe(ARDAH_SWAY_DEG);

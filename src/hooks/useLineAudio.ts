@@ -19,7 +19,19 @@ interface UseLineAudioOptions {
    * recording under dialect text is the one thing worse than no audio.
    */
   clips?: Array<string | null | undefined>;
+  /**
+   * Called with the index of a line that could not be said — no audio came
+   * back for it, or the browser refused to play what did. A read-through
+   * stops on that line. A learner's own stop is not an error and never
+   * reaches this; the hook itself stays quiet either way, so a caller that
+   * owes the learner a word about it (a lone "listen" link) says it from
+   * here, and one that does not (a page of speakers) leaves it out.
+   */
+  onError?: (index: number) => void;
 }
+
+/** Why a clip stopped sounding: it ran to its end, the learner stopped it, or it could not play. */
+type SoundOutcome = "ended" | "stopped" | "failed";
 
 interface UseLineAudioResult {
   /** The line currently sounding, or null. */
@@ -72,7 +84,7 @@ let sounding: (() => void) | null = null;
  * article, not a listening exercise: synthesising a whole page up front would
  * spend a learner's daily TTS cap on lines they never press play on.
  */
-export function useLineAudio({ lines, dialect, clips }: UseLineAudioOptions): UseLineAudioResult {
+export function useLineAudio({ lines, dialect, clips, onError }: UseLineAudioOptions): UseLineAudioResult {
   const { activeDialect } = useDialect();
   const spokenDialect = dialect ?? activeDialect;
 
@@ -87,6 +99,10 @@ export function useLineAudio({ lines, dialect, clips }: UseLineAudioOptions): Us
   linesRef.current = lines;
   const presetsRef = useRef(clips);
   presetsRef.current = clips;
+  // Read inside the walk, so a caller passing a fresh arrow each render does
+  // not rebuild the walk and the callbacks hanging off it.
+  const onErrorRef = useRef(onError);
+  onErrorRef.current = onError;
 
   /** The stored clip for a line, when there is one. */
   const presetFor = useCallback(
@@ -106,7 +122,7 @@ export function useLineAudio({ lines, dialect, clips }: UseLineAudioOptions): Us
   const elementRef = useRef<HTMLAudioElement | null>(null);
   const primedRef = useRef(false);
   /** Settles the promise the walk is currently waiting on. */
-  const pendingRef = useRef<((finished: boolean) => void) | null>(null);
+  const pendingRef = useRef<((outcome: SoundOutcome) => void) | null>(null);
   /**
    * Bumped by every stop and every new request. A walk whose id has gone stale
    * drops whatever it was about to do — without it, a synthesis started before
@@ -148,7 +164,7 @@ export function useLineAudio({ lines, dialect, clips }: UseLineAudioOptions): Us
     // Settled here rather than from a `pause` listener. Swapping `src` on a
     // playing element fires `pause` too, so a listener could not tell "the
     // learner stopped this" from "the next line is starting".
-    pendingRef.current?.(false);
+    pendingRef.current?.("stopped");
   }, []);
 
   const stop = useCallback(() => {
@@ -198,27 +214,32 @@ export function useLineAudio({ lines, dialect, clips }: UseLineAudioOptions): Us
     [spokenDialect],
   );
 
-  /** Resolves true when the clip reached its end, false when it was stopped. */
+  /**
+   * Resolves with how the clip stopped sounding. "failed" covers both a source
+   * the element could not decode and a `play()` the browser refused — on iOS
+   * that is what a clip started outside a gesture gets, which `primeElement`
+   * exists to prevent and which must not look like the learner stopping it.
+   */
   const sound = useCallback((url: string) => {
     const audio = elementRef.current;
-    if (!audio) return Promise.resolve(false);
+    if (!audio) return Promise.resolve<SoundOutcome>("stopped");
 
-    return new Promise<boolean>((resolve) => {
-      const finish = (finished: boolean) => {
+    return new Promise<SoundOutcome>((resolve) => {
+      const finish = (outcome: SoundOutcome) => {
         // Only the live clip may settle: a `play()` rejected because the next
         // line replaced the source arrives after that line has started.
         if (pendingRef.current !== finish) return;
         pendingRef.current = null;
         audio.onended = null;
         audio.onerror = null;
-        resolve(finished);
+        resolve(outcome);
       };
 
       pendingRef.current = finish;
-      audio.onended = () => finish(true);
-      audio.onerror = () => finish(false);
+      audio.onended = () => finish("ended");
+      audio.onerror = () => finish("failed");
       audio.src = url;
-      audio.play().catch(() => finish(false));
+      audio.play().catch(() => finish("failed"));
     });
   }, []);
 
@@ -248,7 +269,10 @@ export function useLineAudio({ lines, dialect, clips }: UseLineAudioOptions): Us
           if (id !== runRef.current) return;
           setLoadingIndex(null);
         }
-        if (!url) break;
+        if (!url) {
+          onErrorRef.current?.(i);
+          break;
+        }
 
         setPlayingIndex(i);
         if (continuous) {
@@ -259,9 +283,10 @@ export function useLineAudio({ lines, dialect, clips }: UseLineAudioOptions): Us
           if (next && !presetFor(i + 1)) void clipFor(next);
         }
 
-        const finished = await sound(url);
+        const outcome = await sound(url);
         if (id !== runRef.current) return;
-        if (!finished || !continuous) break;
+        if (outcome === "failed") onErrorRef.current?.(i);
+        if (outcome !== "ended" || !continuous) break;
       }
 
       if (id !== runRef.current) return;

@@ -786,7 +786,12 @@ of their own), **say it** (shadow a line carrying one of their words), and a
 **recap**. Same session machinery as the debrief — the `[[STEP_DONE]]` marker,
 the quiz and shadow cards, `StepChecklist`/`ListenButton`
 (`src/components/debrief/SessionChrome.tsx`) and `useVoiceAnswer` are shared —
-over a different set of steps. Subscribers only for the session
+over a different set of steps. `ListenButton` reads a tutor message's Arabic
+run by run through `useLineAudio`, which plays a clip of silence inside the tap
+before synthesis starts: its first version made the `Audio` element only once
+the speech had arrived, and iOS Safari refuses a `play()` that late, so on a
+phone the link spun and said nothing. A failure now shows as a toast rather
+than a spinner that stops in silence. Subscribers only for the session
 (`requireActiveSubscription`, `daily_recap` in `featureAccess.ts`); the strip's
 summary is free, so every learner sees what they did. The Ask AI button is off
 on the page, as on the debrief.

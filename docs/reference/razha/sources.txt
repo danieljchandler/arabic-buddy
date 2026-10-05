@@ -1,0 +1,31 @@
+Razha (الرزحة) reference footage -- sources
+Downloaded 2026-10-04 with yt-dlp 2026.08.19. Reference only.
+Full-length videos are local only: C:\media\dances\razha\ (not in Drive, not in git).
+
+razha1.mp4
+  URL:      https://www.youtube.com/watch?v=W8r9OzPjwIU
+  Title:    Al-Raz-Ha Dance and Music (1)
+  Channel:  Qatar Digital Library (the description reads "A film by Rolf Killius for the Qatar Digital Library";
+            recorded 2014-02-20 at a wedding in a suburb of Sur, Oman, by a team invited by the host)
+  Uploaded: 2015-03-18
+  Length:   8:16
+  Format:   1080p H.264 + AAC, 25 fps (264.2 MB)
+
+razha2.mp4
+  URL:      https://www.youtube.com/watch?v=6kG_wL3VGjs
+  Title:    Al-Raz-Ha Dance and Music (2)
+  Channel:  Qatar Digital Library (same film series and event as razha1: Sur, Oman, 2014-02-20)
+  Uploaded: 2015-03-18
+  Length:   5:31
+  Format:   1080p H.264 + AAC, 25 fps (168.3 MB)
+
+razha5.mp4
+  URL:      https://www.youtube.com/watch?v=oUoO_TaNCQs
+  Title:    مهرجان مسقط فن الرزحة
+            (Muscat Festival: the art of Razha. Description: coverage of the folk arts troupe of the wilayat of Al Amerat
+            at the festival; camera credited to Younis Al Rahbi)
+  Channel:  الشبل المغرد (an individual's channel; not an official body)
+  Uploaded: 2018-02-06
+  Length:   6:58
+  Format:   720p H.264 + AAC, 30 fps (101.2 MB)
+

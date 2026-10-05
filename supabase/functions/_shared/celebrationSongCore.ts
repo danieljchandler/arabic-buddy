@@ -27,6 +27,9 @@ export function sanitizeSingerName(raw: unknown): string | null {
 
 export const ACHIEVEMENT_KINDS = [
   "lesson_complete",
+  "daily_tasks_complete",
+  "video_complete",
+  "review_conversation_complete",
   "streak",
   "words_mastered",
   "letters_mastered",
@@ -65,6 +68,12 @@ export function describeAchievement({ kind, count }: Achievement): string {
   switch (kind) {
     case "lesson_complete":
       return "finished a whole Arabic lesson";
+    case "daily_tasks_complete":
+      return "finished every one of today's Arabic study tasks";
+    case "video_complete":
+      return "watched a whole Arabic video and came out understanding it";
+    case "review_conversation_complete":
+      return "talked an entire Arabic review conversation through with their tutor";
     case "streak":
       return n ? `kept a ${n}-day learning streak going` : "kept a learning streak going";
     case "words_mastered":

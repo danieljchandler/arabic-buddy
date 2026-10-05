@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ACHIEVEMENT_KINDS,
   MAX_NAME_LENGTH,
   buildFallbackMusicPrompt,
   buildLyricPrompt,
@@ -65,6 +66,25 @@ describe("parseAchievement", () => {
 });
 
 describe("describeAchievement", () => {
+  it("has a sentence for every kind the app can send", () => {
+    for (const kind of ACHIEVEMENT_KINDS) {
+      const deed = describeAchievement({ kind });
+      expect(deed.length).toBeGreaterThan(10);
+      expect(deed).not.toMatch(/undefined|null/);
+    }
+  });
+
+  it("covers the four finish lines: daily tasks, a lesson, a video, a review conversation", () => {
+    expect(ACHIEVEMENT_KINDS).toEqual(
+      expect.arrayContaining([
+        "daily_tasks_complete",
+        "lesson_complete",
+        "video_complete",
+        "review_conversation_complete",
+      ]),
+    );
+  });
+
   it("says what happened, with the number when there is one", () => {
     expect(describeAchievement({ kind: "streak", count: 30 })).toContain("30-day");
     expect(describeAchievement({ kind: "words_mastered", count: 100 })).toContain("100");

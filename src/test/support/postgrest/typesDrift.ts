@@ -51,47 +51,10 @@ export const COLUMNS_MISSING_FROM_TYPES: DriftedColumn[] = [
     migration: "20260919120000_library_bridge",
   })),
 
-  // The post-video debrief. The study guide is service-role-only (it holds the
-  // comprehension answer key), so like fanar_usage it stays out of the types
-  // for good. The other two are learner-facing and branch-merged: delete their
-  // entries once a types regeneration carries them.
-  ...["video_id", "guide", "transcript_hash", "version", "model", "created_at", "updated_at"].map(
-    (column) => ({
-      table: "video_study_guides",
-      column,
-      migration: "20261004120000_video_debrief",
-    }),
-  ),
-  ...["id", "user_id", "video_id", "word_arabic", "word_english", "line_id", "created_at"].map(
-    (column) => ({
-      table: "video_word_lookups",
-      column,
-      migration: "20261004120000_video_debrief",
-    }),
-  ),
-  { table: "user_vocabulary", column: "source_video_id", migration: "20261004120000_video_debrief" },
-
-  // The daily recap. One row per learner, dialect and local day holding the
-  // session plan; learner-facing (a learner reads their own) and
-  // branch-merged, so absent from the live project until applied there.
-  // Delete these entries once a types regeneration carries the table.
-  ...[
-    "id",
-    "user_id",
-    "dialect",
-    "recap_date",
-    "window_days",
-    "plan",
-    "status",
-    "outcome",
-    "completed_at",
-    "created_at",
-    "updated_at",
-  ].map((column) => ({
-    table: "learner_recaps",
-    column,
-    migration: "20261005120000_learner_recaps",
-  })),
+  // The post-video debrief (video_study_guides, video_word_lookups,
+  // user_vocabulary.source_video_id) and the daily recap (learner_recaps) were
+  // pinned here until Lovable's types regeneration (d0de666) carried them, so
+  // those entries are deleted per the staleness check in typesDrift.test.ts.
 ];
 
 

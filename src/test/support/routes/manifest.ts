@@ -132,6 +132,9 @@ export const ROUTES: RouteSpec[] = [
   { path: "/discover", gate: "public", boundary: "DiscoverRoute" },
   { path: "/discover/:videoId", params: { videoId: VIDEO_ID }, gate: "public", boundary: "DiscoverVideoRoute" },
   { path: "/debrief/:videoId", params: { videoId: VIDEO_ID }, gate: "auth", boundary: "VideoDebriefRoute" },
+  // The daily recap: the debrief's next-morning counterpart, over everything
+  // the learner did yesterday rather than one video.
+  { path: "/recap", gate: "auth", boundary: "RecapRoute" },
   { path: "/liked-videos", gate: "auth", boundary: "LikedVideosRoute" },
 
   // ── Stories, reading, listening ────────────────────────────────────────────

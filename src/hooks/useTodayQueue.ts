@@ -4,12 +4,15 @@ import { useUserSetPhrasesDueCount } from "@/hooks/useSetPhrases";
 import { useMistakes } from "@/hooks/useLearnerErrors";
 import { useTodaysVideo } from "@/hooks/useTodaysVideo";
 import { usePlacementHistory } from "@/hooks/usePlacementHistory";
+import { useRecapSummary } from "@/hooks/useRecap";
+import { RECAP_PATH, RECAP_TASK_ID, RECAP_XP, recapTitle } from "@/lib/recap";
 import { useDialect } from "@/contexts/DialectContext";
 import { isTaskCompletedToday } from "@/lib/todayCompletion";
-import { BookOpen, Play, Newspaper, MessageCircle, Flame, Brain, Sparkles, Target, Mic, Gauge, type LucideIcon } from "lucide-react";
+import { BookOpen, Play, Newspaper, MessageCircle, Flame, Brain, Sparkles, Target, Mic, Gauge, History, type LucideIcon } from "lucide-react";
 
 export type TodayTaskId =
   | "flashcards"
+  | "recap"
   | "daily-challenge"
   | "daily-story"
   | "reading"
@@ -88,6 +91,10 @@ export const useTodayQueue = (): TodayTask[] => {
   // Placement used to happen once. A re-check earns a slot only when the last
   // one is old AND enough practice has happened since (usePlacementHistory).
   const placement = usePlacementHistory();
+  // Yesterday (or the week), gone over with the tutor. The same summary the
+  // strip at the bottom of the screen reads, so the two can never disagree
+  // about whether there is anything to recap.
+  const { data: recap } = useRecapSummary();
 
   const vocabDueCount = session.totalDue;
 
@@ -105,6 +112,19 @@ export const useTodayQueue = (): TodayTask[] => {
       done: vocabDueCount === 0,
       hidden: vocabDueCount === 0 && !isTaskCompletedToday("flashcards"),
       xpEstimate: vocabDueCount * 3,
+    },
+    {
+      // Hidden until the summary says the window has something in it, and
+      // after the session is done for the day (server record or this device).
+      id: RECAP_TASK_ID,
+      title: recapTitle(recap?.windowDays ?? 1),
+      subtitle: recap?.headline ?? "With the tutor",
+      estMinutes: 6,
+      icon: History,
+      route: RECAP_PATH,
+      done: isTaskCompletedToday(RECAP_TASK_ID) || recap?.status === "completed",
+      hidden: !recap?.hasContent && !isTaskCompletedToday(RECAP_TASK_ID),
+      xpEstimate: RECAP_XP,
     },
     {
       id: "daily-challenge",

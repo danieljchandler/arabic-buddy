@@ -75,6 +75,7 @@ const ASSISTANT_OFF_BY_DESIGN: Record<string, string> = {
   "/admin/login": "the staff console's door — public only so staff can reach it",
   "/print/worksheet": "a print layout; the floating button would print on the page",
   "/debrief/:videoId": "the post-video debrief is a tutor chat already; a second tutor over it would talk past the first",
+  "/recap": "the daily recap is a tutor chat already, over the learner's day; same reason as the debrief",
 };
 
 describe("the Ask AI button reaches every page", () => {

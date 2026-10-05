@@ -1,0 +1,29 @@
+Al-Mizmar (المزمار) reference footage -- sources
+Downloaded 2026-10-04 with yt-dlp 2026.08.19. Reference only.
+Full-length videos are local only: C:\media\dances\mizmar\ (not in Drive, not in git).
+
+mizmar1.mp4
+  URL:      https://www.youtube.com/watch?v=LgnjjUjObPQ
+  Title:    Almezmar, drumming and dancing with sticks
+  Channel:  UNESCO (official Intangible Cultural Heritage listing video; the channel is UNESCO and the description quotes the 2016 Representative List entry)
+  Uploaded: 2016-12-01
+  Length:   6:17 (street footage 0:04-3:27, interviews and a studio-style shot 3:28-3:56, drum, singer and stick close-ups 4:00-5:35, credits from about 5:36)
+  Format:   720p H.264 + AAC, 24 fps
+
+mizmar2.mp4
+  URL:      https://www.youtube.com/watch?v=JVT3eR7k4AE
+  Title:    المزمار الحجازي في الجنادرية ٣٢
+            (The Hejazi Mizmar at Janadriyah 32)
+  Channel:  السعودية (Saudi TV; the picture carries the channel logo and a #الجنادرية caption, broadcast-style footage)
+  Uploaded: 2018-02-16
+  Length:   6:09
+  Format:   720p H.264 + AAC, 25 fps
+
+mizmar3.mp4
+  URL:      https://www.youtube.com/watch?v=yF8J1y3JbEQ
+  Title:    لعبة المزمار الحجازي في الجنادرية
+            (The Hejazi Mizmar game at Janadriyah)
+  Channel:  أبو الأنس (an individual's channel; amateur hand-held camcorder footage, not an official source)
+  Uploaded: 2011-12-28
+  Length:   9:33
+  Format:   480p H.264 + AAC, 25 fps (the source is 640x480; the 1280 px frames in this pack are upscaled from it)

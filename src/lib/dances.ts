@@ -335,12 +335,73 @@ export const BARAA: DanceDefinition = {
   pumpOnHold: false,
 };
 
+/*
+ * The Tanoura's timing, measured from the reference footage in
+ * docs/reference/tanoura/README.md (its Timing section). The movement is the
+ * spin, so the stills are the spin: the same dancer a quarter turn apart.
+ */
+/**
+ * One full turn: 0.994 s for the yellow-top dancer (tanoura6 4:00.2–4:19.1,
+ * 19 turns hand counted, SD 0.07 s), the dancer whose lift was timed. Other
+ * dancers and moments run 0.81–1.46 s. Medium confidence.
+ */
+export const TANOURA_TURN_MS = 990;
+/**
+ * A still per quarter turn: front, profile facing frame-right, back,
+ * profile facing frame-left. That order is the yellow-top dancer's,
+ * counter-clockwise seen from above.
+ */
+export const TANOURA_QUARTER_MS = TANOURA_TURN_MS / 4;
+/**
+ * Turns with the skirt spinning at the hips before the lift, and turns with
+ * the upper layer held overhead. The footage holds it overhead about 7.1 s
+ * (tanoura6) and 8.6 s (tanoura1); two turns stand in for that here.
+ */
+export const TANOURA_HIP_TURNS = 2;
+export const TANOURA_OVERHEAD_TURNS = 2;
+
+export const TANOURA: DanceDefinition = {
+  id: "tanoura",
+  dialect: "Egyptian",
+  title: "التنورة",
+  gloss: "Tanoura",
+  region: "Cairo, Egypt",
+  beatMs: TANOURA_QUARTER_MS,
+  musicianMs: TANOURA_QUARTER_MS,
+  // He spins in place: no sway, and no bob was measured.
+  swayDeg: 0,
+  swayPeriodMs: 0,
+  bobPct: 0,
+  bobPeriodMs: 0,
+  // Drawn from the reference keyframes in docs/reference/tanoura/ (numbers
+  // are the README's entries), the yellow-top dancer of tanoura6 (4):
+  //   0 front, the skirt a flat disc at the hips, arms out
+  //   1 profile, facing frame-right    2 back    3 profile, facing frame-left
+  //     (the quarter-turn views the turn count reads: front, profile, back,
+  //     profile; README 4b)
+  //   4 front, arms straight up, the upper layer held overhead as a disc (4)
+  //   5 back, the same
+  // The lift itself takes about 290 ms, one quarter-turn step here, so the
+  // scene goes straight from the hip disc to the disc overhead. Overhead he
+  // is drawn front and back only: two stills for the four views.
+  sequence: [
+    ...Array.from({ length: TANOURA_HIP_TURNS }, () => [0, 1, 2, 3]).flat(),
+    ...Array.from({ length: TANOURA_OVERHEAD_TURNS }, () => [4, 4, 5, 5]).flat(),
+  ],
+  //   0 a frame drum held against the chest (10). No stroke can be matched
+  //     to the sound (README 4a), so he doesn't strike.
+  musicianSequence: [0],
+  // Every step is a new view of the turn; overhead the front and back views
+  // are each held for half a turn, still.
+  pumpOnHold: false,
+};
+
 /**
  * Every dance, in rotation order within each dialect. Order alternates kinds
  * of dance where a dialect has several, so two celebrations in a row rarely
  * look alike.
  */
-export const DANCES: readonly DanceDefinition[] = [ARDAH, AYYALA, ASSAYA, BARAA];
+export const DANCES: readonly DanceDefinition[] = [ARDAH, AYYALA, ASSAYA, TANOURA, BARAA];
 
 /**
  * The dances a dialect's learners rotate through. Empty while a dialect has

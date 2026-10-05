@@ -12,6 +12,13 @@ import assayaDancer1 from "@/assets/celebrations/assaya/dancer-1.webp";
 import assayaDancer2 from "@/assets/celebrations/assaya/dancer-2.webp";
 import assayaDancer3 from "@/assets/celebrations/assaya/dancer-3.webp";
 import assayaDancer4 from "@/assets/celebrations/assaya/dancer-4.webp";
+import tanouraDancer1 from "@/assets/celebrations/tanoura/dancer-1.webp";
+import tanouraDancer2 from "@/assets/celebrations/tanoura/dancer-2.webp";
+import tanouraDancer3 from "@/assets/celebrations/tanoura/dancer-3.webp";
+import tanouraDancer4 from "@/assets/celebrations/tanoura/dancer-4.webp";
+import tanouraDancer5 from "@/assets/celebrations/tanoura/dancer-5.webp";
+import tanouraDancer6 from "@/assets/celebrations/tanoura/dancer-6.webp";
+import tanouraDrummer1 from "@/assets/celebrations/tanoura/drummer-1.webp";
 import baraaRow1 from "@/assets/celebrations/baraa/row-1.webp";
 import baraaRow2 from "@/assets/celebrations/baraa/row-2.webp";
 import baraaRow3 from "@/assets/celebrations/baraa/row-3.webp";
@@ -66,6 +73,18 @@ export const DANCE_ART: Record<string, DanceArt> = {
     musician: [],
     // A solo, so he takes the middle of the stage.
     dancersBox: { left: 18, width: 72, height: 66 },
+  },
+  tanoura: {
+    // the turn, a quarter at a time: front · profile to the right · back ·
+    // profile to the left (keyframe 4's dancer) · the upper layer overhead,
+    // front and back (4)
+    dancers: [tanouraDancer1, tanouraDancer2, tanouraDancer3, tanouraDancer4, tanouraDancer5, tanouraDancer6],
+    // a frame drum held against the chest (10)
+    musician: [tanouraDrummer1],
+    // The skirt's disc is wider than the dancer is tall: give him the
+    // middle of the stage and the musician the edge.
+    dancersBox: { left: 20, width: 80, height: 70 },
+    musicianBox: { left: -6, width: 30, height: 46 },
   },
   baraa: {
     // dagger at the waist (keyframe 3) · blade up by the head (4) · folded,

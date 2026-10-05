@@ -34,7 +34,8 @@ clips these collage scenes replace.
 
 The dances so far: the Saudi **Ardah** (العرضة) and the Emirati and Omani
 **Ayyala** (العيالة) for Gulf learners, the **Saidi cane dance** (رقص
-العصاية) for Egyptian learners, and **Al-Bara'** (البرع) for Yemeni learners.
+العصاية) and the **Tanoura** (التنورة) for Egyptian learners, and
+**Al-Bara'** (البرع) for Yemeni learners.
 
 ## The Ardah (العرضة): drawn from reference keyframes and timed from the footage
 
@@ -216,6 +217,50 @@ frames.
 
 **Before this ships to learners:** an Egyptian (ideally Sa'idi) reviewer's
 sign-off.
+
+## The Tanoura (التنورة): drawn from reference keyframes and timed from the footage
+
+The second Egyptian dance; Egyptian learners' celebrations rotate between it
+and the Saidi cane dance. Its reference pack is `docs/reference/tanoura/`
+(PR #414), three performances by Cairo's Heritage Tanoura troupe. The scene is
+the dancer the pack measures best, the yellow-top dancer of tanoura6.
+
+| State | Still | Keyframes (README entries) |
+|---|---|---|
+| Front, the skirt a flat disc at the hips, arms out | `dancer-1.webp` | 4 (tanoura6 3:04), 3 |
+| Profile, facing frame-right | `dancer-2.webp` | the turn as Timing §4b reads it: front, profile, back, profile |
+| Back | `dancer-3.webp` | as above |
+| Profile, facing frame-left | `dancer-4.webp` | as above |
+| Front, arms straight up, the upper layer held overhead as a disc | `dancer-5.webp` | 4 |
+| Back, the same | `dancer-6.webp` | 4, and the turn |
+| Musician: a frame drum held against the chest | `drummer-1.webp` | 10 (tanoura3 0:33) |
+| Costume: yellow shirt and trousers, an embroidered vest with a red front panel, a white head-cloth with a flying tail; the hip disc black with green, orange and white, the raised one red beneath | all dancer stills | 4 |
+
+**Timing, in `src/lib/dances.ts`.** The movement is the spin, so the pose
+swap is the spin: one still a quarter turn.
+
+| Constant | Value | Source |
+|---|---|---|
+| `TANOURA_TURN_MS` | 990 | The yellow-top dancer, 0.994 s a turn over 19 hand-counted turns (tanoura6 4:00–4:19, SD 0.07 s). Other dancers and moments: 0.81–1.46 s. Medium confidence |
+| `TANOURA_QUARTER_MS` | turn ÷ 4 (247.5) | One view per quarter turn, in his order (counter-clockwise seen from above) |
+| `TANOURA_HIP_TURNS` / `TANOURA_OVERHEAD_TURNS` | 2 / 2 | The lift: about 290 ms from the hip to overhead (one quarter-turn step), then held about 7.1 s (tanoura6) or 8.6 s (tanoura1). Two turns stand in for the hold |
+
+**What the scene only approximates:**
+- **Overhead, he is drawn front and back only.** Each view is held half a
+  turn, so the spin reads coarser while the disc is up.
+- **The hold is cut** from about 7 s to two turns, and the scene loops back
+  to the hip spin rather than lowering the layer through "head height" and
+  "dropping" (README 4c), which would need three more stills.
+- **The discs don't turn.** Their wedge pattern is a smear in the footage;
+  the stills show it sharp.
+- **The musician doesn't strike**: no stroke can be matched to the sound
+  (README 4a).
+
+**Assumptions:** the profile and back views are not keyframes; the README
+names them as what the turn count reads, and the costume's back is drawn
+from its front. The performer is generated from written descriptions.
+
+**Before this ships to learners:** an Egyptian reviewer's sign-off.
 
 ## Al-Bara' (البرع): drawn from reference keyframes and timed from the footage
 

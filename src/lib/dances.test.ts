@@ -16,6 +16,11 @@ import {
   BARAA_PULSE_MS,
   BARAA_STEP_MS,
   BARAA_WAIST_BOBS,
+  TANOURA,
+  TANOURA_HIP_TURNS,
+  TANOURA_OVERHEAD_TURNS,
+  TANOURA_QUARTER_MS,
+  TANOURA_TURN_MS,
   AYYALA_ARM_OUT_STROKES,
   AYYALA_BOW_STROKES,
   AYYALA_CANE_UP_STROKES,
@@ -347,6 +352,44 @@ describe("Al-Bara' itself", () => {
   it("shows all three sections inside the six-second scene", () => {
     const shown = BARAA.sequence.slice(0, Math.ceil(TIER_DURATION_MS.large / BARAA.beatMs));
     expect(new Set(shown)).toEqual(new Set([0, 1, 2, 3]));
+  });
+});
+
+describe("the Tanoura itself", () => {
+  it("draws the turn a quarter at a time, in the counter-clockwise order the footage shows", () => {
+    // README 4b: front, profile (face to frame-right), back, profile, front.
+    const turn = TANOURA.sequence.slice(0, 4);
+    expect(turn).toEqual([0, 1, 2, 3]);
+    expect(TANOURA.beatMs).toBe(TANOURA_QUARTER_MS);
+    expect(TANOURA_QUARTER_MS * 4).toBe(TANOURA_TURN_MS);
+  });
+
+  it("turns at the measured rate: about one turn a second", () => {
+    // 0.994 s for the yellow-top dancer over 19 turns; 0.81–1.46 s across dancers.
+    expect(Math.abs(TANOURA_TURN_MS - 994)).toBeLessThanOrEqual(72);
+    expect(TANOURA_TURN_MS).toBeGreaterThanOrEqual(810);
+    expect(TANOURA_TURN_MS).toBeLessThanOrEqual(1460);
+  });
+
+  it("spins with the skirt at the hips, then holds the upper layer overhead, front and back", () => {
+    expect(runs(TANOURA.sequence.slice(4 * TANOURA_HIP_TURNS))).toEqual(
+      Array.from({ length: TANOURA_OVERHEAD_TURNS }, () => [
+        [4, 2],
+        [5, 2],
+      ]).flat(),
+    );
+    expect(new Set(TANOURA.sequence)).toEqual(new Set([0, 1, 2, 3, 4, 5]));
+  });
+
+  it("lifts the skirt after two full turns, inside even the three-second scene", () => {
+    const liftAt = TANOURA.sequence.indexOf(4) * TANOURA.beatMs;
+    expect(liftAt).toBe(TANOURA_HIP_TURNS * TANOURA_TURN_MS);
+    expect(liftAt).toBeLessThan(TIER_DURATION_MS.medium);
+  });
+
+  it("is an Egyptian dance, rotating with the Saidi cane dance", () => {
+    expect(dancesFor("Egyptian")).toEqual([ASSAYA, TANOURA]);
+    expect(TANOURA.musicianSequence).toEqual([0]);
   });
 });
 

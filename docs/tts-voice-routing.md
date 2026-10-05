@@ -21,8 +21,12 @@ holds only bounds our concurrency against Munsit if there is exactly one of it,
 and a second copy living inside a second hook would silently double it. Every
 speaker button in the app goes through it — `useAzureTTS` for a single piece of
 text that is known up front, `useLineAudio` for a passage read one line at a
-time (Souq News, Today's Story), where clips are synthesised on demand and the
-next line is fetched while the current one is still speaking.
+time (Souq News, Today's Story, the tutor sessions' "Listen to the Arabic"
+link), where clips are synthesised on demand and the next line is fetched
+while the current one is still speaking. `useLineAudio` is also the hook to
+reach for whenever a tap has to end in sound: it plays a silent clip during
+the tap itself, which is what lets iOS Safari play the real clip after the
+round trip to `tts-speak`.
 
 Before this, the mapping was hardcoded in six places that disagreed with each
 other. Yemeni was `ar-YE-MaryamNeural` from a flashcard, `ar-YE-SalehNeural` in

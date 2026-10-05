@@ -13,6 +13,7 @@ import { DialectProvider } from "@/contexts/DialectContext";
 import { AiAssistantProvider } from "@/contexts/AiAssistantContext";
 import { AssistantMount } from "@/components/assistant/AssistantMount";
 import { AskAiFab } from "@/components/assistant/AskAiFab";
+import { RecapNudge } from "@/components/recap/RecapNudge";
 import { BrandPreviewSwitcher } from "@/components/shell/BrandPreviewSwitcher";
 import { OnboardingTour } from "@/components/onboarding/OnboardingTour";
 import { lazyRetry } from "@/lib/lazyRetry";
@@ -53,6 +54,7 @@ const MemeAnalyzer = lazyPage(() => import("./pages/MemeAnalyzer"));
 const Discover = lazyPage(() => import("./pages/Discover"));
 const DiscoverVideo = lazyPage(() => import("./pages/DiscoverVideo"));
 const VideoDebrief = lazyPage(() => import("./pages/VideoDebrief"));
+const Recap = lazyPage(() => import("./pages/Recap"));
 const LearnFromX = lazyPage(() => import("./pages/LearnFromX"));
 const Share = lazyPage(() => import("./pages/Share"));
 const HowDoISay = lazyPage(() => import("./pages/HowDoISay"));
@@ -318,6 +320,7 @@ const App = () => {
             <Route path="/discover" element={<ErrorBoundary name="DiscoverRoute"><Discover /></ErrorBoundary>} />
             <Route path="/discover/:videoId" element={<ErrorBoundary name="DiscoverVideoRoute"><DiscoverVideo /></ErrorBoundary>} />
             <Route path="/debrief/:videoId" element={<ErrorBoundary name="VideoDebriefRoute"><ProtectedRoute><VideoDebrief /></ProtectedRoute></ErrorBoundary>} />
+            <Route path="/recap" element={<ErrorBoundary name="RecapRoute"><ProtectedRoute><Recap /></ProtectedRoute></ErrorBoundary>} />
             <Route path="/learn-from-x" element={
               <ErrorBoundary name="LearnFromXRoute">
                 <LearnFromX />
@@ -597,6 +600,10 @@ const App = () => {
               AppShell (the video player, Transcribe, Learn from X). */}
           <AskAiFab />
           <AssistantMount />
+          {/* Also outside <Routes>, for the same reason as the disc: the strip
+              offering the day's recap belongs on every learner screen, and the
+              shell's animated column would anchor a fixed child to itself. */}
+          <RecapNudge />
           {/* Renders nothing unless a ?brand= preview link switched one on. */}
           <BrandPreviewSwitcher />
           </AiAssistantProvider>

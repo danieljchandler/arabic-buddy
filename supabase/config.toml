@@ -64,6 +64,12 @@ verify_jwt = true
 [functions.video-debrief]
 verify_jwt = true
 
+# The daily recap: reads the caller's own views, words, look-ups and errors
+# under the service role. The summary needs a signed-in learner and the session
+# is subscribers-only (requireActiveSubscription inside), so the JWT is required.
+[functions.daily-recap]
+verify_jwt = true
+
 # Writes the per-video study guide the debrief runs on. Called by the ingest
 # pipeline with the service-role key and by the admin backfill; content-team or
 # admin gated inside.

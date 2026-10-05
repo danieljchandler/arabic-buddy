@@ -27,6 +27,10 @@ export const ASSISTANT_OFF_ROUTES: ReadonlyArray<readonly [prefix: string, reaso
     "/debrief",
     "the post-video debrief is itself a tutor chat about the video — a second assistant over it would be two tutors talking past each other",
   ],
+  [
+    "/recap",
+    "the daily recap is itself a tutor chat about the learner's day — the same two-tutors problem as the debrief",
+  ],
 ] as const;
 
 /** True when the assistant (disc, shortcut and panel) is switched off here. */

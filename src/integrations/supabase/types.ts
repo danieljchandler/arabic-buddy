@@ -5109,6 +5109,7 @@ export type Database = {
           sentence_text: string | null
           source: string | null
           source_upload_id: string | null
+          source_video_id: string | null
           stage: string
           tags: string[] | null
           transliteration: string | null
@@ -5158,6 +5159,7 @@ export type Database = {
           sentence_text?: string | null
           source?: string | null
           source_upload_id?: string | null
+          source_video_id?: string | null
           stage?: string
           tags?: string[] | null
           transliteration?: string | null
@@ -5207,6 +5209,7 @@ export type Database = {
           sentence_text?: string | null
           source?: string | null
           source_upload_id?: string | null
+          source_video_id?: string | null
           stage?: string
           tags?: string[] | null
           transliteration?: string | null
@@ -5216,7 +5219,15 @@ export type Database = {
           word_audio_url?: string | null
           word_english?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "user_vocabulary_source_video_id_fkey"
+            columns: ["source_video_id"]
+            isOneToOne: false
+            referencedRelation: "discover_videos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_xp: {
         Row: {
@@ -5321,6 +5332,44 @@ export type Database = {
           },
         ]
       }
+      video_study_guides: {
+        Row: {
+          created_at: string
+          guide: Json
+          model: string | null
+          transcript_hash: string
+          updated_at: string
+          version: number
+          video_id: string
+        }
+        Insert: {
+          created_at?: string
+          guide: Json
+          model?: string | null
+          transcript_hash: string
+          updated_at?: string
+          version?: number
+          video_id: string
+        }
+        Update: {
+          created_at?: string
+          guide?: Json
+          model?: string | null
+          transcript_hash?: string
+          updated_at?: string
+          version?: number
+          video_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_study_guides_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: true
+            referencedRelation: "discover_videos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       video_views: {
         Row: {
           completed: boolean
@@ -5350,6 +5399,44 @@ export type Database = {
           watched_seconds?: number
         }
         Relationships: []
+      }
+      video_word_lookups: {
+        Row: {
+          created_at: string
+          id: string
+          line_id: string | null
+          user_id: string
+          video_id: string
+          word_arabic: string
+          word_english: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          line_id?: string | null
+          user_id: string
+          video_id: string
+          word_arabic: string
+          word_english?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          line_id?: string | null
+          user_id?: string
+          video_id?: string
+          word_arabic?: string
+          word_english?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "video_word_lookups_video_id_fkey"
+            columns: ["video_id"]
+            isOneToOne: false
+            referencedRelation: "discover_videos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vocab_battles: {
         Row: {

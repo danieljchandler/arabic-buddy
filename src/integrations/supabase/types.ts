@@ -2144,6 +2144,48 @@ export type Database = {
           },
         ]
       }
+      learner_recaps: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          dialect: string
+          id: string
+          outcome: Json | null
+          plan: Json
+          recap_date: string
+          status: string
+          updated_at: string
+          user_id: string
+          window_days: number
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          dialect: string
+          id?: string
+          outcome?: Json | null
+          plan: Json
+          recap_date: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          window_days?: number
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          dialect?: string
+          id?: string
+          outcome?: Json | null
+          plan?: Json
+          recap_date?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          window_days?: number
+        }
+        Relationships: []
+      }
       learning_paths: {
         Row: {
           completed_at: string | null

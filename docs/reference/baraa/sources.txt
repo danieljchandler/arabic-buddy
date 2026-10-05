@@ -1,0 +1,32 @@
+Al-Bara' (البرع) reference footage -- sources
+Downloaded 2026-10-04 with yt-dlp 2026.08.19. Reference only.
+Full-length videos are local only: C:\media\dances\baraa\ (not in Drive, not in git).
+No UNESCO listing video for the Yemeni Al-Bara' was found (the only UNESCO "Al-Bar'ah" listing is Oman's, a different dance).
+None of the three channels below was verified as an official body; the "kind" notes say what each is.
+
+baraa1.mp4
+  URL:      https://www.youtube.com/watch?v=5J9tUNfZ40w
+  Title:    رقصة البرع اليمنية -- توثيق قديم تلفزيون عدن
+            (The Yemeni Bara' dance -- old documentation, Aden Television)
+  Channel:  إبداعات الجزيرات (private re-upload; the title says the recording is from Aden TV, not verified)
+  Uploaded: 2020-12-23
+  Length:   12:51
+  Format:   480p H.264 + AAC, 29.97 fps (4:3, VHS-quality TV recording of a staged troupe item)
+
+baraa2.mp4
+  URL:      https://www.youtube.com/watch?v=3d2txsOazfs
+  Title:    التراث اليمني .. رقصة البرع
+            (Yemeni heritage .. the Bara' dance)
+  Channel:  قناة ازال تيوب .. Azal tube (a YouTube channel named for Azal TV; not verified as the channel's own page)
+  Uploaded: 2020-09-11
+  Length:   6:28
+  Format:   720p H.264 + AAC, 25 fps (street performance in an open plaza, location not stated in the video; handheld TV-style camera)
+
+baraa5.mp4
+  URL:      https://www.youtube.com/watch?v=BlgLpXq2QFc
+  Title:    البرع اليمني في فعالية كأس العالم ولأول مرة، الفنان اليمني ملاطف الحميدي ينقل التراث اليمني للعالم
+            (Yemeni Bara' at the World Cup event, for the first time -- the Yemeni artist Malatef al-Hamidi takes Yemeni heritage to the world)
+  Channel:  Gamal Ali (private re-upload of an Al Jazeera studio segment; the Al Jazeera logo is burned into the picture)
+  Uploaded: 2022-10-23
+  Length:   12:56
+  Format:   674p H.264 + AAC, 30 fps (studio interview with two drummers, not a dance performance; used for the instruments and drum audio)

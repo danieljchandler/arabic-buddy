@@ -600,6 +600,32 @@ test.describe("picking up where the learner left off", () => {
     expect(Number(db.rows("lesson_progress")[0].best_score)).toBe(100);
   });
 
+  test("sings the learner a celebration once the lesson is finished", async ({ page, backend }) => {
+    await page.goto(`/learn/${LESSON}`);
+    await completeBlock(page);
+    await skipProduce(page);
+    await expect(page.getByText("100%")).toBeVisible();
+
+    await expect.poll(() => backend.callsTo("generate-celebration-song").length, { timeout: 10_000 }).toBe(1);
+    expect(backend.lastCallTo("generate-celebration-song")?.body).toMatchObject({
+      name: "Test Learner",
+      achievement: { kind: "lesson_complete" },
+    });
+  });
+
+  test("stays silent when the learner has turned celebration songs off", async ({ page, db, backend }) => {
+    await page.addInitScript(() => window.localStorage.setItem("hakiya:celebration-songs-enabled", "false"));
+    await page.goto(`/learn/${LESSON}`);
+    await completeBlock(page);
+    await skipProduce(page);
+    await expect(page.getByText("100%")).toBeVisible();
+    // Saving the result and asking for the song happen on the same render, so
+    // once the save has landed a request would already have gone out.
+    await expect.poll(() => db.rows("lesson_progress")[0]?.status, { timeout: 10_000 }).toBe("completed");
+
+    expect(backend.callsTo("generate-celebration-song")).toHaveLength(0);
+  });
+
   test("keeps the better of two scores", async ({ page, db }) => {
     db.seed("lesson_progress", [
       aLessonProgress({

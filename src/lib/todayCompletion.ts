@@ -1,6 +1,8 @@
 // Per-day task completion tracking via localStorage.
 // Keyed by YYYY-MM-DD so it auto-resets at midnight (local time).
 
+import { noteTasksTouchedToday } from "./celebrationSong";
+
 const KEY_PREFIX = "today.completed.";
 const GOAL_KEY = "today.goal";
 const DEFAULT_GOAL = 100;
@@ -39,6 +41,8 @@ export const markTaskCompletedToday = (taskId: string) => {
   const set = safeRead();
   set.add(taskId);
   safeWrite(set);
+  // Lets /today tell "I just finished the last one" from "another device did".
+  noteTasksTouchedToday();
   window.dispatchEvent(new CustomEvent("today:tasks-changed"));
 };
 

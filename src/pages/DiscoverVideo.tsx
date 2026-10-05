@@ -18,6 +18,7 @@ import {
 import { Loader2, ArrowLeft, BookOpen, Check, Eye, EyeOff, ChevronDown, ChevronLeft, ChevronRight, Info, List, Pause, Play, SkipBack, SkipForward, Gauge, Heart, Turtle } from "lucide-react";
 import { useVideoLikeCount, useIsVideoLiked, useLikeVideo, useUnlikeVideo } from "@/hooks/useVideoLikes";
 import { useRecordVideoView } from "@/hooks/useDiscoverFeed";
+import { useCelebrationSong } from "@/hooks/useCelebrationSong";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -632,6 +633,7 @@ const DiscoverVideo = ({
   const addUserVocabulary = useAddUserVocabulary();
   const recordLookup = useRecordWordLookup(video?.id);
   const recordView = useRecordVideoView();
+  const celebrate = useCelebrationSong();
 
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
   const [savedWords, setSavedWords] = useState<Set<string>>(new Set());
@@ -1363,7 +1365,10 @@ const DiscoverVideo = ({
     if (seconds - last.s < 10 && completed === last.completed) return;
     lastReportedRef.current = { s: seconds, completed };
     recordView.mutate({ videoId, watchedSeconds: seconds, completed });
-  }, [currentTimeMs, timerMs, videoId, user, video?.duration_seconds, video?.platform, isYouTube, isTikTok, tiktokAudioReady, recordView]);
+    // Crossing 85% is the only "finished" this page has. The hook remembers the
+    // video, so scrubbing back and crossing again does not sing twice.
+    if (completed && !last.completed) void celebrate({ kind: "video_complete", entityId: videoId });
+  }, [currentTimeMs, timerMs, videoId, user, video?.duration_seconds, video?.platform, isYouTube, isTikTok, tiktokAudioReady, recordView, celebrate]);
 
 
   const vocabulary = useMemo(

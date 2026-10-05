@@ -25,6 +25,7 @@ import { HomeLayoutEditor } from '@/components/settings/HomeLayoutEditor';
 import { DisplayPrefsEditor } from '@/components/settings/DisplayPrefsEditor';
 import { TutorMemoryCard } from '@/components/settings/TutorMemoryCard';
 import { useLeechPrefs } from '@/hooks/useLeechPrefs';
+import { useCelebrationPrefs } from '@/hooks/useCelebrationPrefs';
 import { useCurriculumDeckScope } from '@/hooks/useCurriculumDeckScope';
 import { useRootFamilyPrefs } from '@/hooks/useRootFamilyPrefs';
 import { useFeatureHints } from '@/hooks/useFeatureHints';
@@ -157,6 +158,7 @@ const Settings = () => {
   const queryClient = useQueryClient();
   const [loading, setLoading] = useState(true);
   const { enabled: leechEnabled, setEnabled: setLeechEnabled } = useLeechPrefs();
+  const { enabled: celebrationSongs, setEnabled: setCelebrationSongs } = useCelebrationPrefs();
   const { scope: curriculumScope, setScope: setCurriculumScope } = useCurriculumDeckScope();
   const { enabled: rootFamiliesEnabled, setEnabled: setRootFamiliesEnabled } = useRootFamilyPrefs();
   const { enabled: hintsEnabled, setEnabled: setHintsEnabled } = useFeatureHints();
@@ -781,6 +783,17 @@ const Settings = () => {
                     </p>
                   </div>
                   <Switch checked={leechEnabled} onCheckedChange={setLeechEnabled} />
+                </div>
+                <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
+                  <div className="min-w-0 pr-3">
+                    <p className="font-medium text-foreground text-sm">Celebration songs</p>
+                    <p className="text-xs text-muted-foreground">
+                      When you finish a lesson, a video, a tutor debrief or the day's tasks, hear a short
+                      over-the-top song sung to your display name. Each one uses a little of your daily
+                      allowance, and it stays silent if the Sound setting is off.
+                    </p>
+                  </div>
+                  <Switch checked={celebrationSongs} onCheckedChange={setCelebrationSongs} />
                 </div>
                 <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
                   <div className="min-w-0 pr-3">

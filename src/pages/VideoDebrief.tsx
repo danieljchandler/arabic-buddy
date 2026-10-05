@@ -18,6 +18,7 @@ import { useDocumentTitle } from "@/hooks/useDocumentTitle";
 import { useVoiceAnswer } from "@/hooks/useVoiceAnswer";
 import { streamChat, SseChatError } from "@/lib/sseChat";
 import { showCapToast } from "@/lib/handleCapResponse";
+import { useCelebrationSong } from "@/hooks/useCelebrationSong";
 import { resolveDiscoverVideoAudioUrl } from "@/lib/vocabularyAudioContext";
 import { cn } from "@/lib/utils";
 import {
@@ -117,6 +118,7 @@ function DebriefSession({ videoId }: { videoId: string }) {
   const plan = useDebriefPlan(videoId);
   const { data: video } = useDiscoverVideo(videoId);
   const reviewWord = useDebriefWordReview();
+  const celebrate = useCelebrationSong();
 
   const [items, setItems] = useState<DebriefItem[]>([]);
   const itemsRef = useRef<DebriefItem[]>([]);
@@ -274,6 +276,7 @@ function DebriefSession({ videoId }: { videoId: string }) {
     const next = nextStep(plan.data.steps, step);
     if (!next) {
       setFinished(true);
+      void celebrate({ kind: "review_conversation_complete", entityId: videoId });
       return;
     }
     setStep(next);

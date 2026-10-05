@@ -846,6 +846,39 @@ word selection), a six-item mixed pack reusing the daily challenge, mistake
 drill and shadow renderers, and a seventh-day digest that would be the first
 writer of `weekly_recommendations`.
 
+## Celebration songs
+
+Finishing something is answered with a short, over-the-top song sung to the
+learner by the name they set in Settings. It plays when they **finish a lesson**
+(`/learn/:lessonId`), **get through a video** (the 85% mark `DiscoverVideo`
+already counts as watched), **talk a video through with the tutor** (the end of
+the debrief), or **clear the day's tasks** (`/today`).
+
+- **`generate-celebration-song`** is the server half, a sibling of the word
+  jingle: a Gemini lyric writer produces dialect lyrics that sing the name, then
+  Lyria renders them (it needs `GEMINI_API_KEY`). Pure logic is in
+  `_shared/celebrationSongCore.ts`. The name is the one free-text input and goes
+  into two prompts, so it is cut to letters, marks, spaces, hyphens and
+  apostrophes (24 characters) and the prompt tells the model it is data. What
+  the learner achieved is a closed vocabulary (`ACHIEVEMENT_KINDS`) — the client
+  sends a kind and an optional number, never a sentence.
+- **Cost is the constraint.** Each song is a full Lyria generation, so the daily
+  allowance is tight (3 free, 10 standard, 30 all-in) and the client sings **once
+  per thing finished**: `lib/celebrationSong.ts` remembers each lesson, video and
+  day in localStorage (with an in-memory copy for private windows), so replays,
+  reloads and re-renders never pay twice. A spent allowance, a missing name, a
+  filtered generation or an outage all end silently — the song is a bonus and
+  never an error on the lesson the learner just finished.
+- **Where it is wired.** `hooks/useCelebrationSong` is the one entry point; each
+  page calls `celebrate({ kind, entityId })`. "Cleared the day's tasks" is
+  derived rather than an event, so `/today` only sings if a task was completed in
+  this browser that day (`markTaskCompletedToday` leaves the mark) — opening the
+  page on a day another device finished does not sing at someone who did nothing.
+- **Switching it off.** Settings has a "Celebration songs" switch
+  (`lib/celebrationPrefs.ts`, default on), and the app-wide Sound setting
+  silences it too. Browsers that refuse sound not started by a tap get a Play
+  button in the toast instead of a lost song.
+
 ## Grammar mastery
 
 Vocabulary has a full SRS; grammar used to have nothing. A Grammar Drills score

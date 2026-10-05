@@ -24,6 +24,10 @@ export type PremiumFeature =
   // Enforced today: realtime-session-token refuses the live voice assistant
   // without an active subscription, and meters minutes by tier.
   | 'live_voice'
+  // Enforced today: video-debrief calls requireActiveSubscription.
+  | 'video_debrief'
+  // Enforced today: daily-recap calls requireActiveSubscription for the session (the strip's summary is free).
+  | 'daily_recap'
   // All-In tier
   | 'early_access';
 
@@ -33,6 +37,8 @@ export const FEATURE_REQUIREMENTS: Record<PremiumFeature, Exclude<FeatureTier, '
   how_do_i_say: 'standard',
   learn_from_x: 'standard',
   live_voice: 'standard',
+  video_debrief: 'standard',
+  daily_recap: 'standard',
   early_access: 'allin',
 };
 
@@ -43,6 +49,8 @@ export function featureLabel(feature: PremiumFeature): string {
     case 'how_do_i_say': return 'How Do I Say';
     case 'learn_from_x': return 'Learn from X posts';
     case 'live_voice': return 'Live voice conversations';
+    case 'video_debrief': return 'Talking a video through with the tutor';
+    case 'daily_recap': return 'Going over your day with the tutor';
     case 'early_access': return 'Early access features';
   }
 }

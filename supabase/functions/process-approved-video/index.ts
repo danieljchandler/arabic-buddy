@@ -2226,6 +2226,7 @@ async function runFinalizeStage(ctx: PipelineContext, cp: Checkpoint): Promise<v
 
     await recordProgress(ctx, { stage: "done", note: "rating the difficulty" });
     await rateDifficulty(ctx);
+    await prepareStudyGuide(ctx);
     console.log(`[pipeline] Completed for video ${videoId}`);
   } catch (err) {
     await failRow(ctx, "finalize", err);
@@ -2259,6 +2260,32 @@ async function rateDifficulty(ctx: PipelineContext): Promise<void> {
     }
   } catch (e) {
     console.warn("[pipeline] auto-rate error (non-fatal):", e instanceof Error ? e.message : String(e));
+  }
+}
+
+/**
+ * Write the study guide the post-video debrief runs on, now that the
+ * transcript (and, just above, the CEFR level) is final.
+ *
+ * Awaited for the same reason as rateDifficulty. Non-fatal for the same reason
+ * too: the video is complete without it, and the debrief writes a missing
+ * guide itself the first time a learner opens one.
+ */
+async function prepareStudyGuide(ctx: PipelineContext): Promise<void> {
+  try {
+    const resp = await fetch(`${ctx.projectUrl}/functions/v1/video-study-guide`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: serviceRoleBearer(ctx) },
+      // Not forced: a re-run over an unchanged transcript keeps its guide, and a
+      // changed one no longer matches the stored hash, so it is rewritten.
+      body: JSON.stringify({ videoId: ctx.videoId }),
+      signal: AbortSignal.timeout(150_000),
+    });
+    if (!resp.ok) {
+      console.warn(`[pipeline] study guide failed: ${resp.status} ${await resp.text().catch(() => "")}`);
+    }
+  } catch (e) {
+    console.warn("[pipeline] study guide error (non-fatal):", e instanceof Error ? e.message : String(e));
   }
 }
 

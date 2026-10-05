@@ -121,6 +121,9 @@ harness.
   Never hand-edit `types.ts` beyond a revert; when the `typesDrift` guard
   names a migration, apply it to the project (ask Lovable to run it, or
   `supabase db push` with a token) and let the regeneration carry the columns.
+  Waiting on exactly that today: `20261004120000_video_debrief` and
+  `20261005120000_learner_recaps` (both features degrade rather than break
+  until applied — see their README sections).
 - **The brand is Ink, and its default lives in `index.html`.** `<html
   data-brand="ink" data-brand-default="ink">` plus the Ink fonts in the static
   `<link>`; `src/lib/brandPreview.ts` reads the declaration, and components
@@ -148,7 +151,7 @@ harness.
   seed migration by hand. `curriculum/tracks/SCHEMA.md` is the authoring guide;
   the README section "The authored tracks" is the writeup.
 - **The lint ratchet has a hard-coded baseline.** `scripts/lint-ratchet.mjs`
-  pins `BASELINE` (currently 530 errors). If you legitimately reduce the count,
+  pins `BASELINE` (currently 521 errors). If you legitimately reduce the count,
   lower `BASELINE` in the same commit — the script prints the new number.
 - **Flashcard scheduling is FSRS-6, not FSRS-4.5 or SM-2, and the weights are
   meant to be fitted.** `src/lib/spacedRepetition.ts` implements the FSRS-6
@@ -267,6 +270,20 @@ harness.
   shadowing path has its own calibration in `src/lib/shadowScoring.ts`, for a
   different reason: ASR snaps to real words, so a clean transcript is evidence
   about word choice and not about pronunciation.
+- **The TikTok player is a muted picture; the hidden `<audio>` is the clock.**
+  `src/pages/DiscoverVideo.tsx` drives TikTok's `player/v1` iframe over its
+  postMessage protocol to follow our own audio copy, and the sync has broken
+  in production more than once while the hermetic suite stayed green, because
+  the real frame is cross-origin and blocked there. Three rules, each with a
+  history: the frame is seeked to the audio once per play run, never per tick
+  (per-tick seeking was choppy and self-feeding); a frame the player's own
+  `onCurrentTime` shows more than 0.4 s off on two consecutive reports is
+  re-seeked once (`src/lib/tiktokFrameSync.ts` — a buffering stall used to
+  leave it behind for the rest of the clip); and the signed audio URL lives
+  four hours, with the page refreshing it on a playback error (at ten minutes
+  it expired under learners in phrase mode). `e2e/support/fakeTikTokPlayer.ts`
+  is the stand-in that makes any of this testable; the README section
+  "Playing a TikTok clip in step with its audio" is the writeup.
 - Test code is held to a *stricter* lint standard than the app (no `any`, no
   `.only`) — see the override in `eslint.config.js`.
 

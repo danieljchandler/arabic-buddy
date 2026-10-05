@@ -59,6 +59,23 @@ verify_jwt = true
 [functions.mistake-drill]
 verify_jwt = true
 
+# The post-video debrief: reads the caller's own saved words and look-ups under
+# the service role, and is subscribers-only (requireActiveSubscription inside).
+[functions.video-debrief]
+verify_jwt = true
+
+# The daily recap: reads the caller's own views, words, look-ups and errors
+# under the service role. The summary needs a signed-in learner and the session
+# is subscribers-only (requireActiveSubscription inside), so the JWT is required.
+[functions.daily-recap]
+verify_jwt = true
+
+# Writes the per-video study guide the debrief runs on. Called by the ingest
+# pipeline with the service-role key and by the admin backfill; content-team or
+# admin gated inside.
+[functions.video-study-guide]
+verify_jwt = true
+
 [functions.generate-story]
 verify_jwt = true
 

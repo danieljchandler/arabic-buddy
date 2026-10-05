@@ -2,6 +2,13 @@ import { expect, test, type Page } from "./support/fixtures";
 import { aDiscoverVideo, aProfile, videoId, TEST_USER_ID } from "../src/test/support/factories";
 import type { MemoryDb } from "../src/test/support/postgrest/store";
 import type { SupabaseBackend } from "../src/test/support/server/handler";
+import {
+  installFakeTikTokPlayer,
+  readFakePlayer,
+  reportedStates,
+  stallFakePlayer,
+  tapFakePlayer,
+} from "./support/fakeTikTokPlayer";
 
 /**
  * Discover — the video library and the personalised feed.
@@ -551,5 +558,173 @@ test.describe("a clip that cannot be loaded", () => {
     // The escape hatch is the point — this page used to render only the text.
     await page.getByRole("button", { name: "Browse clips" }).click();
     await expect(page).toHaveURL(/\/discover$/);
+  });
+});
+
+test.describe("keeping the TikTok frame on the audio clock", () => {
+  /**
+   * The player treats TikTok's frame as a muted picture and plays our own
+   * audio copy as the clock. The real frame is cross-origin and blocked here,
+   * so these run the page against a stand-in that speaks the documented embed
+   * protocol (e2e/support/fakeTikTokPlayer.ts) — the first coverage this
+   * handshake has had outside production, where every regression in it has
+   * been found so far.
+   */
+  const transcript = [
+    { id: "l1", arabic: "مرحبا", translation: "Hello", startMs: 0, endMs: 3000 },
+    { id: "l2", arabic: "شلونك", translation: "How are you", startMs: 3000, endMs: 9000 },
+  ];
+
+  function seedClip(db: MemoryDb, backend: SupabaseBackend, durationMs: number) {
+    backend.stageObject(`video-audio/${videoId(0)}.wav`, { durationMs });
+    db.seed("discover_videos", [
+      aDiscoverVideo({
+        id: videoId(0),
+        platform: "tiktok",
+        source_url: "https://www.tiktok.com/@someone/video/7300000000000000000",
+        embed_url: "https://www.tiktok.com/embed/v2/7300000000000000000",
+        transcript_lines: transcript,
+      }),
+    ]);
+  }
+
+  /** The hidden audio's clock, in seconds. */
+  const audioSeconds = (page: Page) =>
+    page.evaluate(() => document.querySelector("audio")?.currentTime ?? -1);
+
+  /** Frame minus audio, in seconds: negative when the picture is behind. */
+  async function drift(page: Page): Promise<number> {
+    const frame = await readFakePlayer(page);
+    if (!frame) throw new Error("fake player frame not mounted");
+    return frame.time - (await audioSeconds(page));
+  }
+
+  test.beforeEach(async ({ signInAs, db, allowExternalHosts }) => {
+    // The frame's own URL is tiktok.com even though the fake answers it.
+    allowExternalHosts(["tiktok.com"]);
+    await signInAs("free");
+    db.seed("profiles", [aProfile()]);
+  });
+
+  test("parks the muted autoplay, starts in step, stops with the clip and drives a phrase jump", async ({
+    page,
+    db,
+    backend,
+  }) => {
+    seedClip(db, backend, 4000);
+    await installFakeTikTokPlayer(page);
+    await page.goto(`/discover/${videoId(0)}`);
+
+    const play = page.getByRole("button", { name: "Play", exact: true });
+    await expect(play).toBeEnabled();
+
+    // Priming: autoplay=1 starts the muted frame on its own, and the page parks
+    // it at zero before the learner has pressed anything.
+    await expect.poll(async () => (await readFakePlayer(page))?.state).toBe(2);
+    const primed = (await readFakePlayer(page))!;
+    expect(primed.cmds.some((c) => c.type === "seekTo" && Number(c.value) === 0)).toBe(true);
+    expect(primed.time).toBeLessThan(0.5);
+
+    // Play: the frame is told where the audio is and started, and runs with it.
+    await play.click();
+    await expect.poll(async () => (await readFakePlayer(page))?.state).toBe(1);
+    await expect.poll(() => audioSeconds(page)).toBeGreaterThan(0.8);
+    expect(Math.abs(await drift(page))).toBeLessThan(0.4);
+
+    // The clip ends; the frame is paused with it rather than left running.
+    await expect.poll(async () => (await readFakePlayer(page))?.state, { timeout: 8000 }).toBe(2);
+    await expect(play).toBeVisible();
+
+    // A phrase jump drives the frame to the line start first, then the audio.
+    await page.getByRole("button", { name: "Previous line" }).click();
+    await expect(page.getByRole("button", { name: "Pause", exact: true })).toBeVisible();
+    await expect.poll(async () => (await readFakePlayer(page))?.state).toBe(1);
+    const jumped = (await readFakePlayer(page))!;
+    const seeks = jumped.cmds.filter((c) => c.type === "seekTo").map((c) => Number(c.value));
+    expect(seeks.at(-1)).toBeLessThan(0.5);
+    expect(Math.abs(await drift(page))).toBeLessThan(0.4);
+  });
+
+  test("catches a frame that stalled to buffer and fell behind the audio", async ({ page, db, backend }) => {
+    seedClip(db, backend, 12_000);
+    await installFakeTikTokPlayer(page);
+    await page.goto(`/discover/${videoId(0)}`);
+    await expect(page.getByRole("button", { name: "Play", exact: true })).toBeEnabled();
+    await expect.poll(async () => (await readFakePlayer(page))?.state).toBe(2);
+
+    await page.getByRole("button", { name: "Play", exact: true }).click();
+    await expect.poll(async () => (await readFakePlayer(page))?.state).toBe(1);
+    await page.waitForTimeout(800);
+    expect(Math.abs(await drift(page))).toBeLessThan(0.4);
+    const seeks = (snapshot: Awaited<ReturnType<typeof readFakePlayer>>) =>
+      (snapshot?.cmds ?? []).filter((c) => c.type === "seekTo");
+    const seeksBefore = seeks(await readFakePlayer(page)).length;
+
+    // The picture buffers for a second while the audio keeps going, then
+    // reports playing again from where it stopped. Without a correction it
+    // stayed a second behind for the rest of the clip — this was the "audio
+    // and video are unsynced" report.
+    await stallFakePlayer(page, 1000);
+    await expect
+      .poll(async () => reportedStates((await readFakePlayer(page))!).slice(-2).join(","), { timeout: 4000 })
+      .toBe("3,1");
+
+    // One corrective seek, once the player's own clock has disagreed with the
+    // audio on consecutive reports — not a seek per tick, and not during the
+    // buffering itself.
+    await expect.poll(async () => seeks(await readFakePlayer(page)).length, { timeout: 5000 }).toBe(seeksBefore + 1);
+    const correction = seeks(await readFakePlayer(page)).at(-1)!;
+    // The frame really was behind when it was told where the audio is.
+    expect(Number(correction.value) - correction.frameTime).toBeGreaterThan(0.8);
+
+    await page.waitForTimeout(1500);
+    expect(seeks(await readFakePlayer(page)).length).toBe(seeksBefore + 1);
+    expect(Math.abs(await drift(page))).toBeLessThan(0.4);
+  });
+
+  test("asks for a tap at once when the player refuses to autoplay", async ({ page, db, backend }) => {
+    seedClip(db, backend, 12_000);
+    await installFakeTikTokPlayer(page, { autoplayRefused: true });
+    await page.goto(`/discover/${videoId(0)}`);
+    const play = page.getByRole("button", { name: "Play", exact: true });
+    await expect(play).toBeEnabled();
+
+    // No autoplay, no priming: the player reports the refusal and sits at its
+    // own poster.
+    await expect
+      .poll(async () => (await readFakePlayer(page))?.sent.some((m) => m.type === "onPlayerError") ?? false)
+      .toBe(true);
+    expect((await readFakePlayer(page))!.state).toBe(-1);
+
+    // Our play cannot start it either; the player said so, and the page passes
+    // that on right away instead of after its four-second retry budget.
+    await play.click();
+    await expect(page.getByText("Tap the video to start it")).toBeVisible({ timeout: 1500 });
+
+    // The tap inside the frame starts the picture; the page aligns it and the
+    // hint goes away.
+    await tapFakePlayer(page);
+    await expect.poll(async () => (await readFakePlayer(page))?.state).toBe(1);
+    await expect(page.getByText("Tap the video to start it")).toHaveCount(0);
+    expect(Math.abs(await drift(page))).toBeLessThan(0.4);
+  });
+
+  test("slow listen survives an expired audio URL by asking for a fresh one", async ({ page, db, backend }) => {
+    seedClip(db, backend, 12_000);
+    await installFakeTikTokPlayer(page);
+    await page.goto(`/discover/${videoId(0)}`);
+    const slow = page.getByRole("button", { name: "Slow 0.75x" });
+    await expect(slow).toBeEnabled();
+    const callsBefore = backend.callsTo("discover-video-audio").length;
+
+    // Time passes: every URL the page holds is now expired at the bucket.
+    backend.expireSignedStorageUrls();
+
+    // The first attempt fails at the bucket; the page fetches a fresh URL and
+    // plays rather than toasting "Audio playback failed".
+    await slow.click();
+    await expect(page.getByRole("button", { name: "Stop" })).toBeVisible();
+    await expect(page.getByText("Audio playback failed")).toHaveCount(0);
+    expect(backend.callsTo("discover-video-audio").length).toBe(callsBefore + 1);
   });
 });

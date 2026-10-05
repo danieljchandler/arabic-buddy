@@ -705,6 +705,147 @@ them erase it; the table has SELECT and DELETE policies for them and no INSERT
 or UPDATE, because a client-supplied "here is what you remember about me" is a
 prompt-injection surface with a database behind it.
 
+## Talking a video through (the debrief)
+
+Under every Discover video sits a "Check what you understood" card. It opens
+`/debrief/:videoId` (`src/pages/VideoDebrief.tsx`): a guided chat with the
+tutor about the video just watched, in up to six steps shown as a checklist —
+**the gist**, **what happened** (a few comprehension questions), **your words**
+(a quiz), **say it** (shadow one or two lines), **your questions**, and a
+**recap**. The tutor runs each step in the chat and ends it with a
+`[[STEP_DONE]]` marker that the page turns into a Continue button; the learner
+can skip ahead at any time. Subscribers only (`requireActiveSubscription` in the
+function, `RequireSubscription` on the page, `video_debrief` in
+`featureAccess.ts`), and the floating Ask AI button is off there — the page is
+already a tutor.
+
+Two layers feed it, and the split is the point:
+
+- **The study guide** is per video and the same for everyone: a summary, a gist
+  question and two to five comprehension questions *with their answer key and
+  the lines that answer them*, lines worth shadowing, talking points, and the
+  expressions worth explaining. A model reads the whole transcript and its
+  translations once (`_shared/videoStudyGuide.ts`) and the result is cached in
+  `video_study_guides` — service-role only, since it holds the answers. So a
+  debrief turn carries the guide plus only the transcript lines it cites (and a
+  neighbour either side); only the open-questions step, where any moment is fair
+  game, sends the whole transcript. The guide records a hash of the transcript
+  it was written from, and a reviewer's later edit makes it stale; it is
+  rewritten the next time anyone opens the debrief.
+- **The learner's marks** are live and read server-side on every request: the
+  words they saved from this video (`user_vocabulary.source_video_id`, new; older
+  "discover" rows are matched by the sentence they were saved with), the words
+  they tapped for a meaning and did not save (`video_word_lookups`, written
+  fire-and-forget from the word popover), and the video's key vocabulary to make
+  up the number. Saved first, then looked-up, then key words, five at most.
+
+Guides arrive three ways: the ingest pipeline asks `video-study-guide` for one
+after the CEFR rating; an admin's **Prepare debrief guides** button on
+`/admin/videos` walks the existing library by cursor, two videos per request;
+and the debrief writes a missing or stale one on the spot (the learner waits a
+few seconds, once per video).
+
+The word quiz is multiple choice, its wrong options the meanings of *other*
+words from the same video (`buildWordQuiz`); with too few to choose from, a card
+becomes recall. A quiz answer on a **saved** word is a recognition review of its
+flashcard — the same FSRS call, retention target and fitted weights as My Words
+(`useDebriefWordReview`; right = Good, wrong = Again), and a first rating spends
+one of the day's new cards. The shadowing card is the video page's
+`LineShadowPanel` with `recordAttempt={false}`, reporting the learner's best
+take. Every finished card is reported back into the conversation in words the
+tutor's prompt tells it to expect (`describeQuizResults`,
+`describeShadowResult`), so it can explain a missed word through the line it
+came from. The tutor pitches its language by CEFR: English with each question
+repeated in dialect at A1–A2, mostly dialect with glosses at B1–B2, dialect
+throughout from C1. Its own Arabic gets the same post-stream native-speaker
+review as the Ask AI chat.
+
+Everything that decides — guide validation, staleness, word and line
+selection, the quiz, the prompts — is pure, in `_shared/videoDebriefCore.ts`
+(`src/test/videoDebriefCore.test.ts`); the page's half (what follows a tutor
+message, what is sent) is `src/lib/videoDebrief.ts`. Edge tests:
+`supabase/functions/_test/video_debrief_test.ts`; end to end:
+`e2e/video-debrief.spec.ts`.
+
+Migration `20261004120000_video_debrief` must be applied to the live project
+(see CLAUDE.md). Until it is, everything degrades rather than breaks: guides are
+generated but not cached, look-ups are not recorded, saved words fall back to
+the sentence match, and the backfill button says what is missing.
+
+## Going over the day (the recap)
+
+The debrief's next-morning counterpart. A strip at the bottom of every learner
+screen — "Yesterday: 1 video, 4 new words, 2 slips" — opens `/recap`
+(`src/pages/Recap.tsx`): a guided chat with the tutor over everything the app
+recorded about the learner's day, in up to six steps: **your day** (the tutor
+reads their file back to them), **tell it back** (retell each clip; the tutor
+checks against the study guide), **your words** (a quiz on the words they saved
+or looked up, through the lines they were said in), **fix a slip** (each
+recorded learner error, their own form next to the right one, then a sentence
+of their own), **say it** (shadow a line carrying one of their words), and a
+**recap**. Same session machinery as the debrief — the `[[STEP_DONE]]` marker,
+the quiz and shadow cards, `StepChecklist`/`ListenButton`
+(`src/components/debrief/SessionChrome.tsx`) and `useVoiceAnswer` are shared —
+over a different set of steps. Subscribers only for the session
+(`requireActiveSubscription`, `daily_recap` in `featureAccess.ts`); the strip's
+summary is free, so every learner sees what they did. The Ask AI button is off
+on the page, as on the debrief.
+
+When yesterday was empty the window widens to the last seven days and the
+session says so ("This week's recap"); when the week is empty too, the strip
+stays away. "Yesterday" is the learner's own day: the client sends its local
+date and UTC offset with every request (profiles store no timezone), and the
+server ends the window at that local midnight.
+
+**The window** (`_shared/recapWindow.ts`) is ten bounded, parallel,
+fail-soft reads under the service role: `video_views` in the window (joined to
+the videos' spoken lines and cached study guides; a guide is written for at
+most one guide-less clip per plan), words saved (`user_vocabulary.created_at`,
+with `source_video_id` where the column exists), words looked up
+(`video_word_lookups`), unresolved `learner_errors`, saved words rated Again or
+Hard in review, `lesson_progress`, stories read, saved Ask AI chats, the
+daily-challenge score, and the tutor's open questions from `learner_ai_memory`.
+Videos and lessons are filtered to the active dialect. **The plan**
+(`_shared/recapCore.ts`, pure) is deterministic for a window and a seed: the
+quiz is the learner's own marks only (saved from a clip, looked up, saved
+elsewhere, then review slips — never topped up from key vocabulary), the
+shadow lines carry their words where possible, errors are grouped by target
+(`groupSlips`), and each video travels as its guide summary plus the cited
+lines with a neighbour either side, under a character budget — the full
+transcript never does. The plan is stored once per learner, dialect and local
+day in `learner_recaps` (service-role written, owner-readable), so the strip,
+the Today queue and every chat turn read the same session; where it cannot be
+stored, the same plan is rebuilt per request.
+
+**`daily-recap`** has four actions: `summary` (model-free; drives the strip
+and the Today-queue row via `useRecapSummary`), `plan`, `chat` (one streamed
+turn through `streamBrain`, with the plan's Arabic excluded from the native
+review), and `complete` (records the card results and the steps reached;
+`sanitizeOutcome` keeps nothing else). Finishing awards XP, ticks the `recap`
+task in the Today queue and marks the cached summary done, which is what
+takes the strip away; waving the strip off hides it for the day on that
+device (`hakiya:recap-nudge:v1`).
+
+The strip (`src/components/recap/RecapNudge.tsx`) is mounted at the app root
+beside the Ask AI disc, so it anchors to the viewport on every layout; it sits
+above the dock and the two floating buttons below `lg`, and between them at
+the bottom edge from `lg`. It shows on routes where chrome belongs — not the
+auth, admin or print routes, not the immersive ones the dock also leaves
+(`shouldShowDock`), and not the recap itself.
+
+Tests: `src/test/recapCore.test.ts` (the pure half), `src/lib/recap.test.ts`,
+`src/hooks/useRecap.test.ts`, `src/components/recap/RecapNudge.test.tsx`,
+`supabase/functions/_test/daily_recap_test.ts` (the window and the function),
+`e2e/recap.spec.ts`. Migration `20261005120000_learner_recaps` must be applied
+to the live project (see CLAUDE.md); until it is, plans are rebuilt per request
+and completion is not remembered server-side.
+
+Shapes the same window could feed next, not built: a story written from the
+day's words and the clips' summaries (the daily story core with a different
+word selection), a six-item mixed pack reusing the daily challenge, mistake
+drill and shadow renderers, and a seventh-day digest that would be the first
+writer of `weekly_recommendations`.
+
 ## Grammar mastery
 
 Vocabulary has a full SRS; grammar used to have nothing. A Grammar Drills score
@@ -1141,6 +1282,47 @@ when an edit left them stale, and writes its word times back on save. The
 Discover player keeps a deliberate `LINE_END_GRACE_MS` (500 ms) past each
 line's end so captions don't flicker off during short pauses; the reverse scan
 means a line that has started always beats its predecessor's grace.
+
+### Playing a TikTok clip in step with its audio
+
+TikTok's `player/v1` iframe is a muted picture; the sound is our own copy of
+the clip's audio from the private `video-audio` bucket, which a signed-in
+learner fetches through `discover-video-audio`, and that hidden `<audio>` is
+the clock everything else reads: the active line, phrase-end pauses, slow
+listen, view tracking. The frame is driven to the audio over TikTok's embed
+protocol (`postMessage` with `x-tiktok-player: true`; the "Embed player" page
+on developers.tiktok.com documents it), and how often it is driven has a
+history worth knowing before touching `src/pages/DiscoverVideo.tsx`:
+
+- `autoplay=1&muted=1` lets the frame start on its own, which is what makes it
+  accept commands at all — a cross-origin frame ignores `play` until it has
+  played once. That first "playing" is parked at zero before the learner has
+  pressed anything.
+- The frame is seeked to the audio once per play run (#212). Seeking it on
+  every tick made the picture choppy and fed itself, since a fresh seek
+  briefly reports a transitional position that reads as more drift (#211).
+- What that left open: a frame that stalled to buffer came back behind the
+  audio and stayed there for the rest of the clip, with nothing to say so. The
+  player's own `onCurrentTime` reports are now held against the audio by
+  `src/lib/tiktokFrameSync.ts`, and the frame is re-seeked only when they
+  disagree by more than 0.4 s on two consecutive reports, never within 1.5 s
+  of a seek. Normal playback never trips it.
+- `onPlayerError` 3002 (muted autoplay refused) puts the "tap the video" hint
+  up at once rather than after the four-second retry budget: without the
+  autoplay, no command will start the frame.
+- The signed audio URL lasts four hours, not the ten minutes it first shipped
+  with — a learner in phrase mode reached the expiry mid-clip, the audio
+  stopped dead and the muted frame rolled on. The page also asks for a fresh
+  URL on a playback error and resumes from the same second, and slow listen
+  retries once the same way. The URL is resolved per video id rather than per
+  row object, so a refetched row cannot swap the element's source under a
+  playing clip.
+
+The handshake runs against a stand-in player in the hermetic suite
+(`e2e/support/fakeTikTokPlayer.ts`, driven from `e2e/discover.spec.ts`) that
+speaks the same protocol, keeps a clock, and can stall, refuse autoplay and
+take a tap. Until it existed, every regression in this path was found in
+production.
 
 `discover_videos.dialect` stops at the country — "Saudi", "Kuwaiti",
 "Egyptian" — which is roughly the resolution of a passport rather than of a

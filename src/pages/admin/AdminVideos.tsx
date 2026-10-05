@@ -16,7 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Loader2, ArrowLeft, Plus, Edit, Trash2, Eye, EyeOff, ImageDown, ScanText } from "lucide-react";
+import { Loader2, ArrowLeft, Plus, Edit, Trash2, Eye, EyeOff, ImageDown, ScanText, MessagesSquare } from "lucide-react";
+import { useBackfillStudyGuides } from "@/hooks/useVideoDebrief";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -134,6 +135,8 @@ const AdminVideos = () => {
   const deleteMutation = useDeleteDiscoverVideo();
   const togglePublish = useTogglePublish();
   const backfillThumbnails = useBackfillThumbnails();
+  const backfillGuides = useBackfillStudyGuides();
+  const [guideProgress, setGuideProgress] = useState<string | null>(null);
   const reextractOnScreenText = useReextractOnScreenText();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [rereadingId, setRereadingId] = useState<string | null>(null);
@@ -221,6 +224,47 @@ const AdminVideos = () => {
         },
         onError: (error: Error) => {
           toast({ variant: "destructive", title: "Backfill failed", description: error.message });
+        },
+      },
+    );
+  };
+
+  /**
+   * Write the debrief's study guide for every published video without one.
+   *
+   * New videos get theirs from the pipeline; this is for the library that
+   * predates the debrief. One model call per video, so it is admin-only, and
+   * it runs a couple of videos per request until none are left.
+   */
+  const runGuideBackfill = () => {
+    setGuideProgress("Starting…");
+    backfillGuides.mutate(
+      { onProgress: (done, remaining) => setGuideProgress(`${done} done, ${remaining} to go`) },
+      {
+        onSuccess: (report) => {
+          setGuideProgress(null);
+          if (report.storeFailed) {
+            toast({
+              variant: "destructive",
+              title: "Guides can't be stored yet",
+              description: "Apply migration 20261004120000_video_debrief to the project, then run this again.",
+            });
+            return;
+          }
+          toast({
+            title: `Prepared ${report.generated} debrief guide${report.generated === 1 ? "" : "s"}`,
+            description:
+              [
+                report.skipped ? `${report.skipped} skipped (no transcript)` : "",
+                report.failed ? `${report.failed} failed — run again to retry` : "",
+              ]
+                .filter(Boolean)
+                .join(" · ") || undefined,
+          });
+        },
+        onError: (error: Error) => {
+          setGuideProgress(null);
+          toast({ variant: "destructive", title: "Guide backfill stopped", description: error.message });
         },
       },
     );
@@ -331,6 +375,16 @@ const AdminVideos = () => {
                   )}
                   Find {missingThumbnails.length} missing thumbnail
                   {missingThumbnails.length === 1 ? "" : "s"}
+                </Button>
+              )}
+              {isAdmin && (
+                <Button variant="outline" onClick={runGuideBackfill} disabled={backfillGuides.isPending}>
+                  {backfillGuides.isPending ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <MessagesSquare className="h-4 w-4 mr-2" />
+                  )}
+                  {backfillGuides.isPending ? guideProgress ?? "Preparing…" : "Prepare debrief guides"}
                 </Button>
               )}
               <Button onClick={() => navigate("/admin/videos/new")}>

@@ -188,6 +188,7 @@ function backend(
     "/functions/v1/download-media": download,
     "/functions/v1/analyze-gulf-arabic": analyze,
     "/functions/v1/rate-video-cefr": () => json({ success: true, cefr: "A2" }),
+    "/functions/v1/video-study-guide": () => json({ id: VIDEO, status: "generated", stored: true }),
     // The function hands each stage to itself as a new request. Refusing the
     // hop here makes the stage run inline, so a test sees the whole run in one
     // background task; the tests that follow a run across hops route this to
@@ -1156,6 +1157,28 @@ Deno.test("process-approved-video completes even when the rating fails", async (
 
   // The transcript is already persisted by this point; a missing difficulty
   // band is an admin nudge, not a failed transcription.
+  assertEquals(finalStatus(result), "completed");
+});
+
+Deno.test("process-approved-video asks for the debrief's study guide after the rating", async () => {
+  const result = await call({ videoId: VIDEO }, backend());
+
+  assertEquals(bodySentTo(result, "video-study-guide").videoId, VIDEO);
+  // The guide is written from the final transcript and reads the CEFR band the
+  // rating just stored, so it comes last.
+  const rateAt = result.calls.findIndex((u) => u.includes("rate-video-cefr"));
+  const guideAt = result.calls.findIndex((u) => u.includes("video-study-guide"));
+  assert(rateAt >= 0 && guideAt > rateAt, "expected the study guide to follow the rating");
+});
+
+Deno.test("process-approved-video completes even when the study guide fails", async () => {
+  const result = await call({ videoId: VIDEO }, {
+    ...backend(),
+    "/functions/v1/video-study-guide": () => new Response("guide writer down", { status: 502 }),
+  });
+
+  // The debrief writes a missing guide itself on first use; a video is not
+  // unfinished for lacking one.
   assertEquals(finalStatus(result), "completed");
 });
 

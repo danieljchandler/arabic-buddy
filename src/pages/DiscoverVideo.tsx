@@ -5,6 +5,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useDiscoverVideo, type DiscoverVideo as DiscoverVideoType } from "@/hooks/useDiscoverVideos";
 import { useAuth } from "@/hooks/useAuth";
 import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
+import { useRecordWordLookup, type WordLookup } from "@/hooks/useVideoDebrief";
+import { VideoDebriefCard } from "@/components/discover/VideoDebriefCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -42,7 +44,8 @@ import { useFushaLines } from "@/hooks/useFushaLines";
 import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
 import { LineShadowPanel } from "@/components/pronunciation/LineShadowPanel";
 import type { ExternalYouTubeController } from "@/components/pronunciation/ClipSourcePlayer";
-import { DIALECT_LOCALE, extractYouTubeId, type ShadowClip } from "@/hooks/useShadowQueue";
+import { type ShadowClip } from "@/hooks/useShadowQueue";
+import { buildLineShadowClip } from "@/lib/lineShadowClip";
 import { loadYouTubeIframeAPI } from "@/lib/youtubeIframeApi";
 import { Mic } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -52,6 +55,7 @@ import { useUserLevel } from "@/hooks/useUserLevel";
 import { useQueryClient } from "@tanstack/react-query";
 import { Sparkles } from "lucide-react";
 import { track } from "@/lib/analytics";
+import { createDriftGuard, frameTimeSeconds } from "@/lib/tiktokFrameSync";
 
 declare global {
   interface Window {
@@ -91,16 +95,21 @@ const ClickableWord = ({
   parentLine,
   onSave,
   isSaved,
+  onLookup,
 }: {
   token: WordToken;
   parentLine: TranscriptLine;
   onSave?: (word: VocabItem) => void;
   isSaved?: boolean;
+  /** Told once a looked-up word's meaning is known — the debrief quizzes on these. */
+  onLookup?: (word: WordLookup) => void;
 }) => {
   const [open, setOpen] = useState(false);
   const [liveTranslation, setLiveTranslation] = useState<string | null>(null);
   const [liveMsa, setLiveMsa] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
+  const [translateAttempted, setTranslateAttempted] = useState(false);
+  const lookupRecordedRef = useRef(false);
 
   // A real gloss exists if gloss is set and is not a legacy compound marker
   const hasGloss = !!token.gloss && !token.gloss.startsWith("(→") && !token.compoundRef;
@@ -134,9 +143,23 @@ const ClickableWord = ({
           }
         })
         .catch((err) => console.warn("Word translation failed:", err))
-        .finally(() => setIsTranslating(false));
+        .finally(() => {
+          setIsTranslating(false);
+          setTranslateAttempted(true);
+        });
     }
   }, [open, hasGloss, liveTranslation, isTranslating, token.surface]);
+
+  // Opening a word for its meaning is the clearest "I wasn't sure" the page
+  // has, so it is remembered for the post-video debrief. Recorded once the
+  // meaning has settled (stored, fetched, or failed to fetch), so the record
+  // carries the gloss the learner actually saw.
+  useEffect(() => {
+    if (!open || !onLookup || lookupRecordedRef.current || isTranslating) return;
+    if (!hasGloss && !liveTranslation && !translateAttempted) return;
+    lookupRecordedRef.current = true;
+    onLookup({ arabic: token.surface, english: displayGloss ?? null, lineId: parentLine.id });
+  }, [open, onLookup, isTranslating, hasGloss, liveTranslation, translateAttempted, displayGloss, token.surface, parentLine.id]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -216,45 +239,6 @@ const ClickableWord = ({
 };
 
 /* ── Transcript Line Row ──────────────────────────────────── */
-const buildShadowClipForLine = (
-  line: TranscriptLine,
-  video?: DiscoverVideoType,
-  shadowAudioUrl?: string | null,
-): ShadowClip | null => {
-  const startMs = Number(line.startMs);
-  const endMs = Number(line.endMs);
-  const hasTiming = Number.isFinite(startMs) && Number.isFinite(endMs) && endMs > startMs;
-  const isYouTube = video?.platform === "youtube";
-  const youtubeId = isYouTube ? extractYouTubeId(video?.embed_url ?? null, video?.source_url ?? null) : null;
-
-  if (!video || !line.arabic || !hasTiming) return null;
-
-  const base = {
-    id: `line-${line.id}`,
-    text: line.arabic,
-    translation: line.translation,
-    startSec: startMs / 1000,
-    endSec: endMs / 1000,
-    dialect: video.dialect,
-    locale: DIALECT_LOCALE[video.dialect] ?? "ar-SA",
-    sourceTitle: video.title,
-  };
-
-  // Prefer a downloadable native-audio clip whenever we have one. An <audio>
-  // element started by the user's tap plays reliably on every platform — the
-  // cross-origin YouTube iframe, by contrast, refuses to autoplay until the
-  // user has interacted inside it (that's why shadowing used to need the main
-  // video played first). We only fall back to driving the iframe when no audio
-  // file exists. Either way the reference stays the actual native clip.
-  if (shadowAudioUrl) {
-    return { ...base, source: "audio", audioUrl: shadowAudioUrl };
-  }
-  if (isYouTube && youtubeId) {
-    return { ...base, source: "youtube", youtubeId };
-  }
-  return null;
-};
-
 const TranscriptRow = ({
   line,
   isActive,
@@ -270,6 +254,7 @@ const TranscriptRow = ({
   isShadowing,
   onToggleShadow,
   externalYouTubeController,
+  onLookup,
 }: {
   line: TranscriptLine;
   isActive: boolean;
@@ -286,8 +271,9 @@ const TranscriptRow = ({
   isShadowing?: boolean;
   onToggleShadow?: (lineId: string) => void;
   externalYouTubeController?: ExternalYouTubeController | null;
+  onLookup?: (word: WordLookup) => void;
 }) => {
-  const shadowClip = buildShadowClipForLine(line, video, shadowAudioUrl);
+  const shadowClip = buildLineShadowClip(line, video, shadowAudioUrl);
 
   return (
     <div
@@ -319,6 +305,7 @@ const TranscriptRow = ({
                   parentLine={line}
                   onSave={onSave}
                   isSaved={savedWords?.has(token.surface)}
+                  onLookup={onLookup}
                 />
                 {i < line.tokens.length - 1 && !/^[،؟.!:؛]+$/.test(token.surface) && " "}
               </span>
@@ -643,6 +630,7 @@ const DiscoverVideo = ({
   const { data: video, isLoading, isError: videoError, refetch: refetchVideo } = useDiscoverVideo(videoId);
   const { user, isAuthenticated } = useAuth();
   const addUserVocabulary = useAddUserVocabulary();
+  const recordLookup = useRecordWordLookup(video?.id);
   const recordView = useRecordVideoView();
 
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
@@ -717,6 +705,8 @@ const DiscoverVideo = ({
   const [isYouTubePlaying, setIsYouTubePlaying] = useState(false);
   const [lineControlIndex, setLineControlIndex] = useState(0);
   const [tiktokAudioUrl, setTiktokAudioUrl] = useState<string | null>(null);
+  const tiktokAudioUrlRef = useRef<string | null>(null);
+  tiktokAudioUrlRef.current = tiktokAudioUrl;
   const [tiktokAudioReady, setTiktokAudioReady] = useState(false);
   // Shadowing: which line's inline panel is open, and the resolved native
   // audio URL used to extract clips for acoustic scoring (null for videos
@@ -747,6 +737,13 @@ const DiscoverVideo = ({
       pendingAudioStartRef.current = null;
     }
   }, []);
+  // The audio's place and state across a reload of its URL (see
+  // refreshTikTokAudioUrl), and how many fresh URLs this video has had.
+  const tiktokAudioResumeRef = useRef<{ atSec: number; wasPlaying: boolean } | null>(null);
+  const tiktokAudioRefreshesRef = useRef(0);
+  // The URL the slow-listen element was created with, so the cleanup that
+  // drops a stale element can tell it from one already on a fresh URL.
+  const slowListenSrcRef = useRef<string | null>(null);
   const shadowPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lineRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const transcriptContainerRef = useRef<HTMLDivElement>(null);
@@ -862,19 +859,28 @@ const DiscoverVideo = ({
     }
   }, [playbackSpeed]);
 
-  // Resolve hidden audio source for TikTok videos (from video-audio bucket)
+  // Resolve hidden audio source for TikTok videos (from video-audio bucket).
+  // Keyed on the row's id, not the row object: a refetch that changes any
+  // column — a view count, a like, a focus-triggered refresh — used to re-run
+  // this, mint a new signed URL and swap the element's src under a playing
+  // clip, which restarts the audio from zero while the frame rolls on.
+  const latestVideoRef = useRef(video);
+  latestVideoRef.current = video;
   useEffect(() => {
-    if (!video || video.platform !== "tiktok") {
+    const current = latestVideoRef.current;
+    if (!current || current.platform !== "tiktok") {
       setTiktokAudioUrl(null);
       setTiktokAudioReady(false);
       return;
     }
+    tiktokAudioRefreshesRef.current = 0;
+    tiktokAudioResumeRef.current = null;
     let cancelled = false;
-    resolveDiscoverVideoAudioUrl(video).then((url) => {
+    resolveDiscoverVideoAudioUrl(current).then((url) => {
       if (!cancelled) setTiktokAudioUrl(url);
     });
     return () => { cancelled = true; };
-  }, [video]);
+  }, [video?.id, video?.platform]);
 
   const stopSlowListen = useCallback(() => {
     if (slowListenTimerRef.current) {
@@ -886,12 +892,46 @@ const DiscoverVideo = ({
     setIsSlowListening(false);
   }, []);
 
+  /**
+   * Ask discover-video-audio for a fresh URL and reload the hidden audio from
+   * it, keeping the learner's place.
+   *
+   * The URL is signed and expires (four hours now; it was ten minutes, which a
+   * learner in phrase mode reached mid-clip). Past it the element's next range
+   * request fails and it stops dead while the muted frame rolls on — picture
+   * and words part ways, which is what "unsynced" looked like from outside.
+   * The `<audio>`'s onError and slow listen's retry both land here. Twice per
+   * video at most: a storage that keeps refusing is not a stale URL.
+   */
+  const refreshTikTokAudioUrl = useCallback(async (): Promise<string | null> => {
+    const current = latestVideoRef.current;
+    if (!current || current.platform !== "tiktok" || tiktokAudioRefreshesRef.current >= 2) return null;
+    tiktokAudioRefreshesRef.current += 1;
+    const url = await resolveDiscoverVideoAudioUrl(current);
+    if (!url) return null;
+    const audio = tiktokAudioRef.current;
+    if (audio) {
+      tiktokAudioResumeRef.current = {
+        atSec: audio.currentTime,
+        wasPlaying: !audio.paused && !audio.ended,
+      };
+      // The same string would not change the attribute, so reload by hand.
+      if (url === tiktokAudioUrlRef.current) audio.load();
+    }
+    if (url !== tiktokAudioUrlRef.current) setTiktokAudioUrl(url);
+    return url;
+  }, []);
+
   // Drop the slow-listen element with its source, so a stale element can
-  // never keep playing the previous video's audio.
+  // never keep playing the previous video's audio. One that slow listen has
+  // already re-created on the URL now in force (a refresh of the same video)
+  // is left alone: this cleanup runs for the URL that refresh replaced.
   useEffect(() => {
     return () => {
+      if (slowListenSrcRef.current && slowListenSrcRef.current === tiktokAudioUrlRef.current) return;
       stopSlowListen();
       slowListenAudioRef.current = null;
+      slowListenSrcRef.current = null;
     };
   }, [tiktokAudioUrl, stopSlowListen]);
 
@@ -968,6 +1008,9 @@ const DiscoverVideo = ({
           sentence_audio_url: sentenceAudioUrl,
           word_audio_url: wordAudioUrl,
           source: "discover",
+          // Which video it came from, so the debrief can quiz "the words you
+          // saved here" without guessing from the sentence.
+          source_video_id: video?.id,
         });
         setSavedWords((prev) => new Set(prev).add(word.arabic));
         toast.success("Saved to My Words");
@@ -1192,7 +1235,7 @@ const DiscoverVideo = ({
     }, [video, displayLine, lines, lineIndexOfDisplay]),
   );
   const displayLineShadowClip = useMemo(
-    () => (displayLine ? buildShadowClipForLine(displayLine, video ?? undefined, shadowAudioUrl) : null),
+    () => (displayLine ? buildLineShadowClip(displayLine, video ?? undefined, shadowAudioUrl) : null),
     [displayLine, video, shadowAudioUrl],
   );
 
@@ -1422,6 +1465,18 @@ const DiscoverVideo = ({
   const tiktokAlignedRef = useRef(false);
   const tiktokObservedStateRef = useRef<number | null>(null);
   const tiktokVideoSyncTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // The frame's own clock against the audio's: when a report of it is a reason
+  // to seek (src/lib/tiktokFrameSync.ts has the history and the rule).
+  const tiktokDriftGuardRef = useRef(createDriftGuard());
+  // Set by the player's AUTOPLAY_ERROR (3002): with the muted autoplay refused
+  // there is no priming, and postMessage("play") is ignored until a tap inside
+  // the frame — so the hint goes up at once instead of after the retry budget.
+  const tiktokAutoplayRefusedRef = useRef(false);
+  /** Seek the frame to the audio, and start the drift guard's cooldown. */
+  const alignTikTokFrame = useCallback((audio: HTMLAudioElement) => {
+    sendTikTokCommand("seekTo", audio.currentTime);
+    tiktokDriftGuardRef.current.noteAligned(Date.now());
+  }, [sendTikTokCommand]);
   const ensureTikTokVideoPlaying = useCallback((desired: boolean) => {
     if (tiktokVideoSyncTimerRef.current) {
       clearInterval(tiktokVideoSyncTimerRef.current);
@@ -1443,11 +1498,14 @@ const DiscoverVideo = ({
       if (desired) setTiktokNeedsManualPlay(false);
       return;
     }
+    // The player has already said muted autoplay was refused: our "play" will
+    // be ignored too, so ask for the tap now rather than after the retries.
+    if (desired && tiktokAutoplayRefusedRef.current) setTiktokNeedsManualPlay(true);
     // Align the muted video to the hidden audio (our master clock) before we
     // start it, so the frame and the sound begin from the same position.
     if (desired) {
       const audio = tiktokAudioRef.current;
-      if (audio) sendTikTokCommand("seekTo", audio.currentTime);
+      if (audio) alignTikTokFrame(audio);
     }
     const attempt = () => {
       // Re-assert mute (defense in depth) then drive to the desired state.
@@ -1484,7 +1542,7 @@ const DiscoverVideo = ({
       }
       attempt();
     }, 300);
-  }, [sendTikTokCommand, resolvedTikTokVideoId]);
+  }, [sendTikTokCommand, resolvedTikTokVideoId, alignTikTokFrame]);
 
   /**
    * Start the hidden audio (the master clock) and the muted TikTok frame
@@ -1542,32 +1600,44 @@ const DiscoverVideo = ({
     const mainAudio = tiktokAudioRef.current;
     if (mainAudio && !mainAudio.paused) mainAudio.pause();
 
-    let a = slowListenAudioRef.current;
-    if (!a) {
-      a = new Audio(tiktokAudioUrl);
-      a.preload = "auto";
-      slowListenAudioRef.current = a;
-    }
-    const clip = a;
-    clip.playbackRate = rate;
-    clip.currentTime = line.startMs / 1000;
+    const startMs = line.startMs;
     const endMs = line.endMs;
-    clip
-      .play()
-      .then(() => {
-        setIsSlowListening(true);
-        slowListenTimerRef.current = setInterval(() => {
-          const curMs = (clip.currentTime || 0) * 1000;
-          if (clip.paused || clip.ended || (endMs !== undefined && curMs >= endMs)) {
-            stopSlowListen();
+    const start = (url: string, retryWithFreshUrl: boolean) => {
+      let a = slowListenAudioRef.current;
+      if (!a || slowListenSrcRef.current !== url) {
+        a = new Audio(url);
+        a.preload = "auto";
+        slowListenAudioRef.current = a;
+        slowListenSrcRef.current = url;
+      }
+      const clip = a;
+      clip.playbackRate = rate;
+      clip.currentTime = startMs / 1000;
+      clip
+        .play()
+        .then(() => {
+          setIsSlowListening(true);
+          slowListenTimerRef.current = setInterval(() => {
+            const curMs = (clip.currentTime || 0) * 1000;
+            if (clip.paused || clip.ended || (endMs !== undefined && curMs >= endMs)) {
+              stopSlowListen();
+            }
+          }, 50);
+        })
+        .catch(async () => {
+          setIsSlowListening(false);
+          // Slow listening is what a learner is doing deep into a clip, which
+          // is where a signed URL expires: one fresh URL, one more try.
+          const fresh = retryWithFreshUrl ? await refreshTikTokAudioUrl() : null;
+          if (fresh) {
+            start(fresh, false);
+            return;
           }
-        }, 50);
-      })
-      .catch(() => {
-        setIsSlowListening(false);
-        toast.error("Audio playback failed");
-      });
-  }, [tiktokAudioUrl, displayLine, stopSlowListen, cancelPendingAudioStart]);
+          toast.error("Audio playback failed");
+        });
+    };
+    start(tiktokAudioUrl, true);
+  }, [tiktokAudioUrl, displayLine, stopSlowListen, cancelPendingAudioStart, refreshTikTokAudioUrl]);
 
   const handleSeek = useCallback((ms: number) => {
     if (playerRef.current?.seekTo) {
@@ -1642,6 +1712,8 @@ const DiscoverVideo = ({
     tiktokPrimedRef.current = false;
     tiktokMountedAtRef.current = Date.now();
     tiktokAlignedRef.current = false;
+    tiktokAutoplayRefusedRef.current = false;
+    tiktokDriftGuardRef.current.reset();
     return () => {
       cancelPendingAudioStart();
       if (tiktokVideoSyncTimerRef.current) {
@@ -1714,14 +1786,16 @@ const DiscoverVideo = ({
             if (audio.paused) {
               // Started from inside the iframe (a direct tap): align the frame
               // to the audio and start the audio so the two run together.
-              sendTikTokCommand("seekTo", audio.currentTime);
+              alignTikTokFrame(audio);
               audio.play().catch(() => {});
               tiktokAlignedRef.current = true;
             } else if (!tiktokAlignedRef.current) {
               // First "playing" of this run after a red-button start: align the
               // frame to the audio ONCE. Do NOT repeat on buffering recovery
               // (state 3 → 1) — re-seeking mid-clip is what makes motion choppy.
-              sendTikTokCommand("seekTo", audio.currentTime);
+              // A frame that came back from buffering behind the audio is
+              // caught by the onCurrentTime drift check below instead.
+              alignTikTokFrame(audio);
               tiktokAlignedRef.current = true;
             }
           }
@@ -1733,21 +1807,44 @@ const DiscoverVideo = ({
           if (audio && !audio.paused) audio.pause();
           break;
         case "onCurrentTime":
-        case "currentTime":
-          // Intentionally no continuous re-seeking. The frame and the hidden
-          // audio are the same media, both always at 1x (the synced speed
-          // control is YouTube-only), so aligning once when playback starts
-          // (and on explicit scrubs via the audio's onSeeked handler)
-          // keeps them together. Seeking the iframe on every tick to shave
-          // sub-second drift made the video visibly choppy — and tended to feed
-          // itself, since a fresh seek briefly reports a transitional position
-          // that reads as more drift.
+        case "currentTime": {
+          // No continuous re-seeking: the frame and the hidden audio are the
+          // same media at 1x (the synced speed control is YouTube-only), and
+          // seeking the iframe on every tick to shave sub-second drift made the
+          // picture choppy and fed itself — a fresh seek briefly reports a
+          // transitional position that reads as more drift. But the player's
+          // own clock is the one report of a frame that stalled to buffer and
+          // came back behind the audio, which once-per-play alignment left
+          // there for the rest of the clip. Seek only when the drift is real:
+          // over tolerance on consecutive reports, outside the cooldown after
+          // a seek (src/lib/tiktokFrameSync.ts).
+          if (!audio || audio.paused || !tiktokAudioReady) break;
+          if (tiktokObservedStateRef.current !== 1 || !tiktokAlignedRef.current) break;
+          const frameSec = frameTimeSeconds(data.value);
+          if (frameSec === null) break;
+          if (tiktokDriftGuardRef.current.shouldRealign(frameSec, audio.currentTime, Date.now())) {
+            alignTikTokFrame(audio);
+          }
           break;
+        }
+        case "onPlayerError": {
+          // 3002 AUTOPLAY_ERROR: the muted autoplay the whole handshake rests
+          // on was refused, so there is no priming and no command will start
+          // the frame — only a tap inside it. Say so now if the audio is
+          // already running; otherwise ensureTikTokVideoPlaying says it when
+          // the learner presses play.
+          const code = Number((data.value as { errorCode?: unknown } | undefined)?.errorCode);
+          if (code === 3002) {
+            tiktokAutoplayRefusedRef.current = true;
+            if (audio && !audio.paused) setTiktokNeedsManualPlay(true);
+          }
+          break;
+        }
       }
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [isTikTok, tiktokIframeUrl, tiktokAudioReady, sendTikTokCommand, cancelPendingAudioStart]);
+  }, [isTikTok, tiktokIframeUrl, tiktokAudioReady, sendTikTokCommand, cancelPendingAudioStart, alignTikTokFrame]);
 
   // Keep the TikTok iframe visual-only. Sound is driven exclusively by our
   // hidden <audio> element via the extracted source track. (The legacy
@@ -1955,9 +2052,25 @@ const DiscoverVideo = ({
             preload="auto"
             crossOrigin="anonymous"
             className="hidden"
-            onLoadedMetadata={() => {
+            onLoadedMetadata={(e) => {
               setTiktokAudioReady(true);
               sendTikTokCommand("mute");
+              // Back from a URL refresh: pick up where the learner was.
+              const resume = tiktokAudioResumeRef.current;
+              if (resume) {
+                tiktokAudioResumeRef.current = null;
+                e.currentTarget.currentTime = resume.atSec;
+                if (resume.wasPlaying) e.currentTarget.play().catch(() => {});
+              }
+            }}
+            onError={(e) => {
+              // A network or source error mid-session is what an expired
+              // signed URL looks like from here: the element stops, the frame
+              // does not. Ask for a fresh URL and carry on from the same second.
+              const code = e.currentTarget.error?.code;
+              if (code !== MediaError.MEDIA_ERR_NETWORK && code !== MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) return;
+              cancelPendingAudioStart();
+              void refreshTikTokAudioUrl();
             }}
             onTimeUpdate={(e) => setCurrentTimeMs((e.currentTarget.currentTime || 0) * 1000)}
             onPlay={() => {
@@ -1970,7 +2083,7 @@ const DiscoverVideo = ({
               ensureTikTokVideoPlaying(true);
             }}
             onPause={() => { setIsTiktokAudioPlaying(false); ensureTikTokVideoPlaying(false); }}
-            onSeeked={(e) => { sendTikTokCommand("mute"); sendTikTokCommand("seekTo", e.currentTarget.currentTime); }}
+            onSeeked={(e) => { sendTikTokCommand("mute"); alignTikTokFrame(e.currentTarget); }}
             onEnded={() => { setIsTiktokAudioPlaying(false); sendTikTokCommand("pause"); }}
           />
           {lines.length > 0 && (
@@ -2137,6 +2250,7 @@ const DiscoverVideo = ({
                               parentLine={displayLine}
                               onSave={isAuthenticated ? handleSaveToMyWords : undefined}
                               isSaved={savedWords?.has(token.surface)}
+                              onLookup={isAuthenticated ? recordLookup : undefined}
                             />
                             {i < displayLine.tokens.length - 1 && !/^[،؟.!:؛]+$/.test(token.surface) && " "}
                           </span>
@@ -2361,6 +2475,7 @@ const DiscoverVideo = ({
               isShadowing={shadowLineId === line.id}
               onToggleShadow={handleToggleShadow}
               externalYouTubeController={mainYouTubeShadowController}
+              onLookup={isAuthenticated ? recordLookup : undefined}
             />
           ))}
         </div>
@@ -2368,6 +2483,9 @@ const DiscoverVideo = ({
 
       {/* Vocabulary, grammar & cultural context footer */}
       <div className="border-t border-border bg-card px-4 py-4 space-y-4">
+        {/* After watching: talk it through with the tutor. */}
+        {lines.length > 0 && <VideoDebriefCard videoId={video.id} savedCount={savedWords.size} />}
+
         {vocabulary.length > 0 && (
           <details className="group">
             <summary className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-foreground">

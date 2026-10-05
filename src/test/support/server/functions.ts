@@ -41,6 +41,12 @@ export interface FunctionContext {
   db: MemoryDb;
   userId: string | null;
   body: unknown;
+  /**
+   * The token a signed storage URL minted by this call should carry, so the
+   * storage double can expire it later (`expireSignedStorageUrls`). Optional
+   * because most functions never mint one.
+   */
+  signedStorageToken?: string;
 }
 
 export interface FunctionResponse {
@@ -559,12 +565,12 @@ function transcriptReview({ db, userId, body }: FunctionContext): FunctionRespon
 const CONTENT_ROLES = ["admin", "content_reviewer"];
 
 /**
- * A working `discover-video-audio`: a ten-minute signed URL for a published
+ * A working `discover-video-audio`: a session-length signed URL for a published
  * video's own audio copy, for a signed-in caller. The real function lists the
  * private bucket under the service role; the emulator has no bucket, so every
  * published video counts as having a staged wav.
  */
-function discoverVideoAudio({ db, userId, body }: FunctionContext): FunctionResponse {
+function discoverVideoAudio({ db, userId, body, signedStorageToken }: FunctionContext): FunctionResponse {
   if (!userId) return { status: 401, body: { error: "auth_required" } };
   const payload = (body ?? {}) as Row;
   const videoId = String(payload.videoId ?? "");
@@ -574,9 +580,9 @@ function discoverVideoAudio({ db, userId, body }: FunctionContext): FunctionResp
   // spec that staged `video-audio/<id>.wav` gets a URL the double serves.
   const path = `${videoId}.wav`;
   return ok({
-    url: `https://e2e.supabase.co/storage/v1/object/public/video-audio/${path}?token=fixture`,
+    url: `https://e2e.supabase.co/storage/v1/object/public/video-audio/${path}?token=${signedStorageToken ?? "fixture"}`,
     path,
-    expiresAt: new Date(Date.now() + 600_000).toISOString(),
+    expiresAt: new Date(Date.now() + 4 * 3_600_000).toISOString(),
   });
 }
 
@@ -1030,6 +1036,36 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
 
   // Called on page mount, so the route sweep needs them to resolve.
   "generate-daily-story": () => ok({ story: null, scenes: [] }),
+
+  // The daily recap. The strip at the bottom of every learner screen asks for
+  // the day's summary on first load, so this answers "nothing to go over"
+  // unless a spec says otherwise; the session itself is stubbed by the spec
+  // that exercises it (e2e/recap.spec.ts).
+  "daily-recap": ({ body }) => {
+    const b = (body ?? {}) as { action?: string; localDate?: string };
+    const date = b.localDate ?? new Date().toISOString().slice(0, 10);
+    switch (b.action) {
+      case "summary":
+        return ok({
+          date,
+          windowDays: 1,
+          hasContent: false,
+          counts: { videos: 0, words: 0, lookups: 0, slips: 0, lessons: 0, stories: 0, chats: 0 },
+          headline: "Yesterday: nothing yet",
+          firstVideo: null,
+          status: "none",
+        });
+      case "complete":
+        return ok({ stored: true, date });
+      case "chat":
+        return streaming("Let's go over your day.");
+      default:
+        return {
+          status: 422,
+          body: { error: "nothing_to_recap", message: "Nothing to go over yet — watch a clip or save a few words first." },
+        };
+    }
+  },
   // `items`, not `questions`: useGenerateQuiz reads `data?.items ?? []`, so the
   // other spelling made every quiz look empty regardless of what was seeded.
   "generate-set-phrase-quiz": () => ok({ items: [] }),

@@ -710,6 +710,7 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
   // an undefined blob.
   "generate-word-jingle": () => ok(aJingle()),
   "generate-phrase-jingle": () => ok(aJingle()),
+  "generate-celebration-song": () => ok({ ...aJingle(), lyrics: "يا بطل!", name: "Sam" }),
   "persist-word-audio": () => ok({ audioUrl: "https://cdn.test/word.mp3" }),
   "persist-video-thumbnail": persistVideoThumbnail,
   "discover-video-audio": discoverVideoAudio,

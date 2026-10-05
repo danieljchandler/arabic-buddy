@@ -190,12 +190,72 @@ export const AYYALA: DanceDefinition = {
   pumpOnHold: false,
 };
 
+/*
+ * The Saidi cane dance's timing, measured from the reference footage in
+ * docs/reference/assaya/README.md (its Timing section). Everything measured
+ * there is one solo man (assaya3), so the scene is that solo. His poses do not
+ * follow a beat (they change every 100–900 ms, median 200–400), so the steps
+ * are the music's main stroke, and each pose is held for the strokes nearest
+ * its measured length.
+ */
+/**
+ * The music's main interval: assaya3 2:30–3:46, median 249.6 ms in three
+ * stretches, on a grid of 126 ms ticks with the accent about every 505 ms.
+ * Medium confidence; audio only.
+ */
+export const ASSAYA_STROKE_MS = 250;
+/**
+ * While he spins, "cane horizontal in both hands" comes back every 1.17 s
+ * (SD 0.19, 7 intervals), with the cane across the shoulders between.
+ * Horizontal for three strokes (the pose, about 0.4–0.5 s, and the blurred
+ * mid-turn frames after it) and the shoulders for two: a turn every 1.25 s.
+ */
+export const ASSAYA_SPIN_STROKES = 3;
+export const ASSAYA_SHOULDERS_STROKES = 2;
+/**
+ * The cane stood upright over the hand: held 320–800 ms, mean 520 (4 holds,
+ * assaya3 0:39.1–0:42.0), between quick changes of about 220–300 ms (a toss,
+ * or the cane held out, 0:59.3–1:00.8). Two strokes up, one out.
+ */
+export const ASSAYA_UPRIGHT_STROKES = 2;
+export const ASSAYA_HELD_OUT_STROKES = 1;
+
+const ASSAYA_SPIN = [...repeat(0, ASSAYA_SPIN_STROKES), ...repeat(1, ASSAYA_SHOULDERS_STROKES)];
+const ASSAYA_HOLDS = [...repeat(3, ASSAYA_UPRIGHT_STROKES), ...repeat(2, ASSAYA_HELD_OUT_STROKES)];
+
+export const ASSAYA: DanceDefinition = {
+  id: "assaya",
+  dialect: "Egyptian",
+  title: "رقص العصاية",
+  gloss: "Raqs al-Assaya",
+  region: "Upper Egypt",
+  beatMs: ASSAYA_STROKE_MS,
+  musicianMs: ASSAYA_STROKE_MS,
+  // No sway: a solo man turning and stepping, not a row.
+  swayDeg: 0,
+  swayPeriodMs: 0,
+  // Drawn from the reference keyframes in docs/reference/assaya/ (numbers are
+  // the README's entries), all of the solo man in assaya3:
+  //   0 mid-spin on one foot, the cane across the chest in both hands (6)
+  //   1 walking, the cane across the back of the shoulders (9)
+  //   2 low lunge, the cane held up and out in one hand (8)
+  //   3 standing, the cane upright over the hand (7)
+  // The footage has no regular order. The two runs that do repeat are drawn:
+  // the spin with the shoulders between, then upright holds with the cane
+  // held out between (where he tosses it; no still shows a toss). The twirl
+  // (2.59 turns a second) is a blur no still can show, so it is left out.
+  sequence: [...ASSAYA_SPIN, ...ASSAYA_SPIN, ...ASSAYA_HOLDS, ...ASSAYA_HOLDS],
+  // No musician: the band is never in view in assaya3.
+  musicianSequence: [],
+  pumpOnHold: false,
+};
+
 /**
  * Every dance, in rotation order within each dialect. Order alternates kinds
  * of dance where a dialect has several, so two celebrations in a row rarely
  * look alike.
  */
-export const DANCES: readonly DanceDefinition[] = [ARDAH, AYYALA];
+export const DANCES: readonly DanceDefinition[] = [ARDAH, AYYALA, ASSAYA];
 
 /**
  * The dances a dialect's learners rotate through. Empty while a dialect has

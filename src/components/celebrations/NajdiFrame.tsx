@@ -1,11 +1,12 @@
 import { useId } from "react";
+import { titleFontSize } from "./frameTitle";
 
 /**
  * The framed title of the Ardah scene. Collage explainers put the title in an
  * ornate gilt frame; ours is drawn from Najdi mud-brick architecture instead —
  * the stepped parapet along a roofline, and the painted triangles of a Najdi
- * door in the band. Each dialect's dance gets its own frame (a mashrabiya for
- * Egyptian, a qamariya window for Yemeni) when its scene is made.
+ * door in the band. It frames the Gulf dances; Egyptian ones get a mashrabiya
+ * (MashrabiyaFrame) and Yemeni ones a qamariya window (QamariyaFrame).
  */
 
 const PARAPET = Array.from({ length: 13 }, (_, i) => {
@@ -56,7 +57,7 @@ export function NajdiFrame({ title, className }: { title: string; className?: st
         y="98"
         textAnchor="middle"
         direction="rtl"
-        fontSize="58"
+        fontSize={titleFontSize(title)}
         fill="#1A1C17"
         filter={`url(#${rough})`}
         style={{ fontFamily: "var(--font-ink-display, 'Rakkas'), 'Noto Naskh Arabic', serif" }}

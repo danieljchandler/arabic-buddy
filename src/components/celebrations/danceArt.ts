@@ -8,6 +8,10 @@ import ayyalaRow2 from "@/assets/celebrations/ayyala/row-2.webp";
 import ayyalaRow3 from "@/assets/celebrations/ayyala/row-3.webp";
 import ayyalaRow4 from "@/assets/celebrations/ayyala/row-4.webp";
 import ayyalaDrummer1 from "@/assets/celebrations/ayyala/drummer-1.webp";
+import assayaDancer1 from "@/assets/celebrations/assaya/dancer-1.webp";
+import assayaDancer2 from "@/assets/celebrations/assaya/dancer-2.webp";
+import assayaDancer3 from "@/assets/celebrations/assaya/dancer-3.webp";
+import assayaDancer4 from "@/assets/celebrations/assaya/dancer-4.webp";
 
 /**
  * The cutout stills for each dance, in the order `DanceDefinition.sequence`
@@ -49,5 +53,13 @@ export const DANCE_ART: Record<string, DanceArt> = {
     // The drum is held out toward the row; a little more floor between them.
     dancersBox: { left: 25, width: 76, height: 66 },
     musicianBox: { left: -5, width: 38, height: 50 },
+  },
+  assaya: {
+    // spin, cane across the chest (keyframe 6) · cane across the shoulders (9)
+    // · lunge, cane held out (8) · cane upright over the hand (7)
+    dancers: [assayaDancer1, assayaDancer2, assayaDancer3, assayaDancer4],
+    musician: [],
+    // A solo, so he takes the middle of the stage.
+    dancersBox: { left: 18, width: 72, height: 66 },
   },
 };

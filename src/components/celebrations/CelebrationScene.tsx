@@ -4,15 +4,15 @@ import { useReducedMotion } from "@/lib/uiPrefs";
 import { poseAt, type DanceDefinition } from "@/lib/dances";
 import type { CelebrationTier } from "@/lib/celebrations";
 import { DANCE_ART, type StageBox } from "./danceArt";
-import { NajdiFrame } from "./NajdiFrame";
+import { DialectFrame } from "./DialectFrame";
 import "./celebration.css";
 
 /**
  * The collage stage: grayscale cutout dancers snapping from pose to pose and
  * swaying together, a musician in the open space they face, over mustard
  * paper with faint print, an oxblood circle, a scrap of grid paper, tape, and
- * the dance's name in a frame from the dialect's architecture. Only the
- * performers are pictures; everything else is drawn here so it stays
+ * the dance's name in a frame from the dialect's architecture (DialectFrame).
+ * Only the performers are pictures; everything else is drawn here so it stays
  * on-brand.
  *
  * With no dance (a dialect whose dances aren't drawn yet) it is the paper,
@@ -104,7 +104,7 @@ export function CelebrationScene({ dance, dialect, tier, cheer, headline }: Cele
       <div className="cel-circle" aria-hidden="true" />
       {dance && (
         <>
-          <NajdiFrame title={dance.title} className="cel-frame" />
+          <DialectFrame dialect={dance.dialect} title={dance.title} className="cel-frame" />
           <span className="cel-caption" aria-hidden="true">
             {dance.gloss} · {dance.region}
           </span>

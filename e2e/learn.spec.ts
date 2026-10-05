@@ -680,7 +680,8 @@ test.describe("celebrating a finished lesson", () => {
 
     const dialog = page.getByRole("dialog", { name: "Lesson complete!" });
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole("img", { name: /Saudi Arabia|Emirates|Oman|Yemen/ })).toHaveCount(0);
+    await expect(dialog.getByRole("img", { name: /, a dance from .*Egypt$/ })).toBeVisible();
+    await expect(dialog.getByRole("img", { name: /Saudi Arabia|UAE|Oman|Yemen/ })).toHaveCount(0);
     await dismissCelebration(page);
     await expect(page.getByRole("heading", { name: /excellent work/i })).toBeVisible();
   });

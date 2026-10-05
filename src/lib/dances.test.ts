@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
   ARDAH,
+  ASSAYA,
+  ASSAYA_HELD_OUT_STROKES,
+  ASSAYA_SHOULDERS_STROKES,
+  ASSAYA_SPIN_STROKES,
+  ASSAYA_STROKE_MS,
+  ASSAYA_UPRIGHT_STROKES,
   AYYALA,
   AYYALA_ARM_OUT_STROKES,
   AYYALA_BOW_STROKES,
@@ -168,16 +174,16 @@ describe("the Ardah itself", () => {
   });
 });
 
-describe("the Ayyala itself", () => {
-  /** The sequence as runs of [pose, strokes]. */
-  const runs = (sequence: readonly number[]) =>
-    sequence.reduce<[number, number][]>((out, pose) => {
-      const last = out[out.length - 1];
-      if (last && last[0] === pose) last[1]++;
-      else out.push([pose, 1]);
-      return out;
-    }, []);
+/** A sequence as runs of [pose, strokes]. */
+const runs = (sequence: readonly number[]) =>
+  sequence.reduce<[number, number][]>((out, pose) => {
+    const last = out[out.length - 1];
+    if (last && last[0] === pose) last[1]++;
+    else out.push([pose, 1]);
+    return out;
+  }, []);
 
+describe("the Ayyala itself", () => {
   it("uses only the four poses the reference keyframes show", () => {
     // 0 cane up (keyframe 6) · 1 arm out (5) · 2 canes forward (4) · 3 bow (7)
     expect(new Set(AYYALA.sequence)).toEqual(new Set([0, 1, 2, 3]));
@@ -231,6 +237,57 @@ describe("the Ayyala itself", () => {
 
   it("is a Gulf dance, so Gulf learners rotate between it and the Ardah", () => {
     expect(dancesFor("Gulf")).toEqual([ARDAH, AYYALA]);
+  });
+});
+
+describe("the Saidi cane dance itself", () => {
+  it("uses only the four poses the reference keyframes show", () => {
+    // 0 spin, cane across the chest (6) · 1 cane across the shoulders (9)
+    // · 2 lunge, cane held out (8) · 3 cane upright over the hand (7)
+    expect(new Set(ASSAYA.sequence)).toEqual(new Set([0, 1, 2, 3]));
+  });
+
+  it("steps on the music's main stroke, since the poses follow no beat", () => {
+    // README Timing 4a: median 249.6 ms in three stretches of assaya3.
+    expect(ASSAYA_STROKE_MS).toBe(250);
+    expect(ASSAYA.beatMs).toBe(ASSAYA_STROKE_MS);
+  });
+
+  it("spins with the cane across the chest coming back about every 1.2 s", () => {
+    expect(runs(ASSAYA.sequence).slice(0, 4)).toEqual([
+      [0, ASSAYA_SPIN_STROKES],
+      [1, ASSAYA_SHOULDERS_STROKES],
+      [0, ASSAYA_SPIN_STROKES],
+      [1, ASSAYA_SHOULDERS_STROKES],
+    ]);
+    // README 4b: the body turn, mean 1.17 s, SD 0.19.
+    const turn = (ASSAYA_SPIN_STROKES + ASSAYA_SHOULDERS_STROKES) * ASSAYA_STROKE_MS;
+    expect(Math.abs(turn - 1170)).toBeLessThanOrEqual(190);
+  });
+
+  it("then holds the cane upright about half a second at a time", () => {
+    expect(runs(ASSAYA.sequence).slice(4)).toEqual([
+      [3, ASSAYA_UPRIGHT_STROKES],
+      [2, ASSAYA_HELD_OUT_STROKES],
+      [3, ASSAYA_UPRIGHT_STROKES],
+      [2, ASSAYA_HELD_OUT_STROKES],
+    ]);
+    // README 4d: upright holds 320–800 ms, mean 520.
+    const hold = ASSAYA_UPRIGHT_STROKES * ASSAYA_STROKE_MS;
+    expect(hold).toBeGreaterThanOrEqual(320);
+    expect(hold).toBeLessThanOrEqual(800);
+  });
+
+  it("is a solo for Egyptian learners, with no musician and no sway", () => {
+    expect(ASSAYA.dialect).toBe("Egyptian");
+    expect(dancesFor("Egyptian")).toContain(ASSAYA);
+    expect(ASSAYA.musicianSequence).toEqual([]);
+    expect(ASSAYA.swayDeg).toBe(0);
+  });
+
+  it("reaches the upright holds inside the six-second scene", () => {
+    const shown = ASSAYA.sequence.slice(0, Math.ceil(TIER_DURATION_MS.large / ASSAYA.beatMs));
+    expect(shown).toContain(3);
   });
 });
 

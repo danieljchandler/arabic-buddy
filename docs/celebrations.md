@@ -32,7 +32,8 @@ the folding of a burst into one screen) came from PR #403, whose watercolor
 clips these collage scenes replace.
 
 The dances so far: the Saudi **Ardah** (العرضة) and the Emirati and Omani
-**Ayyala** (العيالة), both for Gulf learners.
+**Ayyala** (العيالة) for Gulf learners, and the **Saidi cane dance** (رقص
+العصاية) for Egyptian learners.
 
 ## The Ardah (العرضة): drawn from reference keyframes and timed from the footage
 
@@ -166,6 +167,55 @@ and each pose is repeated for as many strokes as it is held.
 
 **Before this ships to learners:** an Emirati or Omani reviewer's sign-off.
 
+## The Saidi cane dance (رقص العصاية): drawn from reference keyframes and timed from the footage
+
+The first Egyptian dance. Its reference pack is `docs/reference/assaya/`
+(PR #414). Everything the pack measures is one solo man in a troupe's stage
+show (assaya3), so the scene is that solo. The women in the footage carry
+and raise canes in the groups but are never seen twirling, tossing or
+balancing one, and the men's group (assaya6) was not measured.
+
+| State | Still | Keyframes (README entries) |
+|---|---|---|
+| Mid-spin on one foot, the other leg kicked back, the cane across the chest in both hands | `dancer-1.webp` | 6 (assaya3 0:34) |
+| Walking, the cane across the back of the shoulders, one forearm hooked over it | `dancer-2.webp` | 9 (assaya3 1:46) |
+| Low lunge, the cane held up and out in one hand, the other arm out | `dancer-3.webp` | 8 (assaya3 1:01) |
+| Standing, the cane upright over the hand, head tilted up | `dancer-4.webp` | 7 (assaya3 0:40) |
+| Costume: long dark galabeya with a cream lining, white turban with a tail, white shoes | all stills | 6, 7, 9 |
+
+**Timing, in `src/lib/dances.ts`.** The README finds no beat in his poses:
+they change every 100–900 ms, median 200–400, with no regular order. So the
+steps are the music's main stroke, and each pose is held for the strokes
+nearest its measured length.
+
+| Constant | Value | Source |
+|---|---|---|
+| `ASSAYA_STROKE_MS` | 250 | The music's main interval: median 249.6 ms in three stretches of assaya3, on a 126 ms grid, accent about every 505 ms. Medium confidence, audio only |
+| `ASSAYA_SPIN_STROKES` / `ASSAYA_SHOULDERS_STROKES` | 3 / 2 (a turn every 1.25 s) | While he spins, the cane-across-the-chest pose comes back every 1.17 s (SD 0.19), the shoulders or the cane held out between. Low confidence (10 fps labels) |
+| `ASSAYA_UPRIGHT_STROKES` / `ASSAYA_HELD_OUT_STROKES` | 2 / 1 | Upright holds of 320–800 ms, mean 520 (4 holds), between tosses of about 220 ms; the cane held out in the same place in the kneeling passage |
+| `ASSAYA.sequence` | two turns, then two upright holds | No regular order exists; these are the two runs that repeat (README 4c) |
+
+**What the scene leaves out or approximates:**
+- **The twirl** (2.59 turns a second) and **the toss** (about 220 ms in the
+  air) are the dance's showpieces, but no keyframe shows either: at 1 frame
+  a second they are blurs. The cane held out stands in for the toss between
+  upright holds.
+- **The lunge** comes from the kneeling passage. Between it and the
+  standing upright hold, the scene jumps from kneeling to standing in one
+  stroke.
+- **No musician.** The band is never in view in assaya3, so unlike the
+  Gulf scenes this stage has no drummer, and more open floor.
+- **The frame** is the Egyptian one: a Cairo mashrabiya's lattice under
+  Mamluk stepped crenellations.
+
+**Assumptions:** the cane is plain and straight (the README: "long, thin,
+straight", its ends often hidden); his facing is turned frame-left in every
+state; the performer is generated from written descriptions, never from the
+frames.
+
+**Before this ships to learners:** an Egyptian (ideally Sa'idi) reviewer's
+sign-off.
+
 ## The look
 
 The owner picked this direction from two style rounds. Its references are
@@ -174,9 +224,10 @@ Telfaz11's *Folklore 101* series and Vox's explainers. Its elements:
 - **Dancers:** grayscale photo cutouts with a rough paper edge.
 - **Ground:** flat mustard paper with faint Arabic print showing through.
 - **Title:** the dance's name in Rakkas, inside a frame drawn from the dialect's
-  own architecture. The Ardah uses a Najdi parapet and door triangles. The
-  planned frames are a mashrabiya for Egyptian and a qamariya window for
-  Yemeni.
+  own architecture (`DialectFrame`): a Najdi parapet and door triangles for
+  the Gulf, a Cairo mashrabiya under Mamluk crenellations for Egyptian, a
+  Sana'a qamariya window over a gypsum frieze for Yemeni. A long name
+  shrinks to fit (`titleFontSize`).
 - **Vox touches:** an oxblood circle behind the dancer, a grid-paper scrap,
   paper tape, and ink label boxes for the cheer and the milestone.
 
@@ -219,6 +270,7 @@ and doesn't sway.
 | `src/components/celebrations/CelebrationOverlay.tsx` | The full-screen dialog and the auto-dismiss. |
 | `src/components/celebrations/CelebrationScene.tsx` | The collage stage. |
 | `src/components/celebrations/danceArt.ts` | Maps each dance to its stills, and where they stand. |
+| `src/components/celebrations/DialectFrame.tsx` | Picks the title's frame by dialect: `NajdiFrame`, `MashrabiyaFrame`, `QamariyaFrame` (sized by `frameTitle.ts`). |
 | `src/assets/celebrations/<dance>/` | The stills. |
 | `src/hooks/useStreakMilestoneCelebration.ts` | Watches the streak row for a milestone. |
 

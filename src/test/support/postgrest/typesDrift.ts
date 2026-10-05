@@ -51,10 +51,13 @@ export const COLUMNS_MISSING_FROM_TYPES: DriftedColumn[] = [
     migration: "20260919120000_library_bridge",
   })),
 
-  // The post-video debrief (video_study_guides, video_word_lookups,
-  // user_vocabulary.source_video_id) and the daily recap (learner_recaps) were
-  // pinned here until Lovable's types regeneration (d0de666) carried them, so
-  // those entries are deleted per the staleness check in typesDrift.test.ts.
+  // The post-video debrief (20261004120000_video_debrief) and the daily recap
+  // (20261005120000_learner_recaps) were pinned here from their merge until
+  // 2026-10-05, when Lovable applied both to the live project and the types
+  // regeneration that followed carried `video_study_guides`,
+  // `video_word_lookups`, `user_vocabulary.source_video_id` and
+  // `learner_recaps`. Their entries are deleted per the staleness check in
+  // typesDrift.test.ts.
 ];
 
 

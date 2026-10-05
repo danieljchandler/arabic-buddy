@@ -767,10 +767,11 @@ message, what is sent) is `src/lib/videoDebrief.ts`. Edge tests:
 `supabase/functions/_test/video_debrief_test.ts`; end to end:
 `e2e/video-debrief.spec.ts`.
 
-Migration `20261004120000_video_debrief` must be applied to the live project
-(see CLAUDE.md). Until it is, everything degrades rather than breaks: guides are
-generated but not cached, look-ups are not recorded, saved words fall back to
-the sentence match, and the backfill button says what is missing.
+Migration `20261004120000_video_debrief` was applied to the live project on
+2026-10-05 (see CLAUDE.md). Until then everything degraded rather than broke,
+and still would without its tables: guides are generated but not cached,
+look-ups are not recorded, saved words fall back to the sentence match, and the
+backfill button says what is missing.
 
 ## Going over the day (the recap)
 
@@ -786,7 +787,12 @@ of their own), **say it** (shadow a line carrying one of their words), and a
 **recap**. Same session machinery as the debrief — the `[[STEP_DONE]]` marker,
 the quiz and shadow cards, `StepChecklist`/`ListenButton`
 (`src/components/debrief/SessionChrome.tsx`) and `useVoiceAnswer` are shared —
-over a different set of steps. Subscribers only for the session
+over a different set of steps. `ListenButton` reads a tutor message's Arabic
+run by run through `useLineAudio`, which plays a clip of silence inside the tap
+before synthesis starts: its first version made the `Audio` element only once
+the speech had arrived, and iOS Safari refuses a `play()` that late, so on a
+phone the link spun and said nothing. A failure now shows as a toast rather
+than a spinner that stops in silence. Subscribers only for the session
 (`requireActiveSubscription`, `daily_recap` in `featureAccess.ts`); the strip's
 summary is free, so every learner sees what they did. The Ask AI button is off
 on the page, as on the debrief.
@@ -836,9 +842,9 @@ auth, admin or print routes, not the immersive ones the dock also leaves
 Tests: `src/test/recapCore.test.ts` (the pure half), `src/lib/recap.test.ts`,
 `src/hooks/useRecap.test.ts`, `src/components/recap/RecapNudge.test.tsx`,
 `supabase/functions/_test/daily_recap_test.ts` (the window and the function),
-`e2e/recap.spec.ts`. Migration `20261005120000_learner_recaps` must be applied
-to the live project (see CLAUDE.md); until it is, plans are rebuilt per request
-and completion is not remembered server-side.
+`e2e/recap.spec.ts`. Migration `20261005120000_learner_recaps` was applied to
+the live project on 2026-10-05 (see CLAUDE.md); without its table, plans are
+rebuilt per request and completion is not remembered server-side.
 
 Shapes the same window could feed next, not built: a story written from the
 day's words and the clips' summaries (the daily story core with a different

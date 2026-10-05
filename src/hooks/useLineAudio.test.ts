@@ -346,6 +346,39 @@ describe("useLineAudio", () => {
     await waitFor(() => expect(result.current.playingIndex).toBe(0));
   });
 
+  it("tells a caller which line it could not say, and tells that apart from a stop", async () => {
+    // The hook itself stays quiet about a failure — a page of speakers has
+    // nowhere to put the news — but a lone "listen" link owes the learner a
+    // word, because a spinner that ends in silence looks like a dead button.
+    const onError = vi.fn();
+    fetchSpeechBlob.mockResolvedValueOnce(null);
+    const { result } = renderHook(() => useLineAudio({ lines: LINES, onError }));
+
+    // No audio came back for the line.
+    act(() => result.current.playAll());
+    await waitFor(() => expect(result.current.isPlayingAll).toBe(false));
+    expect(onError).toHaveBeenCalledWith(0);
+    expect(spoken()).toEqual([]);
+
+    // The browser refused to play what did come back.
+    onError.mockClear();
+    created[0].play.mockImplementationOnce(() => {
+      plays.push(created[0].src);
+      return Promise.reject(new DOMException("blocked", "NotAllowedError"));
+    });
+    act(() => result.current.playLine(1));
+    await waitFor(() => expect(onError).toHaveBeenCalledWith(1));
+    expect(result.current.playingIndex).toBeNull();
+
+    // The learner stopping a clip is not a failure.
+    onError.mockClear();
+    act(() => result.current.playLine(2));
+    await waitFor(() => expect(result.current.playingIndex).toBe(2));
+    act(() => result.current.stop());
+    await waitFor(() => expect(result.current.playingIndex).toBeNull());
+    expect(onError).not.toHaveBeenCalled();
+  });
+
   it("spends the tap's activation before the clip it will play exists", async () => {
     // iOS Safari only lets audio start from inside a gesture, and synthesis
     // outlives one. Without this the first tap on every line fetched a clip and

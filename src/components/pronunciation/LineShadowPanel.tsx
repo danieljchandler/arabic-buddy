@@ -15,7 +15,7 @@ import { ClipSourcePlayer, type ClipSourcePlayerHandle, type ExternalYouTubeCont
 import { CountdownRing } from "./CountdownRing";
 import { LevelMeter } from "./LevelMeter";
 import { useShadowRecorder } from "@/hooks/useShadowRecorder";
-import { useShadowScore } from "@/hooks/useShadowScore";
+import { useShadowScore, type ShadowScoreResult } from "@/hooks/useShadowScore";
 import { scoreBand } from "@/hooks/useAzurePronunciation";
 import type { ShadowClip } from "@/hooks/useShadowQueue";
 import { AskAISentence } from "@/components/shared/AskAISentence";
@@ -27,11 +27,25 @@ interface Props {
   /** Drives an already-existing YouTube player (e.g. the page's main video) instead of a fresh hidden iframe. */
   externalYouTubeController?: ExternalYouTubeController | null;
   onClose: () => void;
+  /** Told about each scored take — the debrief passes it on to the tutor. */
+  onResult?: (result: ShadowScoreResult) => void;
+  /**
+   * File the take in shadow_attempts (the default). The debrief turns this off:
+   * its takes are a check-in on one video, not practice on the clip.
+   */
+  recordAttempt?: boolean;
 }
 
 type State = "idle" | "playing" | "recording" | "scoring" | "result" | "error";
 
-export function LineShadowPanel({ clip, nativeClipWav, externalYouTubeController, onClose }: Props) {
+export function LineShadowPanel({
+  clip,
+  nativeClipWav,
+  externalYouTubeController,
+  onClose,
+  onResult,
+  recordAttempt = true,
+}: Props) {
   const playerRef = useRef<ClipSourcePlayerHandle>(null);
   const recorder = useShadowRecorder();
   const { score, result, isLoading, error: scoreError, reset } = useShadowScore();
@@ -64,11 +78,16 @@ export function LineShadowPanel({ clip, nativeClipWav, externalYouTubeController
         setState("scoring");
         // clipRef files the take under this line in shadow_attempts — same
         // record the Shadow tab's rep loop writes to.
-        const res = await score(blob, { referenceText: clip.text, nativeClipWav, clipRef: clip.id });
+        const res = await score(blob, {
+          referenceText: clip.text,
+          nativeClipWav,
+          ...(recordAttempt ? { clipRef: clip.id } : {}),
+        });
         setState(res ? "result" : "error");
+        if (res) onResult?.(res);
       },
     });
-  }, [clip.text, nativeClipWav, recordWindowMs, recorder, score]);
+  }, [clip.id, clip.text, nativeClipWav, recordWindowMs, recorder, score, recordAttempt, onResult]);
 
   const playClip = useCallback(async () => {
     setPlayerError(null);

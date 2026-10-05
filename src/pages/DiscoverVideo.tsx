@@ -5,6 +5,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useDiscoverVideo, type DiscoverVideo as DiscoverVideoType } from "@/hooks/useDiscoverVideos";
 import { useAuth } from "@/hooks/useAuth";
 import { useAddUserVocabulary } from "@/hooks/useUserVocabulary";
+import { useRecordWordLookup, type WordLookup } from "@/hooks/useVideoDebrief";
+import { VideoDebriefCard } from "@/components/discover/VideoDebriefCard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
@@ -42,7 +44,8 @@ import { useFushaLines } from "@/hooks/useFushaLines";
 import { useDisplayPrefs } from "@/hooks/useDisplayPrefs";
 import { LineShadowPanel } from "@/components/pronunciation/LineShadowPanel";
 import type { ExternalYouTubeController } from "@/components/pronunciation/ClipSourcePlayer";
-import { DIALECT_LOCALE, extractYouTubeId, type ShadowClip } from "@/hooks/useShadowQueue";
+import { type ShadowClip } from "@/hooks/useShadowQueue";
+import { buildLineShadowClip } from "@/lib/lineShadowClip";
 import { loadYouTubeIframeAPI } from "@/lib/youtubeIframeApi";
 import { Mic } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
@@ -92,16 +95,21 @@ const ClickableWord = ({
   parentLine,
   onSave,
   isSaved,
+  onLookup,
 }: {
   token: WordToken;
   parentLine: TranscriptLine;
   onSave?: (word: VocabItem) => void;
   isSaved?: boolean;
+  /** Told once a looked-up word's meaning is known — the debrief quizzes on these. */
+  onLookup?: (word: WordLookup) => void;
 }) => {
   const [open, setOpen] = useState(false);
   const [liveTranslation, setLiveTranslation] = useState<string | null>(null);
   const [liveMsa, setLiveMsa] = useState<string | null>(null);
   const [isTranslating, setIsTranslating] = useState(false);
+  const [translateAttempted, setTranslateAttempted] = useState(false);
+  const lookupRecordedRef = useRef(false);
 
   // A real gloss exists if gloss is set and is not a legacy compound marker
   const hasGloss = !!token.gloss && !token.gloss.startsWith("(→") && !token.compoundRef;
@@ -135,9 +143,23 @@ const ClickableWord = ({
           }
         })
         .catch((err) => console.warn("Word translation failed:", err))
-        .finally(() => setIsTranslating(false));
+        .finally(() => {
+          setIsTranslating(false);
+          setTranslateAttempted(true);
+        });
     }
   }, [open, hasGloss, liveTranslation, isTranslating, token.surface]);
+
+  // Opening a word for its meaning is the clearest "I wasn't sure" the page
+  // has, so it is remembered for the post-video debrief. Recorded once the
+  // meaning has settled (stored, fetched, or failed to fetch), so the record
+  // carries the gloss the learner actually saw.
+  useEffect(() => {
+    if (!open || !onLookup || lookupRecordedRef.current || isTranslating) return;
+    if (!hasGloss && !liveTranslation && !translateAttempted) return;
+    lookupRecordedRef.current = true;
+    onLookup({ arabic: token.surface, english: displayGloss ?? null, lineId: parentLine.id });
+  }, [open, onLookup, isTranslating, hasGloss, liveTranslation, translateAttempted, displayGloss, token.surface, parentLine.id]);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -217,45 +239,6 @@ const ClickableWord = ({
 };
 
 /* ── Transcript Line Row ──────────────────────────────────── */
-const buildShadowClipForLine = (
-  line: TranscriptLine,
-  video?: DiscoverVideoType,
-  shadowAudioUrl?: string | null,
-): ShadowClip | null => {
-  const startMs = Number(line.startMs);
-  const endMs = Number(line.endMs);
-  const hasTiming = Number.isFinite(startMs) && Number.isFinite(endMs) && endMs > startMs;
-  const isYouTube = video?.platform === "youtube";
-  const youtubeId = isYouTube ? extractYouTubeId(video?.embed_url ?? null, video?.source_url ?? null) : null;
-
-  if (!video || !line.arabic || !hasTiming) return null;
-
-  const base = {
-    id: `line-${line.id}`,
-    text: line.arabic,
-    translation: line.translation,
-    startSec: startMs / 1000,
-    endSec: endMs / 1000,
-    dialect: video.dialect,
-    locale: DIALECT_LOCALE[video.dialect] ?? "ar-SA",
-    sourceTitle: video.title,
-  };
-
-  // Prefer a downloadable native-audio clip whenever we have one. An <audio>
-  // element started by the user's tap plays reliably on every platform — the
-  // cross-origin YouTube iframe, by contrast, refuses to autoplay until the
-  // user has interacted inside it (that's why shadowing used to need the main
-  // video played first). We only fall back to driving the iframe when no audio
-  // file exists. Either way the reference stays the actual native clip.
-  if (shadowAudioUrl) {
-    return { ...base, source: "audio", audioUrl: shadowAudioUrl };
-  }
-  if (isYouTube && youtubeId) {
-    return { ...base, source: "youtube", youtubeId };
-  }
-  return null;
-};
-
 const TranscriptRow = ({
   line,
   isActive,
@@ -271,6 +254,7 @@ const TranscriptRow = ({
   isShadowing,
   onToggleShadow,
   externalYouTubeController,
+  onLookup,
 }: {
   line: TranscriptLine;
   isActive: boolean;
@@ -287,8 +271,9 @@ const TranscriptRow = ({
   isShadowing?: boolean;
   onToggleShadow?: (lineId: string) => void;
   externalYouTubeController?: ExternalYouTubeController | null;
+  onLookup?: (word: WordLookup) => void;
 }) => {
-  const shadowClip = buildShadowClipForLine(line, video, shadowAudioUrl);
+  const shadowClip = buildLineShadowClip(line, video, shadowAudioUrl);
 
   return (
     <div
@@ -320,6 +305,7 @@ const TranscriptRow = ({
                   parentLine={line}
                   onSave={onSave}
                   isSaved={savedWords?.has(token.surface)}
+                  onLookup={onLookup}
                 />
                 {i < line.tokens.length - 1 && !/^[،؟.!:؛]+$/.test(token.surface) && " "}
               </span>
@@ -644,6 +630,7 @@ const DiscoverVideo = ({
   const { data: video, isLoading, isError: videoError, refetch: refetchVideo } = useDiscoverVideo(videoId);
   const { user, isAuthenticated } = useAuth();
   const addUserVocabulary = useAddUserVocabulary();
+  const recordLookup = useRecordWordLookup(video?.id);
   const recordView = useRecordVideoView();
 
   const [currentTimeMs, setCurrentTimeMs] = useState(0);
@@ -1021,6 +1008,9 @@ const DiscoverVideo = ({
           sentence_audio_url: sentenceAudioUrl,
           word_audio_url: wordAudioUrl,
           source: "discover",
+          // Which video it came from, so the debrief can quiz "the words you
+          // saved here" without guessing from the sentence.
+          source_video_id: video?.id,
         });
         setSavedWords((prev) => new Set(prev).add(word.arabic));
         toast.success("Saved to My Words");
@@ -1245,7 +1235,7 @@ const DiscoverVideo = ({
     }, [video, displayLine, lines, lineIndexOfDisplay]),
   );
   const displayLineShadowClip = useMemo(
-    () => (displayLine ? buildShadowClipForLine(displayLine, video ?? undefined, shadowAudioUrl) : null),
+    () => (displayLine ? buildLineShadowClip(displayLine, video ?? undefined, shadowAudioUrl) : null),
     [displayLine, video, shadowAudioUrl],
   );
 
@@ -2260,6 +2250,7 @@ const DiscoverVideo = ({
                               parentLine={displayLine}
                               onSave={isAuthenticated ? handleSaveToMyWords : undefined}
                               isSaved={savedWords?.has(token.surface)}
+                              onLookup={isAuthenticated ? recordLookup : undefined}
                             />
                             {i < displayLine.tokens.length - 1 && !/^[،؟.!:؛]+$/.test(token.surface) && " "}
                           </span>
@@ -2484,6 +2475,7 @@ const DiscoverVideo = ({
               isShadowing={shadowLineId === line.id}
               onToggleShadow={handleToggleShadow}
               externalYouTubeController={mainYouTubeShadowController}
+              onLookup={isAuthenticated ? recordLookup : undefined}
             />
           ))}
         </div>
@@ -2491,6 +2483,9 @@ const DiscoverVideo = ({
 
       {/* Vocabulary, grammar & cultural context footer */}
       <div className="border-t border-border bg-card px-4 py-4 space-y-4">
+        {/* After watching: talk it through with the tutor. */}
+        {lines.length > 0 && <VideoDebriefCard videoId={video.id} savedCount={savedWords.size} />}
+
         {vocabulary.length > 0 && (
           <details className="group">
             <summary className="flex items-center gap-2 cursor-pointer text-sm font-semibold text-foreground">

@@ -138,26 +138,42 @@ export const useAddUserVocabulary = () => {
       sentence_audio_url?: string;
       word_audio_url?: string;
       dialect?: string;
+      /** The Discover video it was saved from — what the post-video debrief quizzes on. */
+      source_video_id?: string;
     }) => {
       if (!user) throw new Error("Must be logged in");
 
-      const { data, error } = await supabase
-        .from("user_vocabulary")
-        .insert({
-          user_id: user.id,
-          word_arabic: word.word_arabic,
-          word_english: word.word_english,
-          root: word.root || null,
-          transliteration: word.transliteration || null,
-          source: word.source || "transcription",
-          sentence_text: word.sentence_text || null,
-          sentence_english: word.sentence_english || null,
-          sentence_audio_url: word.sentence_audio_url || null,
-          word_audio_url: word.word_audio_url || null,
-          dialect: word.dialect || activeDialect,
-        } as any)
-        .select()
-        .single();
+      const row: Record<string, unknown> = {
+        user_id: user.id,
+        word_arabic: word.word_arabic,
+        word_english: word.word_english,
+        root: word.root || null,
+        transliteration: word.transliteration || null,
+        source: word.source || "transcription",
+        sentence_text: word.sentence_text || null,
+        sentence_english: word.sentence_english || null,
+        sentence_audio_url: word.sentence_audio_url || null,
+        word_audio_url: word.word_audio_url || null,
+        dialect: word.dialect || activeDialect,
+      };
+      if (word.source_video_id) row.source_video_id = word.source_video_id;
+
+      const insert = (values: Record<string, unknown>) =>
+        supabase
+          .from("user_vocabulary")
+          .insert(values as never)
+          .select()
+          .single();
+
+      let { data, error } = await insert(row);
+      // `source_video_id` arrives by migration, and a migration merged here is
+      // not live until it is applied to the project (see CLAUDE.md). Until
+      // then PostgREST rejects the unknown column (PGRST204) — and losing the
+      // video is a much smaller failure than losing the word.
+      if (error?.code === "PGRST204" && "source_video_id" in row) {
+        const { source_video_id: _dropped, ...withoutVideo } = row;
+        ({ data, error } = await insert(withoutVideo));
+      }
 
       if (error) {
         // Handle duplicate word

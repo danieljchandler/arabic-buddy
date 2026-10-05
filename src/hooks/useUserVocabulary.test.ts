@@ -1,8 +1,9 @@
 import { describe, expect, it, afterEach } from "vitest";
-import { waitFor } from "@testing-library/react";
+import { act, waitFor } from "@testing-library/react";
 import { renderHookWithProviders } from "@/test/support/react/harness";
 import { aUserVocabulary, daysAgo, vocabId, TEST_USER_ID } from "@/test/support/factories";
-import { useUserVocabulary } from "./useUserVocabulary";
+import { useAddUserVocabulary, useUserVocabulary } from "./useUserVocabulary";
+import { useAuth } from "./useAuth";
 
 /**
  * The saved-vocabulary query.
@@ -133,5 +134,51 @@ describe("useUserVocabulary", () => {
 
     await waitFor(() => expect(rendered.result.current.isSuccess).toBe(true));
     expect(rendered.result.current.data).toEqual([]);
+  });
+});
+
+describe("useAddUserVocabulary — the video a word came from", () => {
+  const VIDEO = "aaaaaaaa-0000-4000-8000-000000000000";
+  const word = {
+    word_arabic: "تعبان",
+    word_english: "tired",
+    source: "discover",
+    sentence_text: "والله تعبان شوي",
+    source_video_id: VIDEO,
+  };
+
+  it("records which video a saved word came from", async () => {
+    const rendered = renderHookWithProviders(() => ({ add: useAddUserVocabulary(), auth: useAuth() }), {
+      persona: "free",
+    });
+    cleanup = rendered.cleanup;
+    await waitFor(() => expect(rendered.result.current.auth.user).not.toBeNull());
+    await act(async () => {
+      await rendered.result.current.add.mutateAsync(word);
+    });
+    expect(rendered.backend.db.raw("user_vocabulary")).toEqual([
+      expect.objectContaining({ word_arabic: "تعبان", user_id: TEST_USER_ID, source_video_id: VIDEO }),
+    ]);
+  });
+
+  it("still saves the word on a project where the column is not live yet", async () => {
+    // What PostgREST answers for a column the migration has not created.
+    const rendered = renderHookWithProviders(() => ({ add: useAddUserVocabulary(), auth: useAuth() }), {
+      persona: "free",
+      seed: (backend) =>
+        backend.db.failNextWrite("user_vocabulary", 400, {
+          code: "PGRST204",
+          message: "Could not find the 'source_video_id' column of 'user_vocabulary' in the schema cache",
+        }),
+    });
+    cleanup = rendered.cleanup;
+    await waitFor(() => expect(rendered.result.current.auth.user).not.toBeNull());
+    await act(async () => {
+      await rendered.result.current.add.mutateAsync(word);
+    });
+    const rows = rendered.backend.db.raw("user_vocabulary");
+    expect(rows).toHaveLength(1);
+    expect(rows[0].word_arabic).toBe("تعبان");
+    expect(rows[0].source_video_id ?? null).toBeNull();
   });
 });

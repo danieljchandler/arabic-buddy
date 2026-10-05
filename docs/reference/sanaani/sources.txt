@@ -1,0 +1,33 @@
+Sana'ani dance (الرقص الصنعاني) reference footage -- sources
+Downloaded 2026-10-04 with yt-dlp 2026.08.19. Reference only.
+Full-length videos are local only: C:\media\dances\sanaani\ (not in Drive, not in git).
+File numbers are not contiguous (5, 6, 8): the other downloaded candidates were rejected and deleted (reasons in analysis\LOG.md).
+None of the three is an official institutional upload.
+
+sanaani5.mp4
+  URL:      https://www.youtube.com/watch?v=OfQwckO7_HA
+  Title:    رقص صنعاني قديم من الثمانينات , تراث يمني
+            (Old Sana'ani dance from the 1980s, Yemeni heritage -- the date is the uploader's claim, not verified)
+  Channel:  YeMeN22MaY (private uploader; the original broadcaster is not named; the picture looks like a TV studio recording)
+  Uploaded: 2014-03-27
+  Length:   4:49
+  Format:   288p H.264 + AAC, 24 fps (12.3 MB); picture is only 384x288, frames are upscaled to 1280 px wide
+
+sanaani6.mp4
+  URL:      https://www.youtube.com/watch?v=HihOMGNXrYw
+  Title:    صنعانيه مرت من الشارع غبش.عرض رائع فرقه عصور .
+            (Sana'ani song "passed along the street at dusk" -- wonderful show by the Usur troupe)
+  Channel:  فرقه عصور للفنون الشعبيه (Usur troupe for folk arts; a channel named after the troupe, not verified as theirs)
+  Uploaded: 2019-11-05
+  Length:   6:39
+  Format:   360p H.264 + AAC, 25 fps (24.0 MB). Carries a top banner with the troupe's name, a "Made with VideoShow" mark and a 10 s intro.
+  Note:     The uploader's description says the show is from the stage of the Yemeni pavilion at Global Village, Dubai, with the song sung by Nasser Abu Bakr. Not verified from the picture.
+
+sanaani8.mp4
+  URL:      https://www.youtube.com/watch?v=lCwA1JRDJnw
+  Title:    Yemeni Dance Dubai Global Village    الرقص اليمني في القرية العالمية بدبي
+            (Yemeni dance, Dubai Global Village)
+  Channel:  Afzal Plus (private uploader)
+  Uploaded: 2016-02-16
+  Length:   3:43
+  Format:   1080p H.264 + AAC, 30 fps (124.1 MB)

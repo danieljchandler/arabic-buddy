@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "./support/fixtures";
+import { dismissCelebration, expect, test, type Page } from "./support/fixtures";
 import {
   aLesson,
   aLessonProgress,
@@ -153,17 +153,6 @@ async function skipProduce(page: Page, { celebrates = true } = {}) {
   if (celebrates) await dismissCelebration(page);
 }
 
-/**
- * The first finish of a lesson plays the dialect's dance over the complete
- * screen (the default dialect, Gulf, has the Ardah). It leaves by itself after
- * a few seconds; specs about the score step past it rather than wait.
- */
-async function dismissCelebration(page: Page) {
-  const dialog = page.getByRole("dialog", { name: /Lesson complete/ });
-  await expect(dialog).toBeVisible();
-  await dialog.getByRole("button", { name: "Continue" }).click();
-  await expect(dialog).toBeHidden();
-}
 
 test.describe("working through a lesson", () => {
   test.beforeEach(async ({ signInAs, db }) => {
@@ -647,16 +636,17 @@ test.describe("celebrating a finished lesson", () => {
     seedLesson(db, 4);
   });
 
-  test("plays the Ardah the first time a Gulf learner finishes, then gets out of the way", async ({
+  test("plays a Gulf dance the first time a Gulf learner finishes, then gets out of the way", async ({
     page,
   }) => {
     await page.goto(`/learn/${LESSON}`);
     await completeBlock(page);
     await skipProduce(page, { celebrates: false });
 
-    const dialog = page.getByRole("dialog", { name: "كفو! Lesson complete" });
+    const dialog = page.getByRole("dialog", { name: "Lesson complete!" });
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByRole("img", { name: "Al-Ardah, a dance from Najd, Saudi Arabia" })).toBeVisible();
+    // A new learner starts the Gulf rotation at a random dance.
+    await expect(dialog.getByRole("img", { name: /^Al-(Ardah|Ayyala), a dance from / })).toBeVisible();
     // Nobody has to dismiss it: it plays its three seconds and leaves.
     await expect(dialog).toBeHidden();
     await expect(page.getByRole("heading", { name: /excellent work/i })).toBeVisible();
@@ -681,23 +671,23 @@ test.describe("celebrating a finished lesson", () => {
     await expect(page.getByRole("dialog")).toHaveCount(0);
   });
 
-  test("keeps the plain screen for a dialect whose dance isn't made yet", async ({
-    page,
-    signInAs,
-  }) => {
+  test("celebrates in the learner's own dialect, never with another's dance", async ({ page, signInAs }) => {
     await signInAs("anonymous");
     await page.addInitScript(() => localStorage.setItem("hakiya_dialect_module", "Egyptian"));
     await page.goto(`/learn/${LESSON}`);
     await completeBlock(page);
     await skipProduce(page, { celebrates: false });
 
+    const dialog = page.getByRole("dialog", { name: "Lesson complete!" });
+    await expect(dialog).toBeVisible();
+    await expect(dialog.getByRole("img", { name: /Saudi Arabia|Emirates|Oman|Yemen/ })).toHaveCount(0);
+    await dismissCelebration(page);
     await expect(page.getByRole("heading", { name: /excellent work/i })).toBeVisible();
-    await expect(page.getByRole("dialog")).toHaveCount(0);
   });
 
   test("a preview link plays the scene on any page and leaves the address clean", async ({ page }) => {
     await page.goto(`/learn/${LESSON}?celebrate=ardah`);
-    await expect(page.getByRole("dialog", { name: "كفو! Preview" })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Preview" })).toBeVisible();
     await expect(page).not.toHaveURL(/celebrate=/);
   });
 });

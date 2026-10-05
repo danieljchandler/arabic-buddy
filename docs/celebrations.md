@@ -4,11 +4,37 @@ When a learner hits a milestone, a few seconds of a traditional dance from their
 dialect plays over the screen. It is drawn as a cut-paper collage in the Ink
 brand.
 
-The first dance is the Saudi **Ardah** (العرضة). It plays for Gulf learners the
-first time they finish a curriculum lesson. Dialects without a dance yet keep
-the plain lesson-complete screen.
+## When it plays
 
-## Status: the Ardah is drawn from reference keyframes and timed from the footage
+| Moment | Fired from | Tier |
+|---|---|---|
+| The first finish of a curriculum lesson | `Learn.tsx`, `handleProduceFinish`, when `savedProgress` (the state before this finish) is not completed | medium |
+| An alphabet letter mastered | `AlphabetLetter.tsx`, when `completeStep` reports `mastered` | medium |
+| Every review deck cleared, after reviewing something | `SessionHandoff`, given `reviewed` by the three review pages | medium |
+| Badge earned | `useCheckAchievements` (it replaces the toast) | medium |
+| Everything on today's list done, first time today | `Index.tsx`, via `claimDailyGoalCelebration` | large |
+| A streak milestone (3, 7, 14, 30 … days), once per run | `useStreakMilestoneCelebration`, inside the host | large |
+
+Pages call `celebrate({ kind, detail })` from `src/lib/celebrations.ts`;
+`CelebrationHost`, mounted once in `App.tsx` ahead of the routes, renders it.
+A moment that lands while the screen is up joins it as a line ("Badge earned!
+First Steps") instead of queueing a second dance, and restarts its clock so
+the line can be read.
+
+The host picks the next dance in the learner's dialect's rotation and a cheer
+in that dialect (`CHEERS`, checked by `detectMsaLeaks` in the tests). Every
+cheer is an exclamation, not an address, so none has to guess the learner's
+gender. A dialect with no dance drawn yet still gets the screen: the paper,
+the circle, the cheer and the milestone, without dancers.
+
+The trigger rules (the six moments, the once-a-day and once-per-run claims,
+the folding of a burst into one screen) came from PR #403, whose watercolor
+clips these collage scenes replace.
+
+The dances so far: the Saudi **Ardah** (العرضة) and the Emirati and Omani
+**Ayyala** (العيالة), both for Gulf learners.
+
+## The Ardah (العرضة): drawn from reference keyframes and timed from the footage
 
 The stills were redrawn from the twelve reference keyframes in
 `docs/reference/ardah/` (PR #411; the README there describes each one). The
@@ -85,6 +111,61 @@ tempo is chosen and the rest is derived from it.
 **Before this ships to learners:** a Saudi reviewer's sign-off. Measuring the
 body rock's lean (`ARDAH_SWAY_DEG`) would close the last TODO.
 
+## The Ayyala (العيالة): drawn from reference keyframes and timed from the footage
+
+The second Gulf dance. Gulf learners' celebrations rotate between it and the
+Ardah. Its reference pack is `docs/reference/ayyala/` (PR #414: ten keyframes
+and a Timing section, measured from four videos).
+
+| State | Still | Keyframes (README entries) |
+|---|---|---|
+| Cane up: forearm raised, the cane near vertical above the hand | `row-1.webp` | 6 (ayyala1 4:25); the "cane up" of Timing §4c, whose frames are not keyframes |
+| Arm out: arm forward and down, the cane running on to the floor ahead | `row-2.webp` | 5 (ayyala3 0:37) |
+| Canes forward: arm out at chest height, forearm level, the cane rising at about 45° | `row-3.webp` | 4 (ayyala2 11:40) |
+| Bow: bent forward at the hips, the hooked cane upright, crook in the hand at belt height | `row-4.webp` | 7 (ayyala1 4:32) |
+| Drummer: a large round frame drum held up at head height, a hand under its rim | `drummer-1.webp` | 9 (ayyala3 1:21) |
+| Costume: white kandura, white ghutra with a black agal ring | all stills | 1, 6, 7, 8 |
+| Formation: men shoulder to shoulder in a row, drummers in the open floor the row faces | the stage layout | 1, 2 |
+
+**Timing, in `src/lib/dances.ts`, from the README's Timing section.** Both
+cycles the footage measures are six strokes long, so one step is one stroke
+and each pose is repeated for as many strokes as it is held.
+
+| Constant | Value | Source |
+|---|---|---|
+| `AYYALA_STROKE_MS` | 343 | ayyala3 0:30–1:00, median 343 ms (IQR 332–354), the stretch where the cane cycle was hand counted. Medium confidence |
+| `AYYALA_CANE_UP_STROKES` / `AYYALA_ARM_OUT_STROKES` | 2 / 4 (686 / 1372 ms) | Cane up about 0.5 s (0.3–0.7), arm out about 1.4 s (1.1–1.6), a cycle every 2.0 s ±0.1, about six strokes (ayyala3 0:30.0–0:39.7). Medium-low |
+| `AYYALA_FORWARD_STROKES` / `AYYALA_BOW_STROKES` | 3 / 3 | ayyala2's row cycle: canes splayed forward, then 1.2 s later held in, every 2.42 s, about six strokes at that troupe's tempo. Medium-low |
+| `AYYALA_SWAY_DEG` | 0 | No sway was separated from the bow in any footage, so none is drawn |
+| `AYYALA.sequence` | two cane cycles, then two forward-and-bow cycles | 6 s reaches the bow at 5.1 s; 3 s is the cane cycle alone |
+
+**What the scene only approximates:**
+- **The bow's depth.** The bowed head drops about 27% of the standing height
+  in the still, against 30–33% measured (ayyala1, keyframes 7–8 against 6,
+  itself a lower bound). Two shallower generations were discarded.
+- **The change between the two cycles.** The cane cycle (ayyala3) and the
+  forward-and-bow cycle (ayyala2) are different troupes, and no shot shows a
+  row go from one to the other.
+- **The drummer doesn't strike.** Who strikes which drum, and how, can't be
+  read in any frame (README, "Not covered"), so the drummer is one still.
+  The cymbals (keyframe 10) are left out: where their player stands is not
+  shown.
+
+**Assumptions made where the keyframes are silent:**
+- **The costume** is the Emirati one (keyframes 1, 6–8). The Omani troupes in
+  keyframes 3–5 and 9 wear turbans and grey-blue robes, and two of the poses
+  come from them.
+- **The cane hand** can't be read in most frames; the right hand is used
+  throughout, holding the cane by its crook as in keyframe 7.
+- **Facing.** The row faces frame-left, toward the drummer, in every state,
+  and bows that way. In keyframe 7 the men bow toward the camera.
+- **Size.** Three men stand in for rows of a dozen or more; the facing row is
+  left out, as in the Ardah.
+- **The performers** are generated people, posed from written descriptions of
+  the keyframes. No real frame was uploaded.
+
+**Before this ships to learners:** an Emirati or Omani reviewer's sign-off.
+
 ## The look
 
 The owner picked this direction from two style rounds. Its references are
@@ -97,7 +178,7 @@ Telfaz11's *Folklore 101* series and Vox's explainers. Its elements:
   planned frames are a mashrabiya for Egyptian and a qamariya window for
   Yemeni.
 - **Vox touches:** an oxblood circle behind the dancer, a grid-paper scrap,
-  paper tape, and ink label boxes for the praise and the milestone.
+  paper tape, and ink label boxes for the cheer and the milestone.
 
 Only the dancers are pictures. The paper, frame, title, labels and tape are
 drawn in code, so they follow the brand and can carry live text.
@@ -118,11 +199,11 @@ reasons:
 The other two methods, and a test of each, are on the "Hikaya Collage Dances"
 board linked from the PR that introduced this.
 
-| Tier   | Length | Used for (today)              | Contents          |
-|--------|--------|-------------------------------|-------------------|
-| small  | 1.5 s  | nothing yet                   | row               |
-| medium | 3 s    | first finish of a lesson      | row + drummer     |
-| large  | 6 s    | nothing yet (stage complete?) | row + drummer     |
+| Tier   | Length | Used for                                  | Contents            |
+|--------|--------|-------------------------------------------|---------------------|
+| small  | 1.5 s  | nothing yet (`?celebrate=<dance>-small`)  | dancers             |
+| medium | 3 s    | lesson, letter, deck, badge               | dancers + musician  |
+| large  | 6 s    | daily goal, streak milestone              | dancers + musician  |
 
 The celebration closes itself when its tier ends. Continue, Escape, or a tap
 outside the stage ends it sooner. Under reduced motion it holds the first pose
@@ -132,13 +213,14 @@ and doesn't sway.
 
 | Piece | Purpose |
 |---|---|
-| `src/lib/celebrations.ts` | The catalogue (`ARDAH`), tier lengths, `danceForDialect`, `poseAt` (what is on stage at a given moment; pure and tested), and the preview parameter. |
-| `src/components/celebrations/CelebrationScene.tsx` | The collage stage. |
+| `src/lib/dances.ts` | The catalogue (`ARDAH`, `DANCES`, `dancesFor`), each dance's measured timing constants, and `poseAt` (what is on stage at a given moment; pure and tested). |
+| `src/lib/celebrations.ts` | When and how long: the moment kinds, tiers, the rotation, the cheers, the copy, the daily-goal and streak claims, the preview parameter, and the `celebrate()` bus. |
+| `src/components/celebrations/CelebrationHost.tsx` | Mounted in `App.tsx`. Listens on the bus, picks the dance and cheer, folds a burst into one screen, plays `?celebrate=`. |
 | `src/components/celebrations/CelebrationOverlay.tsx` | The full-screen dialog and the auto-dismiss. |
-| `src/components/celebrations/CelebrationPreview.tsx` | Mounted in `App.tsx`. Plays `?celebrate=`. |
-| `src/components/celebrations/danceArt.ts` | Maps each dance to its stills. |
+| `src/components/celebrations/CelebrationScene.tsx` | The collage stage. |
+| `src/components/celebrations/danceArt.ts` | Maps each dance to its stills, and where they stand. |
 | `src/assets/celebrations/<dance>/` | The stills. |
-| `src/pages/Learn.tsx` | The trigger. `handleProduceFinish` celebrates when the dialect has a dance and `savedProgress` (the state before this finish) is not completed. |
+| `src/hooks/useStreakMilestoneCelebration.ts` | Watches the streak row for a milestone. |
 
 **Preview without finishing a lesson:** add `?celebrate=ardah` to any address.
 You can also choose the tier with `?celebrate=ardah-small` or
@@ -178,12 +260,20 @@ so a reload doesn't replay it.
    made room for the swords. That still was split into its three men, and
    each was scaled about his own feet to the rest pose's size and position
    before the sticker finish.
-4. **Add the dance** to `DANCES` in `src/lib/celebrations.ts` (title, gloss,
-   region, praise in the dialect, beat, sequence) and its stills to
-   `danceArt.ts`. If the dance belongs to another dialect, draw that dialect's
-   frame.
+
+   The script also drops large patches of the backdrop's own grey that the
+   models keep because they are boxed in (between a cane and a robe, or
+   between two men), and calms the torn edge along anything thin, which
+   otherwise turns a cane into a string of beads. Both were added for the
+   Ayyala; the Ardah's stills were cut before them.
+4. **Add the dance** to `DANCES` in `src/lib/dances.ts` (title, gloss,
+   region, beat, sequence, each timing number a named constant with its
+   source) and its stills to `danceArt.ts`, with a `dancersBox` when the
+   figures are framed differently from the Ardah's row. Its id must not
+   contain a dash, which `?celebrate=` reads as the tier. If the dance
+   belongs to another dialect, draw that dialect's frame.
 5. **Review.** A native speaker of the dialect checks the costume, the props
-   and the praise word before the dance ships.
+   and the cheers before the dance ships.
 
 ## Open decisions
 
@@ -194,6 +284,5 @@ so a reload doesn't replay it.
   same collage rather than photographic.
 - **Sound:** drum loops per dance could be generated on Higgsfield. The
   celebration is silent for now.
-- **Other milestones:** streaks, stage completion and weekly goals have no
-  "crossing moment" on the client yet. See the PR for the survey of where
-  wins are detected today.
+- **Other milestones:** stage completion and weekly goals have no "crossing
+  moment" on the client yet.

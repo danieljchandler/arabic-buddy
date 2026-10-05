@@ -1,6 +1,5 @@
 import { useEffect, lazy, Suspense, type ComponentType } from "react";
 import { Toaster as Sonner } from "@/components/ui/sonner";
-import { CelebrationPreview } from "@/components/celebrations/CelebrationPreview";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { shouldRetryQuery } from "@/lib/queryErrors";
@@ -13,6 +12,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { DialectProvider } from "@/contexts/DialectContext";
 import { AiAssistantProvider } from "@/contexts/AiAssistantContext";
 import { AssistantMount } from "@/components/assistant/AssistantMount";
+import { CelebrationHost } from "@/components/celebrations/CelebrationHost";
 import { AskAiFab } from "@/components/assistant/AskAiFab";
 import { RecapNudge } from "@/components/recap/RecapNudge";
 import { BrandPreviewSwitcher } from "@/components/shell/BrandPreviewSwitcher";
@@ -269,9 +269,17 @@ const App = () => {
       <DialectProvider>
       <TooltipProvider>
         <Sonner />
-        <CelebrationPreview />
         <BrowserRouter>
           <AiAssistantProvider>
+          {/* The full-screen "you did it" moment: a lesson's first finish, a
+              letter learned, a deck cleared, the daily goal, a badge, a streak
+              milestone. Pages fire it with celebrate() from
+              @/lib/celebrations; this renders it, in a portal, with a dance
+              from the learner's dialect. Ahead of the routes on purpose:
+              sibling effects run in tree order, so the host is listening
+              before a page that mounts already-celebratable (Today with every
+              task done) fires. */}
+          <CelebrationHost />
           <Suspense fallback={<PageSkeleton />}>
           <TransitionRoutes>
             {/* Public learning app */}

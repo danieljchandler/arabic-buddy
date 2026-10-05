@@ -100,13 +100,15 @@
    never waits on a network fetch. */
 .cel-figure { bottom: 1.5%; transform-origin: 50% 100%; }
 .cel-figure img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: 50% 100%; }
-/* The row stands on the right and faces left, toward the open space where the
-   drummer is (keyframes 1, 3 and 4 put the drummers between the rows). */
-.cel-row { z-index: 4; left: 22%; width: 78%; height: 66%; }
-.cel-row-still { position: absolute; inset: 0; transform-origin: 50% 100%; }
-.cel-drummer { z-index: 5; left: -2%; width: 38%; height: 50%; }
+/* The dancers stand on the right and face left, toward the open space where
+   the musician is (the Ardah's keyframes 1, 3 and 4 put the drummers between
+   the rows). A dance whose stills are framed differently sets its own boxes
+   (danceArt.ts) through these variables. */
+.cel-dancers { z-index: 4; left: var(--cel-dancers-left, 22%); width: var(--cel-dancers-width, 78%); height: var(--cel-dancers-height, 66%); }
+.cel-dancers-still { position: absolute; inset: 0; transform-origin: 50% 100%; }
+.cel-musician { z-index: 5; left: var(--cel-musician-left, -2%); width: var(--cel-musician-width, 38%); height: var(--cel-musician-height, 50%); }
 
-/* The sway: the row leans one way, then the other, as one. */
+/* The sway: the dancers lean one way, then the other, as one. */
 @keyframes cel-sway {
   0%, 100% { rotate: calc(var(--cel-sway-deg) * -1); }
   50% { rotate: var(--cel-sway-deg); }
@@ -121,7 +123,7 @@
 .cel-pop-b { animation: cel-pop-b 140ms ease-out; }
 
 /* Under the frame rather than at the foot of the stage, where they would
-   cover the drummer's legs. */
+   cover the musician's legs. */
 .cel-labels {
   left: 5%;
   top: 31%;
@@ -139,6 +141,11 @@
   color: var(--cel-mustard);
 }
 .cel-headline { font: 600 14px/1.9 var(--font-ink-ui, var(--font-sans)); }
+
+/* A dialect with no dance drawn yet: the paper, the circle and the labels,
+   with the labels where the frame would be. */
+.cel-stage-bare .cel-labels { top: 9%; }
+.cel-stage-bare .cel-circle { left: 18%; top: 34%; }
 
 @media (prefers-reduced-motion: reduce) {
   .cel-pop-a, .cel-pop-b, .cel-sway { animation: none; }

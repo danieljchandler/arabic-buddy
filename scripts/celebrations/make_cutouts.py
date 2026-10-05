@@ -45,7 +45,18 @@ def matte(im):
     if len(rows):
         key[int(rows.min() + (rows.max() - rows.min()) * 0.62):] = False
     key = ndi.binary_opening(key, iterations=1)
-    lab, _ = ndi.label(a | key)
+    a = a | key
+    # Backdrop the models kept because it is boxed in: between a cane and a
+    # robe, or in the gap between two men standing shoulder to shoulder. It is
+    # the backdrop's own flat grey, so take out any large patch of it (small
+    # ones can be a grey beard or a fold).
+    bg = np.median(border, axis=0)
+    flat = (np.abs(rgb - bg).max(2) < 14) & (rgb.max(2) - rgb.min(2) < 10) & a
+    lab, _ = ndi.label(flat)
+    sizes = np.bincount(lab.ravel())
+    sizes[0] = 0
+    a &= ~(sizes[lab] >= 1500)
+    lab, _ = ndi.label(a)
     sizes = np.bincount(lab.ravel())
     sizes[0] = 0
     return Image.fromarray(((sizes[lab] >= 2000) * 255).astype("uint8"))
@@ -60,6 +71,10 @@ def rough_edge(alpha, width, seed):
     noise = Image.fromarray((rng.random((h // 24 + 2, w // 24 + 2)) * 255).astype("uint8")).resize((w, h), Image.BICUBIC)
     g = np.array(grown.filter(ImageFilter.GaussianBlur(width * 0.6))).astype(float)
     n = (np.array(noise).astype(float) - 128) * 0.9
+    # Calm the tear along anything thin (a cane, a blade): at full strength it
+    # swells and pinches the edge until a cane reads as a string of beads.
+    thick = ndi.maximum_filter(ndi.distance_transform_edt(np.array(alpha) > 0), size=width * 4 + 1)
+    n *= np.clip(thick / 12, 0.2, 1)
     return Image.fromarray(np.clip((g + n - 128) * 6, 0, 255).astype("uint8"))
 
 

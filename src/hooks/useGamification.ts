@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { localDateKey } from "@/lib/localDate";
+import { celebrate } from "@/lib/celebrations";
 
 export interface UserXP {
   id: string;
@@ -268,7 +269,6 @@ export function useIncrementReviews() {
 export function useCheckAchievements() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { toast } = useToast();
 
   return useMutation({
     mutationFn: async () => {
@@ -297,6 +297,11 @@ export function useCheckAchievements() {
         .gte("repetitions", 1);
 
       const currentStreak = streak?.current_streak || 0;
+      // This runs after every rated card, and is the one place that re-reads
+      // the streak row then. Hand it to the shared ["review-streak"] cache so
+      // the header pill and the streak-milestone celebration see a review
+      // move the streak without a refetch of their own.
+      if (streak) queryClient.setQueryData(["review-streak", user.id], streak);
 
       for (const achievement of achievements) {
         if (earnedIds.has(achievement.id)) continue;
@@ -335,10 +340,12 @@ export function useCheckAchievements() {
         queryClient.invalidateQueries({ queryKey: ["user-achievements"] });
         queryClient.invalidateQueries({ queryKey: ["user-xp"] });
 
+        // The celebration screen rather than a toast. Several badges from one
+        // card become lines on a single screen (see CelebrationHost).
         newlyEarned.forEach((achievement) => {
-          toast({
-            title: `${achievement.icon} Achievement Unlocked!`,
-            description: `${achievement.name} — +${achievement.xp_reward} XP`,
+          celebrate({
+            kind: "achievement",
+            detail: `${achievement.icon} ${achievement.name} · +${achievement.xp_reward} XP`,
           });
         });
       }

@@ -270,6 +270,39 @@ caught. `src/test/curriculumSeed.test.ts` fails when the seed migration is
 stale. `npm run curriculum:check` is the same check for authors, with
 `--dialect`, `--stage` and `--partial` while a stage is half-written.
 
+## Celebration screens
+
+Six moments open a full-screen celebration:
+
+- the first finish of a lesson
+- mastering an alphabet letter
+- clearing every review deck
+- completing the day's list
+- earning a badge
+- reaching a streak milestone
+
+It plays a few seconds of a traditional dance from the region of the
+learner's dialect, as a cut-paper collage in the Ink brand: grayscale photo
+cutouts of the dancers snap from pose to pose on the beat, over mustard paper,
+under the dance's name in a frame from the dialect's architecture. A cheer in
+the dialect sits on the stage. The screen closes itself after 3 seconds, or 6
+for the daily goal and a streak; Continue, Escape or a tap outside it ends it
+sooner.
+
+Every pose is drawn from a keyframe of real footage, and every timing number
+is measured from it (`docs/reference/<dance>/`). The performers are generated
+from written descriptions of those frames, never from the frames themselves.
+
+Pages fire a moment with `celebrate()` from `src/lib/celebrations.ts`, and
+`CelebrationHost` (mounted once in `App.tsx`) renders it. A second moment that
+lands while the screen is open becomes a line on it rather than a second
+screen. Each dialect's dances rotate in order. The daily goal is celebrated
+once a day, and a streak milestone once per run. Badges use this screen
+instead of the toast they had before. The cheers are run through
+`detectMsaLeaks` in the tests. The dances and their timing are
+`src/lib/dances.ts`; `?celebrate=<dance>` plays one on any page.
+`docs/celebrations.md` has how a dance is made.
+
 ## Project layout
 
 - `src/` — React app (pages, components, hooks, domain logic in `src/lib`)

@@ -151,4 +151,25 @@ describe("CelebrationScene", () => {
     expect(container.querySelector(".cel-news")?.textContent).toContain("صنعاء");
     expect(container.querySelector(".cel-news")?.textContent).not.toContain("نجد");
   });
+
+  it("bobs the dancers by the dance's bob settings, and not at all when it has none", () => {
+    const { container } = render(
+      <CelebrationScene dance={{ ...ARDAH, bobPct: 4, bobPeriodMs: 430 }} dialect="Gulf" tier="medium" cheer="كفو!" headline="x" />,
+    );
+    const bobber = container.querySelector<HTMLElement>(".cel-bobber")!;
+    expect(bobber.className).toMatch(/cel-bob\b/);
+    expect(bobber.style.getPropertyValue("--cel-bob-pct")).toBe("4%");
+    expect(bobber.style.getPropertyValue("--cel-bob-ms")).toBe("430ms");
+
+    const still = render(<CelebrationScene dance={ARDAH} dialect="Gulf" tier="medium" cheer="كفو!" headline="x" />);
+    expect(still.container.querySelector(".cel-bobber")!.className).not.toMatch(/cel-bob\b/);
+  });
+
+  it("holds the bob still under reduced motion", () => {
+    reduced.value = true;
+    const { container } = render(
+      <CelebrationScene dance={{ ...ARDAH, bobPct: 4, bobPeriodMs: 430 }} dialect="Gulf" tier="medium" cheer="كفو!" headline="x" />,
+    );
+    expect(container.querySelector(".cel-bobber")!.className).not.toMatch(/cel-bob\b/);
+  });
 });

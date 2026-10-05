@@ -115,6 +115,15 @@
 }
 .cel-sway { animation: cel-sway var(--cel-sway-ms) ease-in-out infinite; }
 
+/* The bob: the dancers drop and rise once per step, together. A layer of its
+   own, so it adds to the sway rather than replacing it. */
+.cel-bobber { position: absolute; inset: 0; }
+@keyframes cel-bob {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 var(--cel-bob-pct); }
+}
+.cel-bob { animation: cel-bob var(--cel-bob-ms) ease-in-out infinite; }
+
 /* Each swap lands with a small jolt. Two identical keyframes, alternated by
    beat, restart the animation without remounting the images. */
 @keyframes cel-pop-a { from { scale: 1.05; } to { scale: 1; } }
@@ -148,5 +157,5 @@
 .cel-stage-bare .cel-circle { left: 18%; top: 34%; }
 
 @media (prefers-reduced-motion: reduce) {
-  .cel-pop-a, .cel-pop-b, .cel-sway { animation: none; }
+  .cel-pop-a, .cel-pop-b, .cel-sway, .cel-bob { animation: none; }
 }

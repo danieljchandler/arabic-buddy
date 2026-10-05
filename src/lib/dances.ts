@@ -36,6 +36,14 @@ export interface DanceDefinition {
   /** One full sway, there and back, in milliseconds. */
   swayPeriodMs: number;
   /**
+   * How far the dancers drop at the bottom of a bob (the knees bending and
+   * the body folding on the step), as a percentage of their height on stage.
+   * 0: no bob.
+   */
+  bobPct: number;
+  /** One full bob, down and up, in milliseconds. */
+  bobPeriodMs: number;
+  /**
    * The order the dancers' stills are shown in, as 0-based indexes into the
    * scene's dancer images. Repeating the rest pose between the big moves keeps
    * the swap reading as a dance rather than a slideshow.
@@ -101,6 +109,10 @@ export const ARDAH: DanceDefinition = {
   musicianMs: ARDAH_DRUM_MS,
   swayDeg: ARDAH_SWAY_DEG,
   swayPeriodMs: ARDAH_SWAY_PERIOD_MS,
+  // The rows' movement in the timing notes is the sway and the blade swing;
+  // no step bob was measured.
+  bobPct: 0,
+  bobPeriodMs: 0,
   // Drawn from the reference keyframes in docs/reference/ardah/ (numbers are
   // the README's entries):
   //   0 rest: sword at the chest, blade diagonal up the way the row faces (5, 6)
@@ -171,6 +183,9 @@ export const AYYALA: DanceDefinition = {
   musicianMs: AYYALA_BEAT_MS,
   swayDeg: AYYALA_SWAY_DEG,
   swayPeriodMs: 0,
+  // The bow is drawn as a pose; no separate bob was measured.
+  bobPct: 0,
+  bobPeriodMs: 0,
   // Drawn from the reference keyframes in docs/reference/ayyala/ (numbers are
   // the README's entries):
   //   0 cane up: forearm raised, cane near vertical above the hand (6; the
@@ -231,9 +246,12 @@ export const ASSAYA: DanceDefinition = {
   region: "Upper Egypt",
   beatMs: ASSAYA_STROKE_MS,
   musicianMs: ASSAYA_STROKE_MS,
-  // No sway: a solo man turning and stepping, not a row.
+  // No sway and no bob: a solo man turning and stepping, not a row, and
+  // his steps could not be counted (feet 5–8 px tall at 480p).
   swayDeg: 0,
   swayPeriodMs: 0,
+  bobPct: 0,
+  bobPeriodMs: 0,
   // Drawn from the reference keyframes in docs/reference/assaya/ (numbers are
   // the README's entries), all of the solo man in assaya3:
   //   0 mid-spin on one foot, the cane across the chest in both hands (6)
@@ -250,12 +268,79 @@ export const ASSAYA: DanceDefinition = {
   pumpOnHold: false,
 };
 
+/*
+ * Al-Bara's timing, measured from the reference footage in
+ * docs/reference/baraa/README.md (its Timing section). The one movement the
+ * footage measures well is the street dancers' bob (baraa2): they go down and
+ * up together once per step, three drum pulses to a step.
+ */
+/**
+ * One down-and-up of the dancers' bodies and feet: 430 ms (419–440 across
+ * methods: optical flow in three stretches of baraa2 0:26–2:14, and a hand
+ * count of 7 cycles in 3.04 s = 434 ms). High confidence, for that stretch.
+ */
+export const BARAA_BOB_MS = 430;
+/**
+ * The audio's pulse in the same stretches: 140–146 ms, three to a bob. Not
+ * seen as strikes, so it times nothing on its own; the test holds it to the
+ * bob.
+ */
+export const BARAA_PULSE_MS = 143;
+/** A still holds half a bob: folded at the bottom, taller at the top. */
+export const BARAA_STEP_MS = BARAA_BOB_MS / 2;
+/**
+ * How far the bob drops them: the head top moves about 5% of body height
+ * (2–7%, four frames on a pixel grid). The bodies fill about 90% of the
+ * row's box on stage, so 4.5% of the box.
+ */
+export const BARAA_BOB_PCT = 4.5;
+/**
+ * The three poses come in this order in baraa2 0:26–0:46, held 6.4 s, 1.2 s
+ * and 12.4 s. Scaled to a loop of ten bobs, keeping order and proportion.
+ */
+export const BARAA_HEAD_BOBS = 3;
+export const BARAA_LOW_BOBS = 1;
+export const BARAA_WAIST_BOBS = 6;
+
+export const BARAA: DanceDefinition = {
+  id: "baraa",
+  dialect: "Yemeni",
+  title: "البرع",
+  gloss: "Al-Bara'",
+  region: "Yemen",
+  beatMs: BARAA_STEP_MS,
+  musicianMs: BARAA_STEP_MS,
+  swayDeg: 0,
+  swayPeriodMs: 0,
+  bobPct: BARAA_BOB_PCT,
+  bobPeriodMs: BARAA_BOB_MS,
+  // Drawn from the reference keyframes in docs/reference/baraa/ (numbers are
+  // the README's entries), the street Bara' of baraa2:
+  //   0 upright, the dagger in a fist at waist-to-chest height, blade level (3)
+  //   1 upright, the blade up beside the head, the fist at the forehead (4)
+  //   2 folded forward, the blade held level at the brow (4, frame-left man)
+  //   3 knees deeply bent, feet wide, the dagger low at the side (5)
+  // The blade-at-the-head section alternates 1 and 2 on the bob: the README
+  // has the frame-left dancer going between them at 0:26–0:29, and the frames
+  // at the bob's low point folded forward.
+  sequence: [
+    ...Array.from({ length: BARAA_HEAD_BOBS }, () => [1, 2]).flat(),
+    ...repeat(3, 2 * BARAA_LOW_BOBS),
+    ...repeat(0, 2 * BARAA_WAIST_BOBS),
+  ],
+  //   0 the drummer, a big round drum on a strap at the hip, a stick in each
+  //     hand (3). No stroke lands in any frame, so he doesn't strike.
+  musicianSequence: [0],
+  // A held pose rides the bob; it doesn't jolt as well.
+  pumpOnHold: false,
+};
+
 /**
  * Every dance, in rotation order within each dialect. Order alternates kinds
  * of dance where a dialect has several, so two celebrations in a row rarely
  * look alike.
  */
-export const DANCES: readonly DanceDefinition[] = [ARDAH, AYYALA, ASSAYA];
+export const DANCES: readonly DanceDefinition[] = [ARDAH, AYYALA, ASSAYA, BARAA];
 
 /**
  * The dances a dialect's learners rotate through. Empty while a dialect has

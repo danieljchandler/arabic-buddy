@@ -12,6 +12,11 @@ import assayaDancer1 from "@/assets/celebrations/assaya/dancer-1.webp";
 import assayaDancer2 from "@/assets/celebrations/assaya/dancer-2.webp";
 import assayaDancer3 from "@/assets/celebrations/assaya/dancer-3.webp";
 import assayaDancer4 from "@/assets/celebrations/assaya/dancer-4.webp";
+import baraaRow1 from "@/assets/celebrations/baraa/row-1.webp";
+import baraaRow2 from "@/assets/celebrations/baraa/row-2.webp";
+import baraaRow3 from "@/assets/celebrations/baraa/row-3.webp";
+import baraaRow4 from "@/assets/celebrations/baraa/row-4.webp";
+import baraaDrummer1 from "@/assets/celebrations/baraa/drummer-1.webp";
 
 /**
  * The cutout stills for each dance, in the order `DanceDefinition.sequence`
@@ -61,5 +66,16 @@ export const DANCE_ART: Record<string, DanceArt> = {
     musician: [],
     // A solo, so he takes the middle of the stage.
     dancersBox: { left: 18, width: 72, height: 66 },
+  },
+  baraa: {
+    // dagger at the waist (keyframe 3) · blade up by the head (4) · folded,
+    // blade at the brow (4) · low, dagger at the side (5)
+    dancers: [baraaRow1, baraaRow2, baraaRow3, baraaRow4],
+    // the drum on a strap at the hip, a stick in each hand (3)
+    musician: [baraaDrummer1],
+    // The row stands looser than the Ardah's, so its still is wider: move it
+    // right and the drummer left so he stays in the open floor before it.
+    dancersBox: { left: 30, width: 70, height: 64 },
+    musicianBox: { left: -5, width: 34, height: 48 },
   },
 };

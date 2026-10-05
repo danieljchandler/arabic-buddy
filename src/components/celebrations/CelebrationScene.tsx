@@ -128,7 +128,8 @@ export function CelebrationScene({ dance, dialect, tier, cheer, headline }: Cele
       )}
 
       {/* The sway tilts the dancers as one, a plain rigid tilt (no keyframe
-          shows the bodies mid-sway); see each dance's *_SWAY_* constants. */}
+          shows the bodies mid-sway), and the bob drops them on each step;
+          see each dance's *_SWAY_* and *_BOB_* constants. */}
       {dance && art && frame && (
         <div
           className={`cel-figure cel-dancers ${reduced || !dance.swayDeg ? "" : "cel-sway"}`}
@@ -142,18 +143,28 @@ export function CelebrationScene({ dance, dialect, tier, cheer, headline }: Cele
           aria-hidden="true"
         >
           <div
-            className={`cel-dancers-still ${frame.swapStep === 0 || reduced ? "" : frame.swapStep % 2 ? "cel-pop-a" : "cel-pop-b"}`}
-            style={{ transform: `translateX(${frame.shiftPct}%) rotate(${frame.rotateDeg}deg)` }}
+            className={`cel-bobber ${reduced || !dance.bobPct ? "" : "cel-bob"}`}
+            style={
+              {
+                "--cel-bob-pct": `${dance.bobPct}%`,
+                "--cel-bob-ms": `${dance.bobPeriodMs}ms`,
+              } as CSSProperties
+            }
           >
-            {art.dancers.map((src, i) => (
-              <img
-                key={src}
-                src={src}
-                alt=""
-                data-pose={i}
-                style={{ visibility: i === frame.pose ? "visible" : "hidden" }}
-              />
-            ))}
+            <div
+              className={`cel-dancers-still ${frame.swapStep === 0 || reduced ? "" : frame.swapStep % 2 ? "cel-pop-a" : "cel-pop-b"}`}
+              style={{ transform: `translateX(${frame.shiftPct}%) rotate(${frame.rotateDeg}deg)` }}
+            >
+              {art.dancers.map((src, i) => (
+                <img
+                  key={src}
+                  src={src}
+                  alt=""
+                  data-pose={i}
+                  style={{ visibility: i === frame.pose ? "visible" : "hidden" }}
+                />
+              ))}
+            </div>
           </div>
         </div>
       )}

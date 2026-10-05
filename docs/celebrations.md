@@ -24,16 +24,17 @@ the line can be read.
 The host picks the next dance in the learner's dialect's rotation and a cheer
 in that dialect (`CHEERS`, checked by `detectMsaLeaks` in the tests). Every
 cheer is an exclamation, not an address, so none has to guess the learner's
-gender. A dialect with no dance drawn yet still gets the screen: the paper,
-the circle, the cheer and the milestone, without dancers.
+gender. Every dialect now has at least one dance. A dialect without one would
+still get the screen: the paper, the circle, the cheer and the milestone,
+without dancers.
 
 The trigger rules (the six moments, the once-a-day and once-per-run claims,
 the folding of a burst into one screen) came from PR #403, whose watercolor
 clips these collage scenes replace.
 
 The dances so far: the Saudi **Ardah** (العرضة) and the Emirati and Omani
-**Ayyala** (العيالة) for Gulf learners, and the **Saidi cane dance** (رقص
-العصاية) for Egyptian learners.
+**Ayyala** (العيالة) for Gulf learners, the **Saidi cane dance** (رقص
+العصاية) for Egyptian learners, and **Al-Bara'** (البرع) for Yemeni learners.
 
 ## The Ardah (العرضة): drawn from reference keyframes and timed from the footage
 
@@ -216,6 +217,60 @@ frames.
 **Before this ships to learners:** an Egyptian (ideally Sa'idi) reviewer's
 sign-off.
 
+## Al-Bara' (البرع): drawn from reference keyframes and timed from the footage
+
+The Yemeni dance. Its reference pack is `docs/reference/baraa/` (PR #414). No
+official or festival recording of a large Bara' was found; the pack works
+from a staged TV item (baraa1, too blurred for poses), a street Bara' with a
+drummer (baraa2, where the poses and the step were measured) and a studio
+drum demonstration (baraa5). The scene is the street Bara'.
+
+| State | Still | Keyframes (README entries) |
+|---|---|---|
+| Upright, bent a little forward, the drawn jambiya in a fist at waist-to-chest height, blade level | `row-1.webp` | 3 (baraa2 2:00) |
+| Upright, the blade up beside the head, tip up, the fist at the forehead | `row-2.webp` | 4 (baraa2 0:31) |
+| Folded forward, the blade held level at the brow | `row-3.webp` | 4 (the frame-left dancer) |
+| Knees deeply bent, feet wide, the dagger low at the side | `row-4.webp` | 5 (baraa2 4:08) |
+| Drummer: a big round drum on a strap at the hip, a thin stick in each hand | `drummer-1.webp` | 3 |
+| Costume: bareheaded, dark suit jackets over a white thobe or a tan futa with a purple hem, a broad belt with an embroidered jambiya sheath at the front, barefoot | all row stills | 3, 4, 5 |
+
+**Timing, in `src/lib/dances.ts`, from the README's Timing section.** The
+movement measured best in the whole pack is the dancers' bob: down and up
+together once per step. The scene draws it as a drop of the whole row
+(`bobPct`) and changes still on the half bob.
+
+| Constant | Value | Source |
+|---|---|---|
+| `BARAA_BOB_MS` | 430 | One down-and-up: 419–440 ms across optical flow in three stretches of baraa2 (0:26–2:14) and a hand count of 7 cycles in 3.04 s (434 ms). High confidence for that stretch |
+| `BARAA_PULSE_MS` | 143 | The audio pulse in the same stretches, 140–146 ms, three to a bob. Never seen as a strike, so it times nothing on its own |
+| `BARAA_STEP_MS` | bob ÷ 2 (215) | A still holds half a bob: folded at the bottom, taller at the top (frames at the bob's low point show them folded forward) |
+| `BARAA_BOB_PCT` | 4.5 | The head top moves about 5% of body height (2–7%, four frames on a grid); the bodies fill about 90% of the row's box |
+| `BARAA_HEAD_BOBS` / `LOW` / `WAIST` | 3 / 1 / 6 | The poses come in this order in baraa2 0:26–0:46, held 6.4, 1.2 and 12.4 s: the same order and proportions in a ten-bob loop |
+
+**What the scene only approximates:**
+- **The section lengths** are scaled down about five times to fit a 3–6 s
+  scene; only their order and proportions are kept.
+- **The folded still alternating with the upright one** in the blade-at-the-
+  head section is a reading of the README (the frame-left dancer goes between
+  them at 0:26–0:29, folded at the bob's low point), not a count.
+- **The bob** is a rigid drop of the whole row, feet included; in the footage
+  the feet stay down and the knees bend.
+- **The drummer doesn't strike.** No stick is ever seen touching a skin.
+- **The tempo stages** of the staged item (the pulse quickening 1.19 then
+  1.13 times) are longer than any scene and not drawn.
+
+**Assumptions:** the dagger hand is the right one throughout; the row faces
+frame-left, toward the drummer; three dancers stand in for the line. The
+folded still was refused twice by the image model's safety filter when asked
+for a blade at the face, and the third attempt kept the hilts in the
+sheaths, so they were painted out locally (a drawn jambiya leaves its sheath
+empty). The performers are generated from written descriptions; the street
+footage's people were never uploaded.
+
+**Before this ships to learners:** a Yemeni reviewer's sign-off, including
+whether street dress (jackets, bare heads) or a festival costume should
+represent the dance.
+
 ## The look
 
 The owner picked this direction from two style rounds. Its references are
@@ -236,8 +291,11 @@ drawn in code, so they follow the brand and can carry live text.
 
 ## How the dancers move: pose swap
 
-A dance is a handful of stills of one row of performers. The scene snaps from
-one still to the next on the beat, and the row sways as one. Each swap lands with a small jolt, a slight tilt and a
+A dance is a handful of stills of one row of performers, or of a soloist. The
+scene snaps from one still to the next on the beat. Where the footage
+measures them, the row sways as one (`swayDeg`) or drops and rises on each
+step (`bobPct`). A pose held over several beats either pumps on each one
+(the Ardah's overhead) or stays still (`pumpOnHold`). Each swap lands with a small jolt, a slight tilt and a
 small sideways shift, so every frame looks hand-placed.
 
 This was chosen over cut-out video footage and hinged photo puppets for these

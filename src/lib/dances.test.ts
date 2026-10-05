@@ -8,6 +8,14 @@ import {
   ASSAYA_STROKE_MS,
   ASSAYA_UPRIGHT_STROKES,
   AYYALA,
+  BARAA,
+  BARAA_BOB_MS,
+  BARAA_BOB_PCT,
+  BARAA_HEAD_BOBS,
+  BARAA_LOW_BOBS,
+  BARAA_PULSE_MS,
+  BARAA_STEP_MS,
+  BARAA_WAIST_BOBS,
   AYYALA_ARM_OUT_STROKES,
   AYYALA_BOW_STROKES,
   AYYALA_CANE_UP_STROKES,
@@ -288,6 +296,57 @@ describe("the Saidi cane dance itself", () => {
   it("reaches the upright holds inside the six-second scene", () => {
     const shown = ASSAYA.sequence.slice(0, Math.ceil(TIER_DURATION_MS.large / ASSAYA.beatMs));
     expect(shown).toContain(3);
+  });
+});
+
+describe("Al-Bara' itself", () => {
+  it("uses only the four poses the reference keyframes show", () => {
+    // 0 dagger at the waist (3) · 1 blade by the head (4) · 2 folded, blade
+    // at the brow (4) · 3 low, dagger at the side (5)
+    expect(new Set(BARAA.sequence)).toEqual(new Set([0, 1, 2, 3]));
+  });
+
+  it("bobs once every 430 ms, three drum pulses to a bob", () => {
+    // README 4b: 419–440 ms across methods, hand count 434.
+    expect(BARAA_BOB_MS).toBeGreaterThanOrEqual(419);
+    expect(BARAA_BOB_MS).toBeLessThanOrEqual(440);
+    expect(BARAA.bobPeriodMs).toBe(BARAA_BOB_MS);
+    expect(Math.abs(3 * BARAA_PULSE_MS - BARAA_BOB_MS) / BARAA_BOB_MS).toBeLessThan(0.03);
+    // The head moves about 5% of body height (2–7%).
+    expect(BARAA_BOB_PCT).toBeGreaterThanOrEqual(2);
+    expect(BARAA_BOB_PCT).toBeLessThanOrEqual(7);
+  });
+
+  it("changes still on the half bob, so the folded still lands at the bottom", () => {
+    expect(BARAA.beatMs).toBe(BARAA_STEP_MS);
+    expect(BARAA_STEP_MS * 2).toBe(BARAA_BOB_MS);
+    // Odd steps are the bottom of a bob; in the head section that is the fold.
+    const head = BARAA.sequence.slice(0, 2 * BARAA_HEAD_BOBS);
+    expect(head.filter((_, i) => i % 2 === 1)).toEqual(Array(BARAA_HEAD_BOBS).fill(2));
+    expect(head.filter((_, i) => i % 2 === 0)).toEqual(Array(BARAA_HEAD_BOBS).fill(1));
+  });
+
+  it("keeps the footage's order and proportions: head, then low, then the waist", () => {
+    expect(runs(BARAA.sequence).map(([pose]) => pose).slice(-2)).toEqual([3, 0]);
+    expect(runs(BARAA.sequence).slice(-2)).toEqual([
+      [3, 2 * BARAA_LOW_BOBS],
+      [0, 2 * BARAA_WAIST_BOBS],
+    ]);
+    // 6.4 s : 1.2 s : 12.4 s in baraa2 0:26–0:46.
+    const total = BARAA_HEAD_BOBS + BARAA_LOW_BOBS + BARAA_WAIST_BOBS;
+    expect(Math.abs(BARAA_HEAD_BOBS / total - 6.4 / 20)).toBeLessThan(0.05);
+    expect(Math.abs(BARAA_WAIST_BOBS / total - 12.4 / 20)).toBeLessThan(0.05);
+  });
+
+  it("is the Yemeni learners' dance, with one drummer who doesn't strike", () => {
+    expect(dancesFor("Yemeni")).toContain(BARAA);
+    expect(BARAA.musicianSequence).toEqual([0]);
+    expect(BARAA.swayDeg).toBe(0);
+  });
+
+  it("shows all three sections inside the six-second scene", () => {
+    const shown = BARAA.sequence.slice(0, Math.ceil(TIER_DURATION_MS.large / BARAA.beatMs));
+    expect(new Set(shown)).toEqual(new Set([0, 1, 2, 3]));
   });
 });
 

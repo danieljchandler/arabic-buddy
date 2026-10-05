@@ -121,9 +121,14 @@ harness.
   Never hand-edit `types.ts` beyond a revert; when the `typesDrift` guard
   names a migration, apply it to the project (ask Lovable to run it, or
   `supabase db push` with a token) and let the regeneration carry the columns.
-  Waiting on exactly that today: `20261004120000_video_debrief` and
-  `20261005120000_learner_recaps` (both features degrade rather than break
-  until applied — see their README sections).
+  Nothing is waiting on that today: `20261004120000_video_debrief` and
+  `20261005120000_learner_recaps` sat in that state from their merge until
+  2026-10-05, when Lovable ran both (its copies are
+  `drizzle/migrations/0000_video_debrief.sql` and `0001_learner_recaps.sql`)
+  and the regeneration carried the tables, which is what retired their
+  `typesDrift` entries. Both features degrade rather than break without
+  their tables — see their README sections — so the window went unnoticed
+  from the app's side.
 - **The brand is Ink, and its default lives in `index.html`.** `<html
   data-brand="ink" data-brand-default="ink">` plus the Ink fonts in the static
   `<link>`; `src/lib/brandPreview.ts` reads the declaration, and components

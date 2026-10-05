@@ -1,0 +1,31 @@
+Tahtib (التحطيب) reference footage -- sources
+Downloaded 2026-10-04 with yt-dlp 2026.08.19. Reference only.
+Full-length videos are local only: C:\media\dances\tahtib\ (not in Drive, not in git).
+
+tahtib1.mp4
+  URL:      https://www.youtube.com/watch?v=QkbEI7co0y4
+  Title:    Tahteeb, stick game
+  Channel:  UNESCO (official Intangible Cultural Heritage listing video; the video's own description reads "UNESCO: Representative List of the Intangible Cultural Heritage of Humanity - 2016" and credits (c) Ayman Khoury, 2013)
+  Uploaded: 2016-11-30
+  Length:   8:28
+  Format:   480p H.264 + AAC, 25 fps (edited documentary with French subtitles; many short shots)
+
+tahtib2.mp4
+  URL:      https://www.youtube.com/watch?v=JXluFIHpBrs
+  Title:    Luxor National Band for Popular Arts _ National Festival of TAHTIB
+            (the uploader's description, in Arabic, calls it the fifth video of the Luxor National Band for Popular Arts show at the closing ceremony of the 9th National Festival of Tahtib; not verified independently)
+  Channel:  TAHTIB (the channel of the International Center for Tahtib, going by the watermark and description; not a ministry or TV channel as far as the page shows)
+  Uploaded: 2020-06-24
+  Length:   7:31
+  Format:   720p H.264 + AAC, 30 fps (one fixed camera; channel watermark and an Arabic festival caption over the picture)
+
+tahtib3.mp4
+  URL:      https://www.youtube.com/watch?v=kJDygZx2NSI
+  Title:    Sohag National Band for Popular Arts ▶ National Festival of TAHTIB
+            (the uploader's description, in Arabic, says the Sohag band performed at the 9th National Festival of Tahtib in Luxor in 2018; not verified independently)
+  Channel:  TAHTIB (same channel as tahtib2)
+  Uploaded: 2020-06-24
+  Length:   13:24
+  Format:   360p H.264 + AAC, 30 fps (fetched with a 480p cap; the file that came down is 640x360; hand-held, with watermark and caption)
+
+Looked at and not used (downloaded, reviewed, deleted): Nile troupe pipes (6QLhWFJTV0c), Sharqia troupe TV re-upload (YdYPJrllqeg), a film excerpt of the Reda troupe (NoFQNxrMOwA), Minya troupe (Z0b6uQ-nm20), Assiut troupe (3R6TskkZ5Go). Reasons are in analysis\LOG.md.

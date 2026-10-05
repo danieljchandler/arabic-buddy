@@ -606,6 +606,34 @@ test.describe("keeping the TikTok frame on the audio clock", () => {
     db.seed("profiles", [aProfile()]);
   });
 
+  test("sings the learner a song once, when they get through the clip", async ({ page, db, backend }) => {
+    // Three seconds of video against four of audio: the page counts a video as
+    // watched at 85%, which a three-second clock reaches at its third second.
+    backend.stageObject(`video-audio/${videoId(0)}.wav`, { durationMs: 4000 });
+    db.seed("discover_videos", [
+      aDiscoverVideo({
+        id: videoId(0),
+        platform: "tiktok",
+        source_url: "https://www.tiktok.com/@someone/video/7300000000000000000",
+        embed_url: "https://www.tiktok.com/embed/v2/7300000000000000000",
+        transcript_lines: transcript,
+        duration_seconds: 3,
+      }),
+    ]);
+    await installFakeTikTokPlayer(page);
+    await page.goto(`/discover/${videoId(0)}`);
+
+    const play = page.getByRole("button", { name: "Play", exact: true });
+    await expect(play).toBeEnabled();
+    await play.click();
+
+    await expect.poll(() => backend.callsTo("generate-celebration-song").length, { timeout: 15_000 }).toBe(1);
+    expect(backend.lastCallTo("generate-celebration-song")?.body).toMatchObject({
+      name: "Test Learner",
+      achievement: { kind: "video_complete" },
+    });
+  });
+
   test("parks the muted autoplay, starts in step, stops with the clip and drives a phrase jump", async ({
     page,
     db,

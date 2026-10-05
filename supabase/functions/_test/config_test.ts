@@ -115,8 +115,10 @@ Deno.test("the undeclared functions are listed, so the default is a choice", asy
     // `realtime-session-token` makes, and for the same reason). Down to 36
     // when `placement-quiz` and `score-set-phrase-voice` gained deliberate
     // verify_jwt = false blocks: both are anonymous-reachable onboarding
-    // surfaces, IP-bucketed per day by enforceAnonymousDailyCap.
-    36,
+    // surfaces, IP-bucketed per day by enforceAnonymousDailyCap. Up to 37 with
+    // `generate-celebration-song`, which resolves the learner from their JWT
+    // for its daily cap, so the inherited default is what it wants.
+    37,
     `The number of functions with no config.toml entry changed (now ${undeclared.length}: ` +
       `${undeclared.join(", ")}). They inherit verify_jwt = true. If that is right, ` +
       `update this count; if not, add a block.`,

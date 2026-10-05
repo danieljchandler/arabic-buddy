@@ -232,6 +232,47 @@ test.describe("the daily queue", () => {
 
     await expect(page.getByText("Daily goal complete")).toBeVisible();
   });
+
+  test("does not sing at a day that was finished somewhere else", async ({ page, db, backend }) => {
+    db.seed("word_reviews", []);
+    db.seed("user_vocabulary", []);
+    db.seed("user_set_phrases", []);
+    db.seed("discover_videos", []);
+    await completeTasks(page, "daily-challenge", "daily-story", "reading", "souq", "speaking");
+
+    await page.goto("/today");
+    await expect(page.getByText("Daily goal complete")).toBeVisible();
+
+    // Nothing was finished in this browser today, so opening /today on a
+    // cleared queue is not an achievement of this session.
+    expect(backend.callsTo("generate-celebration-song")).toHaveLength(0);
+  });
+
+  test("sings the learner once the last task was finished in this browser today", async ({
+    page,
+    db,
+    backend,
+  }) => {
+    db.seed("word_reviews", []);
+    db.seed("user_vocabulary", []);
+    db.seed("user_set_phrases", []);
+    db.seed("discover_videos", []);
+    await completeTasks(page, "daily-challenge", "daily-story", "reading", "souq", "speaking");
+    // What markTaskCompletedToday leaves behind when a task is finished here.
+    await page.addInitScript(
+      (day) => window.localStorage.setItem(`hakiya:celebrate:tasks-touched:${day}`, "1"),
+      TODAY_KEY().replace("today.completed.", ""),
+    );
+
+    await page.goto("/today");
+    await expect(page.getByText("Daily goal complete")).toBeVisible();
+
+    await expect.poll(() => backend.callsTo("generate-celebration-song").length, { timeout: 10_000 }).toBe(1);
+    expect(backend.lastCallTo("generate-celebration-song")?.body).toMatchObject({
+      name: "Test Learner",
+      achievement: { kind: "daily_tasks_complete" },
+    });
+  });
 });
 
 test.describe("starting a task", () => {

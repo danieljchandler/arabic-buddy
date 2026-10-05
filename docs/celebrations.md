@@ -34,7 +34,8 @@ clips these collage scenes replace.
 
 The dances so far: the Saudi **Ardah** (العرضة) and the Emirati and Omani
 **Ayyala** (العيالة) for Gulf learners, the **Saidi cane dance** (رقص
-العصاية) and the **Tanoura** (التنورة) for Egyptian learners, and
+العصاية), the **Tanoura** (التنورة) and the **Tahtib** (التحطيب) for
+Egyptian learners, and
 **Al-Bara'** (البرع) for Yemeni learners.
 
 ## The Ardah (العرضة): drawn from reference keyframes and timed from the footage
@@ -262,6 +263,52 @@ from its front. The performer is generated from written descriptions.
 
 **Before this ships to learners:** an Egyptian reviewer's sign-off.
 
+## The Tahtib (التحطيب): drawn from reference keyframes and timed from the footage
+
+The third Egyptian dance. Its reference pack is `docs/reference/tahtib/`
+(PR #414). The fencing was labelled pose by pose over 40 s of one pair in one
+continuous shot (tahtib2, the Luxor festival); the drum was measured on the
+same festival stage (tahtib3).
+
+| State | Still | Keyframes (README entries) |
+|---|---|---|
+| Apart, about two stick lengths between them, sticks raised toward each other at about 50° in an open V | `pair-1.webp` | 3 (tahtib2 5:10) |
+| Crossed: chest to chest, both sticks held level above the heads, hands gripping | `pair-2.webp` | 4 (tahtib2 5:36) |
+| The swing: one stick held level at head height, the other raised high over the head | `pair-3.webp` | 6 (tahtib2 5:42), 5 |
+| Drummer: a large frame drum at belly height, struck with the open hand; the hand on the skin, then lifted | `drummer-1.webp`, `drummer-2.webp` | 8 (tahtib3 7:24) |
+| Costume: one in a brown galabeya and white cap, one in a black galabeya and white turban, the drummer in grey | all stills | 3, 8 |
+
+**Timing, in `src/lib/dances.ts`.** The pack finds no beat in the fencing
+and no fixed order, but it does measure how often the poses change, how
+often the sticks meet, and which change follows which.
+
+| Constant | Value | Source |
+|---|---|---|
+| `TAHTIB_GRID_MS` | 134 | The drum's onsets lock to a 133–135 ms grid in three stretches of tahtib3 (R 0.33–0.50). Medium confidence |
+| `TAHTIB_FIGURE_STEPS` | 1-1-2 (536 ms) | The drum's short-short-long figure, in runs of up to 11.7 cycles (tahtib3 3:12–3:18). The drummer's stills follow it on half grid steps: a strike at 0, 134 and 268 ms of every 536 |
+| `TAHTIB_STEP_MS` | 2 × grid (268) | The poses change every 303–484 ms on average (108 hand-labelled segments) |
+| `TAHTIB_CROSSED_STEPS` | 2 (536 ms) | Crossed segments last 545 ms on average |
+| `TAHTIB.sequence` | apart, crossed, crossed, the swing, repeated | The commonest transitions: apart to crossed, crossed to the swing, the swing to apart (12, 12 and 13 of 65). One round is 1.07 s; the sticks meet every 0.8–1.2 s (median) |
+
+**What the scene only approximates:**
+- **The order repeats.** The footage has no repeating block; the scene
+  repeats its commonest round.
+- **The swing** is a blur in the footage (keyframes 5 and 6); the still
+  holds the stick raised instead.
+- **The pair passes and circles.** They swap sides by walking past each
+  other every 2–5 s, and step about; the scene keeps them on their sides.
+- **The drummer is from another video** of the same festival stage (the
+  duel's drummers are off-screen), and the stick strokes are not shown to
+  follow the drum (README 4b), so the two clocks run independently, as they
+  seem to in the footage.
+
+**Assumptions:** no blow lands on a body, as in the 45 s checked frame by
+frame; the sticks are plain, pale and straight. The performers are generated
+from written descriptions. The drummer's grey galabeya is the backdrop's own
+grey, so he was cut with `make_cutouts.py --keep-grey`.
+
+**Before this ships to learners:** a Sa'idi reviewer's sign-off.
+
 ## Al-Bara' (البرع): drawn from reference keyframes and timed from the footage
 
 The Yemeni dance. Its reference pack is `docs/reference/baraa/` (PR #414). No
@@ -434,9 +481,16 @@ so a reload doesn't replay it.
 
 - **Ta'sheer:** the dance in the Telfaz11 reference is danced with rifles. The
   Ardah, with swords, was chosen for Saudi.
-- **Women's dances:** for example the Gulf hair dance or the Saidi cane dance.
-  Not decided. If included, they should be drawn or silhouetted inside the
-  same collage rather than photographic.
+- **Women's dances:** every dance drawn so far is danced by men. The Saidi
+  cane dance is drawn from its pack's solo man, because no woman in the
+  footage twirls, tosses or balances a cane. The Gulf women's dances had no
+  usable footage (PR #414), and the Sana'ani pack is weak. Not decided. If
+  included, they should be drawn or silhouetted inside the same collage
+  rather than photographic.
+- **The remaining packs:** Al-Mizmar, Al-Razha and the Sana'ani dance have
+  reference packs in PR #414, but the weakest ones. The Razha's frames 1 and
+  2 come from a British Library and Qatar Foundation film with an ethical-use
+  policy, which needs checking before anything is drawn from them.
 - **Sound:** drum loops per dance could be generated on Higgsfield. The
   celebration is silent for now.
 - **Other milestones:** stage completion and weekly goals have no "crossing

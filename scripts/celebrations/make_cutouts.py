@@ -3,6 +3,10 @@
     pip install "rembg[cpu]" pillow numpy scipy
     python scripts/celebrations/make_cutouts.py dancer out/ pose1.png pose2.png ...
     python scripts/celebrations/make_cutouts.py drummer out/ drum1.png drum2.png
+    python scripts/celebrations/make_cutouts.py drummer --keep-grey out/ drum1.png ...
+
+--keep-grey skips taking out backdrop-grey patches, for a figure dressed in
+the backdrop's own grey (it would take holes out of his robe).
 
 Each photo gets a union matte (a person model for the body, a general model
 for whatever is held, such as a sword or a drum), a grayscale finish, and the
@@ -28,7 +32,7 @@ def session(name):
     return _sessions[name]
 
 
-def matte(im):
+def matte(im, keep_grey=False):
     # A white thobe on a pale backdrop defeats either model alone: the person
     # model keeps the robe, the general one keeps the blade.
     person = remove(im, session=session("u2net_human_seg"), post_process_mask=True).getchannel("A")
@@ -50,12 +54,13 @@ def matte(im):
     # robe, or in the gap between two men standing shoulder to shoulder. It is
     # the backdrop's own flat grey, so take out any large patch of it (small
     # ones can be a grey beard or a fold).
-    bg = np.median(border, axis=0)
-    flat = (np.abs(rgb - bg).max(2) < 14) & (rgb.max(2) - rgb.min(2) < 10) & a
-    lab, _ = ndi.label(flat)
-    sizes = np.bincount(lab.ravel())
-    sizes[0] = 0
-    a &= ~(sizes[lab] >= 1500)
+    if not keep_grey:
+        bg = np.median(border, axis=0)
+        flat = (np.abs(rgb - bg).max(2) < 14) & (rgb.max(2) - rgb.min(2) < 10) & a
+        lab, _ = ndi.label(flat)
+        sizes = np.bincount(lab.ravel())
+        sizes[0] = 0
+        a &= ~(sizes[lab] >= 1500)
     lab, _ = ndi.label(a)
     sizes = np.bincount(lab.ravel())
     sizes[0] = 0
@@ -84,9 +89,9 @@ def grayscale(im):
     return g.filter(ImageFilter.UnsharpMask(radius=2, percent=90, threshold=2)).convert("RGB")
 
 
-def sticker(path, seed):
+def sticker(path, seed, keep_grey=False):
     im = Image.open(path).convert("RGB")
-    alpha = matte(im)
+    alpha = matte(im, keep_grey)
     edge = rough_edge(alpha, 5, seed)
     out = Image.new("RGBA", im.size, (0, 0, 0, 0))
     paper = Image.new("RGBA", im.size, (251, 248, 240, 255))
@@ -97,8 +102,8 @@ def sticker(path, seed):
     return Image.alpha_composite(out, body)
 
 
-def main(kind, out_dir, paths):
-    stickers = [sticker(p, seed=i + 1) for i, p in enumerate(paths)]
+def main(kind, out_dir, paths, keep_grey=False):
+    stickers = [sticker(p, seed=i + 1, keep_grey=keep_grey) for i, p in enumerate(paths)]
     boxes = [s.getbbox() for s in stickers]
     w, h = stickers[0].size
     box = (
@@ -118,6 +123,9 @@ def main(kind, out_dir, paths):
 
 
 if __name__ == "__main__":
-    if len(sys.argv) < 4 or sys.argv[1] not in HEIGHTS:
+    args = sys.argv[1:]
+    keep_grey = "--keep-grey" in args
+    args = [a for a in args if a != "--keep-grey"]
+    if len(args) < 3 or args[0] not in HEIGHTS:
         sys.exit(__doc__)
-    main(sys.argv[1], sys.argv[2], sys.argv[3:])
+    main(args[0], args[1], args[2:], keep_grey)

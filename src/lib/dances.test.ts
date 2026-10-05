@@ -16,6 +16,11 @@ import {
   BARAA_PULSE_MS,
   BARAA_STEP_MS,
   BARAA_WAIST_BOBS,
+  TAHTIB,
+  TAHTIB_CROSSED_STEPS,
+  TAHTIB_FIGURE_STEPS,
+  TAHTIB_GRID_MS,
+  TAHTIB_STEP_MS,
   TANOURA,
   TANOURA_HIP_TURNS,
   TANOURA_OVERHEAD_TURNS,
@@ -387,9 +392,49 @@ describe("the Tanoura itself", () => {
     expect(liftAt).toBeLessThan(TIER_DURATION_MS.medium);
   });
 
-  it("is an Egyptian dance, rotating with the Saidi cane dance", () => {
-    expect(dancesFor("Egyptian")).toEqual([ASSAYA, TANOURA]);
+  it("is an Egyptian dance, rotating with the other Egyptian dances", () => {
+    expect(dancesFor("Egyptian")).toContain(TANOURA);
     expect(TANOURA.musicianSequence).toEqual([0]);
+  });
+});
+
+describe("the Tahtib itself", () => {
+  it("uses only the three poses the reference keyframes show", () => {
+    // 0 apart (3) · 1 crossed overhead (4) · 2 one level, one raised (6)
+    expect(new Set(TAHTIB.sequence)).toEqual(new Set([0, 1, 2]));
+  });
+
+  it("runs the footage's commonest round: apart, crossed, the swing, apart", () => {
+    expect(runs(TAHTIB.sequence).slice(0, 3)).toEqual([
+      [0, 1],
+      [1, TAHTIB_CROSSED_STEPS],
+      [2, 1],
+    ]);
+  });
+
+  it("changes pose about every 0.3 s and exchanges about every second", () => {
+    // README 4c: poses change every 303–484 ms on average; 4b: an exchange
+    // every 0.8–1.2 s (median); crossed segments 545 ms on average.
+    expect(TAHTIB_STEP_MS).toBe(2 * TAHTIB_GRID_MS);
+    expect(TAHTIB_STEP_MS).toBeGreaterThanOrEqual(250);
+    expect(TAHTIB_STEP_MS).toBeLessThanOrEqual(484);
+    const exchange = (2 + TAHTIB_CROSSED_STEPS) * TAHTIB_STEP_MS;
+    expect(exchange).toBeGreaterThanOrEqual(800);
+    expect(exchange).toBeLessThanOrEqual(1200);
+    expect(Math.abs(TAHTIB_CROSSED_STEPS * TAHTIB_STEP_MS - 545)).toBeLessThan(60);
+  });
+
+  it("plays the drum's short-short-long figure on the 134 ms grid", () => {
+    expect(TAHTIB_FIGURE_STEPS).toEqual([1, 1, 2]);
+    expect(TAHTIB.musicianMs * 2).toBe(TAHTIB_GRID_MS);
+    // Strikes (still 0) on half-steps 0, 2 and 4 of an 8-half-step (536 ms) figure.
+    expect(TAHTIB.musicianSequence).toEqual([0, 1, 0, 1, 0, 1, 1, 1]);
+    const strikes = [0, 1, 2, 3, 4, 5, 6, 7].map((k) => poseAt(TAHTIB, k * TAHTIB.musicianMs).musicianPose);
+    expect(strikes).toEqual([0, 1, 0, 1, 0, 1, 1, 1]);
+  });
+
+  it("is the third Egyptian dance in the rotation", () => {
+    expect(dancesFor("Egyptian")).toEqual([ASSAYA, TANOURA, TAHTIB]);
   });
 });
 

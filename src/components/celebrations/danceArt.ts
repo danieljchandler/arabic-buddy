@@ -19,6 +19,11 @@ import tanouraDancer4 from "@/assets/celebrations/tanoura/dancer-4.webp";
 import tanouraDancer5 from "@/assets/celebrations/tanoura/dancer-5.webp";
 import tanouraDancer6 from "@/assets/celebrations/tanoura/dancer-6.webp";
 import tanouraDrummer1 from "@/assets/celebrations/tanoura/drummer-1.webp";
+import tahtibPair1 from "@/assets/celebrations/tahtib/pair-1.webp";
+import tahtibPair2 from "@/assets/celebrations/tahtib/pair-2.webp";
+import tahtibPair3 from "@/assets/celebrations/tahtib/pair-3.webp";
+import tahtibDrummer1 from "@/assets/celebrations/tahtib/drummer-1.webp";
+import tahtibDrummer2 from "@/assets/celebrations/tahtib/drummer-2.webp";
 import baraaRow1 from "@/assets/celebrations/baraa/row-1.webp";
 import baraaRow2 from "@/assets/celebrations/baraa/row-2.webp";
 import baraaRow3 from "@/assets/celebrations/baraa/row-3.webp";
@@ -85,6 +90,17 @@ export const DANCE_ART: Record<string, DanceArt> = {
     // middle of the stage and the musician the edge.
     dancersBox: { left: 20, width: 80, height: 70 },
     musicianBox: { left: -6, width: 30, height: 46 },
+  },
+  tahtib: {
+    // apart, sticks in an open V (keyframe 3) · crossed overhead, chest to
+    // chest (4) · one stick level, the other raised (6)
+    dancers: [tahtibPair1, tahtibPair2, tahtibPair3],
+    // the open hand on the skin · lifted between strokes (8)
+    musician: [tahtibDrummer1, tahtibDrummer2],
+    // A pair facing each other is wider than it is tall: the floor between
+    // them is the point, so they take the width and the drummer the edge.
+    dancersBox: { left: 18, width: 84, height: 64 },
+    musicianBox: { left: -7, width: 30, height: 44 },
   },
   baraa: {
     // dagger at the waist (keyframe 3) · blade up by the head (4) · folded,

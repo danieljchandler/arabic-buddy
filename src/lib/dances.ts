@@ -269,6 +269,70 @@ export const ASSAYA: DanceDefinition = {
 };
 
 /*
+ * The Tahtib's timing, measured from the reference footage in
+ * docs/reference/tahtib/README.md (its Timing section). The fencing was
+ * labelled pose by pose over 40 s of one pair (tahtib2); the drum, on the
+ * same festival stage (tahtib3).
+ */
+/**
+ * The drum's grid: onsets phase-locked to 133–135 ms in three stretches of
+ * tahtib3 (R 0.33–0.50, low band p below 1e-10). Medium confidence.
+ */
+export const TAHTIB_GRID_MS = 134;
+/**
+ * The drum's figure, in grid steps: short, short, long (1-1-2 = 536 ms),
+ * running in blocks of up to 11.7 cycles (tahtib3 3:12.0–3:18.2). The one
+ * drummer whose strikes were matched to the sound plays a frame drum with the
+ * open hand (2 of 2 strikes on the skin).
+ */
+export const TAHTIB_FIGURE_STEPS = [1, 1, 2] as const;
+/**
+ * The fencers' poses change every 303–484 ms on average, on no beat. A step
+ * here is two grid steps (268 ms), near the shorter mean.
+ */
+export const TAHTIB_STEP_MS = 2 * TAHTIB_GRID_MS;
+/**
+ * One exchange: apart, crossed (held two steps), the swing. The commonest
+ * transitions in the labelled stretch run apart to crossed, crossed to the
+ * swing, the swing to apart (12, 12 and 13 of 65). Crossed segments last
+ * 545 ms on average; an exchange comes every 0.8–1.2 s (median).
+ */
+export const TAHTIB_CROSSED_STEPS = 2;
+
+/** The drummer's stills, on half grid steps: the hand on the skin, then lifted. */
+function tahtibDrumFigure(): number[] {
+  return TAHTIB_FIGURE_STEPS.flatMap((steps) => [0, ...repeat(1, 2 * steps - 1)]);
+}
+
+export const TAHTIB: DanceDefinition = {
+  id: "tahtib",
+  dialect: "Egyptian",
+  title: "التحطيب",
+  gloss: "Tahtib",
+  region: "Upper Egypt",
+  beatMs: TAHTIB_STEP_MS,
+  musicianMs: TAHTIB_GRID_MS / 2,
+  // A duel, not a row: no sway, and the robes hide the feet, so no step bob
+  // could be measured.
+  swayDeg: 0,
+  swayPeriodMs: 0,
+  bobPct: 0,
+  bobPeriodMs: 0,
+  // Drawn from the reference keyframes in docs/reference/tahtib/ (numbers are
+  // the README's entries), the pair of tahtib2:
+  //   0 apart: sticks raised toward each other at about 50°, an open V (3)
+  //   1 crossed: chest to chest, both sticks held level above the heads (4)
+  //   2 the swing: one stick level at head height, the other raised to
+  //     strike (6; the swing itself is a blur at 10 fps)
+  // The footage has no fixed order and no repeating block; this is its
+  // commonest round, repeated. No blow lands on a body in it, and none here.
+  sequence: Array.from({ length: 3 }, () => [0, ...repeat(1, TAHTIB_CROSSED_STEPS), 2]).flat(),
+  //   0 the open hand flat on the skin   1 the hand lifted (8)
+  musicianSequence: tahtibDrumFigure(),
+  pumpOnHold: false,
+};
+
+/*
  * Al-Bara's timing, measured from the reference footage in
  * docs/reference/baraa/README.md (its Timing section). The one movement the
  * footage measures well is the street dancers' bob (baraa2): they go down and
@@ -401,7 +465,7 @@ export const TANOURA: DanceDefinition = {
  * of dance where a dialect has several, so two celebrations in a row rarely
  * look alike.
  */
-export const DANCES: readonly DanceDefinition[] = [ARDAH, AYYALA, ASSAYA, TANOURA, BARAA];
+export const DANCES: readonly DanceDefinition[] = [ARDAH, AYYALA, ASSAYA, TANOURA, TAHTIB, BARAA];
 
 /**
  * The dances a dialect's learners rotate through. Empty while a dialect has

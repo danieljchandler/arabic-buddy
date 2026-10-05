@@ -1,0 +1,35 @@
+Raqs al-assaya (Saidi cane dance, رقص العصاية) reference footage -- sources
+Downloaded 2026-10-04 with yt-dlp 2026.08.19. Reference only.
+Full-length videos are local only: C:\media\dances\assaya\ (not in Drive, not in git).
+YouTube offered only low-resolution streams for these uploads (360p to 480p), so everything here is soft.
+None of the three channels is verified as an official source; the notes after each Channel line say what I could and could not check.
+
+assaya1.mp4
+  URL:      https://www.youtube.com/watch?v=S4VO1BntZYs
+  Title:    الفرقة القومية للفنون الشعبية  - رقصة العصايا
+            (The National Folkloric Dance Troupe -- the cane dance)
+  Channel:  National Folkloric Dance Troupe of Egypt (channel name matches the troupe; not verified as the troupe's own channel.
+            The picture carries a TV logo and an Arabic "live" tag; the description credits the choreography to Kamal Naim)
+  Uploaded: 2017-12-16
+  Length:   6:24
+  Format:   360p H.264 + AAC, 25 fps (YouTube served no higher resolution)
+
+assaya3.mp4
+  URL:      https://www.youtube.com/watch?v=_dX31ecqAvM
+  Title:    رقص صعيدي عريق | أداء ساحر من الفرقة القومية بدار الأوبرا!
+            (Authentic Saidi dance | enchanting performance by the National Troupe at the Opera House!)
+  Channel:  المستقبل للإعلام (a media company's channel; the title and description say National Troupe at the Opera House,
+            which I could not verify from the footage: one fixed camera, a small stage with a striped banner)
+  Uploaded: 2016-04-26
+  Length:   8:30
+  Format:   480p H.264 + AAC, 25 fps
+
+assaya6.mp4
+  URL:      https://www.youtube.com/watch?v=VJzts0g6e24
+  Title:    فرقة قنا 2 للفنون الشعبية في مهرجان التحطيب 2014 على هواء مصر المحروسة
+            (Qena 2 Folk Arts Troupe at the Tahtib Festival 2014, on the air of "Misr El Mahrousa")
+  Channel:  الكاتب الصحفى يسرى السيد Yousri Elsaid (an individual's channel re-posting a state-TV programme: the picture carries the
+            "Misr El Mahrosa" logo and the address misrelmahrosa.gov.eg; not an official channel)
+  Uploaded: 2015-08-18
+  Length:   10:52 (0:00-0:44 programme titles; 0:44-1:44 a dark stage with white-clad performers in a spotlight; lit stage from 1:48)
+  Format:   480p H.264 + AAC, 25 fps

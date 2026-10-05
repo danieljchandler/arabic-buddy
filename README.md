@@ -772,6 +772,80 @@ Migration `20261004120000_video_debrief` must be applied to the live project
 generated but not cached, look-ups are not recorded, saved words fall back to
 the sentence match, and the backfill button says what is missing.
 
+## Going over the day (the recap)
+
+The debrief's next-morning counterpart. A strip at the bottom of every learner
+screen — "Yesterday: 1 video, 4 new words, 2 slips" — opens `/recap`
+(`src/pages/Recap.tsx`): a guided chat with the tutor over everything the app
+recorded about the learner's day, in up to six steps: **your day** (the tutor
+reads their file back to them), **tell it back** (retell each clip; the tutor
+checks against the study guide), **your words** (a quiz on the words they saved
+or looked up, through the lines they were said in), **fix a slip** (each
+recorded learner error, their own form next to the right one, then a sentence
+of their own), **say it** (shadow a line carrying one of their words), and a
+**recap**. Same session machinery as the debrief — the `[[STEP_DONE]]` marker,
+the quiz and shadow cards, `StepChecklist`/`ListenButton`
+(`src/components/debrief/SessionChrome.tsx`) and `useVoiceAnswer` are shared —
+over a different set of steps. Subscribers only for the session
+(`requireActiveSubscription`, `daily_recap` in `featureAccess.ts`); the strip's
+summary is free, so every learner sees what they did. The Ask AI button is off
+on the page, as on the debrief.
+
+When yesterday was empty the window widens to the last seven days and the
+session says so ("This week's recap"); when the week is empty too, the strip
+stays away. "Yesterday" is the learner's own day: the client sends its local
+date and UTC offset with every request (profiles store no timezone), and the
+server ends the window at that local midnight.
+
+**The window** (`_shared/recapWindow.ts`) is ten bounded, parallel,
+fail-soft reads under the service role: `video_views` in the window (joined to
+the videos' spoken lines and cached study guides; a guide is written for at
+most one guide-less clip per plan), words saved (`user_vocabulary.created_at`,
+with `source_video_id` where the column exists), words looked up
+(`video_word_lookups`), unresolved `learner_errors`, saved words rated Again or
+Hard in review, `lesson_progress`, stories read, saved Ask AI chats, the
+daily-challenge score, and the tutor's open questions from `learner_ai_memory`.
+Videos and lessons are filtered to the active dialect. **The plan**
+(`_shared/recapCore.ts`, pure) is deterministic for a window and a seed: the
+quiz is the learner's own marks only (saved from a clip, looked up, saved
+elsewhere, then review slips — never topped up from key vocabulary), the
+shadow lines carry their words where possible, errors are grouped by target
+(`groupSlips`), and each video travels as its guide summary plus the cited
+lines with a neighbour either side, under a character budget — the full
+transcript never does. The plan is stored once per learner, dialect and local
+day in `learner_recaps` (service-role written, owner-readable), so the strip,
+the Today queue and every chat turn read the same session; where it cannot be
+stored, the same plan is rebuilt per request.
+
+**`daily-recap`** has four actions: `summary` (model-free; drives the strip
+and the Today-queue row via `useRecapSummary`), `plan`, `chat` (one streamed
+turn through `streamBrain`, with the plan's Arabic excluded from the native
+review), and `complete` (records the card results and the steps reached;
+`sanitizeOutcome` keeps nothing else). Finishing awards XP, ticks the `recap`
+task in the Today queue and marks the cached summary done, which is what
+takes the strip away; waving the strip off hides it for the day on that
+device (`hakiya:recap-nudge:v1`).
+
+The strip (`src/components/recap/RecapNudge.tsx`) is mounted at the app root
+beside the Ask AI disc, so it anchors to the viewport on every layout; it sits
+above the dock and the two floating buttons below `lg`, and between them at
+the bottom edge from `lg`. It shows on routes where chrome belongs — not the
+auth, admin or print routes, not the immersive ones the dock also leaves
+(`shouldShowDock`), and not the recap itself.
+
+Tests: `src/test/recapCore.test.ts` (the pure half), `src/lib/recap.test.ts`,
+`src/hooks/useRecap.test.ts`, `src/components/recap/RecapNudge.test.tsx`,
+`supabase/functions/_test/daily_recap_test.ts` (the window and the function),
+`e2e/recap.spec.ts`. Migration `20261005120000_learner_recaps` must be applied
+to the live project (see CLAUDE.md); until it is, plans are rebuilt per request
+and completion is not remembered server-side.
+
+Shapes the same window could feed next, not built: a story written from the
+day's words and the clips' summaries (the daily story core with a different
+word selection), a six-item mixed pack reusing the daily challenge, mistake
+drill and shadow renderers, and a seventh-day digest that would be the first
+writer of `weekly_recommendations`.
+
 ## Grammar mastery
 
 Vocabulary has a full SRS; grammar used to have nothing. A Grammar Drills score

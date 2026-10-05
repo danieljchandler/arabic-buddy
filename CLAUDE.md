@@ -121,6 +121,9 @@ harness.
   Never hand-edit `types.ts` beyond a revert; when the `typesDrift` guard
   names a migration, apply it to the project (ask Lovable to run it, or
   `supabase db push` with a token) and let the regeneration carry the columns.
+  Waiting on exactly that today: `20261004120000_video_debrief` and
+  `20261005120000_learner_recaps` (both features degrade rather than break
+  until applied — see their README sections).
 - **The brand is Ink, and its default lives in `index.html`.** `<html
   data-brand="ink" data-brand-default="ink">` plus the Ink fonts in the static
   `<link>`; `src/lib/brandPreview.ts` reads the declaration, and components

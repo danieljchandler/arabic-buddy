@@ -70,6 +70,28 @@ export const COLUMNS_MISSING_FROM_TYPES: DriftedColumn[] = [
     }),
   ),
   { table: "user_vocabulary", column: "source_video_id", migration: "20261004120000_video_debrief" },
+
+  // The daily recap. One row per learner, dialect and local day holding the
+  // session plan; learner-facing (a learner reads their own) and
+  // branch-merged, so absent from the live project until applied there.
+  // Delete these entries once a types regeneration carries the table.
+  ...[
+    "id",
+    "user_id",
+    "dialect",
+    "recap_date",
+    "window_days",
+    "plan",
+    "status",
+    "outcome",
+    "completed_at",
+    "created_at",
+    "updated_at",
+  ].map((column) => ({
+    table: "learner_recaps",
+    column,
+    migration: "20261005120000_learner_recaps",
+  })),
 ];
 
 

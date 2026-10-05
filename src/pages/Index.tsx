@@ -51,6 +51,10 @@ const TASK_HINTS: Record<string, { title: string; body: string }> = {
     title: "Daily challenge",
     body: "A fresh bite-sized mission every day. Finish it to fire up your streak multiplier and earn bonus XP.",
   },
+  recap: {
+    title: "Your recap",
+    body: "The tutor goes over what you did yesterday — the clip, the words you saved, the slip you made — while it is still fresh, so it stays.",
+  },
   reading: {
     title: "Reading practice",
     body: "Short passages with tap-to-translate. Build comprehension without ever reaching for a dictionary.",

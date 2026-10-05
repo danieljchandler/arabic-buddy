@@ -67,11 +67,11 @@ const visible = (tasks: ReturnType<typeof useTodayQueue>) =>
   tasks.filter((task) => !task.hidden).map((task) => task.id);
 
 describe("the task list", () => {
-  it("offers the ten daily tasks", async () => {
+  it("offers the eleven daily tasks", async () => {
     const rendered = renderHookWithProviders(() => useTodayQueue(), { persona: "free" });
     cleanup = rendered.cleanup;
 
-    await waitFor(() => expect(rendered.result.current.length).toBe(10));
+    await waitFor(() => expect(rendered.result.current.length).toBe(11));
     expect(rendered.result.current.map((task) => task.id).sort()).toEqual([
       "daily-challenge",
       "daily-story",
@@ -80,6 +80,7 @@ describe("the task list", () => {
       "mistake-drill",
       "placement",
       "reading",
+      "recap",
       "set-phrases",
       "souq",
       "speaking",
@@ -90,7 +91,7 @@ describe("the task list", () => {
     const rendered = renderHookWithProviders(() => useTodayQueue(), { persona: "free" });
     cleanup = rendered.cleanup;
 
-    await waitFor(() => expect(rendered.result.current.length).toBe(10));
+    await waitFor(() => expect(rendered.result.current.length).toBe(11));
     for (const task of rendered.result.current) {
       expect(task.route, `${task.id} has no route`).toMatch(/^\//);
     }
@@ -100,7 +101,7 @@ describe("the task list", () => {
     const rendered = renderHookWithProviders(() => useTodayQueue(), { persona: "free" });
     cleanup = rendered.cleanup;
 
-    await waitFor(() => expect(rendered.result.current.length).toBe(10));
+    await waitFor(() => expect(rendered.result.current.length).toBe(11));
     for (const task of rendered.result.current) {
       expect(task.estMinutes).toBeGreaterThan(0);
       expect(task.xpEstimate).toBeGreaterThanOrEqual(0);
@@ -256,7 +257,7 @@ describe("the mistake drill", () => {
     });
     cleanup = rendered.cleanup;
 
-    await waitFor(() => expect(rendered.result.current.length).toBe(10));
+    await waitFor(() => expect(rendered.result.current.length).toBe(11));
     expect(visible(rendered.result.current)).not.toContain("mistake-drill");
   });
 
@@ -345,7 +346,7 @@ describe("today's video", () => {
     });
     cleanup = rendered.cleanup;
 
-    await waitFor(() => expect(rendered.result.current.length).toBe(10));
+    await waitFor(() => expect(rendered.result.current.length).toBe(11));
     expect(visible(rendered.result.current)).not.toContain("listening");
   });
 });
@@ -412,6 +413,73 @@ describe("re-checking the level", () => {
   });
 });
 
+describe("the recap", () => {
+  const summary = (over: Record<string, unknown> = {}) => ({
+    date: "2026-03-11",
+    windowDays: 1,
+    hasContent: true,
+    counts: { videos: 1, words: 3, lookups: 0, slips: 0, lessons: 0, stories: 0, chats: 0 },
+    headline: "Yesterday: 1 video, 3 new words",
+    firstVideo: "A tired friend",
+    status: "ready",
+    ...over,
+  });
+
+  it("stays hidden until the day has something in it", async () => {
+    // The emulator's default summary says there is nothing to go over.
+    const rendered = renderHookWithProviders(() => useTodayQueue(), { persona: "free" });
+    cleanup = rendered.cleanup;
+
+    await waitFor(() => expect(taskById(rendered.result.current, "recap")).toBeDefined());
+    await waitFor(() => expect(rendered.backend.callsTo("daily-recap")).toHaveLength(1));
+    expect(visible(rendered.result.current)).not.toContain("recap");
+  });
+
+  it("earns a slot, right after the flashcards, once the summary says there is", async () => {
+    const rendered = renderHookWithProviders(() => useTodayQueue(), {
+      persona: "free",
+      seed: (backend) => backend.stubFunction("daily-recap", summary()),
+    });
+    cleanup = rendered.cleanup;
+
+    await waitFor(() => expect(visible(rendered.result.current)).toContain("recap"));
+    const task = taskById(rendered.result.current, "recap");
+    expect(task?.title).toBe("Yesterday's recap");
+    expect(task?.subtitle).toBe("Yesterday: 1 video, 3 new words");
+    expect(task?.route).toBe("/recap");
+    expect(task?.done).toBe(false);
+    expect(rendered.result.current.map((t) => t.id).indexOf("recap")).toBe(1);
+  });
+
+  it("says which window it covers when the week stood in for an empty day", async () => {
+    const rendered = renderHookWithProviders(() => useTodayQueue(), {
+      persona: "free",
+      seed: (backend) => backend.stubFunction("daily-recap", summary({ windowDays: 7, headline: "This week: 2 videos" })),
+    });
+    cleanup = rendered.cleanup;
+
+    await waitFor(() => expect(taskById(rendered.result.current, "recap")?.title).toBe("This week's recap"));
+  });
+
+  it("reads as done when the server remembers today's session, or this device does", async () => {
+    const remembered = renderHookWithProviders(() => useTodayQueue(), {
+      persona: "free",
+      seed: (backend) => backend.stubFunction("daily-recap", summary({ status: "completed" })),
+    });
+    cleanup = remembered.cleanup;
+    await waitFor(() => expect(taskById(remembered.result.current, "recap")?.done).toBe(true));
+    expect(visible(remembered.result.current)).toContain("recap");
+    remembered.cleanup();
+
+    act(() => markTaskCompletedToday("recap"));
+    const local = renderHookWithProviders(() => useTodayQueue(), { persona: "free" });
+    cleanup = local.cleanup;
+    await waitFor(() => expect(taskById(local.result.current, "recap")?.done).toBe(true));
+    // Done on this device counts even when the day's summary has nothing: it stays as a ticked row.
+    expect(visible(local.result.current)).toContain("recap");
+  });
+});
+
 describe("completion", () => {
   const alwaysShown: TodayTaskId[] = ["daily-challenge", "daily-story", "reading", "souq"];
 
@@ -419,7 +487,7 @@ describe("completion", () => {
     const rendered = renderHookWithProviders(() => useTodayQueue(), { persona: "free" });
     cleanup = rendered.cleanup;
 
-    await waitFor(() => expect(rendered.result.current.length).toBe(10));
+    await waitFor(() => expect(rendered.result.current.length).toBe(11));
     for (const id of alwaysShown) {
       expect(taskById(rendered.result.current, id)?.done).toBe(false);
     }
@@ -472,7 +540,7 @@ describe("when the server cannot be reached", () => {
     });
     cleanup = rendered.cleanup;
 
-    await waitFor(() => expect(rendered.result.current.length).toBe(10));
+    await waitFor(() => expect(rendered.result.current.length).toBe(11));
     expect(visible(rendered.result.current)).toEqual(
       expect.arrayContaining(["daily-challenge", "reading", "souq"]),
     );

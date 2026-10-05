@@ -46,6 +46,7 @@ export const SUBSCRIPTION_TIERS = {
       'More AI flashcard images & word jingles each day',
       'Unlimited Transcribe, Meme Analyzer & How Do I Say',
       'Talk any video through with the tutor, quizzed on the words you saved',
+      'Go over your day with the tutor each morning — your clips, words and slips',
     ],
   },
   allin: {

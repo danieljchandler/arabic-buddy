@@ -509,8 +509,10 @@ right-end woman of video 1 was labelled change by change at 10 fps
 frame-left, toward the drummer (the model drew them facing right, so the
 stills are mirrored, which changes nothing in a printed gown).
 
-**Before this ships to learners:** a Bahraini reviewer's sign-off, and the
-owner's on drawing women as photographic cutouts (see Open decisions).
+**Decided:** the women are generated photographic cutouts, like every other
+dance (the owner's call, 2026-10-06), rather than drawn or silhouetted.
+
+**Before this ships to learners:** a Bahraini reviewer's sign-off.
 
 ## The Sana'ani dance (الرقص الصنعاني): drawn from reference keyframes and timed from the footage
 
@@ -680,14 +682,6 @@ so a reload doesn't replay it.
 
 - **Ta'sheer:** the dance in the Telfaz11 reference is danced with rifles. The
   Ardah, with swords, was chosen for Saudi.
-- **Women's dances:** the Khammari is the one women's dance, drawn as
-  generated photographic cutouts like every other dance, under the rules the
-  owner set for #403 and the pack (television footage only, hair covered).
-  An earlier version of this file suggested drawing women or silhouetting
-  them instead; that was never decided, and the owner should say which before
-  the Khammari ships. The Saidi cane dance stays a solo man, because no woman
-  in its footage twirls, tosses or balances a cane, and the Sana'ani
-  footage shows only men.
 - **The Gulf frame is Najdi** for every Gulf dance, the Hejazi, Omani and
   Bahraini ones included. A frame per region (Hejazi rawashin, Omani
   doorways, Bahraini wind towers) is not drawn.

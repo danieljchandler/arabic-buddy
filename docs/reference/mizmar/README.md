@@ -1,281 +1,363 @@
-# Al-Mizmar (المزمار) reference keyframes
+# Al-Mizmar al-Hijazi (المزمار الحجازي) reference keyframes
 
-Reference for redrawing the Hikaya Al-Mizmar animation (the Hejazi stick dance). Made 2026-10-04 from three
-YouTube videos (`sources.txt`). Ten keyframes, each a different pose or moment, picked from 1,319 frames extracted at
-1 per second (377 + 369 + 573). It also carries the timing measurements, in the **Timing** section.
+Reference for redrawing the Hikaya Al-Mizmar animation (the Hejazi stick dance). Second pass, rebuilt 2026-10-05 and 06 from four
+YouTube videos (`sources.txt`): the UNESCO film kept from the first pass and three new ones. Ten keyframes, each a different
+pose or moment, picked from 1,592 frames extracted at 1 per second (377 + 246 + 407 + 562). It also carries the timing
+measurements, in the **Timing** section. The first-pass videos mizmar2 (Saudi TV tent stage) and mizmar3 (2011 camcorder) are
+no longer in the pack: see "What changed from the first pass".
 
-**How to read the descriptions.** They cover only what is visible in the frame. Where something can't be read (a
-hand, which end of a stick is which, feet), the entry says so instead of filling it in. When a performer's own left and
-right can't be told reliably, hands are given by side of the frame ("frame-left hand"). Distances are relative
-("an arm's length") unless a measurement is named; the one measured size (stick length) is in the Timing section with
-its method. The three videos are three different performances in different places and costumes, so the keyframes do
-not show one standard costume. Left and right of the frame are as the camera sees them.
+**How to read the descriptions.** They cover only what is visible in the frame. Where something can't be read (a hand, which
+end of a stick is which, feet), the entry says so instead of filling it in. When a performer's own left and right can't be
+told reliably, hands are given by side of the frame ("frame-left hand"). Distances are relative ("an arm's length") unless a
+measurement is named; the measured sizes are in the Timing section with their method. Left and right of the frame are as the
+camera sees it. The four videos are four different performances in four places with four costumes, so the keyframes do not
+show one standard costume.
 
-**Against the lead's brief.** The brief expected a circle round the drummers, dancers twirling long staffs and
-footwork. In this footage: no circle is seen (the men stand in rows or along the edge of the carpeted area, see keyframes
-1, 2, 3, 8 and 10); long staffs are held, swung and raised by several men, but twirls are mostly too fast or too blurred to count
-at 24-25 fps (see 4d); feet are hidden by the thobe in nearly every shot. Drums seen are frame drums and a barrel-shaped drum
-(keyframes 1, 2, 7, 8, 10); the men's clapping is visible in keyframes 5, 9 and 10.
+## Authenticity
+
+"Authentic" here means: real practitioners, in a real or documented setting, the dance named by the source, and sound that belongs to the picture (not music laid over it). The
+table says what each video is and what is uncertain. Nothing in it is verified beyond what is written in the video, its
+credits and its page.
+
+| Video | What it is | Who names the dance | Why it counts, and what is uncertain |
+|---|---|---|---|
+| mizmar1 (UNESCO, 6:17) | The film made for the 2016 UNESCO inscription. Men in white thobes on rugs laid on the paving of an old-town street square (the place is not named in the footage I saw), plus drum, singer and stick close-ups | The UNESCO title and a title card; the end credits (read on screen) name the Saudi Heritage Preservation Society as producer and the Ministry of Culture and Information as supervisor, with research credited to Dr. Damna Al Zahrani and Mr. Esam Junaid | Institutional, real performers in their own setting. Heavily edited (91 shots in 6:17, the longest dance shot is 12.5 s), the soundtrack is an edited mix, and no troupe is named |
+| mizmar6 (4:06, 480p) | Archive video of a mizmar night in a large decorated tent: a ring of standing men round a floor with a fire box, dancers inside | The uploader (the music historian Esam Junaid's archive channel) calls it "the authentic Hejazi mizmar" played by people of Madinah and Yanbu | Community event; the sound looks like the event's own (singing with claps and drum bursts in the spectrogram; I have not listened); two long high shots (0:11-1:59 and 1:59-4:05) in which the camera sits still for stretches of 9-37 s and zooms between them. Place, date and performers are not given; the naming is the uploader's and is not independently verified. Standard-definition picture |
+| mizmar8 (6:47, 1080p) | A community gathering in a paved yard at night: a large crowd of men (well over a hundred) along the walls and round a fire box, dancers with sticks, a man holding a frame drum over the fire, singers and drummers | The title says "mizmar" and names players ("Reda Zaitouni", "Mabrouk Brek", ...) | Filmed openly by a community videographer ("Ahla Camera", whose logo is on the picture); the sound looks like the event's own (spectrogram only); men only in view. No institution, occasion or date; the naming is the uploader's and is not independently verified. Hand-held with a wide lens: the camera never rests for 8 s in 0:45-6:40 (camshift.py) |
+| mizmar10 (9:22, 1080p) | A documentary that re-stages the dance with a costumed troupe (matching green vests and turbans, flags) in a courtyard with carved wooden balconies (the opening shots are aerials of a coast road and an old-town block, and a map at 1:56 marks a spot on a western coast; the film does not name the courtyard or the city in the frames I read), and intercuts older footage of community performances | The film's own title card ("Almzmar, Saudi Arabia, A TRADITIONAL PERFORMING ART") | The troupe takes are staged for the camera: they show the movements, the rows and the instruments clearly, but they are not an event. The intercut clips (2:00-3:52, 7:08-7:32) are older footage of unnamed groups. Fixed-camera shots of 95 s and 59 s |
+
+Women: none of the four videos shows women dancing. Women appear in the UNESCO film only as spectators in the street and in its interview inserts (3:28-3:56).
+
+## The brief vs the footage
+
+The brief expected a circle round the drummers, dancers twirling long staffs, and footwork. What the authentic footage shows:
+
+- **No circle round the drummers, in any of the four videos.** Two formations are seen.
+  1. **Two rows facing each other** across a gap, the drummers seated across the closed end or beside the rows: mizmar10 (the troupe, 1:00-1:55, 4:36-6:10) and the UNESCO film (rows along the edges of the rug area, keyframes 9 and 10). This matches the UNESCO inscription text, which says the performers "begin by standing in two rows opposite each other" and that "two performers go to the centre" (text of the UNESCO listing, element 01011; it is not footage).
+  2. **A ring of standing men round an open floor with a fire box in it**, the dancers inside the ring: mizmar6 (keyframes 1 and 2) and mizmar8 (keyframes 3, 4 and 5). The ring is a standing crowd; in the stretches I looked at it does not move round the fire. In mizmar6 frame drums with seated men are at the back of the ring (keyframe 2). In mizmar8 the drummers are in close shots at 0:28-0:48 (about six men seated on rugs with frame drums and rope-laced barrel drums, standing men with sticks round them) and are not in the yard shots.
+- **Up to three dancers at a time** are on the floor in the stretches I looked at: mizmar6 2:16-2:39 two to three; mizmar8 one to three (four or more at about 3:55-4:03); mizmar10 one in the wide shot, two in the close take.
+  The rest of the men stand, sing and clap.
+- **The sticks are long canes**, about as long as the dancer is tall (0.86 and 0.89 of the dancer's own height, measured on two
+  frames). They are twirled, swung overhead and crossed with a partner's stick. A real twirl was timed (Timing, 4d).
+- **The slow clapping stroke of the rows** is the one very steady thing in the footage: one clap every 1.32 s in mizmar10 (22
+  intervals, SD 18 ms). Singing in answer between the two rows is not something I could verify from the pictures; the near men of
+  the troupe sing with open mouths while clapping.
+- **Instruments seen:** large round frame drums with a pale skin (played with the open hand, one man holds one over the fire
+  coals), a rope-laced barrel drum with a white or dark skin, and small rope-laced drums. **No pipe (the "mizmar" of the name)
+  is seen in any of the four videos** (see "Not covered" for two items outside the pack).
+- **Footwork:** black shoes in the troupe; bare feet on one dancer of mizmar8 (the others' feet were not checked). A stride, a run and a hop on the spot were seen; one hopping dancer
+  was timed (3.4 landings per second, Timing 4d).
+- **Costume** varies: matching green vests, white thobes and green-and-white turbans (mizmar10); plain white thobes with dark
+  belts and white or coloured head-cloths (mizmar6, mizmar8); white thobes with sashes and coloured turbans (mizmar1).
+
+## What changed from the first pass
+
+| Video | First pass | Now |
+|---|---|---|
+| mizmar1 UNESCO | kept | kept (re-authenticated from its credit cards). Its 7 keyframes of the first pass were reduced to 2 |
+| mizmar2 Saudi TV, Janadriyah 32 | kept | **dropped**: a tent stage at night, cut every 2-6 s; the new videos show the dance far better. Its first-pass numbers (the 550 ms accent group) are no longer used |
+| mizmar3 amateur 480p camcorder 2011 | kept | **dropped**: shaky, upscaled, sticks seen only as streaks. Its numbers are no longer used |
+| mizmar4 wedding-hall troupe | rejected unseen | **seen** (`jcOxlloS_VQ`, `YLENYANfz70`) and not used: commercial wedding-hall footage, the company's name and phone numbers on screen |
+| mizmar6, mizmar8, mizmar10 | not in the pack | **added** |
+| First-pass rejections made from the title (`7yzsjQZFsJM`, `TByURwdpnqQ`, `5L_uGbYiI0U`, `CkWDViKXj9M`, the Ruba Al-Hijaz videos) | unseen | all **seen** now, with a reason each, in `analysis\LOG.md` |
 
 ## Where everything is
 
 | What | Where |
 |---|---|
-| Keyframes (10 JPG, 1280 px wide; the mizmar3 frame is 1280x960 upscaled from a 640x480 source) | `keyframes/` next to this file |
-| Source URLs and titles | `sources.txt` |
-| Contact sheets: every 2 s, timestamp on each tile | Drive `C:\ai\projects\arabic-app\Hikaya dance reference\mizmar\contact_mizmarN.jpg` |
+| Keyframes (10 JPG, 1280 px wide; the mizmar6 frames are 1280x960, upscaled from a 640x480 source) | `keyframes/` next to this file |
+| Source URLs, titles and the Authenticity line of each video | `sources.txt` |
+| Contact sheets: every 2 s, timestamp on each tile | Drive `C:\ai\projects\arabic-app\Hikaya dance reference\mizmar\contact_mizmarN.jpg` (N = 1, 6, 8, 10) |
 | 30 s clips with audio | Drive, same folder, `clip_mizmarN.mp4` |
-| Analysis folder: audio and motion outputs (csv, json, png), `LOG.md` with every command and hand count, frame strips | Drive, same folder, `analysis\` |
+| Analysis folder: audio and motion outputs (csv, json, png), `LOG.md` with every command, hand count and candidate decision, frame strips | Drive, same folder, `analysis\` |
 | Full videos and all 1 fps frames | Machine A only: `C:\media\dances\mizmar\` (`frames\mizmarN\mizmarN_tSSSSs.jpg`, SSSS = second) |
 | This note, `sources.txt` and the keyframes in git | `arabic-buddy` repo, `docs/reference/mizmar/` (contact sheets, clips, analysis and videos are not in git) |
 
 ## Clips
 
-I checked what each clip shows by viewing a 1 per second contact sheet of it. Loudness was measured with ffmpeg
-`volumedetect`; I have not listened to the clips.
+I checked what each clip shows on a 1 per second contact sheet of it (`analysis\clipsheets\c1.jpg`, `c6.jpg`, `c8.jpg`, `c10.jpg`).
+Loudness was measured with ffmpeg `volumedetect`; I have not listened to the clips.
 
 | Clip | Source span | What's in it |
 |---|---|---|
-| `clip_mizmar1.mp4` | mizmar1, 2:56-3:26 | 2:56-2:59 view from above of drums and the men's robes on the ground. 3:00-3:04 two men with long sticks dancing in the street square (keyframe 4). 3:05-3:09 wider view of the same square. 3:10-3:13 raised view of the two rows with the dancers between them (keyframe 3 is 3:12). 3:14-3:15 close shots of a man with a stick beside men with a microphone. 3:16-3:21 a man in dark clothes walking at night. 3:22-3:25 night, seated drummers and men standing with sticks. Mean level -14.4 dB, peak 0 dB |
-| `clip_mizmar2.mp4` | mizmar2, 3:25-3:55 | Tent stage at night: close shot of two men clapping, one at a microphone (3:25-3:27); wide shots of the stage with a dancer in front and seated drummers (3:28-3:30, 3:35-3:36); a close row of three clapping men with sticks (3:31-3:34, keyframe 9); close shots of hands on frame drums (3:37-3:43); a man singing into a microphone (3:44-3:50); close row again (3:51-3:52); men with frame drums in front of them (3:53-3:54). Quiet: mean -22.5 dB, peak -8.6 dB |
-| `clip_mizmar3.mp4` | mizmar3, 7:02-7:32 | One hand-held low-camera take: dancers crossing in front of the camera, men in a row along the fence, seated drummers at frame-right. Sticks are visible on and off (for example 7:17, 7:22, 7:24, 7:28-7:31). Loud: mean -7.6 dB, peak 0 dB |
+| `clip_mizmar1.mp4` | mizmar1, 2:56-3:26 | 2:56-2:59 view from above of drums and robes on the ground. 3:00-3:04 two men with long sticks dancing in the street square. 3:05-3:13 wider and raised views of the two rows with a dancer between them. 3:14-3:15 close shots of a man with a stick beside men with a microphone. 3:16-3:21 a man in dark clothes walking at night. 3:22-3:25 night, seated drummers and men standing with sticks. Mean level -14.4 dB, peak 0 dB |
+| `clip_mizmar6.mp4` | mizmar6, 2:10-2:40 | The high shot of the ring round the fire box: 2:10-2:15 the camera zooms from the whole ring to the floor, then 2:16-2:39 two to three dancers in white thobes with dark belts move on both sides of the fire box, some with sticks, seated drummers with large frame drums at the back edge of the ring, a crowd with its back to the camera in front. Quiet: mean -22.5 dB, peak -3.7 dB |
+| `clip_mizmar8.mp4` | mizmar8, 3:05-3:35 | The paved yard with the fire box in the middle; one to three dancers with sticks come and go, one in a dark-grey thobe barefoot (the twirl at 3:15.7-3:17.3 is in this clip), the crowd standing and seated along the far wall. Loud: mean -11.9 dB, peak 0 dB |
+| `clip_mizmar10.mp4` | mizmar10, 4:36-5:06 | The 95 s steady wide shot of the courtyard: two long rows of men in green vests facing each other, one dancer at a time in the gap, the slow clap at 1.32 s (first run 4:38.4-4:50.3). Quiet: mean -25.3 dB, peak -1.4 dB |
 
 ---
 
-## 1. Formation, street square, wide
+## 1. Ring of men round a fire box, wide, tent
+
+`mizmar6_t0030s.jpg` · mizmar6 (archive of Esam Junaid, 480p) at 0:30
+
+![](keyframes/mizmar6_t0030s.jpg)
+
+- High, fixed camera looking down into a large tent. The canopy cloth is red, orange and grey-blue with large medallion patterns, with strings of light bulbs along the top. The frame is upscaled from 640x480, so it is soft, with black bars at the left edge and the bottom.
+- Standing men in white and cream thobes, many with dark belts, make a ring round an open floor of packed earth; the ring is several men deep at the back and the left. In the foreground are the backs of a crowd: white caps, red-and-white and grey checked head-cloths, and a young man in a dark red T-shirt at the bottom centre.
+- On the floor, right of centre: a metal fire box with a low flame. A man in a cream thobe, white cap and dark belt, back to the camera, walks toward it. Two men in white thobes are mid-step at the upper right of the floor (one with his thobe flaring), and a man in a cream thobe and a red-and-white head-cloth stands at the right edge of the floor.
+- At the left edge of the floor a man in a light-blue thobe holds a stick low, pointing down to frame-right, and a man in an orange head-cloth stands beside him; behind them a short row of men in white has arms stretched out or raised (what they hold can't be read).
+- A thin line runs across the back of the ring at head height; I can't tell what it is.
+- Seated drummers are not clearly visible in this frame (see keyframe 2).
+
+## 2. The floor and the drummers, closer
+
+`mizmar6_t0137s.jpg` · mizmar6 (archive of Esam Junaid, 480p) at 2:17
+
+![](keyframes/mizmar6_t0137s.jpg)
+
+- The same floor after the camera has zoomed in. The fire box stands on a wooden pallet and has a tall flame; light bulbs hang in the background.
+- Frame-left: a man in a white thobe with a dark belt, one arm raised, a long dark stick in his raised hand running up and to frame-left.
+- Right of the fire box: two men stand close together, one in a red-and-white head-cloth seen from behind and one in a white cap with his arms by his sides; at the upper right a man in a cream thobe holds a dark stick slanted, with a man in a white head-cloth beside him.
+- In front of the fire box, at the edge of the floor: a man in a cream-yellow turban and a black belt, seen from behind, holds a stick hanging vertical at his side; below him, the backs of the crowd.
+- At the back of the ring, left of centre: two or three round frame drums with a pale skin and about five seated men among them, with a standing man in a white thobe holding a stick up and to frame-right beside them. Whether anyone is striking the drums in this frame can't be seen.
+
+## 3. Yard with a fire box, wide, night
+
+`mizmar8_t0170s.jpg` · mizmar8 (Ahla Camera, 1080p) at 2:50
+
+![](keyframes/mizmar8_t0170s.jpg)
+
+- Wide-angle, hand-held camera at about head height at one end of a paved yard at night. White single-storey buildings with arched blind windows and bright floodlights; a tiled roof at the upper left. The videographer's logo is at the top left and a line of Arabic (the players' names) at the top right.
+- A metal box with glowing coals stands on wooden pallets left of centre in the lower half of the frame. The paving round it is empty.
+- At the left, about 8 men stand in a loose line by the wall, some in white and some in black thobes, with sticks planted upright beside them.
+- At the back, a dense crowd of men, many seated on benches or steps, fills the space between the two wings (well over a hundred; they cannot be counted at this size).
+- Along the right wall about 15 men stand in a line in white thobes, a few in black, some with blue sashes; long sticks stand upright or slant beside them. Two men in black thobes walk side by side near the middle of the back, one with a stick. At the right edge a man in a white thobe and white head-cloth walks past with a long stick held down and to frame-right.
+
+## 4. Barefoot dancer, stick above the head
+
+`mizmar8_t0196s.jpg` · mizmar8 (Ahla Camera, 1080p) at 3:16
+
+![](keyframes/mizmar8_t0196s.jpg)
+
+- Left foreground: a barefoot man in a dark-grey thobe and a yellow-green and white checked head-cloth is mid-step with one foot lifted behind him, his frame-right arm raised with the hand at head height. A thin stick runs roughly level above his head from that hand toward frame-left. This frame is inside the twirl timed in the Timing section: the stick lies level at 3:16.000, half way through the first revolution (3:15.733 to 3:16.367, anticlockwise as the camera sees it).
+- Right: a man in a white thobe with a black belt and a white-and-black checked head-cloth, barefoot or in thin sandals (can't tell), mid-step, his frame-left arm raised with a stick in the hand (its direction can't be read at this size). Behind him several men walk with sticks held low.
+- Centre: the fire box with glowing coals, on pallets.
+- At the left, men in white, grey and dark robes stand with sticks planted on the ground, one holding a stick slanted across his body. At the back, a crowd stands along the wall and sits on benches.
+
+## 5. Dancers round the fire box, a frame drum over the coals
+
+`mizmar8_t0247s.jpg` · mizmar8 (Ahla Camera, 1080p) at 4:07
+
+![](keyframes/mizmar8_t0247s.jpg)
+
+- Bottom-left: a man in a white thobe and a white cap, with an olive scarf round his neck, holds a round frame drum by its rim in both hands, tilted over the fire box. The box holds glowing red coals; the drum's pale skin is turned toward the heat. The video does not say why (I did not hear anyone say).
+- Behind the box four men move with sticks on the open floor, all in white thobes: one at the left with a thin stick held level at about head height, one stepping with his arms out, one in a pink-and-white head-cloth in mid-stride seen from behind with a stick that crosses the other long stick in front of him, and, right of centre, one in a white head-cloth with both arms raised and a stick behind his head. Two long sticks cross above the middle of the group at head height.
+- At the left edge men stand with sticks planted; at the right a row of men stands with sticks slanted beside them; at the back a crowd sits and stands along the wall.
+
+## 6. Two rows facing each other, drummers at the closed end
+
+`mizmar10_t0279s.jpg` · mizmar10 (documentary, 1080p) at 4:39
+
+![](keyframes/mizmar10_t0279s.jpg)
+
+- Fixed wide shot of a paved courtyard: carved wooden balconies, a white wall with arches and cut-out lattice, and four green Saudi flags on poles.
+- Two rows of men stand facing each other across a wide paved gap: about 12 in the frame-left row and about 14 in the frame-right row (the rows overlap in depth, so these are rough counts). They wear green vests over white thobes (the near men and a few others have a black waistcoat under the green vest), green-and-white patterned turbans and black shoes. The rows bend in toward the far end.
+- In both rows the hands are held out in front of the chest or belt, palms apart or just meeting, as in a clap; several mouths are open. Canes are held upright against the shoulder or in front of the body: the near man at the frame-right edge holds one upright in front of him.
+- At the far end, between the ends of the rows, five or six men sit on a rug with drums in front of them (the drum types can't be read at this size).
+- No dancer is in the gap in this frame; one is in the shot at other seconds.
+
+## 7. Two dancers in front of the clapping men and the drummers
+
+`mizmar10_t0476s.jpg` · mizmar10 (documentary, 1080p) at 7:56
+
+![](keyframes/mizmar10_t0476s.jpg)
+
+- Closer take in the same courtyard (white crenellated wall, a shelf with clay jars, a wooden cart wheel).
+- Frame-right: a dancer in a green vest and a dark green belt strides on black shoes, his frame-left arm raised with a thin cane held vertical above his head, the other hand low. At the left edge another man in white has an arm raised with a cane slanting up and to frame-left above him.
+- Two standing men in green vests clap with their hands at chest height; one has a thin stick held upright beside his head, the other a long cane slanting down behind him.
+- Seated on a mat at the right, in green vests and green-and-white turbans: the left-most holds a round frame drum upright against his side; the next has a small rope-laced drum in front of him and a thin stick in his raised hand; at the far right one man holds a large frame drum upright at his side with a rope-laced barrel drum in front of him and a hand on it.
+
+## 8. Hands on a frame drum, close
+
+`mizmar10_t0373s.jpg` · mizmar10 (documentary, 1080p) at 6:13
+
+![](keyframes/mizmar10_t0373s.jpg)
+
+- A large round frame drum rests on a seated man's lap; its pale skin fills the lower middle of the frame and the rim is thick.
+- A dark hand rests on the skin near its upper edge, fingers pointing to the lower left; a second hand, blurred, is raised at the upper right with its fingers up. The drum is played with the open hands; no stick is used on it in this frame.
+- Left: a small rope-laced drum with a dark body and a cream skin stands on cream cushions with gold embroidery and a checked cloth. At the lower right is the rim of another frame drum.
+- A green vest is visible at the upper right.
+
+## 9. Rows along the edge of a rug area, street square
 
 `mizmar1_t0104s.jpg` · mizmar1 (UNESCO) at 1:44
 
 ![](keyframes/mizmar1_t0104s.jpg)
 
-- Low wide-angle camera at ground level looking across several red-and-cream patterned rugs laid side by side on paving, in a street square among old multi-storey buildings. A shop sign with Arabic and "...f Valley" is at the upper left.
-- At the back, right of centre, about 8 men stand in a loose row in long white thobes and white or checked head-cloths. Some hold long thin sticks upright beside them.
-- Four men sit on the ground behind the rugs, left of the standing row, with a dark barrel-shaped drum and microphone stands in front of them.
-- At frame-left, about 6 boys in white stand in a line, some holding thin sticks upright; adults and spectators stand behind a rope at the far left.
-- At the frame-right edge, a man in a white thobe with a blue-and-white checked head-cloth and a black belt, seen from behind, holds a stick low, its far end pointing down toward the ground.
+- Low wide-angle camera at ground level looking across red-and-cream patterned rugs laid side by side on paving, in a street square among old multi-storey buildings. A shop sign with "...f Valley" and Arabic is at the upper left.
+- At the back, right of centre, about 8 men stand in a loose row in long white thobes and white or checked head-cloths; some hold long thin sticks upright beside them.
+- Five men sit on the ground behind the rugs, left of the standing row, with a dark barrel-shaped drum and microphone stands in front of them.
+- At frame-left, about 6 boys in white stand in a line, some holding thin sticks upright; adults and spectators stand behind a rope at the far left, among them a person in a black abaya.
+- At the frame-right edge a man in a white thobe with a black belt and a head-cloth, seen from behind, holds a stick with its far end pointing down to frame-right; several men stand in a cluster beside him.
 - One small round drum stands upright on its own on the rug in the middle.
 - The men are not in a circle: the row is at the back and the seated drummers are beside it.
 
-## 2. Formation from above
-
-`mizmar1_t0140s.jpg` · mizmar1 (UNESCO) at 2:20
-
-![](keyframes/mizmar1_t0140s.jpg)
-
-- High oblique camera looking down on a square covered with red-and-cream rugs.
-- Bottom-left, closest to the camera: one dancer seen from behind and above, white thobe, black belt, a tan-and-white turban with a white cloth hanging at frame-left. His arm is raised with the hand at head height, gripping a long pale stick that points out to frame-right and slightly up, about 20 degrees above horizontal by eye, and runs back to frame-left below his hand.
-- Top-left: a row of about 5 boys in white thobes with red or orange sashes, and a man at its right end. Top-centre: two men sit on the ground with drums and microphone stands; bowls and a frame drum lie on the rug beside them.
-- Right: about 7 men stand in a loose line facing the dancer, in white thobes with white or checked head-cloths (one in a grey thobe). Several hold sticks upright.
-- Bottom-right: two men seen from above, one in a gold-and-white head-cloth and one in a white one, with hands raised in front of them.
-
-## 3. Rows and a dancer, raised view
+## 10. A dancer between the rows, raised view
 
 `mizmar1_t0192s.jpg` · mizmar1 (UNESCO) at 3:12
 
 ![](keyframes/mizmar1_t0192s.jpg)
 
-- Raised camera looking down the length of the rugged square. Along the back at frame-right a line of about 7 men in white thobes stands with sticks held upright.
-- At the back left, men sit on the rug with drums.
-- In front: one dancer seen from behind, white thobe, black-and-white checked skullcap. His frame-right arm is raised with the elbow bent and the hand at about head height, gripping a long straight light stick that runs diagonally down to frame-right and ends on the rug.
-- Measured on the frame with a pixel grid (Timing, "Size"): the stick is about 0.9 of the dancer's own standing height long, and slopes about 38 degrees below horizontal.
-
-## 4. Two dancers with sticks
-
-`mizmar1_t0183s.jpg` · mizmar1 (UNESCO) at 3:03
-
-![](keyframes/mizmar1_t0183s.jpg)
-
-- Low camera close to the carpet, facing the dancers in the street square.
-- Centre-left dancer: white thobe with a white embroidered over-shirt, a dark sash, an orange-gold turban with a tail, yellow-orange slippers, mouth open. His frame-left arm is bent up with the elbow at head height and the hand at the crown, holding a stick that points up out of the top of the frame. His frame-right hand is held against his chest.
-- Frame-right dancer, in three-quarter view with his face turned toward frame-left: white head-cloth, yellow vest with gold trim over a white thobe, white-and-red trainers. He holds a red-brown stick with pale bands level above head height; it runs across the picture from about the middle to the right edge.
-- The two are at different points in their movement: one stick is vertical, the other horizontal in the same frame.
-- Frame-left: a man in a white thobe and an orange checked head-cloth, back to the camera, stands beside a black stick planted upright, hands together at chest height.
-- Behind: a line of boys in white thobes with coloured sashes, one with a stick; spectators; a small rope-laced drum stands on the rug in the middle.
-
-## 5. Close row, stick across the face, clapping
-
-`mizmar1_t0024s.jpg` · mizmar1 (UNESCO) at 0:24
-
-![](keyframes/mizmar1_t0024s.jpg)
-
-- Close, level camera on a row of men standing on grass and gravel in front of a white wall with climbing plants. About 8 men are in view.
-- Costume: maroon vests with white edging over white thobes, white caps or turbans. The man in the middle also has a red, green and white striped shawl over his shoulder and a yellow-orange turban.
-- The middle man has both hands up in front of his face, and a long dark stick lies across the picture at eye height between and in front of them, its left end above head height and its right end about at chin height, so it slopes about 10 degrees down toward frame-right (by eye on a pixel grid).
-- The men beside him have their hands together at chest-to-chin height, some with palms apart, in a clapping pose; several mouths are open.
-- At the right, men hold red-brown sticks upright or slanted beside them.
-
-## 6. Close portrait, stick held level at forehead height
-
-`mizmar1_t0159s.jpg` · mizmar1 (UNESCO) at 2:39
-
-![](keyframes/mizmar1_t0159s.jpg)
-
-- Waist-up close shot of an older man with a grey beard, mouth slightly open, looking to frame-right. White turban with a yellow floral print; cream vest with gold-and-beige embroidered trim over a white thobe.
-- A raised hand at frame-left of his face, at forehead height, grips a straight brown stick. The stick runs level across the whole width of the frame, about 3 degrees lower at the frame-right end, passing in front of his forehead. It has pale or gold bands along its length; its frame-left end is blurred. A ring with a light-blue stone is on a finger of that hand.
-- Behind him, out of focus: spectators (boys and men) and a thin rope at chest height.
-- This is the same dancer as in the pose timeline stretch of 2:38-2:40 (Timing, 4d, item 2).
-
-## 7. Frame drum, hand on the skin
-
-`mizmar1_t0255s.jpg` · mizmar1 (UNESCO) at 4:15
-
-![](keyframes/mizmar1_t0255s.jpg)
-
-- Close-up of a round frame drum in greenish light. The skin is pale and fills the lower middle of the frame; the rim is thick, brown and worn. The rim rests against the knee of a man at frame-right; two bare feet show at the bottom.
-- A motion-blurred hand lies on the skin at the centre, fingers spread, with its shadow on the skin; a second blurred hand is at the top right. Both come from men in white thobes seated at the left and right whose sleeves fill the sides of the frame.
-- Two microphones: a black stand with a cable at the left and a microphone head hanging at the top centre.
-- Struck with the open hand on the skin. No stick is used on this drum in this frame. In the 4:15-4:16 stretch the hand is on the skin 7 times (Timing, 4a).
-
-## 8. Stage under a tent, night, wide
-
-`mizmar2_t0032s.jpg` · mizmar2 (Saudi TV) at 0:32
-
-![](keyframes/mizmar2_t0032s.jpg)
-
-- Night broadcast picture with the channel logo and a live label at the top right and a `#الجنادرية` caption at the top left. The canopy is black cloth with white stripes, with spotlights.
-- Foreground-left: two men stand in grey vests over white thobes with tan head-cloths, close to the camera. A tent pole stands behind the first.
-- Middle: about 6 men sit on a rug in grey vests and white thobes. One large frame drum with a pale skin stands upright facing the camera (about 150 px wide in the frame); another large drum is behind and to its right. Microphone stands are among them.
-- Right: about 9 men stand in a line along the back in grey vests and white thobes; at least two have their arms raised above shoulder height. A man in a white thobe and a checked head-cloth walks in front of the line at the far right edge.
-- A green flag on a pole at the top centre-right.
-
-## 9. Three men clapping, sticks held at an angle
-
-`mizmar2_t0212s.jpg` · mizmar2 (Saudi TV) at 3:32
-
-![](keyframes/mizmar2_t0212s.jpg)
-
-- Close shot of three men in profile, all facing frame-left, in grey vests over white shirts. Two wear gold-woven and yellow-striped turbans; the middle one's has fringe hanging at the side.
-- Each has a dark red-brown stick slanting through the picture from upper-left to lower-right at roughly 50-70 degrees from horizontal (by eye). How each man holds his stick (under the arm, in the crook of the elbow, in one hand) can't be read, because the arms are in front of it.
-- Hands: palms together or just apart at chest height on all three, mid-clap. Mouths open on all three (singing).
-- Behind them, the striped tent cloth. Logo and caption as in keyframe 8.
-
-## 10. Low camera, dancers moving, stick raised
-
-`mizmar3_t0440s.jpg` · mizmar3 (amateur, 480p) at 7:20
-
-![](keyframes/mizmar3_t0440s.jpg)
-
-- Low hand-held camera at about knee height at the edge of a carpeted area at night. The frame is upscaled from 640x480 and soft.
-- Frame-left: a dancer in an olive vest over a white thobe and a gold head-cloth leans forward from the waist, his frame-right arm raised with a thin dark stick held high, pointing up and to frame-right.
-- Centre: a second man in white with a white head-cloth, mid-step with one foot lifted. Frame-right foreground: a man in a white thobe passes very close to the lens, motion-blurred; his bare feet and lower thobe are in the lower right.
-- Behind them: a row of about 8 men in white thobes and vests stands in front of a green metal fence, some with hands together at chest height; spectators beyond the fence; buildings with arched windows and light-blue lattice balconies.
-- A black-and-green rope-laced barrel-shaped drum stands on the carpet at the centre. At frame-right a seated man in white holds a round frame drum with a pale skin.
-- This is the kind of frame the take gives: sticks appear as thin lines and often as streaks (see Timing, 4d).
+- Raised camera looking down the length of the rug area. Along the back at frame-right a line of about 8 men in white thobes stands, about 5 of them with long sticks held upright; more men stand at the right edge, one in a yellow-and-cream vest holding a stick diagonal.
+- At the back left, men sit on the rug with drums; a man in a grey thobe stands beside them.
+- In front: one dancer seen from behind, white thobe, a black-and-white checked skullcap. His frame-right arm is raised with the elbow bent and the hand at about head height, gripping a long straight light stick that runs diagonally down to frame-right and ends on the rug.
+- Measured on this frame with a pixel grid (Timing, "Size"): the stick is about 0.9 of the dancer's own standing height long and slopes about 38 degrees below horizontal.
+- Frame-left: another man in white, arm bent, mid-step; spectators behind a rope at the top left; one small round drum on the rug.
 
 ---
 
 ## Timing
 
-**Method.** All times are video time (m:ss.s) in the stated video; every command and hand count behind a figure is in `analysis\LOG.md` (Drive copy).
-Tools in `C:\media\dances\_tools\`: `audio.py` (percussive onsets after harmonic/percussive separation, autocorrelation and pulse search), `tempotrack.py` (a 12 s window slid in 6 s steps),
-`motion.py`, `strip.py` at the native frame rate (24 fps in mizmar1, 25 fps in mizmar2 and mizmar3, so one frame is 41.7 ms or 40 ms), `timeline.py`, `grid.py`.
-Hand labels from 10 fps strips are good to +-100 ms; counts at the native rate are good to one frame. The soundtracks are broadcast or edited mixes of singing, clapping and drums, not a clean instrument recording.
-Two things about the picture limit everything below. First, mizmar1 and mizmar2 are cut every 2-6 seconds and mizmar2 and mizmar3 are hand-held (the longest dance shots are 11.4 s in mizmar1 and 16.1 s in mizmar2, and no steady 15 s stretch of one movement exists),
-so the playbook's "three steady stretches" could not be met for the main movement or the pose order. Second, mizmar3 carries a 5-frame (200 ms) pattern from its encoding (frame-difference spikes at every fifth frame, `dupcheck`),
-which shows up as a false 200 ms movement period in every motion analysis of it; it is ignored.
+**Method.** All times are video time (m:ss.s) in the stated video; every command, hand count and raw output behind a figure is in
+`analysis\LOG.md` (Drive copy; everything from section P2 on is the second pass, and P2.10 says which earlier lines were withdrawn). Tools in `C:\media\dances\_tools\`: `audio.py`
+(percussive onsets after harmonic/percussive separation, autocorrelation, pulse search), `tempotrack.py` (a 12 s window slid in 6 s steps),
+`motion.py`, `strip.py` (native frame rate = every source frame), `timeline.py`, `grid.py`; and my own helpers in `analysis\`
+(`camshift.py` finds steady-camera runs, `trackcrop.py` and `stickangle.py` cut crops that follow one dancer, `onset_frames.py` cuts
+frames round audio onsets). Hand labels from 10 fps strips are good to +-100 ms; counts at the native rate are good to one frame
+(mizmar1 24 fps = 41.7 ms, mizmar6 25 fps = 40 ms, mizmar8 30 fps = 33.3 ms, mizmar10 24 fps = 41.7 ms).
+Picture quirks that limit the analysis: **mizmar6** carries a repeating 3-frame (120 ms) pattern in its frame differences (checked with
+`dupcheck.py` at 1:40-1:50: low, high, high, repeating), so `motion.py` on it is not used; **mizmar8** is a hand-held wide-angle recording with
+irregular duplicate frames (62 of 299 frame transitions at 1:40-1:50, 3 of 119 at 3:15-3:19), so one 33 ms tile does not always carry
+a new picture, but the timestamps are right; **mizmar10** is clean (no duplicate frames at 4:50-5:00).
+The soundtracks of mizmar6, mizmar8 and mizmar10 look (in the spectrograms) like mixes of singing with clapping and drum bursts; mizmar1's is edited with the cuts.
+I have not listened to any of them; what the onsets are is argued from the spectrogram and from visible strikes below.
 
-### 4a. Strokes (percussive onsets, 30 s stretches)
+### 4a. Strokes (percussive onsets, 20-34 s stretches)
 
-"Onsets" are the percussive-part onsets from `audio.py`. They are claps, drums and other bursts together; I could not separate the instruments (see "What the onsets are").
-Stability = median onset interval when only the stronger onsets are kept (prominence 0.35 / 0.6 / 1.0). A single steady stroke would not move; every stretch moves a lot.
+"Onsets" are the percussive-part onsets from `audio.py`: claps, drums and other bursts together. Stability = median onset interval when only the
+stronger onsets are kept (prominence 0.35 / 0.6 / 1.0); a single steady stroke would not move. "Perc share" is the share of percussive
+energy (the rest is voice and sustained sound).
 
-| Video, span | Onsets | Median ms (BPM) | IQR ms / SD ms | Stability, ms | Autocorrelation peaks, ms (r) | Best phase-locked pulse, ms (R) |
-|---|---|---|---|---|---|---|
-| mizmar1, 1:40-2:10 | 130 | 185.8 (323) | 133.5-249.6 / 201.8 | 186 / 250 / 438 | none above r 0.14 | 215 (0.24) |
-| mizmar1, 4:06-4:36 | 106 | 214.8 (279) | 156.7-330.9 / 191.6 | 215 / 314 / 488 | none above r 0.10 | 164 (0.24) |
-| mizmar1, 4:10-4:40 | 111 | 191.6 (313) | 150.9-313.5 / 207.8 | 192 / 253 / 395 | none above r 0.11 | 145 (0.22) |
-| mizmar2, 1:45-2:15 | 176 | 156.7 (383) | 121.9-185.8 / 76.9 | 157 / 186 / 395 | 563 (0.35), 1132 (0.49) | 141 (0.46), 188 (0.37) |
-| mizmar2, 3:36-4:06 | 195 | 156.7 (383) | 110.3-180.0 / 56.2 | 157 / 180 / 540 | 557 (0.49), 1115 (0.62) | 186 (0.43) |
-| mizmar2, 4:04-4:34 | 174 | 162.5 (369) | 121.9-185.8 / 67.9 | 163 / 180 / 552 | 552 (0.40), 1109 (0.55) | 139 (0.39), 185 (0.31) |
-| mizmar2, 5:06-5:36 | 179 | 162.5 (369) | 116.1-180.0 / 79.2 | 163 / 168 / 380 | 552 (0.47), 1103 (0.49) | 184 (0.47), 138 (0.43) |
-| mizmar3, 0:55-1:25 | 169 | 162.5 (369) | 127.7-191.6 / 69.7 | 163 / 226 / 563 | 563 (0.47), 1126 (0.48) | 188 (0.47), 141 (0.47) |
-| mizmar3, 4:22-4:52 | 169 | 162.5 (369) | 145.1-203.2 / 70.0 | 163 / 203 / 517 | 528 (0.53), 1062 (0.48) | 177 (0.61) |
-| mizmar3, 7:02-7:32 | 156 | 162.5 (369) | 150.9-209.0 / 85.1 | 163 / 192 / 366 | 517 (0.53), 1033 (0.52) | 172 (0.63) |
+| Video, span | Perc share | Onsets | Median ms (BPM) | IQR ms / SD ms | Stability, ms | Autocorrelation peaks, ms (r) | Best phase-locked pulse, ms (R) |
+|---|---|---|---|---|---|---|---|
+| mizmar1, 1:40-2:10 (first pass) | 0.64 | 130 | 185.8 (323) | 133.5-249.6 / 201.8 | 186 / 250 / 438 | none above r 0.14 | 215 (0.24) |
+| mizmar1, 4:06-4:36 (first pass) | 0.70 | 106 | 214.8 (279) | 156.7-330.9 / 191.6 | 215 / 314 / 488 | none above r 0.10 | 164 (0.24) |
+| mizmar6, 0:15-0:45 | 0.34 | 157 | 180.0 (333) | 139.3-233.7 / 73.1 | 180 / 235 / 238 | 604 (0.33), 1213 (0.34) | 202 (0.33) |
+| mizmar6, 1:10-1:40 | 0.34 | 155 | 180.0 (333) | 156.7-232.2 / 63.6 | 180 / 215 / 357 | 598 (0.39), 1202 (0.46) | 200 (0.55) |
+| mizmar6, 2:05-2:35 | 0.11 | 173 | 168.3 (356) | 133.5-197.4 / 57.4 | 168 / 192 / 325 | 662 (0.41), 1324 (0.51) | 166 (0.60) |
+| mizmar6, 3:10-3:42 | 0.09 | 186 | 162.5 (369) | 133.5-197.4 / 61.7 | 163 / 180 / 476 | 656 (0.35), 1306 (0.44) | 163 (0.41) |
+| mizmar8, 0:28-0:48 | 0.31 | 80 | 214.8 (279) | 185.8-284.4 / 131.4 | 215 / 238 / 435 | none above r 0.13 | 228 (0.35) |
+| mizmar8, 1:30-2:00 | 0.19 | 168 | 174.1 (345) | 127.7-191.6 / 59.1 | 174 / 192 / 424 | 604 (0.48), 1207 (0.53) | 152 (0.33) |
+| mizmar8, 2:45-3:15 | 0.15 | 185 | 168.3 (356) | 116.1-185.8 / 53.5 | 168 / 186 / 401 | 580 (0.53), 1161 (0.63) | 194 (0.39) |
+| mizmar8, 4:22-4:52 | 0.10 | 161 | 174.1 (345) | 156.7-220.6 / 63.4 | 174 / 215 / 401 | 563 (0.51), 1120 (0.63) | 187 (0.58) |
+| mizmar8, 5:40-6:10 | 0.10 | 147 | 174.1 (345) | 150.9-238.0 / 78.8 | 174 / 247 / 482 | 552 (0.39), 1103 (0.53) | 184 (0.42) |
+| mizmar10, 1:16-1:48 | 0.06 | 164 | 185.8 (323) | 156.7-214.8 / 75.6 | 186 / 232 / 430 | 563 (0.40), 1132 (0.41) | 188 (0.57) |
+| mizmar10, 3:48-4:18 | 0.12 | 147 | 168.3 (356) | 133.5-224.9 / 112.4 | 168 / 226 / 456 | 1062 (0.29) | 177 (0.38) |
+| mizmar10, 4:36-5:08 | 0.33 | 69 | 197.4 (304) | 161.1-516.6 / 470.2 | 197 / 221 / 525 | 1300 (0.40) | 164 (0.44) |
+| mizmar10, 5:10-5:40 | 0.18 | 90 | 203.2 (295) | 156.7-284.4 / 351.5 | 203 / 215 / 447 | 1289 (0.28) | 107 (0.29) |
+| mizmar10, 6:12-6:42 | 0.29 | 145 | 180.0 (333) | 133.5-262.7 / 100.1 | 180 / 290 / 688 | none above r 0.08 | 120 (0.17) |
+| mizmar10, 7:36-8:06 | 0.05 | 160 | 162.5 (369) | 145.1-200.3 / 72.7 | 163 / 212 / 435 | 499 (0.43), 998 (0.56) | 166 (0.52) |
+| mizmar10, 8:03-8:23 | 0.03 | 100 | 162.5 (369) | 145.1-206.1 / 95.9 | 163 / 253 / 511 | 505 (0.46), 1010 (0.52) | 168 (0.53) |
+| mizmar10, 8:30-8:50 | 0.04 | 119 | 153.8 (390) | 139.3-190.1 / 55.9 | 154 / 192 / 566 | 499 (0.49), 998 (0.50) | 166 (0.63) |
 
 What the table says:
-- **mizmar1: no pulse is established.** The median moves from 186 to 438 ms as weaker onsets are dropped, autocorrelation never exceeds r 0.14 in any of the three 30 s stretches, and `tempotrack` over 0:20-3:50 and 3:48-5:30 gives r of 0.07-0.33 with no stable period (one 12 s window holding only 4 onsets reached 0.46). The edit cuts between different places and sounds every few seconds.
-- **mizmar2 and mizmar3 have a stable repeating accent, not a single stroke interval.** In all 7 stretches the autocorrelation has a clear peak at 517-563 ms (r 0.35-0.53) and another at about twice that, 1033-1132 ms (r 0.48-0.62). The "median onset interval" of 157-163 ms is not a stroke time: it moves with prominence.
-  Inside the 517-563 ms group the pulse is either 3 x about 186 ms (172-188 in the best-locked stretches) or 4 x about 140 ms; the pulse search finds both with similar strength (for example mizmar3 0:55-1:25: 188 ms R 0.47 and 141 ms R 0.47) and I cannot choose between them from the audio. The onset-interval histograms peak at 150-200 ms.
-  `audio.py` found no repeating interval pattern in any stretch (the intervals are mostly one pulse long with occasional two or none).
-- **The accent period shortens through each performance.** `tempotrack` windows with autocorrelation r of at least 0.45 and a period of 500-610 ms (or half of 1000-1230 ms): mizmar3 per minute from 2:00 to 10:00 (n = 69 windows) 549, 540, 534, 528, 522, 517, 511, 511 ms; mizmar2 per minute from 0:00 to 6:00 (n = 54) 583, 569, 563, 557, 557, 551 ms.
-  That is about 5-7 % faster over 4-7 minutes in both videos (a drop of 42 ms in mizmar3 between 2:16 and 9:22; 36 ms in mizmar2 between 0:06 and 6:00).
+- **No single stroke interval is established in any stretch.** The median interval (154-215 ms) moves with prominence in every row (for example mizmar8 4:22-4:52: 174, 215, 401 ms), so the onset train is a mix of clapping, drum strokes and voice bursts, not one instrument. `audio.py` found no repeating interval pattern in any stretch.
+- **There is a regular accent group on top of a faster pulse** in mizmar6, mizmar8 and mizmar10 (not in mizmar1, whose edit cuts between places every few seconds: no autocorrelation peak above r 0.14, unchanged from the first pass).
+  The autocorrelation peaks at 1.0-1.3 s (r 0.28-0.63; r 0.40 or more in 12 of the 17 stretches of mizmar6, mizmar8 and mizmar10; no peak above r 0.13 in mizmar8 0:28-0:48 and mizmar10 6:12-6:42, the two drum close-up stretches), usually with a peak at half of it (500-660 ms), and the phase-locked pulse inside is 152-228 ms (R 0.33-0.63) in 15 of the 17 stretches; in mizmar10 5:10-5:40 and 6:12-6:42 no pulse locks (107 ms R 0.29 and 120 ms R 0.17). Group sizes by ratio: mizmar10 7:36-8:50, three adjacent stretches: 998-1010 ms = 6 pulses of 166-168 ms; mizmar6 0:15-1:40: 1202-1213 ms = 6 pulses of 200 ms; mizmar6 2:05-3:42: 1306-1324 ms = 8 pulses of 163-166 ms (a cut at 1:59.5 separates the two recordings); mizmar8 1:30-6:10: 1103-1207 ms = 6 pulses of 184-201 ms (in 1:30-2:00 the best-locked pulse is 152 ms, R 0.33, which is 8 per 1207 ms). I cannot say that the pulse is a 6- or 8-count in the singers' own sense; these are ratios of measured periods.
+- **The group period shortens in mizmar8.** `tempotrack` windows with autocorrelation r of at least 0.45, median period per minute (n windows): minute 1:00-2:00 1219 ms (7), 2:00-3:00 1161 (10), 3:00-4:00 1161 (10), 4:00-5:00 1126 (10), 5:00-6:00 1103 (10), 6:00-7:00 1103 (6): 9.5 % shorter over 5 minutes. mizmar6: 1196 and 1184 ms in minutes 0 and 1, then 1312 and 1300 in minutes 2 and 3 (the cut). mizmar10 per minute: 1149, 1126, 1196, 1080, 1300, 1161, 1115, 998, 998, 1022 ms (n = 6, 7, 5, 5, 4, 7, 3, 4, 10, 2): not monotonic, the courtyard take at 7:00-9:00 is 998 ms because it is a different take.
 
-**What the onsets are.** In mizmar2 and mizmar3 the soundtrack is 93-97 % harmonic energy (singing and sustained chant) with percussive bursts on top; the spectrograms (`m2_a1_audio.png`, `m3_a2_audio.png`) show vertical bursts together with gliding harmonic stripes.
-In mizmar2 at 4:13.0-4:14.2 (native strip, `m2_253n_p01.jpg`) the picture is one man singing into a microphone with no hand or instrument in view, while the audio finds 7 onsets (253.114, 253.305, 253.393, 253.509, 253.694, 253.950, 254.089 s): the bursts come from clapping and drums off-screen.
-So in mizmar2 and mizmar3 the audio cannot be tied to any one instrument I can see. The mizmar1 stretches are 63-70 % percussive (the 4:06-4:40 ones lie in the hand-drum close-ups).
+**What the onsets are (4a step 4).** In mizmar6, mizmar8 and mizmar10 the soundtrack is 66-97 % harmonic energy (singing and sustained sound), with percussive bursts on top. The spectrogram of mizmar10 4:36-5:08 (`m10_a1_audio.png`) shows two things: broadband vertical lines up to 8 kHz at the slow strokes (a clap or a drum stroke) and gliding harmonic stripes between them (voices). In mizmar8 4:22-4:52 (`m8_a3_audio.png`) the vertical lines are dense and the stripes are visible only in 4:41-4:43 and 4:46-4:51. The slow strokes of mizmar10 are claps, because the picture shows palms meeting at the onsets (below). The dense pulse is not tied to one visible instrument; some of it is drumming (hands on the drums are seen, keyframe 8 and mizmar8 0:36) and some is clapping.
 
-**Visible-strike cross-check.**
-- mizmar1, frame drum, 4:15.000-4:16.375 (native strip `m1_255z_p01.jpg`): a hand lands on the skin at 4:15.083, 4:15.250, 4:15.542, 4:15.667, 4:15.917, 4:16.125 and 4:16.333 (7 contacts; each good to about +-2 frames = 83 ms, because the hand rests on the skin for 2-3 frames). Intervals 167, 292, 125, 250, 208, 208 ms, median 208 ms, mean 208.3 ms (n = 6).
-  The audio finds onsets at 4:14.998, 4:15.247, 4:15.340, 4:15.683, 4:15.921, 4:16.234 s. Three contacts coincide with an onset within one frame (4:15.250 / 4:15.247, 4:15.667 / 4:15.683, 4:15.917 / 4:15.921), so there is no sound-to-picture offset larger than one frame in this clip. The other four contacts have no onset within 85-141 ms,
-  and two onsets (4:15.340, 4:16.234) fall while the hand is lifted: other drums or hands off-screen. The visible median of 208 ms is within 4 % of the audio median of the 4:06-4:36 stretch (214.8 ms), but n is small and the two lists are not the same set of strikes.
-- mizmar2, large drum, 5:28.0-5:29.0 (native strip `m2_328n_p01.jpg`): a hand comes down on the drum head at about 5:28.04-5:28.16 and again at 5:28.84-5:28.96, and onsets at 5:28.024 and 5:28.941 fall in those frames. Only 2 strikes are visible, so no interval.
-- Not done: 8-10 visible strikes in one stretch for mizmar2 or mizmar3. The clapping hands are off-frame or too small, and mizmar3 is 480p hand-held.
+**Slow strokes in mizmar10 (the steady wide shot, 4:35.25-6:10.00, no camera move).** Runs of consecutive percussive onsets 1.28-1.34 s apart (the rest of the soundtrack between them is voices; no other percussive onset lies between the strokes of run 1):
+
+| Run | Strokes | Intervals ms | Median / mean / SD ms |
+|---|---|---|---|
+| 4:38.444-4:50.280 | 10 | 1300, 1277, 1324, 1300, 1329, 1330, 1341, 1317, 1318 | 1318 / 1315.1 / 18.5 |
+| 5:00.76-5:07.38 | 6 | 1295, 1317, 1330, 1335, 1341 | 1330 / 1323.6 / 16.3 |
+| 5:21.77-5:32.25 | 9 | 1278, 1341, 1323, 1306, 1300, 1301, 1323, 1306 | 1306 / 1309.8 / 17.8 |
+| all three | 25 | 22 intervals | **1317 / 1315.1 / 18.5** (min 1277, max 1341; 45.6 per minute) |
+
+**Visible-strike cross-check, slow strokes (mizmar10 4:38.4-4:50.3).** I cut five native 24 fps frames (-2 to +2) round each of the ten onsets of run 1 (`onset_frames.py`, strips `m10_clap_p01.jpg`, `p02.jpg`). The front man of the frame-left row (green vest, black waistcoat, a cane against his shoulder) and the men behind him bring their palms together, one hand sliding over the other, forearms pointing forward at about chest-to-waist height, at the onset frame (tiles at -2 and -1 frames show the hands apart and approaching, +1 and +2 sliding apart): **9 of 10 strokes show the palms meeting within one frame (+-42 ms) of the onset**; at 4:44.958 his hands hang at his sides and no clap is seen from him. So the audio median (1318 ms) and the picture agree, and there is no sound-to-picture offset larger than one frame in this video. In one native zoom of the same clap (4:39.35-4:40.18, strip `m10_2794c_p01.jpg`, onset on the frame 4:39.725) the hands of the front man are close but with a visible gap in 4:39.35-4:39.64, overlap in 4:39.683-4:39.767 and are spread apart, palms up, from 4:39.808 to the end of the strip: the contact lasts about 3 frames.
+
+**Visible-strike cross-check, a drum (mizmar8 0:36.0-0:37.0, native 30 fps).** A seated man in a dark jacket plays a rope-laced barrel drum with a white skin between his knees (strip `m8_360b_p01.jpg`, 33 frames, red border on the frames with an audio onset; read as a picture). Both his hands rest on the skin in 0:36.000-0:36.233; his frame-left hand is then lifted and blurred above the skin at 0:36.233-0:36.333; a hand lands on the skin at about **0:36.367**, the frame-left hand lands again at **0:36.567** (fingers spread on the skin) and a third time at **0:36.800**. The percussive onsets in the same 1.03 s are at 36.168, 36.359, 36.551, 36.789 s (and 36.004 in the previous frame). Three landings coincide with an onset within one frame (-8, -16 and -11 ms, each good to +-33 ms): intervals from the picture 200 and 233 ms, from the audio 192 and 238 ms (n = 3 strikes, 2 intervals). The onsets at 36.0 and 36.17 s fall while both his hands are resting on the skin: they come from other drums or hands outside the picture, which fits the soundtrack being a mix of several drummers.
+**mizmar1 (first pass, kept).** A hand lands flat on the skin of a frame drum at 4:15.083, 4:15.250, 4:15.542, 4:15.667, 4:15.917, 4:16.125 and 4:16.333 (7 contacts, +-83 ms each); intervals 167, 292, 125, 250, 208, 208 ms, median 208 ms (n = 6); three contacts coincide with an audio onset within one frame.
+**Not done:** 8-10 visible strikes of the dense pulse in one stretch. The drummers are small in the wide shots and the hands are not separable in the close ones.
 
 ### 4b. Main repeating movement
 
-**Not measurable to the playbook standard** (three steady 15 s stretches). The reasons are in the method note: the cuts, the hand-held cameras, and mizmar3's 200 ms encoding pattern. Leads that I did not confirm by counting:
-`motion.py` on mizmar2 0:10.9-0:26.8 (whole frame, 25 fps) found an energy period of 1146-1200 ms (autocorrelation r 0.50; 12 peak-to-peak cycles, mean 1197 ms, SD 134 ms), but the shot is hand-held on a group of dancing men (strip `m2_poseA_p02.jpg`) and I cannot say which movement it follows.
-The same analysis on mizmar2 at 2:32-2:41.6, 2:49.6-2:59.2 and 5:42.7-5:53.2 found no consistent period (peaks at 2.0-3.9 s, autocorrelation r of at most 0.26). The movement that repeats at a readable rate is the stick, in 4d.
+The one repeating movement I could time is **the clap of the rows in mizmar10**, one clap every **1.317 s** (22 intervals, SD 18.5 ms, three runs of 11.8 s, 6.6 s and 10.5 s inside one steady 94.8 s shot; no run is the 15 s the playbook asks for, because the regular stroke is intermittent: between the runs there are denser bursts of onsets or only voices, see `m10_a1_audio.png`).
+Hand count against the picture: the ten onsets of run 1 are 9 full clap cycles between the onsets at 4:38.444 and 4:50.280 = 11.836 s, 1315 ms per cycle, and the picture shows the palms meeting at 9 of the 10 (above).
+Leads that I did not confirm by counting cycles in frames: `motion.py` at the native 24 fps on the front man's body only (ROI x 0-0.17, y 0.05-0.72), 4:36-4:58: energy autocorrelation 1292 ms (r 0.45), energy FFT peak 1339 ms, and a position component with a 2.58 s period (6 cycles, mean 2569 ms, SD 126 ms, autocorrelation r 0.70); 5:10-5:34: no energy peak above r 0.23 and a position period of 2.63 s (r 0.48, 4 cycles); 5:40-6:08: energy 1167 ms (r 0.40) and a position period of 2.29 s (10 cycles, SD 151 ms, r 0.87). The 2.3-2.6 s position period is about two claps; I did not look at what moves (a sway of the body is my guess, not a reading). A 15 fps run on the whole lower middle of the frame is not used: it showed peaks at multiples of 333 ms, which is the 8-frame beat of resampling 24 fps to 15 fps.
+**Not measurable in the other three videos:** mizmar6's pictures carry the 3-frame artefact; mizmar8 is hand-held and never steady for 8 s (`camshift.py` with two regions, 0:45-6:40; `motion.py` on the row of men along the right wall, 2:47-4:05, found no autocorrelation peak); mizmar1 is cut every few seconds.
 
-**Size (measured on one frame).** mizmar1 at 3:12 (`mizmar1_t0192s.jpg`, 1280x720, `grid.py`): the dancer in front, seen from behind, stands about 383 px tall in the picture (turban top at y 272, thobe hem at y 655, +-12 px).
-His stick runs from about (480, 195) to (748, 405): about 340 px (+-15) long, sloping about 38 degrees below horizontal toward frame-right. Stick length is therefore **about 0.9 of the dancer's own standing height** (plausible range 0.75-1.1: the camera looks down at him, so both lengths are foreshortened differently).
-A second reading, in the 2:38.9-2:39.8 swing (4d, item 2): the stick reaches **about 40 degrees above horizontal** (tracker readings 38-40 degrees at 2:39.375-2:39.417, +-5).
+**Size, where measurable.**
+- **Stick length against the dancer's own height.** mizmar10 at 4:39 (`mizmar10_t0279s.jpg`, 1280x720, `grid.py`, crop x 1000-1280, y 150-650, step 25): the right-hand man of the right row stands about 425 px tall in the picture (turban top at y 200, shoe sole at y 625, +-10 px). His cane runs from about (1150, 205) to (1207, 568): about 367 px (+-8) long, tilted about 9 degrees from vertical; **0.86 of his own standing height** (plausible 0.80-0.95; the camera is close). With the first-pass reading in mizmar1 at 3:12 (stick about 340 px, dancer about 383 px = 0.89, range 0.75-1.1) the two agree within 4 %. The lower end of the cane stands about 0.13 of his height above the floor line of his shoe, so it is held, not planted.
+- **Twirl.** See 4d: the stick turns through 360 degrees, anticlockwise as seen by the camera, in mizmar8 at 3:15.733-3:16.367.
 
 ### 4c. Pose timeline
 
-Only one stretch could be labelled, so no pose order or beat can be stated. **mizmar1, 3:01.1-3:05.2** (4.1 s, not the 20 s asked for): the camera follows one dancer (white thobe, maroon-and-black sash, gold turban; strips `m1_BB_p01.jpg`, `m1_BB_p02.jpg` at 10 fps, `timeline.py`).
+All three stretches are in the troupe's close take of mizmar10 (7:33-8:52), where the dancers are large enough to label. Poses, named from what the frames show (keyframe 7 shows the stride): **stick overhead** (a dancer's stick raised above his head, arm up), **sticks meet** (two men's sticks cross or strike), **stride, stick low** (a man stepping, running or hopping with the stick down or at his side), **no dancer in frame** (the camera shows only the clapping row), **other/unclear**. When two men dance, the label follows the one nearer the camera or, if sticks touch, "sticks meet".
+Method: 10 fps strips (`m10_pose_p01-04.jpg` 7:36.0-7:55.9, `m10_pose2_p01-04.jpg` 8:03.0-8:22.9, `m10_pose3_p01-04.jpg` 8:30.0-8:49.9), one label per 100 ms tile, labels in `labels_m10_poseC1-3.csv` (made by `labels_C.py`), `timeline.py` with stroke-ms 166 (this take's pulse, 4a), outputs `timeline_m10_poseC1-3.txt`. Resolution +-100 ms.
+**How reliable the labels are.** These labels (reading C) were made from the 12 strip pages after each was displayed to me. Two earlier labelling passes (A, B) were written while the strips had not displayed, and are not used; for what it is worth, C agrees with B on 523 of 600 tiles (87 %) and with A on 453 (76 %) (`labels_C.py` prints it). The main uncertainty is stick overhead against stride when a man steps with his arm raised, and tiles where the camera crops a dancer. In C, 48 of 114 segments are 200 ms or shorter, which is at the limit of the method: pose boundaries are good to about +-200 ms and segments below 300 ms are not reliable. I labelled each tile once; there was no second labeller.
 
-| Video, timestamp -> pose | Lasts | Audio onsets in it | What the frames show |
-|---|---|---|---|
-| mizmar1, 3:01.1 -> other/unclear | about 1000 ms | 5 | He walks in from frame-right; the stick is not visible. |
-| mizmar1, 3:02.1 -> stick overhead | about 1400 ms | 7 | Stick above the head in his raised arm; it swings, see 4d. |
-| mizmar1, 3:03.5 -> stick low in front | about 500 ms | 2 | Stick vertical at his side at 3:03.5, then pointing down and forward in front of his hip, then out to frame-right. |
-| mizmar1, 3:04.0 -> stick raised high | about 1200 ms (to 3:05.2, where the stretch ends) | 6 | Arm up, stick vertical or diagonal above the head, pointing up and out to frame-right from 3:04.2; the camera pans. |
+Change points (`mizmar10, m:ss.s -> pose`; O = stick overhead, M = sticks meet, S = stride stick low, N = no dancer in frame, U = other/unclear):
+- Stretch 1, 7:36.0-7:56.0 (40 segments): 7:36.0 O, 7:36.6 M, 7:38.3 O, 7:38.6 M, 7:38.8 O, 7:39.2 U, 7:39.3 O, 7:40.3 S, 7:41.5 M, 7:42.4 S, 7:42.6 M, 7:42.8 U, 7:43.2 O, 7:43.8 U, 7:43.9 S, 7:46.4 N, 7:46.7 S, 7:47.8 O, 7:48.4 S, 7:48.8 O, 7:49.0 S, 7:49.1 O, 7:49.2 M, 7:49.6 O, 7:50.2 U, 7:50.4 S, 7:50.6 N, 7:51.2 S, 7:51.7 O, 7:51.8 S, 7:51.9 O, 7:52.2 S, 7:52.4 M, 7:52.9 S, 7:53.2 O, 7:53.6 M, 7:53.8 S, 7:54.4 N, 7:55.4 U, 7:55.5 O, 7:56.0 end.
+- Stretch 2, 8:03.0-8:23.0 (45 segments): 8:03.0 S, 8:03.2 O, 8:03.3 S, 8:03.6 M, 8:03.8 O, 8:03.9 M, 8:04.6 O, 8:04.7 S, 8:04.8 O, 8:04.9 S, 8:05.6 N, 8:06.7 S, 8:07.0 O, 8:08.1 S, 8:08.6 O, 8:08.9 S, 8:09.0 O, 8:09.1 S, 8:09.4 O, 8:09.8 S, 8:10.5 M, 8:11.1 S, 8:11.3 O, 8:11.4 S, 8:11.5 O, 8:12.6 M, 8:13.4 S, 8:13.6 M, 8:14.3 S, 8:18.0 U, 8:18.1 O, 8:18.2 U, 8:18.3 O, 8:18.6 S, 8:18.7 O, 8:18.9 S, 8:19.0 O, 8:19.1 S, 8:19.6 O, 8:20.5 S, 8:21.0 O, 8:21.3 M, 8:21.7 O, 8:22.2 U, 8:22.3 S, 8:23.0 end.
+- Stretch 3, 8:30.0-8:50.0 (29 segments): 8:30.0 O, 8:31.4 S, 8:32.6 M, 8:32.8 O, 8:33.3 S, 8:33.9 O, 8:34.2 S, 8:34.6 O, 8:34.8 U, 8:34.9 O, 8:35.1 U, 8:35.2 O, 8:36.9 S, 8:38.4 O, 8:38.7 S, 8:39.3 O, 8:39.4 S, 8:39.5 O, 8:40.2 S, 8:40.3 O, 8:40.7 S, 8:42.4 O, 8:42.6 S, 8:42.7 M, 8:43.1 S, 8:43.2 O, 8:43.8 S, 8:46.4 U, 8:46.6 S, 8:50.0 end.
 
-Order in this stretch: unclear, overhead, low in front, raised high. It does not repeat inside 4.1 s. The audio in this span (`m1_a3`, 2:55-3:15: 86 onsets, median 197 ms, IQR 139-267 ms, SD 127 ms) has no steady pulse, so durations in strokes are not meaningful.
-Durations are given to the 100 ms resolution of the labels. The other candidates fail the 20 s test: mizmar1 is cut every 2-6 s; mizmar2 has no run longer than 16 s on one dancer; mizmar3 shows sticks as thin lines and the camera sways (strips `m3_pose1_p01-p03.jpg`, 4:22.7-4:42.0).
+| Pose | n segments (3 stretches) | Median ms | Mean ms | Range ms | Total s of 60.0 s |
+|---|---|---|---|---|---|
+| stick overhead | 42 | 300 | 433 | 100-1700 | 18.2 |
+| sticks meet | 15 | 400 | 540 | 200-1700 | 8.1 |
+| stride, stick low | 42 | 350 | 693 | 100-3700 | 29.1 |
+| other/unclear | 11 | 100 | 145 | 100-400 | 1.6 |
+| no dancer in frame | 4 | 800 | 750 | 300-1100 | 3.0 |
+| all segments | 114 | 300 (IQR 100-600) | 526 | 100-3700 | 60.0 |
 
-### 4d. Stick rotations, footwork, circle
+- **Durations in strokes.** The pulse of this take is 166-168 ms (4a), so a 300 ms segment is about 2 pulses and the longest ones (2.5-3.7 s, all "stride") are 15-22. `timeline.py` counts 322 audio onsets in the 114 segments (60.0 s) against 361 expected at one onset per 166 ms (89 %); for the 17 segments of 1 s or longer it counts 162 against 175 expected (93 %). I did not test whether pose changes line up with the 998-1010 ms group of this take.
+- **Order and repetition.** `timeline.py` finds no repeating block of labels in stretches 1 and 3 and a block of 22 labels repeated twice in stretch 2. That block is mostly an alternation of "stride" and "overhead", the two labels I find hardest to tell apart, and I cannot see a repeating phrase in the pictures; I treat it as an artefact of the coarse labels. The order is irregular: overhead, sticks meet and stride follow each other in changing order, with stride the commonest and the longest. **There is no regular pose order and no beat in these 60 s.**
+- Two sticks meeting is the one move that involves both dancers at once: 15 times in 60 s, for 200-1700 ms each.
 
-**Stick rotations.** Hand counts at the native frame rate (mizmar1 24 fps).
-1. **mizmar1, 0:39.9-0:41.14**, one dancer (grey vest, yellow turban) turning on the spot with the stick overhead, close camera (native strips `m1_399_big_p01.jpg`, `m1_4085n_p01.jpg`; the shot runs 0:38.83-0:42.17). Frame by frame, the long end of the stick is at frame-left 0:39.900-0:40.192, near end-on (foreshortened) 0:40.233-0:40.358, frame-right 0:40.400-0:40.692, near end-on 0:40.733-0:40.775, frame-left again 0:40.817-0:41.142.
-   The centres of the two frame-left runs are 40.046 s and 40.980 s: **one full revolution in 0.93 s, about 1.1 revolutions per second (about 22 frames per turn), n = 1 revolution.** Half-turns: 0.50 s (left to right) and 0.43 s (right to left). The second turn is cut short, since from 0:41.18 he lowers the stick. The near end-on states show the stick sweeping in a plane tilted away from the picture plane, but the sense of the turn as seen from above cannot be read from this side view.
-2. **mizmar1, 2:38.9-2:39.9**, one dancer (white turban, cream vest with gold trim; keyframe 6 is the same man). Following the stick in the native frames: it points up and to frame-left from his raised hand until 2:38.83, lies level across behind his head at about 2:39.0, rises to about 40 degrees above horizontal at 2:39.375-2:39.417, falls back to level at about 2:39.8, and points down to frame-right from 2:39.92.
-   That is **one slow swing of about 0.8 s between two level positions**, n = 1, not a repeated spin. (My automatic line tracker locked onto the vest trim in part of this shot, so only the hand-checked frames are used.)
-3. **mizmar1, 3:02.17-3:02.96, two dancers in one shot** (zoomed native frames, `m1_stick182.jpg` and `m1_stick182_YV.jpg`). Dancer 1 (maroon-and-black sash, gold turban): the stick is near level and short (pointing along the line of sight) at 3:02.250, 3:02.500 and 3:02.750, and vertical or diagonal in between: **the pattern repeats every 6 frames = 250 ms, 3 repeats.**
-   Dancer 2 (yellow vest): the stick is vertical at 3:02.167-3:02.292, 3:02.542 and about 3:02.875, i.e. about every 0.33-0.38 s (2 intervals). **They are not in step**: the rates differ (about 4 and about 3 per second) and the phases differ (at 3:02.333 dancer 1's stick is vertical while dancer 2's is level; both are vertical at 3:02.542).
-   **Limit:** at 24 fps I cannot tell whether one repeat is a full turn, a half turn or a back-and-forth flick of the wrist. Dancer 1 shows only one tilt direction between the vertical states, which argues against a uniform fast spin but does not prove a rate. I report "about 4 stick cycles per second" for dancer 1, not revolutions per second. The direction of rotation as seen from the camera cannot be read.
-4. **mizmar3, 7:35.00-7:35.96**, left dancer in the hand-held 480p take (strip `m3_455zz_p01.jpg`): the stick is a motion-blurred streak at 7:35.000-7:35.200 and a doubled image at 7:35.760-7:35.960. Clear frames: level pointing left at 7:35.240, held diagonal up and to frame-right for 6 frames (240 ms) from 7:35.320, vertical at 7:35.560. **The blurred frames mean the stick moved through a large angle within one exposure (1/25 s); the rotation rate there cannot be counted at 25 fps.**
-5. **mizmar2** (0:17-0:27, several men with red-brown sticks held up diagonally, moving hand-held camera): no stick rotation visible at 10 fps; not counted. No comparison of several dancers in step beyond item 3.
+### 4d. Staff rotations, footwork, formation
 
-**Footwork.** Not measured. In almost every shot the feet are hidden by the thobe or out of frame. Where legs are visible: mizmar1 3:02.5-3:02.9 (dancer 1) stands on one foot with the other foot raised behind him, a yellow slipper visible, and has the knee up at 3:02.9; mizmar3 4:26.7-4:26.9 shows a knee raised high; mizmar1 3:16.55-3:17.26 is a man walking at night, not a stick dancer.
-I could not get a step count or steps per stroke from any of it. The movement looks like hops or skips with a lifted leg, at no countable rate.
+**Staff rotation (native frames).**
+1. **mizmar8, 3:15.567-3:17.400, one dancer** (dark-grey thobe, yellow-green head-cloth, bare feet; stick in his raised frame-right hand; tiles `m8_tcB_p01-03.jpg`, one tile per 30 fps frame, crops that follow him). I read the stick's axis angle on each tile (anticlockwise from horizontal as the camera sees it, +-10 degrees, +-20 in the blurred frames 3:15.5-3:15.75 and 3:16.0-3:16.37). The angle rises at every step, so it is one continuous turn in one direction. The axis is horizontal at 3:15.733, 3:16.000, 3:16.367 and 3:17.233: successive half-turns of 0.267 s, 0.367 s and 0.867 s. **One full revolution (3:15.733 to 3:16.367) takes 0.633 s = 1.58 revolutions per second, n = 1 revolution**; 1.5 revolutions between 3:15.733 and 3:17.233 take 1.500 s = 1.0 revolution per second on average. The turn slows after the first revolution: from 3:16.400 to 3:17.067 the axis moves 117 degrees in 0.667 s (0.49 revolutions per second). An automatic tracker on the orange-brown cane (`stickangle.py`, crops `m8_sa2_p02.jpg`) reads 13.4 degrees at 3:16.400 and 143.0 degrees at 3:17.100: 185 degrees per second (0.51 rev/s), within 6 % of the hand reading; it is not reliable in the blurred first half. The hand readings are in `labels_m8_twirl.csv`.
+2. **mizmar1, 0:39.900-0:41.142, one dancer** (grey vest, yellow turban, stick held overhead in both hands; first-pass hand count at 24 fps, re-checked on the strip `m1_399_big_p01.jpg` in pass 2): in 0:39.900-0:40.650 he turns his body from back view to front view while the stick sweeps round above his head; the long end of the stick is at frame-left 0:39.900-0:40.192, near end-on 0:40.233-0:40.358, frame-right 0:40.400-0:40.692, near end-on 0:40.733-0:40.775 and frame-left again 0:40.817-0:41.142. **One full revolution in 0.93 s (1.07 revolutions per second, 22 frames per turn), n = 1.** The sense of the turn cannot be read from this side view.
+3. **mizmar1, 3:02.17-3:02.96, two dancers in one shot** (first-pass, kept): dancer 1's stick pattern repeats every 6 frames (250 ms, 3 repeats) and dancer 2's about every 330-380 ms (2 intervals); they are not in step; at 24 fps I cannot tell whether a repeat is a full turn, a half turn or a wrist flick, so I give about 4 and about 3 cycles per second, not revolutions.
+4. **mizmar10 (the troupe):** the sticks are swung overhead and crossed (keyframe 7, 7:36-8:50); at 24 fps they are mostly motion-blurred or partly hidden, and I did not find a turn I could count. **Not counted.**
+5. **mizmar6, mizmar8 (other dancers):** the sticks of mizmar6 are small (a 640x480 picture); no rotation counted. mizmar8 3:06.0-3:06.77 (strip m8_1860_p01.jpg, the same dancer with his back to the camera): the stick is seen above his head, pointing up and to frame-left, at 3:06.000-3:06.133; it is hidden behind his head and arm at 3:06.200-3:06.350; it is seen again, slanting across above his head, at 3:06.400-3:06.770. I could not follow it through a turn; not counted.
 
-**How the circle moves.** No circle is seen to move, and none forms. In mizmar1 (keyframes 1, 2, 3) men stand in rows along the edges of a rug-covered square, boys on one side, with seated drummers behind the middle of one side, and one or two dancers work in the open middle; in mizmar2 (keyframe 8) a line of men stands along the back right of the tent floor with the drummers seated at the middle left;
-in mizmar3 (keyframe 10) men stand in a row along a fence and the dancers move on the carpet in front of seated drummers. In none of the frames I looked at do the standing men move around the drummers, so there is no direction or period to time.
+So: one clean revolution in each of two videos (0.63 s and 0.93 s), two different dancers, 1.58 and 1.07 revolutions per second; the second turn of the mizmar8 dancer is slower (0.5 revolutions per second). Nothing here shows a sustained spin.
+
+**Footwork.** Feet are visible in mizmar8 (bare feet), mizmar10 (black shoes) and for a few frames in mizmar1.
+- **mizmar10 7:53.8-7:54.76 (native, one dancer in a green vest stepping and hopping on the spot with the stick above his head, strip `m10_4738_p01.jpg`, read as a picture):** both shoes are off the ground at 7:53.800-7:53.842 and down at 7:53.883; the frame-left foot is lifted at 7:54.050-7:54.133 and down at 7:54.175; lifted again at 7:54.342-7:54.425 and down at 7:54.467; a further lift is not clear before the strip ends at 7:54.758. Landings at 7:53.883, 7:54.175 and 7:54.467, 292 ms apart twice (7 frames; each good to +-42 ms): about 3.4 landings per second, n = 2 intervals, one dancer. The audio onsets of this second (473.792 to 474.918 s) do not coincide with the landings, and 292 ms is 1.76 of this take's 166 ms pulse: **no step-to-stroke lock seen**.
+- Other footwork seen, not timed: long running strides and a lifted leg with a bent knee in the troupe take (7:49.2-7:50.3, 7:51.2-7:52.0, 7:52.9-7:53.6); bare-foot walking steps of the dancers in mizmar8 (3:15.6-3:17.4); a man standing on one foot with the other raised behind him (mizmar1 3:02.5-3:02.9, first pass). I did not get a count of steps per stroke.
+
+**How the formation moves.**
+- **No circle moves.** In mizmar6 the ring of standing men round the fire box does not move in 2:10-2:39 (strip `m6_130_p01.jpg`: the men stay in place, the dancers cross the floor); in mizmar8 the line along the right wall and the crowd at the back stay in place in 2:46-4:15 while the camera pans (strips `m8f_166_p01.jpg`, `m8f_196_p01.jpg`, `m8f_226_p01.jpg`); in mizmar10 the two rows stand in place in 4:36-5:35 (strips `m10_t1_p01.jpg`, `m10_t2_p01.jpg`) and the clapping men behind the dancers stay where they are in 7:36-7:56, 8:03-8:23 and 8:30-8:50 (they clap and shift their weight; one lifts a knee at 7:54.7); in the mizmar1 clip (2:56-3:26) the rows along the edge of the rugs stay in place. So there is no direction and no period to time.
+- **Who is on the floor.** In mizmar10 steady wide shot (4:36-5:35, read at 1 fps from `m10_t1_p01.jpg` and `m10_t2_p01.jpg`) one man at a time is in the gap. A man in a black waistcoat is in it from 4:36 to 4:47; a man in white without a visible vest at 4:48-4:49; a man in a green vest from 4:50 to 5:11; the black-waistcoat man again at 5:13-5:15 (at 5:12 a man with a stick is at the left edge as he enters); green-vest figures at 5:16-5:29 (the vest is hard to see at 5:16-5:23); no dancer clear at 5:30-5:31; the black-waistcoat man from 5:32 to 5:35. So the turns seem to alternate between two dancers, with change-overs about 5 to 20 s apart (+-1 s); I did not relate the change-overs to the claps. Three dancers at a time in mizmar6 2:16-2:27 and two to three later in 2:10-2:39 (strip `m6_130_p01.jpg`); in mizmar8 (strips `m8f_166_p01.jpg` to `m8f_226_p01.jpg`) nobody dances in 2:46-3:04, one to three dancers at a time dance from 3:05, and four or more at about 3:55-4:03; a man in white holds a frame drum over the coals of the fire box at 3:20-3:25, 3:34-3:45 and for most of 3:46-4:14.
+
+---
 
 ### 4e. Proposed animation constants
 
 | Constant | Value | Evidence | Confidence |
 |---|---|---|---|
-| `BEAT_MS` | not measurable | Only one 4.1 s stretch of pose changes could be labelled (mizmar1, 3:01.1-3:05.2: 4 poses lasting about 500-1400 ms, no beat). The footage is cut every 2-6 s or hand-held. | none |
-| `STROKE_MS` | not measurable as one instrument's stroke. The nearest stable figure is the accent group below; inside it the pulse is about 186 ms (3 per group) or about 140 ms (4 per group), not separable. A visible hand on a frame drum: median 208 ms (n = 6 intervals) | Audio, 7 stretches in mizmar2 and mizmar3 (table in 4a): median onset interval 157-163 ms but it moves with prominence; no repeating pattern. Visible drum strikes: mizmar1 4:15.083-4:16.333 only. In mizmar1 no pulse is established | low |
-| accent group, `ACCENT_MS` (extra) | about 550 ms (517-583 ms, shrinking about 5-7 % over a 4-7 minute performance); a double group of 1.03-1.13 s | Audio autocorrelation peaks in all 7 stretches (mizmar2 1:45-5:36, mizmar3 0:55-7:32): 517-563 ms (r 0.35-0.53); `tempotrack` per-minute medians 583 -> 551 ms (mizmar2, 0:00-6:00) and 549 -> 511 ms (mizmar3, 2:00-10:00) | medium: two videos, audio only (no second method; the source of the accent is off-screen) |
-| `MOVE_PERIOD_MS` | not measurable | No steady 15 s stretch; 4b. Candidate stick figures (one revolution about 930 ms; dancer 1 pattern 250 ms; swing about 800 ms) are single events, below | none |
-| `STICK_TURN_MS` (extra) | about 930 ms per full turn of an overhead stick (about 1.1 revolutions per second) | mizmar1 0:39.9-0:41.14, hand count at 24 fps, n = 1 revolution; half-turns 500 and 430 ms | low: a single event |
-| `STICK_CYCLE_MS` (extra) | about 250 ms between repeats of the stick pattern for one dancer, 330-380 ms for another; the two are not in step; revolutions per second not countable at 24-25 fps | mizmar1 3:02.25-3:02.96; mizmar3 7:35.0-7:35.96 is motion-blurred | low |
-| `MOVE_SIZE` | stick about 0.9 of the dancer's standing height long (0.75-1.1), tilted up to about 40 degrees above horizontal in the slow swing | mizmar1 3:12 frame (`grid.py`, one dancer, high camera angle); mizmar1 2:39.375-2:39.417 frames | low: one frame and one swing each |
-| `SEQUENCE` | not measurable. In the one stretch: other/unclear, stick overhead, stick low in front, stick raised high | mizmar1 3:01.1-3:05.2, 10 fps labels | low: single 4 s stretch, no repeat seen |
+| `BEAT_MS` | not measurable as a beat. Pose segments last 100-3700 ms, median 300 ms (IQR 100-600 ms), and the order is irregular | 114 hand-labelled segments in three 20 s stretches of mizmar10 (7:36.0-7:56.0, 8:03.0-8:23.0, 8:30.0-8:50.0, 10 fps, +-100 ms, one labeller), `timeline.py`; two earlier passes made without the strips displayed agree on 76-87 % of tiles | low: one staged take, coarse labels, no regular beat seen |
+| `STROKE_MS` | **1317 ms** for the slow clap of the rows; the loud accent comes once every 1.3 s in the steady courtyard shot. No single stroke interval is established elsewhere (median onset intervals 154-215 ms vary with prominence) | mizmar10 4:38.4-4:50.3, 5:00.8-5:07.4, 5:21.8-5:32.3: 22 intervals, SD 18.5 ms; visible palms meet at 9 of 10 onsets within one frame | medium: one video, audio and picture agree; the same slow stroke is not seen in mizmar6 or mizmar8 |
+| pulse, `PULSE_MS` (extra) | about 166 ms; a group of 6 pulses = about 1000 ms in the close take. In the community videos the pulse is 163-202 ms (mizmar6 200 then 163-166 ms; mizmar8 184-201 ms, falling by about 9 % over 5 minutes) | audio autocorrelation and phase-lock in 15 stretches (4a table); mizmar10 7:36-8:50: 166, 168, 166 ms, R 0.52-0.63 | medium for mizmar10 (three adjacent stretches, audio only), low across videos: the pulse differs by video and moves over a performance |
+| `MOVE_PERIOD_MS` | **1317 ms**, the clap cycle (the same cycle as `STROKE_MS`); the front man's position moves with a period of about 2.3-2.6 s, two claps (lead, not hand-confirmed) | 4b: 9 cycles between the onsets at 4:38.444 and 4:50.280 = 1315 ms; `motion.py` leads | medium: one video; two methods (audio, eye) agree; none of the three runs reaches 15 s |
+| `MOVE_SIZE` | cane about **0.86-0.89 of the dancer's standing height** long, tilted about 9 degrees from vertical when held at the shoulder; the twirled stick turns through the full 360 degrees; its overhead turn is anticlockwise as seen by the camera in the one counted case | mizmar10 4:39 (`grid.py`, 0.86 +-0.05), mizmar1 3:12 (first pass, 0.89, range 0.75-1.1); mizmar8 3:15.733-3:17.233 | medium for the length (two videos, two dancers, one method); low for the turn (one dancer) |
+| `STICK_TURN_MS` (extra) | one revolution in **630 ms** (mizmar8, 1.58 rev/s) and 930 ms (mizmar1, 1.07 rev/s); the next half-turn of the mizmar8 dancer is slower (0.5 rev/s) | 4d items 1 and 2, native hand counts, n = 1 revolution each | low: two single events |
+| `STEP_MS` (extra) | about 292 ms between landings of a hopping dancer (3.4 per second) | mizmar10 7:53.883-7:54.467, n = 2 intervals | low: one dancer, one moment |
+| `SEQUENCE` | not measurable: no fixed sequence. Poses seen: stick overhead, sticks meet, stride with stick low, in changing order, with stride the commonest and the longest | 4c, three stretches, 114 segments; a repeating block in one stretch is an artefact of the labels | low |
+| formation | rows (two facing rows, drummers at the closed end or beside) or a stationary ring round a fire box; dancers one to three at a time on the floor; nothing moves round a circle | mizmar10, mizmar1 (rows); mizmar6, mizmar8 (ring) | medium: four videos, by eye |
 
 ---
 
 ## Not covered by these frames
 
-- **No circle.** Nothing in the three videos shows men moving in a circle round the drummers, so the lead's "circle round the drummers" is not in this footage and not drawn from it.
-- **Feet.** Hidden by the thobe in nearly every shot; the few frames with visible feet do not give a step pattern.
-- **Staff spins.** Mostly too fast or too blurred to count at 24-25 fps; only one clean revolution (mizmar1 0:39.9-0:41.14) and one slow swing were counted.
-- **Pose order and beat.** One 4 s stretch only. The dance as a sequence of poses is not established by this footage.
-- **Instruments.** The sources of the audio pulse are off-screen in mizmar2 and mizmar3. Seen being played: hands on frame drums (keyframe 7, and 3:37-3:43 in mizmar2); the other drums (keyframes 1, 2, 8, 10) are seen but not seen being struck. I did not check whether music is laid over any soundtrack.
-- **Costume varies by troupe.** Maroon vests (keyframe 5), grey vests (8, 9), olive vests (10), white thobes with a yellow vest (4, 6), all different performances. There is no single costume to take from these frames.
-- **Video quality.** mizmar1 is an edited UNESCO montage with title cards, interview shots (3:28-3:52) and credits from 5:36; mizmar2 is a Saudi TV broadcast of a night stage with a channel logo; mizmar3 is amateur 480p camcorder footage from 2011 (not an official source) that is soft, shaky and upscaled.
-- **Searching.** Footage was chosen from candidate titles and descriptions; several other videos were rejected from title, channel and length without my seeing their pictures (listed in `LOG.md`), so usable footage may exist that I passed over.
+- **No circle round the drummers.** Not in any of the four videos. The rings seen are rings of standing men round a fire box, and they do not move; the rows of mizmar10 and mizmar1 do not move either. If a moving ring exists in a form of the dance I have not seen, it is not in this pack. In the other candidates I probed (30-tile sheets over the whole video, `analysis\LOG.md`) I saw rows, and rings of standing men round a fire or a bonfire, not men circling seated drummers; a sheet is 30 tiles, so a short circle could be missed, and I did not go through those videos frame by frame.
+- **No pipe.** The name of the dance means the pipe; no pipe is seen in any of the four videos. Two items outside the pack show something to check: a man plays a flute-like pipe held to the side of his mouth for the first 11 minutes of a Jazan heritage-village item (`Ep7f-Pp1Fu4`, 23:30, probe sheet seen), and a 97 s street procession titled as the Jeddah heritage festival (`UG-i7THykWA`, 400x224, strip `ug_40_p01.jpg` seen) shows dozens of men in white and checked head-cloths with round frame drums and long black-and-white banded sticks, some held horizontally in two hands and some raised towards the mouth; at that size I cannot say whether any of them is a pipe. Neither is mizmar stick-dance footage.
+- **The call-and-response of the two rows.** The near men of mizmar10 sing with open mouths while clapping; I did not check from the pictures or audio whether one row answers the other. The UNESCO text says so; I can't confirm it from this footage.
+- **Women.** None of the four videos shows women dancing (women are spectators in the street scenes of mizmar1 and appear in its interview inserts).
+- **Feet and steps per stroke.** Feet are visible in the close takes of mizmar8 and mizmar10, but only one hopping dancer was timed; no steps-per-stroke figure.
+- **A sustained stick spin.** None seen: two single revolutions, 0.63 s and 0.93 s. The troupe's sticks in mizmar10 are motion-blurred at 24 fps.
+- **The slow clap in mizmar6 and mizmar8.** It is not seen there; their accent group is 1.1-1.3 s but I did not check by eye that it is a clap.
+- **Pose order.** No fixed order in 60 s of one staged take; the community videos could not be labelled (hand-held wide shots with small figures).
+- **Candidates passed over.** Videos I looked at (a 30-tile sheet over the whole video, plus strips where noted) and did not use, because of the cap of four or a moving camera. All the reasons are in `analysis\LOG.md`:
+  - Community bonfire gatherings in the same ring-round-a-fire form as mizmar6 and mizmar8: `MTxODAWtsLg` (90 min, 720p; sand yard, fire in a brick ring, a large crowd round it, dancers with long sticks from about 37 min on, camera steady for up to 45 s at a time by `camshift.py`; I looked at its sheet but made no measurement), `DYcY24vzYf8` (3 h, 240p, a fixed high camera over a ring of men round a bonfire, two or three dancers moving round it; the ring does not move), `PJgyJpHXaNA` (bonfire on sand with frame drums lying round it and seated drummers, hand-held), `ovBPaCwyks4`, `WWOvCrq__rE`, `kt6pHBePndI` (dark, hand-held), and short archive clips from the Esam Junaid collection.
+  - Jeddah historic-district festival clips: `f9K_4gJ7IaI`, `8qRp5ZQtvL4`, `SiPQaOD_e08` (hand-held in crowds), and the Ministry of Culture and Information stage shows `TByURwdpnqQ` and `5L_uGbYiI0U` (a lit stage).
+  - Two night street-square videos from the old town, `ByHBy8TXX54` (3:24) and `zjikVXszU2Y` (7:45; its uploader, a tour company, writes "Local Hijazis perform cultural dance for expatriates and locals", so it is a tour performance): two men in white thobes with black belts face each other and swing long sticks while onlookers sit round on chairs; hand-held, dark, no singers or drummers in view.
+- **Quality.** mizmar6 is a 640x480 archive video (soft, with a 3-frame artefact); mizmar8 is hand-held wide-angle video with duplicate frames, with the camera at about head height; mizmar10 is a staged documentary; mizmar1 is a cut montage.

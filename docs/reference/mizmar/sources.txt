@@ -1,29 +1,43 @@
-Al-Mizmar (المزمار) reference footage -- sources
-Downloaded 2026-10-04 with yt-dlp 2026.08.19. Reference only.
+Al-Mizmar al-Hijazi (المزمار الحجازي) reference footage -- sources
+Pack rebuilt 2026-10-05 (second pass: authentic footage). Videos downloaded 2026-10-04 and 2026-10-05 with yt-dlp 2026.08.19. Reference only.
 Full-length videos are local only: C:\media\dances\mizmar\ (not in Drive, not in git).
+Video numbers are file numbers, not a count: mizmar2 and mizmar3 (first pass), mizmar4, mizmar5, mizmar7, mizmar9 and mizmar11 are not in the pack.
 
 mizmar1.mp4
   URL:      https://www.youtube.com/watch?v=LgnjjUjObPQ
   Title:    Almezmar, drumming and dancing with sticks
-  Channel:  UNESCO (official Intangible Cultural Heritage listing video; the channel is UNESCO and the description quotes the 2016 Representative List entry)
+  Channel:  UNESCO (official Intangible Cultural Heritage listing video; the channel is UNESCO and the UNESCO listing page for Almezmar, element 01011, embeds this video credited (c) Ahmed Abdullatif, 2015)
   Uploaded: 2016-12-01
   Length:   6:17 (street footage 0:04-3:27, interviews and a studio-style shot 3:28-3:56, drum, singer and stick close-ups 4:00-5:35, credits from about 5:36)
   Format:   720p H.264 + AAC, 24 fps
+  Authenticity: Made by the Saudi Heritage Preservation Society with the Ministry of Culture and Information for the UNESCO nomination (end credits read on screen: script Dr. Damna Al Zahrani, voice-over Mrs. Nuray Omar Bamanie, research incl. Mr. Esam Junaid, director/editor Ahmed Alsheme Abdullatif). The dance is named in the title and on a title card. Real performers in an old-town street square (rugs laid on paving; the place is not named in the footage I saw); whether they are a named troupe is not stated. The soundtrack is an edited mix, cut every few seconds. Heavy editing: the longest shot of the dance is 12.5 s.
 
-mizmar2.mp4
-  URL:      https://www.youtube.com/watch?v=JVT3eR7k4AE
-  Title:    المزمار الحجازي في الجنادرية ٣٢
-            (The Hejazi Mizmar at Janadriyah 32)
-  Channel:  السعودية (Saudi TV; the picture carries the channel logo and a #الجنادرية caption, broadcast-style footage)
-  Uploaded: 2018-02-16
-  Length:   6:09
-  Format:   720p H.264 + AAC, 25 fps
-
-mizmar3.mp4
-  URL:      https://www.youtube.com/watch?v=yF8J1y3JbEQ
-  Title:    لعبة المزمار الحجازي في الجنادرية
-            (The Hejazi Mizmar game at Janadriyah)
-  Channel:  أبو الأنس (an individual's channel; amateur hand-held camcorder footage, not an official source)
-  Uploaded: 2011-12-28
-  Length:   9:33
+mizmar6.mp4
+  URL:      https://www.youtube.com/watch?v=N0RH9VglrOM
+  Title:    لعب المزمار الحجازي الاصيل هزج(ياحليل الغزال) لأهالي المدينة وينبع من ارشيف الباحث والمؤرخ عصام جنيد
+            (The authentic Hejazi mizmar play, hazaj "Ya halil al-ghazal", by the people of Madinah and Yanbu, from the archive of the researcher and music historian Esam Junaid)
+  Channel:  موسيقى العرب (Music of the Arabs; an individual's channel that republishes the archive of Esam Junaid; the same film is also on his other channel أصل الغناء as CIZF-cUev-o)
+  Uploaded: 2019-06-16
+  Length:   4:06
   Format:   480p H.264 + AAC, 25 fps (the source is 640x480; the 1280 px frames in this pack are upscaled from it)
+  Authenticity: Archive film of a community performance (no troupe, venue or date is given; the picture is standard-definition video, probably 2000s). The uploader names it "the authentic Hejazi mizmar" and says the players are people of Madinah and Yanbu singing the zomal (lead song) "Salam salam ya jama'a"; named by the uploader, not independently verified. A large tent with lights, a ring of standing men, a fire box on the floor: an event setting. Two long high shots (0:11-1:59 and 1:59-4:05) in which the camera sits still for stretches of 9-37 s (camshift.py) and zooms between them. The spectrogram shows singing with clap or drum bursts; I have not listened to it and did not identify any music laid over it.
+
+mizmar8.mp4
+  URL:      https://www.youtube.com/watch?v=hM7OJakowwY
+  Title:    7 // احلى كاميرا 📽جوش مختار هوساوي 🔥 بشير هوساوي لعب مزمار  🪄 رضا زيتوني 🔥 مبروك بريك⚒ كادت غشنة
+            ("7 // Ahla Camera: the josh of Mukhtar Hawsawi, Bashir Hawsawi, playing mizmar, Reda Zaitouni, Mabrouk Brek, ...ghashna": names of players and Hejazi mizmar terms; I have not verified the terms)
+  Channel:  احلى كاميرا (Ahla Camera: a community videographer who films mizmar gatherings; the picture carries his small "Ahla Camera" logo at the top left and the names of the players at the top right)
+  Uploaded: 2021-11-20
+  Length:   6:47
+  Format:   1080p H.264 + AAC, 30 fps (195 MB)
+  Authenticity: A community gathering filmed openly by a community videographer (men only in view; a large crowd, well over a hundred, standing and sitting round a paved yard). No institution; the occasion, place and date are not stated. The title says it is mizmar ("لعب مزمار"), uploader's naming; not independently verified. The audio carries singing with clap or drum bursts (spectrograms); I have not listened to it. The camera is hand-held with a wide lens and keeps moving (a texture-region check, camshift.py, found no steady run of 8 s in 0:45-6:40).
+
+mizmar10.mp4
+  URL:      https://www.youtube.com/watch?v=NTusFc3zZbg
+  Title:    فيلم وثائقى عن فن المزمار
+            (Documentary film about the art of the mizmar)
+  Channel:  قناة لمسة السعودية (Lamsa Saudi channel; the film opens with a "First Media Documentaries" logo and a title card "Almzmar, Saudi Arabia, A TRADITIONAL PERFORMING ART")
+  Uploaded: 2019-10-08
+  Length:   9:22
+  Format:   1080p H.264 + AAC, 24 fps (306 MB)
+  Authenticity: A documentary that re-stages the dance with a costumed troupe in a courtyard with carved wooden balconies (the opening shots are aerials of a coast road and an old-town block, and a map at 1:56 marks a spot on a western coast; the film does not name the courtyard or the city in the frames I read) (matching green vests and turbans, flags) and intercuts older footage of community performances (lawn, hall, fire ring at 2:00-3:52; a street event at 7:08-7:32). The dance is named by the film's own title card. The courtyard takes (1:00-1:55, 4:36-6:10, 7:33-8:52) are the troupe, staged for the camera: authentic in the movements and instruments shown, not an event. The spectrograms of the courtyard takes show singing with clap and drum bursts, and the picture shows the claps; I have not listened to it and did not check whether music is laid over.

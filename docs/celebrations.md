@@ -359,9 +359,11 @@ sheaths, so they were painted out locally (a drawn jambiya leaves its sheath
 empty). The performers are generated from written descriptions; the street
 footage's people were never uploaded.
 
-**Before this ships to learners:** a Yemeni reviewer's sign-off, including
-whether street dress (jackets, bare heads) or a festival costume should
-represent the dance.
+**Costume, decided:** the street dress of the footage stays: suit jackets
+over a thobe or futa, bare heads, bare feet (the owner's call, 2026-10-06),
+rather than a festival costume.
+
+**Before this ships to learners:** a Yemeni reviewer's sign-off.
 
 ## The look
 

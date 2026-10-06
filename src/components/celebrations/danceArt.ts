@@ -29,6 +29,22 @@ import baraaRow2 from "@/assets/celebrations/baraa/row-2.webp";
 import baraaRow3 from "@/assets/celebrations/baraa/row-3.webp";
 import baraaRow4 from "@/assets/celebrations/baraa/row-4.webp";
 import baraaDrummer1 from "@/assets/celebrations/baraa/drummer-1.webp";
+import mizmarDancer1 from "@/assets/celebrations/mizmar/dancer-1.webp";
+import mizmarDancer2 from "@/assets/celebrations/mizmar/dancer-2.webp";
+import mizmarDancer3 from "@/assets/celebrations/mizmar/dancer-3.webp";
+import mizmarClapper1 from "@/assets/celebrations/mizmar/clapper-1.webp";
+import mizmarClapper2 from "@/assets/celebrations/mizmar/clapper-2.webp";
+import razhaRow1 from "@/assets/celebrations/razha/row-1.webp";
+import razhaRow2 from "@/assets/celebrations/razha/row-2.webp";
+import razhaRow3 from "@/assets/celebrations/razha/row-3.webp";
+import razhaDrummer1 from "@/assets/celebrations/razha/drummer-1.webp";
+import khammariRow1 from "@/assets/celebrations/khammari/row-1.webp";
+import khammariRow2 from "@/assets/celebrations/khammari/row-2.webp";
+import khammariRow3 from "@/assets/celebrations/khammari/row-3.webp";
+import khammariDrummer1 from "@/assets/celebrations/khammari/drummer-1.webp";
+import sanaaniRow1 from "@/assets/celebrations/sanaani/row-1.webp";
+import sanaaniRow2 from "@/assets/celebrations/sanaani/row-2.webp";
+import sanaaniSinger1 from "@/assets/celebrations/sanaani/singer-1.webp";
 
 /**
  * The cutout stills for each dance, in the order `DanceDefinition.sequence`
@@ -112,5 +128,42 @@ export const DANCE_ART: Record<string, DanceArt> = {
     // right and the drummer left so he stays in the open floor before it.
     dancersBox: { left: 30, width: 70, height: 64 },
     musicianBox: { left: -5, width: 34, height: 48 },
+  },
+  mizmar: {
+    // stride, cane down to the floor (keyframe 10) · cane vertical overhead
+    // (7) · cane level overhead, mid-twirl (4)
+    dancers: [mizmarDancer1, mizmarDancer2, mizmarDancer3],
+    // hands apart · palms meeting (6)
+    musician: [mizmarClapper1, mizmarClapper2],
+    // One dancer, and his stills leave headroom for the cane held overhead:
+    // a tall box in the middle of the stage, the clapper at the edge.
+    dancersBox: { left: 30, width: 60, height: 88 },
+    musicianBox: { left: 0, width: 28, height: 56 },
+  },
+  razha: {
+    // canes upright (keyframe 2) · raised and crossing (3) · held low
+    dancers: [razhaRow1, razhaRow2, razhaRow3],
+    // a barrel drum on a sling, the stick raised (6)
+    musician: [razhaDrummer1],
+    dancersBox: { left: 28, width: 72, height: 68 },
+    musicianBox: { left: -3, width: 34, height: 52 },
+  },
+  khammari: {
+    // upright (keyframe 1) · lean · bow (3)
+    dancers: [khammariRow1, khammariRow2, khammariRow3],
+    // a frame drum held at the chest (4)
+    musician: [khammariDrummer1],
+    dancersBox: { left: 30, width: 70, height: 64 },
+    musicianBox: { left: -3, width: 32, height: 54 },
+  },
+  sanaani: {
+    // hands joined in a chain (keyframe 1) · released, walking (3)
+    dancers: [sanaaniRow1, sanaaniRow2],
+    // an oud player singing, seated (8)
+    musician: [sanaaniSinger1],
+    // Three men side by side, arms out, are wider than they are tall, so
+    // they take the width; the singer sits low at the edge, partly off it.
+    dancersBox: { left: 12, width: 92, height: 62 },
+    musicianBox: { left: -9, width: 30, height: 34 },
   },
 };

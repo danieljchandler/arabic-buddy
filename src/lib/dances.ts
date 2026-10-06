@@ -460,12 +460,265 @@ export const TANOURA: DanceDefinition = {
   pumpOnHold: false,
 };
 
+/*
+ * Al-Mizmar's timing, measured from the reference footage in
+ * docs/reference/mizmar/README.md (its Timing section). The one steady clock
+ * in it is the rows' slow clap; the dancers' poses were labelled over 60 s of
+ * one troupe (mizmar10) and follow no beat and no fixed order.
+ */
+/**
+ * One clap of the rows: 1317 ms (mizmar10 4:38–5:32, 22 intervals, SD
+ * 18.5 ms), and the picture shows the palms meeting on 9 of 10 onsets within
+ * a frame. Medium confidence: one video, audio and picture agree.
+ */
+export const MIZMAR_CLAP_MS = 1317;
+/**
+ * The dancers' step: an eighth of a clap, 165 ms. The labelled take's own
+ * pulse is 166–168 ms; an eighth of the clap is within 2% of it and keeps the
+ * clapper and the dancer on one clock.
+ */
+export const MIZMAR_PULSE_MS = MIZMAR_CLAP_MS / 8;
+/**
+ * Holds, in pulses, from the mean of each pose's labelled segments: the
+ * stride 693 ms (4 pulses), the stick overhead 433 ms (3). The twirl is one
+ * revolution of the stick, 630 ms in the one clean count (4 pulses).
+ */
+export const MIZMAR_STRIDE_PULSES = 4;
+export const MIZMAR_OVERHEAD_PULSES = 3;
+export const MIZMAR_TWIRL_PULSES = 4;
+/** The palms meet for about three frames at 24 fps (125 ms): one pulse. */
+export const MIZMAR_CLAP_CONTACT_PULSES = 1;
+
+export const MIZMAR: DanceDefinition = {
+  id: "mizmar",
+  dialect: "Gulf",
+  title: "المزمار",
+  gloss: "Al-Mizmar",
+  region: "Hejaz, Saudi Arabia",
+  beatMs: MIZMAR_PULSE_MS,
+  musicianMs: MIZMAR_PULSE_MS,
+  // A dancer between the rows, not a row: no sway, and the hop (292 ms
+  // between landings, one dancer, one moment) is not tied to the pulse.
+  swayDeg: 0,
+  swayPeriodMs: 0,
+  bobPct: 0,
+  bobPeriodMs: 0,
+  // Drawn from the reference keyframes in docs/reference/mizmar/ (numbers are
+  // the README's entries), one dancer in mizmar10's troupe costume:
+  //   0 stride, the hand at head height, the cane down to the floor ahead (10)
+  //   1 stride, the cane held vertical above the head (7)
+  //   2 mid-step, the cane level above the head, half way round a twirl (4)
+  // There is no fixed order: stride is the commonest and longest, and the
+  // others come between strides. Sticks meeting takes two dancers, so the
+  // solo leaves it out.
+  sequence: [
+    ...repeat(0, MIZMAR_STRIDE_PULSES),
+    ...repeat(1, MIZMAR_OVERHEAD_PULSES),
+    ...repeat(0, MIZMAR_STRIDE_PULSES),
+    ...repeat(2, MIZMAR_TWIRL_PULSES),
+    ...repeat(0, MIZMAR_STRIDE_PULSES),
+    ...repeat(1, MIZMAR_OVERHEAD_PULSES),
+  ],
+  //   0 hands apart, the cane against the shoulder   1 the palms meet (6)
+  // One clap every eight pulses.
+  musicianSequence: [
+    ...repeat(1, MIZMAR_CLAP_CONTACT_PULSES),
+    ...repeat(0, MIZMAR_CLAP_MS / MIZMAR_PULSE_MS - MIZMAR_CLAP_CONTACT_PULSES),
+  ],
+  pumpOnHold: false,
+};
+
+/*
+ * Al-Razha's timing, measured from the reference footage in
+ * docs/reference/razha/README.md (its Timing section). The row's canes change
+ * state every 3–14 s, on neither the drums' stroke nor their accent; the
+ * stretch timed is razha12 6:20–7:00.
+ */
+/**
+ * The drums' accent: every fourth stroke of about 197 ms, about 775 ms
+ * (razha12, core medians 192–197 ms in five stretches). Medium confidence; no
+ * visible strike could be matched to the sound.
+ */
+export const RAZHA_ACCENT_MS = 775;
+/**
+ * How long each cane state lasts, in accents: upright 3.1 s (4), raised and
+ * crossing 3.9 s (5), held low 4.0 s (5), then upright again 12.4 s (16).
+ */
+export const RAZHA_UPRIGHT_ACCENTS = 4;
+export const RAZHA_CROSSING_ACCENTS = 5;
+export const RAZHA_LOW_ACCENTS = 5;
+export const RAZHA_LONG_UPRIGHT_ACCENTS = 16;
+
+export const RAZHA: DanceDefinition = {
+  id: "razha",
+  dialect: "Gulf",
+  title: "الرزحة",
+  gloss: "Al-Razha",
+  region: "Oman",
+  beatMs: RAZHA_ACCENT_MS,
+  musicianMs: RAZHA_ACCENT_MS,
+  // The men step in place with their feet on the ground, and no sway or bob
+  // could be counted (hand-held cameras, no repeating crest).
+  swayDeg: 0,
+  swayPeriodMs: 0,
+  bobPct: 0,
+  bobPeriodMs: 0,
+  // Drawn from the reference keyframes in docs/reference/razha/ (numbers are
+  // the README's entries), a row of razha12 seen from its end:
+  //   0 canes upright, hooks up, held at chest to belt height (2)
+  //   1 canes raised diagonally across the body at about 45°, crossing (3)
+  //   2 canes held low, slanting down and forward (the Timing section's
+  //     "held low", 6:27–6:31; no keyframe)
+  // The scene opens on the last two accents of the first stand, so the
+  // three-second scene reaches the crossing and the six the low hold. The
+  // later "raised forward and up" (14.4 s) comes after the longest scene ends,
+  // so it is not drawn.
+  sequence: [
+    ...repeat(0, RAZHA_UPRIGHT_ACCENTS / 2),
+    ...repeat(1, RAZHA_CROSSING_ACCENTS),
+    ...repeat(2, RAZHA_LOW_ACCENTS),
+    ...repeat(0, RAZHA_LONG_UPRIGHT_ACCENTS),
+  ],
+  //   0 a barrel drum on a rope sling, the stick raised (6). No stroke lands
+  //     in any frame, so he doesn't strike.
+  musicianSequence: [0],
+  pumpOnHold: false,
+};
+
+/*
+ * The Khammari's timing, measured from the reference footage in
+ * docs/reference/gulf-women/README.md (its Timing section): video 1, the
+ * Bahrain TV recording, where the women bow and lean while the men drum.
+ */
+/**
+ * The music's grid: about 234 ms, two steps to its 464 ms beat (video 1
+ * 7:48–8:40). Medium confidence; audio only.
+ */
+export const KHAMMARI_GRID_MS = 234;
+/**
+ * The right-end woman's change points (video 1 7:54.0–8:04.1), in grid steps:
+ * lean 0.3 s, bow 1.6 s, lean 0.5 s, upright 1.7 s, lean 1.0 s, upright 2.8 s,
+ * and the next bow follows. The scene opens on the last 0.9 s of the upright
+ * before the first lean, so the three-second scene reaches the bow.
+ */
+export const KHAMMARI_STEPS = {
+  openingUpright: 4,
+  firstLean: 1,
+  bow: 7,
+  secondLean: 2,
+  upright: 7,
+  thirdLean: 4,
+  longUpright: 8,
+} as const;
+
+export const KHAMMARI: DanceDefinition = {
+  id: "khammari",
+  dialect: "Gulf",
+  title: "الخماري",
+  gloss: "Al-Khammari",
+  region: "Bahrain",
+  beatMs: KHAMMARI_GRID_MS,
+  musicianMs: KHAMMARI_GRID_MS,
+  // The dips are drawn as poses; no sway or step bob was measured.
+  swayDeg: 0,
+  swayPeriodMs: 0,
+  bobPct: 0,
+  bobPeriodMs: 0,
+  // Drawn from the reference keyframes in docs/reference/gulf-women/
+  // (numbers are the README's entries), the women of video 1:
+  //   0 upright, hands together at the waist (1)
+  //   1 lean: head and shoulders dipped, less than a bow (the Timing
+  //     section's "lean"; no keyframe)
+  //   2 bow: bent forward from the waist, about 18°, head down (3)
+  // Deep bow and shallow lean alternate, as the footage's block of six does.
+  sequence: [
+    ...repeat(0, KHAMMARI_STEPS.openingUpright),
+    ...repeat(1, KHAMMARI_STEPS.firstLean),
+    ...repeat(2, KHAMMARI_STEPS.bow),
+    ...repeat(1, KHAMMARI_STEPS.secondLean),
+    ...repeat(0, KHAMMARI_STEPS.upright),
+    ...repeat(1, KHAMMARI_STEPS.thirdLean),
+    ...repeat(0, KHAMMARI_STEPS.longUpright),
+  ],
+  //   0 a man holding a frame drum at the chest (4). No stroke can be
+  //     matched to the sound, so he doesn't strike.
+  musicianSequence: [0],
+  pumpOnHold: false,
+};
+
+/*
+ * The Sana'ani dance's timing, measured from the reference footage in
+ * docs/reference/sanaani/README.md (its Timing section): sanaani17, the
+ * heritage film, where a line of men holds hands, lets go, walks and joins
+ * up again in a 13.2 s cycle while bobbing about twice a second.
+ */
+/**
+ * One down-and-up of the bodies: 535 ms (sanaani17, optical flow and a head
+ * tracker within 1%; 484–547 across shots). It is not tied to that film's
+ * track, so the bob is the scene's clock.
+ */
+export const SANAANI_BOB_MS = 535;
+/**
+ * How far the bob drops them: 2–6% of standing height peak to peak
+ * (sanaani17 only); the bodies fill about 90% of the row's box. Low
+ * confidence.
+ */
+export const SANAANI_BOB_PCT = 3.5;
+/**
+ * The cycle, in bobs: the chain about 11 s and the regrouping about 1 s
+ * (22 bobs between them; the regrouping has no keyframe, so the chain stands
+ * for it), the release walk about 1.5 s (3 bobs).
+ */
+export const SANAANI_CHAIN_BOBS = 22;
+export const SANAANI_RELEASE_BOBS = 3;
+/** Bobs of the chain before the release, so the three-second scene shows it. */
+export const SANAANI_OPENING_BOBS = 3;
+
+export const SANAANI: DanceDefinition = {
+  id: "sanaani",
+  dialect: "Yemeni",
+  title: "الرقص الصنعاني",
+  gloss: "Al-Raqs al-San'ani",
+  region: "Sana'a, Yemen",
+  beatMs: SANAANI_BOB_MS,
+  musicianMs: SANAANI_BOB_MS,
+  swayDeg: 0,
+  swayPeriodMs: 0,
+  bobPct: SANAANI_BOB_PCT,
+  bobPeriodMs: SANAANI_BOB_MS,
+  // Drawn from the reference keyframes in docs/reference/sanaani/ (numbers
+  // are the README's entries), the men of sanaani17:
+  //   0 the chain: hands joined, arms out at shoulder height, facing out (1)
+  //   1 the release: hands free, walking across the floor, from behind (3)
+  sequence: [
+    ...repeat(0, SANAANI_OPENING_BOBS),
+    ...repeat(1, SANAANI_RELEASE_BOBS),
+    ...repeat(0, SANAANI_CHAIN_BOBS - SANAANI_OPENING_BOBS),
+  ],
+  //   0 an oud player singing, seated (8, sanaani62). No stroke can be
+  //     matched to the sound, so the still doesn't change.
+  musicianSequence: [0],
+  // A held pose rides the bob; it doesn't jolt as well.
+  pumpOnHold: false,
+};
+
 /**
  * Every dance, in rotation order within each dialect. Order alternates kinds
  * of dance where a dialect has several, so two celebrations in a row rarely
  * look alike.
  */
-export const DANCES: readonly DanceDefinition[] = [ARDAH, AYYALA, ASSAYA, TANOURA, TAHTIB, BARAA];
+export const DANCES: readonly DanceDefinition[] = [
+  ARDAH,
+  AYYALA,
+  MIZMAR,
+  KHAMMARI,
+  RAZHA,
+  ASSAYA,
+  TANOURA,
+  TAHTIB,
+  BARAA,
+  SANAANI,
+];
 
 /**
  * The dances a dialect's learners rotate through. Empty while a dialect has

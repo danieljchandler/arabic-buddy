@@ -36,6 +36,28 @@ import {
   ARDAH_DRUM_STROKE_MS,
   ARDAH_SWAY_DEG,
   ARDAH_SWAY_PERIOD_MS,
+  KHAMMARI,
+  KHAMMARI_GRID_MS,
+  KHAMMARI_STEPS,
+  MIZMAR,
+  MIZMAR_CLAP_CONTACT_PULSES,
+  MIZMAR_CLAP_MS,
+  MIZMAR_OVERHEAD_PULSES,
+  MIZMAR_PULSE_MS,
+  MIZMAR_STRIDE_PULSES,
+  MIZMAR_TWIRL_PULSES,
+  RAZHA,
+  RAZHA_ACCENT_MS,
+  RAZHA_CROSSING_ACCENTS,
+  RAZHA_LONG_UPRIGHT_ACCENTS,
+  RAZHA_LOW_ACCENTS,
+  RAZHA_UPRIGHT_ACCENTS,
+  SANAANI,
+  SANAANI_BOB_MS,
+  SANAANI_BOB_PCT,
+  SANAANI_CHAIN_BOBS,
+  SANAANI_OPENING_BOBS,
+  SANAANI_RELEASE_BOBS,
   DANCES,
   danceById,
   dancesFor,
@@ -253,8 +275,8 @@ describe("the Ayyala itself", () => {
     expect(new Set(frames.map((f) => f.swapStep))).toEqual(new Set([start]));
   });
 
-  it("is a Gulf dance, so Gulf learners rotate between it and the Ardah", () => {
-    expect(dancesFor("Gulf")).toEqual([ARDAH, AYYALA]);
+  it("is a Gulf dance, second in the Gulf rotation", () => {
+    expect(dancesFor("Gulf")[1]).toBe(AYYALA);
   });
 });
 
@@ -438,3 +460,183 @@ describe("the Tahtib itself", () => {
   });
 });
 
+
+/** How far into the sequence a scene of this many milliseconds gets. */
+const shownIn = (dance: typeof ARDAH, ms: number) => dance.sequence.slice(0, Math.ceil(ms / dance.beatMs));
+
+describe("Al-Mizmar itself", () => {
+  it("uses only the three poses the reference keyframes show", () => {
+    // 0 stride, cane to the floor (10) · 1 cane vertical overhead (7) · 2 cane
+    // level overhead, mid-twirl (4)
+    expect(new Set(MIZMAR.sequence)).toEqual(new Set([0, 1, 2]));
+  });
+
+  it("claps every 1317 ms, the palms meeting for one pulse of eight", () => {
+    // README 4b: 1317 ms over 22 intervals (SD 18.5); contact about 3 frames.
+    expect(MIZMAR_CLAP_MS).toBe(1317);
+    expect(MIZMAR.musicianMs).toBe(MIZMAR_PULSE_MS);
+    expect(MIZMAR.musicianSequence).toHaveLength(8);
+    expect(MIZMAR.musicianSequence.filter((p) => p === 1)).toHaveLength(MIZMAR_CLAP_CONTACT_PULSES);
+    expect(MIZMAR.musicianSequence[0]).toBe(1);
+    // The next clap lands one clap cycle later.
+    expect(poseAt(MIZMAR, MIZMAR_CLAP_MS).musicianPose).toBe(1);
+    expect(poseAt(MIZMAR, MIZMAR_CLAP_MS / 2).musicianPose).toBe(0);
+  });
+
+  it("steps on an eighth of the clap, within 2% of the take's own 166–168 ms pulse", () => {
+    expect(MIZMAR.beatMs).toBe(MIZMAR_PULSE_MS);
+    expect(Math.abs(MIZMAR_PULSE_MS - 167) / 167).toBeLessThan(0.02);
+  });
+
+  it("holds each pose about as long as its labelled mean, with strides between the others", () => {
+    // README 4c: stride 693 ms, overhead 433 ms; one twirl revolution 630 ms (4d).
+    expect(Math.abs(MIZMAR_STRIDE_PULSES * MIZMAR_PULSE_MS - 693)).toBeLessThan(MIZMAR_PULSE_MS / 2);
+    expect(Math.abs(MIZMAR_OVERHEAD_PULSES * MIZMAR_PULSE_MS - 433)).toBeLessThan(MIZMAR_PULSE_MS / 2);
+    expect(Math.abs(MIZMAR_TWIRL_PULSES * MIZMAR_PULSE_MS - 630)).toBeLessThan(MIZMAR_PULSE_MS / 2);
+    const r = runs(MIZMAR.sequence);
+    // Stride is the commonest pose, and every other pose comes between strides.
+    r.forEach(([pose], i) => {
+      if (pose !== 0) {
+        expect(r[i - 1]?.[0]).toBe(0);
+        if (i + 1 < r.length) expect(r[i + 1][0]).toBe(0);
+      }
+    });
+    const stride = MIZMAR.sequence.filter((p) => p === 0).length;
+    expect(stride).toBeGreaterThan(MIZMAR.sequence.length / 2);
+  });
+
+  it("shows all three poses inside the three-second scene", () => {
+    expect(new Set(shownIn(MIZMAR, TIER_DURATION_MS.medium))).toEqual(new Set([0, 1, 2]));
+  });
+
+  it("holds a pose still between pulses, with no sway or bob", () => {
+    expect(MIZMAR.pumpOnHold).toBe(false);
+    expect(MIZMAR.swayDeg).toBe(0);
+    expect(MIZMAR.bobPct).toBe(0);
+  });
+});
+
+describe("Al-Razha itself", () => {
+  it("uses only the three cane states drawn from the footage", () => {
+    // 0 upright (2) · 1 raised and crossing (3) · 2 held low (Timing 4c)
+    expect(new Set(RAZHA.sequence)).toEqual(new Set([0, 1, 2]));
+  });
+
+  it("steps on the drums' 775 ms accent, four strokes of about 197 ms", () => {
+    expect(RAZHA.beatMs).toBe(RAZHA_ACCENT_MS);
+    expect(Math.abs(RAZHA_ACCENT_MS / 4 - 195)).toBeLessThan(5);
+  });
+
+  it("holds each state for its measured length, in the footage's order", () => {
+    // razha12 6:20–6:45: upright 3.1 s, crossing 3.9 s, low 4.0 s, upright 12.4 s.
+    expect(Math.abs(RAZHA_UPRIGHT_ACCENTS * RAZHA_ACCENT_MS - 3100)).toBeLessThan(RAZHA_ACCENT_MS / 2);
+    expect(Math.abs(RAZHA_CROSSING_ACCENTS * RAZHA_ACCENT_MS - 3900)).toBeLessThan(RAZHA_ACCENT_MS / 2);
+    expect(Math.abs(RAZHA_LOW_ACCENTS * RAZHA_ACCENT_MS - 4000)).toBeLessThan(RAZHA_ACCENT_MS / 2);
+    expect(Math.abs(RAZHA_LONG_UPRIGHT_ACCENTS * RAZHA_ACCENT_MS - 12400)).toBeLessThan(RAZHA_ACCENT_MS / 2);
+    expect(runs(RAZHA.sequence)).toEqual([
+      [0, RAZHA_UPRIGHT_ACCENTS / 2],
+      [1, RAZHA_CROSSING_ACCENTS],
+      [2, RAZHA_LOW_ACCENTS],
+      [0, RAZHA_LONG_UPRIGHT_ACCENTS],
+    ]);
+  });
+
+  it("reaches the crossing in the three-second scene and the low hold in the six", () => {
+    expect(shownIn(RAZHA, TIER_DURATION_MS.medium)).toContain(1);
+    expect(shownIn(RAZHA, TIER_DURATION_MS.large)).toContain(2);
+  });
+
+  it("keeps its one drummer still, and the row neither sways nor bobs", () => {
+    expect(RAZHA.musicianSequence).toEqual([0]);
+    expect(RAZHA.swayDeg).toBe(0);
+    expect(RAZHA.bobPct).toBe(0);
+  });
+});
+
+describe("the Khammari itself", () => {
+  it("uses only the three poses of the footage: upright, lean and bow", () => {
+    // 0 upright (1) · 1 lean (Timing 4c) · 2 bow (3)
+    expect(new Set(KHAMMARI.sequence)).toEqual(new Set([0, 1, 2]));
+  });
+
+  it("steps on the music's 234 ms grid, two steps to its 464 ms beat", () => {
+    expect(KHAMMARI.beatMs).toBe(KHAMMARI_GRID_MS);
+    expect(Math.abs(2 * KHAMMARI_GRID_MS - 464) / 464).toBeLessThan(0.02);
+  });
+
+  it("holds each pose for the right-end woman's measured spell, in her order", () => {
+    // Video 1 7:55.9–8:03.8: lean 0.3, bow 1.6, lean 0.5, upright 1.7,
+    // lean 1.0, upright 2.8 s (the last split across the loop).
+    const near = (steps: number, seconds: number) =>
+      expect(Math.abs(steps * KHAMMARI_GRID_MS - seconds * 1000)).toBeLessThan(KHAMMARI_GRID_MS);
+    near(KHAMMARI_STEPS.firstLean, 0.3);
+    near(KHAMMARI_STEPS.bow, 1.6);
+    near(KHAMMARI_STEPS.secondLean, 0.5);
+    near(KHAMMARI_STEPS.upright, 1.7);
+    near(KHAMMARI_STEPS.thirdLean, 1.0);
+    near(KHAMMARI_STEPS.openingUpright + KHAMMARI_STEPS.longUpright, 2.8);
+    expect(runs(KHAMMARI.sequence).map(([pose]) => pose)).toEqual([0, 1, 2, 1, 0, 1, 0]);
+  });
+
+  it("bows about every 7.9 s, as video 1 does", () => {
+    // Bows at 7:56.2, 8:04.1 and 8:11.6: 7.9 and 7.6 s apart.
+    const loop = KHAMMARI.sequence.length * KHAMMARI_GRID_MS;
+    expect(loop).toBeGreaterThanOrEqual(7400);
+    expect(loop).toBeLessThanOrEqual(8100);
+  });
+
+  it("reaches the bow inside the three-second scene", () => {
+    expect(shownIn(KHAMMARI, TIER_DURATION_MS.medium)).toContain(2);
+  });
+
+  it("keeps its one drummer still, and the women neither sway nor bob", () => {
+    expect(KHAMMARI.musicianSequence).toEqual([0]);
+    expect(KHAMMARI.swayDeg).toBe(0);
+    expect(KHAMMARI.bobPct).toBe(0);
+  });
+});
+
+describe("the Sana'ani dance itself", () => {
+  it("uses only the two poses the reference keyframes show", () => {
+    // 0 the chain, hands joined (1) · 1 the release walk (3)
+    expect(new Set(SANAANI.sequence)).toEqual(new Set([0, 1]));
+  });
+
+  it("bobs once every 535 ms, a few percent of their height", () => {
+    // README: 535 ms in sanaani17 (484–547 across shots); 2–6% peak to peak.
+    expect(SANAANI_BOB_MS).toBeGreaterThanOrEqual(484);
+    expect(SANAANI_BOB_MS).toBeLessThanOrEqual(547);
+    expect(SANAANI.beatMs).toBe(SANAANI_BOB_MS);
+    expect(SANAANI.bobPeriodMs).toBe(SANAANI_BOB_MS);
+    expect(SANAANI_BOB_PCT).toBeGreaterThanOrEqual(2);
+    expect(SANAANI_BOB_PCT).toBeLessThanOrEqual(6);
+    expect(SANAANI.bobPct).toBe(SANAANI_BOB_PCT);
+  });
+
+  it("lets go for about 1.5 s in a cycle of about 13.2 s", () => {
+    expect(Math.abs(SANAANI_RELEASE_BOBS * SANAANI_BOB_MS - 1500)).toBeLessThanOrEqual(150);
+    const cycle = (SANAANI_CHAIN_BOBS + SANAANI_RELEASE_BOBS) * SANAANI_BOB_MS;
+    expect(Math.abs(cycle - 13200)).toBeLessThan(SANAANI_BOB_MS);
+    expect(runs(SANAANI.sequence)).toEqual([
+      [0, SANAANI_OPENING_BOBS],
+      [1, SANAANI_RELEASE_BOBS],
+      [0, SANAANI_CHAIN_BOBS - SANAANI_OPENING_BOBS],
+    ]);
+  });
+
+  it("shows the release inside the three-second scene", () => {
+    expect(shownIn(SANAANI, TIER_DURATION_MS.medium)).toContain(1);
+  });
+
+  it("is the second Yemeni dance, with one musician who doesn't strike", () => {
+    expect(dancesFor("Yemeni")).toEqual([BARAA, SANAANI]);
+    expect(SANAANI.musicianSequence).toEqual([0]);
+    expect(SANAANI.swayDeg).toBe(0);
+  });
+});
+
+describe("the rotation", () => {
+  it("alternates kinds of dance within the Gulf: no two cane rows back to back", () => {
+    expect(dancesFor("Gulf")).toEqual([ARDAH, AYYALA, MIZMAR, KHAMMARI, RAZHA]);
+  });
+});

@@ -32,11 +32,14 @@ The trigger rules (the six moments, the once-a-day and once-per-run claims,
 the folding of a burst into one screen) came from PR #403, whose watercolor
 clips these collage scenes replace.
 
-The dances so far: the Saudi **Ardah** (العرضة) and the Emirati and Omani
-**Ayyala** (العيالة) for Gulf learners, the **Saidi cane dance** (رقص
-العصاية), the **Tanoura** (التنورة) and the **Tahtib** (التحطيب) for
-Egyptian learners, and
-**Al-Bara'** (البرع) for Yemeni learners.
+The dances so far: the Saudi **Ardah** (العرضة), the Emirati and Omani
+**Ayyala** (العيالة), the Hejazi **Mizmar** (المزمار), the Bahraini
+**Khammari** (الخماري) and the Omani **Razha** (الرزحة) for Gulf learners;
+the **Saidi cane dance** (رقص العصاية), the **Tanoura** (التنورة) and the
+**Tahtib** (التحطيب) for Egyptian learners; and **Al-Bara'** (البرع) and the
+**Sana'ani dance** (الرقص الصنعاني) for Yemeni learners. Within a dialect the
+rotation alternates kinds of dance, so the Gulf goes Ardah, Ayyala, Mizmar,
+Khammari, Razha.
 
 ## The Ardah (العرضة): drawn from reference keyframes and timed from the footage
 
@@ -365,6 +368,194 @@ rather than a festival costume.
 
 **Before this ships to learners:** a Yemeni reviewer's sign-off.
 
+## Al-Mizmar (المزمار): drawn from reference keyframes and timed from the footage
+
+A Gulf dance, from the Hejaz. Its reference pack is `docs/reference/mizmar/`
+(PR #414): the UNESCO inscription film (mizmar1), a community night in a yard
+(mizmar8) and a documentary that re-stages the dance with a costumed troupe
+in a courtyard (mizmar10), where the clap was timed and the poses labelled.
+The scene is one dancer between the rows, with a clapper from the rows.
+
+| State | Still | Keyframes (README entries) |
+|---|---|---|
+| Stride, the hand at head height, the cane running down to the floor ahead | `dancer-1.webp` | 10 (mizmar1 3:12) |
+| Stride, the cane held vertical above the head, the other hand low | `dancer-2.webp` | 7 (mizmar10 7:56) |
+| Mid-step, one foot lifted behind, the cane level above the head, half way round a twirl | `dancer-3.webp` | 4 (mizmar8 3:16) |
+| Clapper: hands apart at the chest, a cane leaning against his shoulder | `clapper-1.webp` | 6 (mizmar10 4:39) |
+| Clapper: palms meeting, one hand sliding over the other | `clapper-2.webp` | 6, and the 9-of-10 clap check in Timing 4b |
+| Costume: mizmar10's troupe, a green vest over a white thobe, a dark green belt, a green-and-white patterned turban, black shoes | all | 6, 7 |
+
+**Timing, in `src/lib/dances.ts`, from the README's Timing section.**
+
+| Constant | Value | Source |
+|---|---|---|
+| `MIZMAR_CLAP_MS` | 1317 | The rows' slow clap, mizmar10 4:38–5:32: 22 intervals, SD 18.5 ms; the palms meet on 9 of 10 onsets within a frame. Medium confidence |
+| `MIZMAR_PULSE_MS` | clap ÷ 8 (165) | The labelled take's own pulse is 166–168 ms; an eighth of the clap is within 2% of it and keeps the dancer and the clapper on one clock |
+| `MIZMAR_STRIDE_PULSES` | 4 | The stride's mean labelled segment, 693 ms (42 segments) |
+| `MIZMAR_OVERHEAD_PULSES` | 3 | The stick-overhead mean, 433 ms (42 segments) |
+| `MIZMAR_TWIRL_PULSES` | 4 | One revolution of the stick, 630 ms (mizmar8, the one clean count) |
+| `MIZMAR_CLAP_CONTACT_PULSES` | 1 | The palms touch for about three frames at 24 fps (125 ms) |
+
+**What the scene only approximates:**
+- **The order.** The footage has none: stride, overhead and sticks meeting
+  follow each other irregularly, stride the commonest and the longest. The
+  scene puts a stride between every other pose and keeps stride over half
+  the time (the footage: 29 of the 47 s with one of the two).
+- **The twirl** is one still, the stick level overhead, held for the length
+  of one revolution. A turning stick is a blur no still can show.
+- **The cane's slope in keyframe 10** measures 38° below horizontal in the
+  picture, from a raised camera behind the dancer. In profile, a cane 0.9 of
+  his height held at head height cannot reach the floor at 38°, so the still
+  keeps what the README says of the pose (hand at head height, cane down to
+  the floor ahead) and the slope comes out steeper.
+- **Sticks meeting** takes two dancers, and the scene has one, so it is left
+  out.
+
+**Assumptions:** one costume for all three poses (keyframe 10 is the UNESCO
+film's white thobe and skullcap, keyframe 4 a barefoot man in grey); the
+dancer faces frame-left, toward the clapper; the overhead still was generated
+smaller than the others and scaled 1.30 about his feet, the twirl still 1.04.
+
+**Before this ships to learners:** a Hejazi reviewer's sign-off.
+
+## Al-Razha (الرزحة): drawn from reference keyframes and timed from the footage
+
+A Gulf dance, from Oman. Its reference pack is `docs/reference/razha/` (PR
+#414). Everything drawn comes from razha12, a wedding Razha in Ja'alan Bani
+Bu Hassan filmed openly by one community videographer. Nothing is drawn from
+razha1, the British Library and Qatar Digital Library film, which asks users
+to follow its ethical-use policy (the pack's keyframe 10). The scene is three
+men at the near end of the row, and a drummer.
+
+| State | Still | Keyframes (README entries) |
+|---|---|---|
+| Canes upright, hooks up, held at chest-to-belt height | `row-1.webp` | 2 (razha12 6:40) |
+| Canes raised diagonally across the body at about 45°, hooks up and forward, crossing the neighbours' | `row-2.webp` | 3 (razha12 6:25) |
+| Canes held low, the hand at the belt, slanting down and forward | `row-3.webp` | Timing 4c, razha12 6:27–6:31 (no keyframe) |
+| Drummer: a rope-laced barrel drum on a sling at the hip, a thin stick raised to shoulder height, the other hand on the rim | `drummer-1.webp` | 6 (razha12 2:53) |
+| Costume: white and cream dishdashas, Omani turbans, a silver belt with a khanjar at the front, sandals; hooked canes | all row stills | 2, 3 |
+
+**Timing, in `src/lib/dances.ts`, from the README's Timing section.** The
+canes change state every 3–14 s, on neither the stroke nor the accent; the
+scene steps on the accent so each state's length is a whole number of them.
+
+| Constant | Value | Source |
+|---|---|---|
+| `RAZHA_ACCENT_MS` | 775 | Every fourth stroke of about 197 ms (razha12, core medians 192–197 ms in five stretches; accent lags 766–778 ms). Medium confidence; no strike matched in the picture |
+| `RAZHA_UPRIGHT_ACCENTS` | 4 | Upright 3.1 s (razha12 6:20.0) |
+| `RAZHA_CROSSING_ACCENTS` | 5 | Raised and crossing 3.9 s (6:23.1) |
+| `RAZHA_LOW_ACCENTS` | 5 | Held low 4.0 s (6:27.0) |
+| `RAZHA_LONG_UPRIGHT_ACCENTS` | 16 | Upright again 12.4 s (6:33.2) |
+
+**What the scene only approximates:**
+- **It opens part-way through the first stand**, on its last two accents,
+  so the three-second scene reaches the crossing (1.55 s) and the six the
+  low hold (5.4 s).
+- **The canes move together.** In the footage each man is out of step with
+  the next, and the changes are timed for the men nearest the camera.
+- **"Raised forward and up"** (14.4 s, from 6:45.6) comes after the longest
+  scene ends, so it is not drawn; nor is the mixed stretch at 6:31.
+- **The drummer doesn't strike.** Several drums sound at once and no stroke
+  in the picture lands on a skin.
+
+**Assumptions:** the row faces frame-left, toward the drummer; three men
+stand in for the row; no rifle is drawn (keyframe 3 has one in the middle of
+the row). The upright canes are brown against the backdrop grey, which
+neither cutout model keeps, so `make_cutouts.py --key-colour` keys them back
+in.
+
+**Before this ships to learners:** an Omani reviewer's sign-off.
+
+## The Khammari (الخماري): drawn from reference keyframes and timed from the footage
+
+A Gulf dance, and the first women's dance in the set. Its reference pack is
+`docs/reference/gulf-women/` (PR #414), and the scene uses only its video 1:
+a Bahrain TV recording whose own caption names the dance ("فن .. خماري"), on a
+courtyard set, where the women bow and lean while the men drum. Nothing is
+drawn from videos 2 and 6, which the pack flags (a bare-headed singer, young
+performers, a women-only room). The rules for the women, from the pack and
+from #403: television footage only, hair covered, described by costume,
+formation and movement only.
+
+| State | Still | Keyframes (README entries) |
+|---|---|---|
+| Upright, hands together at the waist | `row-1.webp` | 1 (gulf-women1 0:12) |
+| Lean: head and shoulders dipped, the torso inclined less than a bow | `row-2.webp` | Timing 4c (no keyframe) |
+| Bow: bent forward from the waist, about 18°, head down, the head cloth falling forward | `row-3.webp` | 3 (gulf-women1 7:57) |
+| Drummer: a man in a white thobe and ghutra holding a frame drum at the chest | `drummer-1.webp` | 4 (gulf-women1 1:30) |
+| Costume: long printed floral gowns (a red one with a green panel, as the measured woman wears), each with a cloth drawn over the head and down the back | all row stills | 1, 3 |
+
+**Timing, in `src/lib/dances.ts`, from the README's Timing section.** The
+right-end woman of video 1 was labelled change by change at 10 fps
+(7:54.0–8:17.9); the scene plays her first block on the music's grid.
+
+| Constant | Value | Source |
+|---|---|---|
+| `KHAMMARI_GRID_MS` | 234 | The onset grid, two steps to the 464 ms beat (video 1 7:48–8:40). Medium confidence; audio only |
+| `KHAMMARI_STEPS` | 4 · 1 · 7 · 2 · 7 · 4 · 8 | Upright (its last 0.9 s), lean 0.3 s, bow 1.6 s, lean 0.5 s, upright 1.7 s, lean 1.0 s, upright 2.8 s (8 + the opening 4 across the loop): 7:55.0–8:03.8. The loop is 7.7 s; her bows come 7.9 and 7.6 s apart |
+
+**What the scene only approximates:**
+- **The lean has no keyframe**; its still follows the README's definition.
+- **The women move together.** Only the right-end woman was timed.
+- **The drummer doesn't strike.** No strike was matched to the sound.
+- **The calligraphy on the drum** (red lettering in keyframes 2 and 4) is
+  left off: the image model misspelled it, and the lettering can't be read
+  in the footage anyway.
+- **The men lead the dance in the footage** (the pack's flag 5): a line of
+  about fifteen drummers, one woman among them. The scene keeps the women's
+  bow and one drummer.
+
+**Assumptions:** three women stand in for the two groups; they face
+frame-left, toward the drummer (the model drew them facing right, so the
+stills are mirrored, which changes nothing in a printed gown).
+
+**Decided:** the women are generated photographic cutouts, like every other
+dance (the owner's call, 2026-10-06), rather than drawn or silhouetted.
+
+**Before this ships to learners:** a Bahraini reviewer's sign-off.
+
+## The Sana'ani dance (الرقص الصنعاني): drawn from reference keyframes and timed from the footage
+
+The second Yemeni dance. Its reference pack is `docs/reference/sanaani/`
+(PR #414): the heritage film (sanaani17, the one video that names the dance
+on screen), a satellite-TV programme and a studio's video of a men's wedding
+in Sana'a (sanaani62). The dancers are sanaani17's; the singer is
+sanaani62's.
+
+| State | Still | Keyframes (README entries) |
+|---|---|---|
+| The chain: hands joined, arms out at shoulder height, facing the camera | `row-1.webp` | 1 (sanaani17 5:00) |
+| The release: hands free, walking across the floor, seen from behind | `row-2.webp` | 3 (sanaani17 5:11) |
+| Singer: a young man seated, singing with his eyes half closed, an oud across his lap, in a grey jacket with an embroidered mustard shawl and a flower garland | `singer-1.webp` | 8 (sanaani62 0:50) |
+| Costume: a dark blazer over a white shirt, a white ankle-length skirt, a gold belt with a jambiya, a cream-and-gold head cloth with tails, black socks and shoes | both row stills | 1, 3 |
+
+**Timing, in `src/lib/dances.ts`, from the README's Timing section.** The
+movement measured best is the bob, about twice a second in all three videos;
+sanaani17's is the scene's clock, since its stills are sanaani17's.
+
+| Constant | Value | Source |
+|---|---|---|
+| `SANAANI_BOB_MS` | 535 | sanaani17: optical flow and a head tracker within 1% (535.0 / 532.5 ms); 484–547 across shots. Not tied to that film's track |
+| `SANAANI_BOB_PCT` | 3.5 | 2–6% of standing height peak to peak (sanaani17 only; low confidence); the bodies fill about 90% of the box |
+| `SANAANI_RELEASE_BOBS` | 3 | The release walk, 1.4–1.6 s (five times in sanaani17 4:57–5:51) |
+| `SANAANI_CHAIN_BOBS` | 22 | The chain, about 11 s, and the regrouping, 0.4–1.2 s: a cycle of 13.4 s against the measured 13.2 |
+| `SANAANI_OPENING_BOBS` | 3 | Bobs of chain before the first release, so the three-second scene shows it |
+
+**What the scene only approximates:**
+- **The regrouping** (the men turning back to face the camera, hands still
+  free) has no keyframe, so the chain comes straight back after the walk.
+- **The bob** is a rigid drop of the whole row, as in Al-Bara'.
+- **The singer doesn't play.** No oud stroke could be matched to the sound,
+  and he comes from a different video from the dancers. His microphone on
+  its stand is left out; the tray player beside him is not drawn.
+
+**Assumptions:** three men stand in for keyframe 1's line of six (keyframe
+3 shows four walking); they walk toward frame-right in the release, away from
+the singer; the release still was generated smaller and scaled 1.13 about
+their feet.
+
+**Before this ships to learners:** a Yemeni reviewer's sign-off.
+
 ## The look
 
 The owner picked this direction from two style rounds. Its references are
@@ -469,7 +660,15 @@ so a reload doesn't replay it.
    models keep because they are boxed in (between a cane and a robe, or
    between two men), and calms the torn edge along anything thin, which
    otherwise turns a cane into a string of beads. Both were added for the
-   Ayyala; the Ardah's stills were cut before them.
+   Ayyala; the Ardah's stills were cut before them. Two flags cover what
+   the models miss: `--keep-grey` for a figure dressed in the backdrop's own
+   grey (the Tahtib's drummer), and `--key-colour` for a coloured prop the
+   models drop, such as the Razha's brown canes.
+
+   The Mizmar, Sana'ani and Khammari stills were lined up before cutting:
+   each scaled by a factor read off its head-to-feet height (checked on the
+   vest or jacket) and moved so its feet sit on one floor line and the
+   middle of its robe on one centre line.
 4. **Add the dance** to `DANCES` in `src/lib/dances.ts` (title, gloss,
    region, beat, sequence, each timing number a named constant with its
    source) and its stills to `danceArt.ts`, with a `dancersBox` when the
@@ -483,16 +682,9 @@ so a reload doesn't replay it.
 
 - **Ta'sheer:** the dance in the Telfaz11 reference is danced with rifles. The
   Ardah, with swords, was chosen for Saudi.
-- **Women's dances:** every dance drawn so far is danced by men. The Saidi
-  cane dance is drawn from its pack's solo man, because no woman in the
-  footage twirls, tosses or balances a cane. The Gulf women's dances had no
-  usable footage (PR #414), and the Sana'ani pack is weak. Not decided. If
-  included, they should be drawn or silhouetted inside the same collage
-  rather than photographic.
-- **The remaining packs:** Al-Mizmar, Al-Razha and the Sana'ani dance have
-  reference packs in PR #414, but the weakest ones. The Razha's frames 1 and
-  2 come from a British Library and Qatar Foundation film with an ethical-use
-  policy, which needs checking before anything is drawn from them.
+- **The Gulf frame is Najdi** for every Gulf dance, the Hejazi, Omani and
+  Bahraini ones included. A frame per region (Hejazi rawashin, Omani
+  doorways, Bahraini wind towers) is not drawn.
 - **Sound:** the dance screen itself is silent. A separate sung celebration
   (PR #416, `useCelebrationSong`) plays on a lesson's finish and the day's
   goal, so on those two moments the learner gets the dance and a song

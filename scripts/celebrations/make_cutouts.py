@@ -4,9 +4,13 @@
     python scripts/celebrations/make_cutouts.py dancer out/ pose1.png pose2.png ...
     python scripts/celebrations/make_cutouts.py drummer out/ drum1.png drum2.png
     python scripts/celebrations/make_cutouts.py drummer --keep-grey out/ drum1.png ...
+    python scripts/celebrations/make_cutouts.py dancer --key-colour out/ row1.png ...
 
 --keep-grey skips taking out backdrop-grey patches, for a figure dressed in
 the backdrop's own grey (it would take holes out of his robe).
+
+--key-colour also keys in anything coloured against the neutral backdrop, for
+thin props neither model keeps: the brown canes of a row standing upright.
 
 Each photo gets a union matte (a person model for the body, a general model
 for whatever is held, such as a sword or a drum), a grayscale finish, and the
@@ -32,7 +36,7 @@ def session(name):
     return _sessions[name]
 
 
-def matte(im, keep_grey=False):
+def matte(im, keep_grey=False, key_colour=False):
     # A white thobe on a pale backdrop defeats either model alone: the person
     # model keeps the robe, the general one keeps the blade.
     person = remove(im, session=session("u2net_human_seg"), post_process_mask=True).getchannel("A")
@@ -50,6 +54,10 @@ def matte(im, keep_grey=False):
         key[int(rows.min() + (rows.max() - rows.min()) * 0.62):] = False
     key = ndi.binary_opening(key, iterations=1)
     a = a | key
+    # A brown cane is darker than the backdrop, so the key above misses it,
+    # but it is coloured and the backdrop is not.
+    if key_colour:
+        a |= ndi.binary_opening(rgb.max(2) - rgb.min(2) > 28, iterations=1)
     # Backdrop the models kept because it is boxed in: between a cane and a
     # robe, or in the gap between two men standing shoulder to shoulder. It is
     # the backdrop's own flat grey, so take out any large patch of it (small
@@ -89,9 +97,9 @@ def grayscale(im):
     return g.filter(ImageFilter.UnsharpMask(radius=2, percent=90, threshold=2)).convert("RGB")
 
 
-def sticker(path, seed, keep_grey=False):
+def sticker(path, seed, keep_grey=False, key_colour=False):
     im = Image.open(path).convert("RGB")
-    alpha = matte(im, keep_grey)
+    alpha = matte(im, keep_grey, key_colour)
     edge = rough_edge(alpha, 5, seed)
     out = Image.new("RGBA", im.size, (0, 0, 0, 0))
     paper = Image.new("RGBA", im.size, (251, 248, 240, 255))
@@ -102,8 +110,8 @@ def sticker(path, seed, keep_grey=False):
     return Image.alpha_composite(out, body)
 
 
-def main(kind, out_dir, paths, keep_grey=False):
-    stickers = [sticker(p, seed=i + 1, keep_grey=keep_grey) for i, p in enumerate(paths)]
+def main(kind, out_dir, paths, keep_grey=False, key_colour=False):
+    stickers = [sticker(p, seed=i + 1, keep_grey=keep_grey, key_colour=key_colour) for i, p in enumerate(paths)]
     boxes = [s.getbbox() for s in stickers]
     w, h = stickers[0].size
     box = (
@@ -125,7 +133,8 @@ def main(kind, out_dir, paths, keep_grey=False):
 if __name__ == "__main__":
     args = sys.argv[1:]
     keep_grey = "--keep-grey" in args
-    args = [a for a in args if a != "--keep-grey"]
+    key_colour = "--key-colour" in args
+    args = [a for a in args if a not in ("--keep-grey", "--key-colour")]
     if len(args) < 3 or args[0] not in HEIGHTS:
         sys.exit(__doc__)
-    main(args[0], args[1], args[2:], keep_grey)
+    main(args[0], args[1], args[2:], keep_grey, key_colour)

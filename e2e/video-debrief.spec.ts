@@ -217,6 +217,14 @@ test.describe("a session", () => {
     await expect(summary.getByText("Session complete")).toBeVisible();
     await expect(summary.getByText(/Keep working on/)).toContainText("last night");
     await expect(summary.getByRole("link", { name: "Back to the video" })).toHaveAttribute("href", `/discover/${VIDEO}`);
+
+    // Talking the video through to the end is one of the moments the learner is
+    // sung to, by the name they set.
+    await expect.poll(() => backend.callsTo("generate-celebration-song").length, { timeout: 10_000 }).toBe(1);
+    expect(backend.lastCallTo("generate-celebration-song")?.body).toMatchObject({
+      name: "Test Learner",
+      achievement: { kind: "review_conversation_complete" },
+    });
   });
 
   test("lets the learner move on before the tutor says so", async ({ page }) => {

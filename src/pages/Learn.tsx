@@ -11,6 +11,7 @@ import {
   type LessonFlowState,
 } from "@/lib/lessonFlow";
 import { useAuth } from "@/hooks/useAuth";
+import { useCelebrationSong } from "@/hooks/useCelebrationSong";
 import { useSubmitReview, type WordReview } from "@/hooks/useReview";
 import { toast } from "@/hooks/use-toast";
 import { IntroCard } from "@/components/learn/IntroCard";
@@ -79,6 +80,13 @@ const Learn = () => {
   const completed = wordsCompleted(flow, words.length);
   const [sessionResults, setSessionResults] = useState({ correct: 0, total: 0 });
   const [isComplete, setIsComplete] = useState(false);
+  const celebrate = useCelebrationSong();
+  // Both ways of finishing set `isComplete`, so it is the one place to sing
+  // from. Mixed practice has no lesson to finish; the guard in the hook keeps
+  // a lesson to one song however often it is replayed.
+  useEffect(() => {
+    if (isComplete && lessonId) void celebrate({ kind: "lesson_complete", entityId: lessonId });
+  }, [isComplete, lessonId, celebrate]);
   // The produce step's coaching sheet, and whether a take was actually made —
   // finishing without one is allowed, it just isn't pretended to be practice.
   const [produceOpen, setProduceOpen] = useState(false);

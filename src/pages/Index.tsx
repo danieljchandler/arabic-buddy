@@ -8,6 +8,8 @@ import { useUserVocabularyDueCount } from "@/hooks/useUserVocabulary";
 import { useSRSStats } from "@/hooks/useSRSStats";
 import { useUserXP } from "@/hooks/useGamification";
 import { useTodayQueue } from "@/hooks/useTodayQueue";
+import { useCelebrationSong } from "@/hooks/useCelebrationSong";
+import { localDateKey, wereTasksTouchedToday } from "@/lib/celebrationSong";
 import { Button } from "@/components/design-system";
 import { Settings, Brain, LogOut, Sparkles, GraduationCap, ChevronRight, Globe2, Users, Settings2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -144,6 +146,17 @@ const Index = () => {
       celebrate({ kind: "goal" });
     }
   }, [allTasksDone, isAuthenticated]);
+
+  // The last task is usually finished on another page, so this fires when the
+  // learner lands back here with everything done. `wereTasksTouchedToday` keeps
+  // it from singing at someone who only opened the page on a finished day.
+  const celebrate = useCelebrationSong();
+  const allTasksDone = tasksTotal > 0 && tasksCompleted === tasksTotal;
+  useEffect(() => {
+    if (allTasksDone && wereTasksTouchedToday()) {
+      void celebrate({ kind: "daily_tasks_complete", entityId: localDateKey() });
+    }
+  }, [allTasksDone, celebrate]);
 
   // Video leads the page as a full card at the very top rather than as a row
   // buried in the queue, so it is pulled out of the list here — it still counts

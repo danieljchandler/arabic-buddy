@@ -1,0 +1,161 @@
+/*
+ * The collage stage for milestone celebrations. Artwork, not chrome: it keeps
+ * its own fixed colours in both themes, the way the kept sadu play button does.
+ */
+.cel-stage {
+  --cel-mustard: #e2b65c;
+  --cel-oxblood: #6b1f1f;
+  --cel-ink: #1a1c17;
+  --cel-paper: #f7f1e3;
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  aspect-ratio: 2 / 3;
+  width: min(92vw, 60vh, 440px);
+  background: var(--cel-mustard);
+  container-type: inline-size;
+}
+.cel-stage > * { position: absolute; }
+
+/* Faint print on the paper, as in the reference collages. */
+.cel-news {
+  inset: -3% -3% 0;
+  column-count: 3;
+  column-gap: 12px;
+  padding: 4px 6px;
+  overflow: hidden;
+  direction: rtl;
+  text-align: justify;
+  font-family: var(--font-naskh);
+  font-size: 9px;
+  line-height: 1.45;
+  color: rgb(26 28 23 / 0.085);
+}
+.cel-news p { margin: 0 0 6px; }
+
+.cel-grain {
+  inset: 0;
+  z-index: 9;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  opacity: 0.45;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .1 0 0 0 0 .1 0 0 0 0 .08 0 0 0 .6 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.cel-grid {
+  left: 4%;
+  top: 46%;
+  width: 46%;
+  height: 28%;
+  transform: rotate(-4deg);
+  background-color: var(--cel-paper);
+  background-image:
+    linear-gradient(rgb(26 28 23 / 0.13) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(26 28 23 / 0.13) 1px, transparent 1px);
+  background-size: 9px 9px;
+  box-shadow: 1px 2px 0 rgb(26 28 23 / 0.18);
+}
+
+.cel-circle {
+  left: 28%;
+  top: 43%;
+  width: 64%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--cel-oxblood);
+}
+
+.cel-frame {
+  left: 6%;
+  top: 3.5%;
+  width: 88%;
+  height: auto;
+  overflow: visible;
+  filter: drop-shadow(1px 2px 0 rgb(26 28 23 / 0.2));
+}
+
+.cel-caption {
+  right: 6%;
+  top: 27%;
+  z-index: 2;
+  padding: 0 6px;
+  background: var(--cel-ink);
+  color: var(--cel-paper);
+  font: 500 10px/1.8 var(--font-ink-ui, var(--font-sans));
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.cel-tape {
+  z-index: 3;
+  width: 18%;
+  height: 4.5%;
+  background: rgb(247 241 227 / 0.78);
+  box-shadow: 0 1px 1px rgb(26 28 23 / 0.15);
+}
+.cel-tape-1 { left: 3%; top: 3.5%; transform: rotate(-24deg); }
+.cel-tape-2 { right: 3%; top: 20%; transform: rotate(-18deg); }
+
+/* A figure's stills are stacked; only the current one is visible, so a swap
+   never waits on a network fetch. */
+.cel-figure { bottom: 1.5%; transform-origin: 50% 100%; }
+.cel-figure img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; object-position: 50% 100%; }
+/* The dancers stand on the right and face left, toward the open space where
+   the musician is (the Ardah's keyframes 1, 3 and 4 put the drummers between
+   the rows). A dance whose stills are framed differently sets its own boxes
+   (danceArt.ts) through these variables. */
+.cel-dancers { z-index: 4; left: var(--cel-dancers-left, 22%); width: var(--cel-dancers-width, 78%); height: var(--cel-dancers-height, 66%); }
+.cel-dancers-still { position: absolute; inset: 0; transform-origin: 50% 100%; }
+.cel-musician { z-index: 5; left: var(--cel-musician-left, -2%); width: var(--cel-musician-width, 38%); height: var(--cel-musician-height, 50%); }
+
+/* The sway: the dancers lean one way, then the other, as one. */
+@keyframes cel-sway {
+  0%, 100% { rotate: calc(var(--cel-sway-deg) * -1); }
+  50% { rotate: var(--cel-sway-deg); }
+}
+.cel-sway { animation: cel-sway var(--cel-sway-ms) ease-in-out infinite; }
+
+/* The bob: the dancers drop and rise once per step, together. A layer of its
+   own, so it adds to the sway rather than replacing it. */
+.cel-bobber { position: absolute; inset: 0; }
+@keyframes cel-bob {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 var(--cel-bob-pct); }
+}
+.cel-bob { animation: cel-bob var(--cel-bob-ms) ease-in-out infinite; }
+
+/* Each swap lands with a small jolt. Two identical keyframes, alternated by
+   beat, restart the animation without remounting the images. */
+@keyframes cel-pop-a { from { scale: 1.05; } to { scale: 1; } }
+@keyframes cel-pop-b { from { scale: 1.05; } to { scale: 1; } }
+.cel-pop-a { animation: cel-pop-a 140ms ease-out; }
+.cel-pop-b { animation: cel-pop-b 140ms ease-out; }
+
+/* Under the frame rather than at the foot of the stage, where they would
+   cover the musician's legs. */
+.cel-labels {
+  left: 5%;
+  top: 31%;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.cel-label { background: var(--cel-ink); color: var(--cel-paper); padding: 0 9px; }
+.cel-praise {
+  font-family: var(--font-ink-display, var(--font-arabic-display));
+  font-size: clamp(28px, 12cqw, 52px);
+  line-height: 1.35;
+  color: var(--cel-mustard);
+}
+.cel-headline { font: 600 14px/1.9 var(--font-ink-ui, var(--font-sans)); }
+
+/* A dialect with no dance drawn yet: the paper, the circle and the labels,
+   with the labels where the frame would be. */
+.cel-stage-bare .cel-labels { top: 9%; }
+.cel-stage-bare .cel-circle { left: 18%; top: 34%; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cel-pop-a, .cel-pop-b, .cel-sway, .cel-bob { animation: none; }
+}

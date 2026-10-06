@@ -34,6 +34,7 @@ import { useLessonProgressFor, useUpsertLessonProgress } from "@/hooks/useLesson
 import { ListChecks, Mic, Sparkles } from "lucide-react";
 import { EmptyState } from "@/components/shared/EmptyState";
 import { SentencePracticeSheet } from "@/components/practice/SentencePracticeSheet";
+import { celebrate } from "@/lib/celebrations";
 
 type Phase = "intro" | "quiz" | "produce";
 
@@ -79,13 +80,15 @@ const Learn = () => {
   const completed = wordsCompleted(flow, words.length);
   const [sessionResults, setSessionResults] = useState({ correct: 0, total: 0 });
   const [isComplete, setIsComplete] = useState(false);
-  const celebrate = useCelebrationSong();
+  // `sing`, not `celebrate`: that name is the celebration screen's, fired in
+  // handleProduceFinish.
+  const sing = useCelebrationSong();
   // Both ways of finishing set `isComplete`, so it is the one place to sing
   // from. Mixed practice has no lesson to finish; the guard in the hook keeps
   // a lesson to one song however often it is replayed.
   useEffect(() => {
-    if (isComplete && lessonId) void celebrate({ kind: "lesson_complete", entityId: lessonId });
-  }, [isComplete, lessonId, celebrate]);
+    if (isComplete && lessonId) void sing({ kind: "lesson_complete", entityId: lessonId });
+  }, [isComplete, lessonId, sing]);
   // The produce step's coaching sheet, and whether a take was actually made —
   // finishing without one is allowed, it just isn't pretended to be practice.
   const [produceOpen, setProduceOpen] = useState(false);
@@ -311,6 +314,12 @@ const Learn = () => {
   const handleProduceFinish = () => {
     setProduceOpen(false);
     setIsComplete(true);
+    // The celebration screen (CelebrationHost), the first time only:
+    // savedProgress is the state from before this finish, so "not completed"
+    // means this is the first time. Practice Again finds it completed.
+    if (!isMixedMode && savedProgress?.status !== "completed") {
+      celebrate({ kind: "lesson", detail: topic?.name || undefined });
+    }
     if (!isMixedMode && lessonId && user) {
       upsertProgress.mutate({
         lessonId,

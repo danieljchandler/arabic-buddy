@@ -38,6 +38,7 @@ import { DailyGoalRing } from "@/components/today/DailyGoalRing";
 import { TaskRow } from "@/components/today/TaskRow";
 import { WatchTodayCard } from "@/components/today/WatchTodayCard";
 import { getDailyGoal, setDailyGoal } from "@/lib/todayCompletion";
+import { celebrate, claimDailyGoalCelebration } from "@/lib/celebrations";
 import { ContinueCard } from "@/components/ContinueCard";
 import { LandingPage } from "@/components/LandingPage";
 
@@ -135,17 +136,28 @@ const Index = () => {
   const visibleTasks = todayTasks.filter((t) => !t.hidden);
   const tasksCompleted = visibleTasks.filter((t) => t.done).length;
   const tasksTotal = visibleTasks.length;
+  const allTasksDone = tasksCompleted > 0 && tasksCompleted === tasksTotal;
 
-  // The last task is usually finished on another page, so this fires when the
-  // learner lands back here with everything done. `wereTasksTouchedToday` keeps
-  // it from singing at someone who only opened the page on a finished day.
-  const celebrate = useCelebrationSong();
-  const allTasksDone = tasksTotal > 0 && tasksCompleted === tasksTotal;
+  // The first time today's list reads all-done: the full celebration screen.
+  // The inline "Daily goal complete" card below stays as the quiet version
+  // every later visit shows.
+  useEffect(() => {
+    if (allTasksDone && isAuthenticated && claimDailyGoalCelebration()) {
+      celebrate({ kind: "goal" });
+    }
+  }, [allTasksDone, isAuthenticated]);
+
+  // The song, beside the screen above. The last task is usually finished on
+  // another page, so this fires when the learner lands back here with
+  // everything done. `wereTasksTouchedToday` keeps it from singing at someone
+  // who only opened the page on a finished day. (`sing`, not `celebrate`:
+  // that name is the celebration screen's, imported above.)
+  const sing = useCelebrationSong();
   useEffect(() => {
     if (allTasksDone && wereTasksTouchedToday()) {
-      void celebrate({ kind: "daily_tasks_complete", entityId: localDateKey() });
+      void sing({ kind: "daily_tasks_complete", entityId: localDateKey() });
     }
-  }, [allTasksDone, celebrate]);
+  }, [allTasksDone, sing]);
 
   // Video leads the page as a full card at the very top rather than as a row
   // buried in the queue, so it is pulled out of the list here — it still counts
@@ -375,7 +387,7 @@ const Index = () => {
                 )}
               </div>
 
-              {tasksCompleted > 0 && tasksCompleted === tasksTotal && (
+              {allTasksDone && (
                 <div className="relative rounded-2xl border border-primary/30 bg-primary/5 p-4 text-center animate-scale-in">
                   <SparkleBurst />
                   <Sparkles className="h-6 w-6 mx-auto mb-1 text-primary" />

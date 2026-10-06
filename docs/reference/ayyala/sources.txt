@@ -1,0 +1,38 @@
+Al-Ayyala (العيالة) reference footage -- sources
+Downloaded 2026-10-04 with yt-dlp 2026.08.19. Reference only.
+Full-length videos are local only: C:\media\dances\ayyala\ (not in Drive, not in git).
+
+ayyala1.mp4
+  URL:      https://www.youtube.com/watch?v=V6roOGoW07k
+  Title:    Al-Ayyala, a traditional performing art of the Sultanate of Oman and the United Arab Emirates
+  Channel:  UNESCO (official Intangible Cultural Heritage listing video: the listing page https://ich.unesco.org/en/RL/01012 embeds this video)
+  Uploaded: 2014-11-27
+  Length:   9:20
+  Format:   480p (640x480) H.264 + AAC, 25 fps (58.3 MB). A documentary with English subtitles, not one continuous performance.
+
+ayyala2.mp4
+  URL:      https://www.youtube.com/watch?v=FQpakgUwtNs
+  Title:    فن العيالة ( حفل افتتاح مهرجان فرق الفنون الشعبية الثاني 2012م) سلطنة عُمان
+            (Al-Ayyala art (opening ceremony of the Second Folk Arts Troupes Festival, 2012), Sultanate of Oman)
+  Channel:  NEBRASUNA | نبراسُنا (a third-party archive channel; the picture carries an on-screen credit to the Oman Ministry of Culture, Sports and Youth, not verified from the channel)
+  Uploaded: 2026-05-13 (footage is from the 2012 festival)
+  Length:   13:06
+  Format:   480p (640x480) H.264 + AAC, 30 fps (80.1 MB). The 30 fps file repeats about one frame in six (25 fps source).
+
+ayyala3.mp4
+  URL:      https://www.youtube.com/watch?v=NS8S4rClCwo
+  Title:    فن العيالة ( من الفنون التقليدية العُمانية ) © مركز عُمان للموسيقى التقليدية ،، سلطنة عُمان
+            (Al-Ayyala art (from the traditional Omani arts), (c) Oman Center for Traditional Music, Sultanate of Oman)
+  Channel:  NEBRASUNA | نبراسُنا (a third-party archive channel; on-screen credit to the Oman Center for Traditional Music, not verified from the channel)
+  Uploaded: 2022-03-13
+  Length:   4:30
+  Format:   480p (586x480) H.264 + AAC, 25 fps (30.0 MB). A short edited film with English subtitles, not one continuous performance.
+
+ayyala4.mp4
+  URL:      https://www.youtube.com/watch?v=lOnOntCsU-0
+  Title:    فرقة ابوظبي للفنون الاستعراضية - لوحة العياله
+            (Abu Dhabi Performing Arts Troupe -- the Al-Ayyala tableau)
+  Channel:  Baynounah TV | قناة بينونة (TV channel; not verified as an official source)
+  Uploaded: 2014-09-13
+  Length:   15:02
+  Format:   720p H.264 + AAC, 25 fps (267.3 MB)

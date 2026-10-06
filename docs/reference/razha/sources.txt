@@ -1,0 +1,61 @@
+Razha (الرزحة) reference footage -- sources
+Downloaded 2026-10-04 to 2026-10-06 with yt-dlp 2026.08.19. Reference only.
+Second pass (2026-10-05/06): pack rebuilt around footage of Razha as it is performed at weddings and village gatherings in Oman.
+Full-length videos are local only: C:\media\dances\razha\ (not in Drive, not in git).
+Video numbers skip 2-11, 13-16, 18, 19 and 21 (looked at, not kept: see the README, "Footage found and not kept").
+
+razha1.mp4
+  URL:      https://www.youtube.com/watch?v=W8r9OzPjwIU
+  Title:    Al-Raz-Ha Dance and Music (1)
+  Channel:  Qatar Digital Library (the description reads "A film by Rolf Killius for the Qatar Digital Library";
+            recorded 2014-02-20 at a large wedding in a suburb of Sur, Oman, by a team invited by the host, Mr Nasser Yousuf Al-Sinani)
+  Uploaded: 2015-03-18
+  Length:   8:16
+  Format:   1080p H.264 + AAC, 25 fps (264.2 MB)
+  Authenticity: archive documentary of a real wedding Razha (British Library / Qatar Foundation Partnership Project, Qatar Digital Library).
+            The film itself names the dance (title card and description: "raz-ha"). Sound is the event's own (field recording).
+            The description says users should respect the creators and traditional cultural expressions and follow the
+            British Library's Ethical Usage Policy (http://sounds.bl.uk/information/legal-and-ethical-usage). Reference use only.
+
+razha12.mp4
+  URL:      https://www.youtube.com/watch?v=cdQPIz8hr-s
+  Title:    اقيمت الرزحه في جعلان بني بو حسن يوم الجمعه17/6/2022 تصوير: باسم الداودي6
+            (The Razha was held in Ja'alan Bani Bu Hassan on Friday 17/6/2022, filmed by Basim Al-Dawoodi, part 6.
+            Description: "wedding: Qais bin Said al-Masrouri Al Baji" and the hashtags razha, Oman, Muscat, tarab, kaser, tars)
+  Channel:  الرزحة العمانية (Omani Razha: a channel that posts Basim Al-Dawoodi's films of Razha at weddings and Eid gatherings; not an official body)
+  Uploaded: 2022-06-19
+  Length:   8:27
+  Format:   1080p H.264 + AAC, 50 fps (262.9 MB)
+  Authenticity: community-filmed, one open camera inside a real wedding Razha (the uploader names the dance, the place, the date and the
+            wedding; the videographer's name is burned into the picture). The sound is the event's own (voices and drums).
+            I could not check any of this independently beyond the picture and the uploader's text.
+
+razha17.mp4
+  URL:      https://www.youtube.com/watch?v=c6TmTeADfnc
+  Title:    جديد زفين السيف الجعلاني ❤️بن مسعود السعيدي وسعيد السمبل الصواعي
+            (New: the Ja'alan sword zafin, Ibn Mas'ud al-Sa'idi and Sa'id al-Sumbul al-Sawa'i.
+            Description: "the Razha art in Wadi Nam; the Ja'alan row and the people of Sur; the art of zafin with the sword;
+            the swordsman Sa'id al-Sawa'i of Ja'alan Bani Bu Hassan and the swordsman Jum'a al-Sa'idi of Ja'alan Bani Bu Ali")
+  Channel:  الشاعر جمعه مسعود السعيدي (the poet Jum'a Mas'ud al-Sa'idi: the description names him as one of the two swordsmen)
+  Uploaded: 2019-07-21
+  Length:   0:46
+  Format:   848x480 H.264 + AAC, 29.97 fps (7.3 MB)
+  Authenticity: community-filmed at a Razha gathering (a long wall of onlookers round the open ground, dozens visible in one frame); the uploader is one of the
+            two named swordsmen. Named by the uploader only; not independently verified. Short (46 s) and low resolution.
+
+razha20.mp4
+  URL:      https://www.youtube.com/watch?v=XJPynVfrXBk
+  Title:    الفيلم الوثائقي فن الرزحة
+            (The documentary film: the art of Razha. Description: "The art of Razha is one of the traditional Omani arts handed
+            down through the generations ... today the Abu Numair channel documents this heritage so that it stays as a witness
+            for coming generations")
+  Channel:  ابو نمير - Abu Numair (a community documentary channel; not an official body. The end credits, 6:12-6:24, name the
+            commentator and director as Abu Numair Yaqoub al-Saadi and list ground and aerial camera operators and an editor)
+  Uploaded: 2023-01-13
+  Length:   6:27
+  Format:   1080p H.264 + AAC, 30 fps (195.2 MB)
+  Authenticity: a documentary of a community Razha gathering on a red carpet beside a mountain (the place is not named in what I
+            read). The film itself names the dance (the on-screen title "The art of Razha" at 0:08, and the credits) and is made by the community's
+            own documentarians. It is edited with drone shots, close-ups, a voice-over in parts and a channel logo, so it is not
+            a single performance; 4:34-5:11 is one continuous 37 s hand-held shot. Sound: field sound of voices and drums plus,
+            in parts, the commentary (not separated; I did not listen).

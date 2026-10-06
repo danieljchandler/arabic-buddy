@@ -1,0 +1,33 @@
+Tanoura (التنورة) reference footage -- sources
+Downloaded 2026-10-04 with yt-dlp 2026.08.19. Reference only.
+Full-length videos are local only: C:\media\dances\tanoura\ (not in Drive, not in git).
+
+tanoura1.mp4
+  URL:      https://www.youtube.com/watch?v=WnWPThKHxv4
+  Title:    التنورة التراثية
+            (The heritage Tanoura)
+  Channel:  وزارة الثقافة المصرية Egyptian Ministry of Culture (YouTube channel flagged verified in yt-dlp metadata)
+  Uploaded: 2022-11-08
+  Length:   5:25
+  Format:   1080p H.264 + AAC, 30 fps (122.0 MB)
+  Note:     The title and description (empty) do not name the venue or troupe; the stage is an arcaded stone courtyard.
+
+tanoura3.mp4
+  URL:      https://www.youtube.com/watch?v=gX_uzCY7530
+  Title:    أولى حفلات فرقة التنورة التراثية في ساحة قبة الغوري في رمضان
+            (First concerts of the Heritage Tanoura troupe in the courtyard of Qubbat al-Ghouri in Ramadan)
+  Channel:  Akhbar El yom TV (YouTube channel flagged verified in yt-dlp metadata; the description presents it as the electronic edition of the Akhbar El Yom press group)
+  Uploaded: 2021-05-04
+  Length:   10:17
+  Format:   720p H.264 + AAC, 25 fps (165.8 MB)
+  Note:     Edited news report, hand-held, with a channel logo in the corner; not a continuous performance.
+
+tanoura6.mp4
+  URL:      https://www.youtube.com/watch?v=6EwqN6sZVSw
+  Title:    عرض التنورة لفرقة التنورة التراثية للفنون الشعبية بالمعز
+            (Tanoura show by the Heritage Tanoura Troupe for Folk Arts at al-Muizz)
+  Channel:  الهيئة العامة لقصور الثقافة (General Authority for Cultural Palaces; the video's own intro card at 0:12 shows its logo and www.gocp.gov.eg)
+  Uploaded: 2021-05-04
+  Length:   12:21
+  Format:   1080p H.264 + AAC, 23.976 fps (405.9 MB)
+  Note:     The description reads: from the cultural and artistic Ramadan evenings of 1442/2021, on the Roman Theatre at the northern wall of Cairo (Bab al-Nasr), Al-Muizz Street.

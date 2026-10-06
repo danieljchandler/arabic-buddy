@@ -1,0 +1,57 @@
+Sana'ani dance (الرقص الصنعاني) reference footage -- sources (second pass)
+Downloaded 2026-10-05 and 2026-10-06 with yt-dlp 2026.08.19. Reference only.
+Full-length videos are local only: C:\media\dances\sanaani\ (not in Drive, not in git).
+File numbers are not contiguous (11, 17, 54, 62): the first-pass videos (5, 6, 8) and all other downloaded candidates were dropped;
+the reason for each is in analysis\LOG.md on Drive.
+
+sanaani11.mp4
+  URL:      https://www.youtube.com/watch?v=kdHbypelaJQ
+  Title:    The Song of Sanaa
+  Channel:  UNESCO (official Intangible Cultural Heritage listing video: the description quotes the listing text and its URL)
+  Uploaded: 2009-09-28
+  Length:   5:22
+  Format:   480p H.264 + AAC, 25 fps, 640x480 (480p is the best size YouTube offers)
+  Authenticity: UNESCO's own film for the 2008 listing of the Song of Sana'a. Night wedding street in old Sana'a (0:03-0:42), a
+            lute-type instrument played and made (0:43-2:52), a metal tray explained (2:57-4:26), men singing (4:31-4:52). UNESCO
+            names the song; French subtitles name two practitioners; the dance (a street wedding scene) is not named in the film.
+            Sound has narration over it; no pulse is measurable.
+
+sanaani17.mp4
+  URL:      https://www.youtube.com/watch?v=32lXFYO-c9w
+  Title:    الرقص الصنعاني | محافظة صنعاء
+            (The Sana'ani dance | Sana'a governorate)
+  Channel:  Boncast | بُن كاست (a Yemeni cultural organization; project "Ushayran" for documenting Yemeni folk dances)
+  Uploaded: 2026-08-27
+  Length:   8:42
+  Format:   1080p H.264 + AAC, 25 fps (151 MB)
+  Authenticity: heritage-documentation film. The description says it is implemented within AFAC's cultural-workshop grants, in
+            partnership with UNESCO, under an EU-funded youth-employment-through-heritage project in Yemen; it thanks Mr Ali
+            al-Muhammadi and the Al-Salam Arts Troupe. On-screen caption "الرقص الصنعاني" over the dance and a caption at 0:32 naming
+            the interviewee as director of folk arts at the Cultural Centre. Staged in a studio room; no musician in picture; the
+            soundtrack probably is not the dance's own (see README, 4a).
+
+sanaani54.mp4
+  URL:      https://www.youtube.com/watch?v=0lQn1MT1T10
+  Title:    الجمالية - ياهل الهوى | صنعانيات | الفنان مجاهد الصانع | يمن شباب
+            (al-Jamaliyya, "Ya ahl al-hawa" | Sana'aniyat | the artist Mujahid al-Sani' | Yemen Shabab)
+  Channel:  قناة يمن شباب الفضائية (Yemen Shabab satellite channel; its description lists its Nilesat frequencies)
+  Uploaded: 2018-08-24
+  Length:   8:21
+  Format:   1080p H.264 + AAC, 25 fps (226 MB)
+  Authenticity: an episode of the channel's programme "Sana'aniyat" on a studio set dressed as a Sana'a majlis. Captions read the
+            song "الجمالية", words "تراث" (traditional), singing "مجاهد الصانع" and melody "أبو نصار". Live sound: singer, oud, drums
+            and a clapping boy are in the picture. The dance is not named by a caption. A TV set, not a real majlis.
+
+sanaani62.mp4
+  URL:      https://www.youtube.com/watch?v=S7OSaEK2sQ0
+  Title:    حمود السمه اصيل ابوبكر جدبد 2022 جلسة من التراث من عرس توفيق الشديده ورقص عيال الشاوش
+            (Hamud al-Sama, Asil Abu Bakr, new 2022, a heritage session from the wedding of Tawfiq al-Shadida and the dancing of the sons of al-Shawish)
+  Channel:  معامل احلى تصوير الرقمية Bstphotoymn (Ahla Taswir digital photography studio, Sana'a; a studio channel that publishes the weddings it films)
+  Uploaded: 2021-10-20
+  Length:   8:58
+  Format:   1080p H.264 + AAC, 59.94 fps (392 MB)
+  Authenticity: a men's wedding in a large hall in Sana'a, filmed by the hired studio and published by it. Two singers on ouds,
+            a seated man with a metal tray, thousands of men, the man in garlands dancing with friends, hands joined. The description
+            names the singers; the title says "heritage session ... and the dancing of" a family. The dance is not called
+            "Sana'ani" on screen. Live sound from the hall. A private event: the groom and guests are identifiable; only men appear,
+            nothing looks covert. To be confirmed by the lead (README, "A private event").

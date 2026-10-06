@@ -1,0 +1,57 @@
+Gulf women's folk dance (Khammari and related women's performances; thobe al-nashal, ثوب النشل) reference footage -- sources
+Downloaded 2026-10-04 to 2026-10-06 with yt-dlp 2026.08.19. Reference only.
+Full-length videos are local only: C:\media\dances\gulf-women\ (not in Drive, not in git).
+The numbers 3 and 5 belong to candidates that were downloaded and dropped (ids are not reused).
+
+gulf-women1.mp4
+  URL:      https://www.youtube.com/watch?v=LLv5UhVrd9E
+  Title:    فن خماري-شمة بنت حمود
+            (Khammari art - Shamma bint Hamoud)
+  Channel:  Bahrain TV Zaman (a Bahrain television archive-style channel; I did not verify it as an official channel page)
+  Uploaded: 2016-01-25
+  Length:   9:17
+  Format:   720p H.264 + AAC, 29.97 fps
+  Authenticity: the picture carries a yellow caption "( فن .. خماري )" (Khammari art) from 0:18 to 0:48, so the broadcaster's own
+            graphic names the form; the uploader's title and description ("singing: the artist Shamma bint Hamoud") agree. A
+            television production in a courtyard set (men with frame drums and a rope-laced barrel drum, women singing at
+            microphones, one woman dancing among the men); live singing and percussion, all heads covered. Not a private event.
+            Multi-camera edit: wide shots at 0:00-0:19, 3:24-3:46, 6:00-6:27 and 7:42-8:42 (read on 6 s tiles); close shots elsewhere.
+
+gulf-women2.mp4
+  URL:      https://www.youtube.com/watch?v=LduWzMy385k
+  Title:    HD 🇰🇼 ١٩٨١م جودة عالية شيلوا الغناوي لوحة الخماري اداء سناء الخراز وثانوية العديلية والزمن الجمييل
+            (1981, high quality, "Shiloo al-ghanawi", Khammari tableau, performed by Sana al-Kharraz and Adailiya secondary school)
+  Channel:  jalili99 (re-upload of Kuwait television archive material; "@jalili99" watermark and a logo burned in)
+  Uploaded: 2021-06-13
+  Length:   6:34
+  Format:   720p H.264 + AAC, 30 fps
+  Authenticity: named "Khammari tableau" by the uploader only; not independently verified. A Kuwait television stage set with a
+            round broadcaster logo in the top-right of the picture; the performers are named in the title as a singer and the
+            students of a secondary school (so young performers). Group choreography in black cloaks drawn over the head.
+            Use 0:00-5:45 only: the lead singer is bare-headed (long loose hair) and from 5:48 to 6:12 rows of girls in gold-embroidered
+            gowns show their hair. Old broadcast quality (soft, interlaced), voices over a sparse background.
+
+gulf-women4.mp4
+  URL:      https://www.youtube.com/watch?v=Q2n6HQpKD5A
+  Title:    ثقافة ثوب النشل البحريني
+            (The culture of the Bahraini thobe al-nashal)
+  Channel:  ALFANREMAGAZINE (a magazine channel)
+  Uploaded: 2020-12-07
+  Length:   6:30
+  Format:   1080p H.264 + AAC, 23.976 fps
+  Authenticity: COSTUME footage, not dance. The video's own title names the gown (thobe al-nashal, Bahraini). A studio presenter, head
+            covered, shows gowns; close-ups of gold-thread embroidery. Used only for the costume keyframes.
+
+gulf-women6.mp4
+  URL:      https://www.youtube.com/watch?v=7wTlb8Fu398
+  Title:    الفنون الشعبية - الحلقة 5
+            (Folk Arts - episode 5)
+  Channel:  Qatar Television تلفزيون قطر (channel name; part of an 8-episode series uploaded 2020-12; not verified beyond the channel name)
+  Uploaded: 2020-12-18
+  Length:   28:49
+  Format:   1080p H.264 + AAC, 25 fps (the archive excerpts inside it are standard-definition television)
+  Authenticity: an interview programme with archive television excerpts. Only the excerpt at 3:27-4:07 is used: two women in long
+            wraps dancing in a courtyard set with seated drummers, with sung-lyric subtitles. The programme names itself "Folk Arts"; no
+            on-screen caption I read names the dance, so the dance is UNNAMED here. A second excerpt (15:35-16:45, a woman dancing
+            before seated women in a room) is not used because it looks like a women-only room and I cannot tell whether it was
+            staged for television.

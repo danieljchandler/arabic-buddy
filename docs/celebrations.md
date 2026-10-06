@@ -491,7 +491,10 @@ so a reload doesn't replay it.
   reference packs in PR #414, but the weakest ones. The Razha's frames 1 and
   2 come from a British Library and Qatar Foundation film with an ethical-use
   policy, which needs checking before anything is drawn from them.
-- **Sound:** drum loops per dance could be generated on Higgsfield. The
-  celebration is silent for now.
+- **Sound:** the dance screen itself is silent. A separate sung celebration
+  (PR #416, `useCelebrationSong`) plays on a lesson's finish and the day's
+  goal, so on those two moments the learner gets the dance and a song
+  together. A drum loop per dance (generated, timed to each dance's measured
+  stroke) is still open; it would compete with the song.
 - **Other milestones:** stage completion and weekly goals have no "crossing
   moment" on the client yet.

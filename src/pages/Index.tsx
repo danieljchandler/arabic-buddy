@@ -147,16 +147,17 @@ const Index = () => {
     }
   }, [allTasksDone, isAuthenticated]);
 
-  // The last task is usually finished on another page, so this fires when the
-  // learner lands back here with everything done. `wereTasksTouchedToday` keeps
-  // it from singing at someone who only opened the page on a finished day.
-  const celebrate = useCelebrationSong();
-  const allTasksDone = tasksTotal > 0 && tasksCompleted === tasksTotal;
+  // The song, beside the screen above. The last task is usually finished on
+  // another page, so this fires when the learner lands back here with
+  // everything done. `wereTasksTouchedToday` keeps it from singing at someone
+  // who only opened the page on a finished day. (`sing`, not `celebrate`:
+  // that name is the celebration screen's, imported above.)
+  const sing = useCelebrationSong();
   useEffect(() => {
     if (allTasksDone && wereTasksTouchedToday()) {
-      void celebrate({ kind: "daily_tasks_complete", entityId: localDateKey() });
+      void sing({ kind: "daily_tasks_complete", entityId: localDateKey() });
     }
-  }, [allTasksDone, celebrate]);
+  }, [allTasksDone, sing]);
 
   // Video leads the page as a full card at the very top rather than as a row
   // buried in the queue, so it is pulled out of the list here — it still counts

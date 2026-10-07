@@ -51,6 +51,10 @@ import assayaMusic from "@/assets/celebrations/assaya/music.mp3";
 import tanouraMusic from "@/assets/celebrations/tanoura/music.mp3";
 import tahtibMusic from "@/assets/celebrations/tahtib/music.mp3";
 import sanaaniMusic from "@/assets/celebrations/sanaani/music.mp3";
+import mizmarMusic from "@/assets/celebrations/mizmar/music.mp3";
+import khammariMusic from "@/assets/celebrations/khammari/music.mp3";
+import razhaMusic from "@/assets/celebrations/razha/music.mp3";
+import baraaMusic from "@/assets/celebrations/baraa/music.mp3";
 
 /**
  * The cutout stills for each dance, in the order `DanceDefinition.sequence`
@@ -76,7 +80,8 @@ export interface DanceArt {
   /** Where the musician stands, when not where the Ardah's drummer does. */
   musicianBox?: StageBox;
   /**
-   * The dance's music: a loop cut on the beat the scene is timed to. Test
+   * The dance's music: a loop cut on the beat the scene is timed to, from
+   * the stretch of the reference footage where that beat was measured. Test
    * audio for now, played only in previews or with `?dancemusic=on`
    * (src/lib/danceMusic.ts); a dance without one dances in silence.
    */
@@ -145,6 +150,7 @@ export const DANCE_ART: Record<string, DanceArt> = {
     // right and the drummer left so he stays in the open floor before it.
     dancersBox: { left: 30, width: 70, height: 64 },
     musicianBox: { left: -5, width: 34, height: 48 },
+    music: baraaMusic,
   },
   mizmar: {
     // stride, cane down to the floor (keyframe 10) · cane vertical overhead
@@ -156,6 +162,7 @@ export const DANCE_ART: Record<string, DanceArt> = {
     // a tall box in the middle of the stage, the clapper at the edge.
     dancersBox: { left: 30, width: 60, height: 88 },
     musicianBox: { left: 0, width: 28, height: 56 },
+    music: mizmarMusic,
   },
   razha: {
     // canes upright (keyframe 2) · raised and crossing (3) · held low
@@ -164,6 +171,7 @@ export const DANCE_ART: Record<string, DanceArt> = {
     musician: [razhaDrummer1],
     dancersBox: { left: 28, width: 72, height: 68 },
     musicianBox: { left: -3, width: 34, height: 52 },
+    music: razhaMusic,
   },
   khammari: {
     // upright (keyframe 1) · lean · bow (3)
@@ -172,6 +180,7 @@ export const DANCE_ART: Record<string, DanceArt> = {
     musician: [khammariDrummer1],
     dancersBox: { left: 30, width: 70, height: 64 },
     musicianBox: { left: -3, width: 32, height: 54 },
+    music: khammariMusic,
   },
   sanaani: {
     // hands joined in a chain (keyframe 1) · released, walking (3)

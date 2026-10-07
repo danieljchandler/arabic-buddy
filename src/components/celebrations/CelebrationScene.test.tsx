@@ -53,6 +53,10 @@ describe("CelebrationScene", () => {
     }
   });
 
+  it("has a music loop for every dance", () => {
+    for (const dance of DANCES) expect(DANCE_ART[dance.id].music, dance.id).toMatch(/music\.mp3$/);
+  });
+
   it("shows one still at a time and changes it on the beat, in order", () => {
     const { container } = render(<CelebrationScene dance={ARDAH} dialect="Gulf" tier="medium" cheer="كفو!" headline="Lesson complete" />);
     const seen: (number | null)[] = [];

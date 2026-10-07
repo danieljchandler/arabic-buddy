@@ -149,10 +149,11 @@ Made the way the dances' are (see "Making a new dance" in `celebrations.md`):
 generated on Higgsfield with `gpt_image_2_5` at high quality, 2:3, 1.5
 credits each, the first still of a scene alone and the rest referencing it,
 on a flat mid-grey backdrop; then cut out with
-`scripts/celebrations/make_cutouts.py still|helper`. About 111 credits for
-61 stills kept out of 74 generations (the rest were re-rolls: a pose that came out
-wrong, a dress that read as another country's, a lamb that read as poultry). Three flags were added to the script for these
-scenes, because flat props behave differently from figures:
+`scripts/celebrations/make_cutouts.py still|helper`. About 123 credits for
+61 stills kept out of 82 generations (the rest were re-rolls: a pose that came out
+wrong, a dress that read as another country's, a lamb that read as poultry).
+Three flags were added to the script for these scenes, because flat props
+behave differently from figures:
 
 - `--key-low`: the brightness key also runs below the knees (paper lying low
   in the frame). The qalam.
@@ -181,10 +182,14 @@ who made it.
 - The spelling of المضبي (also written المظبي).
 
 **Costume and props**
-- The whole-lamb stills disagree: the Gulf one has its head with the eyes
-  closed, the Egyptian one has its head with the eye visible (stark), and the
-  Yemeni one is headless. Pick one. Whether a whole lamb is right for haneeth
-  at all is unconfirmed.
+- The three whole-lamb stills are now all headless, so they match (the Gulf and
+  Egyptian ones were re-rolled after the first set had one lamb with its eyes
+  closed and one with its eye visible; the first four re-rolls came out as roast
+  chicken, so the prompt insists on a lean carcass, hooves and ribs). Each sits
+  where its ladder's other dishes do: the Gulf and Yemeni on a flat platter, the
+  Egyptian on a low round tray-table, since its platter and spread are on one.
+  The ribs show along the flank. Whether a whole lamb is right for haneeth at
+  all, and whether a reviewer wants the ribs covered, is unconfirmed.
 - Every cook's fan (a round woven palm or straw paddle) and the Gulf cook's
   white thobe with a stand collar and placket.
 - The dallah's style (Najdi, Hejazi or Emirati), the bisht (it came out dark

@@ -252,14 +252,19 @@ export const defaultRpcs: Record<string, RpcHandler> = {
       .rows("user_achievements")
       .some((row) => row.user_id === userId && row.achievement_id === achievementId);
 
-    if (existing) return false;
+    // The real function answers with jsonb, and the app reads `granted` off it
+    // (useCheckAchievements): a bare boolean here meant a badge could never be
+    // seen to be newly earned, so nothing downstream of it (the celebration,
+    // the badge's song) was reachable from a test.
+    if (existing) return { already_earned: true };
 
+    const badge = db.rows("achievements").find((row) => row.id === achievementId);
     db.add("user_achievements", {
       user_id: userId,
       achievement_id: achievementId,
       earned_at: new Date().toISOString(),
     });
-    return true;
+    return { granted: true, xp_reward: Number(badge?.xp_reward ?? 0) };
   },
 
   increment_review_count: ({ db, userId }) => {

@@ -732,6 +732,17 @@ test.describe("celebrating a finished lesson", () => {
     await expect(page).not.toHaveURL(/celebrate/);
   });
 
+  test("a preview link can put a badge on any scene, without singing about it", async ({ page, backend }) => {
+    await page.goto(`/learn/${LESSON}?celebrate=lulu&celebratebadge=${encodeURIComponent("🔥")}`);
+    const dialog = page.getByRole("dialog", { name: "Preview" });
+    await expect(dialog.getByTestId("celebration-badge")).toBeVisible();
+    // The emblem the achievements grid shows for that badge, and its name in Arabic.
+    await expect(dialog.getByTestId("celebration-badge-art")).toBeVisible();
+    await expect(dialog.getByTestId("celebration-badge-name")).toHaveText("مشتعل");
+    await expect(page).not.toHaveURL(/celebrate/);
+    expect(backend.callsTo("generate-celebration-song")).toHaveLength(0);
+  });
+
   test("a streak that reaches a milestone plays the dialect's ladder instead of a dance", async ({ page, db }) => {
     db.seed("review_streaks", [{ user_id: TEST_USER_ID, current_streak: 30, longest_streak: 30 }]);
     await page.goto(`/learn/${LESSON}`);

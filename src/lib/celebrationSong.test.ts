@@ -6,6 +6,7 @@ import {
   markCelebrated,
   noteTasksTouchedToday,
   singerName,
+  songAchievement,
   wereTasksTouchedToday,
 } from "./celebrationSong";
 
@@ -103,5 +104,30 @@ describe("tasks touched today", () => {
       throw new Error("blocked");
     });
     expect(wereTasksTouchedToday()).toBe(false);
+  });
+});
+
+describe("what the song function is asked to sing about", () => {
+  it("sends a badge by its id alone, so no text of the client's reaches a prompt", () => {
+    expect(songAchievement({ kind: "badge_earned", entityId: "5b1e7a52-0d0c-4a55-9a43-9a0c3b2f6e11" })).toEqual({
+      kind: "badge_earned",
+      badgeId: "5b1e7a52-0d0c-4a55-9a43-9a0c3b2f6e11",
+    });
+  });
+
+  it("sends every other kind as the kind alone, never the lesson or video id", () => {
+    expect(songAchievement({ kind: "lesson_complete", entityId: "lesson-1" })).toEqual({ kind: "lesson_complete" });
+    expect(songAchievement({ kind: "daily_tasks_complete", entityId: "2026-10-07" })).toEqual({
+      kind: "daily_tasks_complete",
+    });
+  });
+
+  it("sings each badge once: the guard is per badge, and apart from a lesson with the same id", () => {
+    const badge = { kind: "badge_earned", entityId: "badge-guard-1" } as const;
+    expect(hasCelebrated(badge)).toBe(false);
+    markCelebrated(badge);
+    expect(hasCelebrated(badge)).toBe(true);
+    expect(hasCelebrated({ kind: "badge_earned", entityId: "badge-guard-2" })).toBe(false);
+    expect(hasCelebrated({ kind: "lesson_complete", entityId: "badge-guard-1" })).toBe(false);
   });
 });

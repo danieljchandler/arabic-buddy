@@ -7,6 +7,7 @@ import {
   CHEERS,
   GOAL_KEY,
   KIND_TIER,
+  CELEBRATE_BADGE_PARAM,
   CELEBRATE_DAYS_PARAM,
   ROTATION_KEY,
   SCENE_KEY,
@@ -23,6 +24,7 @@ import {
   parseCelebrateParam,
   pickCheer,
   pickSceneCheer,
+  previewBadge,
   previewScene,
   shouldCelebrateStreak,
   subscribeCelebrations,
@@ -387,6 +389,37 @@ describe("the preview link", () => {
     });
     expect(parseCelebrateParam(`?celebrate=mishkak&${CELEBRATE_DAYS_PARAM}=soon`)).toEqual({ dance: MISHKAK, tier: "medium" });
     expect(parseCelebrateParam(`?celebrate=mishkak&${CELEBRATE_DAYS_PARAM}=-5`)).toEqual({ dance: MISHKAK, tier: "medium" });
+  });
+});
+
+describe("previewing a badge", () => {
+  it("takes the badge's emoji from the address", () => {
+    expect(parseCelebrateParam(`?celebrate=lulu&${CELEBRATE_BADGE_PARAM}=🔥`)).toEqual({
+      dance: vignetteById("lulu"),
+      tier: "medium",
+      badge: "🔥",
+    });
+  });
+
+  it("takes it alongside a tier and a streak length", () => {
+    expect(parseCelebrateParam(`?celebrate=mishkak-large&celebratedays=30&${CELEBRATE_BADGE_PARAM}=🏆`)).toMatchObject({
+      tier: "large",
+      days: 30,
+      badge: "🏆",
+    });
+  });
+
+  it("ignores an empty one", () => {
+    expect(parseCelebrateParam(`?celebrate=ardah&${CELEBRATE_BADGE_PARAM}=%20`)).toEqual({ dance: ARDAH, tier: "medium" });
+  });
+
+  it("makes a sample badge that is never a real one, so nothing can be sung about it", () => {
+    const badge = previewBadge("🔥");
+    expect(badge).toMatchObject({ icon: "🔥", id: "preview", xp: 50 });
+    expect(badge.name).not.toBe("");
+    expect(badge.nameArabic).toMatch(/[\u0600-\u06FF]/);
+    // Not a uuid: the song function would refuse it even if it were asked.
+    expect(badge.id).not.toMatch(/^[0-9a-f]{8}-/);
   });
 });
 

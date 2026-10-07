@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getDialectLabel, getDialectVocabRules } from "../_shared/dialectHelpers.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
@@ -11,12 +12,46 @@ import {
   buildMusicPrompt,
   parseLyricPlan,
   parseAchievement,
+  parseBadge,
   pcmToWav,
   sampleRateFromMime,
   sanitizeSingerName,
+  type Badge,
 } from "../_shared/celebrationSongCore.ts";
 
 const DIALECTS = ["Gulf", "Egyptian", "Yemeni"];
+
+/**
+ * The badge a learner just earned, read here and never taken from the client:
+ * the client names it by id, and the song is only sung for a badge that is in
+ * the caller's own `user_achievements` (so the function cannot be used to
+ * make a song about any badge on request). "earned" is false for a badge they
+ * do not hold or one that does not exist; null is a lookup that failed.
+ */
+async function loadEarnedBadge(
+  userId: string,
+  badgeId: string,
+): Promise<{ earned: true; badge: Badge | null } | { earned: false } | null> {
+  const url = Deno.env.get("SUPABASE_URL");
+  const key = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  if (!url || !key) return null;
+  const db = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { data: held, error: heldError } = await db
+    .from("user_achievements")
+    .select("achievement_id")
+    .eq("user_id", userId)
+    .eq("achievement_id", badgeId)
+    .maybeSingle();
+  if (heldError) return null;
+  if (!held) return { earned: false };
+  const { data: row, error } = await db
+    .from("achievements")
+    .select("name, name_arabic, description, requirement_type, requirement_value")
+    .eq("id", badgeId)
+    .maybeSingle();
+  if (error) return null;
+  return { earned: true, badge: parseBadge(row) };
+}
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -48,6 +83,16 @@ serve(async (req) => {
     }
     const dialect = DIALECTS.includes(body?.dialect) ? body.dialect : "Gulf";
 
+    // A badge song is about this badge, which has to be one the caller holds.
+    // A failed lookup still sings (a general celebration), because the song is
+    // a bonus; a badge they have not earned does not.
+    let badge: Badge | null = null;
+    if (achievement.kind === "badge_earned" && achievement.badgeId) {
+      const found = await loadEarnedBadge(cap.userId, achievement.badgeId);
+      if (found && !found.earned) return reply({ error: "That badge has not been earned" }, 403);
+      badge = found?.badge ?? null;
+    }
+
     // Two legs, two keys: the lyric writer routes through aiGateway, while
     // Lyria has no route but Google's own API. Both are checked before either
     // is called so a half-configured deployment fails before paying.
@@ -63,6 +108,7 @@ serve(async (req) => {
       dialectLabel,
       dialectRules: getDialectVocabRules(dialect),
       styleLine,
+      badge,
     });
 
     const lyricResponse = await chatFetch(
@@ -129,7 +175,7 @@ serve(async (req) => {
         if (status === 429) return reply({ error: "Music generation rate limited, try again later" }, 429);
         if (status === 402) return reply({ error: "Music generation credits exhausted" }, 402);
       }
-      lyriaResponse = await callLyria(buildFallbackMusicPrompt({ name, dialectLabel, styleLine }));
+      lyriaResponse = await callLyria(buildFallbackMusicPrompt({ name, dialectLabel, styleLine, badgeName: badge?.name }));
       if (lyriaResponse.ok) {
         lyriaData = await lyriaResponse.json();
         audioPart = extractAudio(lyriaData);

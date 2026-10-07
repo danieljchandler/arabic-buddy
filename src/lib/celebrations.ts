@@ -28,6 +28,17 @@ import { ladderFor, resolveVignette, vignetteById, vignettesFor } from "@/lib/vi
 
 export type CelebrationKind = "lesson" | "letter" | "deck" | "goal" | "streak" | "achievement" | "preview";
 
+/** The badge a celebration is for: what the stage shows, and what the song is about. */
+export interface CelebrationBadge {
+  /** The row in `achievements`: the song function reads the badge by this id. */
+  id: string;
+  name: string;
+  nameArabic: string;
+  /** The emoji stored in `achievements.icon`; `badgeArtFor` maps it to artwork. */
+  icon: string;
+  xp: number;
+}
+
 export interface CelebrationEvent {
   kind: CelebrationKind;
   /**
@@ -45,6 +56,8 @@ export interface CelebrationEvent {
   tier?: CelebrationTier;
   /** A previewed streak ladder plays the rung for this many days. */
   days?: number;
+  /** For an `achievement`: the badge earned, shown on the stage and sung about. */
+  badge?: CelebrationBadge;
 }
 
 // ── Tiers ──────────────────────────────────────────────────────────────────
@@ -420,10 +433,21 @@ export const CELEBRATE_PARAM = "celebrate";
  * many days (a hundred when it is left off).
  */
 export const CELEBRATE_DAYS_PARAM = "celebratedays";
+/**
+ * `?celebrate=lulu&celebratebadge=🔥` plays the scene with that badge's emblem
+ * on it, so a badge celebration can be reviewed without earning one. It sings
+ * nothing: only a real badge earned does.
+ */
+export const CELEBRATE_BADGE_PARAM = "celebratebadge";
+
+/** The sample badge a preview shows: any emoji in `badgeArtFor`, or an unmapped one for the fallback disc. */
+export function previewBadge(icon: string): CelebrationBadge {
+  return { id: "preview", name: "On Fire", nameArabic: "مشتعل", icon, xp: 50 };
+}
 
 export function parseCelebrateParam(
   search: string,
-): { dance: DanceDefinition; tier: CelebrationTier; days?: number } | null {
+): { dance: DanceDefinition; tier: CelebrationTier; days?: number; badge?: string } | null {
   const params = new URLSearchParams(search);
   const raw = params.get(CELEBRATE_PARAM);
   if (!raw) return null;
@@ -432,7 +456,8 @@ export function parseCelebrateParam(
   if (!dance) return null;
   const tier: CelebrationTier = tierPart === "small" || tierPart === "large" ? tierPart : "medium";
   const days = Number.parseInt(params.get(CELEBRATE_DAYS_PARAM) ?? "", 10);
-  return days > 0 ? { dance, tier, days } : { dance, tier };
+  const badge = params.get(CELEBRATE_BADGE_PARAM)?.trim();
+  return { dance, tier, ...(days > 0 ? { days } : {}), ...(badge ? { badge } : {}) };
 }
 
 // ── The bus ────────────────────────────────────────────────────────────────

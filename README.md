@@ -303,6 +303,13 @@ instead of the toast they had before. The cheers are run through
 `src/lib/dances.ts`; `?celebrate=<dance>` plays one on any page.
 `docs/celebrations.md` has how a dance is made.
 
+**A badge is on the screen.** Earning one puts its emblem on the stage as a
+sticker (`BadgeSticker`): the same woven-sadu artwork the achievements grid
+shows for that badge (`badgeArtFor`), in a taped paper disc with its XP, and its
+Arabic name as an ink label under the cheer; a badge with no artwork yet gets
+its emoji on a mustard disc. `?celebrate=lulu&celebratebadge=🔥` previews it on
+any scene without earning one, and sings nothing.
+
 Fourteen **vignettes** sit beside the dances, drawn the same way but with a
 meal, a ritual or a landmark instead of dancers (`src/lib/vignettes.ts`). A
 streak milestone plays the dialect's **ladder**: one grill story in each
@@ -910,7 +917,7 @@ Finishing something is answered with a short, over-the-top song sung to the
 learner by the name they set in Settings. It plays when they **finish a lesson**
 (`/learn/:lessonId`), **get through a video** (the 85% mark `DiscoverVideo`
 already counts as watched), **talk a video through with the tutor** (the end of
-the debrief), or **clear the day's tasks** (`/today`).
+the debrief), **clear the day's tasks** (`/today`), or **earn a badge** (below).
 
 - **`generate-celebration-song`** is the server half, a sibling of the word
   jingle: a Gemini lyric writer produces dialect lyrics that sing the name, then
@@ -932,6 +939,19 @@ the debrief), or **clear the day's tasks** (`/today`).
   derived rather than an event, so `/today` only sings if a task was completed in
   this browser that day (`markTaskCompletedToday` leaves the mark) — opening the
   page on a day another device finished does not sing at someone who did nothing.
+- **A badge song is about that badge.** When a badge is earned the celebration
+  screen shows its emblem (see "Celebration screens") and the song praises the
+  learner by name and sings the badge's name, in Arabic too, and what it took.
+  The one rule that differs from the rest: the client sends the badge's **id and
+  nothing else** (`achievement: { kind: "badge_earned", badgeId }`). The function
+  checks the caller's own `user_achievements` row for it (a badge they do not
+  hold is a 403 before anything is spent), reads the name, Arabic name and
+  requirement from `achievements` itself, and says what it took the way
+  `grant_achievement` checks it ("completing 100 Arabic word reviews"); the
+  badge's text is cut down like the learner's name before it reaches a prompt. If
+  that lookup fails it still sings, generally. One song per screen: the first
+  badge of a screen is sung and the others are lines, and a badge never cuts off
+  a song that is already playing (`onlyIfQuiet`), nor is it used up by that.
 - **Switching it off.** Settings has a "Celebration songs" switch
   (`lib/celebrationPrefs.ts`, default on), and the app-wide Sound setting
   silences it too. Browsers that refuse sound not started by a tap get a Play

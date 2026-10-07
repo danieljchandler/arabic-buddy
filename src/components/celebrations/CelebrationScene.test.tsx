@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ARDAH, DANCES } from "@/lib/dances";
 import { CelebrationScene } from "./CelebrationScene";
 import { DANCE_ART } from "./danceArt";
+import type { CelebrationBadge } from "@/lib/celebrations";
 
 /**
  * The collage stage for a milestone dance. What matters is that the dancers
@@ -190,5 +191,44 @@ describe("CelebrationScene", () => {
       <CelebrationScene dance={{ ...ARDAH, bobPct: 4, bobPeriodMs: 430 }} dialect="Gulf" tier="medium" cheer="كفو!" headline="x" />,
     );
     expect(container.querySelector(".cel-bobber")!.className).not.toMatch(/cel-bob\b/);
+  });
+});
+
+describe("CelebrationScene with a badge", () => {
+  const badge: CelebrationBadge = {
+    id: "5b1e7a52-0d0c-4a55-9a43-9a0c3b2f6e11",
+    name: "On Fire",
+    nameArabic: "مشتعل",
+    icon: "🔥",
+    xp: 50,
+  };
+
+  it("sticks the badge on the stage and puts its Arabic name in the cheer's stack", () => {
+    const { container } = render(
+      <CelebrationScene dance={ARDAH} dialect="Gulf" tier="medium" cheer="كفو!" headline="Badge earned!" badge={badge} />,
+    );
+    expect(screen.getByTestId("celebration-badge")).toBeInTheDocument();
+    expect(container.querySelector(".cel-labels")).toContainElement(screen.getByTestId("celebration-badge-name"));
+    expect(screen.getByText("+50 XP")).toBeInTheDocument();
+    expect(container.querySelector(".cel-stage")).toHaveClass("cel-has-badge");
+  });
+
+  it("has no badge, and a full-size cheer, without one", () => {
+    const { container } = render(
+      <CelebrationScene dance={ARDAH} dialect="Gulf" tier="medium" cheer="كفو!" headline="Lesson complete!" />,
+    );
+    expect(screen.queryByTestId("celebration-badge")).toBeNull();
+    expect(screen.queryByTestId("celebration-badge-name")).toBeNull();
+    expect(container.querySelector(".cel-stage")).not.toHaveClass("cel-has-badge");
+  });
+
+  it("keeps the stage named for screen readers by its scene, not by the badge", () => {
+    render(<CelebrationScene dance={ARDAH} dialect="Gulf" tier="medium" cheer="كفو!" headline="Badge earned!" badge={badge} />);
+    expect(screen.getByRole("img", { name: "Al-Ardah, a dance from Najd, Saudi Arabia" })).toBeInTheDocument();
+  });
+
+  it("shows the badge on a bare stage too, for a dialect with no scene", () => {
+    render(<CelebrationScene dance={null} dialect="Gulf" tier="medium" cheer="كفو!" headline="Badge earned!" badge={badge} />);
+    expect(screen.getByTestId("celebration-badge")).toBeInTheDocument();
   });
 });

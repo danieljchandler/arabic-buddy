@@ -159,6 +159,85 @@
 .cel-stage-bare .cel-labels { top: 9%; }
 .cel-stage-bare .cel-circle { left: 18%; top: 34%; }
 
+/* The badge a celebration is for, stuck on like the other scraps: a paper disc
+   with its emblem in, a strip of tape and an oxblood XP tag across its edge.
+   It sits in the open paper right of the cheer, over the top of the circle; a
+   tall figure may pass under it, which is what a sticker does. The badge's
+   name is an ink label in the cheer's stack (`.cel-badge-name`). */
+.cel-badge {
+  right: 3%;
+  top: 31.5%;
+  width: 27%;
+  z-index: 7;
+  rotate: 6deg;
+  animation: cel-badge-in 520ms cubic-bezier(0.2, 1.4, 0.4, 1) both;
+}
+.cel-badge-disc {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--cel-paper);
+  padding: 3.5%;
+  box-shadow: 1px 2px 0 rgb(26 28 23 / 0.25);
+}
+.cel-badge-disc::before {
+  content: "";
+  position: absolute;
+  top: -6%;
+  left: 50%;
+  width: 38%;
+  height: 13%;
+  translate: -50% 0;
+  rotate: -7deg;
+  background: rgb(247 241 227 / 0.8);
+  box-shadow: 0 1px 1px rgb(26 28 23 / 0.2);
+}
+.cel-badge-disc img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+  user-select: none;
+}
+.cel-badge-emoji {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--cel-mustard);
+  font-size: clamp(30px, 12cqw, 54px);
+  line-height: 1;
+}
+.cel-badge-xp {
+  position: absolute;
+  left: -10%;
+  bottom: -2%;
+  rotate: -9deg;
+  background: var(--cel-oxblood);
+  color: var(--cel-paper);
+  padding: 0 7px;
+  font: 700 10px/1.7 var(--font-ink-ui, var(--font-sans));
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  box-shadow: 1px 1px 0 rgb(26 28 23 / 0.3);
+}
+/* With a badge on the stage the cheer is a size smaller, so the longest of them
+   («إيه الحلاوة دي!») stops short of the sticker. */
+.cel-has-badge .cel-praise { font-size: clamp(24px, 9.4cqw, 42px); }
+.cel-badge-name {
+  font-family: var(--font-ink-display, var(--font-arabic-display));
+  font-size: clamp(16px, 6cqw, 26px);
+  line-height: 1.5;
+  color: var(--cel-mustard);
+}
+@keyframes cel-badge-in {
+  from { scale: 0.2; rotate: -28deg; opacity: 0; }
+  to { scale: 1; rotate: 6deg; opacity: 1; }
+}
+
 /* Effects drawn in code over a vignette's figure (StageEffects): cut-paper
    flames, embers, smoke, steam, sparkle and one ink stroke. They share the
    figure's box, so they sit where the figure does. */
@@ -286,4 +365,5 @@
   .cel-steam { opacity: 0.6; }
   .cel-ink path { stroke-dashoffset: 0; }
   .cel-ink circle { opacity: 1; }
+  .cel-badge { animation: none; }
 }

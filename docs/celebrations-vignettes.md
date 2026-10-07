@@ -113,6 +113,18 @@ the learner is a man or a woman; they are checked against `detectMsaLeaks` for
 the dialect they are shouted in (`vignettes.test.ts`), which can clear a line
 of فصحى but cannot say it sounds natural.
 
+## A badge on the screen
+
+A badge moment (the pearl, the lantern, Shibam, or a dance) carries the badge
+itself: `celebrate({ kind: "achievement", badge })`, set by
+`useCheckAchievements`. The stage sticks its emblem on (`BadgeSticker`: the
+achievements grid's own artwork, an emoji disc when a badge has none), its
+Arabic name goes on an ink label under the cheer, and the cheer goes a size
+smaller so the longest of them stops short of the sticker. The host also asks
+for a song about the badge, once per screen and never over a song already
+playing (see "Celebration songs" in the README). The scenes are only the
+picture behind it: the pearl is not a badge, and no badge is tied to a scene.
+
 ## Code-drawn effects (`StageEffects`)
 
 Flames, embers, smoke, steam, sparkle and the ink stroke are cut-paper shapes

@@ -11,6 +11,7 @@ import {
   hasCelebrated,
   markCelebrated,
   singerName,
+  songAchievement,
   type CelebrationEvent,
 } from "@/lib/celebrationSong";
 
@@ -72,6 +73,11 @@ async function sing(blob: Blob, name: string, lyrics: string | null) {
  * — quietly, with the lesson or video they just finished still the main event.
  * An event that was attempted is remembered whether or not it worked, so a
  * failing function is not retried on every re-render.
+ *
+ * `onlyIfQuiet` is for a song that arrives on top of another moment (a badge
+ * earned while a lesson's song is playing): it waits for nobody and cuts nobody
+ * off, so with a song already playing it does nothing, and does not use up the
+ * event.
  */
 export function useCelebrationSong() {
   const { user } = useAuth();
@@ -82,7 +88,8 @@ export function useCelebrationSong() {
   const displayName = profile?.displayName;
 
   return useCallback(
-    async (event: CelebrationEvent): Promise<boolean> => {
+    async (event: CelebrationEvent, options: { onlyIfQuiet?: boolean } = {}): Promise<boolean> => {
+      if (options.onlyIfQuiet && singing) return false;
       const name = singerName(displayName);
       // No name yet (profile still loading) is not an attempt: leaving the event
       // unmarked lets the next render, with the name, sing it.
@@ -92,7 +99,7 @@ export function useCelebrationSong() {
 
       try {
         const { data, error } = await supabase.functions.invoke("generate-celebration-song", {
-          body: { name, dialect: activeDialect, achievement: { kind: event.kind } },
+          body: { name, dialect: activeDialect, achievement: songAchievement(event) },
         });
         if (error || !data) return false;
         const file = await createPlayableJingleAudio(data);

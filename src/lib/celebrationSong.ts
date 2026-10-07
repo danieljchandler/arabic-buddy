@@ -11,12 +11,25 @@ export type CelebrationKind =
   | "lesson_complete"
   | "daily_tasks_complete"
   | "video_complete"
-  | "review_conversation_complete";
+  | "review_conversation_complete"
+  | "badge_earned";
 
 export interface CelebrationEvent {
   kind: CelebrationKind;
-  /** What was finished: a lesson or video id, or the local date for the day's tasks. */
+  /**
+   * What was finished: a lesson or video id, or the local date for the day's
+   * tasks. For a badge, the badge's id: the song function reads the badge
+   * itself and only sings one the caller holds.
+   */
   entityId: string;
+}
+
+/**
+ * The `achievement` the song function is asked to sing about. A badge is named
+ * by id and nothing else; every other kind is the kind alone.
+ */
+export function songAchievement(event: CelebrationEvent): { kind: CelebrationKind; badgeId?: string } {
+  return event.kind === "badge_earned" ? { kind: event.kind, badgeId: event.entityId } : { kind: event.kind };
 }
 
 const SEEN_PREFIX = "hakiya:celebrated:";

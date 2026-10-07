@@ -11,7 +11,7 @@ brand.
 | The first finish of a curriculum lesson | `Learn.tsx`, `handleProduceFinish`, when `savedProgress` (the state before this finish) is not completed | medium |
 | An alphabet letter mastered | `AlphabetLetter.tsx`, when `completeStep` reports `mastered` | medium |
 | Every review deck cleared, after reviewing something | `SessionHandoff`, given `reviewed` by the three review pages | medium |
-| Badge earned | `useCheckAchievements` (it replaces the toast) | medium |
+| Badge earned | `useCheckAchievements` (it replaces the toast); the screen shows the badge and, once, a song about it | medium |
 | Everything on today's list done, first time today | `Index.tsx`, via `claimDailyGoalCelebration` | large |
 | A streak milestone (3, 7, 14, 30 … days), once per run | `useStreakMilestoneCelebration`, inside the host | large |
 
@@ -669,6 +669,7 @@ and doesn't sway.
 |---|---|
 | `src/lib/dances.ts` | The catalogue (`ARDAH`, `DANCES`, `dancesFor`), each dance's measured timing constants, and `poseAt` (what is on stage at a given moment; pure and tested). |
 | `src/lib/vignettes.ts` | The vignettes, the streak ladders and their rungs, `resolveVignette`. See `celebrations-vignettes.md`. |
+| `src/components/celebrations/BadgeSticker.tsx` | The earned badge's emblem, XP and Arabic name on the stage. The song about it is `useCelebrationSong` with `badge_earned`, started by the host. |
 | `src/components/celebrations/StageEffects.tsx`, `vignetteArt.ts` | The code-drawn flames, smoke, steam, sparkle and ink; the vignettes' stills, found by file name. |
 | `src/lib/celebrations.ts` | When and how long: the moment kinds, tiers, the rotation, the cheers, the copy, the daily-goal and streak claims, the preview parameter, and the `celebrate()` bus. |
 | `src/components/celebrations/CelebrationHost.tsx` | Mounted in `App.tsx`. Listens on the bus, picks the dance and cheer, folds a burst into one screen, plays `?celebrate=`. |

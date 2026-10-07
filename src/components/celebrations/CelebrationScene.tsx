@@ -2,8 +2,9 @@ import { useEffect, useState, type CSSProperties } from "react";
 import type { DialectModule } from "@/contexts/DialectContext";
 import { useReducedMotion } from "@/lib/uiPrefs";
 import { poseAt, type DanceDefinition } from "@/lib/dances";
-import type { CelebrationTier } from "@/lib/celebrations";
+import type { CelebrationBadge, CelebrationTier } from "@/lib/celebrations";
 import { artFor, type StageBox } from "./danceArt";
+import { BadgeName, BadgeSticker } from "./BadgeSticker";
 import { StageEffects } from "./StageEffects";
 import { DialectFrame } from "./DialectFrame";
 import "./celebration.css";
@@ -70,9 +71,11 @@ interface CelebrationSceneProps {
    * the first pose falls on the first beat (useDanceMusic). Defaults to true.
    */
   running?: boolean;
+  /** The badge this celebration is for, stuck on the stage. */
+  badge?: CelebrationBadge;
 }
 
-export function CelebrationScene({ dance, dialect, tier, cheer, headline, running = true }: CelebrationSceneProps) {
+export function CelebrationScene({ dance, dialect, tier, cheer, headline, running = true, badge }: CelebrationSceneProps) {
   const reduced = useReducedMotion();
   const [elapsed, setElapsed] = useState(0);
   const beatMs = dance?.beatMs ?? 0;
@@ -97,7 +100,7 @@ export function CelebrationScene({ dance, dialect, tier, cheer, headline, runnin
 
   return (
     <div
-      className={`cel-stage ${dance ? "" : "cel-stage-bare"}`}
+      className={`cel-stage ${dance ? "" : "cel-stage-bare"} ${badge ? "cel-has-badge" : ""}`}
       {...(dance
         ? { role: "img", "aria-label": `${dance.gloss}, ${dance.about ?? `a dance from ${dance.region}`}` }
         : { "aria-hidden": true })}
@@ -191,11 +194,14 @@ export function CelebrationScene({ dance, dialect, tier, cheer, headline, runnin
         />
       )}
 
+      {badge && <BadgeSticker badge={badge} />}
+
       <div className="cel-labels" aria-hidden="true">
         <span className="cel-label cel-praise" lang="ar" dir="rtl">
           {cheer}
         </span>
         <span className="cel-label cel-headline">{headline}</span>
+        {badge && <BadgeName badge={badge} />}
       </div>
       <div className="cel-grain" aria-hidden="true" />
     </div>

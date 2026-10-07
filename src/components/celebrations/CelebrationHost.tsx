@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDialect, type DialectModule } from "@/contexts/DialectContext";
 import { useStreakMilestoneCelebration } from "@/hooks/useStreakMilestoneCelebration";
+import { useCelebrationSong } from "@/hooks/useCelebrationSong";
 import { playSuccessChime, vibrate } from "@/lib/tapFeedback";
 import type { DanceDefinition } from "@/lib/dances";
 import {
+  CELEBRATE_BADGE_PARAM,
   CELEBRATE_DAYS_PARAM,
   CELEBRATE_PARAM,
   celebrate,
@@ -12,10 +14,12 @@ import {
   largerTier,
   parseCelebrateParam,
   pickSceneCheer,
+  previewBadge,
   previewScene,
   subscribeCelebrations,
   takeScene,
   tierFor,
+  type CelebrationBadge,
   type CelebrationEvent,
   type CelebrationTier,
   type Cheer,
@@ -36,6 +40,8 @@ interface Shown {
   dialect: DialectModule;
   cheer: Cheer;
   tier: CelebrationTier;
+  /** The badge the first moment was for, when it was a badge. */
+  badge?: CelebrationBadge;
   /** Moments that landed while this one was up, as one-line summaries. */
   extras: string[];
 }
@@ -46,6 +52,10 @@ interface Shown {
  * `@/lib/celebrations` (a lesson's first finish, a letter learned, a cleared
  * review deck, the day's goal, a badge, and, watched here, a streak
  * milestone). It also plays the `?celebrate=` preview link.
+ *
+ * A badge is on the screen as a sticker and, once, in a song about it: the
+ * first badge of a screen is sung (a second one that folds in is a line), and
+ * never over a song that is already playing.
  *
  * What it plays is `takeScene`'s choice (a dance, or a vignette that suits the
  * moment; a streak is always its dialect's ladder).
@@ -59,6 +69,12 @@ export function CelebrationHost() {
   const { activeDialect } = useDialect();
   const dialectRef = useRef(activeDialect);
   dialectRef.current = activeDialect;
+
+  // The latest `sing`, so the subscription below (made once) never holds a
+  // stale name or dialect.
+  const sing = useCelebrationSong();
+  const singRef = useRef(sing);
+  singRef.current = sing;
 
   const shownRef = useRef<Shown | null>(null);
   const [shown, setShown] = useState<Shown | null>(null);
@@ -91,8 +107,13 @@ export function CelebrationHost() {
         dialect,
         cheer: pickSceneCheer(scene, dialect),
         tier: tierFor(event),
+        badge: event.badge,
         extras: [],
       });
+      // A badge earned is sung about, once; a previewed one never is.
+      if (event.kind === "achievement" && event.badge) {
+        void singRef.current({ kind: "badge_earned", entityId: event.badge.id }, { onlyIfQuiet: true });
+      }
     });
   }, [show]);
 
@@ -108,13 +129,22 @@ export function CelebrationHost() {
     const url = new URL(window.location.href);
     url.searchParams.delete(CELEBRATE_PARAM);
     url.searchParams.delete(CELEBRATE_DAYS_PARAM);
+    url.searchParams.delete(CELEBRATE_BADGE_PARAM);
     url.searchParams.delete(DANCE_MUSIC_PARAM);
     try {
       window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
     } catch {
       // A sandboxed frame can refuse; the preview still plays.
     }
-    if (found) celebrate({ kind: "preview", danceId: found.dance.id, tier: found.tier, days: found.days });
+    if (found) {
+      celebrate({
+        kind: "preview",
+        danceId: found.dance.id,
+        tier: found.tier,
+        days: found.days,
+        badge: found.badge ? previewBadge(found.badge) : undefined,
+      });
+    }
   }, []);
 
   // After the subscription above, so a milestone already in the query cache
@@ -140,6 +170,7 @@ export function CelebrationHost() {
       extras={shown.extras}
       clockKey={shown.extras.length}
       music={music}
+      badge={shown.badge}
       onClose={() => show(null)}
     />
   );

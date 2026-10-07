@@ -473,6 +473,50 @@ describe("CelebrationHost: a badge", () => {
     expect(SongAudio.instances[0].pause).not.toHaveBeenCalled();
   });
 
+  it("gives a badge that lands on a screen already open its sticker and its song", async () => {
+    // A rated card can clear the deck and earn a badge: the deck's screen is
+    // open by the time the badge is found.
+    const harness = await renderNamed();
+    const b = badge(21, { nameArabic: "أول" });
+    await fire({ kind: "deck", detail: 12 });
+    expect(within(dialog()).queryByTestId("celebration-badge")).toBeNull();
+
+    await fire(earned(b));
+
+    expect(screen.getByRole("dialog", { name: "All caught up!" })).toBeInTheDocument();
+    expect(within(dialog()).getByTestId("celebration-badge")).toBeInTheDocument();
+    expect(within(dialog()).getByTestId("celebration-badge-name")).toHaveTextContent("أول");
+    // It is still a line too, like any moment that joins a screen.
+    expect(within(dialog()).getAllByRole("listitem").map((li) => li.textContent)).toEqual([
+      "Badge earned! 🔥 Badge 21 · +50 XP",
+    ]);
+    await waitFor(() => expect(songCalls(harness)).toHaveLength(1));
+    expect(songCalls(harness)[0].body).toMatchObject({ achievement: { kind: "badge_earned", badgeId: b.id } });
+  });
+
+  it("gives only the first badge to land on an open screen the sticker and the song", async () => {
+    const harness = await renderNamed();
+    await fire({ kind: "deck", detail: 12 });
+    await fire(earned(badge(22, { nameArabic: "أول" })));
+    await fire(earned(badge(23, { nameArabic: "ثاني" })));
+
+    await waitFor(() => expect(songCalls(harness)).toHaveLength(1));
+    expect(songCalls(harness)[0].body).toMatchObject({ achievement: { badgeId: badge(22).id } });
+    expect(within(dialog()).getAllByTestId("celebration-badge")).toHaveLength(1);
+    expect(within(dialog()).getByTestId("celebration-badge-name")).toHaveTextContent("أول");
+    expect(within(dialog()).getAllByRole("listitem")).toHaveLength(2);
+  });
+
+  it("does not hand a real badge to a preview screen, or sing about it", async () => {
+    window.history.replaceState(null, "", "/?celebrate=ardah");
+    const harness = await renderNamed();
+    await fire(earned(badge(24)));
+
+    expect(within(dialog()).queryByTestId("celebration-badge")).toBeNull();
+    expect(within(dialog()).getAllByRole("listitem")).toHaveLength(1);
+    expect(songCalls(harness)).toHaveLength(0);
+  });
+
   it("shows a badge and stays quiet for a learner with no account", async () => {
     const harness = await renderHost();
     await fire(earned(badge(18)));

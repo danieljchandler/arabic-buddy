@@ -217,6 +217,50 @@ describe("a badge", () => {
     expect(sang(harness)).toHaveLength(2);
   });
 
+  it("does not start a second song while another is still being made", async () => {
+    // A song takes a while to generate and nobody waits for it, so a badge
+    // earned a few seconds after a lesson would otherwise pay for a second
+    // generation, and the later one would cut the earlier off.
+    const harness = await render({ displayName: "Layla" });
+    harness.backend.db.delay("fn:generate-celebration-song", 150);
+    const badge = { kind: "badge_earned" as const, entityId: "5b1e7a52-0d0c-4a55-9a43-9a0c3b2f6e55" };
+
+    let first: Promise<boolean> = Promise.resolve(false);
+    let second = true;
+    await act(async () => {
+      first = harness.result.current.celebrate(lesson());
+      second = await harness.result.current.celebrate(badge, { onlyIfQuiet: true });
+      await first;
+    });
+
+    expect(second).toBe(false);
+    expect(await first).toBe(true);
+    expect(sang(harness)).toHaveLength(1);
+    expect(FakeAudio.instances).toHaveLength(1);
+    expect(FakeAudio.instances[0].pause).not.toHaveBeenCalled();
+    // It was not used up: once the room is quiet the badge can still be sung.
+    await act(async () => {
+      FakeAudio.instances[0].onended?.();
+    });
+    await act(async () => {
+      expect(await harness.result.current.celebrate(badge, { onlyIfQuiet: true })).toBe(true);
+    });
+  });
+
+  it("stops counting a song as being made once it has failed, so a later badge can sing", async () => {
+    const harness = await render({ displayName: "Layla" });
+    harness.backend.stubFunctionFailure("generate-celebration-song", 500);
+    const badge = { kind: "badge_earned" as const, entityId: "5b1e7a52-0d0c-4a55-9a43-9a0c3b2f6e66" };
+
+    await act(async () => {
+      expect(await harness.result.current.celebrate(lesson())).toBe(false);
+      await harness.result.current.celebrate(badge, { onlyIfQuiet: true });
+    });
+
+    // The badge was not turned away as "busy": it asked for its own song.
+    expect(sang(harness)).toHaveLength(2);
+  });
+
   it("sings when nothing is playing, with or without asking to be quiet", async () => {
     const harness = await render({ displayName: "Layla" });
     let started = false;

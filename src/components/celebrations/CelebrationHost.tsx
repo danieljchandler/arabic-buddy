@@ -54,8 +54,9 @@ interface Shown {
  * milestone). It also plays the `?celebrate=` preview link.
  *
  * A badge is on the screen as a sticker and, once, in a song about it: the
- * first badge of a screen is sung (a second one that folds in is a line), and
- * never over a song that is already playing.
+ * first badge of a screen is sung, including one that lands on a screen already
+ * open for something else (a second one is a line), and never over a song that
+ * is already playing or being made.
  *
  * What it plays is `takeScene`'s choice (a dance, or a vignette that suits the
  * moment; a streak is always its dialect's ladder).
@@ -85,12 +86,29 @@ export function CelebrationHost() {
 
   useEffect(() => {
     let counter = 0;
+    // A badge earned is sung about, once; a previewed one never is.
+    const singAbout = (event: CelebrationEvent) => {
+      if (event.kind === "achievement" && event.badge) {
+        void singRef.current({ kind: "badge_earned", entityId: event.badge.id }, { onlyIfQuiet: true });
+      }
+    };
     return subscribeCelebrations((event) => {
       const current = shownRef.current;
       if (current) {
         const line = celebrationSummary(event);
         if (line === celebrationSummary(current.event) || current.extras.includes(line)) return;
-        show({ ...current, tier: largerTier(current.tier, tierFor(event)), extras: [...current.extras, line] });
+        // The first badge to land on a screen that has none (a cleared deck is
+        // often open when the badge it earned is found) is still the badge the
+        // screen is for: it takes the sticker and is sung about, and is also a
+        // line like the rest. Later badges are only lines.
+        const adopts = event.kind === "achievement" && !!event.badge && !current.badge && current.event.kind !== "preview";
+        show({
+          ...current,
+          tier: largerTier(current.tier, tierFor(event)),
+          extras: [...current.extras, line],
+          ...(adopts ? { badge: event.badge } : {}),
+        });
+        if (adopts) singAbout(event);
         return;
       }
       // A preview names its scene, and plays a dance for its own region and
@@ -110,10 +128,7 @@ export function CelebrationHost() {
         badge: event.badge,
         extras: [],
       });
-      // A badge earned is sung about, once; a previewed one never is.
-      if (event.kind === "achievement" && event.badge) {
-        void singRef.current({ kind: "badge_earned", entityId: event.badge.id }, { onlyIfQuiet: true });
-      }
+      singAbout(event);
     });
   }, [show]);
 

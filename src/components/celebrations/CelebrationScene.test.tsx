@@ -53,6 +53,10 @@ describe("CelebrationScene", () => {
     }
   });
 
+  it("has a music loop for every dance", () => {
+    for (const dance of DANCES) expect(DANCE_ART[dance.id].music, dance.id).toMatch(/music\.mp3$/);
+  });
+
   it("shows one still at a time and changes it on the beat, in order", () => {
     const { container } = render(<CelebrationScene dance={ARDAH} dialect="Gulf" tier="medium" cheer="كفو!" headline="Lesson complete" />);
     const seen: (number | null)[] = [];
@@ -114,6 +118,21 @@ describe("CelebrationScene", () => {
     expect(showing(container, "dancers").pose).toBe(ARDAH.sequence[0]);
     expect(container.querySelector(".cel-dancers-still")!.className).not.toMatch(/cel-pop/);
     expect(container.querySelector(".cel-dancers")!.className).not.toMatch(/cel-sway/);
+  });
+
+  it("holds the first pose until its music has started, then dances from the top", () => {
+    const { container, rerender } = render(
+      <CelebrationScene dance={ARDAH} dialect="Gulf" tier="large" cheer="كفو!" headline="x" running={false} />,
+    );
+    act(() => {
+      vi.advanceTimersByTime(ARDAH.beatMs * 3);
+    });
+    expect(showing(container, "dancers").pose).toBe(ARDAH.sequence[0]);
+    rerender(<CelebrationScene dance={ARDAH} dialect="Gulf" tier="large" cheer="كفو!" headline="x" running />);
+    act(() => {
+      vi.advanceTimersByTime(ARDAH.beatMs);
+    });
+    expect(showing(container, "dancers").pose).toBe(ARDAH.sequence[1]);
   });
 
   it("doesn't sway a dance whose sway is zero", () => {

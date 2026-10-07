@@ -556,6 +556,58 @@ their feet.
 
 **Before this ships to learners:** a Yemeni reviewer's sign-off.
 
+## Music (testing)
+
+Each dance can play a few seconds of its own music, looped for as long as the
+screen is up. **This is a test.** The loops are cut from recordings whose
+rights are not cleared (some are rips of commercial or broadcast audio), so a
+learner hears them only after someone switches the test flag on:
+
+- `?celebrate=<dance>` previews always play the music.
+- `?dancemusic=on` on any page switches it on for real celebrations on that
+  browser (`localStorage` key `hikaya:dance-music`); `?dancemusic=off` switches
+  it off again.
+- The app's sound switch silences it like every other sound.
+
+The scene waits for the music before it starts its clock, so the first pose
+lands on the first beat (`useDanceMusic`, at most 400 ms; a refused or failed
+load dances in silence). The loop fades out over 250 ms when the screen
+closes. Code: `src/lib/danceMusic.ts`, `src/hooks/useDanceMusic.ts`, and a
+`music` entry per dance in `danceArt.ts`.
+
+**Cutting a loop.** `scripts/celebrations/make_dance_loop.py` takes a
+recording, a stretch of it and the dance's measured period from
+`src/lib/dances.ts`. It finds the recording's own period near that one and
+time-stretches it to match exactly (unless `--no-stretch`, for a dance not
+locked to its music). It then starts on the beat grid with the strongest
+onsets, cuts whole periods covering at least 6 s (the longest scene), and
+writes a normalised mono MP3 of about 75 KB.
+
+Every loop comes from the stretch of the reference footage where that dance's
+timing was measured, so the music and the animation share one clock. The
+clips were cut on the owner's machine from the local copies of the reference
+videos (`docs/reference/<dance>/sources.txt`); they are not in the repo.
+
+| Dance | Source (reference video, stretch) | Loop | Recording's own period → stretch |
+|---|---|---|---|
+| Ardah | ardah2, 10:32–11:02 | 6 × 1170 ms = 7.02 s | 1171 ms → ×0.999 |
+| Ayyala | ayyala3, 0:30–1:00 | 18 × 343 ms = 6.17 s | 343 ms → ×1.000 |
+| Al-Mizmar | mizmar10, 4:36–5:08 (the slow clap) | 5 × 1317 ms = 6.58 s | 1296 ms → ×1.016 |
+| Khammari | gulf-women1, 7:48–8:40 | 13 × 464 ms = 6.03 s | 466 ms → ×0.996 |
+| Al-Razha | razha12, 6:20–7:00 | 8 × 775 ms = 6.20 s | 768 ms → ×1.008 |
+| Saidi cane dance | assaya3, 2:30–3:46 | 24 × 250 ms = 6.00 s | 253 ms → ×0.986 |
+| Tanoura | tanoura6, 4:00–4:20 | 7 × 990 ms = 6.93 s | 875 ms, not stretched: the turn is not locked to the music |
+| Tahtib | tahtib3, 3:00–3:40 | 12 × 536 ms = 6.43 s | 536 ms → ×0.999 |
+| Al-Bara' | baraa2, 0:26–2:14 | 14 × 430 ms = 6.02 s | 424 ms → ×1.015 |
+| Sana'ani | sanaani17, 6:20–6:45 | 12 × 535 ms = 6.42 s | 457 ms, not stretched: the bob is not tied to the music |
+
+None of these recordings is cleared for the app: most are television,
+UNESCO or community videos on YouTube. Before anything ships to learners,
+every loop needs a cleared source, a listen and a native reviewer. The
+licensing research (which recordings are free to use, and the fallbacks) is
+in the report "Copyright free dance music", delivered to the owner on
+2026-10-07 and not in the repo.
+
 ## The look
 
 The owner picked this direction from two style rounds. Its references are
@@ -685,10 +737,8 @@ so a reload doesn't replay it.
 - **The Gulf frame is Najdi** for every Gulf dance, the Hejazi, Omani and
   Bahraini ones included. A frame per region (Hejazi rawashin, Omani
   doorways, Bahraini wind towers) is not drawn.
-- **Sound:** the dance screen itself is silent. A separate sung celebration
-  (PR #416, `useCelebrationSong`) plays on a lesson's finish and the day's
-  goal, so on those two moments the learner gets the dance and a song
-  together. A drum loop per dance (generated, timed to each dance's measured
-  stroke) is still open; it would compete with the song.
+- **Sound:** a sung celebration (PR #416, `useCelebrationSong`) plays on a
+  lesson's finish and the day's goal. The dance music below is a test; if it
+  ships, the two will need to take turns rather than overlap.
 - **Other milestones:** stage completion and weekly goals have no "crossing
   moment" on the client yet.

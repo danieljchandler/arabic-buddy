@@ -346,6 +346,13 @@ export function useCheckAchievements() {
           celebrate({
             kind: "achievement",
             detail: `${achievement.icon} ${achievement.name} · +${achievement.xp_reward} XP`,
+            badge: {
+              id: achievement.id,
+              name: achievement.name,
+              nameArabic: achievement.name_arabic,
+              icon: achievement.icon,
+              xp: achievement.xp_reward,
+            },
           });
         });
       }

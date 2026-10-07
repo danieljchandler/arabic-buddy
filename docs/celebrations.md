@@ -11,7 +11,7 @@ brand.
 | The first finish of a curriculum lesson | `Learn.tsx`, `handleProduceFinish`, when `savedProgress` (the state before this finish) is not completed | medium |
 | An alphabet letter mastered | `AlphabetLetter.tsx`, when `completeStep` reports `mastered` | medium |
 | Every review deck cleared, after reviewing something | `SessionHandoff`, given `reviewed` by the three review pages | medium |
-| Badge earned | `useCheckAchievements` (it replaces the toast) | medium |
+| Badge earned | `useCheckAchievements` (it replaces the toast); the screen shows the badge and, once, a song about it | medium |
 | Everything on today's list done, first time today | `Index.tsx`, via `claimDailyGoalCelebration` | large |
 | A streak milestone (3, 7, 14, 30 … days), once per run | `useStreakMilestoneCelebration`, inside the host | large |
 
@@ -21,8 +21,9 @@ A moment that lands while the screen is up joins it as a line ("Badge earned!
 First Steps") instead of queueing a second dance, and restarts its clock so
 the line can be read.
 
-The host picks the next dance in the learner's dialect's rotation and a cheer
-in that dialect (`CHEERS`, checked by `detectMsaLeaks` in the tests). Every
+The host picks the next scene (a dance from the learner's dialect's rotation,
+or, for a streak milestone or on a vignette's turn, a vignette; see
+`takeScene`) and a cheer in that dialect (`CHEERS`, checked by `detectMsaLeaks` in the tests). Every
 cheer is an exclamation, not an address, so none has to guess the learner's
 gender. Every dialect now has at least one dance. A dialect without one would
 still get the screen: the paper, the circle, the cheer and the milestone,
@@ -40,6 +41,13 @@ the **Saidi cane dance** (رقص العصاية), the **Tanoura** (التنور�
 **Sana'ani dance** (الرقص الصنعاني) for Yemeni learners. Within a dialect the
 rotation alternates kinds of dance, so the Gulf goes Ardah, Ayyala, Mizmar,
 Khammari, Razha.
+
+**Beside the dances there are fourteen vignettes**: small scenes in the same
+collage style built around a meal, a ritual or a landmark, which a streak
+milestone plays as a **ladder** (a grill whose fire grows with the days) and
+which the other moments alternate with the dance rotation. They are described
+in [`celebrations-vignettes.md`](celebrations-vignettes.md). Nothing in them is
+measured from footage.
 
 ## The Ardah (العرضة): drawn from reference keyframes and timed from the footage
 
@@ -660,6 +668,9 @@ and doesn't sway.
 | Piece | Purpose |
 |---|---|
 | `src/lib/dances.ts` | The catalogue (`ARDAH`, `DANCES`, `dancesFor`), each dance's measured timing constants, and `poseAt` (what is on stage at a given moment; pure and tested). |
+| `src/lib/vignettes.ts` | The vignettes, the streak ladders and their rungs, `resolveVignette`. See `celebrations-vignettes.md`. |
+| `src/components/celebrations/BadgeSticker.tsx` | The earned badge's emblem, XP and Arabic name on the stage. The song about it is `useCelebrationSong` with `badge_earned`, started by the host. |
+| `src/components/celebrations/StageEffects.tsx`, `vignetteArt.ts` | The code-drawn flames, smoke, steam, sparkle and ink; the vignettes' stills, found by file name. |
 | `src/lib/celebrations.ts` | When and how long: the moment kinds, tiers, the rotation, the cheers, the copy, the daily-goal and streak claims, the preview parameter, and the `celebrate()` bus. |
 | `src/components/celebrations/CelebrationHost.tsx` | Mounted in `App.tsx`. Listens on the bus, picks the dance and cheer, folds a burst into one screen, plays `?celebrate=`. |
 | `src/components/celebrations/CelebrationOverlay.tsx` | The full-screen dialog and the auto-dismiss. |
@@ -670,6 +681,8 @@ and doesn't sway.
 | `src/hooks/useStreakMilestoneCelebration.ts` | Watches the streak row for a milestone. |
 
 **Preview without finishing a lesson:** add `?celebrate=ardah` to any address.
+A vignette works the same (`?celebrate=football`), and a ladder takes the
+streak to show with `&celebratedays=30`.
 You can also choose the tier with `?celebrate=ardah-small` or
 `?celebrate=ardah-large`. The parameter is removed from the address once read,
 so a reload doesn't replay it.

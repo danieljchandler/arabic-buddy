@@ -1,4 +1,5 @@
 import type { DialectModule } from "@/contexts/DialectContext";
+import type { Cheer } from "@/lib/celebrations";
 
 /**
  * The milestone dances: a few seconds of a traditional dance from the
@@ -17,7 +18,34 @@ import type { DialectModule } from "@/contexts/DialectContext";
  * timing; it renders nothing. When a dance plays is `@/lib/celebrations`.
  */
 
-export interface DanceDefinition {
+/**
+ * What the stage can draw in code over a scene's figure. The dances use none;
+ * the vignettes (`@/lib/vignettes`) ask for them, because flames, smoke and
+ * sparkle are cheaper and more on-brand drawn than photographed.
+ */
+export type SceneEffect = "fire" | "smoke" | "steam" | "sparkle" | "ink";
+
+/** The stage's own stage directions for the scenes that aren't dances. */
+export interface SceneExtras {
+  /**
+   * What the scene is, for screen readers, when it is not a dance: "a street
+   * grill from the Gulf". Unset, the label reads "a dance from <region>".
+   */
+  about?: string;
+  /** Effects drawn over the figure. */
+  effects?: readonly SceneEffect[];
+  /** How strong the effects are, 1 (a few sparks) to 5 (a blaze). Default 2. */
+  heat?: number;
+  /**
+   * Where the effects rise from, as percentages of the figure's box from its
+   * left and its top. Default: the middle, 60% of the way down.
+   */
+  fxAnchor?: { x: number; y: number };
+  /** What the stage shouts for this scene before it falls back to the dialect's cheers. */
+  cheers?: readonly Cheer[];
+}
+
+export interface DanceDefinition extends SceneExtras {
   id: string;
   /** The dialect whose learners see it. */
   dialect: DialectModule;

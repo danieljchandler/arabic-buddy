@@ -3,7 +3,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog";
 import type { DialectModule } from "@/contexts/DialectContext";
 import type { DanceDefinition } from "@/lib/dances";
 import { useDanceMusic } from "@/hooks/useDanceMusic";
-import { TIER_DURATION_MS, type CelebrationTier, type Cheer } from "@/lib/celebrations";
+import { TIER_DURATION_MS, type CelebrationBadge, type CelebrationTier, type Cheer } from "@/lib/celebrations";
 import { CelebrationScene } from "./CelebrationScene";
 
 /**
@@ -32,6 +32,8 @@ interface CelebrationOverlayProps {
   clockKey?: number;
   /** The dance's music loop, or null to dance in silence (src/lib/danceMusic.ts). */
   music?: string | null;
+  /** The badge a badge celebration is for, shown on the stage. */
+  badge?: CelebrationBadge;
   onClose: () => void;
 }
 
@@ -46,6 +48,7 @@ export function CelebrationOverlay({
   extras = [],
   clockKey = 0,
   music = null,
+  badge,
   onClose,
 }: CelebrationOverlayProps) {
   const musicStarted = useDanceMusic(open ? music : null);
@@ -79,6 +82,7 @@ export function CelebrationOverlay({
             cheer={cheer.ar}
             headline={title}
             running={musicStarted}
+            badge={badge}
           />
           <div className="w-[min(92vw,60vh,440px)] text-center text-[#F7F1E3]">
             <p className="text-xs text-[#E2B65C]">

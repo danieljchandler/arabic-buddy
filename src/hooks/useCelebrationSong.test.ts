@@ -45,6 +45,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  // The module remembers the song that is playing, so a test that left one
+  // singing would make the next think the room is not quiet.
+  FakeAudio.instances.forEach((audio) => audio.onended?.());
   cleanup?.();
   cleanup = undefined;
   setSoundEnabled(true);
@@ -152,6 +155,122 @@ describe("singing", () => {
       "A song for Layla!",
       expect.objectContaining({ id: "toast-id", action: expect.objectContaining({ label: "Play" }) }),
     );
+  });
+});
+
+describe("a badge", () => {
+  const BADGE = "5b1e7a52-0d0c-4a55-9a43-9a0c3b2f6e11";
+
+  it("asks for a song about the badge, naming it by id and nothing else", async () => {
+    const harness = await render({ displayName: "Layla" });
+
+    let started = false;
+    await act(async () => {
+      started = await harness.result.current.celebrate({ kind: "badge_earned", entityId: BADGE });
+    });
+
+    expect(started).toBe(true);
+    expect(sang(harness)[0].body).toEqual({
+      name: "Layla",
+      dialect: "Gulf",
+      achievement: { kind: "badge_earned", badgeId: BADGE },
+    });
+  });
+
+  it("sings a given badge once", async () => {
+    const harness = await render({ displayName: "Layla" });
+    const event = { kind: "badge_earned" as const, entityId: "5b1e7a52-0d0c-4a55-9a43-9a0c3b2f6e22" };
+
+    await act(async () => {
+      await harness.result.current.celebrate(event);
+      expect(await harness.result.current.celebrate(event)).toBe(false);
+    });
+
+    expect(sang(harness)).toHaveLength(1);
+  });
+
+  it("does not cut off a song that is already playing, and does not use up the badge", async () => {
+    const harness = await render({ displayName: "Layla" });
+    const badge = { kind: "badge_earned" as const, entityId: "5b1e7a52-0d0c-4a55-9a43-9a0c3b2f6e33" };
+
+    await act(async () => {
+      await harness.result.current.celebrate(lesson());
+    });
+    let started = true;
+    await act(async () => {
+      started = await harness.result.current.celebrate(badge, { onlyIfQuiet: true });
+    });
+
+    expect(started).toBe(false);
+    expect(sang(harness)).toHaveLength(1);
+    expect(FakeAudio.instances).toHaveLength(1);
+    expect(FakeAudio.instances[0].pause).not.toHaveBeenCalled();
+
+    // The lesson's song ends; the same badge is still singable.
+    await act(async () => {
+      FakeAudio.instances[0].onended?.();
+    });
+    await act(async () => {
+      started = await harness.result.current.celebrate(badge, { onlyIfQuiet: true });
+    });
+    expect(started).toBe(true);
+    expect(sang(harness)).toHaveLength(2);
+  });
+
+  it("does not start a second song while another is still being made", async () => {
+    // A song takes a while to generate and nobody waits for it, so a badge
+    // earned a few seconds after a lesson would otherwise pay for a second
+    // generation, and the later one would cut the earlier off.
+    const harness = await render({ displayName: "Layla" });
+    harness.backend.db.delay("fn:generate-celebration-song", 150);
+    const badge = { kind: "badge_earned" as const, entityId: "5b1e7a52-0d0c-4a55-9a43-9a0c3b2f6e55" };
+
+    let first: Promise<boolean> = Promise.resolve(false);
+    let second = true;
+    await act(async () => {
+      first = harness.result.current.celebrate(lesson());
+      second = await harness.result.current.celebrate(badge, { onlyIfQuiet: true });
+      await first;
+    });
+
+    expect(second).toBe(false);
+    expect(await first).toBe(true);
+    expect(sang(harness)).toHaveLength(1);
+    expect(FakeAudio.instances).toHaveLength(1);
+    expect(FakeAudio.instances[0].pause).not.toHaveBeenCalled();
+    // It was not used up: once the room is quiet the badge can still be sung.
+    await act(async () => {
+      FakeAudio.instances[0].onended?.();
+    });
+    await act(async () => {
+      expect(await harness.result.current.celebrate(badge, { onlyIfQuiet: true })).toBe(true);
+    });
+  });
+
+  it("stops counting a song as being made once it has failed, so a later badge can sing", async () => {
+    const harness = await render({ displayName: "Layla" });
+    harness.backend.stubFunctionFailure("generate-celebration-song", 500);
+    const badge = { kind: "badge_earned" as const, entityId: "5b1e7a52-0d0c-4a55-9a43-9a0c3b2f6e66" };
+
+    await act(async () => {
+      expect(await harness.result.current.celebrate(lesson())).toBe(false);
+      await harness.result.current.celebrate(badge, { onlyIfQuiet: true });
+    });
+
+    // The badge was not turned away as "busy": it asked for its own song.
+    expect(sang(harness)).toHaveLength(2);
+  });
+
+  it("sings when nothing is playing, with or without asking to be quiet", async () => {
+    const harness = await render({ displayName: "Layla" });
+    let started = false;
+    await act(async () => {
+      started = await harness.result.current.celebrate(
+        { kind: "badge_earned", entityId: "5b1e7a52-0d0c-4a55-9a43-9a0c3b2f6e44" },
+        { onlyIfQuiet: true },
+      );
+    });
+    expect(started).toBe(true);
   });
 });
 

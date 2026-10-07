@@ -1,6 +1,7 @@
 import type { DialectModule } from "@/contexts/DialectContext";
 import { localDateKey, parseLocalDate } from "@/lib/localDate";
 import { danceById, dancesFor, type DanceDefinition } from "@/lib/dances";
+import { ladderFor, resolveVignette, vignetteById, vignettesFor } from "@/lib/vignettes";
 
 /**
  * Celebration screens: the full-screen "you did it" moment, Hikaya's answer
@@ -12,16 +13,31 @@ import { danceById, dancesFor, type DanceDefinition } from "@/lib/dances";
  * The dances rotate, so finishing lessons in Gulf Arabic walks a learner
  * past each Gulf dance in turn, and the caption names the dance and where it
  * comes from. A reward screen they were going to see anyway becomes a small
- * piece of the culture the dialect lives in.
+ * piece of the culture the dialect lives in. Beside the dances sit the
+ * vignettes (`@/lib/vignettes`): a meal, a ritual or a landmark in the same
+ * collage, one of which suits a moment (a pearl for a badge) and takes every
+ * other turn, and a streak milestone's own picture, a grill whose fire grows
+ * with the days. `takeScene` chooses between them.
  *
  * Everything here is pure or touches only localStorage: how long each moment
- * plays, which dance comes next, which cheer to show, what the screen says
+ * plays, which scene comes next, which cheer to show, what the screen says
  * for each kind of moment, and the two "has this already been celebrated"
  * rules (daily goal, streak). The overlay is `CelebrationHost`; pages fire a
  * moment with `celebrate()`.
  */
 
 export type CelebrationKind = "lesson" | "letter" | "deck" | "goal" | "streak" | "achievement" | "preview";
+
+/** The badge a celebration is for: what the stage shows, and what the song is about. */
+export interface CelebrationBadge {
+  /** The row in `achievements`: the song function reads the badge by this id. */
+  id: string;
+  name: string;
+  nameArabic: string;
+  /** The emoji stored in `achievements.icon`; `badgeArtFor` maps it to artwork. */
+  icon: string;
+  xp: number;
+}
 
 export interface CelebrationEvent {
   kind: CelebrationKind;
@@ -31,10 +47,17 @@ export interface CelebrationEvent {
    * reviewed.
    */
   detail?: string | number;
-  /** Play this dance rather than the next in the rotation (the preview link). */
+  /**
+   * Play this dance (or vignette) rather than the next in the rotation (the
+   * preview link).
+   */
   danceId?: string;
   /** Play at this tier rather than the kind's own. */
   tier?: CelebrationTier;
+  /** A previewed streak ladder plays the rung for this many days. */
+  days?: number;
+  /** For an `achievement`: the badge earned, shown on the stage and sung about. */
+  badge?: CelebrationBadge;
 }
 
 // ── Tiers ──────────────────────────────────────────────────────────────────
@@ -149,6 +172,62 @@ export function takeNextDance(
   return dances[index];
 }
 
+// ── Which scene: a dance, or a vignette that suits the moment ──────────────
+
+export const SCENE_KEY = "hikaya:celebration-scenes:v1";
+
+/**
+ * The scene for a moment.
+ *
+ * A streak milestone plays the dialect's ladder at the rung its length has
+ * reached (`@/lib/vignettes`): the picture grows with the days, so it is
+ * never the dance rotation's turn. Every other moment alternates the dance
+ * rotation with the vignettes that suit it, a dance first, so a learner's
+ * first lesson, badge or letter is still the dance they were promised and a
+ * kind with no matching vignette is only ever a dance. The count lives per
+ * dialect and per kind, so a badge's turn for a pearl does not move the
+ * lesson's.
+ */
+export function takeScene(
+  event: CelebrationEvent,
+  dialect: DialectModule,
+  store: KeyValueStore | null = defaultStore(),
+  random: () => number = Math.random,
+): DanceDefinition | null {
+  if (event.kind === "streak") {
+    const ladder = ladderFor(dialect);
+    if (ladder) return resolveVignette(ladder, dialect, Number(event.detail) || undefined);
+    return takeNextDance(dialect, store, random);
+  }
+  const matching = vignettesFor(dialect, event.kind);
+  if (matching.length === 0) return takeNextDance(dialect, store, random);
+
+  const counts = readJson<Record<string, number>>(store, SCENE_KEY) ?? {};
+  const slot = `${dialect}:${event.kind}`;
+  const turn = Number.isInteger(counts[slot]) && counts[slot] >= 0 ? counts[slot] : 0;
+  writeJson(store, SCENE_KEY, { ...counts, [slot]: turn + 1 });
+  if (turn % 2 === 0) return takeNextDance(dialect, store, random);
+  return resolveVignette(matching[((turn - 1) / 2) % matching.length], dialect);
+}
+
+/**
+ * The dance or vignette a preview link names, played for `dialect` (the
+ * learner's own, when the vignette is made for it; a dance is always its
+ * region's). Null for an id that matches nothing.
+ */
+export function previewScene(
+  id: string,
+  dialect: DialectModule,
+  days?: number,
+): { scene: DanceDefinition; dialect: DialectModule } | null {
+  const dance = danceById(id);
+  if (dance) return { scene: dance, dialect: dance.dialect };
+  const vignette = vignetteById(id);
+  if (!vignette) return null;
+  const played = vignette.dialects.includes(dialect) ? dialect : vignette.dialect;
+  return { scene: resolveVignette(vignette, played, days ?? 100), dialect: played };
+}
+
 // ── Cheers ─────────────────────────────────────────────────────────────────
 
 export interface Cheer {
@@ -189,6 +268,20 @@ export const CHEERS: Record<DialectModule, readonly Cheer[]> = {
 export function pickCheer(dialect: DialectModule, random: () => number = Math.random): Cheer {
   const cheers = CHEERS[dialect];
   return cheers[Math.min(cheers.length - 1, Math.floor(random() * cheers.length))];
+}
+
+/**
+ * The cheer for a scene: the one it has to shout (a goal's «قوووول!», a
+ * pearl's, a lit fire's), else one of the dialect's.
+ */
+export function pickSceneCheer(
+  scene: DanceDefinition | null,
+  dialect: DialectModule,
+  random: () => number = Math.random,
+): Cheer {
+  const own = scene?.cheers;
+  if (!own?.length) return pickCheer(dialect, random);
+  return own[Math.min(own.length - 1, Math.floor(random() * own.length))];
 }
 
 // ── Copy ───────────────────────────────────────────────────────────────────
@@ -335,15 +428,36 @@ export function claimStreakCelebration(
  * doesn't.
  */
 export const CELEBRATE_PARAM = "celebrate";
+/**
+ * `?celebrate=mishkak&celebratedays=100` plays a streak ladder's rung for that
+ * many days (a hundred when it is left off).
+ */
+export const CELEBRATE_DAYS_PARAM = "celebratedays";
+/**
+ * `?celebrate=lulu&celebratebadge=🔥` plays the scene with that badge's emblem
+ * on it, so a badge celebration can be reviewed without earning one. It sings
+ * nothing: only a real badge earned does.
+ */
+export const CELEBRATE_BADGE_PARAM = "celebratebadge";
 
-export function parseCelebrateParam(search: string): { dance: DanceDefinition; tier: CelebrationTier } | null {
-  const raw = new URLSearchParams(search).get(CELEBRATE_PARAM);
+/** The sample badge a preview shows: any emoji in `badgeArtFor`, or an unmapped one for the fallback disc. */
+export function previewBadge(icon: string): CelebrationBadge {
+  return { id: "preview", name: "On Fire", nameArabic: "مشتعل", icon, xp: 50 };
+}
+
+export function parseCelebrateParam(
+  search: string,
+): { dance: DanceDefinition; tier: CelebrationTier; days?: number; badge?: string } | null {
+  const params = new URLSearchParams(search);
+  const raw = params.get(CELEBRATE_PARAM);
   if (!raw) return null;
   const [id, tierPart] = raw.trim().toLowerCase().split("-");
-  const dance = danceById(id);
+  const dance = danceById(id) ?? vignetteById(id);
   if (!dance) return null;
   const tier: CelebrationTier = tierPart === "small" || tierPart === "large" ? tierPart : "medium";
-  return { dance, tier };
+  const days = Number.parseInt(params.get(CELEBRATE_DAYS_PARAM) ?? "", 10);
+  const badge = params.get(CELEBRATE_BADGE_PARAM)?.trim();
+  return { dance, tier, ...(days > 0 ? { days } : {}), ...(badge ? { badge } : {}) };
 }
 
 // ── The bus ────────────────────────────────────────────────────────────────

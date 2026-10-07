@@ -2,13 +2,16 @@ import { useEffect, useState, type CSSProperties } from "react";
 import type { DialectModule } from "@/contexts/DialectContext";
 import { useReducedMotion } from "@/lib/uiPrefs";
 import { poseAt, type DanceDefinition } from "@/lib/dances";
-import type { CelebrationTier } from "@/lib/celebrations";
-import { DANCE_ART, type StageBox } from "./danceArt";
+import type { CelebrationBadge, CelebrationTier } from "@/lib/celebrations";
+import { artFor, type StageBox } from "./danceArt";
+import { BadgeName, BadgeSticker } from "./BadgeSticker";
+import { StageEffects } from "./StageEffects";
 import { DialectFrame } from "./DialectFrame";
 import "./celebration.css";
 
 /**
- * The collage stage: grayscale cutout dancers snapping from pose to pose and
+ * The collage stage (it plays a vignette, `@/lib/vignettes`, exactly as it
+ * plays a dance; a vignette's flames and sparkle are `StageEffects`): grayscale cutout dancers snapping from pose to pose and
  * swaying together, a musician in the open space they face, over mustard
  * paper with faint print, an oxblood circle, a scrap of grid paper, tape, and
  * the dance's name in a frame from the dialect's architecture (DialectFrame).
@@ -68,9 +71,11 @@ interface CelebrationSceneProps {
    * the first pose falls on the first beat (useDanceMusic). Defaults to true.
    */
   running?: boolean;
+  /** The badge this celebration is for, stuck on the stage. */
+  badge?: CelebrationBadge;
 }
 
-export function CelebrationScene({ dance, dialect, tier, cheer, headline, running = true }: CelebrationSceneProps) {
+export function CelebrationScene({ dance, dialect, tier, cheer, headline, running = true, badge }: CelebrationSceneProps) {
   const reduced = useReducedMotion();
   const [elapsed, setElapsed] = useState(0);
   const beatMs = dance?.beatMs ?? 0;
@@ -87,16 +92,17 @@ export function CelebrationScene({ dance, dialect, tier, cheer, headline, runnin
     return () => window.clearInterval(id);
   }, [reduced, beatMs, musicianMs, running]);
 
-  const art = dance ? DANCE_ART[dance.id] : null;
+  const art = dance ? artFor(dance.id) : null;
   const frame = dance ? poseAt(dance, elapsed) : null;
+  const posesUsed = new Set(dance?.sequence ?? []);
   const showMusician = !!art && tier !== "small" && art.musician.length > 0;
   const print = printFor(dialect);
 
   return (
     <div
-      className={`cel-stage ${dance ? "" : "cel-stage-bare"}`}
+      className={`cel-stage ${dance ? "" : "cel-stage-bare"} ${badge ? "cel-has-badge" : ""}`}
       {...(dance
-        ? { role: "img", "aria-label": `${dance.gloss}, a dance from ${dance.region}` }
+        ? { role: "img", "aria-label": `${dance.gloss}, ${dance.about ?? `a dance from ${dance.region}`}` }
         : { "aria-hidden": true })}
       data-testid="celebration-scene"
     >
@@ -160,25 +166,42 @@ export function CelebrationScene({ dance, dialect, tier, cheer, headline, runnin
               className={`cel-dancers-still ${frame.swapStep === 0 || reduced ? "" : frame.swapStep % 2 ? "cel-pop-a" : "cel-pop-b"}`}
               style={{ transform: `translateX(${frame.shiftPct}%) rotate(${frame.rotateDeg}deg)` }}
             >
-              {art.dancers.map((src, i) => (
-                <img
-                  key={src}
-                  src={src}
-                  alt=""
-                  data-pose={i}
-                  style={{ visibility: i === frame.pose ? "visible" : "hidden" }}
-                />
-              ))}
+              {art.dancers.map((src, i) =>
+                // A streak ladder's rung shows two or three of its six stills:
+                // the others are never needed, so they are never fetched.
+                posesUsed.has(i) ? (
+                  <img
+                    key={src}
+                    src={src}
+                    alt=""
+                    data-pose={i}
+                    style={{ visibility: i === frame.pose ? "visible" : "hidden" }}
+                  />
+                ) : null,
+              )}
             </div>
           </div>
         </div>
       )}
+
+      {dance && art && dance.effects && dance.effects.length > 0 && (
+        <StageEffects
+          effects={dance.effects}
+          heat={dance.heat ?? 2}
+          anchor={dance.fxAnchor ?? { x: 50, y: 60 }}
+          reduced={reduced}
+          style={boxStyle("dancers", art.dancersBox)}
+        />
+      )}
+
+      {badge && <BadgeSticker badge={badge} />}
 
       <div className="cel-labels" aria-hidden="true">
         <span className="cel-label cel-praise" lang="ar" dir="rtl">
           {cheer}
         </span>
         <span className="cel-label cel-headline">{headline}</span>
+        {badge && <BadgeName badge={badge} />}
       </div>
       <div className="cel-grain" aria-hidden="true" />
     </div>

@@ -1,8 +1,16 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders, TEST_USER_ID } from "@/test/support/react/harness";
 import { dancesFor } from "@/lib/dances";
-import { CHEERS, ROTATION_KEY, celebrate, type CelebrationEvent } from "@/lib/celebrations";
+import {
+  CHEERS,
+  ROTATION_KEY,
+  SCENE_KEY,
+  celebrate,
+  type CelebrationBadge,
+  type CelebrationEvent,
+} from "@/lib/celebrations";
+import { FOOTBALL, MISHKAK } from "@/lib/vignettes";
 import { DANCE_MUSIC_KEY } from "@/lib/danceMusic";
 import { setSoundEnabled } from "@/lib/uiPrefs";
 import { CelebrationHost } from "./CelebrationHost";
@@ -151,6 +159,62 @@ describe("CelebrationHost", () => {
     });
 
     await waitFor(() => expect(screen.getByRole("dialog", { name: "7-day streak!" })).toBeInTheDocument());
+    // A streak is never the dance rotation's turn: it plays the dialect's
+    // ladder, at the rung its length has reached.
+    expect(danceName()).toBe("Mishkak, a street grill from Saudi Arabia and the Gulf");
+    expect(window.localStorage.getItem(ROTATION_KEY)).toBeNull();
+  });
+
+  it("plays the learner's own dialect's ladder for a streak", async () => {
+    window.localStorage.setItem("hakiya_dialect_module", "Yemeni");
+    await renderHost();
+    await fire({ kind: "streak", detail: 30 });
+    expect(danceName()).toBe("Al-Madhbi, a hot-stone grill from Yemen");
+  });
+});
+
+describe("CelebrationHost: dances and vignettes take turns", () => {
+  it("opens with the dance a learner was promised, then brings in a scene that suits the moment", async () => {
+    await renderHost();
+    await fire({ kind: "lesson", detail: "At the souq" });
+    const gulf = dancesFor("Gulf").map((d) => `${d.gloss}, a dance from ${d.region}`);
+    expect(gulf).toContain(danceName());
+    fireEvent.click(within(dialog()).getByRole("button", { name: "Continue" }));
+
+    // The second lesson is the incense: a welcome.
+    await fire({ kind: "lesson", detail: "At the souq" });
+    expect(danceName()).toBe("Al-Bakhoor, a welcome with incense from the Gulf");
+    expect(cheer()).toBe("هلا والله!");
+    fireEvent.click(within(dialog()).getByRole("button", { name: "Continue" }));
+
+    // The third goes back to the rotation, which had only moved once.
+    await fire({ kind: "lesson", detail: "At the souq" });
+    expect(gulf).toContain(danceName());
+  });
+
+  it("keeps each moment's turn apart", async () => {
+    await renderHost();
+    await fire({ kind: "lesson" });
+    fireEvent.click(within(dialog()).getByRole("button", { name: "Continue" }));
+    // A first badge is still a dance, however many lessons have been finished.
+    await fire({ kind: "achievement", detail: "First Steps" });
+    const gulf = dancesFor("Gulf").map((d) => `${d.gloss}, a dance from ${d.region}`);
+    expect(gulf).toContain(danceName());
+    expect(JSON.parse(window.localStorage.getItem(SCENE_KEY) ?? "{}")).toEqual({
+      "Gulf:lesson": 1,
+      "Gulf:achievement": 1,
+    });
+  });
+
+  it("shows only dances for a moment no vignette suits", async () => {
+    window.localStorage.setItem("hakiya_dialect_module", "Yemeni");
+    await renderHost();
+    for (let i = 0; i < 3; i++) {
+      await fire({ kind: "lesson" });
+      expect(danceName()).toMatch(/, a dance from /);
+      fireEvent.click(within(dialog()).getByRole("button", { name: "Continue" }));
+    }
+    expect(window.localStorage.getItem(SCENE_KEY)).toBeNull();
   });
 });
 
@@ -180,6 +244,40 @@ describe("CelebrationHost: the preview link", () => {
     window.history.replaceState(null, "", "/?celebrate=ardah");
     await renderHost();
     expect(window.localStorage.getItem(ROTATION_KEY)).toBeNull();
+  });
+
+  it("plays a vignette by id for the learner's dialect, with its own cheer", async () => {
+    window.localStorage.setItem("hakiya_dialect_module", "Egyptian");
+    window.history.replaceState(null, "", "/?celebrate=football-large");
+    await renderHost();
+    expect(screen.getByRole("dialog", { name: "Preview" })).toBeInTheDocument();
+    // One goal, called two ways: Cairo's name and cheer, not the Gulf's.
+    expect(danceName()).toBe("Al-Gōn, a goal, as the commentators call it in Egypt");
+    expect(cheer()).toBe("جوووون!");
+    expect(window.location.search).toBe("");
+  });
+
+  it("plays a ladder at the length the link asks for, and takes both parameters out of the address", async () => {
+    window.history.replaceState(null, "", "/today?celebrate=mishkak-large&celebratedays=365");
+    await renderHost();
+    expect(danceName()).toBe(`${MISHKAK.gloss}, ${MISHKAK.about}`);
+    expect(window.location.search).toBe("");
+  });
+
+  it("plays a vignette made for another dialect in its own, not the learner's", async () => {
+    window.localStorage.setItem("hakiya_dialect_module", "Yemeni");
+    window.history.replaceState(null, "", "/?celebrate=mishkak");
+    await renderHost();
+    expect(danceName()).toBe(`${MISHKAK.gloss}, ${MISHKAK.about}`);
+    expect(CHEERS.Gulf.map((c) => c.ar).concat(MISHKAK.ladder!.flatMap((r) => (r.cheer ? [r.cheer.ar] : [])))).toContain(
+      cheer(),
+    );
+  });
+
+  it("keeps a vignette's name for the Gulf when the learner is Gulf", async () => {
+    window.history.replaceState(null, "", "/?celebrate=football");
+    await renderHost();
+    expect(danceName()).toBe(`${FOOTBALL.gloss}, ${FOOTBALL.about}`);
   });
 
   it("does nothing for a dance that doesn't exist", async () => {
@@ -269,5 +367,184 @@ describe("CelebrationHost: the dance music", () => {
     const [audio] = FakeAudio.instances;
     fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     await waitFor(() => expect(audio.pause).toHaveBeenCalled());
+  });
+});
+
+describe("CelebrationHost: a badge", () => {
+  // The badge is on the stage as a sticker and sung about once. The song is a
+  // bonus that costs a generation, so the cases that matter are the quiet ones:
+  // a second badge on the same screen, a song already playing, a preview, and
+  // a learner with no name or no account.
+
+  class SongAudio {
+    static instances: SongAudio[] = [];
+    onended: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    play = vi.fn(() => Promise.resolve());
+    pause = vi.fn();
+    addEventListener = vi.fn();
+    removeEventListener = vi.fn();
+    constructor(public src: string) {
+      SongAudio.instances.push(this);
+    }
+  }
+
+  const badge = (n: number, over: Partial<CelebrationBadge> = {}): CelebrationBadge => ({
+    id: `5b1e7a52-0d0c-4a55-9a43-9a0c3b2f6e${String(n).padStart(2, "0")}`,
+    name: `Badge ${n}`,
+    nameArabic: "مشتعل",
+    icon: "🔥",
+    xp: 50,
+    ...over,
+  });
+  const earned = (b: CelebrationBadge): CelebrationEvent => ({
+    kind: "achievement",
+    detail: `${b.icon} ${b.name} · +${b.xp} XP`,
+    badge: b,
+  });
+
+  /** A named learner, with the profile loaded, so a song is allowed to start. */
+  async function renderNamed() {
+    const harness = await renderHost({ persona: "free", personaOptions: { profile: { display_name: "Layla" } } });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 80));
+    });
+    return harness;
+  }
+  const songCalls = (harness: Awaited<ReturnType<typeof renderHost>>) => harness.backend.callsTo("generate-celebration-song");
+
+  beforeEach(() => {
+    SongAudio.instances = [];
+    vi.stubGlobal("Audio", SongAudio);
+    URL.revokeObjectURL = vi.fn();
+  });
+  afterEach(() => {
+    // The song module remembers what is playing; end it so the next test starts quiet.
+    SongAudio.instances.forEach((audio) => audio.onended?.());
+    vi.unstubAllGlobals();
+  });
+
+  it("puts the badge on the stage, with its Arabic name", async () => {
+    await renderHost();
+    await fire(earned(badge(11, { icon: "🏆", nameArabic: "بطل" })));
+
+    expect(within(dialog()).getByTestId("celebration-badge")).toBeInTheDocument();
+    expect(within(dialog()).getByTestId("celebration-badge-name")).toHaveTextContent("بطل");
+    expect(screen.getByRole("dialog", { name: "Badge earned!" })).toHaveAccessibleDescription("🏆 Badge 11 · +50 XP");
+  });
+
+  it("asks for a song about that badge, by id, in the learner's name and dialect", async () => {
+    const harness = await renderNamed();
+    const b = badge(12);
+    await fire(earned(b));
+
+    await waitFor(() => expect(songCalls(harness)).toHaveLength(1));
+    expect(songCalls(harness)[0].body).toEqual({
+      name: "Layla",
+      dialect: "Gulf",
+      achievement: { kind: "badge_earned", badgeId: b.id },
+    });
+    await waitFor(() => expect(SongAudio.instances).toHaveLength(1));
+  });
+
+  it("sings only the first badge when several land on one screen, and the others become lines", async () => {
+    const harness = await renderNamed();
+    await fire(earned(badge(13)));
+    await fire(earned(badge(14)));
+    await fire(earned(badge(15)));
+
+    await waitFor(() => expect(songCalls(harness)).toHaveLength(1));
+    expect(songCalls(harness)[0].body).toMatchObject({ achievement: { badgeId: badge(13).id } });
+    expect(within(dialog()).getAllByRole("listitem")).toHaveLength(2);
+    // And the sticker is the first badge's.
+    expect(within(dialog()).getAllByTestId("celebration-badge")).toHaveLength(1);
+  });
+
+  it("does not sing over a song that is already playing", async () => {
+    const harness = await renderNamed();
+    await fire(earned(badge(16)));
+    await waitFor(() => expect(SongAudio.instances).toHaveLength(1));
+    fireEvent.click(within(dialog()).getByRole("button", { name: "Continue" }));
+
+    // The first badge's song is still going when the next badge arrives.
+    await fire(earned(badge(17)));
+    expect(within(dialog()).getByTestId("celebration-badge")).toBeInTheDocument();
+    expect(songCalls(harness)).toHaveLength(1);
+    expect(SongAudio.instances[0].pause).not.toHaveBeenCalled();
+  });
+
+  it("gives a badge that lands on a screen already open its sticker and its song", async () => {
+    // A rated card can clear the deck and earn a badge: the deck's screen is
+    // open by the time the badge is found.
+    const harness = await renderNamed();
+    const b = badge(21, { nameArabic: "أول" });
+    await fire({ kind: "deck", detail: 12 });
+    expect(within(dialog()).queryByTestId("celebration-badge")).toBeNull();
+
+    await fire(earned(b));
+
+    expect(screen.getByRole("dialog", { name: "All caught up!" })).toBeInTheDocument();
+    expect(within(dialog()).getByTestId("celebration-badge")).toBeInTheDocument();
+    expect(within(dialog()).getByTestId("celebration-badge-name")).toHaveTextContent("أول");
+    // It is still a line too, like any moment that joins a screen.
+    expect(within(dialog()).getAllByRole("listitem").map((li) => li.textContent)).toEqual([
+      "Badge earned! 🔥 Badge 21 · +50 XP",
+    ]);
+    await waitFor(() => expect(songCalls(harness)).toHaveLength(1));
+    expect(songCalls(harness)[0].body).toMatchObject({ achievement: { kind: "badge_earned", badgeId: b.id } });
+  });
+
+  it("gives only the first badge to land on an open screen the sticker and the song", async () => {
+    const harness = await renderNamed();
+    await fire({ kind: "deck", detail: 12 });
+    await fire(earned(badge(22, { nameArabic: "أول" })));
+    await fire(earned(badge(23, { nameArabic: "ثاني" })));
+
+    await waitFor(() => expect(songCalls(harness)).toHaveLength(1));
+    expect(songCalls(harness)[0].body).toMatchObject({ achievement: { badgeId: badge(22).id } });
+    expect(within(dialog()).getAllByTestId("celebration-badge")).toHaveLength(1);
+    expect(within(dialog()).getByTestId("celebration-badge-name")).toHaveTextContent("أول");
+    expect(within(dialog()).getAllByRole("listitem")).toHaveLength(2);
+  });
+
+  it("does not hand a real badge to a preview screen, or sing about it", async () => {
+    window.history.replaceState(null, "", "/?celebrate=ardah");
+    const harness = await renderNamed();
+    await fire(earned(badge(24)));
+
+    expect(within(dialog()).queryByTestId("celebration-badge")).toBeNull();
+    expect(within(dialog()).getAllByRole("listitem")).toHaveLength(1);
+    expect(songCalls(harness)).toHaveLength(0);
+  });
+
+  it("shows a badge and stays quiet for a learner with no account", async () => {
+    const harness = await renderHost();
+    await fire(earned(badge(18)));
+    expect(within(dialog()).getByTestId("celebration-badge")).toBeInTheDocument();
+    expect(songCalls(harness)).toHaveLength(0);
+  });
+
+  it("sings about nothing that is not a badge", async () => {
+    const harness = await renderNamed();
+    await fire({ kind: "achievement", detail: "A badge with no record behind it" });
+    await fire({ kind: "lesson", detail: "At the souq" });
+    expect(songCalls(harness)).toHaveLength(0);
+    expect(within(dialog()).queryByTestId("celebration-badge")).toBeNull();
+  });
+
+  it("previews a badge on any scene without singing, and takes the parameter out of the address", async () => {
+    window.history.replaceState(null, "", "/today?celebrate=lulu-large&celebratebadge=%F0%9F%94%A5");
+    const harness = await renderNamed();
+    expect(screen.getByRole("dialog", { name: "Preview" })).toBeInTheDocument();
+    expect(within(dialog()).getByTestId("celebration-badge")).toBeInTheDocument();
+    expect(within(dialog()).getByTestId("celebration-badge-art")).toBeInTheDocument();
+    expect(window.location.search).toBe("");
+    expect(songCalls(harness)).toHaveLength(0);
+  });
+
+  it("previews the fallback disc for a badge with no artwork", async () => {
+    window.history.replaceState(null, "", "/?celebrate=ardah&celebratebadge=%F0%9F%A7%AD");
+    await renderHost();
+    expect(within(dialog()).getByTestId("celebration-badge-emoji")).toHaveTextContent("🧭");
   });
 });

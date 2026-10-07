@@ -1,3 +1,4 @@
+import { VIGNETTE_ART } from "./vignetteArt";
 import ardahRow1 from "@/assets/celebrations/ardah/row-1.webp";
 import ardahRow2 from "@/assets/celebrations/ardah/row-2.webp";
 import ardahRow3 from "@/assets/celebrations/ardah/row-3.webp";
@@ -194,3 +195,11 @@ export const DANCE_ART: Record<string, DanceArt> = {
     music: sanaaniMusic,
   },
 };
+
+/**
+ * The art for any scene the stage can play: a dance's, or a vignette's
+ * (`./vignetteArt`). Undefined for an id with no stills.
+ */
+export function artFor(id: string): DanceArt | undefined {
+  return DANCE_ART[id] ?? VIGNETTE_ART[id];
+}

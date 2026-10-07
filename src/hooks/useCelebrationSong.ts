@@ -11,6 +11,7 @@ import {
   hasCelebrated,
   markCelebrated,
   singerName,
+  songAchievement,
   type CelebrationEvent,
 } from "@/lib/celebrationSong";
 
@@ -20,6 +21,14 @@ import {
  * audio element behind.
  */
 let singing: { audio: HTMLAudioElement; url: string; toastId: string | number } | null = null;
+
+/**
+ * Songs being made right now. A song takes a while to generate and nobody
+ * awaits it, so for that time `singing` is still null: a song that asks for a
+ * quiet room must count one on its way as busy, or it pays for a second
+ * generation and the later of the two cuts the earlier off.
+ */
+let generating = 0;
 
 function stopSinging() {
   if (!singing) return;
@@ -72,6 +81,11 @@ async function sing(blob: Blob, name: string, lyrics: string | null) {
  * — quietly, with the lesson or video they just finished still the main event.
  * An event that was attempted is remembered whether or not it worked, so a
  * failing function is not retried on every re-render.
+ *
+ * `onlyIfQuiet` is for a song that arrives on top of another moment (a badge
+ * earned while a lesson's song is playing): it waits for nobody and cuts nobody
+ * off, so with a song already playing, or one still being made, it does nothing,
+ * and does not use up the event.
  */
 export function useCelebrationSong() {
   const { user } = useAuth();
@@ -82,7 +96,8 @@ export function useCelebrationSong() {
   const displayName = profile?.displayName;
 
   return useCallback(
-    async (event: CelebrationEvent): Promise<boolean> => {
+    async (event: CelebrationEvent, options: { onlyIfQuiet?: boolean } = {}): Promise<boolean> => {
+      if (options.onlyIfQuiet && (singing || generating > 0)) return false;
       const name = singerName(displayName);
       // No name yet (profile still loading) is not an attempt: leaving the event
       // unmarked lets the next render, with the name, sing it.
@@ -90,9 +105,10 @@ export function useCelebrationSong() {
       if (hasCelebrated(event)) return false;
       markCelebrated(event);
 
+      generating += 1;
       try {
         const { data, error } = await supabase.functions.invoke("generate-celebration-song", {
-          body: { name, dialect: activeDialect, achievement: { kind: event.kind } },
+          body: { name, dialect: activeDialect, achievement: songAchievement(event) },
         });
         if (error || !data) return false;
         const file = await createPlayableJingleAudio(data);
@@ -101,6 +117,10 @@ export function useCelebrationSong() {
         return true;
       } catch {
         return false;
+      } finally {
+        // After `sing`, so there is never a moment when the song is neither
+        // being made nor playing.
+        generating -= 1;
       }
     },
     [userId, enabled, displayName, activeDialect],

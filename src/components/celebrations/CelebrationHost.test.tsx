@@ -1,9 +1,12 @@
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders, TEST_USER_ID } from "@/test/support/react/harness";
 import { dancesFor } from "@/lib/dances";
 import { CHEERS, ROTATION_KEY, celebrate, type CelebrationEvent } from "@/lib/celebrations";
+import { DANCE_MUSIC_KEY } from "@/lib/danceMusic";
+import { setSoundEnabled } from "@/lib/uiPrefs";
 import { CelebrationHost } from "./CelebrationHost";
+import { DANCE_ART } from "./danceArt";
 
 /**
  * The app-wide celebration screen.
@@ -183,5 +186,88 @@ describe("CelebrationHost: the preview link", () => {
     window.history.replaceState(null, "", "/?celebrate=dabke");
     await renderHost();
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+});
+
+describe("CelebrationHost: the dance music", () => {
+  // The loops are test audio whose rights are not cleared, so a learner must
+  // never hear one by accident: a preview plays it, a real celebration only
+  // once someone has switched the test flag on with `?dancemusic=on`.
+
+  class FakeAudio {
+    static instances: FakeAudio[] = [];
+    loop = false;
+    volume = 1;
+    play = vi.fn(() => Promise.resolve());
+    pause = vi.fn();
+    addEventListener = vi.fn();
+    removeEventListener = vi.fn();
+    constructor(public src: string) {
+      FakeAudio.instances.push(this);
+    }
+  }
+
+  const playing = () => FakeAudio.instances.map((a) => a.src);
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    FakeAudio.instances = [];
+  });
+
+  const withAudio = () => vi.stubGlobal("Audio", FakeAudio);
+
+  it("plays the previewed dance's own music", async () => {
+    withAudio();
+    window.history.replaceState(null, "", "/?celebrate=ardah");
+    await renderHost();
+    expect(playing()).toEqual([DANCE_ART.ardah.music]);
+  });
+
+  it("keeps a real celebration silent until the test flag is on", async () => {
+    withAudio();
+    window.localStorage.setItem("hakiya_dialect_module", "Egyptian");
+    await renderHost();
+    await fire({ kind: "lesson", detail: "At the souq" });
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(playing()).toEqual([]);
+  });
+
+  it("switches the flag on from the address, takes the parameter out, and plays the next dance's music", async () => {
+    withAudio();
+    // Every Egyptian dance has a loop, so whichever comes up plays one.
+    window.localStorage.setItem("hakiya_dialect_module", "Egyptian");
+    window.history.replaceState(null, "", "/today?dancemusic=on");
+    await renderHost();
+    expect(window.localStorage.getItem(DANCE_MUSIC_KEY)).toBe("on");
+    expect(window.location.search).toBe("");
+    await fire({ kind: "lesson", detail: "At the souq" });
+    const shown = dancesFor("Egyptian").find((d) => danceName()?.startsWith(d.gloss));
+    expect(shown).toBeDefined();
+    expect(playing()).toEqual([DANCE_ART[shown!.id].music]);
+  });
+
+  it("switches the flag off again", async () => {
+    window.localStorage.setItem(DANCE_MUSIC_KEY, "on");
+    window.history.replaceState(null, "", "/?dancemusic=off");
+    await renderHost();
+    expect(window.localStorage.getItem(DANCE_MUSIC_KEY)).toBeNull();
+  });
+
+  it("stays silent when the app's sound is off, even in a preview", async () => {
+    withAudio();
+    setSoundEnabled(false);
+    window.history.replaceState(null, "", "/?celebrate=ardah");
+    await renderHost();
+    expect(screen.getByRole("dialog", { name: "Preview" })).toBeInTheDocument();
+    expect(playing()).toEqual([]);
+  });
+
+  it("fades the music out when the screen closes", async () => {
+    withAudio();
+    window.history.replaceState(null, "", "/?celebrate=ardah");
+    await renderHost();
+    const [audio] = FakeAudio.instances;
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+    await waitFor(() => expect(audio.pause).toHaveBeenCalled());
   });
 });

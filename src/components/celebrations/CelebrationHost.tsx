@@ -18,7 +18,14 @@ import {
   type CelebrationTier,
   type Cheer,
 } from "@/lib/celebrations";
+import {
+  DANCE_MUSIC_PARAM,
+  parseDanceMusicParam,
+  setDanceMusicTestOn,
+  shouldPlayDanceMusic,
+} from "@/lib/danceMusic";
 import { CelebrationOverlay } from "./CelebrationOverlay";
+import { DANCE_ART } from "./danceArt";
 
 interface Shown {
   id: number;
@@ -82,20 +89,24 @@ export function CelebrationHost() {
     });
   }, [show]);
 
-  // The preview link, once, after the subscription above so it has a
-  // listener. The parameter comes out of the address so a reload doesn't
-  // replay it.
+  // The preview link and the dance-music test switch, once, after the
+  // subscription above so a preview has a listener. Both parameters come out
+  // of the address so a reload doesn't replay them.
   useEffect(() => {
-    const found = parseCelebrateParam(window.location.search);
-    if (!found) return;
+    const search = window.location.search;
+    const found = parseCelebrateParam(search);
+    const musicSwitch = parseDanceMusicParam(search);
+    if (!found && musicSwitch === null) return;
+    if (musicSwitch !== null) setDanceMusicTestOn(musicSwitch);
     const url = new URL(window.location.href);
     url.searchParams.delete(CELEBRATE_PARAM);
+    url.searchParams.delete(DANCE_MUSIC_PARAM);
     try {
       window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
     } catch {
       // A sandboxed frame can refuse; the preview still plays.
     }
-    celebrate({ kind: "preview", danceId: found.dance.id, tier: found.tier });
+    if (found) celebrate({ kind: "preview", danceId: found.dance.id, tier: found.tier });
   }, []);
 
   // After the subscription above, so a milestone already in the query cache
@@ -104,6 +115,10 @@ export function CelebrationHost() {
 
   if (!shown) return null;
   const { title, subtitle } = celebrationCopy(shown.event);
+  const music =
+    shown.dance && shouldPlayDanceMusic(shown.event.kind === "preview")
+      ? (DANCE_ART[shown.dance.id]?.music ?? null)
+      : null;
   return (
     <CelebrationOverlay
       key={shown.id}
@@ -116,6 +131,7 @@ export function CelebrationHost() {
       subtitle={subtitle}
       extras={shown.extras}
       clockKey={shown.extras.length}
+      music={music}
       onClose={() => show(null)}
     />
   );

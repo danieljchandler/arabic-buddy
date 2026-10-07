@@ -63,9 +63,14 @@ interface CelebrationSceneProps {
   cheer: string;
   /** The milestone, in English: "Lesson complete!". */
   headline: string;
+  /**
+   * False holds the first pose: the scene waits for its music to start, so
+   * the first pose falls on the first beat (useDanceMusic). Defaults to true.
+   */
+  running?: boolean;
 }
 
-export function CelebrationScene({ dance, dialect, tier, cheer, headline }: CelebrationSceneProps) {
+export function CelebrationScene({ dance, dialect, tier, cheer, headline, running = true }: CelebrationSceneProps) {
   const reduced = useReducedMotion();
   const [elapsed, setElapsed] = useState(0);
   const beatMs = dance?.beatMs ?? 0;
@@ -73,14 +78,14 @@ export function CelebrationScene({ dance, dialect, tier, cheer, headline }: Cele
 
   useEffect(() => {
     setElapsed(0);
-    if (reduced || !beatMs) return;
+    if (reduced || !beatMs || !running) return;
     const start = Date.now();
     // Tick at the finer of the two clocks so neither the dancers nor the
     // musician lands late.
     const tick = Math.min(beatMs, musicianMs || beatMs);
     const id = window.setInterval(() => setElapsed(Date.now() - start), tick);
     return () => window.clearInterval(id);
-  }, [reduced, beatMs, musicianMs]);
+  }, [reduced, beatMs, musicianMs, running]);
 
   const art = dance ? DANCE_ART[dance.id] : null;
   const frame = dance ? poseAt(dance, elapsed) : null;

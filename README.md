@@ -303,6 +303,12 @@ instead of the toast they had before. The cheers are run through
 `src/lib/dances.ts`; `?celebrate=<dance>` plays one on any page.
 `docs/celebrations.md` has how a dance is made.
 
+Each dance can also play a short loop of its own music, cut on the beat the
+scene is timed to. That is a test with uncleared audio: it plays in
+`?celebrate=` previews, and in real celebrations only on a browser where
+`?dancemusic=on` has switched it on (see "Music (testing)" in
+`docs/celebrations.md`).
+
 ## Project layout
 
 - `src/` — React app (pages, components, hooks, domain logic in `src/lib`)

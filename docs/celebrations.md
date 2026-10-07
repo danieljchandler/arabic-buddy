@@ -556,6 +556,52 @@ their feet.
 
 **Before this ships to learners:** a Yemeni reviewer's sign-off.
 
+## Music (testing)
+
+Each dance can play a few seconds of its own music, looped for as long as the
+screen is up. **This is a test.** The loops are cut from recordings whose
+rights are not cleared (some are rips of commercial or broadcast audio), so a
+learner hears them only after someone switches the test flag on:
+
+- `?celebrate=<dance>` previews always play the music.
+- `?dancemusic=on` on any page switches it on for real celebrations on that
+  browser (`localStorage` key `hikaya:dance-music`); `?dancemusic=off` switches
+  it off again.
+- The app's sound switch silences it like every other sound.
+
+The scene waits for the music before it starts its clock, so the first pose
+lands on the first beat (`useDanceMusic`, at most 400 ms; a refused or failed
+load dances in silence). The loop fades out over 250 ms when the screen
+closes. Code: `src/lib/danceMusic.ts`, `src/hooks/useDanceMusic.ts`, and a
+`music` entry per dance in `danceArt.ts`.
+
+**Cutting a loop.** `scripts/celebrations/make_dance_loop.py` takes a
+recording, a stretch of it and the dance's measured period from
+`src/lib/dances.ts`. It finds the recording's own period near that one and
+time-stretches it to match exactly (unless `--no-stretch`, for a dance not
+locked to its music). It then starts on the beat grid with the strongest
+onsets, cuts whole periods covering at least 6 s (the longest scene), and
+writes a normalised mono MP3 of about 75 KB.
+
+| Dance | Test source | Cut | Status |
+|---|---|---|---|
+| Ardah | Internet Archive, "العرضة النجدية في عهد الملك سعود" (a 1953 recording ripped from Sm3ha.com) | 98.2 s, 6 × 1170 ms, stretched ×0.989 | Not cleared |
+| Ayyala | Freesound 580677, Dunny45, an Al Ain men's wedding (CC0; Ayyala or Razfa not confirmed) | 26.8 s, 18 × 343 ms, stretched ×0.932 | CC0 recording; performers not cleared |
+| Al-Mizmar | none yet | | |
+| Khammari | none yet | | |
+| Al-Razha | none yet | | |
+| Saidi cane dance | Internet Archive, "مزمار صعيدي" (a YouTube rip) | 281.6 s, 24 × 250 ms, not stretched: the recording's own stroke (about 279 ms) was not found in the stretch, so the music runs about 10% slower than the dancer | Not cleared |
+| Tanoura | Freesound 795656, Ixindamix, "Egyptdrums" (CC0), percussion only | 6 × 990 ms, not stretched (the turn is not locked to the music) | CC0 recording |
+| Tahtib | Internet Archive, "Egyptian Mizmar at Wedding" (CC BY-NC-SA) | 54.7 s, 12 × 536 ms (the recording's own period is 536 ms) | Non-commercial licence |
+| Al-Bara' | none yet | | |
+| Sana'ani | Internet Archive, Hussein Moheb and Bashir al-Ma'bari, a Sana'ani wedding duet, 2018 (a rip) | 140.4 s, 12 × 535 ms, not stretched (the bob is not tied to the music) | Not cleared |
+
+The next round replaces these with audio from the stretches of the reference
+footage where each dance's timing was measured, so the music and the
+animation share one clock. Before anything ships to learners, every loop needs
+a cleared source, a listen and a native reviewer; the licensing research is
+in the report "Copyright free dance music" (not in the repo).
+
 ## The look
 
 The owner picked this direction from two style rounds. Its references are
@@ -685,10 +731,8 @@ so a reload doesn't replay it.
 - **The Gulf frame is Najdi** for every Gulf dance, the Hejazi, Omani and
   Bahraini ones included. A frame per region (Hejazi rawashin, Omani
   doorways, Bahraini wind towers) is not drawn.
-- **Sound:** the dance screen itself is silent. A separate sung celebration
-  (PR #416, `useCelebrationSong`) plays on a lesson's finish and the day's
-  goal, so on those two moments the learner gets the dance and a song
-  together. A drum loop per dance (generated, timed to each dance's measured
-  stroke) is still open; it would compete with the song.
+- **Sound:** a sung celebration (PR #416, `useCelebrationSong`) plays on a
+  lesson's finish and the day's goal. The dance music below is a test; if it
+  ships, the two will need to take turns rather than overlap.
 - **Other milestones:** stage completion and weekly goals have no "crossing
   moment" on the client yet.

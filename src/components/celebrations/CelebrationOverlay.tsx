@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import type { DialectModule } from "@/contexts/DialectContext";
 import type { DanceDefinition } from "@/lib/dances";
+import { useDanceMusic } from "@/hooks/useDanceMusic";
 import { TIER_DURATION_MS, type CelebrationTier, type Cheer } from "@/lib/celebrations";
 import { CelebrationScene } from "./CelebrationScene";
 
@@ -29,6 +30,8 @@ interface CelebrationOverlayProps {
    * the clock starts over rather than taking it away half-read.
    */
   clockKey?: number;
+  /** The dance's music loop, or null to dance in silence (src/lib/danceMusic.ts). */
+  music?: string | null;
   onClose: () => void;
 }
 
@@ -42,8 +45,10 @@ export function CelebrationOverlay({
   subtitle,
   extras = [],
   clockKey = 0,
+  music = null,
   onClose,
 }: CelebrationOverlayProps) {
+  const musicStarted = useDanceMusic(open ? music : null);
   // The page re-renders while the celebration plays (its own save lands, for
   // one); a fresh onClose must not restart the clock.
   const closeRef = useRef(onClose);
@@ -67,7 +72,14 @@ export function CelebrationOverlay({
           }}
         >
           <DialogPrimitive.Title className="sr-only">{title}</DialogPrimitive.Title>
-          <CelebrationScene dance={dance} dialect={dialect} tier={tier} cheer={cheer.ar} headline={title} />
+          <CelebrationScene
+            dance={dance}
+            dialect={dialect}
+            tier={tier}
+            cheer={cheer.ar}
+            headline={title}
+            running={musicStarted}
+          />
           <div className="w-[min(92vw,60vh,440px)] text-center text-[#F7F1E3]">
             <p className="text-xs text-[#E2B65C]">
               <span lang="ar" dir="rtl" className="sr-only">

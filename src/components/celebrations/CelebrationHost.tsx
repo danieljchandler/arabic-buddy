@@ -2,17 +2,19 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useDialect, type DialectModule } from "@/contexts/DialectContext";
 import { useStreakMilestoneCelebration } from "@/hooks/useStreakMilestoneCelebration";
 import { playSuccessChime, vibrate } from "@/lib/tapFeedback";
-import { danceById, type DanceDefinition } from "@/lib/dances";
+import type { DanceDefinition } from "@/lib/dances";
 import {
+  CELEBRATE_DAYS_PARAM,
   CELEBRATE_PARAM,
   celebrate,
   celebrationCopy,
   celebrationSummary,
   largerTier,
   parseCelebrateParam,
-  pickCheer,
+  pickSceneCheer,
+  previewScene,
   subscribeCelebrations,
-  takeNextDance,
+  takeScene,
   tierFor,
   type CelebrationEvent,
   type CelebrationTier,
@@ -25,7 +27,7 @@ import {
   shouldPlayDanceMusic,
 } from "@/lib/danceMusic";
 import { CelebrationOverlay } from "./CelebrationOverlay";
-import { DANCE_ART } from "./danceArt";
+import { artFor } from "./danceArt";
 
 interface Shown {
   id: number;
@@ -44,6 +46,9 @@ interface Shown {
  * `@/lib/celebrations` (a lesson's first finish, a letter learned, a cleared
  * review deck, the day's goal, a badge, and, watched here, a streak
  * milestone). It also plays the `?celebrate=` preview link.
+ *
+ * What it plays is `takeScene`'s choice (a dance, or a vignette that suits the
+ * moment; a streak is always its dialect's ladder).
  *
  * One screen at a time. A second moment that arrives while one is showing
  * joins it as a line ("Badge earned! First Steps") rather than queueing a
@@ -72,17 +77,19 @@ export function CelebrationHost() {
         show({ ...current, tier: largerTier(current.tier, tierFor(event)), extras: [...current.extras, line] });
         return;
       }
-      // A preview names its dance, and plays it for that dance's dialect.
-      const named = event.danceId ? danceById(event.danceId) : null;
+      // A preview names its scene, and plays a dance for its own region and
+      // a vignette for the learner's dialect when it is made for it.
+      const named = event.danceId ? previewScene(event.danceId, dialectRef.current, event.days) : null;
       const dialect = named?.dialect ?? dialectRef.current;
+      const scene = named?.scene ?? takeScene(event, dialect);
       playSuccessChime();
       vibrate([12, 40, 12, 40, 24]);
       show({
         id: ++counter,
         event,
-        dance: named ?? takeNextDance(dialect),
+        dance: scene,
         dialect,
-        cheer: pickCheer(dialect),
+        cheer: pickSceneCheer(scene, dialect),
         tier: tierFor(event),
         extras: [],
       });
@@ -100,13 +107,14 @@ export function CelebrationHost() {
     if (musicSwitch !== null) setDanceMusicTestOn(musicSwitch);
     const url = new URL(window.location.href);
     url.searchParams.delete(CELEBRATE_PARAM);
+    url.searchParams.delete(CELEBRATE_DAYS_PARAM);
     url.searchParams.delete(DANCE_MUSIC_PARAM);
     try {
       window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
     } catch {
       // A sandboxed frame can refuse; the preview still plays.
     }
-    if (found) celebrate({ kind: "preview", danceId: found.dance.id, tier: found.tier });
+    if (found) celebrate({ kind: "preview", danceId: found.dance.id, tier: found.tier, days: found.days });
   }, []);
 
   // After the subscription above, so a milestone already in the query cache
@@ -117,7 +125,7 @@ export function CelebrationHost() {
   const { title, subtitle } = celebrationCopy(shown.event);
   const music =
     shown.dance && shouldPlayDanceMusic(shown.event.kind === "preview")
-      ? (DANCE_ART[shown.dance.id]?.music ?? null)
+      ? (artFor(shown.dance.id)?.music ?? null)
       : null;
   return (
     <CelebrationOverlay

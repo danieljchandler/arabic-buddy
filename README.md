@@ -303,6 +303,19 @@ instead of the toast they had before. The cheers are run through
 `src/lib/dances.ts`; `?celebrate=<dance>` plays one on any page.
 `docs/celebrations.md` has how a dance is made.
 
+Fourteen **vignettes** sit beside the dances, drawn the same way but with a
+meal, a ritual or a landmark instead of dancers (`src/lib/vignettes.ts`). A
+streak milestone plays the dialect's **ladder**: one grill story in each
+dialect's food (mishkak, the kababgi, the Yemeni madhbi) whose picture grows
+with the days, from the coals catching at 3 to a feast at 365. Every other
+moment alternates the dance rotation with the vignettes that suit it, a dance
+first: a pearl for a badge, a football goal for the day's goal, a reed pen for
+a letter. Flames, smoke, steam and sparkle are drawn in code
+(`StageEffects`), not photographed. Unlike the dances, none of it is timed from
+footage, and every Arabic line is a draft for a native reviewer. See
+`docs/celebrations-vignettes.md`; `?celebrate=mishkak&celebratedays=100` plays
+a rung.
+
 Each dance can also play a short loop of its own music, cut on the beat the
 scene is timed to. That is a test with uncleared audio: it plays in
 `?celebrate=` previews, and in real celebrations only on a browser where

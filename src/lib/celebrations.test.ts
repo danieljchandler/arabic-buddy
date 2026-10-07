@@ -2,11 +2,14 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { detectMsaLeaks } from "../../supabase/functions/_shared/msaLeakDetector";
 import type { DialectModule } from "@/contexts/DialectContext";
 import { ARDAH, DANCES, dancesFor, type DanceDefinition } from "./dances";
+import { MISHKAK, VIGNETTES, vignetteById } from "./vignettes";
 import {
   CHEERS,
   GOAL_KEY,
   KIND_TIER,
+  CELEBRATE_DAYS_PARAM,
   ROTATION_KEY,
+  SCENE_KEY,
   STREAK_KEY,
   TIER_DURATION_MS,
   celebrate,
@@ -19,9 +22,12 @@ import {
   nextDanceIndex,
   parseCelebrateParam,
   pickCheer,
+  pickSceneCheer,
+  previewScene,
   shouldCelebrateStreak,
   subscribeCelebrations,
   takeNextDance,
+  takeScene,
   tierFor,
   type KeyValueStore,
 } from "./celebrations";
@@ -144,6 +150,121 @@ describe("which dance comes next", () => {
   });
 });
 
+describe("which scene a moment gets", () => {
+  it("gives a streak milestone the dialect's ladder, at the rung its length has reached", () => {
+    const store = aStore();
+    expect(takeScene({ kind: "streak", detail: 3 }, "Gulf", store)).toMatchObject({ id: "mishkak", sequence: [0] });
+    expect(takeScene({ kind: "streak", detail: 365 }, "Gulf", store)).toMatchObject({ id: "mishkak", heat: 5 });
+    expect(takeScene({ kind: "streak", detail: 30 }, "Egyptian", store)?.id).toBe("kababgi");
+    expect(takeScene({ kind: "streak", detail: 14 }, "Yemeni", store)?.id).toBe("madhbi");
+    // It never moves the dances' rotation or the vignettes' turn.
+    expect(store.data).toEqual({});
+  });
+
+  it("plays the first rung for a streak whose length it cannot read", () => {
+    expect(takeScene({ kind: "streak" }, "Gulf", aStore())?.sequence).toEqual(MISHKAK.ladder![0].sequence);
+    expect(takeScene({ kind: "streak", detail: "7" }, "Gulf", aStore())?.sequence).toEqual([1]);
+  });
+
+  it("opens with the dance, so a first lesson, goal or badge is the dance a learner was promised", () => {
+    for (const kind of ["lesson", "goal", "achievement", "deck", "letter"] as const) {
+      const scene = takeScene({ kind }, "Gulf", aStore(), () => 0);
+      expect(dancesFor("Gulf").map((d) => d.id), kind).toContain(scene?.id);
+    }
+  });
+
+  it("then takes turns: a dance, a scene that suits the moment, a dance", () => {
+    const store = aStore();
+    const picks = Array.from({ length: 6 }, () => takeScene({ kind: "lesson" }, "Gulf", store, () => 0)?.id);
+    expect(picks[1]).toBe("bakhoor");
+    expect(picks[3]).toBe("bakhoor");
+    for (const i of [0, 2, 4]) expect(dancesFor("Gulf").map((d) => d.id)).toContain(picks[i]);
+    // The dances still come round in order between them.
+    expect(new Set([picks[0], picks[2], picks[4]]).size).toBe(3);
+  });
+
+  it("walks a moment's vignettes in turn when it has several", () => {
+    const store = aStore();
+    const picks = Array.from({ length: 8 }, () => takeScene({ kind: "goal" }, "Gulf", store, () => 0)?.id);
+    expect([picks[1], picks[3], picks[5], picks[7]]).toEqual(["dallah", "football", "dallah", "football"]);
+  });
+
+  it("keeps each dialect's and each moment's turn apart", () => {
+    const store = aStore();
+    takeScene({ kind: "lesson" }, "Gulf", store);
+    takeScene({ kind: "goal" }, "Gulf", store);
+    takeScene({ kind: "goal" }, "Egyptian", store);
+    expect(JSON.parse(store.data[SCENE_KEY])).toEqual({ "Gulf:lesson": 1, "Gulf:goal": 1, "Egyptian:goal": 1 });
+  });
+
+  it("plays only a dance for a moment with no scene made for it, and counts nothing", () => {
+    const store = aStore();
+    for (let i = 0; i < 4; i++) {
+      const scene = takeScene({ kind: "lesson" }, "Yemeni", store, () => 0);
+      expect(dancesFor("Yemeni").map((d) => d.id)).toContain(scene?.id);
+    }
+    expect(store.data[SCENE_KEY]).toBeUndefined();
+    expect(takeScene({ kind: "preview" }, "Gulf", aStore())?.dialect).toBe("Gulf");
+  });
+
+  it("only ever picks from the learner's own dialect", () => {
+    const store = aStore();
+    for (const dialect of DIALECTS) {
+      for (const kind of ["lesson", "letter", "deck", "goal", "achievement", "streak"] as const) {
+        for (let i = 0; i < 6; i++) {
+          const scene = takeScene({ kind, detail: 30 }, dialect, store);
+          expect(scene?.dialect, `${dialect} ${kind}`).toBe(dialect);
+        }
+      }
+    }
+  });
+
+  it("treats a corrupted count as the start, and still plays when storage is unavailable", () => {
+    const store = aStore({ [SCENE_KEY]: JSON.stringify({ "Gulf:lesson": -4 }) });
+    expect(dancesFor("Gulf").map((d) => d.id)).toContain(takeScene({ kind: "lesson" }, "Gulf", store)?.id);
+    const broken: KeyValueStore = {
+      getItem: () => {
+        throw new Error("SecurityError");
+      },
+      setItem: () => {
+        throw new Error("QuotaExceededError");
+      },
+    };
+    expect(takeScene({ kind: "lesson" }, "Gulf", broken)?.dialect).toBe("Gulf");
+    expect(takeScene({ kind: "lesson" }, "Gulf", null)?.dialect).toBe("Gulf");
+  });
+
+  it("gives every dialect a scene for every moment", () => {
+    for (const dialect of DIALECTS) {
+      for (const kind of ["lesson", "letter", "deck", "goal", "achievement", "streak"] as const) {
+        expect(takeScene({ kind, detail: 7 }, dialect, aStore()), `${dialect} ${kind}`).not.toBeNull();
+      }
+    }
+  });
+});
+
+describe("naming a scene for a preview", () => {
+  it("finds a dance by id, for its own dialect, whoever is asking", () => {
+    expect(previewScene("ardah", "Yemeni")).toEqual({ scene: ARDAH, dialect: "Gulf" });
+  });
+
+  it("plays a vignette for the learner's dialect when it is made for it, else its own", () => {
+    expect(previewScene("qalam", "Yemeni")?.dialect).toBe("Yemeni");
+    expect(previewScene("football", "Egyptian")?.scene.gloss).toBe("Al-Gōn");
+    expect(previewScene("football", "Yemeni")?.dialect).toBe("Gulf");
+    expect(previewScene("mishkak", "Egyptian")?.dialect).toBe("Gulf");
+  });
+
+  it("plays a ladder at the length it is asked for, or a hundred days", () => {
+    expect(previewScene("mishkak", "Gulf", 3)?.scene.sequence).toEqual([0]);
+    expect(previewScene("mishkak", "Gulf")?.scene.sequence).toEqual(MISHKAK.ladder!.find((r) => r.fromDays === 100)!.sequence);
+  });
+
+  it("finds nothing for an id that matches nothing", () => {
+    expect(previewScene("dabke", "Gulf")).toBeNull();
+  });
+});
+
 describe("what the screen shouts", () => {
   it("has cheers for every dialect", () => {
     for (const dialect of DIALECTS) expect(CHEERS[dialect].length, dialect).toBeGreaterThan(2);
@@ -169,6 +290,14 @@ describe("what the screen shouts", () => {
   it("picks from the learner's dialect", () => {
     expect(CHEERS.Egyptian).toContainEqual(pickCheer("Egyptian", () => 0.99));
     expect(pickCheer("Gulf", () => 0)).toEqual(CHEERS.Gulf[0]);
+  });
+
+  it("shouts what a scene has to shout, and the dialect's own cheer otherwise", () => {
+    const goal = vignetteById("football")!;
+    expect(pickSceneCheer({ ...goal, cheers: goal.cheers }, "Gulf", () => 0).ar).toBe("قوووول!");
+    expect(pickSceneCheer(ARDAH, "Gulf", () => 0)).toEqual(CHEERS.Gulf[0]);
+    expect(pickSceneCheer(null, "Yemeni", () => 0)).toEqual(CHEERS.Yemeni[0]);
+    expect(pickSceneCheer({ ...ARDAH, cheers: [] }, "Gulf", () => 0)).toEqual(CHEERS.Gulf[0]);
   });
 });
 
@@ -243,6 +372,21 @@ describe("the preview link", () => {
     for (const dance of DANCES) {
       expect(parseCelebrateParam(`?celebrate=${dance.id}`)?.dance).toBe<DanceDefinition>(dance);
     }
+  });
+
+  it("reaches every vignette, and takes a tier after a dash like a dance does", () => {
+    for (const v of VIGNETTES) expect(parseCelebrateParam(`?celebrate=${v.id}`)?.dance).toBe<DanceDefinition>(v);
+    expect(parseCelebrateParam("?celebrate=football-large")?.tier).toBe("large");
+  });
+
+  it("takes the length of a streak to preview, ignoring one that is not a number of days", () => {
+    expect(parseCelebrateParam(`?celebrate=mishkak&${CELEBRATE_DAYS_PARAM}=30`)).toEqual({
+      dance: MISHKAK,
+      tier: "medium",
+      days: 30,
+    });
+    expect(parseCelebrateParam(`?celebrate=mishkak&${CELEBRATE_DAYS_PARAM}=soon`)).toEqual({ dance: MISHKAK, tier: "medium" });
+    expect(parseCelebrateParam(`?celebrate=mishkak&${CELEBRATE_DAYS_PARAM}=-5`)).toEqual({ dance: MISHKAK, tier: "medium" });
   });
 });
 

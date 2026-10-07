@@ -2,7 +2,8 @@ import { act, fireEvent, screen, waitFor, within } from "@testing-library/react"
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders, TEST_USER_ID } from "@/test/support/react/harness";
 import { dancesFor } from "@/lib/dances";
-import { CHEERS, ROTATION_KEY, celebrate, type CelebrationEvent } from "@/lib/celebrations";
+import { CHEERS, ROTATION_KEY, SCENE_KEY, celebrate, type CelebrationEvent } from "@/lib/celebrations";
+import { FOOTBALL, MISHKAK } from "@/lib/vignettes";
 import { DANCE_MUSIC_KEY } from "@/lib/danceMusic";
 import { setSoundEnabled } from "@/lib/uiPrefs";
 import { CelebrationHost } from "./CelebrationHost";
@@ -151,6 +152,62 @@ describe("CelebrationHost", () => {
     });
 
     await waitFor(() => expect(screen.getByRole("dialog", { name: "7-day streak!" })).toBeInTheDocument());
+    // A streak is never the dance rotation's turn: it plays the dialect's
+    // ladder, at the rung its length has reached.
+    expect(danceName()).toBe("Mishkak, a street grill from Saudi Arabia and the Gulf");
+    expect(window.localStorage.getItem(ROTATION_KEY)).toBeNull();
+  });
+
+  it("plays the learner's own dialect's ladder for a streak", async () => {
+    window.localStorage.setItem("hakiya_dialect_module", "Yemeni");
+    await renderHost();
+    await fire({ kind: "streak", detail: 30 });
+    expect(danceName()).toBe("Al-Madhbi, a hot-stone grill from Yemen");
+  });
+});
+
+describe("CelebrationHost: dances and vignettes take turns", () => {
+  it("opens with the dance a learner was promised, then brings in a scene that suits the moment", async () => {
+    await renderHost();
+    await fire({ kind: "lesson", detail: "At the souq" });
+    const gulf = dancesFor("Gulf").map((d) => `${d.gloss}, a dance from ${d.region}`);
+    expect(gulf).toContain(danceName());
+    fireEvent.click(within(dialog()).getByRole("button", { name: "Continue" }));
+
+    // The second lesson is the incense: a welcome.
+    await fire({ kind: "lesson", detail: "At the souq" });
+    expect(danceName()).toBe("Al-Bakhoor, a welcome with incense from the Gulf");
+    expect(cheer()).toBe("هلا والله!");
+    fireEvent.click(within(dialog()).getByRole("button", { name: "Continue" }));
+
+    // The third goes back to the rotation, which had only moved once.
+    await fire({ kind: "lesson", detail: "At the souq" });
+    expect(gulf).toContain(danceName());
+  });
+
+  it("keeps each moment's turn apart", async () => {
+    await renderHost();
+    await fire({ kind: "lesson" });
+    fireEvent.click(within(dialog()).getByRole("button", { name: "Continue" }));
+    // A first badge is still a dance, however many lessons have been finished.
+    await fire({ kind: "achievement", detail: "First Steps" });
+    const gulf = dancesFor("Gulf").map((d) => `${d.gloss}, a dance from ${d.region}`);
+    expect(gulf).toContain(danceName());
+    expect(JSON.parse(window.localStorage.getItem(SCENE_KEY) ?? "{}")).toEqual({
+      "Gulf:lesson": 1,
+      "Gulf:achievement": 1,
+    });
+  });
+
+  it("shows only dances for a moment no vignette suits", async () => {
+    window.localStorage.setItem("hakiya_dialect_module", "Yemeni");
+    await renderHost();
+    for (let i = 0; i < 3; i++) {
+      await fire({ kind: "lesson" });
+      expect(danceName()).toMatch(/, a dance from /);
+      fireEvent.click(within(dialog()).getByRole("button", { name: "Continue" }));
+    }
+    expect(window.localStorage.getItem(SCENE_KEY)).toBeNull();
   });
 });
 
@@ -180,6 +237,40 @@ describe("CelebrationHost: the preview link", () => {
     window.history.replaceState(null, "", "/?celebrate=ardah");
     await renderHost();
     expect(window.localStorage.getItem(ROTATION_KEY)).toBeNull();
+  });
+
+  it("plays a vignette by id for the learner's dialect, with its own cheer", async () => {
+    window.localStorage.setItem("hakiya_dialect_module", "Egyptian");
+    window.history.replaceState(null, "", "/?celebrate=football-large");
+    await renderHost();
+    expect(screen.getByRole("dialog", { name: "Preview" })).toBeInTheDocument();
+    // One goal, called two ways: Cairo's name and cheer, not the Gulf's.
+    expect(danceName()).toBe("Al-Gōn, a goal, as the commentators call it in Egypt");
+    expect(cheer()).toBe("جوووون!");
+    expect(window.location.search).toBe("");
+  });
+
+  it("plays a ladder at the length the link asks for, and takes both parameters out of the address", async () => {
+    window.history.replaceState(null, "", "/today?celebrate=mishkak-large&celebratedays=365");
+    await renderHost();
+    expect(danceName()).toBe(`${MISHKAK.gloss}, ${MISHKAK.about}`);
+    expect(window.location.search).toBe("");
+  });
+
+  it("plays a vignette made for another dialect in its own, not the learner's", async () => {
+    window.localStorage.setItem("hakiya_dialect_module", "Yemeni");
+    window.history.replaceState(null, "", "/?celebrate=mishkak");
+    await renderHost();
+    expect(danceName()).toBe(`${MISHKAK.gloss}, ${MISHKAK.about}`);
+    expect(CHEERS.Gulf.map((c) => c.ar).concat(MISHKAK.ladder!.flatMap((r) => (r.cheer ? [r.cheer.ar] : [])))).toContain(
+      cheer(),
+    );
+  });
+
+  it("keeps a vignette's name for the Gulf when the learner is Gulf", async () => {
+    window.history.replaceState(null, "", "/?celebrate=football");
+    await renderHost();
+    expect(danceName()).toBe(`${FOOTBALL.gloss}, ${FOOTBALL.about}`);
   });
 
   it("does nothing for a dance that doesn't exist", async () => {

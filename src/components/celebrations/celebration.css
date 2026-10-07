@@ -7,6 +7,9 @@
   --cel-oxblood: #6b1f1f;
   --cel-ink: #1a1c17;
   --cel-paper: #f7f1e3;
+  /* Fire is the one colour the stage adds: cut-paper flames, brighter than the oxblood. */
+  --cel-flame: #d9532b;
+  --cel-flame-hot: #f2b134;
   position: relative;
   isolation: isolate;
   overflow: hidden;
@@ -156,6 +159,131 @@
 .cel-stage-bare .cel-labels { top: 9%; }
 .cel-stage-bare .cel-circle { left: 18%; top: 34%; }
 
+/* Effects drawn in code over a vignette's figure (StageEffects): cut-paper
+   flames, embers, smoke, steam, sparkle and one ink stroke. They share the
+   figure's box, so they sit where the figure does. */
+.cel-fx {
+  bottom: 1.5%;
+  left: var(--cel-dancers-left, 22%);
+  width: var(--cel-dancers-width, 78%);
+  height: var(--cel-dancers-height, 66%);
+  pointer-events: none;
+}
+.cel-fx > * { position: absolute; }
+/* Flames and smoke come up from behind the figure (z 4); what glints and drifts is over it. */
+.cel-fx-back { z-index: 3; }
+.cel-fx-front { z-index: 5; }
+
+.cel-flame {
+  background: var(--cel-flame);
+  /* A teardrop with a torn tip: a flame cut from paper. */
+  clip-path: polygon(50% 0%, 63% 24%, 82% 44%, 100% 70%, 88% 100%, 12% 100%, 0% 70%, 20% 44%, 38% 24%);
+  transform-origin: 50% 100%;
+  rotate: var(--cel-lean, 0deg);
+  animation: cel-flicker 520ms ease-in-out var(--cel-delay, 0ms) infinite alternate;
+}
+.cel-flame-hot { background: var(--cel-flame-hot); }
+@keyframes cel-flicker {
+  from { scale: 0.88 0.8; }
+  to { scale: 1.08 1.18; }
+}
+
+.cel-ember {
+  aspect-ratio: 1;
+  background: var(--cel-flame-hot);
+  rotate: 45deg;
+  opacity: 0;
+  animation: cel-ember var(--cel-dur, 1800ms) ease-out var(--cel-delay, 0ms) infinite;
+}
+@keyframes cel-ember {
+  0% { translate: 0 0; opacity: 0; }
+  12% { opacity: 1; }
+  100% { translate: var(--cel-drift, 0) var(--cel-rise, -20cqw); opacity: 0; }
+}
+
+.cel-smoke {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: rgb(247 241 227 / 0.68);
+  opacity: 0;
+  animation: cel-smoke 2800ms ease-out var(--cel-delay, 0ms) infinite;
+}
+@keyframes cel-smoke {
+  0% { translate: 0 0; scale: 0.5; opacity: 0; }
+  20% { opacity: 0.55; }
+  100% { translate: var(--cel-drift, 0) var(--cel-rise, -24cqw); scale: 1.9; opacity: 0; }
+}
+
+/* Steam: a thin curl of paper, not a blob. */
+.cel-steam {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 2px solid rgb(247 241 227 / 0.8);
+  border-left-color: transparent;
+  border-bottom-color: transparent;
+  rotate: -25deg;
+  opacity: 0;
+  animation: cel-steam 2400ms ease-out var(--cel-delay, 0ms) infinite;
+}
+@keyframes cel-steam {
+  0% { translate: 0 0; scale: 0.6; opacity: 0; }
+  25% { opacity: 0.8; }
+  100% { translate: var(--cel-drift, 0) var(--cel-rise, -14cqw); scale: 1.4; opacity: 0; }
+}
+
+.cel-sparkle {
+  aspect-ratio: 1;
+  background: var(--cel-paper);
+  clip-path: polygon(50% 0, 61% 39%, 100% 50%, 61% 61%, 50% 100%, 39% 61%, 0 50%, 39% 39%);
+  animation: cel-twinkle var(--cel-dur, 1200ms) ease-in-out var(--cel-delay, 0ms) infinite;
+}
+@keyframes cel-twinkle {
+  0%, 100% { scale: 0.2; rotate: 0deg; opacity: 0; }
+  50% { scale: 1; rotate: 20deg; opacity: 1; }
+}
+
+/* The ink stroke draws itself across the paper in the upper part of the box. */
+.cel-ink {
+  left: 20%;
+  top: 8%;
+  width: 74%;
+  height: auto;
+  overflow: visible;
+  fill: none;
+}
+.cel-ink path {
+  stroke: var(--cel-paper);
+  stroke-width: 3.4;
+  stroke-linecap: round;
+  stroke-dasharray: 100;
+  stroke-dashoffset: 100;
+  animation: cel-ink 2600ms ease-in-out infinite;
+}
+.cel-ink circle { fill: var(--cel-paper); opacity: 0; animation: cel-ink-drop 2600ms ease-in-out infinite; }
+@keyframes cel-ink {
+  0% { stroke-dashoffset: 100; }
+  65%, 100% { stroke-dashoffset: 0; }
+}
+@keyframes cel-ink-drop {
+  0%, 62% { opacity: 0; }
+  75%, 100% { opacity: 1; }
+}
+
+/* Reduced motion, or a still render: every shape sits in place. */
+.cel-fx-still .cel-flame, .cel-fx-still .cel-ember, .cel-fx-still .cel-smoke, .cel-fx-still .cel-steam,
+.cel-fx-still .cel-sparkle, .cel-fx-still .cel-ink path, .cel-fx-still .cel-ink circle { animation: none; }
+.cel-fx-still .cel-ember { opacity: 0.9; }
+.cel-fx-still .cel-smoke { opacity: 0.3; }
+.cel-fx-still .cel-steam { opacity: 0.6; }
+.cel-fx-still .cel-ink path { stroke-dashoffset: 0; }
+.cel-fx-still .cel-ink circle { opacity: 1; }
+
 @media (prefers-reduced-motion: reduce) {
   .cel-pop-a, .cel-pop-b, .cel-sway, .cel-bob { animation: none; }
+  .cel-flame, .cel-ember, .cel-smoke, .cel-steam, .cel-sparkle, .cel-ink path, .cel-ink circle { animation: none; }
+  .cel-ember { opacity: 0.9; }
+  .cel-smoke { opacity: 0.3; }
+  .cel-steam { opacity: 0.6; }
+  .cel-ink path { stroke-dashoffset: 0; }
+  .cel-ink circle { opacity: 1; }
 }

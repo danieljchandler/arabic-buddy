@@ -3,7 +3,9 @@
 *October 2026. Phase 1 is built (§7); the owner's decisions are recorded in
 §6 and the phases still to come are designed in §8. The README section
 "Reviewing as a quiz instead of flashcards" is the writeup of what ships;
-this document is the plan around it.*
+this document is the design around it, and `docs/quiz-phases-2026-10.md` is
+the execution roadmap — the phase list with what each needs and what done
+means.*
 
 The ask: some learners will not do flashcards. Give them a settings choice —
 flashcards as they are today, or being quizzed in other ways (fill in the

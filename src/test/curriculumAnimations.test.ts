@@ -86,7 +86,7 @@ const storedClip = (action: string) => ({
  * (a verb with nothing to watch), a Gulf noun. Stage two: Gulf "I drink",
  * Yemeni "laughed", and an adverb that only contains the letters.
  */
-function seedCurriculum(wordAssets: unknown[] = []) {
+function seedCurriculum(wordAssets: Array<Record<string, unknown>> = []) {
   backend.db.seedAll({
     curriculum_stages: [aStage({ id: stageId(0), stage_number: 1 }), aStage({ id: stageId(1), stage_number: 2 })],
     lessons: [

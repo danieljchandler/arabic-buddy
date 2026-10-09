@@ -355,3 +355,31 @@ describe("asking for the reply", () => {
     expect(screen.getByText(/in the gap/)).toHaveTextContent("market");
   });
 });
+
+describe("an action word's clip", () => {
+  const clip = { clip: "https://cdn.test/eat.mp4", poster: "https://cdn.test/eat.png" };
+
+  it("is shown where the picture would be, in its place, and the meaning waits behind a tap", () => {
+    render({ imageUrl: "https://img.test/eat.png", animation: clip, english: "I eat" });
+
+    const video = screen.getByTestId("quiz-animation") as HTMLVideoElement;
+    expect(video.getAttribute("src")).toBe(clip.clip);
+    expect(video.getAttribute("poster")).toBe(clip.poster);
+    expect(video.muted).toBe(true);
+    expect(document.querySelector('img[src="https://img.test/eat.png"]')).toBeNull();
+    expect(screen.queryByText("I eat")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /show meaning/i })).toBeInTheDocument();
+  });
+
+  it("asks from the clip alone even with no picture", () => {
+    render({ imageUrl: null, animation: clip, english: "I eat" });
+    expect(screen.getByTestId("quiz-animation")).toBeInTheDocument();
+    expect(screen.queryByText("I eat")).not.toBeInTheDocument();
+  });
+
+  it("is never shown on the line, which is asked from words", () => {
+    render({ format: "speak-sentence", animation: clip });
+    expect(screen.queryByTestId("quiz-animation")).toBeNull();
+    expect(screen.queryByTestId("quiz-animation-still")).toBeNull();
+  });
+});

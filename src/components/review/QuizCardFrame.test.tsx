@@ -4,6 +4,7 @@ import { renderWithProviders, type HarnessOptions } from "@/test/support/react/h
 import type { QuizPoolEntry } from "@/hooks/useQuizPool";
 import type { SupabaseBackend } from "@/test/support/server/handler";
 import {
+  ANIMATION_LOOKUP_WAIT_MS,
   DIALOGUE_WRITING_WAIT_MS,
   PICTURE_DRAWING_WAIT_MS,
   PICTURE_LOOKUP_WAIT_MS,
@@ -1080,5 +1081,245 @@ describe("an exchange for a word its lesson has no line for", () => {
     expect(await screen.findByText("Which word?")).toBeInTheDocument();
     expect(document.querySelector('img[src="https://cdn.test/store/market-ink.png"]')).not.toBeNull();
     expect(backend.db.readsOf("word_assets").length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("an animation for an action word", () => {
+  const CLIP = "https://cdn.test/word-animations/eat.mp4";
+  const POSTER = "https://cdn.test/word-animations/eat.png";
+  const PICTURE = "https://img.test/eat.png";
+
+  /** "I eat", a curriculum verb, on "say it" (production, under 14 days). */
+  const eat = (over: Partial<QuizItem> = {}) =>
+    anItem({
+      id: "eat-1",
+      arabic: "آكل",
+      english: "I eat",
+      category: "Verb — routine",
+      dialect: "Gulf",
+      sentence: null,
+      direction: "production",
+      memory: { stability: 3, repetitions: 2 },
+      ...over,
+    });
+
+  const filedClip = (over: Record<string, unknown> = {}) => ({
+    id: "asset-eat",
+    // `assetKey` for "I eat": the action alone, no Arabic, no dialect.
+    concept_key: "eat",
+    kind: "animation",
+    dialect: null,
+    style_version: "ink-1",
+    url: CLIP,
+    payload: { poster: POSTER, seconds: 4, aspect: "16:9" },
+    meta: {},
+    source: "generated",
+    approved_at: null,
+    created_at: "2026-10-09T00:00:00Z",
+    ...over,
+  });
+
+  const withClips = (rows: unknown[] = [filedClip()], more?: (backend: SupabaseBackend) => void): HarnessOptions => ({
+    persona: "free",
+    seed: (backend) => {
+      backend.db.seed("word_assets", rows as Array<Record<string, unknown>>);
+      more?.(backend);
+    },
+  });
+
+  const clipReads = (backend: SupabaseBackend) =>
+    backend.db.readsOf("word_assets").filter((read) => read.search.includes("kind=eq.animation"));
+
+  /** The browser asks for less motion. */
+  const reduceMotion = () => {
+    const original = window.matchMedia;
+    window.matchMedia = ((query: string) => ({
+      ...original(query),
+      matches: query.includes("prefers-reduced-motion"),
+    })) as typeof window.matchMedia;
+    return () => {
+      window.matchMedia = original;
+    };
+  };
+
+  describe("on \"say it\"", () => {
+    it("shows the clip where the picture would be, muted, looped and inline, and asks from it alone", async () => {
+      const { backend } = render(eat({ imageUrl: PICTURE }), { animations: true }, withClips());
+
+      expect(await screen.findByText("Say it in Arabic")).toBeInTheDocument();
+      const video = screen.getByTestId("quiz-animation") as HTMLVideoElement;
+      expect(video.getAttribute("src")).toBe(CLIP);
+      expect(video.getAttribute("poster")).toBe(POSTER);
+      expect(video.muted).toBe(true);
+      expect(video.loop).toBe(true);
+      expect(video.hasAttribute("playsinline")).toBe(true);
+      expect(video.hasAttribute("controls")).toBe(false);
+      // In the picture's place, never beside it.
+      expect(document.querySelector(`img[src="${PICTURE}"]`)).toBeNull();
+      // The meaning is withheld, as it is behind a picture.
+      expect(screen.getByRole("button", { name: /show meaning/i })).toBeInTheDocument();
+      expect(screen.queryByText("I eat")).not.toBeInTheDocument();
+      // A read, and nothing else: clips are never made from the quiz.
+      expect(clipReads(backend)).toHaveLength(1);
+      expect(backend.callsTo("word-asset")).toEqual([]);
+      expect(backend.db.writes).toEqual([]);
+    });
+
+    it("shows the poster instead of playing it when the learner asked for reduced motion", async () => {
+      const restoreMotion = reduceMotion();
+      try {
+        render(eat(), { animations: true }, withClips());
+        expect(await screen.findByText("Say it in Arabic")).toBeInTheDocument();
+        expect(screen.getByTestId("quiz-animation-still").getAttribute("src")).toBe(POSTER);
+        expect(screen.queryByTestId("quiz-animation")).toBeNull();
+      } finally {
+        restoreMotion();
+      }
+    });
+
+    it("asks with the picture, else the meaning, when the store has no clip", async () => {
+      const first = render(eat({ imageUrl: PICTURE }), { animations: true }, withClips([]));
+      expect(await screen.findByText("Say it in Arabic")).toBeInTheDocument();
+      expect(document.querySelector(`img[src="${PICTURE}"]`)).not.toBeNull();
+      expect(screen.queryByTestId("quiz-animation")).toBeNull();
+      first.unmount();
+      cleanup?.();
+
+      render(eat(), { animations: true }, withClips([]));
+      expect(await screen.findByText("Say it in Arabic")).toBeInTheDocument();
+      expect(screen.getByText("I eat")).toBeInTheDocument();
+    });
+
+    it("is not held up while the store's table has not reached the live project", async () => {
+      render(
+        eat({ imageUrl: PICTURE }),
+        { animations: true },
+        withClips([], (b) =>
+          b.db.failAlways("word_assets", 404, {
+            code: "PGRST205",
+            message: "Could not find the table 'public.word_assets' in the schema cache",
+          }),
+        ),
+      );
+      expect(await screen.findByText("Say it in Arabic")).toBeInTheDocument();
+      expect(document.querySelector(`img[src="${PICTURE}"]`)).not.toBeNull();
+    });
+
+    it("keeps the question it put on screen: a clip that arrives late is for next time", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        render(
+          eat({ imageUrl: PICTURE }),
+          { animations: true },
+          withClips([filedClip()], (b) => b.db.delay("word_assets", ANIMATION_LOOKUP_WAIT_MS + 3_000)),
+        );
+        expect(screen.getByRole("status", { name: "Preparing the question" })).toBeInTheDocument();
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(ANIMATION_LOOKUP_WAIT_MS + 100);
+        });
+        expect(screen.getByText("Say it in Arabic")).toBeInTheDocument();
+        expect(document.querySelector(`img[src="${PICTURE}"]`)).not.toBeNull();
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(4_000);
+        });
+        expect(document.querySelector(`img[src="${PICTURE}"]`)).not.toBeNull();
+        expect(screen.queryByTestId("quiz-animation")).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("looks nothing up for a word that is not an action, or on a deck that does not show clips", async () => {
+      for (const [item, props] of [
+        [eat({ category: "Noun", imageUrl: PICTURE }), { animations: true }],
+        [eat({ english: "I want", category: "Verb", imageUrl: PICTURE }), { animations: true }],
+        [eat({ category: null, imageUrl: PICTURE }), { animations: true }],
+        [eat({ imageUrl: PICTURE }), {}],
+      ] as const) {
+        const { backend, unmount } = render(item, props, withClips());
+        expect(await screen.findByText("Say it in Arabic")).toBeInTheDocument();
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        expect(clipReads(backend)).toEqual([]);
+        expect(screen.queryByTestId("quiz-animation")).toBeNull();
+        unmount();
+        cleanup?.();
+      }
+    });
+
+    it("shows no clip on the line or the reply, which are asked from words", async () => {
+      // Step 8 with a sentence is "say the line": nothing to show a clip in.
+      const { backend } = render(
+        eat({ sentence: { arabic: "آكل عيش", english: "I eat bread" }, memory: { stability: 20, repetitions: 4 } }),
+        { animations: true },
+        withClips(),
+      );
+      expect(await screen.findByText("Say the line in Arabic")).toBeInTheDocument();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(clipReads(backend)).toEqual([]);
+    });
+  });
+
+  describe("on the picture question", () => {
+    /** Recognition, at the picture step, with a picture of its own. */
+    const atPicture = (over: Partial<QuizItem> = {}) =>
+      eat({ direction: "recognition", memory: { stability: 5, repetitions: 2 }, imageUrl: PICTURE, ...over });
+
+    const answerTile = () => screen.getByRole("radio", { name: "I eat" });
+
+    it("deals the clip as the word's option, held still when it would be the only one moving", async () => {
+      render(atPicture(), { animations: true }, withClips());
+
+      expect(await screen.findByText("Which picture?")).toBeInTheDocument();
+      expect(screen.getAllByRole("radio")).toHaveLength(4);
+      // The word is dealt once: its clip, as its poster, and not its picture.
+      expect(answerTile().querySelector('[data-testid="quiz-animation-still"]')?.getAttribute("src")).toBe(POSTER);
+      expect(document.querySelector(`img[src="${PICTURE}"]`)).toBeNull();
+      expect(screen.queryAllByTestId("quiz-animation")).toHaveLength(0);
+    });
+
+    it("plays the clips when more than one option moves, so motion is no tell", async () => {
+      const pool: QuizPoolEntry[] = [
+        { arabic: "أشرب", english: "I drink", animation: { clip: "https://cdn.test/drink.mp4", poster: "https://cdn.test/drink.png" } },
+        { arabic: "أنام", english: "I sleep", animation: { clip: "https://cdn.test/sleep.mp4", poster: "https://cdn.test/sleep.png" } },
+        { arabic: "بيت", english: "house", imageUrl: "https://img.test/house.png" },
+        { arabic: "مدرسة", english: "school", imageUrl: "https://img.test/school.png" },
+      ];
+      render(atPicture(), { animations: true, pool }, withClips());
+
+      expect(await screen.findByText("Which picture?")).toBeInTheDocument();
+      const moving = screen.getAllByTestId("quiz-animation").map((v) => v.getAttribute("src"));
+      expect(moving).toContain(CLIP);
+      expect(moving.length).toBeGreaterThanOrEqual(2);
+      expect(screen.queryAllByTestId("quiz-animation-still")).toHaveLength(0);
+    });
+
+    it("never deals another word for the same action, nor a word's clip beside its picture", async () => {
+      const pool: QuizPoolEntry[] = [
+        // Egyptian "eat" glossed without the pronoun: the same action, a second right answer.
+        { arabic: "باكل", english: "eat", imageUrl: "https://img.test/also-eating.png" },
+        // A word with both: one tile, its clip.
+        {
+          arabic: "أشرب",
+          english: "I drink",
+          imageUrl: "https://img.test/drink-picture.png",
+          animation: { clip: "https://cdn.test/drink.mp4", poster: "https://cdn.test/drink.png" },
+        },
+        ...POOL,
+      ];
+      render(atPicture(), { animations: true, pool }, withClips());
+
+      expect(await screen.findByText("Which picture?")).toBeInTheDocument();
+      expect(document.querySelector('img[src="https://img.test/also-eating.png"]')).toBeNull();
+      expect(document.querySelector('img[src="https://img.test/drink-picture.png"]')).toBeNull();
+      expect(screen.getAllByRole("radio").map((r) => r.getAttribute("aria-label"))).not.toContain("eat");
+    });
+
+    it("asks with the picture as before when the store has no clip", async () => {
+      render(atPicture(), { animations: true }, withClips([]));
+      expect(await screen.findByText("Which picture?")).toBeInTheDocument();
+      expect(answerTile().querySelector("img")?.getAttribute("src")).toBe(PICTURE);
+    });
   });
 });

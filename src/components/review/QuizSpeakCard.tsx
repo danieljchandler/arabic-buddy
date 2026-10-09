@@ -6,11 +6,13 @@ import { useAzurePronunciation, scoreBand, type WordResult } from "@/hooks/useAz
 import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { useTakeRecorder } from "@/hooks/useTakeRecorder";
+import { QuizAnimation } from "@/components/review/QuizAnimation";
 import { findWordSpan } from "@/lib/arabicWord";
 import { findPhraseSpan, type ReplyLine } from "@/lib/quizDialogue";
 import { wordSpanSimilarity, type SpeechOutcome } from "@/lib/quizGrading";
 import { cn } from "@/lib/utils";
 import { arabicSimilarity } from "../../../supabase/functions/_shared/arabicMatch";
+import type { StoredAnimation } from "../../../supabase/functions/_shared/wordAnimation";
 
 export interface QuizSpeechResult extends SpeechOutcome {
   /** What the recogniser heard, for the "we heard" line; null when nothing. */
@@ -29,6 +31,12 @@ interface QuizSpeakCardProps {
   english: string;
   transliteration?: string | null;
   imageUrl?: string | null;
+  /**
+   * For `speak`: an action word's clip, shown where its picture would be (and
+   * in its place when it has both). Played muted and looped; its poster under
+   * reduced motion.
+   */
+  animation?: StoredAnimation | null;
   dialect?: string | null;
   sentence?: { arabic: string; english?: string | null } | null;
   /** For `speak-reply`: the line said, and the reply to say (the lesson's, or the word's stored exchange). */
@@ -77,6 +85,7 @@ export const QuizSpeakCard = ({
   english,
   transliteration,
   imageUrl,
+  animation,
   dialect,
   sentence,
   reply,
@@ -93,9 +102,10 @@ export const QuizSpeakCard = ({
   const { assess, result, isLoading, error, reset } = useAzurePronunciation();
   const [contextOpen, setContextOpen] = useState(false);
   const [noSpeech, setNoSpeech] = useState(false);
-  // A word with a picture is asked from the picture alone; the meaning is a
-  // tap away and asking for it before the take counts as help.
-  const pictureOnly = format === "speak" && !!imageUrl;
+  // A word with a picture (or, for an action, a clip) is asked from it alone;
+  // the meaning is a tap away and asking for it before the take counts as help.
+  const clip = format === "speak" ? (animation ?? null) : null;
+  const pictureOnly = format === "speak" && (!!imageUrl || !!clip);
   const [meaningOpen, setMeaningOpen] = useState(false);
   const [translationOpen, setTranslationOpen] = useState(false);
   const hintUsedRef = useRef(false);
@@ -237,10 +247,18 @@ export const QuizSpeakCard = ({
         </div>
       )}
 
-      {format === "speak" && imageUrl && (
+      {format === "speak" && clip ? (
         <div className="mb-4 rounded-lg overflow-hidden bg-muted aspect-[4/3] flex items-center justify-center">
-          <img src={imageUrl} alt="" className="w-full h-full object-contain" />
+          {/* Cropped to the frame: the action is drawn inside the clip's centre. */}
+          <QuizAnimation animation={clip} className="w-full h-full object-cover" />
         </div>
+      ) : (
+        format === "speak" &&
+        imageUrl && (
+          <div className="mb-4 rounded-lg overflow-hidden bg-muted aspect-[4/3] flex items-center justify-center">
+            <img src={imageUrl} alt="" className="w-full h-full object-contain" />
+          </div>
+        )
       )}
 
       {replying ? (

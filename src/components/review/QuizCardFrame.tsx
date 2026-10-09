@@ -30,7 +30,12 @@ import {
   type QuizMemory,
 } from "@/lib/quizLadder";
 import type { Rating } from "@/lib/spacedRepetition";
-import type { AssetKeyInput } from "../../../supabase/functions/_shared/wordAssets";
+import { animationConcept, normaliseGloss, type AssetKeyInput } from "../../../supabase/functions/_shared/wordAssets";
+import {
+  asStoredAnimation,
+  qualifiesForAnimation,
+  type StoredAnimation,
+} from "../../../supabase/functions/_shared/wordAnimation";
 import { normalizeDialect } from "../../../supabase/functions/_shared/ttsVoiceRoutingCore";
 import { asStoredDialogue, type StoredDialogue } from "../../../supabase/functions/_shared/wordDialogue";
 
@@ -49,6 +54,12 @@ export interface QuizItem {
   /** Lines from other lessons' dialogues, to top up a short one's wrong replies. */
   extraDialogueLines?: DialogueLine[];
   dialect?: string | null;
+  /**
+   * The authored category ("Verb — routine"), for a curriculum word: what
+   * makes it an action word, which may be shown as an animation. A saved word
+   * has none and is never one.
+   */
+  category?: string | null;
   /** The schedule the deck served the card on. */
   direction: QuizDirection;
   memory: QuizMemory;
@@ -101,6 +112,15 @@ interface QuizCardFrameProps {
    * curriculum) may ask for one as well as a learner's own words.
    */
   storedDialogues?: boolean;
+  /**
+   * Show an action word's animation from the shared store (`kind:
+   * "animation"`, quiz Phase 5) where its picture would be: on "say it" and
+   * on the picture question. A free read of a public table; nothing is ever
+   * made from here, since only the content team's tools make clips. The
+   * curriculum deck sets this: only an authored category says a word is an
+   * action (`qualifiesForAnimation`).
+   */
+  animations?: boolean;
 }
 
 /**
@@ -126,6 +146,20 @@ export const DIALOGUE_LOOKUP_WAIT_MS = 1500;
  * line), and the exchange is filed for the next time the word is asked.
  */
 export const DIALOGUE_WRITING_WAIT_MS = 12_000;
+
+/**
+ * How long a card waits to hear whether the store holds its word's clip: a
+ * read of one row. Nothing is ever made for it, so there is no longer wait;
+ * past this the card is asked with its picture, as before clips existed.
+ */
+export const ANIMATION_LOOKUP_WAIT_MS = 1500;
+
+/**
+ * The fewest clips the picture question plays at once. One moving option
+ * among three stills is the answer more often than not, so motion would be a
+ * tell: below this, every clip on the screen is shown as its poster.
+ */
+export const MIN_MOVING_OPTIONS = 2;
 
 type Waiting = "lookup" | "making" | null;
 
@@ -278,6 +312,7 @@ export const QuizCardFrame = ({
   sharedPictures = false,
   onPictureMade,
   storedDialogues = false,
+  animations = false,
 }: QuizCardFrameProps) => {
   // A card the device could not record for is served as the flashcard; the
   // ladder is consulted again for the next one.
@@ -372,18 +407,28 @@ export const QuizCardFrame = ({
     return out;
   }, [dealtPool, item.english]);
 
-  // Pictures of other words, once each. The word's own is taken out where
-  // the options are dealt, once it is known which picture that is.
+  // Pictures of other words, once each, and never one that means what this
+  // word means (another dialect's word for it, in a mixed deck, or the same
+  // action glossed "eat" where this one says "I eat"): that is a second right
+  // answer. A word is dealt one visual — its clip where the pool
+  // has one, else its picture — so a clip and a picture of one word are never
+  // both on the screen. The word's own is taken out where the options are
+  // dealt, once it is known which visual that is.
   const otherPictures = useMemo(() => {
+    const ownSense = normaliseGloss(item.english);
+    const ownAction = animationConcept(item.english);
     const seen = new Set<string>();
     const out: QuizPoolEntry[] = [];
     for (const entry of entries) {
-      if (!entry.imageUrl || seen.has(entry.imageUrl)) continue;
-      seen.add(entry.imageUrl);
+      const visual = entry.animation?.clip ?? entry.imageUrl;
+      if (!visual || seen.has(visual)) continue;
+      if (ownSense && normaliseGloss(entry.english) === ownSense) continue;
+      if (ownAction && animationConcept(entry.english) === ownAction) continue;
+      seen.add(visual);
       out.push(entry);
     }
     return out;
-  }, [entries]);
+  }, [entries, item.english]);
 
   // Wrong replies beyond the dialogue itself: other lessons' lines, and the
   // other words' stored replies in this word's dialect (a mixed session's
@@ -457,8 +502,36 @@ export const QuizCardFrame = ({
     makingWaitMs: DIALOGUE_WRITING_WAIT_MS,
   });
 
-  const isSettled = picture.settled && exchange.settled;
+  // ── The card's clip ───────────────────────────────────────────────────────
+  //
+  // For an action word, on the steps that show its picture: "say it" (and the
+  // steps that fall back onto it) and the picture question. Read from the
+  // store, never made — only the content team's tools make clips — so the
+  // card waits only for the read, and with none it is asked with its picture
+  // exactly as before. Settled once, like the picture: a clip filed while the
+  // question is on screen is for the next time.
+  const usesClip =
+    rung.format === "picture-choice" ||
+    rung.format === "speak" ||
+    (rung.format === "speak-sentence" && !hasSentence) ||
+    (rung.format === "speak-reply" && !lessonReplyLine && !hasSentence);
+  const wantsAnimation =
+    animations && usesClip && qualifiesForAnimation({ category: item.category, gloss: item.english });
+  const animationInput = useMemo(() => ({ kind: "animation", gloss: item.english }), [item.english]);
+  const animation = useCardAsset<StoredAnimation>({
+    id: item.id,
+    input: wantsAnimation ? animationInput : null,
+    ready,
+    make: false,
+    waitForMaking: false,
+    read: (asset) => asStoredAnimation(asset),
+    lookupWaitMs: ANIMATION_LOOKUP_WAIT_MS,
+    makingWaitMs: 0,
+  });
+
+  const isSettled = picture.settled && exchange.settled && animation.settled;
   const pictureUrl = ownPicture ?? picture.value;
+  const ownClip = animation.value;
 
   // The question goes on screen with this render: fix the pool it was dealt
   // from. Until then (the pool still loading, a picture or an exchange still
@@ -483,8 +556,12 @@ export const QuizCardFrame = ({
   );
 
   const imageEntries = useMemo(
-    () => otherPictures.filter((entry) => entry.imageUrl !== pictureUrl),
-    [otherPictures, pictureUrl],
+    () =>
+      otherPictures.filter(
+        (entry) =>
+          (!pictureUrl || entry.imageUrl !== pictureUrl) && (!ownClip || entry.animation?.clip !== ownClip.clip),
+      ),
+    [otherPictures, pictureUrl, ownClip],
   );
 
   const format: QuizFormat =
@@ -492,7 +569,7 @@ export const QuizCardFrame = ({
       ? "flashcard"
       : pickQuizFormat(item.memory, item.direction, {
           hasSentence,
-          hasImage: !!pictureUrl,
+          hasImage: !!pictureUrl || !!ownClip,
           distractors: Math.min(arabicPool.length, englishPool.length),
           imageDistractors: imageEntries.length,
           hasReply: !!replyQuestion,
@@ -609,23 +686,34 @@ export const QuizCardFrame = ({
         />
       );
       break;
-    case "picture-choice":
+    case "picture-choice": {
+      // Each option is one visual: the word's clip where it has one, else its
+      // picture. Clips move only where at least `MIN_MOVING_OPTIONS` of the
+      // four do, so the one moving option is never the giveaway.
+      const dealt = dealOptions(
+        imageEntries,
+        ownClip
+          ? { key: "answer", animation: ownClip, english: item.english }
+          : { key: "answer", imageUrl: pictureUrl, english: item.english },
+        (e, i) =>
+          e.animation
+            ? { key: `wrong-${i}`, animation: e.animation, english: e.english }
+            : { key: `wrong-${i}`, imageUrl: e.imageUrl, english: e.english },
+      );
+      const moving = dealt.filter((option) => option.animation).length >= MIN_MOVING_OPTIONS;
       card = (
         <QuizOptionsCard
           id={item.id}
           format="picture-choice"
           prompt={{ arabic: item.arabic, audioUrl: item.audioUrl }}
-          options={dealOptions(
-            imageEntries,
-            { key: "answer", imageUrl: pictureUrl, english: item.english },
-            (e, i) => ({ key: `wrong-${i}`, imageUrl: e.imageUrl, english: e.english }),
-          )}
+          options={moving ? dealt : dealt.map((option) => (option.animation ? { ...option, still: true } : option))}
           answerKey="answer"
           dialect={item.dialect}
           onAnswer={({ correct, hintUsed }) => onChoice(correct, hintUsed)}
         />
       );
       break;
+    }
     case "word-choice":
       card = (
         <QuizOptionsCard
@@ -685,6 +773,7 @@ export const QuizCardFrame = ({
           english={item.english}
           transliteration={item.transliteration}
           imageUrl={pictureUrl}
+          animation={format === "speak" ? ownClip : null}
           dialect={item.dialect}
           sentence={context}
           reply={format === "speak-reply" ? replyLine : null}

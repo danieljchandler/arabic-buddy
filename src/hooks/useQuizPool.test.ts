@@ -279,3 +279,80 @@ describe("stored replies, for the reply question's wrong options", () => {
     }
   });
 });
+
+describe("clips, for the picture question's options", () => {
+  const clipRow = (action: string) => ({
+    id: `asset-${action}`,
+    concept_key: action,
+    kind: "animation",
+    dialect: null,
+    style_version: "ink-1",
+    url: `https://cdn.test/${action}.mp4`,
+    payload: { poster: `https://cdn.test/${action}.png`, seconds: 4, aspect: "16:9" },
+    meta: {},
+    source: "generated",
+    approved_at: null,
+    created_at: "2026-10-09T00:00:00Z",
+  });
+
+  const words = [
+    aVocabularyWord({ id: wordId(0), word_arabic: "آكل", word_english: "I eat", category: "Verb — routine" }),
+    aVocabularyWord({ id: wordId(1), word_arabic: "أشرب", word_english: "I drink", category: "Verb — routine" }),
+    // A noun glossed like a verb: never dealt the verb's clip.
+    aVocabularyWord({ id: wordId(2), word_arabic: "ساعة", word_english: "watch", category: "Noun" }),
+    aVocabularyWord({ id: wordId(3), word_arabic: "أبي", word_english: "I want", category: "Verb" }),
+  ];
+
+  it("carries an action word's clip, read in one query, and none for anything else", async () => {
+    const r = renderHookWithProviders(() => useCurriculumWordPool("Gulf", false), {
+      persona: "free",
+      seed: (b) => {
+        b.db.seed("vocabulary_words", words);
+        b.db.seed("word_assets", [clipRow("eat"), clipRow("watch")]);
+      },
+    });
+    cleanup = r.cleanup;
+
+    await waitFor(() => expect(r.result.current.data).toBeDefined());
+    const byWord = new Map(r.result.current.data!.map((e) => [e.english, e.animation ?? null]));
+    expect(byWord.get("I eat")).toEqual({ clip: "https://cdn.test/eat.mp4", poster: "https://cdn.test/eat.png" });
+    expect(byWord.get("I drink")).toBeNull();
+    expect(byWord.get("watch")).toBeNull();
+    expect(byWord.get("I want")).toBeNull();
+    const clipReads = r.backend.db.readsOf("word_assets").filter((read) => read.search.includes("kind=eq.animation"));
+    expect(clipReads).toHaveLength(1);
+  });
+
+  it("asks nothing about clips for a learner's saved words", async () => {
+    const r = renderHookWithProviders(() => useSavedWordPool("Gulf", false), {
+      persona: "free",
+      seed: (b) => {
+        b.db.seed("user_vocabulary", [aUserVocabulary({ id: vocabId(0), user_id: TEST_USER_ID, word_arabic: "آكل", word_english: "to eat" })]);
+        b.db.seed("word_assets", [clipRow("eat")]);
+      },
+    });
+    cleanup = r.cleanup;
+
+    await waitFor(() => expect(r.result.current.data).toBeDefined());
+    expect(r.result.current.data![0].animation).toBeUndefined();
+    expect(r.backend.db.readsOf("word_assets").filter((read) => read.search.includes("kind=eq.animation"))).toEqual([]);
+  });
+
+  it("goes on without clips while the store's table is not on the live project", async () => {
+    const r = renderHookWithProviders(() => useCurriculumWordPool("Gulf", false), {
+      persona: "free",
+      seed: (b) => {
+        b.db.seed("vocabulary_words", words);
+        b.db.failAlways("word_assets", 404, {
+          code: "PGRST205",
+          message: "Could not find the table 'public.word_assets' in the schema cache",
+        });
+      },
+    });
+    cleanup = r.cleanup;
+
+    await waitFor(() => expect(r.result.current.data).toBeDefined());
+    expect(r.result.current.data!.map((e) => e.english)).toEqual(["I eat", "I drink", "watch", "I want"]);
+    expect(r.result.current.data!.every((e) => !e.animation)).toBe(true);
+  });
+});

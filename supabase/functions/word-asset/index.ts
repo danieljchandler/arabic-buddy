@@ -6,75 +6,130 @@
  * - `get`: the asset filed under a word, kind and dialect in the current
  *   style, or null. Costs nothing.
  * - `ensure`: get, else make it, file it, and return it. Only a miss calls a
- *   model, and only a miss is charged — to the caller who missed, on the same
- *   daily image budget the flashcard illustrator draws on, so routing the
- *   picture dialog through here does not hand anyone a second allowance.
+ *   model, and only a miss is charged — to the caller who missed, on the daily
+ *   counter of the kind it made (`CAPS`).
  *
- * Today `ensure` makes pictures (`kind: "image"`), in the Ink style and from
- * nothing but the word's sense and dialect (`inkPicturePrompt`). Nothing else
- * a learner sends reaches the prompt: the first learner to miss decides what
- * every later learner is shown, so they must not be able to decide anything
- * beyond the word. The later phases add their kinds here (dialogue, story
- * lines, animations) as they are built.
+ * `ensure` makes two kinds:
+ *
+ * - pictures (`kind: "image"`), in the Ink style and from nothing but the
+ *   word's sense and dialect (`inkPicturePrompt`), on the flashcard
+ *   illustrator's counter, so routing the picture dialog through here does not
+ *   hand anyone a second allowance;
+ * - exchanges (`kind: "dialogue"`, quiz Phase 4): two lines, the second using
+ *   the word, written through the Brain (the CONTENT lineup, `draft_critic`,
+ *   the native-speaker validator on) from the key's folded word, sense and
+ *   dialect (`dialoguePrompt`), on a counter of their own. One is filed only
+ *   when every line passes the leak detector as the Brain runs it (with the
+ *   approved rulebook's tokens) and the validator did not ask for a rewrite;
+ *   otherwise nothing is filed or served and the quiz asks its fallback. A
+ *   dialogue has no learner row to land on, so while the table is not there
+ *   nothing is made and nothing is charged (`store_not_ready`).
+ *
+ * Nothing else a learner sends reaches a prompt: the first learner to miss
+ * decides what every later learner is shown, so they must not be able to
+ * decide anything beyond the word. A learner's saved sentence is their own
+ * text, and is not sent.
  *
  * The trusted path (quiz Phase 3) is the one exception, and it is not a
  * learner's: a call made with the service-role key (`isServiceRoleCall` —
  * `scripts/curriculum-pictures.ts`, filling the curriculum's pictures) or by
- * the content team (`requireRole`, read from `user_roles`) may send `scene`,
- * a track word's authored `image_scene`, which becomes the `scene` argument
- * of `inkPicturePrompt`. Three things follow from who is asking:
+ * the content team (`requireRole`, read from `user_roles`) may send authored
+ * context — `scene` for a picture (a track word's `image_scene`, the `scene`
+ * argument of `inkPicturePrompt`) or `example` for an exchange (a curriculum
+ * word's authored example sentence, `authoredExample`). Three things follow
+ * from who is asking:
  *
  * - nothing is charged. There is no learner to charge under the service
- *   role, and an authored picture is the catalogue's, not a staff member's
- *   own allowance. A `scene` from anyone else is ignored, not refused, and
- *   that caller is charged as the learner they are;
- * - what it files is `source: "authored"`, with the scene in `meta`;
- * - it replaces a picture a learner's miss filed first under the same key
+ *   role, and an authored asset is the catalogue's, not a staff member's
+ *   own allowance. Authored context from anyone else is ignored, not
+ *   refused, and that caller is charged as the learner they are;
+ * - what it files is `source: "authored"`, with the context in `meta`;
+ * - it replaces what a learner's miss filed first under the same key
  *   (curriculum and learners share keys: a curriculum word's sense is its
  *   `word_english`). `isReplaceable` in `_shared/wordAssets.ts` is the rule:
  *   only an unapproved `generated` asset gives way, so an authored, reviewed
- *   or approved one is a hit like any other and a re-run costs nothing. The
- *   old file stays where it is, so a learner whose own row carries it keeps
- *   the picture they were given.
+ *   or approved one is a hit like any other and a re-run costs nothing. An
+ *   old picture file stays where it is, so a learner whose own row carries it
+ *   keeps the picture they were given.
  *
  * Writes run under the service role, which is the point of the function: the
  * table is public-read and service-write, so a learner reaches a shared row
  * only through a generation this function made.
  *
  * Until the migration is applied to the live project every lookup misses and
- * every store fails quietly: `get` answers null and `ensure` makes the picture
+ * every store fails quietly: `get` answers null, `ensure` makes a picture
  * anyway and returns it unfiled (`stored: false`), which is what the dialog
- * did before the store existed.
+ * did before the store existed, and makes no exchange at all.
  *
- * Body: { action: "get" | "ensure", kind, word, gloss?, dialect?, scene? }
- * Response: { asset, url, cached, stored, replaced?, authored? }
+ * Body: { action: "get" | "ensure", kind, word, gloss?, dialect?, scene?, example? }
+ * Response: { asset, url, cached, stored, payload?, replaced?, authored? }
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { enforceDailyCap, resolveUserId } from "../_shared/usageCap.ts";
 import { generateImage, hasAnyProvider, imageExtension, type GeneratedImage } from "../_shared/aiGateway.ts";
+import { askBrain } from "../_shared/aiBrain.ts";
+import { getDialectForbiddenTokens, primeDialectPrompt } from "../_shared/dialectHelpers.ts";
+import { detectMsaLeaks } from "../_shared/msaLeakDetector.ts";
 import { IMAGE_MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { CONTENT_MANAGER_ROLES, isServiceRoleCall, requireRole } from "../_shared/requireRole.ts";
 import {
   assetKey,
   authoredScene,
   fileNewAsset,
-  getAsset,
   inkPicturePrompt,
   isReplaceable,
   kindNeedsSense,
+  lookupAsset,
   normaliseGloss,
+  putAsset,
   replaceAsset,
   type AssetKey,
   type AssetStorage,
+  type NewWordAsset,
   type PutOutcome,
   type WordAsset,
   type WordAssetClient,
 } from "../_shared/wordAssets.ts";
+import {
+  asStoredDialogue,
+  authoredExample,
+  DIALOGUE_TOOL,
+  dialogueArabic,
+  dialogueLinesForScan,
+  dialoguePrompt,
+  dialogueProblem,
+  keyWord,
+} from "../_shared/wordDialogue.ts";
 
-/** The kinds `ensure` can make today. */
-const ENSURABLE_KINDS = new Set<string>(["image"]);
+/**
+ * The kinds `ensure` can make, and who pays for each, per day. Counted only
+ * on a miss, and never on the trusted path.
+ *
+ * - A picture is charged on the flashcard illustrator's key, so the picture
+ *   dialog's two paths share one allowance.
+ * - An exchange is a different cost (a few short text calls, not an image)
+ *   with a counter of its own, so a learner whose pictures are spent for the
+ *   day still gets their dialogues, and the reverse. It is reached once per
+ *   word, at the quiz's reply steps, which a word only climbs to after a month
+ *   of reviews; a free learner's thirty a day is more than any session asks.
+ */
+const CAPS = {
+  image: { key: "generate-flashcard-image", free: 20, tiers: { standard: 60, allin: 200 } },
+  dialogue: { key: "word-asset-dialogue", free: 30, tiers: { standard: 100, allin: 300 } },
+} as const;
+
+type EnsurableKind = keyof typeof CAPS;
+
+const isEnsurable = (kind: string): kind is EnsurableKind => kind in CAPS;
+
+/**
+ * The Brain's wall-clock budget for one exchange. The quiz waits for it only
+ * as long as `DIALOGUE_WRITING_WAIT_MS` and asks its fallback past that, so
+ * this bounds the spend, not the learner's wait.
+ */
+const DIALOGUE_BUDGET_MS = 40_000;
 
 /** A gloss longer than this is a note, not a sense, and has no business in a prompt. */
 const MAX_GLOSS_LENGTH = 80;
@@ -116,32 +171,39 @@ serve(async (req) => {
     return reply({ error: "auth_required", message: "Please sign in to use this feature." }, 401);
   }
 
-  // An authored scene, honoured only from a trusted caller. The role is read
-  // only when a scene was sent, so an ordinary call costs no extra lookup; a
-  // learner who sends one is not refused — their scene is simply not heard,
-  // and they go on as the learner they are.
-  // (`authoredScene`: one line, bounded, and "" for a token that is no
-  // description, so a full stop cannot stand in for a scene.)
-  const sentScene = authoredScene(text(body.scene));
-  let scene = "";
-  if (sentScene) {
+  // Authored context, honoured only from a trusted caller: a track word's
+  // scene for a picture, a curriculum word's example sentence for an
+  // exchange. The role is read only when some was sent, so an ordinary call
+  // costs no extra lookup; a learner who sends it is not refused — it is
+  // simply not heard, and they go on as the learner they are.
+  // (`authoredScene` / `authoredExample`: one line, bounded, and "" for text
+  // that is no scene or no example of this word, so a full stop cannot stand
+  // in for either.)
+  const kind = text(body.kind);
+  const sentContext = kind === "image"
+    ? authoredScene(text(body.scene))
+    : kind === "dialogue"
+    ? authoredExample(text(body.example), text(body.word))
+    : "";
+  let authored = "";
+  if (sentContext) {
     if (viaServiceRole) {
-      scene = sentScene;
+      authored = sentContext;
     } else {
       const staff = await requireRole(req, CONTENT_MANAGER_ROLES, corsHeaders, { allowServiceRole: false });
       if (!staff.denied) {
-        scene = sentScene;
-        // The table is public-read, so who authored a picture is not in it.
+        authored = sentContext;
+        // The table is public-read, so who authored an asset is not in it.
         // The function log is where a staff member's uncapped draw is kept.
         console.log(
-          `word-asset: scene authored by staff ${staff.userId} for "${text(body.gloss).trim().slice(0, MAX_GLOSS_LENGTH)}"`,
+          `word-asset: ${kind === "image" ? "scene" : "example"} authored by staff ${staff.userId} for "${text(body.gloss).trim().slice(0, MAX_GLOSS_LENGTH)}"`,
         );
       }
     }
   }
-  // Trusted: nobody's allowance pays for it. A staff member without a scene
-  // is asking for their own word's picture, as a learner does.
-  const trusted = viaServiceRole || scene !== "";
+  // Trusted: nobody's allowance pays for it. A staff member without authored
+  // context is asking for their own word's asset, as a learner does.
+  const trusted = viaServiceRole || authored !== "";
 
   const gloss = text(body.gloss).trim();
   if (gloss.length > MAX_GLOSS_LENGTH) {
@@ -151,7 +213,6 @@ serve(async (req) => {
   // Checked on the folded sense, not the gloss as typed: a gloss of nothing
   // but emoji or punctuation folds to nothing, and a picture keyed without a
   // meaning is exactly what lets one homograph borrow another's.
-  const kind = text(body.kind);
   if (kindNeedsSense(kind) && !normaliseGloss(gloss)) {
     return reply({ error: "gloss_required", message: "gloss (the word's English sense) is required" }, 400);
   }
@@ -181,17 +242,17 @@ serve(async (req) => {
   // any generated type until the migration is applied.
   const store = admin as unknown as WordAssetClient;
 
-  const found = await getAsset(store, key);
+  const { asset: found, missingTable } = await lookupAsset(store, key);
   if (action === "get") {
     return reply(found ? served(found, true) : { asset: null, url: null, cached: false, stored: false });
   }
-  // An authored scene takes the place of a picture drawn from the gloss
-  // alone; everything else that is filed is a hit, for everyone.
-  const replace = found && scene && isReplaceable(found) ? found : null;
+  // Authored context takes the place of an asset made from the gloss alone;
+  // everything else that is filed is a hit, for everyone.
+  const replace = found && authored && isReplaceable(found) ? found : null;
   if (found && !replace) return reply(served(found, true));
 
   // ── ensure, on a miss ─────────────────────────────────────────────────────
-  if (!ENSURABLE_KINDS.has(key.kind)) {
+  if (!isEnsurable(key.kind)) {
     return reply(
       { error: "kind_not_generated", message: `word-asset does not make ${key.kind} assets yet.` },
       400,
@@ -202,25 +263,34 @@ serve(async (req) => {
       {
         error: "ai_unconfigured",
         fallback: true,
-        message: "Image generation is not configured right now.",
+        message: key.kind === "image"
+          ? "Image generation is not configured right now."
+          : "Text generation is not configured right now.",
       },
       503,
     );
   }
+  // A picture lands on the learner's own row whether or not the store keeps
+  // it. An exchange has nowhere else to live: made while the table is not
+  // there, it would be made, and charged, again at every encounter.
+  if (key.kind === "dialogue" && missingTable) {
+    return reply(
+      { error: "store_not_ready", fallback: true, message: "Dialogues cannot be kept yet, so none is made." },
+      503,
+    );
+  }
 
-  // Charged only now, on the miss, and only to a learner. The key is the
-  // flashcard illustrator's, so the dialog's two paths share one daily
-  // allowance of pictures.
+  // Charged only now, on the miss, and only to a learner, on the kind's own
+  // counter.
   if (!trusted) {
-    const cap = await enforceDailyCap(req, "generate-flashcard-image", 20, corsHeaders, {
-      standard: 60,
-      allin: 200,
-    });
-    if (cap.limited) return cap.response;
+    const cap = CAPS[key.kind];
+    const limited = await enforceDailyCap(req, cap.key, cap.free, corsHeaders, cap.tiers);
+    if (limited.limited) return limited.response;
   }
 
   try {
-    return reply(await makePicture(admin, store, key, { scene, replace }));
+    if (key.kind === "dialogue") return reply(await makeDialogue(store, key, { example: authored, replace }));
+    return reply(await makePicture(admin, store, key, { scene: authored, replace }));
   } catch (err) {
     console.error("word-asset error:", err);
     return reply({ error: err instanceof Error ? err.message : "Unknown error" }, 500);
@@ -306,4 +376,98 @@ async function makePicture(
   if (outcome.status === "taken" && outcome.asset) return served(outcome.asset, true);
   // Not filed — the table not applied yet. The picture is still the caller's.
   return { asset: null, url: filed.url, cached: false, stored: false, ...made };
+}
+
+async function makeDialogue(
+  store: WordAssetClient,
+  key: AssetKey,
+  authored: { example: string; replace: WordAsset | null },
+): Promise<Record<string, unknown>> {
+  // From the key, never from what the caller typed: the folded word and
+  // sense, the dialect, and the trusted path's example alone.
+  const word = keyWord(key);
+  const dialect = key.dialect ?? "Gulf";
+  const prompt = dialoguePrompt({ word, sense: key.sense, dialect, example: authored.example || null });
+  const failed = (message: string, error = "DIALOGUE_GENERATION_FAILED") => ({ error, fallback: true, message });
+
+  let brain;
+  try {
+    brain = await askBrain<unknown>({
+      purpose: "word_dialogue",
+      dialect,
+      // No models[] override: the CONTENT lineup, drafted and critiqued.
+      strategy: "draft_critic",
+      userPrompt: prompt,
+      tool: DIALOGUE_TOOL,
+      maxTokens: 700,
+      temperature: 0.7,
+      budgetMs: DIALOGUE_BUDGET_MS,
+      // The native-speaker validator reads the draft and orders a rewrite if
+      // it is fusha in grammar or register, which the token detector is blind
+      // to. A learner will say this line as a model of the dialect.
+      enforceDialect: true,
+      // A reply that does not use the word, or an opener that does, is no
+      // question: the critic is sent back to fix exactly that.
+      qualityGate: (parsed) => dialogueProblem(parsed, word),
+      arabicTextPath: dialogueArabic,
+    });
+  } catch (err) {
+    console.warn("word-asset: the exchange could not be written:", err instanceof Error ? err.message : err);
+    return failed(`Could not write a line for "${key.sense}" right now.`);
+  }
+
+  const dialogue = asStoredDialogue(brain.output, word);
+  if (!dialogue) return failed(`Could not write a line that uses the word for "${key.sense}".`);
+
+  // A draft the native speaker failed, shipped only because the rewrite could
+  // not run: not a model of the dialect, so not filed and not served.
+  if (brain.validator?.ok === true && brain.validator.verdict === "rewrite") {
+    console.warn(`word-asset: not filed, the native reviewer asked for a rewrite (${brain.validator.score}/5)`);
+    return failed("The line did not read as the dialect.", "dialect_rejected");
+  }
+
+  // Filed only when every line passes the leak detector exactly as the Brain
+  // runs it, with the approved rulebook's forbidden tokens, as a shared
+  // jingle's lyrics must. Nothing else is served either: the learner is about
+  // to choose this reply, or say it.
+  await primeDialectPrompt(dialect);
+  const leaks = dialogueLinesForScan(dialogue).flatMap((line) =>
+    detectMsaLeaks(line, dialect, getDialectForbiddenTokens(dialect)).leaks
+  );
+  if (leaks.length > 0) {
+    console.warn(`word-asset: not filed, MSA in the exchange: ${leaks.join(", ")}`);
+    return failed("The line was not in the dialect.", "msa_leak");
+  }
+
+  // How it was made, for whoever reviews the store later. Never who asked:
+  // the table is public-read.
+  const asset: NewWordAsset = {
+    payload: dialogue,
+    meta: {
+      prompt,
+      models: brain.models,
+      strategy: brain.strategy,
+      style: key.styleVersion,
+      ...(brain.validator?.ok ? { dialect_score: brain.validator.score } : {}),
+      ...(authored.example ? { example: authored.example } : {}),
+    },
+    source: authored.example ? "authored" : "generated",
+  };
+  let outcome: PutOutcome = authored.replace
+    ? await replaceAsset(store, key, authored.replace, asset)
+    : await putAsset(store, key, asset);
+  // A learner missed at the same moment and filed theirs first; an authored
+  // example takes its place, as it would have a second earlier.
+  if (outcome.status === "taken" && outcome.asset && authored.example && isReplaceable(outcome.asset)) {
+    outcome = await replaceAsset(store, key, outcome.asset, asset);
+  }
+
+  const made = authored.example ? { authored: true } : {};
+  if (outcome.status === "stored") return { ...served(outcome.asset, false), ...made };
+  if (outcome.status === "replaced") return { ...served(outcome.asset, false, true), ...made };
+  // Someone filed first: theirs, so every learner is asked the same exchange.
+  if (outcome.status === "taken" && outcome.asset) return served(outcome.asset, true);
+  // Not filed (a failure after the table was found): the caller paid for it,
+  // so it is theirs for this encounter.
+  return { asset: null, url: null, payload: dialogue, cached: false, stored: false, ...made };
 }

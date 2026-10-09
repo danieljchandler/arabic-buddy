@@ -377,6 +377,7 @@ interface Settled {
 
 interface AssetQuery extends PromiseLike<Settled> {
   eq(column: string, value: string): AssetQuery;
+  in(column: string, values: readonly string[]): AssetQuery;
   is(column: string, value: null): AssetQuery;
   limit(count: number): AssetQuery;
   maybeSingle(): PromiseLike<Settled>;
@@ -448,6 +449,19 @@ function toWordAsset(row: unknown): WordAsset | null {
  * find an asset generates one, which is what it did before the store existed.
  */
 export async function getAsset(client: WordAssetClient, key: AssetKey): Promise<WordAsset | null> {
+  return (await lookupAsset(client, key)).asset;
+}
+
+/**
+ * `getAsset`, saying as well whether the table is there at all. A generator
+ * whose asset has nowhere else to live (a dialogue has no learner row to land
+ * on) asks this before it spends anything: an asset that cannot be filed would
+ * be made, and paid for, again at every encounter.
+ */
+export async function lookupAsset(
+  client: WordAssetClient,
+  key: AssetKey,
+): Promise<{ asset: WordAsset | null; missingTable: boolean }> {
   try {
     let query = client
       .from("word_assets")
@@ -458,13 +472,58 @@ export async function getAsset(client: WordAssetClient, key: AssetKey): Promise<
     query = key.dialect === null ? query.is("dialect", null) : query.eq("dialect", key.dialect);
     const { data, error } = await query.limit(1).maybeSingle();
     if (error) {
-      if (!isMissingTable(error)) console.warn(`[wordAssets] lookup failed: ${error.message}`);
-      return null;
+      const missingTable = isMissingTable(error);
+      if (!missingTable) console.warn(`[wordAssets] lookup failed: ${error.message}`);
+      return { asset: null, missingTable };
     }
-    return toWordAsset(data);
+    return { asset: toWordAsset(data), missingTable: false };
   } catch (err) {
     console.warn(`[wordAssets] lookup failed: ${err instanceof Error ? err.message : String(err)}`);
-    return null;
+    return { asset: null, missingTable: false };
+  }
+}
+
+/** The most keys one batched read names; see `getAssets`. */
+export const MAX_KEYS_PER_READ = 100;
+
+/**
+ * Everything filed under any of `keys`, in one query.
+ *
+ * For a caller that needs many words' assets at once (the quiz's pool, whose
+ * wrong replies come from other words' stored exchanges) rather than one
+ * lookup per word. Every key must be of one kind and style; at most
+ * `MAX_KEYS_PER_READ` are read, because the keys travel in the query string
+ * and a few hundred Arabic keys, percent-encoded, run past what a gateway
+ * accepts in a URL. Returns only rows whose key and dialect are both among
+ * those asked; never throws, and every failure (the table not yet applied
+ * above all) is an empty answer.
+ */
+export async function getAssets(client: WordAssetClient, keys: readonly AssetKey[]): Promise<WordAsset[]> {
+  const asked = keys.slice(0, MAX_KEYS_PER_READ);
+  if (asked.length === 0) return [];
+  const { kind, styleVersion } = asked[0];
+  if (asked.some((key) => key.kind !== kind || key.styleVersion !== styleVersion)) return [];
+  const wanted = new Set(asked.map((key) => `${key.dialect ?? ""}\u0000${key.conceptKey}`));
+  const conceptKeys = [...new Set(asked.map((key) => key.conceptKey))];
+  try {
+    const { data, error } = await client
+      .from("word_assets")
+      .select(ASSET_COLUMNS)
+      .in("concept_key", conceptKeys)
+      .eq("kind", kind)
+      .eq("style_version", styleVersion)
+      .limit(conceptKeys.length * 3);
+    if (error) {
+      if (!isMissingTable(error)) console.warn(`[wordAssets] batch lookup failed: ${error.message}`);
+      return [];
+    }
+    return (Array.isArray(data) ? data : [])
+      .map(toWordAsset)
+      .filter((asset): asset is WordAsset => asset !== null)
+      .filter((asset) => wanted.has(`${asset.dialect ?? ""}\u0000${asset.conceptKey}`));
+  } catch (err) {
+    console.warn(`[wordAssets] batch lookup failed: ${err instanceof Error ? err.message : String(err)}`);
+    return [];
   }
 }
 

@@ -237,18 +237,22 @@ ladder in `src/lib/quizLadder.ts`:
 | 3 Pick the picture | under 8 days | the word, seen and heard → four pictures |
 | 4 Hear it | under 16 days | the word's audio alone → pick the meaning |
 | 5 Pick the word | under 30 days | the picture (or the meaning) → four Arabic words, each with its recording |
-| 6 Answer the line | 30 days and up | a line of the lesson's own dialogue, said aloud → pick the reply that uses the word |
+| 6 Answer the line | 30 days and up | a line of dialogue (the lesson's, else the word's stored exchange), said aloud → pick the reply that uses the word |
 | 7 Say it | production card, under 14 days | the picture alone (or the meaning) → say the word; scored |
-| 8 Say the line | production card, 14 days and up | the English line → say the Arabic sentence; scored |
+| 8 Say the line | production card, 14 to 30 days | the English line → say the Arabic sentence; scored |
+| 9 Say the reply | production card, 30 days and up | a line of dialogue, said aloud, and the reply's meaning → say the reply; scored, the word required |
 
 The climb within recognition goes from form to meaning (the gap, the picture,
 the audio) to meaning to form (pick the word) to use (answer the line);
-production goes from the word to the line. The reply step is built from the
-lesson's authored dialogue (`lessons.dialogue`, `src/lib/quizDialogue.ts`):
+production goes from the word to the line to the line said back in a
+conversation. The reply steps are built from a dialogue (`src/lib/quizDialogue.ts`):
 the reply is the first line that uses the word, the prompt is the line before
-it, the wrong replies are the dialogue's other lines topped up from the other
-lessons in the deck, and nothing is generated. A translation of what was said,
-or the meaning behind a picture, is a tap away and counts as help.
+it, and on step 6 the wrong replies are the dialogue's other lines, topped up
+from the other lessons in the deck and from the other words' stored replies.
+The lesson's authored dialogue (`lessons.dialogue`) comes first; a word it
+never uses is asked from its exchange in the shared store (below). A
+translation of what was said, or the meaning behind a picture, is a tap away
+and counts as help.
 
 The decks unlock production on the first Good and serve the production card
 the moment it is due — in the same session, for the flashcards. The quiz
@@ -259,9 +263,38 @@ itself is untouched, the card waits.
 
 A card without the material for its step falls back a question (no sentence →
 ask the meaning; no picture, or too few other pictures → hear it; no dialogue →
-pick the word; too few other words for four options, or a device that cannot
-record → the ordinary flip card with its rating buttons), so the ladder never
-refuses to serve a card.
+pick the word, or on the production side say the line (and with no sentence
+either, the word); too few other words for four options, or a device that
+cannot record → the ordinary flip card with its rating buttons), so the ladder
+never refuses to serve a card.
+
+**An exchange for a word its lesson has none for.** Steps 6 and 9 need a line
+that uses the word, and only some words appear in their lesson's dialogue —
+none of a learner's saved words do. So the frame (`storedDialogues`, set by the
+curriculum deck and My Words) looks the word's exchange up in the shared store:
+two lines, someone says something and the reply uses the word, made once per
+word, sense and dialect and kept for every learner after (`kind: "dialogue"`,
+"The asset store" below). A word with none has one written: `useEnsureWordAsset`
+asks `word-asset`'s `ensure`, which writes it through the Brain from the word,
+its sense and its dialect alone — never the sentence a word was saved from,
+which is the learner's own text — and charges this learner's daily dialogue
+allowance, a counter of its own (a stored one costs nothing). Unlike a
+picture, an exchange needs no row of the learner's to land on, so the
+curriculum deck may ask for one too; the curriculum's whole catalogue of
+exchanges is bounded (one per word and dialect, ever, per style), and an
+authored one can still take the place of one a learner's miss wrote. The card
+looks the store up inside the same settle step as its picture and waits for an
+exchange being written for at most `DIALOGUE_WRITING_WAIT_MS` (12 s), saying
+"Writing a line for this word…", and only when its question could be asked
+now: saying the reply needs nothing more, but choosing it needs three wrong
+replies, which come from the other words' stored replies (`useQuizPool`
+gives each pool entry its `dialogueLine`, read for the likeliest hundred words
+in one query), so on a learner's first few exchanges step 6 asks "pick the
+word" while the exchange is written behind it. As with pictures, a question is
+fixed once it is on screen, and an exchange that arrives after it is for the
+next time the word is asked. A stored exchange whose reply does not use the
+word as written is not one; nor is one when the store's table is not on the
+live project, where step 6 picks the word and step 9 says the line.
 
 **A picture for a word that has none.** Steps 3, 5 and 7 want a picture, and
 neither the authored tracks nor a learner's saved words come with one, so the
@@ -309,12 +342,18 @@ away; opening it before a choice answer counts as help. Nothing is typed —
 most learners have no Arabic keyboard, and saying the word is the skill — so
 the speaking steps record a take through `useTakeRecorder` and score it with
 `azure-pronunciation` (the calibrated score, never Azure's raw one) against
-the target, showing what was recognised beside the score.
+the target, showing what was recognised beside the score. On "say the reply"
+the line is played once by itself, the reply's meaning is shown (a reply with
+no English is asked as a gap), and the target is the whole reply; what the
+grader compares is the word's span of what was heard (`wordSpanSimilarity`:
+the closest run of recognised words to the word), since a reply said well
+without the word is a different reply.
 
 Grading is `src/lib/quizGrading.ts`: a right choice is Good (never Easy when
 the options were on screen — the lesson quiz's and debrief's rule), a right
 choice reached with help is Hard, wrong is Again; a spoken take is banded by
-its score, and a take that was a different word is Again whatever it scored.
+its score, and a take that was a different word — or, for a reply, one without
+the word in it — is Again whatever it scored.
 Every rating then goes down the page's existing path — the offline queue,
 relearn, leeches, production unlock, the `review_log` trigger — so nothing
 downstream knows the style. `QuizCardFrame` is the one place the ladder, the
@@ -328,14 +367,14 @@ Phrases decks also pays the flat review XP that the curriculum deck pays and
 those decks' flip cards never did. Under Flashcards, My Words serves plain flip
 cards — the every-other-card cloze it used to show now lives in the quiz.
 
-Proposal and the phases still to come (dialogue and story questions,
-animations): `docs/quiz-modes-plan-2026-10.md`; the execution roadmap is
+Proposal and the phases still to come (story questions, animations):
+`docs/quiz-modes-plan-2026-10.md`; the execution roadmap is
 `docs/quiz-phases-2026-10.md`.
 
 ### The asset store
 
-Every picture, recording or jingle made for a word is made once and kept, for
-every learner and for the quiz's later steps. Before the store a My Words
+Every picture, recording, jingle or exchange made for a word is made once and
+kept, for every learner and for the quiz's later steps. Before the store a My Words
 picture or jingle was generated per learner onto their own row, so two
 learners who saved the same word paid twice and nothing could reuse what was
 made. The table is `word_assets` (migration `20261009130000_word_assets`):
@@ -363,20 +402,23 @@ rather than mixes two looks in one deck.
 
 **`word-asset`** is the door: `get` returns what is filed (free), `ensure`
 returns it or, on a miss, makes it, files it and returns it. Only a miss calls
-a model and only a miss is charged — to the learner who missed, on the
-flashcard illustrator's daily counter, so the picture dialog's two paths share
-one allowance. The prompt is built from nothing but the key's folded sense and
+a model and only a miss is charged — to the learner who missed, on the daily
+counter of the kind it made: a picture on the flashcard illustrator's, so the
+picture dialog's two paths share one allowance, and an exchange on one of its
+own (below). The prompt is built from nothing but the key's folded sense and
 dialect — never the gloss as typed, since whatever the folding drops (an
 emoji, a symbol) is in no key and must not be in a picture every learner of
 the key is shown. The first learner to miss decides what every later learner
-sees, so they must not be able to decide anything beyond the word. Today
-`ensure` makes pictures; the later phases add their kinds.
+sees, so they must not be able to decide anything beyond the word. `ensure`
+makes pictures and, since quiz Phase 4, exchanges; the later phases add their
+kinds.
 
 **The trusted path: an authored scene.** One thing beyond the word may reach
-a shared prompt, and not from a learner: `scene`, a track word's authored
-`image_scene` (the curriculum seed writes it to
+a shared prompt, and not from a learner: for a picture, `scene`, a track
+word's authored `image_scene` (the curriculum seed writes it to
 `vocabulary_words.image_scene_description`), which becomes the `scene`
-argument of `inkPicturePrompt`. `word-asset` honours it from two callers
+argument of `inkPicturePrompt`; for an exchange, `example` (below). Both go
+through the one gate described here. `word-asset` honours it from two callers
 only — a call made with the service-role key (`isServiceRoleCall`; that is
 `scripts/curriculum-pictures.ts`) and the content team (`requireRole` with
 `CONTENT_MANAGER_ROLES`: an admin or a content reviewer, read from
@@ -413,6 +455,69 @@ who asked is never in it. On the trusted path:
   a new object (`fileNewAsset` with `replace`), and the old file is neither
   written over nor deleted — a learner whose own row already carries it keeps
   the picture they were given, and every later lookup gets the authored one.
+
+**Exchanges (`kind: "dialogue"`, quiz Phase 4).** The quiz's reply steps
+need a line that uses the word, and most words are in no lesson's dialogue,
+so the store keeps one two-line exchange per word, sense and dialect
+(`_shared/wordDialogue.ts`): `payload` is `{ lines: [said, reply] }`, each
+line `{ speaker, arabic, english, transliteration }`, the reply using the word
+as a whole word and the line said not using it (`asStoredDialogue`, the one
+rule the store, the pool and the frame all read an exchange by). It is text,
+so it has no bucket (`ASSET_BUCKETS.dialogue` is null) and is filed with
+`putAsset`, never `fileNewAsset`; the style is `text-1`.
+
+- *What reaches the prompt.* `ensure` writes it through `askBrain` — the
+  CONTENT lineup, `draft_critic`, the native-speaker validator on
+  (`enforceDialect`), and a quality gate that sends the critic back when the
+  reply does not use the word — from the key's folded word, folded sense and
+  dialect alone (`dialoguePrompt`, `keyWord`). **Decided:** a learner's miss
+  carries nothing else, as for pictures. The roadmap first said to give the
+  model the word's example sentence, but a saved word's sentence is the
+  learner's own text (a transcript line, a note), and the exchange is filed
+  for every later learner of the key; the quiz never sends it and the
+  function would not hear it. The trusted path — the service role or the
+  content team, through the same `isServiceRoleCall` / `requireRole` gate as
+  a scene — may add `example`, a curriculum word's authored example sentence
+  (`authoredExample`: one line, at most 240 characters, using the word and
+  at least one other word, or it is not one and the caller is a learner).
+  What that files is `source: "authored"` with the example in `meta`,
+  uncharged, and it takes the place of an exchange a learner's miss wrote
+  (`isReplaceable`, `replaceAsset`), exactly as an authored scene does.
+- *What is filed.* Only an exchange every line of which passes the leak
+  detector as the Brain runs it, with the approved rulebook's forbidden
+  tokens, as a shared jingle's lyrics must — scanned with quotation marks
+  taken out (`dialogueLinesForScan`), since the detector skips quoted text
+  and a line a learner says is never a quotation — and that the native
+  reviewer did not ask to have rewritten (a draft it failed ships from the
+  Brain only when the rewrite could not run). **Decided:** when an exchange
+  fails either, nothing is served either. The learner is about to choose
+  that reply or say it as a model of the dialect, so the answer is the
+  graceful `{ error: "msa_leak" | "dialect_rejected", fallback: true }` and
+  the card asks its fallback. The miss was charged — the cap is taken before
+  anything is made, as for a picture — and the quiz counts it as a failure
+  for that word.
+- *Who pays.* **Decided:** an exchange is charged on its own counter,
+  `word-asset-dialogue` (30 a day free, 100 standard, 300 All-In), never on
+  the picture allowance: a few short text calls are a different cost from an
+  image, and a learner whose pictures are spent for the day still gets their
+  dialogues, and the reverse (`useEnsureWordAsset` keeps its cap latch and
+  failure pause per kind for the same reason). **Decided:** both word decks
+  may ask for one, the curriculum's included. A picture is kept on the
+  learner's row, which a learner cannot write for a curriculum word; an
+  exchange lives in the store alone, so that reason does not apply, and the
+  curriculum's exchanges are bounded in total (one per word and dialect,
+  ever, per style) whoever asks first. The phrase deck does not ask: a phrase
+  is not keyed by this phase.
+- *Until the table is there,* nothing is made and nothing is charged: an
+  exchange has no learner row to land on, so one that cannot be filed would
+  be written, and paid for, again at every encounter. `lookupAsset` tells a
+  missing table from a miss, and `ensure` answers `503 store_not_ready`
+  before the cap; the quiz pauses asking for exchanges and asks the
+  fallback.
+- *Many at once.* Step 6's wrong replies are other words' stored replies, so
+  the quiz's pool reads them in one query (`getAssets`, keyed with
+  `assetKey`) rather than one lookup per word, bounded at
+  `MAX_KEYS_PER_READ` (100) keys because they travel in the URL.
 
 **Pictures that can be told apart.** The quiz deals a word's picture beside
 three other words', so the prompt template says so
@@ -473,6 +578,7 @@ sense its key was folded to.
 | generator | on a hit | on a miss |
 |---|---|---|
 | The quiz's picture step, for a learner's own word (`QuizCardFrame` → `useEnsureWordAsset`) | the store's picture goes on the learner's row, uncharged; found by the free `useWordAsset` read first, so most hits never reach the function | `ensure` draws and files it, on the learner's daily picture allowance; once per word per session, and silent on any failure |
+| The quiz's reply steps (6 and 9), on the curriculum deck and My Words, for a word its lesson has no line for (`QuizCardFrame` `storedDialogues`) | the stored exchange is asked, uncharged; found by the free `useWordAsset` read first | `ensure` writes and files it, on the learner's daily dialogue allowance, if it passes the leak detector and the native reviewer; otherwise nothing is served and the card asks its fallback |
 | `scripts/curriculum-pictures.ts` (the trusted path) | the url is copied onto the curriculum row, unless what is filed is a gloss-only picture and the row has an authored scene, which is then drawn in its place | `ensure` draws from the authored scene and files it as `authored`; charged to nobody |
 | The picture dialog (`GenerateImageDialog`) | a word's first picture comes from `word-asset ensure`; the url goes on the learner's row as a generated one did | `ensure` draws and files it. A regeneration, a described picture or a locked style is the learner's own and goes to `generate-flashcard-image`, as does a first picture the store turned away before charging (404 not deployed, 400 a word it cannot file); a failure after the charge is reported, never retried on the illustrator |
 | `persist-word-audio` | a curriculum row gets the recording another row with the same exact text and dialect already has | synthesises, puts it on the row and files it for the next row, as one fresh object |
@@ -505,18 +611,24 @@ still gets its picture on its own row and the script still writes each url
 onto its curriculum row — it warns at the top that nothing drawn is being
 kept in the store, which means a learner who later saves the same word will
 not share that picture. The curriculum deck's lookup reads as none and the
-card is asked its fallback.
+card is asked its fallback. No exchange is made at all (`store_not_ready`,
+uncharged), so step 6 picks the word and step 9 says the line, exactly as
+before Phase 4.
 
 **Until this `word-asset` is deployed** it depends on what is there. With no
 `word-asset` at all the quiz's ask is turned away uncharged (404) and it
 stops asking; with the Phase 2 one, a learner's ask is served and charged as
 it always was, drawn without the line about telling pictures apart. Either
 way the script stops on its first word: neither accepts the service-role key.
+Neither makes an exchange either: the Phase 2 and Phase 3 functions answer
+`kind_not_generated` (400), uncharged, and the quiz stops asking for
+exchanges for a while and asks the fallback.
 
 `useWordAsset` is the browser's read of the store and stays read-only: making
 an asset is a generation with a cost, so that is a separate hook,
 `useEnsureWordAsset`, which invalidates the word's `["word-asset", …]` read
-once it has made one.
+once it has made one. Everything it remembers across a session — the daily
+cap latch, the failures in a row, the pause — is kept per kind.
 
 ### The authored tracks (Stages 1–3, three dialects)
 

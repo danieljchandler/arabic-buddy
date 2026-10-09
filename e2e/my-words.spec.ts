@@ -330,3 +330,54 @@ test.describe("reviewing in the quiz style", () => {
     await expect(page.getByRole("button", { name: /reveal english/i })).toBeVisible();
   });
 });
+
+/**
+ * Two learners who saved the same word share its first jingle.
+ *
+ * The first "Generate jingle" asks with `share: true`; the generator answers
+ * from the shared asset store with a url, which goes on the saved word as it
+ * is, with nothing uploaded. The regenerate button asks for a different jingle,
+ * so it stays the learner's own.
+ */
+test.describe("a saved word's first jingle", () => {
+  const SHARED =
+    "https://e2e.supabase.co/storage/v1/object/public/flashcard-audio/word-assets/jingle/jingle-1/gulf/abc/1.wav";
+  const past = () => new Date(Date.now() - 86_400_000).toISOString();
+
+  test.beforeEach(async ({ signInAs }) => {
+    await signInAs("free");
+  });
+
+  test("is the shared one, kept by its url", async ({ page, db, backend }) => {
+    db.seed("user_vocabulary", [
+      aUserVocabulary({ id: vocabId(0), word_arabic: "السوق", word_english: "the market", next_review_at: past() }),
+    ]);
+    backend.stubFunction("generate-word-jingle", { audioUrl: SHARED, lyrics: "السوق السوق", cached: true });
+
+    await page.goto("/review/my-words");
+    await page.getByRole("button", { name: /Generate jingle/ }).click();
+
+    await expect.poll(() => db.rows("user_vocabulary").find((r) => r.id === vocabId(0))?.jingle_audio_url).toBe(SHARED);
+    expect(backend.lastCallTo("generate-word-jingle")?.body).toMatchObject({ word_arabic: "السوق", share: true });
+    expect(backend.uploads().filter((key) => key.includes("jingles/"))).toEqual([]);
+  });
+
+  test("is asked for afresh, and uploaded as before, on a regenerate", async ({ page, db, backend }) => {
+    db.seed("user_vocabulary", [
+      aUserVocabulary({
+        id: vocabId(0),
+        word_arabic: "السوق",
+        word_english: "the market",
+        jingle_audio_url: SHARED,
+        jingle_lyrics: "السوق",
+        next_review_at: past(),
+      }),
+    ]);
+
+    await page.goto("/review/my-words");
+    await page.getByTitle("Regenerate jingle").click();
+
+    await expect.poll(() => backend.uploads().some((key) => key.includes("jingles/"))).toBe(true);
+    expect(backend.lastCallTo("generate-word-jingle")?.body).toMatchObject({ share: false });
+  });
+});

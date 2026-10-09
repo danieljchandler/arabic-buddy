@@ -1,9 +1,9 @@
 import { act, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderHookWithProviders } from "@/test/support/react/harness";
 import type { SupabaseBackend } from "@/test/support/server/handler";
 import type { AssetKeyInput } from "../../supabase/functions/_shared/wordAssets";
-import { useEnsureWordAsset } from "./useEnsureWordAsset";
+import { FORGET_FAILURE_MS, LIMITED_FOR_MS, PAUSE_AFTER_FAILURES, useEnsureWordAsset } from "./useEnsureWordAsset";
 import { useWordAsset } from "./useWordAsset";
 
 /**
@@ -21,7 +21,15 @@ let cleanup: (() => void) | undefined;
 afterEach(() => {
   cleanup?.();
   cleanup = undefined;
+  vi.useRealTimers();
 });
+
+/** Moves the clock without touching the timers the backend answers on. */
+function laterBy(ms: number) {
+  vi.useFakeTimers({ toFake: ["Date"], now: Date.now() + ms });
+}
+
+const BREAD: AssetKeyInput = { kind: "image", word: "خبز", gloss: "bread", dialect: "Gulf" };
 
 const COFFEE: AssetKeyInput = { kind: "image", word: "قَهْوَة", gloss: "Coffee", dialect: "Gulf" };
 const TEA: AssetKeyInput = { kind: "image", word: "شاي", gloss: "tea", dialect: "Gulf" };
@@ -106,29 +114,79 @@ describe("useEnsureWordAsset", () => {
     expect(backend.callsTo("word-asset")).toHaveLength(3);
   });
 
-  it("does not try a word again in the session once it has failed", async () => {
-    const { result, backend } = render((b) =>
-      b.stubFunction("word-asset", { error: "IMAGE_GENERATION_FAILED", fallback: true, message: "Could not make a picture." }),
-    );
+  const FAILED = { error: "IMAGE_GENERATION_FAILED", fallback: true, message: "Could not make a picture." };
+
+  it("does not try a word again for a while once it has failed", async () => {
+    // A failed drawing was charged all the same: the card that is re-served
+    // a minute later must not pay for a second one.
+    const { result, backend } = render((b) => b.stubFunction("word-asset", FAILED));
 
     expect(await result.current.ensure(COFFEE)).toEqual({ status: "failed", message: "Could not make a picture." });
     expect(await result.current.ensure(COFFEE)).toMatchObject({ status: "failed" });
     expect(backend.callsTo("word-asset")).toHaveLength(1);
+
+    // A page left open is not held to it for ever.
+    laterBy(FORGET_FAILURE_MS + 1_000);
+    await result.current.ensure(COFFEE);
+    expect(backend.callsTo("word-asset")).toHaveLength(2);
   });
 
-  it("stops asking for anything once the daily allowance is spent", async () => {
+  it("stops asking after failures in a row, so an outage does not spend the day's pictures", async () => {
+    const { result, backend } = render((b) => b.stubFunction("word-asset", FAILED));
+
+    await result.current.ensure(COFFEE);
+    await result.current.ensure(TEA);
+    expect(backend.callsTo("word-asset")).toHaveLength(PAUSE_AFTER_FAILURES);
+
+    // A third word, with the provider still down: not asked, not charged.
+    expect(await result.current.ensure(BREAD)).toMatchObject({ status: "failed" });
+    expect(backend.callsTo("word-asset")).toHaveLength(PAUSE_AFTER_FAILURES);
+
+    laterBy(FORGET_FAILURE_MS + 1_000);
+    backend.stubFunction("word-asset", { asset: null, url: DRAWN, cached: false, stored: true });
+    expect(await result.current.ensure(BREAD)).toMatchObject({ status: "made" });
+  });
+
+  it("counts failures only while they are in a row", async () => {
+    const answers: unknown[] = [FAILED, { asset: null, url: DRAWN, cached: false, stored: true }, FAILED];
+    const { result, backend } = render((b) => b.stubFunction("word-asset", () => answers.shift()));
+
+    await result.current.ensure(COFFEE);
+    await result.current.ensure(TEA);
+    await result.current.ensure(BREAD);
+    // One failure, a picture, one failure: nothing paused, so a fourth is asked.
+    await result.current.ensure({ ...BREAD, dialect: "Yemeni" });
+    expect(backend.callsTo("word-asset")).toHaveLength(4);
+  });
+
+  it("stops asking for anything once the daily allowance is spent, until it may have reset", async () => {
     const { result, backend } = render((b) => b.stubFunctionCapped("word-asset"));
 
     expect(await result.current.ensure(COFFEE)).toEqual({ status: "limited" });
-    // Another word, the same session: not asked at all.
+    // Another word: not asked at all.
     expect(await result.current.ensure(TEA)).toEqual({ status: "limited" });
     expect(backend.callsTo("word-asset")).toHaveLength(1);
+
+    laterBy(LIMITED_FOR_MS + 1_000);
+    await result.current.ensure(TEA);
+    expect(backend.callsTo("word-asset")).toHaveLength(2);
   });
 
-  it("reads a function that is not deployed, or a word it cannot file, as nothing to do", async () => {
-    for (const status of [404, 400, 401]) {
-      const { result } = render((b) => b.stubFunctionFailure("word-asset", status));
+  it("reads a word the function cannot file as nothing to do, and goes on to the next", async () => {
+    const { result, backend } = render((b) => b.stubFunctionFailure("word-asset", 400));
+
+    expect(await result.current.ensure(COFFEE)).toEqual({ status: "unavailable" });
+    await result.current.ensure(TEA);
+    expect(backend.callsTo("word-asset")).toHaveLength(2);
+  });
+
+  it("asks nothing more once the function turns out not to be there, or the session has lapsed", async () => {
+    for (const status of [404, 401]) {
+      const { result, backend } = render((b) => b.stubFunctionFailure("word-asset", status));
+
       expect(await result.current.ensure(COFFEE), String(status)).toEqual({ status: "unavailable" });
+      await result.current.ensure(TEA);
+      expect(backend.callsTo("word-asset"), String(status)).toHaveLength(1);
       cleanup?.();
       cleanup = undefined;
     }
@@ -143,7 +201,7 @@ describe("useEnsureWordAsset", () => {
     expect(backend.callsTo("word-asset")).toEqual([]);
   });
 
-  it("reports a failure after the charge as a failure, never as a thrown error", async () => {
+  it("reports a server error as a failure, never as a thrown error", async () => {
     const { result } = render((b) => b.stubFunctionFailure("word-asset", 500));
     expect(await result.current.ensure(COFFEE)).toMatchObject({ status: "failed" });
   });

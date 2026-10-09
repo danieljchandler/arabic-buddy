@@ -314,6 +314,17 @@ describe("which words are listed", () => {
     expect(new Set(rows.map((r) => r.id)).size).toBe(620);
   });
 
+  it("ends on a page with nothing new, rather than going round for ever", async () => {
+    // Something between the script and the database that ignores the offset.
+    const real = ctx();
+    const stuck: RunContext = {
+      ...real,
+      fetch: (url, init) => real.fetch(url.replace(/&offset=\d+/, "&offset=0"), init),
+    };
+    const rows = await listWordsWithoutPicture(stuck, { dialect: null, stage: null });
+    expect(rows).toHaveLength(4);
+  });
+
   it("fails the run when the curriculum cannot be read", async () => {
     backend.db.failAlways("vocabulary_words", 500, { message: "upstream timeout" });
     await expect(runPictures(ctx(), options())).rejects.toThrow(/could not read vocabulary_words: upstream timeout/);
@@ -352,6 +363,24 @@ describe("a dry run", () => {
     expect(lines.find((l) => l.includes("عيش"))).toMatch(/^draw .*scene: a round of baladi bread/);
     expect(formatSummary(summary).join("\n")).toMatch(/That is 2 image generations\. Nothing was drawn or written\./);
     expect(backend.callsTo("word-asset")).toEqual([]);
+  });
+
+  it("counts a word and sense that two rows share as one drawing", async () => {
+    backend.db.add(
+      "vocabulary_words",
+      aVocabularyWord({
+        id: wordId(7),
+        lesson_id: lessonId(2),
+        word_arabic: "قهوة",
+        word_english: "Coffee",
+        image_scene_description: "a cup of coffee",
+        display_order: 5,
+      }),
+    );
+    const summary = await runPictures(ctx(), options({ dryRun: true, dialect: "Gulf" }));
+    // coffee, tea, market drawn; the second coffee copied.
+    expect(summary).toMatchObject({ listed: 4, drawn: 3, copied: 1 });
+    expect(lines.filter((l) => /coffee/i.test(l)).map((l) => l.split(" ")[0])).toEqual(["draw", "copy"]);
   });
 
   it("does not hand one dialect's word another dialect's stored picture", async () => {
@@ -638,9 +667,27 @@ describe("when something is wrong", () => {
     expect(result).toEqual({ ok: false, fatal: false, skip: false, reason: "fetch failed" });
   });
 
-  it("fails the run when a row cannot be written, rather than drawing on", async () => {
+  it("stops when a row cannot be written, rather than drawing on, and says where the picture is", async () => {
     backend.db.failWrites("vocabulary_words", 403, { message: "permission denied for table vocabulary_words" });
-    await expect(runPictures(ctx(), options())).rejects.toThrow(/could not write the picture onto .*permission denied/);
+
+    const summary = await runPictures(ctx(), options());
+
+    // One word drawn and not written; the other three not drawn at all.
     expect(backend.callsTo("word-asset")).toHaveLength(1);
+    expect(summary.stopped).toMatch(/could not write the picture onto .*permission denied/);
+    expect(summary.stopped).toContain("https://cdn.test/drawn/bread.png");
+    expect(summary).toMatchObject({ drawn: 1, written: 0 });
+    expect(runFailed(summary)).toBe(true);
+  });
+
+  it("lists every row on a project that answers in short pages", async () => {
+    // `max_rows` under the page size: a short page is not the last one.
+    const real = ctx();
+    const capped: RunContext = {
+      ...real,
+      fetch: (url, init) => real.fetch(url.replace(/limit=500/, "limit=2"), init),
+    };
+    const rows = await listWordsWithoutPicture(capped, { dialect: null, stage: null });
+    expect(rows.map((r) => r.word_english)).toEqual(["bread", "coffee", "tea", "market"]);
   });
 });

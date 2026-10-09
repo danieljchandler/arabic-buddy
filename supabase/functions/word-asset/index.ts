@@ -79,6 +79,14 @@ const ENSURABLE_KINDS = new Set<string>(["image"]);
 /** A gloss longer than this is a note, not a sense, and has no business in a prompt. */
 const MAX_GLOSS_LENGTH = 80;
 
+/**
+ * A scene is a description. Anything shorter (a full stop, "x") is not one,
+ * and must not be what lifts a call onto the trusted path, where nothing is
+ * charged and what is filed is never replaced by a script again. The
+ * shortest in the authored tracks is forty characters.
+ */
+const MIN_SCENE_LENGTH = 12;
+
 const text = (value: unknown): string => (typeof value === "string" ? value : "");
 
 serve(async (req) => {
@@ -122,12 +130,19 @@ serve(async (req) => {
   // and they go on as the learner they are.
   const sentScene = text(body.scene).replace(/\s+/g, " ").trim().slice(0, MAX_SCENE_LENGTH);
   let scene = "";
-  if (sentScene) {
+  if (sentScene.length >= MIN_SCENE_LENGTH && /\p{L}/u.test(sentScene)) {
     if (viaServiceRole) {
       scene = sentScene;
     } else {
       const staff = await requireRole(req, CONTENT_MANAGER_ROLES, corsHeaders, { allowServiceRole: false });
-      if (!staff.denied) scene = sentScene;
+      if (!staff.denied) {
+        scene = sentScene;
+        // The table is public-read, so who authored a picture is not in it.
+        // The function log is where a staff member's uncapped draw is kept.
+        console.log(
+          `word-asset: scene authored by staff ${staff.userId} for "${text(body.gloss).trim().slice(0, MAX_GLOSS_LENGTH)}"`,
+        );
+      }
     }
   }
   // Trusted: nobody's allowance pays for it. A staff member without a scene

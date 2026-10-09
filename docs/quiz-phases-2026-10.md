@@ -14,7 +14,7 @@ means — so a session can pick up the next phase cold.*
 | 1b | Apply the `review_style` migration to the live project | **owner action** |
 | 2 | The shared asset store | done (PR #423) |
 | 2b | Apply the `word_assets` migration to the live project | **owner action** |
-| 3 | A picture for every word | built (this PR); the pictures themselves are 3b |
+| 3 | A picture for every word | built (PR #424); the pictures themselves are 3b |
 | 3b | Deploy `word-asset`, then run `scripts/curriculum-pictures.ts` | **owner action** (after 2b for anything to be kept) |
 | 4 | Generated dialogues, and saying the reply | next, after 2 |
 | 5 | Animations for action words | after 2 and 3 |
@@ -173,7 +173,9 @@ What shipped, so the later phases know what they stand on (writeups: README
   `CONTENT_MANAGER_ROLES`) may send `scene`, a track word's authored
   `image_scene`; a learner's is ignored, as before. Nothing on that path is
   charged to anyone. What it files is `source: "authored"` with the scene in
-  `meta`, and the answer says `authored: true`.
+  `meta`, and the answer says `authored: true`. A scene too short to be a
+  description is not one (`MIN_SCENE_LENGTH`), and a staff member's authored
+  draw, which is uncapped, is named in the function log.
 - **Decided: an authored scene replaces a gloss-only picture filed earlier**
   under the same key (curriculum and learners share keys). `isReplaceable`
   is the rule — only an unapproved `generated` asset gives way — and
@@ -188,7 +190,8 @@ What shipped, so the later phases know what they stand on (writeups: README
   from the track JSON, and writes the url onto `image_url` even when the
   store kept nothing.
 - **The lazy path.** `useEnsureWordAsset` (the `ensure` call, apart from the
-  read-only `useWordAsset`, which it invalidates). `QuizCardFrame` takes
+  read-only `useWordAsset`, which it invalidates; one ask per word, a pause
+  after two failures in a row or a cap answer, never a toast). `QuizCardFrame` takes
   `onPictureMade` from My Words: a saved word at step 3 with no picture gets
   the store's, or has one made on the learner's daily picture allowance, and
   the page keeps it on `user_vocabulary.image_url`. It takes `sharedPictures`
@@ -216,7 +219,9 @@ own for the quiz in `word-asset`, not a client-side limit.
    project yet. Without it the script still fills every row, and says so,
    but nothing it draws is kept in the store.
 2. Deploy `word-asset` (this phase changed it). Until then the script stops
-   on its first word, and the quiz's own ask is turned away uncharged.
+   on its first word, since no earlier version accepts the service-role key.
+   The quiz's own ask is turned away uncharged if no `word-asset` is deployed
+   at all, and served as Phase 2 serves it if that one is.
 3. Run the script, dry first — it prints how many image generations the run
    comes to. The authored tracks are 837 words across the three dialects;
    the script takes every `vocabulary_words` row with no picture, so words

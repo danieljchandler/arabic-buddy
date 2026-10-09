@@ -2,7 +2,7 @@ import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders, type HarnessOptions } from "@/test/support/react/harness";
 import type { SupabaseBackend } from "@/test/support/server/handler";
-import { PICTURE_DRAWING_WAIT_MS, QuizCardFrame, type QuizItem } from "./QuizCardFrame";
+import { PICTURE_DRAWING_WAIT_MS, PICTURE_LOOKUP_WAIT_MS, QuizCardFrame, type QuizItem } from "./QuizCardFrame";
 
 /**
  * The frame is where the ladder meets the cards. What it has to get right is
@@ -82,8 +82,9 @@ function render(
     ...harness,
     onGraded,
     renderFlashcard,
-    /** The same frame, handed the card again as the page would after a cache patch. */
-    rerenderWith: (next: QuizItem) => harness.rerender(<QuizCardFrame item={next} {...props} />),
+    /** The same frame, handed the card (and the pool) again as the page would after a cache patch. */
+    rerenderWith: (next: QuizItem, nextProps: Partial<Parameters<typeof QuizCardFrame>[0]> = {}) =>
+      harness.rerender(<QuizCardFrame item={next} {...props} {...nextProps} />),
   };
 }
 
@@ -353,6 +354,57 @@ describe("a picture for a word that has none", () => {
       expect(document.querySelector(`img[src="${STORED}"]`)).not.toBeNull();
     });
 
+    it("looks the store up on the steps that fall back onto a picture as well", async () => {
+      // Step 6 with no dialogue is "pick the word", from the picture.
+      render(
+        atPictureStep({ memory: { stability: 40, repetitions: 5 } }),
+        { sharedPictures: true },
+        signedIn((b) => b.db.seed("word_assets", [filedMarket()])),
+      );
+      expect(await screen.findByText("Which word?")).toBeInTheDocument();
+      expect(document.querySelector(`img[src="${STORED}"]`)).not.toBeNull();
+      cleanup?.();
+
+      // With a dialogue the step is the reply, which shows no picture: nothing to look up.
+      const reply = render(
+        atPictureStep({ dialogue: DIALOGUE, memory: { stability: 40, repetitions: 5 } }),
+        { sharedPictures: true },
+        signedIn(),
+      );
+      expect(screen.getByText("What would you say?")).toBeInTheDocument();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(reply.backend.db.readsOf("word_assets")).toEqual([]);
+    });
+
+    it("does not wait on a store that does not answer", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        render(
+          atPictureStep(),
+          { sharedPictures: true },
+          signedIn((b) => {
+            b.db.seed("word_assets", [filedMarket()]);
+            b.db.delay("word_assets", PICTURE_LOOKUP_WAIT_MS + 3_000);
+          }),
+        );
+        expect(screen.getByRole("status", { name: "Preparing the question" })).toBeInTheDocument();
+
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(PICTURE_LOOKUP_WAIT_MS + 100);
+        });
+        expect(screen.getByText("What did you hear?")).toBeInTheDocument();
+
+        // The answer that comes too late is for the next time the card is dealt.
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(4_000);
+        });
+        expect(screen.getByText("What did you hear?")).toBeInTheDocument();
+        expect(screen.queryByText("Which picture?")).not.toBeInTheDocument();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it("does not serve another dialect's picture", async () => {
       render(
         atPictureStep({ dialect: "Egyptian" }),
@@ -429,6 +481,30 @@ describe("a picture for a word that has none", () => {
         gloss: "the market",
         dialect: "Gulf",
       });
+      expect(onPictureMade).toHaveBeenCalledTimes(1);
+      expect(onPictureMade).toHaveBeenCalledWith(DRAWN);
+    });
+
+    it("hands the picture over once, though the store's lookup finds it again once it is filed", async () => {
+      // The real function files what it draws. The ask invalidates the
+      // lookup, the lookup then finds the new row, and that is the same
+      // picture arriving a second way.
+      const onPictureMade = vi.fn();
+      const { backend } = render(
+        atPictureStep(),
+        { onPictureMade },
+        signedIn((b) =>
+          b.stubFunction("word-asset", ({ db }) => {
+            db.add("word_assets", filedMarket({ url: DRAWN, source: "generated" }));
+            return { asset: { id: "asset-market" }, url: DRAWN, cached: false, stored: true };
+          }),
+        ),
+      );
+
+      expect(await screen.findByText("Which picture?")).toBeInTheDocument();
+      await waitFor(() => expect(backend.db.readsOf("word_assets").length).toBeGreaterThan(1));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
       expect(onPictureMade).toHaveBeenCalledTimes(1);
       expect(onPictureMade).toHaveBeenCalledWith(DRAWN);
     });
@@ -538,6 +614,43 @@ describe("a picture for a word that has none", () => {
       expect(screen.queryByText("Which picture?")).not.toBeInTheDocument();
     });
 
+    it("keeps the question, and the pictures beside it, when another word's picture lands in the pool", async () => {
+      // The page patches the pool when it saves a picture, so the next card
+      // can deal it. A card already on screen must not be re-dealt from it.
+      const thin = POOL.filter((w) => w.arabic !== "مطعم");
+      const item = atPictureStep({ imageUrl: "https://img.test/market.png" });
+      const { rerenderWith, onGraded } = render(item, { pool: thin });
+      // Two other pictures: not enough for the picture question.
+      expect(screen.getByText("What did you hear?")).toBeInTheDocument();
+      fireEvent.click(screen.getAllByRole("radio").find((r) => r.textContent?.trim() === "the market")!);
+
+      // A third picture arrives while the answered card waits for Continue.
+      rerenderWith(item, { pool: POOL });
+
+      expect(screen.getByText("What did you hear?")).toBeInTheDocument();
+      expect(screen.queryByText("Which picture?")).not.toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: /continue/i }));
+      expect(onGraded).toHaveBeenCalledWith(expect.objectContaining({ format: "listen", rating: "good" }));
+    });
+
+    it("does not swap the wrong pictures of a question already on screen", async () => {
+      const item = atPictureStep({ imageUrl: "https://img.test/market.png" });
+      const { rerenderWith } = render(item);
+      const before = pictures();
+      expect(before).toHaveLength(4);
+
+      rerenderWith(item, {
+        pool: [
+          { arabic: "باب", english: "door", imageUrl: "https://img.test/door.png" },
+          { arabic: "شباك", english: "window", imageUrl: "https://img.test/window.png" },
+          { arabic: "كرسي", english: "chair", imageUrl: "https://img.test/chair.png" },
+          ...POOL,
+        ],
+      });
+
+      expect(pictures()).toEqual(before);
+    });
+
     it("deals the next card with the picture it has by then", async () => {
       const item = atPictureStep();
       const { rerenderWith, backend } = render(item, { onPictureMade: vi.fn() }, signedIn());
@@ -551,8 +664,9 @@ describe("a picture for a word that has none", () => {
       expect(backend.callsTo("word-asset")).toHaveLength(1);
     });
 
-    it("waits for the pool before deciding there is nothing to ask the picture about", async () => {
-      // An empty pool while it loads must not read as "no four to deal".
+    it("waits for the pool before deciding whether a picture is worth drawing", async () => {
+      // An empty pool while it loads is not yet "too few words", either way:
+      // nothing is drawn on the strength of it, and nothing is given up on.
       const onPictureMade = vi.fn();
       const item = atPictureStep();
       const onGraded = vi.fn();
@@ -563,8 +677,10 @@ describe("a picture for a word that has none", () => {
       );
       cleanup = harness.cleanup;
 
-      await waitFor(() => expect(onPictureMade).toHaveBeenCalledWith(DRAWN));
+      await waitFor(() => expect(harness.backend.db.readsOf("word_assets")).toHaveLength(1));
+      await new Promise((resolve) => setTimeout(resolve, 20));
       expect(screen.getByRole("status")).toBeInTheDocument();
+      expect(harness.backend.callsTo("word-asset")).toEqual([]);
 
       harness.rerender(
         <QuizCardFrame item={item} pool={POOL} ready onGraded={onGraded} renderFlashcard={flip} onPictureMade={onPictureMade} />,
@@ -572,6 +688,39 @@ describe("a picture for a word that has none", () => {
 
       expect(await screen.findByText("Which picture?")).toBeInTheDocument();
       expect(pictureOf("the market")).toBe(DRAWN);
+      expect(onPictureMade).toHaveBeenCalledWith(DRAWN);
+    });
+
+    it("has nothing drawn for a deck too thin for the quiz to ask anything", async () => {
+      // Two other words: every card is the flip card. A picture nobody is
+      // about to be asked about is not worth the learner's allowance yet,
+      // and must not pop onto the flip card either.
+      const onPictureMade = vi.fn();
+      const { backend, renderFlashcard } = render(
+        atPictureStep(),
+        { onPictureMade, pool: POOL.slice(0, 2) },
+        signedIn(),
+      );
+
+      expect(await screen.findByText("the flip card")).toBeInTheDocument();
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      expect(renderFlashcard).toHaveBeenCalled();
+      expect(backend.callsTo("word-asset")).toEqual([]);
+      expect(onPictureMade).not.toHaveBeenCalled();
+    });
+
+    it("still keeps a picture the store already had, on a deck too thin to ask about it", async () => {
+      // A free read; the learner's word list shows it from now on.
+      const onPictureMade = vi.fn();
+      const { backend } = render(
+        atPictureStep(),
+        { onPictureMade, pool: POOL.slice(0, 2) },
+        signedIn((b) => b.db.seed("word_assets", [filedMarket()])),
+      );
+
+      expect(await screen.findByText("the flip card")).toBeInTheDocument();
+      await waitFor(() => expect(onPictureMade).toHaveBeenCalledWith(STORED));
+      expect(backend.callsTo("word-asset")).toEqual([]);
     });
 
     it("gives up waiting on a slow drawing, asks the fallback, and still keeps the picture when it comes", async () => {

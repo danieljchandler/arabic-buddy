@@ -49,8 +49,13 @@ const MAX_GLOSS_LENGTH = 80;
 /** Rows per page when listing. PostgREST caps a page at 1000 by default. */
 const PAGE_SIZE = 500;
 
-/** How long one picture may take before the call is given up on. */
-export const CALL_TIMEOUT_MS = 180_000;
+/**
+ * How long one picture may take before the call is given up on. Longer than
+ * the function can: it asks the model twice, ninety seconds each at most,
+ * and then uploads. A call abandoned while the function was still drawing
+ * would be a picture paid for and written nowhere.
+ */
+export const CALL_TIMEOUT_MS = 240_000;
 
 /** Failures in a row after which the run stops: something is down. */
 export const MAX_CONSECUTIVE_FAILURES = 5;
@@ -270,11 +275,19 @@ export async function listWordsWithoutPicture(
     lessonFilter +
     "&order=dialect_module.asc,lesson_id.asc.nullslast,display_order.asc,id.asc";
 
+  // Until a page comes back empty, stepping by what was returned: a project
+  // whose `max_rows` is under PAGE_SIZE answers short pages that are not the
+  // last, and stopping at the first short one would quietly skip the rest.
   const rows: WordRow[] = [];
-  for (let offset = 0; ; offset += PAGE_SIZE) {
-    const page = await restGet<WordRow>(ctx, "vocabulary_words", `${base}&limit=${PAGE_SIZE}&offset=${offset}`);
-    rows.push(...page);
-    if (page.length < PAGE_SIZE) break;
+  const seen = new Set<string>();
+  for (;;) {
+    const page = await restGet<WordRow>(ctx, "vocabulary_words", `${base}&limit=${PAGE_SIZE}&offset=${rows.length}`);
+    // A page with nothing new is the end too: whatever answered did not
+    // honour the offset, and asking again would go round for ever.
+    const fresh = page.filter((row) => !seen.has(row.id));
+    if (fresh.length === 0) break;
+    for (const row of fresh) seen.add(row.id);
+    rows.push(...fresh);
   }
   return rows;
 }
@@ -501,8 +514,9 @@ export const STORE_MISSING_WARNING =
   "who saves the same word will not share it. Apply the migration first to keep what this draws.";
 
 /**
- * List, plan, and either report (`dryRun`) or ask and write. Never throws
- * for one word; a failure to list, or to write a row, is the run's.
+ * List, plan, and either report (`dryRun`) or ask and write. Throws only
+ * when the curriculum cannot be listed, before anything is spent; after
+ * that every way of going wrong ends in a summary of what was done.
  */
 export async function runPictures(ctx: RunContext, options: PictureOptions): Promise<RunSummary> {
   const log = ctx.log ?? (() => {});
@@ -548,7 +562,17 @@ export async function runPictures(ctx: RunContext, options: PictureOptions): Pro
   }
 
   if (options.dryRun) {
+    // Two rows with one key (the same word and sense in two lessons) are one
+    // picture: the real run draws it for the first and copies it for the second.
+    const planned = new Set<string>();
     for (const [index, plan] of todo.entries()) {
+      const keyId = `${plan.key.dialect ?? ""}\n${plan.key.conceptKey}`;
+      if (planned.has(keyId)) {
+        summary.copied++;
+        log(`copy   ${label(plan.row)}: the same word and sense as a row above`);
+        continue;
+      }
+      planned.add(keyId);
       // With no table every word is a miss; asking again would say the same.
       const store: StoreState = summary.storeMissing
         ? { state: "miss" }
@@ -602,7 +626,19 @@ export async function runPictures(ctx: RunContext, options: PictureOptions): Pro
     else summary.drawn++;
     if (!result.stored) summary.unfiled++;
 
-    if (await writePicture(ctx, plan.row, result.url)) {
+    let written: boolean;
+    try {
+      written = await writePicture(ctx, plan.row, result.url);
+    } catch (err) {
+      // The key cannot write the curriculum, or the database is away: the
+      // next word would be drawn and lost the same way. Stop, and say where
+      // the picture that was just made is.
+      const reason = err instanceof Error ? err.message : String(err);
+      summary.stopped = `${reason}. The picture drawn for it is at ${result.url}`;
+      log(`stop   ${word}: ${summary.stopped}`);
+      break;
+    }
+    if (written) {
       summary.written++;
       log(`${result.how.padEnd(6)} ${word}${result.stored ? "" : " (not kept in the store)"}`);
     } else {

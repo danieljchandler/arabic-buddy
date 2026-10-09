@@ -282,20 +282,28 @@ asset store" below):
   costs nothing). The url goes on the learner's `user_vocabulary.image_url`,
   only where the row still has none, and is patched into the deck and the
   pool so the next word's question can deal it as a wrong picture. Only step
-  3 has a picture drawn; steps 5 and 7 show one when there is one.
+  3 has a picture drawn; steps 5 and 7 show one when there is one. And only
+  on a deck the quiz can ask questions of: with too few saved words for four
+  options every card is the flip card, and nothing is drawn for those.
 
 Nobody pressed a button for this, so it is quiet and careful with the
-allowance: a word is asked for once per session whatever came back, nothing
-more is asked once an answer says the day's allowance is spent, and no
-failure raises a toast — the card is asked its fallback. The card waits for
+allowance (`useEnsureWordAsset`): a word is asked for once, whatever came
+back, and a failure is not retried for ten minutes; nothing is asked for an
+hour after an answer says the day's allowance is spent; two failures in a
+row pause the asking altogether, because `word-asset` charges before it draws
+and a provider that is down would otherwise cost a picture per card for
+nothing; and no failure raises a toast — the card is asked its fallback. The
+card waits for
 the drawing, saying "Drawing a picture for this word…", for at most
 `PICTURE_DRAWING_WAIT_MS` (12 s), and only when a picture question could
 follow, which takes three other words with pictures; a learner whose words
 have none yet is asked the fallback at once while the picture is drawn behind
 it, so the picture question starts to appear once four of their words have
-one. A card's picture is fixed when the card is dealt: one that arrives while
-a question is on screen is for next time, never a different question under
-the learner's finger. Wrong options, pictures and recordings come from the
+one. A question is fixed when it goes on screen — the card's own picture as
+it was dealt, and the pool its wrong answers came from — so a picture that
+arrives afterwards, the card's own or another word's patched into the pool,
+is for the next card and never a different question, or different pictures,
+under the learner's finger. Wrong options, pictures and recordings come from the
 wider deck (`useQuizPool`), so a two-card session still gets four of each. The sentence a word was met in is always a tap
 away; opening it before a choice answer counts as help. Nothing is typed —
 most learners have no Arabic keyboard, and saying the word is the skill — so
@@ -373,17 +381,21 @@ only — a call made with the service-role key (`isServiceRoleCall`; that is
 `scripts/curriculum-pictures.ts`) and the content team (`requireRole` with
 `CONTENT_MANAGER_ROLES`: an admin or a content reviewer, read from
 `user_roles`, never from the request). A `scene` from anyone else is ignored
-rather than refused, and that caller goes on as the learner they are. On the
-trusted path:
+rather than refused, and that caller goes on as the learner they are; so is
+one too short to be a description (`MIN_SCENE_LENGTH`), since a scene is what
+lifts a staff call off the cap. A staff member's authored draw is uncapped and
+leaves a line in the function log naming them — the table is public-read, so
+who asked is never in it. On the trusted path:
 
 - *nothing is charged.* There is no learner behind the service role, and an
   authored picture is the catalogue's, not a staff member's own allowance. A
   staff member who sends no scene is asking for their own word's picture and
   is charged like anyone;
 - *what is filed is `source: "authored"`*, with the scene in `meta`, and the
-  answer carries `authored: true` — which the script checks before it writes
-  a row, so a deployment that does not know the trusted path is caught on the
-  first word and not after every word has been drawn from its gloss;
+  answer carries `authored: true`. The script checks that before it writes a
+  row. The Phase 2 function already refuses the service-role key outright, so
+  this is a second line: no deployment that draws without the scene can fill
+  the curriculum from glosses, at full price, one word after another;
 - *it takes the place of a gloss-only picture filed earlier.* Curriculum
   words and learners' words share keys — a curriculum word's sense is its
   `word_english` — so a learner who saved قهوة / "coffee" before the script
@@ -439,8 +451,8 @@ deploy this `word-asset` first. It is safe to run again — a filled row is not
 listed and a word already in the store is copied, not redrawn — and it stops
 at the first answer that says every later word would fail the same way (the
 key refused, the function not deployed or not this version, no image
-provider), or after five failures in a row. Words it could not draw are left
-empty for the next run.
+provider, a row it is not allowed to write), or after five failures in a row.
+Words it could not draw are left empty for the next run.
 
 **On brand and in dialect.** Pictures are drawn in the Ink style
 (`INK_PICTURE_STYLE`): a flat screenprint poster in oxblood, mustard and
@@ -493,9 +505,13 @@ still gets its picture on its own row and the script still writes each url
 onto its curriculum row — it warns at the top that nothing drawn is being
 kept in the store, which means a learner who later saves the same word will
 not share that picture. The curriculum deck's lookup reads as none and the
-card is asked its fallback. And before this `word-asset` is deployed, the
-quiz's ask is turned away uncharged (404) and the script stops on its first
-word.
+card is asked its fallback.
+
+**Until this `word-asset` is deployed** it depends on what is there. With no
+`word-asset` at all the quiz's ask is turned away uncharged (404) and it
+stops asking; with the Phase 2 one, a learner's ask is served and charged as
+it always was, drawn without the line about telling pictures apart. Either
+way the script stops on its first word: neither accepts the service-role key.
 
 `useWordAsset` is the browser's read of the store and stays read-only: making
 an asset is a generation with a cost, so that is a separate hook,

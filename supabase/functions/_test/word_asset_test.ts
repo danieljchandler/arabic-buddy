@@ -565,7 +565,39 @@ Deno.test("word-asset ensure does not take a recorder or a transcriber for the c
     );
     assert(!(imageCalls(calls)[0]?.body ?? "").includes("dallah"), `${role} was heard`);
     assertEquals(table.rows[0]?.source, "generated", role);
+    assertEquals(charged(calls), true, `${role} was let off the cap`);
   }
+});
+
+Deno.test("word-asset ensure does not take a full stop for a scene", async () => {
+  // A scene is what lifts a staff call off the cap and files the picture as
+  // authored, which no script replaces afterwards. A token is not a scene.
+  for (const scene of [".", "x", "          ", "1234567890123", "a dallah"]) {
+    const table = assetTable();
+    const { calls } = await call(
+      { action: "ensure", ...COFFEE, scene },
+      upstreams({ id: LEARNER_A }, table.handler, { "/rest/v1/user_roles": rolesHeld("content_reviewer") }),
+    );
+    assert(!(imageCalls(calls)[0]?.body ?? "").includes("Scene:"), JSON.stringify(scene));
+    assertEquals(charged(calls), true, JSON.stringify(scene));
+    assertEquals(table.rows[0]?.source, "generated", JSON.stringify(scene));
+  }
+});
+
+Deno.test("word-asset ensure lets the content team's scene take the place of a gloss-only picture too", async () => {
+  const table = assetTable([storedCoffee()]);
+  const { status, body, calls } = await call(
+    { action: "ensure", ...COFFEE, scene: DALLAH },
+    upstreams({ id: LEARNER_A }, table.handler, { "/rest/v1/user_roles": rolesHeld("admin") }),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(body.replaced, true);
+  assertEquals(charged(calls), false);
+  assertEquals(table.rows.length, 1);
+  assertEquals(table.rows[0].source, "authored");
+  // Who asked is in the function's log, never in the public table.
+  assert(!JSON.stringify(table.rows[0]).includes(LEARNER_A));
 });
 
 Deno.test("word-asset does not take the publishable key for the service role", async () => {
@@ -725,17 +757,21 @@ Deno.test("word-asset ensure still authors the picture when a learner files thei
 Deno.test("word-asset ensure serves the reviewer's picture when it is approved mid-replacement", async () => {
   // Read as replaceable, approved before the update landed: the conditional
   // update matches nothing, and what is filed now is what is served.
+  // The table decides: its PATCH changes a row only where the update's own
+  // filters still match, so an update that forgot to ask "still generated,
+  // still unapproved?" would overwrite the reviewer's picture here.
+  const table = assetTable([storedCoffee()]);
   let reads = 0;
-  const table: UpstreamHandler = (request) => {
-    if (request.method === "GET") {
-      return json([reads++ === 0 ? storedCoffee() : storedCoffee({ approved_at: "2026-10-09T12:00:00Z" })]);
-    }
-    assertEquals(request.method, "PATCH", "a replacement updates the row; it never inserts a second");
-    return json({ code: "PGRST116", details: "The result contains 0 rows", message: "no rows" }, 406);
+  const approving: UpstreamHandler = async (request) => {
+    const response = await table.handler(request);
+    // Approved the moment after the function's first look.
+    if (request.method === "GET" && reads++ === 0) table.rows[0].approved_at = "2026-10-09T12:00:00Z";
+    assert(request.method !== "POST", "a replacement updates the row; it never inserts a second");
+    return response;
   };
   const { status, body } = await call(
     { action: "ensure", ...COFFEE, scene: DALLAH },
-    serviceUpstreams(table),
+    serviceUpstreams(approving),
     { jwt: SERVICE_ROLE },
   );
 
@@ -743,6 +779,52 @@ Deno.test("word-asset ensure serves the reviewer's picture when it is approved m
   assertEquals(body.cached, true);
   assertEquals(body.replaced, undefined);
   assertEquals(body.url, storedCoffee().url);
+  assertEquals(table.rows[0].url, storedCoffee().url);
+  assertEquals(table.rows[0].source, "generated");
+  assertEquals(table.rows[0].approved_at, "2026-10-09T12:00:00Z");
+});
+
+Deno.test("word-asset ensure hands back the authored picture, unfiled, when the replacement itself fails", async () => {
+  // The picture was drawn and uploaded; the row could not be pointed at it.
+  // The caller still gets what it paid for, told that the store did not keep it.
+  const table = assetTable([storedCoffee()]);
+  const failing: UpstreamHandler = (request) =>
+    request.method === "PATCH" ? json({ code: "57014", message: "canceling statement due to statement timeout" }, 500) : table.handler(request);
+  const { status, body } = await call(
+    { action: "ensure", ...COFFEE, scene: DALLAH },
+    serviceUpstreams(failing),
+    { jwt: SERVICE_ROLE },
+  );
+
+  assertEquals(status, 200);
+  assertEquals(body.stored, false);
+  assertEquals(body.authored, true);
+  assertStringIncludes(String(body.url), "/flashcard-images/word-assets/image/ink-1/gulf/");
+  assertEquals(table.rows[0].url, storedCoffee().url, "what was filed is untouched");
+});
+
+Deno.test("word-asset ensure files one authored picture when the script is run twice at once", async () => {
+  // Both miss, both draw; the unique index keeps the first and the second is
+  // served it. An authored picture does not replace another authored one.
+  const table = assetTable();
+  const racing: UpstreamHandler = (request) => {
+    if (request.method === "POST") {
+      table.rows.push(storedCoffee({ source: "authored", url: "https://e2e.supabase.co/first-authored.png" }));
+      return json({ code: "23505", message: "duplicate key value violates unique constraint" }, 409);
+    }
+    return table.handler(request);
+  };
+  const { status, body, calls } = await call(
+    { action: "ensure", ...COFFEE, scene: DALLAH },
+    serviceUpstreams(racing),
+    { jwt: SERVICE_ROLE },
+  );
+
+  assertEquals(status, 200);
+  assertEquals(body.url, "https://e2e.supabase.co/first-authored.png");
+  assertEquals(body.cached, true);
+  assertEquals(calls.filter((c) => c.method === "PATCH"), []);
+  assertEquals(table.rows.length, 1);
 });
 
 Deno.test("word-asset ensure hands the script its picture while the table does not exist", async () => {

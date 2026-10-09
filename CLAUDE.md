@@ -193,8 +193,11 @@ harness.
   alone may replace what is filed (`replaceAsset`), and only an unapproved
   `generated` asset gives way (`isReplaceable`). In the browser,
   `useWordAsset` stays a free read; a generation is `useEnsureWordAsset`,
-  which the quiz calls unprompted, so it asks once per word per session and
-  never raises a toast. README "The asset store".
+  which the quiz calls unprompted, so it asks once per word, pauses after a
+  cap answer or two failures in a row, and never raises a toast. In
+  `QuizCardFrame` a question is fixed once it is on screen (its picture and
+  the pool it was dealt from), so a picture that lands later never changes
+  it. README "The asset store".
 - **Flashcard scheduling is FSRS-6, not FSRS-4.5 or SM-2, and the weights are
   meant to be fitted.** `src/lib/spacedRepetition.ts` implements the FSRS-6
   formulas line for line from fsrs-rs (21 weights). Two things it must keep:

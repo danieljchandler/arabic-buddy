@@ -186,7 +186,15 @@ harness.
   no photographs, no text) and a jingle is filed only if its lyrics pass the
   leak detector with the rulebook's tokens. New files go through
   `fileNewAsset` under fresh names and are never overwritten, and no caller
-  may name a path in `word-assets/`. README "The asset store".
+  may name a path in `word-assets/`. The one thing beyond the word that may
+  reach a shared prompt is an authored `scene`, and only on `word-asset`'s
+  trusted path: a service-role call (`scripts/curriculum-pictures.ts`) or
+  the content team, never a learner, and never charged to anyone. That path
+  alone may replace what is filed (`replaceAsset`), and only an unapproved
+  `generated` asset gives way (`isReplaceable`). In the browser,
+  `useWordAsset` stays a free read; a generation is `useEnsureWordAsset`,
+  which the quiz calls unprompted, so it asks once per word per session and
+  never raises a toast. README "The asset store".
 - **Flashcard scheduling is FSRS-6, not FSRS-4.5 or SM-2, and the weights are
   meant to be fitted.** `src/lib/spacedRepetition.ts` implements the FSRS-6
   formulas line for line from fsrs-rs (21 weights). Two things it must keep:
@@ -524,7 +532,9 @@ a borrowing or an intonation, not a grammar category. Full writeup in README.
   backend as the unit suite (no network).
 - `scripts/` — repo tooling that isn't part of the app build: the lint
   ratchet, corpus/artifact derivation, illustration generation, training-data
-  export, and `eval-dialect-live.ts`, which measures a model against the frozen
+  export, `curriculum-pictures.ts` (fills the curriculum's pictures through
+  the asset store; needs the service-role key, so start with `--dry-run`),
+  and `eval-dialect-live.ts`, which measures a model against the frozen
   golden set through the *same* prompt the Brain builds. Two flags carry its
   reason for existing: `--compare <model>` prints the per-dialect leak-rate
   delta between two models (run this before a registry bump ships), and

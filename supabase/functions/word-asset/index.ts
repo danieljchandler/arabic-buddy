@@ -58,12 +58,12 @@ import { IMAGE_MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { CONTENT_MANAGER_ROLES, isServiceRoleCall, requireRole } from "../_shared/requireRole.ts";
 import {
   assetKey,
+  authoredScene,
   fileNewAsset,
   getAsset,
   inkPicturePrompt,
   isReplaceable,
   kindNeedsSense,
-  MAX_SCENE_LENGTH,
   normaliseGloss,
   replaceAsset,
   type AssetKey,
@@ -78,14 +78,6 @@ const ENSURABLE_KINDS = new Set<string>(["image"]);
 
 /** A gloss longer than this is a note, not a sense, and has no business in a prompt. */
 const MAX_GLOSS_LENGTH = 80;
-
-/**
- * A scene is a description. Anything shorter (a full stop, "x") is not one,
- * and must not be what lifts a call onto the trusted path, where nothing is
- * charged and what is filed is never replaced by a script again. The
- * shortest in the authored tracks is forty characters.
- */
-const MIN_SCENE_LENGTH = 12;
 
 const text = (value: unknown): string => (typeof value === "string" ? value : "");
 
@@ -128,9 +120,11 @@ serve(async (req) => {
   // only when a scene was sent, so an ordinary call costs no extra lookup; a
   // learner who sends one is not refused — their scene is simply not heard,
   // and they go on as the learner they are.
-  const sentScene = text(body.scene).replace(/\s+/g, " ").trim().slice(0, MAX_SCENE_LENGTH);
+  // (`authoredScene`: one line, bounded, and "" for a token that is no
+  // description, so a full stop cannot stand in for a scene.)
+  const sentScene = authoredScene(text(body.scene));
   let scene = "";
-  if (sentScene.length >= MIN_SCENE_LENGTH && /\p{L}/u.test(sentScene)) {
+  if (sentScene) {
     if (viaServiceRole) {
       scene = sentScene;
     } else {

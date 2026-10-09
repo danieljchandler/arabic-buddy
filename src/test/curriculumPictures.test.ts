@@ -260,6 +260,16 @@ describe("what is asked for a word", () => {
     expect(planWord(row({ image_scene_description: "   " }))).toMatchObject({ scene: null });
   });
 
+  it("does not send a scene too short to be a description, which the function would not honour", () => {
+    // `word-asset` draws such a row from its gloss. Sent as a scene, the
+    // answer would lack `authored` and the run would stop on it as if the
+    // deployed function were the wrong one.
+    for (const scene of [".", "TBD", "a red door"]) {
+      expect(planWord(row({ image_scene_description: scene })), scene).toMatchObject({ scene: null });
+    }
+    expect(planWord(row({ image_scene_description: "a red wooden door" }))).toMatchObject({ scene: "a red wooden door" });
+  });
+
   it("sets aside a word the store cannot file, before anything is spent", () => {
     expect(planWord(row({ dialect_module: "MSA" })).key).toBeNull();
     expect(planWord(row({ word_arabic: "coffee" })).key).toBeNull();
@@ -562,6 +572,24 @@ describe("when something is wrong", () => {
     expect(summary.stopped).toMatch(/without the authored scene/);
     expect(imageOf(wordId(0))).toBeNull();
     expect(summary.written).toBe(0);
+  });
+
+  it("draws a word whose scene is only a token from its gloss, and carries on", async () => {
+    // The function as it really answers: `authored` only when a scene came.
+    backend.db.add(
+      "vocabulary_words",
+      aVocabularyWord({ id: wordId(8), lesson_id: lessonId(2), word_arabic: "باب", word_english: "door", image_scene_description: "TBD", display_order: 0 }),
+    );
+    backend.stubFunction("word-asset", ({ body }) => {
+      const sent = body as { gloss: string; scene?: string };
+      return drawn(`https://cdn.test/drawn/${sent.gloss}.png`, sent.scene ? {} : { authored: undefined });
+    });
+
+    const summary = await runPictures(ctx(), options({ stage: 2 }));
+
+    expect(asked().map((b) => [b.gloss, b.scene])).toEqual([["door", undefined], ["market", undefined]]);
+    expect(summary).toMatchObject({ stopped: null, written: 2 });
+    expect(imageOf(wordId(8))).toBe("https://cdn.test/drawn/door.png");
   });
 
   it("takes a gloss-only picture for a word that has no scene to draw", async () => {

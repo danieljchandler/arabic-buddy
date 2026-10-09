@@ -285,6 +285,27 @@ function promptSafe(text: string, max: number): string {
 export const MAX_SCENE_LENGTH = 400;
 
 /**
+ * The shortest text that counts as a scene. A scene is a description;
+ * anything shorter (a full stop, "x") is not one, and must not be what lifts
+ * a call onto `word-asset`'s trusted path, where nothing is charged and what
+ * is filed is never replaced by a script again. The shortest in the authored
+ * tracks is forty characters.
+ */
+export const MIN_SCENE_LENGTH = 12;
+
+/**
+ * An authored scene as a prompt carries it: one line, at most
+ * `MAX_SCENE_LENGTH`, or "" when it is not a description at all. The one
+ * rule for what a scene is, shared by `word-asset` (which honours it) and
+ * `scripts/curriculum-pictures-core.ts` (which sends it and then checks the
+ * answer says it was honoured), so the two cannot disagree about a short one.
+ */
+export function authoredScene(text: string | null | undefined): string {
+  const scene = (text ?? "").replace(/\s+/g, " ").trim().slice(0, MAX_SCENE_LENGTH);
+  return scene.length >= MIN_SCENE_LENGTH && /\p{L}/u.test(scene) ? scene : "";
+}
+
+/**
  * What makes a picture usable as a question. The quiz's picture step deals a
  * word's picture beside three other words' (`QuizCardFrame`), so four pictures
  * that are all "a person in a room" are four right answers. This asks for the

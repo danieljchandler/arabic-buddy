@@ -7,10 +7,12 @@ import {
   ASSET_KINDS,
   INK_PICTURE_STYLE,
   MAX_SCENE_LENGTH,
+  MIN_SCENE_LENGTH,
   PICTURE_DISTINCT_LINE,
   STYLE_VERSIONS,
   assetKey,
   assetObjectPath,
+  authoredScene,
   fileNewAsset,
   getAsset,
   inkPicturePrompt,
@@ -246,6 +248,17 @@ describe("the Ink picture style", () => {
     const prompt = inkPicturePrompt({ gloss: "coffee", dialect: "Gulf", scene: "steam ".repeat(200) });
     const line = prompt.split("\n").find((l) => l.startsWith("Scene: ")) ?? "";
     expect(line.length).toBeLessThanOrEqual("Scene: ".length + MAX_SCENE_LENGTH);
+  });
+
+  it("knows a scene from a token, by one rule for the function and the script", () => {
+    expect(authoredScene("  a brass dallah\n pouring into a small finjan ")).toBe("a brass dallah pouring into a small finjan");
+    for (const not of [null, undefined, "", ".", "x", "TBD", "a red door", "1234567890123", "            "]) {
+      expect(authoredScene(not), JSON.stringify(not)).toBe("");
+    }
+    expect(authoredScene("a".repeat(MIN_SCENE_LENGTH))).toHaveLength(MIN_SCENE_LENGTH);
+    expect(authoredScene("steam ".repeat(200)).length).toBeLessThanOrEqual(MAX_SCENE_LENGTH);
+    // An Arabic description is one too.
+    expect(authoredScene("دلة نحاس تصب في فنجان صغير")).not.toBe("");
   });
 
   it("asks for a picture that can be told from three others", () => {

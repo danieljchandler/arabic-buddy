@@ -32,8 +32,8 @@
  */
 import {
   assetKey,
+  authoredScene,
   isReplaceable,
-  MAX_SCENE_LENGTH,
   type AssetDialect,
   type AssetKey,
   type WordAsset,
@@ -313,8 +313,10 @@ export function planWord(row: WordRow): WordPlan {
       reason: "the store cannot file it (no Arabic, no English sense, or a Fusha row)",
     };
   }
-  const scene = (row.image_scene_description ?? "").replace(/\s+/g, " ").trim().slice(0, MAX_SCENE_LENGTH);
-  return { row, key, scene: scene || null };
+  // By the function's own rule for what a scene is. A row whose scene is too
+  // short to be one is drawn from its gloss, and is not then mistaken for a
+  // deployment that ignored the scene.
+  return { row, key, scene: authoredScene(row.image_scene_description) || null };
 }
 
 const label = (row: WordRow) => `${row.dialect_module ?? "?"}  ${row.word_arabic}  "${row.word_english}"`;

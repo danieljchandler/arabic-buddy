@@ -823,6 +823,11 @@ export interface GenerateImageOptions {
   model?: string;
   /** Square size hint, used only by the OpenAI fallback. */
   size?: string;
+  /**
+   * The picture's shape. Square unless asked: an animation's poster is drawn
+   * 16:9, the shape of the clip it becomes the first frame of.
+   */
+  aspectRatio?: '1:1' | '16:9';
   signal?: AbortSignal;
   timeoutMs?: number;
   label?: string;
@@ -853,6 +858,7 @@ async function googleImage(
   prompt: string,
   model: string,
   signal: AbortSignal | undefined,
+  aspectRatio?: string,
 ): Promise<GeneratedImage | null> {
   const key = googleApiKey();
   if (!key) return null;
@@ -862,7 +868,10 @@ async function googleImage(
     headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+      generationConfig: {
+        responseModalities: ['IMAGE', 'TEXT'],
+        ...(aspectRatio ? { imageConfig: { aspectRatio } } : {}),
+      },
     }),
     signal,
   });
@@ -914,6 +923,7 @@ async function openRouterImage(
   prompt: string,
   model: string,
   signal: AbortSignal | undefined,
+  aspectRatio?: string,
 ): Promise<GeneratedImage | null> {
   const route = tryChatRoute(model, 'openrouter');
   if (!route) return null;
@@ -924,6 +934,7 @@ async function openRouterImage(
       model: route.model,
       messages: [{ role: 'user', content: prompt }],
       modalities: ['image', 'text'],
+      ...(aspectRatio ? { image_config: { aspect_ratio: aspectRatio } } : {}),
     }),
     signal,
   });
@@ -953,10 +964,11 @@ export async function generateImage(
   const signal = options.signal ?? AbortSignal.timeout(options.timeoutMs ?? 90_000);
   const label = options.label ?? 'image';
 
+  const wide = options.aspectRatio === '16:9';
   const attempts: Array<() => Promise<GeneratedImage | null>> = [
-    () => googleImage(prompt, model, signal),
-    () => openaiImage(prompt, options.size ?? '1024x1024', signal),
-    () => openRouterImage(prompt, model, signal),
+    () => googleImage(prompt, model, signal, options.aspectRatio),
+    () => openaiImage(prompt, wide ? '1536x1024' : (options.size ?? '1024x1024'), signal),
+    () => openRouterImage(prompt, model, signal, options.aspectRatio),
   ];
 
   for (const attempt of attempts) {

@@ -665,6 +665,29 @@ Deno.test("an image comes back as bytes from Gemini's inline data", async () => 
   }, { upstreams: { "-image:generateContent": () => geminiImage() } });
 });
 
+Deno.test("a wide picture is asked for in each provider's own words, and a square one as before", async () => {
+  await withGateway(async (mod, up) => {
+    await mod.generateImage("a figure jumps", { aspectRatio: "16:9" });
+    await mod.generateImage("a dhow at dusk");
+
+    const [wide, square] = up.callsTo("-image:generateContent").map(bodyOf);
+    assertEquals((wide.generationConfig as Record<string, unknown>).imageConfig, { aspectRatio: "16:9" });
+    assertEquals("imageConfig" in (square.generationConfig as Record<string, unknown>), false);
+  }, { upstreams: { "-image:generateContent": () => geminiImage() } });
+});
+
+Deno.test("a wide picture from OpenAI's fallback is drawn landscape", async () => {
+  await withGateway(async (mod, up) => {
+    await mod.generateImage("a figure jumps", { aspectRatio: "16:9" });
+    assertEquals(bodyOf(up.callsTo("api.openai.com/v1/images/generations")[0]).size, "1536x1024");
+  }, {
+    upstreams: {
+      "-image:generateContent": () => json({ error: "refused" }, 400),
+      "api.openai.com/v1/images/generations": () => openaiImage(),
+    },
+  });
+});
+
 Deno.test("a refusing Gemini falls through to OpenAI's image model", async () => {
   await withGateway(async (mod, up) => {
     const image = await mod.generateImage("a dhow at dusk");

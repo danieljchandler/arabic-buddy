@@ -112,6 +112,10 @@ describe("which words qualify", () => {
     // cannot tell "to fly" from "a fly" once it is written "fly".
     expect(qualifiesForAnimation({ category: null, gloss: "to jump" })).toBe(false);
     expect(qualifiesForAnimation({ gloss: "I eat" })).toBe(false);
+    // Not through the action-noun list either: "a trip" saved from a video
+    // could as well be a stumble.
+    expect(qualifiesForAnimation({ category: null, gloss: "trip" })).toBe(false);
+    expect(qualifiesForAnimation({ category: "  ", gloss: "trip" })).toBe(false);
   });
 
   it("lists only action nouns some track word is", () => {

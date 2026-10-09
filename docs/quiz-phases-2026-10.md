@@ -457,13 +457,15 @@ What shipped, so the later phases know what they stand on (writeups: README
 - **`scripts/curriculum-animations.ts`** (`--dialect`, `--stage`, `--limit`
   in clips, `--dry-run` with the bill), its core in
   `curriculum-animations-core.ts`, covered by
-  `src/test/curriculumAnimations.test.ts`. Today: 63 clips, about $16.82.
+  `src/test/curriculumAnimations.test.ts`. Today: 62 clips, about $16.55.
 - **The quiz.** `QuizItem.category` (the curriculum deck selects it) and
   `QuizCardFrame` `animations` (the curriculum deck sets it). A third asset
   settled through `useCardAsset` (`ANIMATION_LOOKUP_WAIT_MS`, a read only).
   `QuizSpeakCard` shows the clip in the picture's place at "say it";
   `QuizOptionsCard` deals it at "pick the picture", one visual per word,
-  never another word for the same action or sense, and a lone clip held
+  never another word with the same sense or an overlapping action
+  (`actionsOverlap`; tense twins such as "ate" and "eat" are not caught), and
+  a lone clip held
   still (`MIN_MOVING_OPTIONS`). `QuizAnimation`: muted, looped, inline, no
   controls; the poster under reduced motion, when held still, or when the
   clip will not load. `useQuizPool` reads the curriculum's clips in one query.
@@ -494,6 +496,20 @@ What shipped, so the later phases know what they stand on (writeups: README
    that is a migration, so applying it is part of 5b.
 6. *Motion is never the tell*: a clip on the picture question moves only
    when another option does.
+
+An independent review before merge found two ways a clip could be paid for
+twice — a download that broke after Google had rendered it, and a start
+whose answer could not be read, both of which fell back to OpenRouter — and
+a budget that started after the poster and could outrun the worker's wall
+clock. All three are fixed above (stop after any start, one 340 s deadline,
+no route with under 120 s left). It also found "turned out (to be) / went
+out" keying a clip, a word with no category qualifying through the
+action-noun list, Google's key able to follow a download redirect, an exact
+content-type match deciding whether a paid clip was kept, and near-twin
+actions ("watch / see", "watch") dealt side by side; all fixed. One design
+point it raised is the owner's: a `content_reviewer` (which an ID login can
+be) may make clips uncapped, about four pictures' worth each, through the
+same gate as an authored scene — the gate the owner asked to reuse.
 
 **On "done when".** The plan says the Stage 1 verbs. The tracks' Stage 1
 verbs are almost all "I want" ("أبي", "اشتي", "تبي"), which has nothing to

@@ -93,6 +93,8 @@ import {
   generateVideo,
   hasAnyProvider,
   imageExtension,
+  isMp4,
+  VIDEO_MIN_ROUTE_MS,
   type GeneratedImage,
   type VideoFrame,
 } from "../_shared/aiGateway.ts";
@@ -176,6 +178,19 @@ const isEnsurable = (kind: string): kind is EnsurableKind => (ENSURABLE as reado
  * overrides it.
  */
 const ANIMATION_ANSWER_MS = 100_000;
+
+/**
+ * The whole of one clip, poster to filed row, from the moment it is asked
+ * for. The worker's wall clock is 400 s; this leaves the function's own
+ * lookups before it and the uploads and the filing after it inside that.
+ */
+const ANIMATION_BUDGET_MS = 340_000;
+
+/** One try at the poster. A picture takes about ten seconds; a second try follows a slow first only while time allows. */
+const POSTER_TIMEOUT_MS = 60_000;
+
+/** Kept back from the clip's budget for the two uploads and the filing. */
+const FILING_RESERVE_MS = 20_000;
 
 function animationAnswerMs(): number {
   const raw = Number(Deno.env.get("WORD_ASSET_ANIMATION_ANSWER_MS"));
@@ -640,16 +655,25 @@ async function makeAnimation(
   const posterPrompt = inkAnimationPosterPrompt(key.sense);
   const prompt = inkAnimationPrompt(key.sense);
   const failed = (message: string, error = "ANIMATION_GENERATION_FAILED") => ({ error, fallback: true, message });
+  // One deadline for the poster and the clip together: a render started
+  // without the time to finish inside the worker's wall clock is billed and
+  // lost, and paid for again on the next run.
+  const deadline = Date.now() + ANIMATION_BUDGET_MS;
+  const left = () => deadline - Date.now();
 
-  // The poster, with the picture path's one immediate re-ask.
+  // The poster, with the picture path's one re-ask, so long as a re-ask still
+  // leaves the clip the time it needs.
   let poster: GeneratedImage | null = null;
   for (let attempt = 0; attempt < 2 && !poster; attempt++) {
+    const posterBudget = Math.min(POSTER_TIMEOUT_MS, left() - FILING_RESERVE_MS - VIDEO_MIN_ROUTE_MS);
+    if (posterBudget < 10_000) break;
     if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 1500));
     poster = await generateImage(posterPrompt, {
       model: IMAGE_MODEL_IDS.GEMINI,
       aspectRatio: ANIMATION_ASPECT,
+      timeoutMs: posterBudget,
       label: "word-asset animation poster",
-    });
+    }).catch(() => null);
   }
   if (!poster) return failed(`Could not draw the still for "${key.sense}".`, "ANIMATION_POSTER_FAILED");
 
@@ -670,12 +694,15 @@ async function makeAnimation(
     resolution: ANIMATION_RESOLUTION,
     firstFrame: frame,
     lastFrame: frame,
+    // What is left of the deadline, less the time to file what comes back.
+    timeoutMs: Math.max(0, left() - FILING_RESERVE_MS),
     label: "word-asset animation",
   });
   if (!clip) return failed(`Could not animate "${key.sense}" right now.`);
-  // The bucket takes MP4s of a clip's size and nothing else; anything else is
-  // not the clip that was asked for.
-  if (clip.contentType !== "video/mp4") return failed(`The clip came back as ${clip.contentType}.`, "ANIMATION_NOT_MP4");
+  // The bucket takes MP4s of a clip's size and nothing else. Read off the
+  // bytes, not a header a provider sets: the gateway already refused anything
+  // else, and this is the last look before an upload the bucket would refuse.
+  if (!isMp4(clip.bytes)) return failed("The clip that came back is not an MP4.", "ANIMATION_NOT_MP4");
   if (clip.bytes.length > MAX_ANIMATION_BYTES) return failed("The clip came back larger than any loop should be.", "ANIMATION_TOO_LARGE");
 
   const payload: AnimationPayload = { poster: posterFile.url, seconds: ANIMATION_SECONDS, aspect: ANIMATION_ASPECT };

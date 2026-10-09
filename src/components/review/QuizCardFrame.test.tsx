@@ -1299,6 +1299,8 @@ describe("an animation for an action word", () => {
       const pool: QuizPoolEntry[] = [
         // Egyptian "eat" glossed without the pronoun: the same action, a second right answer.
         { arabic: "باكل", english: "eat", imageUrl: "https://img.test/also-eating.png" },
+        // One alternative in common is the same motion too.
+        { arabic: "ياكل", english: "eat / have a meal", imageUrl: "https://img.test/meal.png" },
         // A word with both: one tile, its clip.
         {
           arabic: "أشرب",
@@ -1312,6 +1314,7 @@ describe("an animation for an action word", () => {
 
       expect(await screen.findByText("Which picture?")).toBeInTheDocument();
       expect(document.querySelector('img[src="https://img.test/also-eating.png"]')).toBeNull();
+      expect(document.querySelector('img[src="https://img.test/meal.png"]')).toBeNull();
       expect(document.querySelector('img[src="https://img.test/drink-picture.png"]')).toBeNull();
       expect(screen.getAllByRole("radio").map((r) => r.getAttribute("aria-label"))).not.toContain("eat");
     });

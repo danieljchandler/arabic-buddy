@@ -198,11 +198,17 @@ const NON_ACTION_HEADS = new Set([
   "happen", "happens", "happened", "become", "becomes", "became", "grew", "born",
 ]);
 
+/**
+ * Phrases with nothing to watch whose first word, alone, can be an action:
+ * "turned out (to be)" is not "turned left".
+ */
+const NON_ACTION_PHRASES = ["turn out", "turns out", "turned out", "end up", "ended up"];
+
 /** Verbs that are an action only with an object: "have breakfast" is, "have" is not. */
 const NON_ACTION_ALONE = new Set(["have", "has", "had", "make", "makes", "made", "get", "gets", "got"]);
 
 /** A subject pronoun leading an alternative ("I eat"): an animation never shows who. */
-const SUBJECT_PRONOUN_RE = /^(?:i|you|he|she|we|they)\s+(?=\S)/;
+const SUBJECT_PRONOUN_RE = /^(?:i|you|he|she|it|we|they)\s+(?=\S)/;
 
 /**
  * The action a language-neutral asset (an animation) is keyed on, or "" when
@@ -225,6 +231,20 @@ const SUBJECT_PRONOUN_RE = /^(?:i|you|he|she|we|they)\s+(?=\S)/;
  * - a verb with nothing to watch (`NON_ACTION_HEADS`) keys nothing, and nor
  *   does a gloss long enough to be a description.
  */
+/**
+ * Whether two actions would show the same motion: the same action, or one
+ * alternative in common ("watch / see" and "watch"), allowing a third-person
+ * "s" ("sell" and "sells"). For the picture question, where a second word for
+ * what the answer shows is a second right answer. Tense is not caught: "ate"
+ * and "eat" are different keys and look alike.
+ */
+export function actionsOverlap(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  const left = a.split(" / ");
+  const right = b.split(" / ");
+  return left.some((x) => right.some((y) => x === y || x === `${y}s` || y === `${x}s`));
+}
+
 export function animationConcept(gloss: string | null | undefined): string {
   const raw = (gloss ?? "").normalize("NFKC").trim();
   if (!raw || /^[([{]/.test(raw) || /[?…]|\.\.\./.test(raw)) return "";
@@ -241,6 +261,9 @@ export function animationConcept(gloss: string | null | undefined): string {
   for (const alt of alternatives) {
     const [head, ...rest] = alt.split(" ");
     if (NON_ACTION_HEADS.has(head) || (rest.length === 0 && NON_ACTION_ALONE.has(head))) return "";
+    // Every alternative must be an action: "turned out (to be) / went out" is
+    // half a thing to watch, and a clip of it would show the wrong half.
+    if (NON_ACTION_PHRASES.some((phrase) => alt === phrase || alt.startsWith(`${phrase} `))) return "";
   }
   return alternatives.join(" / ");
 }

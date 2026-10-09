@@ -12,6 +12,7 @@ import {
   MIN_SCENE_LENGTH,
   PICTURE_DISTINCT_LINE,
   STYLE_VERSIONS,
+  actionsOverlap,
   animationConcept,
   assetKey,
   assetObjectPath,
@@ -250,6 +251,23 @@ describe("the action an animation is keyed on", () => {
     }
     // An object makes one of those an action.
     expect(key("I have breakfast")?.conceptKey).toBe("have breakfast");
+  });
+
+  it("keys nothing when any alternative has nothing to watch", () => {
+    // Half a thing to watch would be animated as the wrong half.
+    expect(key("turned out (to be) / went out")).toBeNull();
+    expect(key("it turns out")).toBeNull();
+    // The verb itself is still an action.
+    expect(key("turn")?.conceptKey).toBe("turn");
+  });
+
+  it("knows two actions that would show the same motion", () => {
+    expect(actionsOverlap("watch / see", "watch")).toBe(true);
+    expect(actionsOverlap("sell", "sells")).toBe(true);
+    expect(actionsOverlap("errand / short trip", "errand / trip out")).toBe(true);
+    expect(actionsOverlap("eat", "drink")).toBe(false);
+    expect(actionsOverlap("run a business", "run")).toBe(false);
+    expect(actionsOverlap("", "eat")).toBe(false);
   });
 
   it("keys nothing on a description, or on nothing", () => {

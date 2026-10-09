@@ -30,7 +30,12 @@ import {
   type QuizMemory,
 } from "@/lib/quizLadder";
 import type { Rating } from "@/lib/spacedRepetition";
-import { animationConcept, normaliseGloss, type AssetKeyInput } from "../../../supabase/functions/_shared/wordAssets";
+import {
+  actionsOverlap,
+  animationConcept,
+  normaliseGloss,
+  type AssetKeyInput,
+} from "../../../supabase/functions/_shared/wordAssets";
 import {
   asStoredAnimation,
   qualifiesForAnimation,
@@ -408,9 +413,10 @@ export const QuizCardFrame = ({
   }, [dealtPool, item.english]);
 
   // Pictures of other words, once each, and never one that means what this
-  // word means (another dialect's word for it, in a mixed deck, or the same
-  // action glossed "eat" where this one says "I eat"): that is a second right
-  // answer. A word is dealt one visual — its clip where the pool
+  // word means (another dialect's word for it, in a mixed deck) or shows its
+  // action ("eat" where this one says "I eat", "watch" beside "watch / see",
+  // "sells" beside "sell"): that is a second right answer. A past tense beside
+  // its present ("ate", "eat") is not caught. A word is dealt one visual — its clip where the pool
   // has one, else its picture — so a clip and a picture of one word are never
   // both on the screen. The word's own is taken out where the options are
   // dealt, once it is known which visual that is.
@@ -423,7 +429,7 @@ export const QuizCardFrame = ({
       const visual = entry.animation?.clip ?? entry.imageUrl;
       if (!visual || seen.has(visual)) continue;
       if (ownSense && normaliseGloss(entry.english) === ownSense) continue;
-      if (ownAction && animationConcept(entry.english) === ownAction) continue;
+      if (ownAction && actionsOverlap(ownAction, animationConcept(entry.english))) continue;
       seen.add(visual);
       out.push(entry);
     }

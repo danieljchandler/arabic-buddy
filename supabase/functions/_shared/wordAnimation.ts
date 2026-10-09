@@ -96,6 +96,8 @@ export const ACTION_NOUNS: ReadonlySet<string> = new Set([
  * as "to run". Those words keep their pictures.
  */
 export function qualifiesForAnimation(word: { category?: string | null; gloss: string | null | undefined }): boolean {
+  // No category, no evidence: that is every saved word, whatever its gloss.
+  if (!word.category?.trim()) return false;
   const action = animationConcept(word.gloss);
   if (!action) return false;
   return isVerbCategory(word.category) || ACTION_NOUNS.has(action);

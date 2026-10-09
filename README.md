@@ -373,10 +373,12 @@ four seconds of the action in the Ink style, looping, from the shared store
   the picture's frame and in its place — never both — with the meaning behind
   a tap, as for a picture.
 - *The picture question* (step 3) deals one visual per word: its clip where
-  the pool has one (`useQuizPool` reads the curriculum's clips in the same
-  single query as the stored replies), else its picture; and it never deals
-  another word for the same action or the same sense, which would be a second
-  right answer. A clip that would be the only option moving is shown as its
+  the pool has one (`useQuizPool` reads the curriculum's clips in one query
+  of their own, beside the stored replies'), else its picture. It never deals
+  another word with the same sense, or whose action shows the same motion
+  (`actionsOverlap`: the same action, an alternative in common — "watch" beside
+  "watch / see" — or a third-person "s"), which would be a second right
+  answer; a past tense beside its present ("ate", "eat") is not caught. A clip that would be the only option moving is shown as its
   poster, so motion is never the tell (`MIN_MOVING_OPTIONS`, 2).
 - *Motion that respects the learner.* A clip plays muted, looped and inline,
   with no controls (`QuizAnimation`). Under `prefers-reduced-motion` — read
@@ -608,9 +610,16 @@ one clip of eating serves the three.
   the owner on 2026-10-09 over Veo 3.1 Fast, Kling v3.0 std, and Sora 2,
   whose API was being retired), through `aiGateway.generateVideo`: Google's
   `predictLongRunning` on the existing `GEMINI_API_KEY`, then the same model
-  on OpenRouter's `/videos` without audio. A job a provider has accepted is
-  never started again on the other, since a render still going when the
-  budget ran out may be billed. 720p, 16:9, four seconds, MP4.
+  on OpenRouter's `/videos` without audio. Once a start has been sent, only
+  a plain refusal or a job that ended unbilled (an error, a safety block)
+  hands on to the other route; a timeout, a broken download, an answer that
+  cannot be read or anything thrown stops, since that render may be billed and
+  a second one would be. Google's key goes to Google's host only, and a
+  download redirect is followed without it; a download is a clip only if its
+  bytes are an MP4. One deadline covers the poster and the clip together
+  (340 s, inside the worker's 400 s), and no route is started with less than
+  two minutes of it left, so nothing is rendered that cannot be filed. 720p,
+  16:9, four seconds, MP4.
 - *What it costs, and who pays.* About **$0.27** a clip on Google's API (a
   $0.067 poster and 4 s × $0.05), or $0.19 on OpenRouter's — several
   pictures' worth — and a render takes from eleven seconds to minutes.
@@ -648,9 +657,9 @@ every `vocabulary_words` row that qualifies, it makes sure the store holds its
 action's clip, once per action, on the trusted path; nothing is written onto
 the rows. `--dialect`, `--stage`, `--limit` (clips, not words; an action
 already in the store is free and not counted), and `--dry-run`, which reads
-only and prints the bill. Today's tracks come to **63 clips, about $16.82**:
+only and prints the bill. Today's tracks come to **62 clips, about $16.55**:
 Stage 1 has one, "give me / pass me" (its other verbs are "I want"), Stage 2
-has 33 and Stage 3 has 29. The deciding is in
+has 33 and Stage 3 has 28. The deciding is in
 `scripts/curriculum-animations-core.ts`, covered by
 `src/test/curriculumAnimations.test.ts`.
 

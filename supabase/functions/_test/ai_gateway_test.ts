@@ -833,7 +833,7 @@ Deno.test("a clip the safety filter blocked is not billed, so OpenRouter may try
 
 Deno.test("a job Google accepted and did not finish in time is never started again on OpenRouter", async () => {
   await withGateway(async (mod, up) => {
-    const video = await mod.generateVideo("a figure jumps", { pollMs: 5, timeoutMs: 60 });
+    const video = await mod.generateVideo("a figure jumps", { pollMs: 5, timeoutMs: 60, minRouteMs: 0 });
 
     assertEquals(video, null);
     assert(up.callsTo(VEO_OPERATION_ROUTE).length > 0);
@@ -861,6 +861,80 @@ Deno.test("the Google key is never sent to a download URL off Google's host", as
       ...openRouterVideoLadder(),
     },
   });
+});
+
+Deno.test("a download that breaks after Google rendered the clip never starts a second render", async () => {
+  // The render is done and billed; a reset connection must not buy another.
+  await withGateway(async (mod, up) => {
+    assertEquals(await mod.generateVideo("a figure jumps", { pollMs: 1 }), null);
+    assertEquals(up.callsTo(OPENROUTER_VIDEOS_ROUTE), []);
+  }, {
+    upstreams: {
+      ...veoLadder({
+        file: () =>
+          new Response(
+            new ReadableStream({
+              start(controller) {
+                controller.error(new Error("connection reset"));
+              },
+            }),
+          ),
+      }),
+      ...openRouterVideoLadder(),
+    },
+  });
+});
+
+Deno.test("a start Google accepted with an answer it cannot read never starts a second render", async () => {
+  await withGateway(async (mod, up) => {
+    assertEquals(await mod.generateVideo("a figure jumps", { pollMs: 1 }), null);
+    assertEquals(up.callsTo(OPENROUTER_VIDEOS_ROUTE), []);
+  }, {
+    upstreams: {
+      ...veoLadder({ start: () => new Response("<html>gateway hiccup</html>", { status: 200 }) }),
+      ...openRouterVideoLadder(),
+    },
+  });
+});
+
+Deno.test("a download that is not an MP4 is not a clip, and is not rendered again", async () => {
+  await withGateway(async (mod, up) => {
+    assertEquals(await mod.generateVideo("a figure jumps", { pollMs: 1 }), null);
+    assertEquals(up.callsTo(OPENROUTER_VIDEOS_ROUTE), []);
+  }, {
+    upstreams: {
+      ...veoLadder({ file: () => new Response("<html>an error page</html>", { status: 200, headers: { "content-type": "video/mp4" } }) }),
+      ...openRouterVideoLadder(),
+    },
+  });
+});
+
+Deno.test("a download redirected to a signed URL is followed without the key", async () => {
+  await withGateway(async (mod, up) => {
+    const video = await mod.generateVideo("a figure jumps", { pollMs: 1 });
+
+    assert(video, "expected the clip from the signed URL");
+    const [first] = up.callsTo(VEO_FILE_ROUTE);
+    assertEquals(first.headers["x-goog-api-key"], "fixture-gemini");
+    const [signed] = up.callsTo("signed.storage.test");
+    assert(signed, "expected the redirect to be followed");
+    assertEquals(signed.headers["x-goog-api-key"], undefined, "the key never leaves Google's host");
+  }, {
+    upstreams: {
+      ...veoLadder({
+        file: () => new Response(null, { status: 302, headers: { location: "https://signed.storage.test/clip.mp4?sig=x" } }),
+      }),
+      "signed.storage.test": () => new Response(FIXTURE_MP4, { headers: { "content-type": "video/mp4" } }),
+    },
+  });
+});
+
+Deno.test("no route is started without the time to finish a render", async () => {
+  await withGateway(async (mod, up) => {
+    assertEquals(await mod.generateVideo("a figure jumps", { pollMs: 1, timeoutMs: 30_000 }), null);
+    assertEquals(up.callsTo(VEO_START_ROUTE), []);
+    assertEquals(up.callsTo(OPENROUTER_VIDEOS_ROUTE), []);
+  }, { upstreams: { ...veoLadder(), ...openRouterVideoLadder() } });
 });
 
 Deno.test("a failed OpenRouter job is a null, not a throw", async () => {

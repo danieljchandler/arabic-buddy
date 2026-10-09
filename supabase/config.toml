@@ -401,3 +401,9 @@ verify_jwt = false
 # holds no admin session, so no JWT; a person must be admin, checked inside.
 [functions.ai-canary-spend]
 verify_jwt = false
+
+# The shared word asset store (quiz Phase 2). `get` reads the store, `ensure`
+# makes a picture on a miss and charges the caller's daily image budget, so
+# both resolve the learner from their JWT; writes run under the service role.
+[functions.word-asset]
+verify_jwt = true

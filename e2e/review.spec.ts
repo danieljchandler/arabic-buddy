@@ -5,7 +5,9 @@ import {
   aLessonProgress,
   aProfile,
   aVocabularyWord,
+  aWordReview,
   lessonId,
+  reviewId,
   wordId,
 } from "../src/test/support/factories";
 
@@ -257,6 +259,57 @@ test.describe("the quiz style", () => {
     expect(backend.db.rows("word_reviews")[0]).toMatchObject({ word_id: wordId(0), last_result: "good" });
     await expect(page.getByRole("list", { name: /quiz session summary/i })).toBeVisible();
     await expect(page.getByText("100%")).toBeVisible();
+  });
+
+  test("brings a word the learner got wrong straight back, asked afresh", async ({ page }) => {
+    await signIn(page);
+    // A card with a review row: a brand-new card's first rating is an insert
+    // the session cannot re-target, so only a card with history is re-queued
+    // in-session (see handleRate). Its stability is nil, so it is still a
+    // first look.
+    const yesterday = new Date(Date.now() - 86_400_000).toISOString();
+    const backend = await stubSupabase(page, {
+      tables: {
+        ...aDeck(),
+        word_reviews: [
+          aWordReview({
+            id: reviewId(0),
+            word_id: wordId(0),
+            ease_factor: 0,
+            repetitions: 0,
+            interval_days: 0,
+            last_reviewed_at: null,
+            next_review_at: yesterday,
+          }),
+        ],
+        ...quizProfile(),
+      },
+    });
+
+    await page.goto("/review");
+    await expect(page.getByText("Fill in the missing word")).toBeVisible();
+
+    // Any option but the answer; which three distractors were dealt is seeded
+    // on the card, not something the test should know.
+    await page.getByRole("button", { name: /^(بيت|مدرسة|مطعم|سيارة)$/ }).first().click();
+    await page.getByRole("button", { name: /continue/i }).click();
+
+    // Again re-queues the card; on a one-card deck it is served at once. It
+    // must come back as a fresh question — options live, no Continue armed
+    // with the old rating — not as the answered card it just was.
+    await expect(page.getByText("Fill in the missing word")).toBeVisible();
+    await expect(page.getByRole("button", { name: /continue/i })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "السوق", exact: true })).toBeEnabled();
+    await expect.poll(() => backend.db.rows("word_reviews")[0]?.last_result).toBe("again");
+
+    await page.getByRole("button", { name: "السوق", exact: true }).click();
+    await page.getByRole("button", { name: /continue/i }).click();
+
+    // The relearned card's rating lands on the same row. (What the page shows
+    // next is the existing race between the end-of-queue refetch and the
+    // queue's flush, which the flip cards share; the first test above covers
+    // the summary.)
+    await expect.poll(() => backend.db.rows("word_reviews")[0]?.last_result).toBe("good");
   });
 
   test("asks for the meaning when the word has no sentence", async ({ page }) => {

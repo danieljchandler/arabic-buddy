@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { QuizChoiceCard } from "@/components/review/QuizChoiceCard";
 import { QuizRungBadge } from "@/components/review/QuizRungBadge";
@@ -45,6 +45,12 @@ interface QuizCardFrameProps {
   item: QuizItem;
   /** The other cards in the deck, for wrong options. */
   pool: ReadonlyArray<{ arabic: string; english: string }>;
+  /**
+   * False while the pool is still loading. The ladder would otherwise read a
+   * thin pool as "no question for this card" and flash the flip card for the
+   * instant before the real pool arrives.
+   */
+  ready?: boolean;
   /** Called once, when the learner moves on from an answered card. */
   onGraded: (graded: QuizGraded) => void;
   /** The ordinary flip-and-rate card, for when the ladder has no question. */
@@ -64,8 +70,20 @@ const ARABIC_RE = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\
  * relearn, leeches, production unlock, the review log — is untouched by the
  * style. Moving on is a deliberate tap: a right answer plays the full sentence
  * or the target's audio, and advancing on a timer would cut it off.
+ *
+ * The pages mount one frame per presentation (`key` on the card id and the
+ * session count). A failed card on a short deck is re-served at once under
+ * the same id, and a frame that lived on would show it already answered,
+ * Continue still armed with the old rating.
  */
-export const QuizCardFrame = ({ item, pool, onGraded, renderFlashcard, combo = 0 }: QuizCardFrameProps) => {
+export const QuizCardFrame = ({
+  item,
+  pool,
+  ready = true,
+  onGraded,
+  renderFlashcard,
+  combo = 0,
+}: QuizCardFrameProps) => {
   // A card the device could not record for is served as the flashcard; the
   // ladder is consulted again for the next one.
   const [unavailableFor, setUnavailableFor] = useState<string | null>(null);
@@ -142,6 +160,18 @@ export const QuizCardFrame = ({ item, pool, onGraded, renderFlashcard, combo = 0
     return () => window.removeEventListener("keydown", handler);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- advance closes over answered/format/rung
   }, [answered]);
+
+  if (!ready) {
+    return (
+      <div
+        role="status"
+        aria-label="Preparing the question"
+        className="rounded-2xl bg-card border border-border p-8 flex items-center justify-center min-h-[16rem]"
+      >
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (format === "flashcard") return <>{renderFlashcard()}</>;
 

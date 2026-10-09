@@ -164,7 +164,7 @@ const MyWordsReview = () => {
   // the same schedules; only the question and who grades it change.
   const { style: reviewStyle } = useReviewStyle();
   const quiz = reviewStyle === "quiz";
-  const { data: wordPool } = useSavedWordPool(activeDialect, mixAll, quiz);
+  const { data: wordPool, isLoading: poolLoading } = useSavedWordPool(activeDialect, mixAll, quiz);
   const addXP = useAddXP();
   const incrementReviews = useIncrementReviews();
   const [quizStats, setQuizStats] = useState<QuizSessionStats>(EMPTY_QUIZ_SESSION);
@@ -1269,8 +1269,13 @@ const MyWordsReview = () => {
         <div className="max-w-sm mx-auto">
           {quiz ? (
             <QuizCardFrame
+              // One mount per presentation: a failed card on a short deck is
+              // re-served at once under the same id, and must be asked afresh
+              // rather than shown already answered with its old rating.
+              key={`${quizItem.id}:${sessionCount}`}
               item={quizItem}
               pool={quizPool}
+              ready={!poolLoading}
               combo={quizStats.combo}
               onGraded={handleQuizGraded}
               renderFlashcard={() => (

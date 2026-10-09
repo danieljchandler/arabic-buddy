@@ -67,7 +67,7 @@ const MyPhrasesReview = () => {
   // for its meaning, a settled one is asked to be said.
   const { style: reviewStyle } = useReviewStyle();
   const quiz = reviewStyle === "quiz";
-  const { data: phrasePool } = useSavedPhrasePool(activeDialect, false, quiz);
+  const { data: phrasePool, isLoading: poolLoading } = useSavedPhrasePool(activeDialect, false, quiz);
   const addXP = useAddXP();
   const incrementReviews = useIncrementReviews();
   const [quizStats, setQuizStats] = useState<QuizSessionStats>(EMPTY_QUIZ_SESSION);
@@ -629,8 +629,13 @@ const MyPhrasesReview = () => {
         <div className="max-w-sm mx-auto">
           {quiz ? (
             <QuizCardFrame
+              // One mount per presentation: a failed card on a short deck is
+              // re-served at once under the same id, and must be asked afresh
+              // rather than shown already answered with its old rating.
+              key={`${quizItem.id}:${sessionCount}`}
               item={quizItem}
               pool={quizPool}
+              ready={!poolLoading}
               combo={quizStats.combo}
               onGraded={handleQuizGraded}
               renderFlashcard={() => (

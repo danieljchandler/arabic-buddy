@@ -78,7 +78,7 @@ const Review = () => {
   const { data: stats } = useReviewStats(mixAll);
   const { enqueue, pendingCount, isFlushing, isOnline } = useReviewQueue();
   const session = useReviewSession(mixAll);
-  const { data: wordPool } = useCurriculumWordPool(activeDialect, mixAll, quiz);
+  const { data: wordPool, isLoading: poolLoading } = useCurriculumWordPool(activeDialect, mixAll, quiz);
   const addXP = useAddXP();
   const [quizStats, setQuizStats] = useState<QuizSessionStats>(EMPTY_QUIZ_SESSION);
 
@@ -932,8 +932,13 @@ const Review = () => {
         <div className="max-w-sm mx-auto">
           {quiz ? (
             <QuizCardFrame
+              // One mount per presentation: a failed card on a short deck is
+              // re-served at once under the same id, and must be asked afresh
+              // rather than shown already answered with its old rating.
+              key={`${quizItem.id}:${sessionCount}`}
               item={quizItem}
               pool={quizPool}
+              ready={!poolLoading}
               combo={quizStats.combo}
               onGraded={handleQuizGraded}
               renderFlashcard={() => (

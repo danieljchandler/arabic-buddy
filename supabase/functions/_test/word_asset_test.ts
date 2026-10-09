@@ -1114,6 +1114,76 @@ Deno.test("word-asset ensure does not file an exchange the native reviewer faile
   assertEquals(table.rows, []);
 });
 
+Deno.test("word-asset ensure checks the rewrite as well as the draft, and files neither when the reviewer fails both", async () => {
+  // The validator orders a rewrite; the critic writes one; the reviewer is
+  // asked again about what is shipped, and fails it too.
+  let judged = 0;
+  const route: UpstreamHandler = async (request) => {
+    const body = await request.text();
+    if (body.includes("Candidate text in")) {
+      judged++;
+      return chatCompletion("", { score: 2, verdict: "rewrite", leaks: [], notes: "reads as fusha" });
+    }
+    return chatCompletion("", anExchange());
+  };
+  const table = assetTable();
+  const { status, body } = await call(
+    { action: "ensure", ...COFFEE_TALK },
+    upstreams({ id: LEARNER_A }, table.handler, {
+      "generativelanguage.googleapis.com/v1beta/openai": route,
+      "openrouter.ai": route,
+      "node.humain.test": route,
+      "api.fanar.qa": route,
+    }),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(body.error, "dialect_rejected");
+  assertEquals(table.rows, []);
+  // Two legs judged the draft; the rest judged the rewrite.
+  assert(judged >= 3, `the rewrite was never judged (${judged} judgements)`);
+});
+
+Deno.test("word-asset ensure serves an exchange the reviewer could not judge, but does not keep it", async () => {
+  // Every validator leg down: the leak detector passed it and the learner
+  // paid for it, so they get it; nobody else is served it unjudged.
+  const route: UpstreamHandler = async (request) => {
+    const body = await request.text();
+    if (body.includes("Candidate text in")) return json({ error: "down" }, 500);
+    return chatCompletion("", anExchange());
+  };
+  const table = assetTable();
+  const { status, body } = await call(
+    { action: "ensure", ...COFFEE_TALK },
+    upstreams({ id: LEARNER_A }, table.handler, {
+      "generativelanguage.googleapis.com/v1beta/openai": route,
+      "openrouter.ai": route,
+      "node.humain.test": route,
+      "api.fanar.qa": route,
+    }),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(body.stored, false);
+  assertEquals(body.payload, anExchange());
+  assertEquals(table.rows, []);
+});
+
+Deno.test("word-asset ensure turns away, uncharged, a word no exchange could be filed for", async () => {
+  // The reply must use the word as it is, and this one is on every dialect's
+  // leak list: each attempt would be charged and thrown away.
+  const table = assetTable();
+  const { status, body, calls } = await call(
+    { action: "ensure", kind: "dialogue", word: "لماذا", gloss: "why", dialect: "Gulf" },
+    upstreams({ id: LEARNER_A }, table.handler, writing(anExchange())),
+  );
+
+  assertEquals(status, 400);
+  assertEquals(body.error, "word_not_in_dialect");
+  assertEquals(chatCalls(calls), []);
+  assertEquals(chargedOn(calls), []);
+});
+
 Deno.test("word-asset ensure makes no exchange, and charges nothing, while the table does not exist", async () => {
   // A picture still goes to the learner's own row. An exchange has nowhere to
   // live but the store: made now, it would be paid for at every encounter.
@@ -1186,6 +1256,8 @@ Deno.test("word-asset ensure puts an authored exchange in the place of one a lea
   assertEquals(table.rows.length, 1);
   assertEquals(table.rows[0].source, "authored");
   assertEquals(table.rows[0].payload, authored);
+  // The row is updated in place, so what it held is kept in its meta.
+  assertEquals((table.rows[0].meta as Record<string, unknown>).replaces, anExchange());
 
   // A learner's miss never replaces anything: what is filed is a hit.
   const learner = await call(

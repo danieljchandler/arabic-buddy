@@ -205,6 +205,15 @@ What shipped, so the later phases know what they stand on (writeups: README
   `useEnsureWordAsset.test.ts`, `QuizCardFrame.test.tsx`, and
   `review.spec.ts` ("a picture for a word that has none").
 
+An independent review before merge found the phrase mismatch, the short-word
+leniency, the uncheckable rewrite, the unchargeable-word loop and the URL
+bound; all five are fixed above. One design question it raised is left to
+the owner: step 9 is scored against the exact stored reply, so a learner who
+says a correct paraphrase loses on completeness and can be rated Again, a
+lapse on a production card at 30+ days. Showing the reply with the word
+gapped, or not counting such a take as a lapse when the word was clearly
+said, are the two ways out.
+
 Two things a later phase should know. The card waits up to 12 seconds for a
 drawing, and only when three other words in the pool have pictures — so on a
 learner's first few pictured words the fallback is asked and the picture
@@ -286,13 +295,16 @@ What shipped, so the later phases know what they stand on (writeups: README
   said does not (`asStoredDialogue`, read the same way by the function, the
   pool and the frame). Style `text-1`, no bucket, filed with `putAsset`.
 - **`word-asset ensure` writes it** through `askBrain` (CONTENT lineup,
-  `draft_critic`, `enforceDialect`, a quality gate on the word), files it only
-  if every line passes the leak detector with the rulebook's tokens (quotes
-  stripped first, `dialogueLinesForScan`) and the native reviewer did not ask
-  for a rewrite, and charges `word-asset-dialogue` (30 / 100 / 300 a day).
+  `draft_critic`, `enforceDialect` and `validateDialect`, a quality gate on
+  the word), files it only if every line passes the leak detector with the
+  rulebook's tokens (quotes stripped first, `dialogueLinesForScan`) and the
+  native reviewer passed the shipped text (a rewrite is judged too), and
+  charges `word-asset-dialogue` (30 / 100 / 300 a day). A word that is itself
+  a leak token is refused before the charge (`word_not_in_dialect`).
 - **`_shared/wordAssets.ts`** gains `lookupAsset` (a missing table told apart
   from a miss) and `getAssets` (many keys in one query, at most
-  `MAX_KEYS_PER_READ` = 100).
+  `MAX_KEYS_PER_READ` = 100 keys and `MAX_KEY_BYTES_PER_READ` = 6,000 bytes
+  encoded).
 - **`useEnsureWordAsset`** keeps every piece of session state per kind.
 - **`useQuizPool`**: each word entry carries `dialogueLine`, its stored reply,
   read for the likeliest hundred words in one query (a learner's most settled,
@@ -304,14 +316,18 @@ What shipped, so the later phases know what they stand on (writeups: README
 - **`QuizSpeakCard`** `speak-reply`: the line is played once, the reply's
   meaning is shown (or a gap when it has no English), the translation of the
   line is help, and the grader sees `wordSpanSimilarity` — the word's span of
-  what was heard — so a reply without the word is Again.
+  what was heard, an attached و/ب/ال taken off, a word of three letters or
+  fewer held to an exact match — so a reply without the word is Again.
+- **One rule for "uses the word"**, `lineUsesWord`, on the store's side and
+  the quiz's, so a phrase (a fifth of the curriculum) is asked from its
+  exchange like a word.
 - **`QuizCardFrame`** `storedDialogues` (the curriculum deck and My Words):
   the lesson's dialogue first, else the stored exchange, else one written.
   The picture and the exchange settle through one per-card hook
   (`useCardAsset`), each bounded (`DIALOGUE_LOOKUP_WAIT_MS`,
   `DIALOGUE_WRITING_WAIT_MS` = 12 s); the card waits on a writing only when
   its question could be asked now.
-- Guards: `word_asset_test.ts` (14 dialogue cases), `wordDialogue.test.ts`,
+- Guards: `word_asset_test.ts` (17 dialogue cases), `wordDialogue.test.ts`,
   `wordAssets.test.ts`, `quizLadder.test.ts`, `quizDialogue.test.ts`,
   `quizGrading.test.ts`, `QuizSpeakCard.test.tsx`, `QuizCardFrame.test.tsx`,
   `useEnsureWordAsset.test.ts`, `useQuizPool.test.ts`, and `review.spec.ts`
@@ -340,6 +356,15 @@ What shipped, so the later phases know what they stand on (writeups: README
 4. *No exchange while the table is missing.* It has nowhere else to live, so
    one that cannot be filed would be paid for again at every encounter:
    `ensure` answers `503 store_not_ready` before the cap.
+
+An independent review before merge found the phrase mismatch, the short-word
+leniency, the uncheckable rewrite, the unchargeable-word loop and the URL
+bound; all five are fixed above. One design question it raised is left to
+the owner: step 9 is scored against the exact stored reply, so a learner who
+says a correct paraphrase loses on completeness and can be rated Again, a
+lapse on a production card at 30+ days. Showing the reply with the word
+gapped, or not counting such a take as a lapse when the word was clearly
+said, are the two ways out.
 
 Two things a later phase should know. Step 6 needs three other words with
 stored replies before it can ask from a stored exchange, so on a learner's

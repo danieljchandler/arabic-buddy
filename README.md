@@ -346,8 +346,10 @@ the target, showing what was recognised beside the score. On "say the reply"
 the line is played once by itself, the reply's meaning is shown (a reply with
 no English is asked as a gap), and the target is the whole reply; what the
 grader compares is the word's span of what was heard (`wordSpanSimilarity`:
-the closest run of recognised words to the word), since a reply said well
-without the word is a different reply.
+the closest run of recognised words to the word, with an attached و, ب or
+ال taken off), since a reply said well without the word is a different
+reply. A word of three letters or fewer must be heard exactly: زين and وين
+are one letter apart, well inside the allowance a longer word gets.
 
 Grading is `src/lib/quizGrading.ts`: a right choice is Good (never Easy when
 the options were on screen — the lesson quiz's and debrief's rule), a right
@@ -488,14 +490,21 @@ so it has no bucket (`ASSET_BUCKETS.dialogue` is null) and is filed with
   tokens, as a shared jingle's lyrics must — scanned with quotation marks
   taken out (`dialogueLinesForScan`), since the detector skips quoted text
   and a line a learner says is never a quotation — and that the native
-  reviewer did not ask to have rewritten (a draft it failed ships from the
-  Brain only when the rewrite could not run). **Decided:** when an exchange
-  fails either, nothing is served either. The learner is about to choose
-  that reply or say it as a model of the dialect, so the answer is the
-  graceful `{ error: "msa_leak" | "dialect_rejected", fallback: true }` and
-  the card asks its fallback. The miss was charged — the cap is taken before
-  anything is made, as for a picture — and the quiz counts it as a failure
-  for that word.
+  reviewer passed. The reviewer judges the text that is actually shipped:
+  the draft (`enforceDialect`), and the critic's rewrite or a draft that ran
+  out of budget for the first look (`validateDialect`), so a rewrite is never
+  filed unread. **Decided:** when an exchange fails either, nothing is served
+  either. The learner is about to choose that reply or say it as a model of
+  the dialect, so the answer is the graceful
+  `{ error: "msa_leak" | "dialect_rejected", fallback: true }` and the card
+  asks its fallback. The miss was charged — the cap is taken before anything
+  is made, as for a picture — and the quiz counts it as a failure for that
+  word. One the reviewer could not judge at all (every validator leg down)
+  passed the leak detector and was paid for, so the learner who asked gets
+  it, unfiled (`stored: false`), and nobody else is served it unjudged. A
+  word that is itself on its dialect's leak lists could never be filed (the
+  reply must use it as it is), so it is turned away before the charge
+  (`400 word_not_in_dialect`).
 - *Who pays.* **Decided:** an exchange is charged on its own counter,
   `word-asset-dialogue` (30 a day free, 100 standard, 300 All-In), never on
   the picture allowance: a few short text calls are a different cost from an
@@ -516,8 +525,17 @@ so it has no bucket (`ASSET_BUCKETS.dialogue` is null) and is filed with
   fallback.
 - *Many at once.* Step 6's wrong replies are other words' stored replies, so
   the quiz's pool reads them in one query (`getAssets`, keyed with
-  `assetKey`) rather than one lookup per word, bounded at
-  `MAX_KEYS_PER_READ` (100) keys because they travel in the URL.
+  `assetKey`) rather than one lookup per word. The keys travel in the URL, so
+  a read takes them in order up to `MAX_KEYS_PER_READ` (100) or
+  `MAX_KEY_BYTES_PER_READ` (6,000 bytes encoded), whichever comes first, and
+  the pool gives up on it after `STORED_REPLIES_WAIT_MS` (2.5 s) rather than
+  hold the session. Each reply is tagged with its dialect, and a word is only
+  dealt its own dialect's.
+- *A phrase is a word.* A fifth of the curriculum's items are several words
+  (كل يوم). "Uses the word" is one rule on both sides, `lineUsesWord`: a
+  whole word, or a run of whole words in order, after the folding. When an
+  authored exchange replaces a learner-written one, the row is updated in
+  place, so `meta.replaces` keeps the text it held.
 
 **Pictures that can be told apart.** The quiz deals a word's picture beside
 three other words', so the prompt template says so

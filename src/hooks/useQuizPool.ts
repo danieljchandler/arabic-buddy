@@ -7,6 +7,7 @@ import {
   getAssets,
   MAX_KEYS_PER_READ,
   type AssetKey,
+  type WordAsset,
   type WordAssetClient,
 } from "../../supabase/functions/_shared/wordAssets";
 import { asStoredDialogue } from "../../supabase/functions/_shared/wordDialogue";
@@ -25,6 +26,8 @@ export interface QuizPoolEntry {
    * none for it, or it was not among the words read.
    */
   dialogueLine?: DialogueLine | null;
+  /** The dialect that reply was filed under (set with `dialogueLine`). */
+  dialogueDialect?: string;
 }
 
 /** A pool row before the stored replies are read: the entry, its dialect, and how likely it is to have one. */
@@ -47,7 +50,8 @@ const storeKeyOf = (key: { dialect: string | null; conceptKey: string }) => `${k
  * likely to have one, and the curriculum's earliest. Three wrong replies are
  * all a question deals, so a hundred words is plenty. Every failure — the
  * store's table not yet on the live project above all — leaves the pool as
- * it was, with no stored replies.
+ * it was, with no stored replies, and so does a read that takes longer than
+ * `STORED_REPLIES_WAIT_MS`.
  */
 async function withStoredReplies(rows: PoolRow[]): Promise<QuizPoolEntry[]> {
   const keyed = rows
@@ -62,19 +66,32 @@ async function withStoredReplies(rows: PoolRow[]): Promise<QuizPoolEntry[]> {
 
   // `word_assets` is not in the generated types until its migration is
   // applied, hence the structural client.
-  const found = await getAssets(supabase as unknown as WordAssetClient, keyed.map((item) => item.key));
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const found = await Promise.race<WordAsset[]>([
+    getAssets(supabase as unknown as WordAssetClient, keyed.map((item) => item.key)),
+    new Promise<WordAsset[]>((resolve) => {
+      timer = setTimeout(() => resolve([]), STORED_REPLIES_WAIT_MS);
+    }),
+  ]).finally(() => clearTimeout(timer));
   const byKey = new Map(found.map((asset) => [storeKeyOf(asset), asset]));
-  const replies = new Map<QuizPoolEntry, DialogueLine>();
+  const replies = new Map<QuizPoolEntry, { line: DialogueLine; dialect: string }>();
   for (const { row, key } of keyed) {
     const asset = byKey.get(storeKeyOf(key));
     const exchange = asset ? asStoredDialogue(asset.payload, row.entry.arabic) : null;
-    if (exchange) replies.set(row.entry, exchange.lines[1]);
+    if (exchange) replies.set(row.entry, { line: exchange.lines[1], dialect: key.dialect ?? "" });
   }
   return rows.map((row) => {
     const reply = replies.get(row.entry);
-    return reply ? { ...row.entry, dialogueLine: reply } : row.entry;
+    return reply ? { ...row.entry, dialogueLine: reply.line, dialogueDialect: reply.dialect } : row.entry;
   });
 }
+
+/**
+ * How long the pool waits for the stored replies before going on without
+ * them. The pool holds every card's question back until it loads, so a slow
+ * store must not hold the whole session.
+ */
+export const STORED_REPLIES_WAIT_MS = 2500;
 
 /** Enough to draw three wrong options from without repeating a session. */
 const POOL_SIZE = 300;

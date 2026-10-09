@@ -1,6 +1,10 @@
-import { sentenceHasWord } from "@/lib/arabicWord";
+import { ARABIC_PUNCT_RE, findWordSpan, normalizeArabicWord, type WordSpan } from "@/lib/arabicWord";
 import { seededShuffle } from "@/lib/quizDistractors";
-import { asStoredDialogue } from "../../supabase/functions/_shared/wordDialogue";
+import {
+  asStoredDialogue,
+  lineUsesWord,
+  type StoredDialogue,
+} from "../../supabase/functions/_shared/wordDialogue";
 
 /** One line of an authored lesson dialogue (`lessons.dialogue`). */
 export interface DialogueLine {
@@ -37,6 +41,13 @@ export interface ReplyLine {
   answer: DialogueLine;
 }
 
+/*
+ * "Uses the word" is `lineUsesWord`, the store's own rule (a whole word, or a
+ * run of whole words for a phrase, compared after folding), so an exchange
+ * the store filed for a two-word item is one the quiz can ask from. For a
+ * single word it is exactly `sentenceHasWord`.
+ */
+
 /**
  * The first line of a dialogue that uses the word and has a line before it,
  * with that line before: what "say the reply" asks, and what "answer the
@@ -44,7 +55,7 @@ export interface ReplyLine {
  * is not in it.
  */
 export function findReplyLine(dialogue: DialogueLine[], wordArabic: string): ReplyLine | null {
-  const index = dialogue.findIndex((line, i) => i > 0 && sentenceHasWord(line.arabic, wordArabic));
+  const index = dialogue.findIndex((line, i) => i > 0 && lineUsesWord(line.arabic, wordArabic));
   if (index < 1) return null;
   return { prompt: dialogue[index - 1], answer: dialogue[index] };
 }
@@ -64,7 +75,7 @@ export type DialogueSource = "lesson" | "store";
  */
 export function dialogueForWord(
   lessonDialogue: unknown,
-  stored: unknown,
+  stored: StoredDialogue | unknown,
   wordArabic: string,
 ): { lines: DialogueLine[]; source: DialogueSource } | null {
   const lesson = asDialogue(lessonDialogue);
@@ -101,7 +112,7 @@ export function buildReplyQuestion(
   const wrong: DialogueLine[] = [];
   for (const line of [...dialogue, ...extraLines]) {
     const key = line.arabic.trim();
-    if (seen.has(key) || sentenceHasWord(line.arabic, wordArabic)) continue;
+    if (seen.has(key) || lineUsesWord(line.arabic, wordArabic)) continue;
     seen.add(key);
     wrong.push(line);
   }
@@ -125,9 +136,39 @@ export function countWrongReplies(lines: DialogueLine[], wordArabic: string, exc
   let count = 0;
   for (const line of lines) {
     const key = line.arabic.trim();
-    if (!key || seen.has(key) || sentenceHasWord(line.arabic, wordArabic)) continue;
+    if (!key || seen.has(key) || lineUsesWord(line.arabic, wordArabic)) continue;
     seen.add(key);
     count++;
   }
   return count;
+}
+
+/**
+ * Where the word is in a line, for cutting a gap: `findWordSpan` for a single
+ * word, and for a phrase the run of words from the first one's first letter
+ * to the last one's last, punctuation at either end left outside.
+ */
+export function findPhraseSpan(line: string, wordArabic: string): WordSpan | null {
+  const parts = wordArabic.trim().split(/\s+/).map(normalizeArabicWord).filter(Boolean);
+  if (parts.length <= 1) return findWordSpan(line, wordArabic);
+  const tokens: Array<{ folded: string; start: number; end: number }> = [];
+  const tokenRe = /\S+/g;
+  let m: RegExpExecArray | null;
+  while ((m = tokenRe.exec(line))) {
+    const folded = normalizeArabicWord(m[0]);
+    if (folded) tokens.push({ folded, start: m.index, end: m.index + m[0].length });
+  }
+  const isPunct = (ch: string) => {
+    ARABIC_PUNCT_RE.lastIndex = 0;
+    return ARABIC_PUNCT_RE.test(ch);
+  };
+  for (let i = 0; i + parts.length <= tokens.length; i++) {
+    if (!parts.every((part, j) => tokens[i + j].folded === part)) continue;
+    let start = tokens[i].start;
+    let end = tokens[i + parts.length - 1].end;
+    while (start < end && isPunct(line[start])) start++;
+    while (end > start && isPunct(line[end - 1])) end--;
+    return { start, end };
+  }
+  return null;
 }

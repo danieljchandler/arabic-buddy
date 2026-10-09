@@ -1,10 +1,10 @@
 import { act, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderHookWithProviders } from "@/test/support/react/harness";
 import { aUserPhrase, aUserVocabulary, aVocabularyWord, many, phraseId, vocabId, wordId, TEST_USER_ID } from "@/test/support/factories";
 import type { SupabaseBackend } from "@/test/support/server/handler";
 import { assetKey } from "../../supabase/functions/_shared/wordAssets";
-import { useCurriculumWordPool, useSavedPhrasePool, useSavedWordPool } from "./useQuizPool";
+import { STORED_REPLIES_WAIT_MS, useCurriculumWordPool, useSavedPhrasePool, useSavedWordPool } from "./useQuizPool";
 
 /**
  * Where the quiz's wrong options come from. The pool must stay inside the
@@ -179,6 +179,8 @@ describe("stored replies, for the reply question's wrong options", () => {
     await waitFor(() => expect(r.result.current.data).toBeDefined());
     const [house, school] = r.result.current.data!;
     expect(house.dialogueLine).toMatchObject({ arabic: "عندي بيت اليوم", english: "I have بيت today" });
+    // Tagged with its dialect, so a mixed session deals it only for that dialect.
+    expect(house.dialogueDialect).toBe("Gulf");
     expect(school.dialogueLine).toBeUndefined();
     expect(r.backend.db.readsOf("word_assets")).toHaveLength(1);
   });
@@ -252,5 +254,28 @@ describe("stored replies, for the reply question's wrong options", () => {
 
     await waitFor(() => expect(r.result.current.data).toBeDefined());
     expect(r.backend.db.readsOf("word_assets")).toEqual([]);
+  });
+
+  it("goes on without the stored replies when the store is slow, rather than hold the session", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const r = renderHookWithProviders(() => useCurriculumWordPool("Gulf", false), {
+        persona: "free",
+        seed: (b) => {
+          b.db.seed("vocabulary_words", [aVocabularyWord({ id: wordId(0), word_arabic: "بيت", word_english: "house", dialect_module: "Gulf" })]);
+          b.db.seed("word_assets", [anExchange("بيت|house", "بيت")]);
+          b.db.delay("word_assets", STORED_REPLIES_WAIT_MS + 10_000);
+        },
+      });
+      cleanup = r.cleanup;
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(STORED_REPLIES_WAIT_MS + 100);
+      });
+      await waitFor(() => expect(r.result.current.data).toBeDefined());
+      expect(r.result.current.data).toEqual([{ arabic: "بيت", english: "house", imageUrl: null, audioUrl: null }]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -88,8 +88,30 @@ describe("the word's span of a spoken reply", () => {
     expect(gradeQuizAnswer({ kind: "speech", score: 95, similarity })).toBe("again");
   });
 
-  it("is generous to an attached article or conjunction, as for a single word", () => {
-    expect(wordSpanSimilarity("ايه والقهوة جاهزة", "قهوة")!).toBeGreaterThanOrEqual(SPEECH_MATCH_FLOOR);
+  it("takes the word with a conjunction, preposition or article attached as the word", () => {
+    expect(wordSpanSimilarity("ايه والقهوة جاهزة", "قهوة")).toBe(1);
+    expect(wordSpanSimilarity("رحت بالسيارة", "سيارة")).toBe(1);
+    expect(wordSpanSimilarity("لا ولا والله", "لا")).toBe(1);
+  });
+
+  it("holds a short word to itself: one letter off is another word", () => {
+    // زين / وين is 0.67 by similarity alone, well over the floor.
+    for (const [heard, word] of [
+      ["والله ما ادري وين راح", "زين"],
+      ["ايه شي حلو", "شو"],
+      ["ما ادري", "مو"],
+    ] as const) {
+      const similarity = wordSpanSimilarity(heard, word);
+      expect(similarity!, `${heard} / ${word}`).toBeLessThan(SPEECH_MATCH_FLOOR);
+      expect(gradeQuizAnswer({ kind: "speech", score: 95, similarity })).toBe("again");
+    }
+    expect(wordSpanSimilarity("ايه زين والله", "زين")).toBe(1);
+    expect(wordSpanSimilarity("وزين", "زين")).toBe(1);
+  });
+
+  it("still allows a longer word the recogniser spelt a letter off", () => {
+    expect(wordSpanSimilarity("رحت المدرسه بدري", "المدرسة")!).toBeGreaterThanOrEqual(SPEECH_MATCH_FLOOR);
+    expect(wordSpanSimilarity("ايه عطني قهوا", "قهوة")!).toBeGreaterThanOrEqual(SPEECH_MATCH_FLOOR);
   });
 
   it("compares a phrase against runs of as many words", () => {

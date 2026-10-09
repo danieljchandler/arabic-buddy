@@ -7,7 +7,7 @@ import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { useTakeRecorder } from "@/hooks/useTakeRecorder";
 import { findWordSpan } from "@/lib/arabicWord";
-import type { ReplyLine } from "@/lib/quizDialogue";
+import { findPhraseSpan, type ReplyLine } from "@/lib/quizDialogue";
 import { wordSpanSimilarity, type SpeechOutcome } from "@/lib/quizGrading";
 import { cn } from "@/lib/utils";
 import { arabicSimilarity } from "../../../supabase/functions/_shared/arabicMatch";
@@ -160,7 +160,7 @@ export const QuizSpeakCard = ({
   // A reply with no English is asked as a gap, like a line with none.
   const replyGap = useMemo(() => {
     if (!replying || reply!.answer.english) return null;
-    const span = findWordSpan(reply!.answer.arabic, arabic);
+    const span = findPhraseSpan(reply!.answer.arabic, arabic);
     if (!span) return null;
     const line = reply!.answer.arabic;
     return `${line.slice(0, span.start)} ـــ ${line.slice(span.end)}`.replace(/\s+/g, " ").trim();

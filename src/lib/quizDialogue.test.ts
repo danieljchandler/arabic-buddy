@@ -4,6 +4,7 @@ import {
   buildReplyQuestion,
   countWrongReplies,
   dialogueForWord,
+  findPhraseSpan,
   findReplyLine,
   type DialogueLine,
 } from "./quizDialogue";
@@ -147,5 +148,48 @@ describe("the word's exchange from the store", () => {
     ];
     expect(countWrongReplies(lines, "قهوة")).toBe(2);
     expect(countWrongReplies(lines, "قهوة", [stored.lines[0]])).toBe(1);
+  });
+});
+
+describe("a word of more than one word", () => {
+  // A fifth of the curriculum's items are phrases (كل يوم, يعطيك العافية).
+  // The store files an exchange whose reply uses the phrase as a run of
+  // words, so the quiz must read "uses the word" the same way, or it would
+  // pay for an exchange it can never ask from.
+  const stored = {
+    lines: [
+      { speaker: "Friend", arabic: "متى تشرب قهوة؟", english: "When do you drink coffee?", transliteration: "" },
+      { speaker: "You", arabic: "اشرب قهوة كل يوم الصبح", english: "I drink coffee every morning", transliteration: "" },
+    ],
+  };
+
+  it("asks the reply from a stored exchange that uses the phrase", () => {
+    const chosen = dialogueForWord(null, stored, "كل يوم");
+    expect(chosen?.source).toBe("store");
+    expect(findReplyLine(chosen!.lines, "كل يوم")?.answer.arabic).toBe("اشرب قهوة كل يوم الصبح");
+    const q = buildReplyQuestion(chosen!.lines, "كل يوم", "card-1", [
+      { arabic: "ما ادري" },
+      { arabic: "بعدين" },
+      { arabic: "كل شي تمام" },
+      // Uses the phrase too: never a wrong reply.
+      { arabic: "اشوفك كل يوم" },
+    ]);
+    expect(q?.options).toHaveLength(4);
+    expect(q!.options.map((o) => o.arabic)).not.toContain("اشوفك كل يوم");
+  });
+
+  it("asks a lesson's line that uses the phrase", () => {
+    expect(findReplyLine(stored.lines, "كل يوم")).not.toBeNull();
+    // The words apart, or in another order, are not the phrase.
+    expect(findReplyLine([stored.lines[0], { arabic: "يوم كل" }], "كل يوم")).toBeNull();
+  });
+
+  it("cuts a gap around the whole phrase, and around a single word as before", () => {
+    const line = "اشرب قهوة كل يوم، الصبح";
+    const span = findPhraseSpan(line, "كل يوم")!;
+    expect(line.slice(span.start, span.end)).toBe("كل يوم");
+    const single = findPhraseSpan(line, "قهوة")!;
+    expect(line.slice(single.start, single.end)).toBe("قهوة");
+    expect(findPhraseSpan(line, "كل شهر")).toBeNull();
   });
 });

@@ -188,8 +188,10 @@ harness.
   its lyrics pass the leak detector with the rulebook's tokens. A word's
   two-line exchange (`kind: "dialogue"`, `_shared/wordDialogue.ts`) is text:
   filed with `putAsset`, only when every line passes that detector and the
-  native validator, never served otherwise, charged on its own counter
-  (`word-asset-dialogue`), and never made while the table is missing. New files go through
+  native validator passed the shipped text (the critic's rewrite included),
+  never served when either fails, charged on its own counter
+  (`word-asset-dialogue`), and never made while the table is missing.
+  "Uses the word" is `lineUsesWord` on both sides, so phrases count. New files go through
   `fileNewAsset` under fresh names and are never overwritten, and no caller
   may name a path in `word-assets/`. The one thing beyond the word that may
   reach a shared prompt is an authored `scene`, and only on `word-asset`'s

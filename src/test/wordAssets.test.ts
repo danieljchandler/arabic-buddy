@@ -20,6 +20,7 @@ import {
   isReplaceable,
   kindNeedsSense,
   lookupAsset,
+  MAX_KEY_BYTES_PER_READ,
   MAX_KEYS_PER_READ,
   normaliseAssetWord,
   normaliseGloss,
@@ -609,6 +610,27 @@ describe("the store", () => {
       const found = await getAssets(client, keys);
 
       expect(found.map((asset) => asset.conceptKey)).toEqual([keys[3].conceptKey]);
+    });
+
+    it("stops short of a URL a gateway would refuse, however few keys that is", async () => {
+      // Saved words' senses can run long; forty long Arabic keys are well
+      // past the byte budget though far under the key count.
+      const long = (i: number) => talk(`${"كلمة".repeat(8)}${i}`, `a rather long english sense number ${i} ${"x".repeat(60)}`);
+      const keys = Array.from({ length: 40 }, (_, i) => long(i));
+      const fit = keys.findIndex((_, i) =>
+        keys.slice(0, i + 1).reduce((sum, key) => sum + encodeURIComponent(`"${key.conceptKey}",`).length, 0) >
+          MAX_KEY_BYTES_PER_READ,
+      );
+      expect(fit).toBeGreaterThan(0);
+      await putAsset(client, keys[0], { payload: exchange("x") });
+      await putAsset(client, keys[fit], { payload: exchange("x") });
+
+      const found = await getAssets(client, keys);
+
+      // The first fits and is found; the one past the budget is not asked for.
+      expect(found.map((asset) => asset.conceptKey)).toEqual([keys[0].conceptKey]);
+      const read = backend.db.readsOf("word_assets").at(-1);
+      expect(JSON.stringify(read)).not.toContain(keys[fit].conceptKey);
     });
 
     it("asks nothing for no keys, or for keys of different kinds", async () => {

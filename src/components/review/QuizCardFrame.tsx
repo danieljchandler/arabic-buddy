@@ -15,6 +15,7 @@ import {
   asDialogue,
   buildReplyQuestion,
   countWrongReplies,
+  dialogueForWord,
   findReplyLine,
   type DialogueLine,
 } from "@/lib/quizDialogue";
@@ -30,7 +31,8 @@ import {
 } from "@/lib/quizLadder";
 import type { Rating } from "@/lib/spacedRepetition";
 import type { AssetKeyInput } from "../../../supabase/functions/_shared/wordAssets";
-import { asStoredDialogue } from "../../../supabase/functions/_shared/wordDialogue";
+import { normalizeDialect } from "../../../supabase/functions/_shared/ttsVoiceRoutingCore";
+import { asStoredDialogue, type StoredDialogue } from "../../../supabase/functions/_shared/wordDialogue";
 
 /** One due card, in the shape every deck can produce. */
 export interface QuizItem {
@@ -384,14 +386,18 @@ export const QuizCardFrame = ({
   }, [entries]);
 
   // Wrong replies beyond the dialogue itself: other lessons' lines, and the
-  // other words' stored replies.
-  const extraLines = useMemo(
-    () => [
+  // other words' stored replies in this word's dialect (a mixed session's
+  // pool holds every dialect's, and a reply in another one gives the answer
+  // away).
+  const extraLines = useMemo(() => {
+    const dialect = normalizeDialect(item.dialect ?? null);
+    return [
       ...(item.extraDialogueLines ?? []),
-      ...entries.flatMap((entry) => (entry.dialogueLine ? [entry.dialogueLine] : [])),
-    ],
-    [item.extraDialogueLines, entries],
-  );
+      ...entries.flatMap((entry) =>
+        entry.dialogueLine && (!entry.dialogueDialect || entry.dialogueDialect === dialect) ? [entry.dialogueLine] : [],
+      ),
+    ];
+  }, [item.extraDialogueLines, item.dialect, entries]);
 
   const canChoose = Math.min(arabicPool.length, englishPool.length) >= CHOICE_COUNT - 1;
 
@@ -439,16 +445,14 @@ export const QuizCardFrame = ({
     [item.arabic, item.english, item.dialect],
   );
   const choosing = rung.format === "reply-choice";
-  const exchange = useCardAsset<DialogueLine[]>({
+  const exchange = useCardAsset<StoredDialogue>({
     id: item.id,
     input: wantsDialogue ? dialogueInput : null,
     ready,
-    make: choosing ? canChoose : canSpeak,
+    // Not for a learner who chose to rate this card themselves.
+    make: choosing ? canChoose : canSpeak && unavailableFor !== item.id,
     waitForMaking: choosing ? countWrongReplies(extraLines, item.arabic) >= CHOICE_COUNT - 1 : true,
-    read: (asset) => {
-      const stored = asStoredDialogue(asset.payload, item.arabic);
-      return stored ? [...stored.lines] : null;
-    },
+    read: (asset) => asStoredDialogue(asset.payload, item.arabic),
     lookupWaitMs: DIALOGUE_LOOKUP_WAIT_MS,
     makingWaitMs: DIALOGUE_WRITING_WAIT_MS,
   });
@@ -464,8 +468,15 @@ export const QuizCardFrame = ({
 
   // The dialogue the reply steps are asked from: the lesson's when a line of
   // it uses the word, else the exchange the card settled on.
-  const dialogueLines = lessonReplyLine ? lessonLines : exchange.value;
-  const replyLine = lessonReplyLine ?? (exchange.value ? findReplyLine(exchange.value, item.arabic) : null);
+  const chosenDialogue = useMemo(
+    () => dialogueForWord(item.dialogue, exchange.value, item.arabic),
+    [item.dialogue, exchange.value, item.arabic],
+  );
+  const dialogueLines = chosenDialogue?.lines ?? null;
+  const replyLine = useMemo(
+    () => (dialogueLines ? findReplyLine(dialogueLines, item.arabic) : null),
+    [dialogueLines, item.arabic],
+  );
   const replyQuestion = useMemo(
     () => (dialogueLines ? buildReplyQuestion(dialogueLines, item.arabic, item.id, extraLines) : null),
     [dialogueLines, item.arabic, item.id, extraLines],
@@ -547,7 +558,7 @@ export const QuizCardFrame = ({
         <span className={lookingUp ? "animate-in fade-in duration-300 delay-300 fill-mode-backwards" : undefined}>
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </span>
-        {!lookingUp && <p className="text-sm text-muted-foreground text-center">{why}…</p>}
+        {(writingLine || drawingPicture) && <p className="text-sm text-muted-foreground text-center">{why}…</p>}
       </div>
     );
   }

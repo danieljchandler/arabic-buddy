@@ -1,6 +1,7 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders, type HarnessOptions } from "@/test/support/react/harness";
+import type { QuizPoolEntry } from "@/hooks/useQuizPool";
 import type { SupabaseBackend } from "@/test/support/server/handler";
 import {
   DIALOGUE_WRITING_WAIT_MS,
@@ -1014,6 +1015,45 @@ describe("an exchange for a word its lesson has no line for", () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(backend.db.readsOf("word_assets")).toEqual([]);
     expect(backend.callsTo("word-asset")).toEqual([]);
+  });
+
+  it("asks from a stored exchange for an item of two words", async () => {
+    // A fifth of the curriculum's items are phrases; the store files their
+    // exchanges, so the quiz must be able to ask from them.
+    const PHRASE = {
+      lines: [
+        { speaker: "Friend", arabic: "متى تروح السوق؟", english: "When do you go to the market?", transliteration: "" },
+        { speaker: "You", arabic: "اروح السوق كل يوم", english: "I go to the market every day", transliteration: "" },
+      ],
+    };
+    const { backend } = render(
+      atSayReplyStep({ arabic: "كل يوم", english: "every day" }),
+      { pool: POOL, storedDialogues: true },
+      signedIn((b) => b.db.seed("word_assets", [filedExchange({ concept_key: "كل يوم|every day", payload: PHRASE })])),
+    );
+
+    expect(await screen.findByText("Say the reply in Arabic")).toBeInTheDocument();
+    expect(screen.getByText("متى تروح السوق؟")).toBeInTheDocument();
+    expect(backend.callsTo("word-asset")).toEqual([]);
+  });
+
+  it("deals no other dialect's stored reply as a wrong one", async () => {
+    // A mixed session's pool holds every dialect's stored replies.
+    const egyptian: QuizPoolEntry[] = REPLY_POOL.map((entry: QuizPoolEntry) =>
+      entry.dialogueLine ? { ...entry, dialogueDialect: "Egyptian" } : entry,
+    );
+    render(
+      atReplyStep(),
+      { pool: egyptian, storedDialogues: true },
+      signedIn((b) => b.db.seed("word_assets", [filedExchange()])),
+    );
+    // Without this dialect's three, there are not enough wrong replies: the word is picked.
+    expect(await screen.findByText("Which word?")).toBeInTheDocument();
+  });
+
+  it("says nothing but a spinner while the pool is still loading", () => {
+    render(atReplyStep(), { pool: REPLY_POOL, storedDialogues: true, ready: false }, signedIn());
+    expect(screen.getByRole("status", { name: "Preparing the question" })).toHaveTextContent("");
   });
 
   it("looks a word's picture and its exchange up side by side, and asks with whichever it gets", async () => {

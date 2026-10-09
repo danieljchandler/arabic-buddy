@@ -487,19 +487,34 @@ export async function lookupAsset(
 export const MAX_KEYS_PER_READ = 100;
 
 /**
+ * The most bytes of percent-encoded keys one batched read carries. Arabic is
+ * six bytes a letter once encoded, and a saved word's sense can run long, so
+ * a hundred keys can be anywhere from 4 KB to well past what a gateway takes
+ * in a URL (8 KB is a common limit); keys are read in order until this much.
+ */
+export const MAX_KEY_BYTES_PER_READ = 6000;
+
+/**
  * Everything filed under any of `keys`, in one query.
  *
  * For a caller that needs many words' assets at once (the quiz's pool, whose
  * wrong replies come from other words' stored exchanges) rather than one
- * lookup per word. Every key must be of one kind and style; at most
- * `MAX_KEYS_PER_READ` are read, because the keys travel in the query string
- * and a few hundred Arabic keys, percent-encoded, run past what a gateway
- * accepts in a URL. Returns only rows whose key and dialect are both among
- * those asked; never throws, and every failure (the table not yet applied
- * above all) is an empty answer.
+ * lookup per word. Every key must be of one kind and style. The keys travel
+ * in the query string, so they are read in order up to `MAX_KEYS_PER_READ` of
+ * them and `MAX_KEY_BYTES_PER_READ` of them encoded, whichever comes first;
+ * the caller puts the likeliest first. Returns only rows whose key and
+ * dialect are both among those asked; never throws, and every failure (the
+ * table not yet applied above all) is an empty answer.
  */
 export async function getAssets(client: WordAssetClient, keys: readonly AssetKey[]): Promise<WordAsset[]> {
-  const asked = keys.slice(0, MAX_KEYS_PER_READ);
+  const asked: AssetKey[] = [];
+  let bytes = 0;
+  for (const key of keys.slice(0, MAX_KEYS_PER_READ)) {
+    // The key as PostgREST receives it: quoted, comma-separated, encoded.
+    bytes += encodeURIComponent(`"${key.conceptKey}",`).length;
+    if (bytes > MAX_KEY_BYTES_PER_READ) break;
+    asked.push(key);
+  }
   if (asked.length === 0) return [];
   const { kind, styleVersion } = asked[0];
   if (asked.some((key) => key.kind !== kind || key.styleVersion !== styleVersion)) return [];
@@ -612,7 +627,8 @@ export function isReplaceable(asset: Pick<WordAsset, "source" | "approvedAt">): 
  *
  * The row is updated in place and the old file is left where it is: a url is
  * never reused or deleted, so a learner whose own row carries the old picture
- * keeps seeing the picture they were given. `meta.replaces` records it.
+ * keeps seeing the picture they were given. `meta.replaces` records it (the
+ * old url, or for a text asset the old payload).
  * Never throws; `taken` means it was no longer replaceable and carries what
  * is filed now.
  */
@@ -636,7 +652,9 @@ export async function replaceAsset(
       .update({
         url,
         payload,
-        meta: { ...(asset.meta ?? {}), replaces: existing.url },
+        // What it took the place of: a file's url, or for a text asset (an
+        // exchange) the text itself, since the row is updated in place.
+        meta: { ...(asset.meta ?? {}), replaces: existing.url ?? existing.payload },
         source: asset.source,
       })
       .eq("id", existing.id)

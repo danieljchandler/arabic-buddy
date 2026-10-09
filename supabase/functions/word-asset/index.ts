@@ -20,10 +20,14 @@
  *   the native-speaker validator on) from the key's folded word, sense and
  *   dialect (`dialoguePrompt`), on a counter of their own. One is filed only
  *   when every line passes the leak detector as the Brain runs it (with the
- *   approved rulebook's tokens) and the validator did not ask for a rewrite;
- *   otherwise nothing is filed or served and the quiz asks its fallback. A
- *   dialogue has no learner row to land on, so while the table is not there
- *   nothing is made and nothing is charged (`store_not_ready`).
+ *   approved rulebook's tokens) and the native validator passed the text that
+ *   was shipped; one that fails either is neither filed nor served, and the
+ *   quiz asks its fallback (one the validator could not judge at all is
+ *   served to the learner who paid for it, unfiled). A dialogue has no learner
+ *   row to land on, so while the table is not there nothing is made and
+ *   nothing is charged (`store_not_ready`), and a word that is itself on the
+ *   dialect's leak lists is turned away before the charge
+ *   (`word_not_in_dialect`), since no exchange using it could be filed.
  *
  * Nothing else a learner sends reaches a prompt: the first learner to miss
  * decides what every later learner is shown, so they must not be able to
@@ -279,6 +283,20 @@ serve(async (req) => {
       503,
     );
   }
+  // The reply must use the word as it is, so a word that is itself on the
+  // dialect's leak lists (the rulebook's included) can never pass the check
+  // its exchange is filed on: every attempt would be charged and thrown away.
+  // Turned away here, before the charge.
+  if (key.kind === "dialogue") {
+    const dialect = key.dialect ?? "Gulf";
+    await primeDialectPrompt(dialect);
+    if (detectMsaLeaks(keyWord(key), dialect, getDialectForbiddenTokens(dialect)).leaks.length > 0) {
+      return reply(
+        { error: "word_not_in_dialect", message: "This word is not one the dialect's exchanges can use." },
+        400,
+      );
+    }
+  }
 
   // Charged only now, on the miss, and only to a learner, on the kind's own
   // counter.
@@ -406,6 +424,9 @@ async function makeDialogue(
       // it is fusha in grammar or register, which the token detector is blind
       // to. A learner will say this line as a model of the dialect.
       enforceDialect: true,
+      // And reads whatever is shipped when it did not already: the critic's
+      // rewrite, or a draft whose budget left no room for the check above.
+      validateDialect: true,
       // A reply that does not use the word, or an opener that does, is no
       // question: the critic is sent back to fix exactly that.
       qualityGate: (parsed) => dialogueProblem(parsed, word),
@@ -419,10 +440,12 @@ async function makeDialogue(
   const dialogue = asStoredDialogue(brain.output, word);
   if (!dialogue) return failed(`Could not write a line that uses the word for "${key.sense}".`);
 
-  // A draft the native speaker failed, shipped only because the rewrite could
-  // not run: not a model of the dialect, so not filed and not served.
-  if (brain.validator?.ok === true && brain.validator.verdict === "rewrite") {
-    console.warn(`word-asset: not filed, the native reviewer asked for a rewrite (${brain.validator.score}/5)`);
+  // What the native reviewer made of the text that was shipped. A failed
+  // one (a draft whose rewrite could not run, or a rewrite it failed too) is
+  // not a model of the dialect: not filed and not served.
+  const verdict = brain.validator?.ok === true ? brain.validator.verdict : null;
+  if (verdict === "rewrite") {
+    console.warn(`word-asset: not filed, the native reviewer asked for a rewrite (${brain.validator?.score}/5)`);
     return failed("The line did not read as the dialect.", "dialect_rejected");
   }
 
@@ -439,6 +462,15 @@ async function makeDialogue(
     return failed("The line was not in the dialect.", "msa_leak");
   }
 
+  // Filed only once the reviewer has passed it. When the reviewer could not
+  // judge it at all (every validator leg down or out of time), it passed the
+  // leak detector and the learner paid for it, so it is theirs for this
+  // encounter — but it is not kept for anyone else.
+  if (verdict !== "pass") {
+    console.warn("word-asset: not filed, the native reviewer could not judge the exchange");
+    return { asset: null, url: null, payload: dialogue, cached: false, stored: false, ...(authored.example ? { authored: true } : {}) };
+  }
+
   // How it was made, for whoever reviews the store later. Never who asked:
   // the table is public-read.
   const asset: NewWordAsset = {
@@ -448,7 +480,7 @@ async function makeDialogue(
       models: brain.models,
       strategy: brain.strategy,
       style: key.styleVersion,
-      ...(brain.validator?.ok ? { dialect_score: brain.validator.score } : {}),
+      dialect_score: brain.validator?.score ?? null,
       ...(authored.example ? { example: authored.example } : {}),
     },
     source: authored.example ? "authored" : "generated",

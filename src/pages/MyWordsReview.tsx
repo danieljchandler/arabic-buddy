@@ -32,8 +32,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { showCapToastIfLimited } from "@/lib/handleCapResponse";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
-import { ReviewClozeCard } from "@/components/review/ReviewClozeCard";
 import { useTranscriptCloze } from "@/hooks/useTranscriptCloze";
+import { useReviewStyle } from "@/hooks/useReviewStyle";
+import { useSavedWordPool } from "@/hooks/useQuizPool";
+import { useAddXP, useIncrementReviews, REVIEW_XP } from "@/hooks/useGamification";
+import { QuizCardFrame, type QuizGraded, type QuizItem } from "@/components/review/QuizCardFrame";
+import { ReviewStyleSwitch } from "@/components/review/ReviewStyleSwitch";
+import { QuizSessionSummary } from "@/components/review/QuizSessionSummary";
+import { EMPTY_QUIZ_SESSION, comboBonus, recordQuizAnswer, type QuizSessionStats } from "@/lib/quizSession";
+import { LADDER_THRESHOLDS, rungForMemory } from "@/lib/quizLadder";
 import { useNewCardCap, NEW_CAP_OPTIONS, formatCap } from "@/hooks/useNewCardCap";
 import { useRemainingNewCardBudget, useClaimNewCard } from "@/hooks/useNewCardBudget";
 import { useReviewSession } from "@/hooks/useReviewSession";
@@ -153,9 +160,14 @@ const MyWordsReview = () => {
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
-  // Cloze cards carry an objective check; null until the learner picks an
-  // option. Rating gates on it, and a wrong pick caps the offered ratings.
-  const [clozeResult, setClozeResult] = useState<boolean | null>(null);
+  // How the learner wants to be asked. The quiz serves the same cards from
+  // the same schedules; only the question and who grades it change.
+  const { style: reviewStyle } = useReviewStyle();
+  const quiz = reviewStyle === "quiz";
+  const { data: wordPool } = useSavedWordPool(activeDialect, mixAll, quiz);
+  const addXP = useAddXP();
+  const incrementReviews = useIncrementReviews();
+  const [quizStats, setQuizStats] = useState<QuizSessionStats>(EMPTY_QUIZ_SESSION);
   // Cards rated Again/Hard, owed a re-test later this session (lib/relearn).
   const [relearn, setRelearn] = useState<RelearnEntry<DueCard>[]>([]);
   // The fetched list has been walked to the end; only relearn cards remain.
@@ -236,6 +248,9 @@ const MyWordsReview = () => {
       user?.id,
       mixAll ? "all" : activeDialect,
       newCap,
+      // The quiz holds production cards back (see below), so switching the
+      // style rebuilds the deck.
+      quiz ? "quiz" : "flip",
     ],
     queryFn: async (): Promise<DueCard[]> => {
       if (!user) return [];
@@ -244,7 +259,7 @@ const MyWordsReview = () => {
       // Fetch all rows that are due in either direction. We do two queries
       // and merge so each direction can be tagged independently.
       const baseSelect =
-        "id, word_arabic, word_english, ease_factor, difficulty, interval_days, repetitions, next_review_at, last_reviewed_at, production_ease_factor, production_difficulty, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, word_audio_url, sentence_audio_url, image_url, jingle_audio_url, jingle_lyrics, sentence_text, sentence_english, lapses, production_lapses, is_leech, mnemonic, mnemonic_image_url, root, dialect";
+        "id, word_arabic, word_english, transliteration, ease_factor, difficulty, interval_days, repetitions, next_review_at, last_reviewed_at, production_ease_factor, production_difficulty, production_interval_days, production_repetitions, production_next_review_at, production_last_reviewed_at, word_audio_url, sentence_audio_url, image_url, jingle_audio_url, jingle_lyrics, sentence_text, sentence_english, lapses, production_lapses, is_leech, mnemonic, mnemonic_image_url, root, dialect";
 
       // PostgREST caps unbounded selects at 1000 rows, and large decks pass that
       // easily. Page through so a big backlog doesn't silently truncate (which
@@ -286,6 +301,10 @@ const MyWordsReview = () => {
           .order("production_next_review_at", { ascending: true })
           .range(from, to) as any);
         if (!mixAll) q = q.eq("dialect", activeDialect);
+        // The quiz asks a word to be said only once its recognition has
+        // climbed to the heard step (`ease_factor` is the recognition
+        // stability) — see holdsProduction in src/lib/quizLadder.ts.
+        if (quiz) q = q.gte("ease_factor", LADDER_THRESHOLDS.gapDays);
         return q;
       });
 
@@ -296,7 +315,7 @@ const MyWordsReview = () => {
           id: r.id,
           word_arabic: r.word_arabic,
           word_english: r.word_english,
-          transliteration: null,
+          transliteration: r.transliteration ?? null,
           ease_factor: r.ease_factor,
           difficulty: r.difficulty ?? 5.0,
           interval_days: r.interval_days,
@@ -326,7 +345,7 @@ const MyWordsReview = () => {
           id: r.id,
           word_arabic: r.word_arabic,
           word_english: r.word_english,
-          transliteration: null,
+          transliteration: r.transliteration ?? null,
           ease_factor: r.production_ease_factor,
           difficulty: r.production_difficulty ?? 5.0,
           interval_days: r.production_interval_days,
@@ -437,15 +456,16 @@ const MyWordsReview = () => {
     }, [currentWord, isProduction, showAnswer, activeDialect, remainingFromIndex.length]),
   );
 
-  // Cloze variant: enable for recognition cards that have sentence context
-  // containing the target word AND at least 3 distractor words available.
-  // Falls back to auto-mined sentences from the user's saved transcripts (#13).
+  // The sentence a quiz question can cut a gap from: the card's own context
+  // when it holds the word, else a line mined from the learner's saved
+  // transcripts (#13). The flip card never shows a gap — "Flashcards" means
+  // flashcards — so the transcript lookup only runs for the quiz.
   //
   // Robustness: some saved cards have `word_arabic` / `word_english` swapped
   // (e.g. an English gloss in `word_arabic`). Pick whichever side actually
-  // contains Arabic characters so the multiple-choice options never end up
-  // in English when Arabic is the only logical answer.
-  const ARABIC_RE = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
+  // contains Arabic characters so the options never end up in English when
+  // Arabic is the only logical answer.
+  const ARABIC_RE = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFE]/;
   const pickArabic = (a?: string | null, b?: string | null): string | null => {
     if (a && ARABIC_RE.test(a)) return a;
     if (b && ARABIC_RE.test(b)) return b;
@@ -454,44 +474,27 @@ const MyWordsReview = () => {
   const currentArabic = currentWord
     ? pickArabic(currentWord.word_arabic, currentWord.word_english)
     : null;
-  const distractorPool = (dueWords || [])
-    .map((d) => pickArabic(d.word_arabic, d.word_english))
-    .filter((w): w is string => !!w && w !== currentArabic);
   // Whole-token match, same normalization ReviewClozeCard's blanking uses.
   // A raw `includes()` said yes for بيت inside بيتي/البيت while findWordSpan
-  // said no — useCloze then rendered a cloze card with no body and rating
-  // buttons locked behind "Pick an answer first".
+  // said no — the cloze then rendered with no body.
   const sentenceHasOwnWord =
     !!currentWord?.sentence_text &&
     !!currentArabic &&
     sentenceHasWord(currentWord.sentence_text, currentArabic);
-  // Look up a transcript-sourced cloze sentence only when the card lacks one.
   const { data: transcriptCloze } = useTranscriptCloze({
     wordArabic: currentArabic ?? undefined,
     dialect: activeDialect,
-    enabled: !!currentWord && !!currentArabic && !sentenceHasOwnWord && !isProduction,
+    enabled: quiz && !!currentWord && !!currentArabic && !sentenceHasOwnWord && !isProduction,
   });
-  const clozeSentenceText = sentenceHasOwnWord
-    ? currentWord!.sentence_text!
-    : transcriptCloze?.arabic ?? null;
-  const clozeSentenceEnglish = sentenceHasOwnWord
-    ? currentWord?.sentence_english ?? null
-    : transcriptCloze?.english ?? null;
-  const clozeSentenceAudio = sentenceHasOwnWord
-    ? currentWord?.sentence_audio_url ?? null
-    : null;
-  const clozeFromTranscript = !sentenceHasOwnWord && !!transcriptCloze;
-  // Every other card normally, but ALWAYS for a leech: re-serving a card the
-  // learner has failed six times in the same bare-word modality is the one
-  // intervention known not to work, and placing the word in a sentence is a
-  // different task on the same knowledge. (The curriculum deck rotates a leech
-  // onto its audio channel for the same reason — see recognitionChannel.)
-  const useCloze =
-    !isProduction &&
-    !!currentArabic &&
-    !!clozeSentenceText &&
-    distractorPool.length >= 3 &&
-    (currentWord?.is_leech || currentIndex % 2 === 0);
+  const quizSentence = sentenceHasOwnWord
+    ? {
+        arabic: currentWord!.sentence_text!,
+        english: currentWord?.sentence_english ?? null,
+        audioUrl: currentWord?.sentence_audio_url ?? null,
+      }
+    : transcriptCloze
+      ? { arabic: transcriptCloze.arabic, english: transcriptCloze.english ?? null }
+      : null;
 
   // TTS fallback when no recorded word_audio_url is available.
   // When generated for the first time, upload the blob to storage and
@@ -532,7 +535,6 @@ const MyWordsReview = () => {
     setShowAnswer(false);
     setShowContext(false);
     setShowLyrics(false);
-    setClozeResult(null);
   }, [currentWord?.id, currentWord?.card_type]);
 
   // Audio never autoplays on card change. The learner taps "Play" or
@@ -597,14 +599,14 @@ const MyWordsReview = () => {
     }
   };
 
-  const handleRate = async (rating: Rating) => {
+  const handleRate = async (rating: Rating): Promise<boolean> => {
     const card = relearnPick?.card ?? dueWords?.[currentIndex];
     // Gate on the card, not the list: a relearn card outlives the fetched
     // list, and dropping its rating would lose the retrieval it is owed.
-    if (!card) return;
+    if (!card) return false;
     // Guard against a double-tap firing two ratings for the same card before
     // the mutation resolves (which double-counts sessionCount and skips a card).
-    if (ratingInFlightRef.current) return;
+    if (ratingInFlightRef.current) return false;
     ratingInFlightRef.current = true;
     const wordCount = dueWords?.length ?? 0;
 
@@ -716,6 +718,7 @@ const MyWordsReview = () => {
         await refetch();
         setCurrentIndex(0);
       }
+      return true;
     } catch (err) {
       // Don't strand the learner on a frozen card with no feedback. The card
       // wasn't updated in the DB, so it stays due and returns on the next fetch.
@@ -727,9 +730,48 @@ const MyWordsReview = () => {
       if (!relearnPick && currentIndex < wordCount - 1) {
         setCurrentIndex((prev) => prev + 1);
       }
+      return false;
     } finally {
       ratingInFlightRef.current = false;
     }
+  };
+
+  /**
+   * A quiz answer. The app rated it, so this records the session tally (the
+   * step the card's new memory state lands on says whether it climbed) and
+   * hands the rating down the same path a tap on the rating buttons takes.
+   * A graded answer is a confirmed retrieval, so it earns the flat review XP
+   * the curriculum deck pays, which this deck's flip cards never did.
+   */
+  const handleQuizGraded = async (graded: QuizGraded) => {
+    const card = relearnPick?.card ?? dueWords?.[currentIndex];
+    if (!card) return;
+    const result = calculateNextReview(
+      graded.rating,
+      card.ease_factor,
+      card.difficulty ?? 5.0,
+      card.interval_days,
+      card.repetitions,
+      elapsedDaysSince(card.last_reviewed_at),
+      { desiredRetention, stabilityMultiplier, weights, fuzzSeed: card.id },
+    );
+    const stepAfter = rungForMemory(
+      { stability: result.stability, repetitions: result.repetitions },
+      scheduleDirectionFor(card.card_type),
+    ).step;
+    const next = recordQuizAnswer(quizStats, {
+      correct: graded.correct,
+      stepBefore: graded.step,
+      stepAfter,
+    });
+    setQuizStats(next);
+    const saved = await handleRate(graded.rating);
+    if (!saved) return;
+    addXP.mutate({ amount: REVIEW_XP, reason: "review" });
+    incrementReviews.mutate();
+    // A flourish, never a schedule: the combo pays XP and nothing else.
+    const bonus = comboBonus(next.combo);
+    if (bonus) addXP.mutate({ amount: bonus, reason: "quiz_combo" });
   };
 
   /**
@@ -742,7 +784,6 @@ const MyWordsReview = () => {
     setShowAnswer(false);
     setShowContext(false);
     setShowLyrics(false);
-    setClozeResult(null);
     if (relearnPick) {
       // Drop this relearn card from the queue so skipping actually moves on.
       setRelearn((prev) => prev.filter((r) => r.card.id !== relearnPick.card.id));
@@ -818,12 +859,15 @@ const MyWordsReview = () => {
       <AppShell compact>
         <div className="flex items-center justify-between mb-6">
           <PageCorner />
-          {sessionCount > 0 && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-card border border-border">
-              <Trophy className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium text-foreground">{sessionCount}</span>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <ReviewStyleSwitch />
+            {sessionCount > 0 && (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-card border border-border">
+                <Trophy className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium text-foreground">{sessionCount}</span>
+              </div>
+            )}
+          </div>
         </div>
         <SessionHandoff
           deckId="my-words"
@@ -832,7 +876,9 @@ const MyWordsReview = () => {
           message="No saved words due for review right now."
           fallbackLabel="Back to My Words"
           fallbackRoute="/my-words"
-        />
+        >
+          {quiz && <QuizSessionSummary stats={quizStats} />}
+        </SessionHandoff>
       </AppShell>
     );
   }
@@ -846,92 +892,9 @@ const MyWordsReview = () => {
 
   if (!currentWord) return null;
 
-
-  return (
-    <AppShell compact>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <PageCorner />
-        <div className="flex items-center gap-2">
-          <Select
-            value={String(newCap)}
-            onValueChange={(v) => setNewCap(Number(v) as never)}
-          >
-            <SelectTrigger
-              className="h-8 w-auto gap-1 px-2.5 text-xs font-medium"
-              aria-label="New cards per session"
-              title="New cards per session"
-            >
-              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
-              <SelectValue>{formatCap(newCap)}/day</SelectValue>
-            </SelectTrigger>
-            <SelectContent align="end">
-              {NEW_CAP_OPTIONS.map((n) => (
-                <SelectItem key={n} value={String(n)} className="text-xs">
-                  {formatCap(n)} new / session
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <div className="px-3 py-1.5 rounded-lg bg-card border border-border flex items-center gap-1.5">
-
-            {isProduction ? <Mic2 className="h-3.5 w-3.5 text-primary" /> : <Brain className="h-3.5 w-3.5 text-primary" />}
-            <span className="text-sm font-medium text-foreground">
-              {isProduction ? "Produce" : "Recognize"}
-            </span>
-          </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-card border border-border">
-            <Trophy className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium text-foreground">{sessionCount}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Progress */}
-      <SessionProgress
-        deckId="my-words"
-        session={session}
-        position={safeIndex + 1}
-        total={dueWords?.length ?? 0}
-      >
-        <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground mt-1">
-          <span className="inline-flex items-center gap-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
-            {newRemaining} new
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-            {reviewRemaining} review
-          </span>
-        </div>
-      </SessionProgress>
-
-      {/* Card */}
-      <div className="py-4">
-        <div className="max-w-sm mx-auto">
-          {useCloze ? (
-            <div>
-              <ReviewClozeCard
-                wordArabic={currentArabic!}
-                wordEnglish={currentWord.word_english}
-                sentenceText={clozeSentenceText!}
-                sentenceEnglish={clozeSentenceEnglish}
-                sentenceAudioUrl={clozeSentenceAudio}
-                distractors={distractorPool}
-                onAnswered={(correct) => {
-                  // Picking an option is the cloze card's reveal: it unlocks
-                  // rating, and a wrong pick caps the ratings on offer below.
-                  setClozeResult(correct);
-                  setShowAnswer(true);
-                }}
-              />
-              {clozeFromTranscript && transcriptCloze && (
-                <p className="mt-2 text-center text-[11px] uppercase tracking-wide text-muted-foreground">
-                  From your transcript · {transcriptCloze.transcriptionTitle}
-                </p>
-              )}
-            </div>
-          ) : (
+  // The flip card, as JSX the quiz frame can fall back to for a card the
+  // ladder has no question for.
+  const flashcard = (
           <div className="rounded-2xl bg-card border border-border p-8 text-center">
             {/* Image if available */}
             {currentWord.image_url && (
@@ -1200,6 +1163,125 @@ const MyWordsReview = () => {
               </div>
             )}
           </div>
+  );
+
+  // Rating waits for the reveal. Grading before checking runs overconfident,
+  // and every inflated "Good" writes a too-long interval.
+  const ratingButtons = (
+    <RatingButtons
+      onRate={handleRate}
+      stability={currentWord.ease_factor}
+      difficulty={currentWord.difficulty ?? 5.0}
+      intervalDays={currentWord.interval_days}
+      repetitions={currentWord.repetitions}
+      elapsedDays={elapsedDaysSince(currentWord.last_reviewed_at)}
+      disabled={updateReview.isPending || !showAnswer}
+      // A gated tap must say something: reveal the answer rather than read
+      // as a dead button.
+      onBlocked={() => {
+        if (!updateReview.isPending) setShowAnswer(true);
+      }}
+    />
+  );
+
+  // The card as the quiz sees it: one direction, one memory state, and the
+  // sentence it was saved from to cut a gap from. The id carries the
+  // direction so a word served both ways in one session is two questions.
+  const quizItem: QuizItem = {
+    id: `${currentWord.id}:${currentWord.card_type}`,
+    arabic: currentArabic ?? currentWord.word_arabic,
+    english: currentWord.word_english,
+    transliteration: currentWord.transliteration,
+    audioUrl: effectiveWordAudio,
+    imageUrl: currentWord.image_url,
+    sentence: quizSentence,
+    dialect: currentWord.dialect,
+    direction: scheduleDirectionFor(currentWord.card_type),
+    memory: { stability: currentWord.ease_factor, repetitions: currentWord.repetitions },
+  };
+  const quizPool =
+    wordPool && wordPool.length > 0
+      ? wordPool
+      : (dueWords ?? []).map((w) => ({ arabic: w.word_arabic, english: w.word_english }));
+
+  return (
+    <AppShell compact>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <PageCorner />
+        <div className="flex items-center gap-2">
+          <ReviewStyleSwitch />
+          <Select
+            value={String(newCap)}
+            onValueChange={(v) => setNewCap(Number(v) as never)}
+          >
+            <SelectTrigger
+              className="h-8 w-auto gap-1 px-2.5 text-xs font-medium"
+              aria-label="New cards per session"
+              title="New cards per session"
+            >
+              <Sparkles className="h-3.5 w-3.5 text-amber-500" />
+              <SelectValue>{formatCap(newCap)}/day</SelectValue>
+            </SelectTrigger>
+            <SelectContent align="end">
+              {NEW_CAP_OPTIONS.map((n) => (
+                <SelectItem key={n} value={String(n)} className="text-xs">
+                  {formatCap(n)} new / session
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <div className="px-3 py-1.5 rounded-lg bg-card border border-border flex items-center gap-1.5">
+
+            {isProduction ? <Mic2 className="h-3.5 w-3.5 text-primary" /> : <Brain className="h-3.5 w-3.5 text-primary" />}
+            <span className="text-sm font-medium text-foreground">
+              {isProduction ? "Produce" : "Recognize"}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-card border border-border">
+            <Trophy className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium text-foreground">{sessionCount}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Progress */}
+      <SessionProgress
+        deckId="my-words"
+        session={session}
+        position={safeIndex + 1}
+        total={dueWords?.length ?? 0}
+      >
+        <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground mt-1">
+          <span className="inline-flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+            {newRemaining} new
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-primary" />
+            {reviewRemaining} review
+          </span>
+        </div>
+      </SessionProgress>
+
+      {/* Card */}
+      <div className="py-4">
+        <div className="max-w-sm mx-auto">
+          {quiz ? (
+            <QuizCardFrame
+              item={quizItem}
+              pool={quizPool}
+              combo={quizStats.combo}
+              onGraded={handleQuizGraded}
+              renderFlashcard={() => (
+                <>
+                  {flashcard}
+                  <div className="mt-10">{ratingButtons}</div>
+                </>
+              )}
+            />
+          ) : (
+            flashcard
           )}
 
           {showAnswer && (
@@ -1228,33 +1310,10 @@ const MyWordsReview = () => {
           )}
         </div>
 
-        {/* Rating waits for evidence: the reveal on a flip card, the picked
-            option on a cloze card. Grading before checking runs overconfident,
-            and every inflated "Good" writes a too-long interval. A wrong cloze
-            pick additionally caps the offered ratings at Hard — the card just
-            measured a failure, so "Good" would contradict the evidence. */}
+        {/* In the quiz style the app has rated; the buttons only return when
+            the ladder has no question for a card and the flip card stands in. */}
         <div className="mt-10">
-          <RatingButtons
-            onRate={handleRate}
-            stability={currentWord.ease_factor}
-            difficulty={currentWord.difficulty ?? 5.0}
-            intervalDays={currentWord.interval_days}
-            repetitions={currentWord.repetitions}
-            elapsedDays={elapsedDaysSince(currentWord.last_reviewed_at)}
-            disabled={updateReview.isPending || (useCloze ? clozeResult === null : !showAnswer)}
-            // A gated tap must say something: reveal the answer on a flip card,
-            // and explain the check on a cloze card. Silence reads as broken.
-            onBlocked={() => {
-              if (updateReview.isPending) return;
-              if (useCloze) {
-                toast.info("Pick an answer first, then rate how well you knew it.");
-              } else {
-                setShowAnswer(true);
-              }
-            }}
-
-            maxRating={useCloze && clozeResult === false ? "hard" : undefined}
-          />
+          {!quiz && ratingButtons}
           <div className="mt-4 flex justify-center gap-2 flex-wrap">
             <Button
               variant="ghost"

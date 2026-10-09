@@ -26,6 +26,14 @@ import { useDesiredRetention } from "@/hooks/useDesiredRetention";
 import { useFsrsCalibration } from "@/hooks/useFsrsCalibration";
 import { useFsrsWeights } from "@/hooks/useFsrsWeights";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
+import { useReviewStyle } from "@/hooks/useReviewStyle";
+import { useSavedPhrasePool } from "@/hooks/useQuizPool";
+import { useAddXP, useIncrementReviews, REVIEW_XP } from "@/hooks/useGamification";
+import { QuizCardFrame, type QuizGraded, type QuizItem } from "@/components/review/QuizCardFrame";
+import { ReviewStyleSwitch } from "@/components/review/ReviewStyleSwitch";
+import { QuizSessionSummary } from "@/components/review/QuizSessionSummary";
+import { EMPTY_QUIZ_SESSION, comboBonus, recordQuizAnswer, type QuizSessionStats } from "@/lib/quizSession";
+import { LADDER_THRESHOLDS, rungForMemory, type QuizDirection } from "@/lib/quizLadder";
 import { Loader2, Trophy, LogIn, Eye, Volume2, Trash2, MessageCircleQuestion, Music, Play, RefreshCw, Undo2, MessageSquarePlus } from "lucide-react";
 import { SentencePracticeSheet } from "@/components/practice/SentencePracticeSheet";
 import { LeechHelperPanel } from "@/components/review/LeechHelperPanel";
@@ -36,6 +44,11 @@ import { toast } from "sonner";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 
+
+/** The ladder's direction for a phrase, which keeps a single schedule. */
+function quizDirectionFor(stability: number): QuizDirection {
+  return stability >= LADDER_THRESHOLDS.gapDays ? "production" : "recognition";
+}
 
 const MyPhrasesReview = () => {
   const navigate = useNavigate();
@@ -49,6 +62,15 @@ const MyPhrasesReview = () => {
   const session = useReviewSession();
   const updateReview = useUpdateUserPhraseReview();
   const deletePhrase = useDeleteUserPhrase();
+  // How the learner wants to be asked. A saved phrase keeps one schedule, so
+  // the ladder's direction is read off its stability: a new phrase is asked
+  // for its meaning, a settled one is asked to be said.
+  const { style: reviewStyle } = useReviewStyle();
+  const quiz = reviewStyle === "quiz";
+  const { data: phrasePool } = useSavedPhrasePool(activeDialect, false, quiz);
+  const addXP = useAddXP();
+  const incrementReviews = useIncrementReviews();
+  const [quizStats, setQuizStats] = useState<QuizSessionStats>(EMPTY_QUIZ_SESSION);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
@@ -253,6 +275,47 @@ const MyPhrasesReview = () => {
 
   };
 
+  /**
+   * A quiz answer. The app rated it, so this records the session tally and
+   * hands the rating down the same path a tap on the rating buttons takes.
+   * A graded answer is a confirmed retrieval, so it earns the flat review XP
+   * the curriculum deck pays, which this deck's flip cards never did.
+   */
+  const handleQuizGraded = async (graded: QuizGraded) => {
+    if (!current) return;
+    const result = calculateNextReview(
+      graded.rating,
+      Number(current.ease_factor) || 0,
+      Number(current.difficulty) || 5,
+      current.interval_days,
+      current.repetitions,
+      elapsedDaysSince(current.last_reviewed_at),
+      { desiredRetention, stabilityMultiplier, weights, fuzzSeed: current.id },
+    );
+    const stepAfter = rungForMemory(
+      { stability: result.stability, repetitions: result.repetitions },
+      quizDirectionFor(result.stability),
+    ).step;
+    const next = recordQuizAnswer(quizStats, {
+      correct: graded.correct,
+      stepBefore: graded.step,
+      stepAfter,
+    });
+    setQuizStats(next);
+    try {
+      await handleRate(graded.rating);
+    } catch (err) {
+      console.error("Failed to save review rating:", err);
+      toast.error("Couldn't save your rating — it will come back around. Try again.");
+      return;
+    }
+    addXP.mutate({ amount: REVIEW_XP, reason: "review" });
+    incrementReviews.mutate();
+    // A flourish, never a schedule: the combo pays XP and nothing else.
+    const bonus = comboBonus(next.combo);
+    if (bonus) addXP.mutate({ amount: bonus, reason: "quiz_combo" });
+  };
+
   const handleUndo = async (action?: NonNullable<typeof lastAction>) => {
     const target = action ?? lastAction;
     if (!target || undoing) return;
@@ -322,12 +385,15 @@ const MyPhrasesReview = () => {
       <AppShell compact>
         <div className="flex items-center justify-between mb-6">
           <PageCorner />
-          {sessionCount > 0 && (
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-card border border-border">
-              <Trophy className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium">{sessionCount}</span>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <ReviewStyleSwitch />
+            {sessionCount > 0 && (
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-card border border-border">
+                <Trophy className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">{sessionCount}</span>
+              </div>
+            )}
+          </div>
         </div>
         <SessionHandoff
           deckId="my-phrases"
@@ -336,7 +402,9 @@ const MyPhrasesReview = () => {
           message="No phrases due for review right now."
           fallbackLabel="Back to My Words"
           fallbackRoute="/my-words"
-        />
+        >
+          {quiz && <QuizSessionSummary stats={quizStats} />}
+        </SessionHandoff>
       </AppShell>
     );
   }
@@ -344,34 +412,9 @@ const MyPhrasesReview = () => {
   if (!current) return null;
   const effectiveAudio = current.phrase_audio_url || ttsUrl;
 
-  return (
-    <AppShell compact>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <PageCorner />
-        <div className="flex items-center gap-2">
-          <div className="px-3 py-1.5 rounded-lg bg-card border border-border flex items-center gap-1.5">
-            <MessageCircleQuestion className="h-3.5 w-3.5 text-primary" />
-            <span className="text-sm font-medium">Phrase</span>
-          </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-card border border-border">
-            <Trophy className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium">{sessionCount}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Progress */}
-      <SessionProgress
-        deckId="my-phrases"
-        session={session}
-        position={safeIndex + 1}
-        total={duePhrases.length}
-      />
-
-      {/* Card */}
-      <div className="py-4">
-        <div className="max-w-sm mx-auto">
+  // The flip card, as JSX the quiz frame can fall back to for a card the
+  // ladder has no question for.
+  const flashcard = (
           <div className="rounded-3xl bg-card border border-plum/15 p-7 text-center space-y-5 shadow-elegant">
             <p className="text-[10px] uppercase tracking-[0.18em] font-semibold text-muted-foreground">
               Say this in {activeDialect} Arabic
@@ -517,6 +560,89 @@ const MyPhrasesReview = () => {
               </Button>
             )}
           </div>
+  );
+
+  // Self rating — waits for the reveal, same as the word decks: grading
+  // before checking runs overconfident and writes too-long intervals off
+  // inflated "Good"s.
+  const ratingButtons = (
+    <RatingButtons
+      onRate={handleRate}
+      stability={Number(current.ease_factor) || 0}
+      difficulty={Number(current.difficulty) || 5}
+      intervalDays={current.interval_days}
+      repetitions={current.repetitions}
+      elapsedDays={elapsedDaysSince(current.last_reviewed_at)}
+      disabled={updateReview.isPending || !showAnswer}
+      // A tap before the reveal shows the answer rather than reading as a
+      // dead button.
+      onBlocked={() => {
+        if (!updateReview.isPending) setShowAnswer(true);
+      }}
+    />
+  );
+
+  const stability = Number(current.ease_factor) || 0;
+  const quizItem: QuizItem = {
+    id: current.id,
+    arabic: current.phrase_arabic,
+    english: current.phrase_english,
+    transliteration: current.transliteration,
+    audioUrl: effectiveAudio,
+    dialect: current.dialect ?? activeDialect,
+    direction: quizDirectionFor(stability),
+    memory: { stability, repetitions: current.repetitions },
+  };
+  const quizPool =
+    phrasePool && phrasePool.length > 0
+      ? phrasePool
+      : duePhrases.map((p) => ({ arabic: p.phrase_arabic, english: p.phrase_english }));
+
+  return (
+    <AppShell compact>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <PageCorner />
+        <div className="flex items-center gap-2">
+          <ReviewStyleSwitch />
+          <div className="px-3 py-1.5 rounded-lg bg-card border border-border flex items-center gap-1.5">
+            <MessageCircleQuestion className="h-3.5 w-3.5 text-primary" />
+            <span className="text-sm font-medium">Phrase</span>
+          </div>
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-card border border-border">
+            <Trophy className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">{sessionCount}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Progress */}
+      <SessionProgress
+        deckId="my-phrases"
+        session={session}
+        position={safeIndex + 1}
+        total={duePhrases.length}
+      />
+
+      {/* Card */}
+      <div className="py-4">
+        <div className="max-w-sm mx-auto">
+          {quiz ? (
+            <QuizCardFrame
+              item={quizItem}
+              pool={quizPool}
+              combo={quizStats.combo}
+              onGraded={handleQuizGraded}
+              renderFlashcard={() => (
+                <>
+                  {flashcard}
+                  <div className="mt-8">{ratingButtons}</div>
+                </>
+              )}
+            />
+          ) : (
+            flashcard
+          )}
 
 
           {leechTrackingEnabled && current.is_leech && (
@@ -546,25 +672,10 @@ const MyPhrasesReview = () => {
           </div>
         </div>
 
-        {/* Self rating — waits for the reveal, same as the word decks:
-            grading before checking runs overconfident and writes too-long
-            intervals off inflated "Good"s. */}
+        {/* In the quiz style the app has rated; the buttons only return when
+            the ladder has no question for a card and the flip card stands in. */}
         <div className="mt-8">
-          <RatingButtons
-            onRate={handleRate}
-            stability={Number(current.ease_factor) || 0}
-            difficulty={Number(current.difficulty) || 5}
-            intervalDays={current.interval_days}
-            repetitions={current.repetitions}
-            elapsedDays={elapsedDaysSince(current.last_reviewed_at)}
-            disabled={updateReview.isPending || !showAnswer}
-            // A tap before the reveal shows the answer rather than reading as
-            // a dead button.
-            onBlocked={() => {
-              if (!updateReview.isPending) setShowAnswer(true);
-            }}
-
-          />
+          {!quiz && ratingButtons}
           <div className="mt-4 flex justify-center gap-2 flex-wrap">
             <Button
               variant="ghost"

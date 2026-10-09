@@ -1,241 +1,267 @@
-# Proposal: a quiz alternative to flashcards
+# The quiz alternative to flashcards
 
-*October 2026. Status: **proposal**, not yet agreed. §6 lists the open
-questions, each with a recommended default; the rest of the document is what
-the work looks like under those defaults. Nothing here is built.*
+*October 2026. Phase 1 is built (§7); the owner's decisions are recorded in
+§6 and the phases still to come are designed in §8. The README section
+"Reviewing as a quiz instead of flashcards" is the writeup of what ships;
+this document is the plan around it.*
 
 The ask: some learners will not do flashcards. Give them a settings choice —
 flashcards as they are today, or being quizzed in other ways (fill in the
 blank first) that get progressively harder, still on spaced repetition, with
-some game to it. The flashcard setup must stay available, and a learner may
-want both at hand.
+some game to it. The first time a learner meets a word they have saved it is
+easy, a gap in a sentence; the second time much the same; then they have to
+produce it themselves and say it, graded on pronunciation; later it turns up
+in a short dialogue or a little animation they must put the word to, and
+eventually in sentences and stories. The sentence the word was learnt in is
+always available. Assets made along the way (an animation of "jump") are
+kept so nobody pays to make them twice. Everything stays on brand.
 
 ---
 
-## 1. What already exists
+## 1. What already existed
 
-The inventory matters because it decides the shape: most of a quiz mode is
-already in the tree, unused or used in one place.
+The inventory decided the shape: most of a quiz mode was already in the tree,
+unused or used in one place.
 
-- **Three quiz cards are built and tested.** `ReviewClozeCard`
-  (`src/components/review/`) blanks the word out of a sentence, plays the
-  sentence with the word cut out, and offers four Arabic options. My Words
-  review already renders it on every even card and on every leech, but the
-  learner still self-rates afterwards (a miss only caps the rating at Hard).
-  `ReviewQuizCard` (picture → pick the Arabic) and `ReviewImageQuizCard`
-  (audio → pick the picture) are imported by nothing but their tests.
-- **Two features already turn an answer into an FSRS grade without a
-  self-rating.** The lesson quiz (`Learn.tsx`) and the video debrief
-  (`useDebriefWordReview`) both submit `correct ? "good" : "again"`;
-  `quizRating` in `src/lib/videoDebrief.ts` carries the rule and its reason —
-  never "easy" when the options were on screen.
+- **Three quiz cards were built and tested.** `ReviewClozeCard` blanks the
+  word out of a sentence, plays the sentence with the word cut out, and offers
+  four Arabic options; My Words review rendered it on every even card, with the
+  learner still self-rating afterwards. `ReviewQuizCard` (picture → Arabic)
+  and `ReviewImageQuizCard` (audio → picture) were imported by nothing but
+  their tests.
+- **Two features already turned an answer into an FSRS grade without a
+  self-rating.** The lesson quiz and the video debrief both submit
+  `correct ? "good" : "again"`; `quizRating` in `src/lib/videoDebrief.ts`
+  carries the rule and its reason — never "easy" when the options were on
+  screen.
 - **Every deck keeps two schedules.** `word_reviews`, `user_vocabulary` and
-  `user_set_phrases` carry recognition *and* `production_*` FSRS columns;
-  production unlocks on a confident recognition grade (`buildReviewUpdate`,
-  `src/hooks/useReview.ts`). "Progressively harder" has a home: the ladder
-  can be read off the card's memory state rather than off a session counter.
-- **A seeded distractor picker exists** —
-  `buildWordQuiz` in `supabase/functions/_shared/videoDebriefCore.ts`, already
-  imported by the client, de-duplicating meanings and falling back to recall
-  when fewer than two distractors exist. Every quiz component re-rolls its own
-  Fisher–Yates; there is no shared helper in `src/lib` yet.
-- **Sentences are there but not loaded.** About 838 of ~949 authored track
-  words carry `example_arabic` / `example_english` /
-  `example_transliteration` on `vocabulary_words`, and `useDueWords` selects
-  none of those columns. My Words carries `sentence_text` / `sentence_english`
-  / `sentence_audio_url` from the context the word was saved in, and
-  `useTranscriptCloze` mines a learner's saved transcripts for a line.
-- **Answer matching helpers exist.** `normalizeArabicWord`, `sentenceHasWord`
-  and `findWordSpan` (`src/lib/arabicWord.ts`); `gradeDictation`
-  (`src/lib/dictation.ts`) scores a typed line word by word.
-- **Gamification is thin and uneven.** `REVIEW_XP` is a flat 15 per card and
-  is paid only by curriculum review and the lesson quiz; My Words and My
-  Phrases pay nothing. XP goes through the `award_xp` RPC (clamped server-side),
-  achievements through `grant_achievement`, celebrations through
-  `celebrate()` (`src/lib/celebrations.ts`, with `SparkleBurst` and the dances).
-  `review_streaks` has no writer in the repo.
-- **Review preferences are device-local.** Whole-curriculum scope, leeches,
-  songs and root families all follow the same localStorage pattern
-  (`src/lib/curriculumDeck.ts` + `useCurriculumDeckScope`): `load`, `save` with
-  a change event, `subscribe`, and a twenty-line hook. `profiles` has no jsonb
-  prefs column; a synced preference means a migration, which Lovable has to
-  apply before `types.ts` carries it (see `CLAUDE.md`).
-- **The session is one thing.** `/review` → `/review/my-words` →
-  `/review/my-phrases` is one chained session (`useReviewSession`), ordered by
-  `buildReviewOrder`, with new cards blocked for beginners
-  (`BEGINNER_REVIEW_THRESHOLD = 200`). The daily task "Review N words" points
-  at `/review`.
+  `user_set_phrases` carry recognition *and* `production_*` FSRS columns, and
+  production unlocks on a confident recognition grade. "Progressively harder"
+  had a home: the ladder reads off the card's memory state.
+- **Sentences were there but not loaded.** About 838 of ~949 authored track
+  words carry `example_arabic` / `example_english` on `vocabulary_words`, and
+  `useDueWords` selected none of them. My Words carries the sentence a word was
+  saved from, and `useTranscriptCloze` mines a learner's saved transcripts.
+- **Speech scoring existed.** `azure-pronunciation` returns a calibrated score
+  and what it recognised; `PronunciationButton` recorded a take inline.
+- **Gamification was thin and uneven.** `REVIEW_XP` was paid only by the
+  curriculum deck and the lesson quiz; My Words and My Phrases paid nothing.
 
 ---
 
 ## 2. The setting
 
-Settings → Review Preferences → **"How you review"**, a three-way choice:
+Settings → Review Preferences → **How you review**: Flashcards or Quiz. The
+same switch sits in every review page's header, so a learner who finds the
+flip card is not what they want today changes it there, and the change *is*
+the setting.
 
-| Value | What the learner gets |
-|---|---|
-| `flashcards` | Exactly today's cards: flip, then Again / Hard / Good / Easy. |
-| `quiz` | Every card asked as a question from the ladder (§3); the app grades. |
-| `mix` | Quiz questions where the card supports one, flashcards elsewhere. |
-
-- Stored device-locally like the other review preferences (`src/lib/reviewStyle.ts`
-  + `useReviewStyle`), default `flashcards` so nobody's habit changes on
-  deploy. If it is later wanted across devices it becomes a `profiles` column;
-  the hook's signature does not change.
-- The same control sits in the review page header as a segmented switch, so a
-  learner can flip for one session without visiting Settings. The header
-  switch writes the same preference (there is no "session-only" state to
-  explain).
-- Under `flashcards`, My Words stops serving its even-card cloze — the whole
-  point of the choice is that flashcards means flashcards. The cloze moves to
-  `quiz` / `mix`, where it is a rung.
-
-No new route: the quiz is a renderer choice inside the three existing review
-pages, so the route manifest, reachability and Ask-AI guards are untouched.
-The pages' `usePageAiContext` keep publishing the card with the answer hidden
-until it is answered, as they do now.
+- On the profile (`profiles.review_style`, migration
+  `20261009120000_profile_review_style.sql`) so it follows the learner across
+  devices, with a device-local cache under it (`src/lib/reviewStyle.ts`,
+  `useReviewStyle`) read in state initialisers so no page flashes the wrong
+  style while the profile loads. The profile wins when it has an answer; null
+  never overrides the device.
+- Until the migration is applied to the live project (CLAUDE.md on migrations
+  and `types.ts`), the cache is the whole preference: the profile write fails
+  quietly and the device keeps its own answer. The `typesDrift` entry names
+  the migration; delete it once a types regeneration carries the column.
+- Flashcards is the default, so nobody's habit changes on deploy. Under
+  Flashcards, My Words serves plain flip cards: the every-other-card cloze it
+  used to show lives in the quiz now, because the whole point of the choice is
+  that flashcards means flashcards.
 
 ---
 
-## 3. The question ladder
+## 3. The ladder
 
-A card's rung is chosen from its own memory state, not from where it falls in
-the session. That keeps "progressively harder" inside spaced repetition: a
-word climbs as its stability grows and drops when it lapses, and the ordering
-and new-card rules in `buildReviewOrder` are untouched.
+`src/lib/quizLadder.ts`. The question a card is asked is a function of its
+memory state on the schedule the deck served it on, never of where it falls
+in the session, so a word climbs as its stability grows, drops when it
+lapses, and the ordering and new-card rules in `buildReviewOrder` are untouched.
 
-| Rung | When (recognition schedule unless stated) | Question | Grades |
+| step | when (recognition stability unless stated) | question | grades |
 |---|---|---|---|
-| 0 Recognise | new, or stability under ~1 day (just lapsed) | Arabic + audio → pick the English (4) | recognition |
-| 1 Hear it | stability 1–7 days | audio only → pick the picture, or pick the Arabic | recognition |
-| 2 Fill the gap | stability 7–30 days and a sentence exists | sentence with the word blanked, sentence audio with the word cut → pick the Arabic (4) | recognition |
-| 3 Build it | production unlocked, production stability under ~14 days | English (or picture) → assemble the Arabic from a letter bank | production |
-| 4 Produce it | production stability 14+ days | English → type or speak the Arabic, no options | production |
-| 5 Use it | recognition stability 30+ days and production mature | sentence with the word blanked, no options: type it; or "which sentence uses it right" | both |
+| 1 First look | new, or under a day (just lapsed) | sentence gap, four Arabic options, the meaning shown as a hint | recognition |
+| 2 Fill the gap | under 7 days | the same gap, no hint | recognition |
+| 3 Hear it | 7 days and up | audio alone → pick the meaning | recognition |
+| 4 Say it | production card, under 14 days | meaning (and picture) → say the word; scored | production |
+| 5 Say the line | production card, 14 days and up | the English line → say the Arabic sentence; scored | production |
 
-Fallbacks, so the ladder never blocks a review:
+Fallbacks, so the ladder never blocks a review: no sentence → ask the meaning
+(the word shown on a first look, heard afterwards); too few other words for
+four options → the flip card; a device that cannot record → the flip card for
+production cards, never a choice question, because the rating lands on the
+production schedule. A saved phrase keeps one schedule, so its direction is
+read off its stability: under 7 days it is asked for its meaning, from 7 days
+it is asked to be said.
 
-- No sentence for a rung-2/5 card → rung 1 (audio) or rung 0.
-- No image → the Arabic-option variant of rung 1.
-- No audio file → Azure TTS, as the pages already do.
-- No material at all → a flashcard, with the ordinary rating buttons (this is
-  what `mix` means, and `quiz` degrades to it rather than skipping the card).
+The decks unlock production on the first Good and serve the production card
+the moment it is due — for the flashcards, on the refetch after the last card
+of the same session. The quiz holds it until recognition stability reaches
+the "Hear it" threshold (`holdsProduction`), so "say it" is the third
+encounter or so, after the gap without a hint and the audio alone; the
+production schedule is untouched, the card waits.
 
-Thresholds are a first guess and live in one table (`src/lib/quizLadder.ts`,
-pure and tested) so they can be tuned from `review_log` later. The
-Arabic-script letter bank (rung 3) is the answer to "most learners have no
-Arabic keyboard": a scramble of the word's letters plus two or three decoys,
-which is a known and liked game shape and still a recall task.
+The thresholds are a first guess and live in `LADDER_THRESHOLDS` so they can
+be tuned from `review_log` once the quiz has history.
 
-Direction follows the rung: rungs 0–2 grade the recognition columns, 3–4 the
-production columns, 5 both — the same `direction` plumbing the flashcards use.
+Nothing is typed. Most learners have no Arabic keyboard, and saying the word
+is the skill: the speaking steps record a take (`useTakeRecorder`) and score
+it with `azure-pronunciation` against the target, showing what was recognised
+beside the calibrated score. The sentence a word was met in is always a tap
+away, with the word cut out on a speaking step; opening it before a choice
+answer counts as help.
 
 ---
 
 ## 4. Grading
 
-The app grades in `quiz` and `mix`; the rating buttons do not appear on a quiz
-card. The map:
+`src/lib/quizGrading.ts`. The app grades; the rating buttons do not appear on
+a quiz card.
 
-| Outcome | Rating | Why |
+| outcome | rating | why |
 |---|---|---|
-| Right first time | `good` | Options on screen (rungs 0–2) never earn `easy` — the debrief's rule. |
-| Right, no options, fast | `easy` | Rungs 4–5 only: a free recall answered within a few seconds is the one honest `easy`. |
-| Right after a hint (first letter, sentence audio replayed) or a near miss (one letter, hamza / tā marbūṭa variant) | `hard` | Keeps the card close without calling it a lapse. |
-| Wrong | `again` | Re-queued through `pushRelearn` seven cards later, at a lower rung. |
+| right choice | Good | options on screen never earn Easy — the debrief's rule |
+| right choice, with help | Hard | keeps the card close without calling it a lapse |
+| wrong choice | Again | relearn re-queues it a few cards later, a step down |
+| spoken, score ≥ 85 / 70 / 55 | Easy / Good / Hard | the calibrated score, banded |
+| spoken, a different word | Again | the assessment scores sounds against the reference even when the wrong word was said; the transcript is what says so |
 
-Every outcome still goes through the existing writers (`useReviewQueue` for
-the curriculum deck, `useUpdateUserVocabularyReview` for My Words,
-`useUpdateUserPhraseReview` for My Phrases), so offline queuing, leech
-flagging, production unlock, the new-card budget and the `review_log` trigger
-all behave exactly as for a flashcard. Speed affects XP (§5), never the FSRS
-rating.
-
----
-
-## 5. Making it fun
-
-Game chrome rides on XP and celebration, and never on scheduling.
-
-1. **Combo.** Consecutive correct answers build a multiplier on `REVIEW_XP`
-   (1×, 1.5×, 2×, capped), shown as a small flame on the progress bar; a miss
-   resets it with no penalty. `SparkleBurst` on each step up.
-2. **Rung badge on the card.** A five-step mark (seed → sprout → leaf → tree →
-   fruit, or Ink-brand equivalents) shows where the word is on the ladder.
-   Answering right at the top of a rung shows "moves up next time"; the
-   session summary counts promotions ("4 words climbed").
-3. **Session summary.** Accuracy, best combo, words promoted, words that
-   dropped, and a "practice the misses now" button (which re-serves the
-   misses as flashcards, no FSRS write — a second look, not a second grade).
-4. **Lightning round.** Optional 60-second round after the session over
-   cards answered right today — rung 0/1 questions, score and time only,
-   nothing written to the schedule. Reuses the `VocabBattles` question shape
-   and could seed a battle challenge from the same set.
-5. **Boss card.** The leech with the most lapses opens the session at rung 0
-   with its mnemonic and image, framed as the day's boss; clearing it is a
-   celebration tier.
-6. **Why-not.** On a wrong multiple-choice pick, one tap on the chosen
-   distractor asks the tutor (existing `AskAISentence`) why that word does not
-   fit — the feedback the research says retrieval needs.
-7. **XP parity.** My Words and My Phrases start paying the same flat
-   `REVIEW_XP` as the curriculum deck, in both modes; today they pay nothing,
-   which reads as an oversight rather than a decision.
-
-Copy stays honest: no "learn faster", no streak pressure on the card itself.
+Every rating goes down the page's existing path — the offline queue on the
+curriculum deck, `useUpdateUserVocabularyReview` and
+`useUpdateUserPhraseReview` on the personal decks — so relearn, leeches,
+production unlock, the new-card budget and the `review_log` trigger behave
+exactly as for a flashcard. `QuizCardFrame` is the one place the ladder, the
+cards and the grading meet; the pages hand it a card and get a rating back.
 
 ---
 
-## 6. Open questions (with recommended defaults)
+## 5. The game
 
-1. **Which decks?** Default: curriculum and My Words in the first cut (both
-   have sentences, images and audio); My Phrases is production-only and gets
-   rungs 3–4 only, later.
-2. **Where does the preference live?** Default: device-local, like the other
-   Review Preferences, with the header switch. A synced `profiles` column
-   means a migration Lovable must apply; do it only if learners ask.
-3. **Who grades a quiz card?** Default: the app, per §4; no rating buttons on
-   a quiz card. The alternative — quiz then self-rate, as My Words' cloze does
-   today — keeps the flashcard burden the mode exists to remove.
-4. **What drives difficulty?** Default: the card's memory state (§3). The
-   alternative, a session that gets harder as it goes, feels more like a game
-   level but asks a weak card a hard question; the combo and lightning round
-   carry that feeling instead.
-5. **Typing Arabic.** Default: letter bank at rung 3; free typing *or*
-   speaking at rung 4 (the pronunciation path exists). Transliteration input
-   is not accepted as Arabic.
-6. **How much game?** Default for the first cut: combo, rung badge and session
-   summary (items 1–3). Lightning round, boss card and why-not follow.
-7. **Mode name.** "Flashcards / Quiz / Mix" in Settings; the header switch
-   says "Flip" and "Quiz".
-8. **Keep My Words' current cloze under Flashcards?** Default: no, it moves
-   to Quiz; Flashcards means plain cards.
+All of it rides on XP and celebration, never on scheduling.
+
+- **Combo.** Consecutive right answers; a miss resets it and costs nothing.
+  Milestones at 5, 10 and 20 pay 10, 25 and 50 XP once (`COMBO_MILESTONES`),
+  small next to the flat 15 XP a card pays.
+- **Step badge.** Five dots and the step's name on every quiz card, with the
+  combo beside it from two up.
+- **Session summary.** On the deck's end screen: accuracy, best run, words
+  that climbed a step, words that dropped.
+- **XP parity.** A graded answer on My Words or My Phrases pays the flat
+  review XP and bumps the weekly review count, which those decks' flip cards
+  never did.
+
+Later (§8): the lightning round, the boss card, "why not this one?".
 
 ---
 
-## 7. Phasing and the guards each phase meets
+## 6. Decisions
 
-**Phase 1 — the choice and the recognition rungs.**
-`src/lib/reviewStyle.ts` + `useReviewStyle` + Settings row + header switch;
-`src/lib/quizLadder.ts` (rung from memory state, pure); `src/lib/quizGrading.ts`
-(outcome → rating, pure); `useDueWords` selects the example columns; a
-`QuizCardFrame` in `src/components/review/` that picks `QuizCard`-style
-English options, `ReviewImageQuizCard`, `ReviewQuizCard` or `ReviewClozeCard`
-by rung, with a shared seeded distractor helper lifted from `buildWordQuiz`;
-`Review.tsx` and `MyWordsReview.tsx` branch on the style; combo + summary.
-Guards: `libCoverage` / `hookCoverage` (co-located tests), the component
-thresholds, `settings.spec.ts` for the row, `review.spec.ts` and
-`my-words.spec.ts` for a quiz session end to end, `reviewUpdate.test.ts`
-unchanged (the writers are unchanged).
+Asked on 2026-10-09; the owner's answers, as built.
 
-**Phase 2 — production rungs.** Letter bank (rung 3), typed/spoken rung 4,
-rung 5 cloze without options; near-miss grading via `normalizeArabicWord`;
-My Phrases joins. Guards: the same, plus `useReviewKeyboard` keeps the number
-keys harmless on a quiz card.
+1. **Decks:** the curriculum (the words a learner has studied, which is what
+   reaches the deck) and My Words; My Phrases joins in the same format.
+2. **Where the preference lives:** on the profile, synced across devices.
+3. **Who grades:** flashcards keep their buttons; a quiz card is graded by the
+   app.
+4. **Difficulty:** from the card's memory state.
+5. **Typing:** none. Speaking only, scored by the speech path.
+6. **How much game in the first cut:** combo, step badge, session summary.
+7. **Saved phrases:** included, in the same format.
+8. **My Words' old cloze under Flashcards:** moved into the quiz; Flashcards
+   means plain cards.
 
-**Phase 3 — the rest of the game.** Lightning round, boss card, why-not, a
-"ladder climbs this week" stat beside XP on the leaderboard.
+---
 
-Out of scope on purpose: a cleverer scheduler (the research review's
-conclusion stands — FSRS with fitted weights is the ceiling worth reaching),
-model-generated questions in the hot path (every rung above is built from
-data already on the card), and a separate quiz route.
+## 7. Phase 1 — built
+
+- `src/lib/reviewStyle.ts`, `useReviewStyle`, the migration and its
+  `typesDrift` entry; the Settings row; `ReviewStyleSwitch` in the three
+  review pages' headers.
+- `src/lib/quizLadder.ts`, `quizGrading.ts`, `quizSession.ts`,
+  `quizDistractors.ts` (seeded, de-duplicated options), each tested.
+- `QuizChoiceCard` (meaning / listen), `QuizSpeakCard` (word / line) over
+  `useTakeRecorder`, `QuizCardFrame`, `QuizRungBadge`, `QuizSessionSummary`;
+  a `hintEnglish` prop on `ReviewClozeCard`.
+- `useQuizPool`: wrong options drawn from the wider deck (the dialect's
+  curriculum, everything the learner saved) so a session of two cards still
+  gets four options; read only while the quiz is on.
+- `useDueWords` selects the example sentence and transliteration; My Words
+  selects the transliteration it was hard-coding to null.
+- `Review.tsx`, `MyWordsReview.tsx`, `MyPhrasesReview.tsx` branch on the
+  style; the rating keys are off on a quiz card and the frame takes Enter and
+  Space to move on.
+- Playwright: the quiz on `/review` and `/review/my-words`, the header
+  switch, the Settings row.
+
+---
+
+## 8. What comes next
+
+### Phase 2 — the asset store
+
+Every picture, animation, sentence recording or line of dialogue made for a
+word should be made once. Today curriculum images and audio are shared on
+`vocabulary_words`, but a My Words image or jingle is generated per learner
+and stored on their own row, so two learners who save "jump" pay twice.
+
+- **Table `word_assets`** (service-role writes, public read):
+  `id`, `concept_key text` (the normalised Arabic plus the dialect for
+  dialect-bound assets, or the English concept for language-neutral ones
+  such as an animation of jumping), `kind text` (`image`, `animation`,
+  `sentence_audio`, `dialogue`, `story_line`), `dialect text null`,
+  `url text`, `meta jsonb` (prompt, model, style version, duration),
+  `source text` (`generated` / `authored` / `reviewed`), `approved_at`,
+  `created_at`; unique on `(concept_key, kind, dialect, style_version)`.
+- **One edge function, `word-asset`**, with `get` (look up by key and kind)
+  and `ensure` (look up, else generate under the current style version and
+  store). Every generator that makes a per-word asset — the My Words image
+  dialog, `persist-word-audio`, the jingle functions when a word is shared —
+  calls `ensure` first and only generates on a miss. Writes are service-role
+  so a learner cannot plant an asset under a shared key.
+- **On brand.** Generation goes through the Brain's image lineup
+  (`IMAGE_MODEL_IDS`) with the Ink style prompt the illustration script in
+  `scripts/` already carries, and `style_version` is part of the key so a
+  brand refresh regenerates rather than mixes.
+- **Guards:** a `_test/` file for the function, a `sharedModuleCoverage`
+  entry for any new shared module, a `typesDrift` entry until the migration
+  is applied.
+
+### Phase 3 — the upper steps
+
+Built on the asset store, each one an extra format the frame can render and
+the ladder can place above step 5:
+
+- **Act it out (step 6).** For a verb or an action noun, the animation of the
+  concept (made once, shared) replaces the meaning as the prompt: the learner
+  says the word for what they see. `kind: "animation"`, keyed on the English
+  concept, so every dialect's "jump" shares one.
+- **Answer the line (step 7).** A two-line dialogue the Brain writes in the
+  dialect with the word in the reply (`kind: "dialogue"`, keyed on the word
+  and dialect, run through `askBrain` with the native validator and stored
+  once): the first line plays, the learner says the reply, scored against it
+  with the word required.
+- **In a story (step 8).** The word in a short passage from the reading
+  library or a generated one (`kind: "story_line"`): a gap to say, or a
+  comprehension question about the line, graded like the others.
+
+Each new format is a `QuizFormat` value, a rung in `rungForMemory`, a card
+component, and a row in the README table. The frame and the grading do not
+change.
+
+### Also later
+
+- **Lightning round** after the session over today's right answers: score
+  and time only, nothing written to a schedule.
+- **Boss card:** the leech with the most lapses opens the session at step 1
+  with its mnemonic and picture.
+- **"Why not this one?"** on a wrong choice, through the existing
+  `AskAISentence`.
+- **Tune the thresholds** in `LADDER_THRESHOLDS` from `review_log` once the
+  quiz has a few weeks of ratings.
+
+Out of scope on purpose: a cleverer scheduler (FSRS with fitted weights is the
+ceiling worth reaching), model-generated questions in the hot path (every step
+is built from data already on the card or an asset made once), and a separate
+quiz route.

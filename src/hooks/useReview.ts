@@ -68,6 +68,14 @@ export interface VocabularyWord {
   dialect_module?: string;
   /** Arabic root. Null until an admin backfills it; '' means the word has none. */
   root?: string | null;
+  transliteration?: string | null;
+  /**
+   * The authored example sentence (curriculum/tracks). The quiz style cuts
+   * its gap from this; the flip card never showed it.
+   */
+  example_arabic?: string | null;
+  example_english?: string | null;
+  example_transliteration?: string | null;
 }
 
 interface WordWithReview extends VocabularyWord {
@@ -116,7 +124,20 @@ async function fetchAllRows<T>(
   return all;
 }
 
-export const useDueWords = (mixAll = false) => {
+export interface DueWordsOptions {
+  /**
+   * Serve a word's production card only once its recognition stability (in
+   * days) has reached this. The quiz passes the ladder's "Hear it" threshold
+   * so "say it" follows the earlier steps instead of arriving in the same
+   * session as the first right answer (src/lib/quizLadder.ts,
+   * `holdsProduction`). The flashcards pass nothing and keep serving
+   * production the moment it unlocks.
+   */
+  holdProductionBelow?: number;
+}
+
+export const useDueWords = (mixAll = false, options: DueWordsOptions = {}) => {
+  const holdProductionBelow = options.holdProductionBelow ?? null;
   const { user } = useAuth();
   const { activeDialect } = useDialect();
   const { cap: newCap } = useNewCardCap();
@@ -138,7 +159,7 @@ export const useDueWords = (mixAll = false) => {
     // loading swap and a freshly reshuffled deck under the learner's feet,
     // once per new card. The queryFn reads the current budget whenever the
     // deck is genuinely (re)built instead.
-    queryKey: ['due-words', user?.id, mixAll ? 'all' : activeDialect, scope],
+    queryKey: ['due-words', user?.id, mixAll ? 'all' : activeDialect, scope, holdProductionBelow],
     queryFn: async (): Promise<DueCurriculumCard[]> => {
       if (!user) return [];
 
@@ -157,6 +178,10 @@ export const useDueWords = (mixAll = false) => {
             lesson_id,
             image_position,
             root,
+            transliteration,
+            example_arabic,
+            example_english,
+            example_transliteration,
             dialect_module,
             frequency_rank,
             lessons (
@@ -263,7 +288,10 @@ export const useDueWords = (mixAll = false) => {
         const productionDue =
           !!review?.production_next_review_at &&
           new Date(review.production_next_review_at).getTime() <= nowMs;
-        if (productionDue && review) {
+        // `ease_factor` holds the recognition schedule's FSRS stability.
+        const productionHeld =
+          holdProductionBelow != null && (review?.ease_factor ?? 0) < holdProductionBelow;
+        if (productionDue && review && !productionHeld) {
           cards.push({
             ...word,
             card_type: 'production',

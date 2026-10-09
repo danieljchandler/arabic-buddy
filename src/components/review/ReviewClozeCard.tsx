@@ -14,6 +14,11 @@ interface Props {
   sentenceEnglish?: string | null;
   sentenceAudioUrl?: string | null;
   distractors: string[]; // other Arabic words from due queue
+  /**
+   * The word's meaning, shown above the gap before answering. The quiz
+   * ladder's first look offers it; later steps do not.
+   */
+  hintEnglish?: string | null;
   onAnswered?: (correct: boolean) => void;
 }
 
@@ -44,6 +49,7 @@ export const ReviewClozeCard = ({
   sentenceEnglish,
   sentenceAudioUrl,
   distractors,
+  hintEnglish,
   onAnswered,
 }: Props) => {
   const { activeDialect } = useDialect();
@@ -123,6 +129,12 @@ export const ReviewClozeCard = ({
           Fill in the missing word
         </span>
       </div>
+
+      {hintEnglish && selected == null && (
+        <p className="text-sm text-muted-foreground mb-4">
+          The missing word means <span className="font-semibold text-foreground">{hintEnglish}</span>
+        </p>
+      )}
 
       {/* Sentence with blank */}
       <div

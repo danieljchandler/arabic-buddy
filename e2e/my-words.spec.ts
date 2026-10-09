@@ -1,5 +1,5 @@
 import { expect, test } from "./support/fixtures";
-import { aUserVocabulary, many, vocabId, TEST_USER_ID } from "../src/test/support/factories";
+import { aProfile, aUserVocabulary, many, vocabId, TEST_USER_ID } from "../src/test/support/factories";
 import type { MemoryDb } from "../src/test/support/postgrest/store";
 
 /**
@@ -272,5 +272,61 @@ test.describe("root families", () => {
     await expect
       .poll(() => backend.functionCalls.filter((c) => c.name === "enrich-word-roots").length)
       .toBe(1);
+  });
+});
+
+test.describe("reviewing in the quiz style", () => {
+  test.beforeEach(async ({ signInAs }) => {
+    await signInAs("free", { profile: { review_style: "quiz" } });
+  });
+
+  test("asks a saved word to fill the gap in the sentence it came from, and pays for it", async ({ page, db, backend }) => {
+    const past = new Date(Date.now() - 86_400_000).toISOString();
+    db.seed("user_vocabulary", [
+      aUserVocabulary({
+        id: vocabId(0),
+        word_arabic: "السوق",
+        word_english: "the market",
+        sentence_text: "رحت السوق أمس",
+        sentence_english: "I went to the market yesterday",
+        repetitions: 0,
+        ease_factor: 0,
+        next_review_at: past,
+      }),
+      ...many(aUserVocabulary, 4, (index) => ({
+        id: vocabId(index + 1),
+        word_arabic: ["بيت", "مدرسة", "مطعم", "سيارة"][index],
+        word_english: ["house", "school", "restaurant", "car"][index],
+        // Not due: in the pool of wrong options, not in the deck.
+        next_review_at: new Date(Date.now() + 86_400_000 * 30).toISOString(),
+      })),
+    ]);
+
+    await page.goto("/review/my-words");
+
+    await expect(page.getByText("Fill in the missing word")).toBeVisible();
+    await expect(page.getByText(/how well did you remember/i)).toHaveCount(0);
+
+    await page.getByRole("button", { name: "السوق", exact: true }).click();
+    await page.getByRole("button", { name: /continue/i }).click();
+
+    // The rating lands on the card's own schedule, and — unlike this deck's
+    // flip cards, which pay nothing — a graded answer earns the review XP.
+    await expect.poll(() => db.rows("user_vocabulary").find((r) => r.id === vocabId(0))?.repetitions).toBe(1);
+    await expect.poll(() => backend.rpcCallsTo("award_xp").length).toBeGreaterThan(0);
+  });
+
+  test("serves the flip card when the deck is too thin for a question", async ({ page, db }) => {
+    const past = new Date(Date.now() - 86_400_000).toISOString();
+    db.seed("user_vocabulary", [
+      aUserVocabulary({ id: vocabId(0), word_arabic: "السوق", word_english: "the market", sentence_text: "رحت السوق أمس", next_review_at: past }),
+    ]);
+
+    await page.goto("/review/my-words");
+
+    // One saved word cannot be asked among four; the ordinary card stands in.
+    await expect(page.getByText("السوق")).toBeVisible();
+    await expect(page.getByText("Fill in the missing word")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /reveal english/i })).toBeVisible();
   });
 });

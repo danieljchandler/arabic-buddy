@@ -3,6 +3,7 @@ import { signIn, stubSupabase, TEST_USER_ID } from "./support/supabase";
 import {
   aLesson,
   aLessonProgress,
+  aProfile,
   aVocabularyWord,
   lessonId,
   wordId,
@@ -194,5 +195,103 @@ test.describe("curriculum cards are the ones the learner asked for", () => {
     // pad the queue with curriculum they never asked for.
     await expect(page).toHaveURL(/\/review\/my-words$/);
     await expect(page.getByText("مغلق")).toHaveCount(0);
+  });
+});
+
+test.describe("the quiz style", () => {
+  const LESSON = lessonId(0);
+  const OTHERS = lessonId(1);
+
+  /**
+   * One started lesson with one new word that carries its authored sentence,
+   * plus an unopened lesson whose words are in the dialect — not in the deck,
+   * but in the pool the quiz draws its wrong options from.
+   */
+  const aDeck = (word: Record<string, unknown> = {}) => ({
+    lessons: [
+      aLesson({ id: LESSON, title: "Started lesson", display_order: 1 }),
+      aLesson({ id: OTHERS, title: "Unopened lesson", display_order: 2 }),
+    ],
+    vocabulary_words: [
+      aVocabularyWord({
+        id: wordId(0),
+        lesson_id: LESSON,
+        word_arabic: "السوق",
+        word_english: "the market",
+        example_arabic: "رحت السوق أمس",
+        example_english: "I went to the market yesterday",
+        ...word,
+      }),
+      aVocabularyWord({ id: wordId(1), lesson_id: OTHERS, word_arabic: "بيت", word_english: "house" }),
+      aVocabularyWord({ id: wordId(2), lesson_id: OTHERS, word_arabic: "مدرسة", word_english: "school" }),
+      aVocabularyWord({ id: wordId(3), lesson_id: OTHERS, word_arabic: "مطعم", word_english: "restaurant" }),
+      aVocabularyWord({ id: wordId(4), lesson_id: OTHERS, word_arabic: "سيارة", word_english: "car" }),
+    ],
+    word_reviews: [],
+    lesson_progress: [aLessonProgress({ user_id: TEST_USER_ID, lesson_id: LESSON, words_total: 1, words_seen: 1 })],
+  });
+
+  const quizProfile = () => ({ profiles: [aProfile({ review_style: "quiz" })] });
+
+  test("asks a new word to fill its sentence's gap and rates it for the learner", async ({ page }) => {
+    await signIn(page);
+    const backend = await stubSupabase(page, { tables: { ...aDeck(), ...quizProfile() } });
+
+    await page.goto("/review");
+
+    // The first look: the gap, the meaning as a hint, and no rating buttons —
+    // the app grades this one.
+    await expect(page.getByText("Fill in the missing word")).toBeVisible();
+    await expect(page.getByText(/the missing word means/i)).toContainText("the market");
+    await expect(page.getByText("First look")).toBeVisible();
+    await expect(page.getByText(/how well did you remember/i)).toHaveCount(0);
+
+    await page.getByRole("button", { name: "السوق", exact: true }).click();
+    await expect(page.getByRole("button", { name: /continue/i })).toBeVisible();
+    await page.getByRole("button", { name: /continue/i }).click();
+
+    // A right first-look answer is Good: the rating lands on the recognition
+    // schedule as if the learner had tapped it, and the session summary says
+    // how the round went.
+    await expect.poll(() => backend.db.rows("word_reviews").length).toBe(1);
+    expect(backend.db.rows("word_reviews")[0]).toMatchObject({ word_id: wordId(0), last_result: "good" });
+    await expect(page.getByRole("list", { name: /quiz session summary/i })).toBeVisible();
+    await expect(page.getByText("100%")).toBeVisible();
+  });
+
+  test("asks for the meaning when the word has no sentence", async ({ page }) => {
+    await signIn(page);
+    await stubSupabase(page, {
+      tables: { ...aDeck({ example_arabic: null, example_english: null }), ...quizProfile() },
+    });
+
+    await page.goto("/review");
+
+    await expect(page.getByText("What does it mean?")).toBeVisible();
+    await expect(page.getByRole("radio", { name: "the market" })).toBeVisible();
+  });
+
+  test("keeps the flip card for a learner who has not chosen", async ({ page }) => {
+    await signIn(page);
+    await stubSupabase(page, { tables: aDeck() });
+
+    await page.goto("/review");
+
+    await expect(page.getByText("السوق")).toBeVisible();
+    await expect(page.getByText("Fill in the missing word")).toHaveCount(0);
+    await expect(page.getByRole("radio", { name: /flip/i })).toHaveAttribute("aria-checked", "true");
+  });
+
+  test("the header switch changes the style mid-session and keeps it on the profile", async ({ page }) => {
+    await signIn(page);
+    const backend = await stubSupabase(page, { tables: aDeck() });
+
+    await page.goto("/review");
+    await expect(page.getByText("Fill in the missing word")).toHaveCount(0);
+
+    await page.getByRole("radio", { name: /quiz/i }).click();
+
+    await expect(page.getByText("Fill in the missing word")).toBeVisible();
+    await expect.poll(() => backend.db.rows("profiles")[0].review_style).toBe("quiz");
   });
 });

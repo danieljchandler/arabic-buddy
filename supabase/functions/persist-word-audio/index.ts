@@ -36,7 +36,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { enforceDailyCap } from "../_shared/usageCap.ts";
+import { enforceDailyCap, resolveUserId } from "../_shared/usageCap.ts";
 import { synthesizeForDialect } from "../_shared/ttsVoiceRouting.ts";
 import { assetKey, fileNewAsset, getAsset, type WordAssetClient } from "../_shared/wordAssets.ts";
 
@@ -48,10 +48,16 @@ serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  // Generous cap: the whole point is that each word is synthesised once ever,
-  // so a learner should never approach this in normal use.
-  const cap = await enforceDailyCap(req, "persist-word-audio", 200, corsHeaders);
-  if (cap.limited) return cap.response;
+  // A signed-in caller first. The daily cap below turns anonymous callers away
+  // too, but it also charges, and handing back a recording that already
+  // exists — on the row or in the shared store — costs nothing, so the cap
+  // waits until there is something to synthesise.
+  if (!(await resolveUserId(req))) {
+    return new Response(
+      JSON.stringify({ error: "auth_required", message: "Please sign in to use this feature." }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
 
   try {
     const { wordId, dialect } = await req.json();
@@ -109,6 +115,11 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Generous cap: the whole point is that each word is synthesised once ever,
+    // so a learner should never approach this in normal use.
+    const cap = await enforceDailyCap(req, "persist-word-audio", 200, corsHeaders);
+    if (cap.limited) return cap.response;
 
     // Synthesise here rather than accepting a client-uploaded blob: the row is
     // shared across every learner, so its audio must provably be this word.

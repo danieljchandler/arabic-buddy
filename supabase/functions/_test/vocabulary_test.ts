@@ -714,6 +714,69 @@ Deno.test("persist-word-audio files what it synthesises for the next row with th
   assertStringIncludes(String(filed.url), "/flashcard-audio/word-assets/word_audio/voice-1/egyptian/");
 });
 
+Deno.test("persist-word-audio hands a learner at their cap a recording that already exists", async () => {
+  // Copying a recording on costs nothing, so it is never charged — and a
+  // learner over the limit still hears the word rather than a 429.
+  const atTheCap = {
+    "/rest/v1/subscribers": () => json(null),
+    "/rest/v1/rpc/increment_usage_counter": () => json(999),
+  };
+  const stored = {
+    id: "asset-1",
+    concept_key: "كتاب",
+    kind: "word_audio",
+    dialect: "Gulf",
+    style_version: "voice-1",
+    url: "https://cdn.test/shared-kitab.wav",
+    payload: null,
+    meta: {},
+    source: "generated",
+    approved_at: null,
+    created_at: "2026-10-01T00:00:00Z",
+  };
+
+  const fromStore = await call(
+    "persist-word-audio",
+    { wordId: WORD_ID },
+    caller({
+      ...storage(),
+      ...atTheCap,
+      "/rest/v1/vocabulary_words": () => json(aWord()),
+      "/rest/v1/word_assets": (request) => (request.method === "GET" ? json([stored]) : json({}, 201)),
+    }),
+  );
+  assertEquals(fromStore.status, 200);
+  assertEquals(fromStore.body.audioUrl, "https://cdn.test/shared-kitab.wav");
+  assert(!fromStore.calls.some((url) => url.includes("increment_usage_counter")), "a store hit was charged");
+
+  const onTheRow = await call(
+    "persist-word-audio",
+    { wordId: WORD_ID },
+    caller({
+      ...storage(),
+      ...atTheCap,
+      "/rest/v1/vocabulary_words": () => json(aWord({ audio_url: "https://cdn.test/existing.mp3" })),
+    }),
+  );
+  assertEquals(onTheRow.status, 200);
+  assertEquals(onTheRow.body.audioUrl, "https://cdn.test/existing.mp3");
+  assert(!onTheRow.calls.some((url) => url.includes("increment_usage_counter")), "a cached row was charged");
+
+  // A miss is what costs, so a miss at the cap is refused before any synthesis.
+  const miss = await call(
+    "persist-word-audio",
+    { wordId: WORD_ID },
+    caller({
+      ...storage(),
+      ...atTheCap,
+      "/rest/v1/vocabulary_words": () => json(aWord()),
+      "/rest/v1/word_assets": (request) => (request.method === "GET" ? json([]) : json({}, 201)),
+    }),
+  );
+  assertEquals(miss.status, 429);
+  assert(!synthesised(miss.calls));
+});
+
 Deno.test("persist-word-audio voices a word in its own dialect", async () => {
   // A word cached in the wrong voice is cached that way permanently, for
   // everyone — so this is the assertion that matters most in this file.

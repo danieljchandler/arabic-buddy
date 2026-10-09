@@ -16,6 +16,18 @@ export interface ImageStyleLock {
 const DEFAULT_DESCRIPTION =
   "flat screenprint poster look, bold simple shapes, plain cream background, centered subject, no text, no watermark";
 
+/**
+ * Defaults this hook used to write. It saves its state on first mount, lock on
+ * or off, so a learner who ever opened the picture dialog has the old default
+ * stored as if they had typed it — and a stored photo-realistic description
+ * would argue with the Ink style line in every prompt once they turned the
+ * lock on. A description that is exactly one of these was never the learner's
+ * own, so it reads as today's default; anything they edited is kept.
+ */
+const LEGACY_DEFAULTS = new Set([
+  "warm soft natural lighting, shallow depth of field, photo-realistic stock-photo aesthetic, neutral beige background, centered subject, no text, no watermark",
+]);
+
 function generateSeed(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
@@ -27,7 +39,10 @@ function readState(): ImageStyleLock {
       const parsed = JSON.parse(raw);
       return {
         enabled: !!parsed.enabled,
-        description: typeof parsed.description === "string" ? parsed.description : DEFAULT_DESCRIPTION,
+        description:
+          typeof parsed.description === "string" && !LEGACY_DEFAULTS.has(parsed.description)
+            ? parsed.description
+            : DEFAULT_DESCRIPTION,
         seed: typeof parsed.seed === "string" && parsed.seed ? parsed.seed : generateSeed(),
       };
     }

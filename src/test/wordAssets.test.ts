@@ -4,12 +4,15 @@ import { normalizeArabicWord } from "@/lib/arabicWord";
 import { installSupabaseFetch } from "./support/transports/vitest";
 import { SUPABASE_URL, type SupabaseBackend } from "./support/server/handler";
 import {
+  ASSET_BUCKETS,
   ASSET_KINDS,
+  INK_ANIMATION_STYLE,
   INK_PICTURE_STYLE,
   MAX_SCENE_LENGTH,
   MIN_SCENE_LENGTH,
   PICTURE_DISTINCT_LINE,
   STYLE_VERSIONS,
+  animationConcept,
   assetKey,
   assetObjectPath,
   authoredScene,
@@ -26,6 +29,7 @@ import {
   normaliseGloss,
   putAsset,
   replaceAsset,
+  uploadNewFile,
   type AssetKey,
   type AssetStorage,
   type WordAsset,
@@ -179,6 +183,83 @@ describe("assetKey", () => {
   });
 });
 
+describe("the action an animation is keyed on", () => {
+  const key = (gloss: string, dialect = "Gulf") => assetKey({ kind: "animation", word: "ينط", gloss, dialect });
+
+  it("is one clip for one action, whoever does it and in whichever dialect", () => {
+    // Gulf's آكل, Egyptian's باكل and Yemeni's آكل are all glossed "I eat".
+    const eat = key("I eat");
+    expect(eat).toEqual({ conceptKey: "eat", kind: "animation", dialect: null, styleVersion: "ink-1", sense: "eat" });
+    for (const gloss of ["eat", "to eat", "Eat.", "We eat"]) expect(key(gloss), gloss).toEqual(eat);
+    expect(key("I eat", "Egyptian")).toEqual(eat);
+    expect(key("I eat", "Yemeni")).toEqual(eat);
+  });
+
+  it("needs no Arabic, since the clip is of the English action alone", () => {
+    expect(assetKey({ kind: "animation", gloss: "jump" })?.conceptKey).toBe("jump");
+    expect(assetKey({ kind: "animation", word: "coffee", gloss: "jump" })?.conceptKey).toBe("jump");
+  });
+
+  it("keeps a qualified sense apart from the bare one, so it borrows no clip", () => {
+    // normaliseGloss turns "run (a business)" into "run a business": the
+    // brackets go and the qualifier stays, so it is never "run".
+    expect(normaliseGloss("run (a business)")).toBe("run a business");
+    expect(key("run (a business)")?.conceptKey).toBe("run a business");
+    expect(key("run")?.conceptKey).toBe("run");
+    expect(key("to run")?.conceptKey).toBe("run");
+  });
+
+  it("keeps a list of alternatives whole, so it shares a clip only with the same list", () => {
+    expect(animationConcept("I come back / I return")).toBe("come back / return");
+    expect(animationConcept("take / carry")).toBe("take / carry");
+    expect(key("take / carry")?.conceptKey).not.toBe(key("take")?.conceptKey);
+    // A slash inside a qualifier is part of it, not a second alternative.
+    expect(animationConcept("send (someone / something)")).toBe("send someone or something");
+  });
+
+  it("keys nothing on a gloss that is a note rather than a meaning", () => {
+    for (const gloss of [
+      "do you want? (to a man)",
+      "then … would have",
+      "I've been... for (duration)",
+      "(polite request)",
+      "used to call someone over",
+      "lit. my eye",
+      "I would (unreal)",
+      "polite form of come",
+    ]) {
+      expect(animationConcept(gloss), gloss).toBe("");
+      expect(key(gloss), gloss).toBeNull();
+    }
+  });
+
+  it("keys nothing on a verb with nothing to watch", () => {
+    for (const gloss of [
+      "I want",
+      "was / were",
+      "I think (that)",
+      "I like (it pleases me)",
+      "I'm full",
+      "I don't want",
+      "that's not on / it can't be done",
+      "was late / got delayed",
+      "have",
+      "to make",
+    ]) {
+      expect(key(gloss), gloss).toBeNull();
+    }
+    // An object makes one of those an action.
+    expect(key("I have breakfast")?.conceptKey).toBe("have breakfast");
+  });
+
+  it("keys nothing on a description, or on nothing", () => {
+    expect(key("walk slowly along the edge of the water with a friend while talking")).toBeNull();
+    expect(key("a / b / c / d")).toBeNull();
+    expect(key("")).toBeNull();
+    expect(key("🙂")).toBeNull();
+  });
+});
+
 describe("assetObjectPath", () => {
   const key = assetKey({ kind: "image", word: "قهوة", gloss: "coffee", dialect: "Gulf" }) as AssetKey;
   const folder = (path: string) => path.slice(0, path.lastIndexOf("/"));
@@ -207,6 +288,25 @@ describe("assetObjectPath", () => {
 
   it("does not let an extension escape the folder", async () => {
     expect(await assetObjectPath(key, "../../x")).toMatch(/\.bin$/);
+  });
+});
+
+describe("the Ink animation style", () => {
+  it("keeps the picture's flat inks still flat in motion, the camera still, and no text", () => {
+    expect(INK_ANIMATION_STYLE).toMatch(/same three flat inks/);
+    expect(INK_ANIMATION_STYLE).toMatch(/no gradients/);
+    expect(INK_ANIMATION_STYLE).toMatch(/camera never moves/);
+    expect(INK_ANIMATION_STYLE).toMatch(/No text appears/);
+  });
+
+  it("ends where it began, so the clip loops", () => {
+    expect(INK_ANIMATION_STYLE).toMatch(/ending in exactly the pose it started from/);
+  });
+
+  it("is a new look in name only: nothing was ever filed under the animation style", () => {
+    // STYLE_VERSIONS.animation was reserved as ink-1 in Phase 2 and no clip
+    // was made under it, so the first style line takes that version.
+    expect(STYLE_VERSIONS.animation).toBe("ink-1");
   });
 });
 
@@ -434,6 +534,24 @@ describe("the store", () => {
 
       expect("url" in result && result.url).toMatch(/^https:\/\/cdn\.test\/flashcard-images\/word-assets\//);
       expect("filed" in result && result.filed.status).toBe("taken");
+    });
+
+    it("uploads a file that rides along with an asset the same way, and files nothing", async () => {
+      // An animation's poster: its url goes in the clip's payload.
+      const jump = assetKey({ kind: "animation", gloss: "jump" }) as AssetKey;
+      const bucket = aBucket();
+      const result = await uploadNewFile(bucket.storage, jump, file);
+
+      expect(bucket.uploads[0]).toMatchObject({ bucket: "word-animations", upsert: false });
+      expect(bucket.uploads[0].path).toMatch(/^word-assets\/animation\/ink-1\/any\/[0-9a-f]{32}\/[0-9a-f-]{36}\.png$/);
+      expect(result).toEqual({ url: `https://cdn.test/word-animations/${bucket.uploads[0].path}` });
+      expect(await getAsset(client, jump)).toBeNull();
+      expect(await uploadNewFile(aBucket("bucket full").storage, jump, file)).toEqual({ error: "bucket full" });
+    });
+
+    it("keeps animations in a bucket of their own", () => {
+      expect(ASSET_BUCKETS.animation).toBe("word-animations");
+      expect(ASSET_BUCKETS.image).toBe("flashcard-images");
     });
 
     it("refuses a kind that has no file", async () => {

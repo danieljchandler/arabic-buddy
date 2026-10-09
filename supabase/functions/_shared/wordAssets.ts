@@ -85,7 +85,9 @@ export function kindNeedsSense(kind: string): boolean {
  * The style each kind is made in today. Bump one to have every later lookup
  * miss and regenerate in the new style; the old rows stay, unserved.
  *
- * - `ink-1`: the Ink brand's flat screenprint look (`INK_PICTURE_STYLE`).
+ * - `ink-1`: the Ink brand's flat screenprint look (`INK_PICTURE_STYLE`); for
+ *   an animation, a poster in that look set moving by `INK_ANIMATION_STYLE`
+ *   (reserved in Phase 2, first used in Phase 5, so nothing older is under it).
  * - `voice-1`: the dialect voice chain in `ttsVoiceRouting.ts` as of 2026-10.
  * - `jingle-1`: `generate-word-jingle`'s per-dialect music styles.
  */
@@ -99,10 +101,18 @@ export const STYLE_VERSIONS: Readonly<Record<AssetKind, string>> = {
   story_line: "text-1",
 };
 
-/** The public bucket a kind's file lives in; null for kinds that are only text. */
+/**
+ * The public bucket a kind's file lives in; null for kinds that are only text.
+ *
+ * An animation is a clip and its poster, together in `word-animations`
+ * (migration `20261009140000_word_animations_bucket`): its own bucket because
+ * it is the one kind that is video, so the bucket can refuse anything that is
+ * not an MP4 or a still and anything over the size a four-second clip comes
+ * to, and because nothing but `word-asset` under the service role writes it.
+ */
 export const ASSET_BUCKETS: Readonly<Record<AssetKind, string | null>> = {
   image: "flashcard-images",
-  animation: "flashcard-images",
+  animation: "word-animations",
   word_audio: "flashcard-audio",
   sentence_audio: "flashcard-audio",
   jingle: "flashcard-audio",
@@ -150,6 +160,91 @@ export function normaliseGloss(gloss: string | null | undefined): string {
     .replace(/^(?:to|an?|the)\s+(?=\S)/, "");
 }
 
+// ── The action an animation is keyed on ─────────────────────────────────────
+
+/** The most alternatives a gloss lists before it is a description rather than a concept. */
+const MAX_ACTION_ALTERNATIVES = 3;
+
+/** The most words, across every alternative, in an action worth a clip. */
+const MAX_ACTION_WORDS = 8;
+
+/**
+ * Words that make a gloss a note about the word rather than its meaning:
+ * "used to call someone over", "lit. 'my eye'", "polite form of…".
+ */
+const NOTE_WORDS = new Set([
+  "used", "lit", "literally", "eg", "ie", "etc", "expression", "particle", "marker", "prefix", "suffix",
+  "ending", "plural", "singular", "masculine", "feminine", "polite", "informal", "formal", "slang",
+  "unreal", "figurative", "figuratively", "idiom", "idiomatic", "meaning", "means", "refers", "sense",
+]);
+
+/**
+ * Verbs with nothing to watch: being, wanting, thinking, feeling, the modals
+ * and the auxiliaries. A gloss led by one ("I want", "was / were", "I think
+ * (that)") is not keyed at all, so no clip can be made or asked for under it.
+ * The tracks' verbs of this kind are exactly the ones a picture of someone
+ * moving would teach wrong.
+ */
+const NON_ACTION_HEADS = new Set([
+  "am", "is", "are", "was", "were", "be", "been", "being", "i'm", "you're", "he's", "she's", "it's",
+  "we're", "they're", "that's", "there's",
+  "would", "will", "shall", "can", "could", "may", "might", "must", "should", "do", "does", "did",
+  "don't", "doesn't", "didn't", "won't", "can't", "not", "never",
+  "want", "wants", "wanted", "need", "needs", "needed", "think", "thinks", "thought", "reckon",
+  "know", "knows", "knew", "believe", "hope", "wish", "mean", "seem", "seems", "prefer",
+  "like", "likes", "liked", "love", "loves", "loved", "hate", "hates", "hated",
+  "feel", "feels", "felt", "remember", "remembers", "remembered", "forget", "forgets", "forgot",
+  "understand", "understood", "agree", "agreed",
+  "happen", "happens", "happened", "become", "becomes", "became", "grew", "born",
+]);
+
+/** Verbs that are an action only with an object: "have breakfast" is, "have" is not. */
+const NON_ACTION_ALONE = new Set(["have", "has", "had", "make", "makes", "made", "get", "gets", "got"]);
+
+/** A subject pronoun leading an alternative ("I eat"): an animation never shows who. */
+const SUBJECT_PRONOUN_RE = /^(?:i|you|he|she|we|they)\s+(?=\S)/;
+
+/**
+ * The action a language-neutral asset (an animation) is keyed on, or "" when
+ * the gloss is not one.
+ *
+ * Every dialect's "jump" shares one clip, so the English is the whole key, and
+ * it cuts both ways: two Arabic words with one gloss share a clip, which is
+ * the point, and a gloss that is not an action must not key one at all. So:
+ *
+ * - a note is not a concept: a gloss that opens with a bracket, asks a
+ *   question ("do you want? (to a man)"), trails off ("then … would have"),
+ *   or uses a note's words ("used to…", "lit.") keys nothing;
+ * - a qualifier stays in: "run (a business)" is "run a business", never
+ *   "run", so it does not borrow a clip of someone running. The safe way for
+ *   the key to be wrong is to share less;
+ * - alternatives are kept, each folded on its own ("I come back / I return"
+ *   is "come back / return"), so a gloss shares a clip only with the same
+ *   list, never with one of its parts;
+ * - the subject goes ("I eat" and "eat" are one action) and so does "to";
+ * - a verb with nothing to watch (`NON_ACTION_HEADS`) keys nothing, and nor
+ *   does a gloss long enough to be a description.
+ */
+export function animationConcept(gloss: string | null | undefined): string {
+  const raw = (gloss ?? "").normalize("NFKC").trim();
+  if (!raw || /^[([{]/.test(raw) || /[?…]|\.\.\./.test(raw)) return "";
+  // A slash inside a qualifier ("send (someone / something)") is part of it.
+  const protectedRaw = raw.replace(/\(([^)]*)\)/g, (_, inner: string) => ` ${inner.replace(/[/,;]/g, " or ")} `);
+  const alternatives: string[] = [];
+  for (const part of protectedRaw.split(/[/,;]/)) {
+    const folded = normaliseGloss(part).replace(SUBJECT_PRONOUN_RE, "");
+    if (folded && !alternatives.includes(folded)) alternatives.push(folded);
+  }
+  if (alternatives.length === 0 || alternatives.length > MAX_ACTION_ALTERNATIVES) return "";
+  const words = alternatives.flatMap((alt) => alt.split(" "));
+  if (words.length > MAX_ACTION_WORDS || words.some((word) => NOTE_WORDS.has(word))) return "";
+  for (const alt of alternatives) {
+    const [head, ...rest] = alt.split(" ");
+    if (NON_ACTION_HEADS.has(head) || (rest.length === 0 && NON_ACTION_ALONE.has(head))) return "";
+  }
+  return alternatives.join(" / ");
+}
+
 export interface AssetKeyInput {
   kind: string;
   /** The Arabic the asset is for. Ignored for a language-neutral kind. */
@@ -194,7 +289,9 @@ export function assetKey(input: AssetKeyInput): AssetKey | null {
   const styleVersion = STYLE_VERSIONS[kind];
 
   if (LANGUAGE_NEUTRAL_KINDS.has(kind)) {
-    const sense = normaliseGloss(input.gloss);
+    // The one language-neutral kind is an animation, keyed on the action the
+    // gloss names, and on nothing when it names none (`animationConcept`).
+    const sense = animationConcept(input.gloss);
     if (!sense || sense.length > MAX_CONCEPT_KEY_LENGTH) return null;
     return { conceptKey: sense, kind, dialect: null, styleVersion, sense };
   }
@@ -264,6 +361,38 @@ export const INK_PICTURE_STYLE = [
   "cream around it, so it still reads at the size of a thumbnail.",
   "No text of any kind: no letters, no Arabic or English words, no numbers, no captions,",
   "no signs, no logos, no watermark, no border or frame.",
+].join(" ");
+
+/**
+ * How every stored animation moves: the Ink picture style, set in motion.
+ * Written for a clip that starts from an Ink poster (`inkAnimationPrompt`),
+ * which is where most of the look comes from; this line keeps the motion from
+ * undoing it — a video model's habit is to add depth, light and texture as
+ * things move — and keeps the clip a loop the quiz can play over and over.
+ *
+ * The motion of one action, once, ending where it began; a camera that never
+ * moves; flat inks that stay flat; no text at any moment, which is also what
+ * keeps a clip out of Fusha. Changing this changes the look of every new
+ * clip, so it goes with a bump of `STYLE_VERSIONS.animation`.
+ */
+export const INK_ANIMATION_STYLE = [
+  "Motion: the one action, performed once at an even, natural pace, ending in exactly the pose",
+  "it started from, so the clip can loop without a jump. Only the figure and what it acts on move.",
+  "The camera never moves: no pan, zoom, cut or change of angle.",
+  "The look never changes: the same three flat inks on the same cream ground in every frame,",
+  "crisp edges, no gradients, glow, motion blur, depth, lighting changes or 3D shading.",
+  "No text appears at any moment: no letters, words, numbers, captions, signs or logos.",
+].join(" ");
+
+/**
+ * Who the figure in an animation is. A clip is keyed on the action alone and
+ * shown to every dialect's learners, so nothing in it places it in one
+ * country, as `DIALECT_SETTING` does for a picture.
+ */
+export const NEUTRAL_FIGURE_LINE = [
+  "If a person appears, it is one adult figure drawn simply, modestly dressed in plain everyday",
+  "clothes (long sleeves, long trousers or a long dress), with nothing that places them in one",
+  "country: the same picture is shown to learners of Gulf, Egyptian and Yemeni Arabic.",
 ].join(" ");
 
 /** Where people and places come from when a picture has any. */
@@ -693,6 +822,39 @@ export interface AssetStorage {
   };
 }
 
+/** A newly made file, before it has a name. */
+export interface NewFile {
+  bytes: Uint8Array;
+  contentType: string;
+  extension: string;
+}
+
+/**
+ * Upload a newly made file under a name of its own in its kind's bucket, and
+ * file nothing. For a file that rides along with an asset rather than being
+ * it — an animation's poster, whose url goes in the clip's payload — so it is
+ * named exactly as `fileNewAsset` names the asset itself: in the key's folder,
+ * under a fresh name, never over another object, and never where a caller says.
+ */
+export async function uploadNewFile(
+  storage: AssetStorage,
+  key: AssetKey,
+  file: NewFile,
+): Promise<{ url: string } | { error: string }> {
+  const bucket = ASSET_BUCKETS[key.kind];
+  if (!bucket) return { error: `${key.kind} assets have no file` };
+  try {
+    const path = await assetObjectPath(key, file.extension);
+    const { error } = await storage.storage
+      .from(bucket)
+      .upload(path, file.bytes, { contentType: file.contentType, upsert: false });
+    if (error) return { error: error.message };
+    return { url: storage.storage.from(bucket).getPublicUrl(path).data.publicUrl };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
 export type FiledFile =
   /** `url` is the object this call uploaded; `filed` says what the table did with it. */
   | { url: string; filed: PutOutcome }
@@ -716,7 +878,7 @@ export async function fileNewAsset(
   storage: AssetStorage,
   store: WordAssetClient,
   key: AssetKey,
-  file: { bytes: Uint8Array; contentType: string; extension: string },
+  file: NewFile,
   asset: Omit<NewWordAsset, "url">,
   /**
    * `replace`: the asset filed under `key` that this one takes the place of
@@ -724,15 +886,10 @@ export async function fileNewAsset(
    */
   options: { replace?: WordAsset | null } = {},
 ): Promise<FiledFile> {
-  const bucket = ASSET_BUCKETS[key.kind];
-  if (!bucket) return { error: `${key.kind} assets have no file` };
+  const uploaded = await uploadNewFile(storage, key, file);
+  if ("error" in uploaded) return uploaded;
+  const { url } = uploaded;
   try {
-    const path = await assetObjectPath(key, file.extension);
-    const { error } = await storage.storage
-      .from(bucket)
-      .upload(path, file.bytes, { contentType: file.contentType, upsert: false });
-    if (error) return { error: error.message };
-    const url = storage.storage.from(bucket).getPublicUrl(path).data.publicUrl;
     const filed = options.replace
       ? await replaceAsset(store, key, options.replace, { ...asset, url })
       : await putAsset(store, key, { ...asset, url });

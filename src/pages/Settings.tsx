@@ -28,6 +28,8 @@ import { useLeechPrefs } from '@/hooks/useLeechPrefs';
 import { useCelebrationPrefs } from '@/hooks/useCelebrationPrefs';
 import { useCurriculumDeckScope } from '@/hooks/useCurriculumDeckScope';
 import { useRootFamilyPrefs } from '@/hooks/useRootFamilyPrefs';
+import { useReviewStyle } from '@/hooks/useReviewStyle';
+import { type ReviewStyle } from '@/lib/reviewStyle';
 import { useFeatureHints } from '@/hooks/useFeatureHints';
 import { useSubscription } from '@/hooks/useSubscription';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
@@ -161,6 +163,7 @@ const Settings = () => {
   const { enabled: celebrationSongs, setEnabled: setCelebrationSongs } = useCelebrationPrefs();
   const { scope: curriculumScope, setScope: setCurriculumScope } = useCurriculumDeckScope();
   const { enabled: rootFamiliesEnabled, setEnabled: setRootFamiliesEnabled } = useRootFamilyPrefs();
+  const { style: reviewStyle, setStyle: setReviewStyle } = useReviewStyle();
   const { enabled: hintsEnabled, setEnabled: setHintsEnabled } = useFeatureHints();
   const { subscribed, tier, complimentary, openCustomerPortal } = useSubscription();
   const [clearingLeeches, setClearingLeeches] = useState(false);
@@ -756,6 +759,35 @@ const Settings = () => {
 
               {/* Review Preferences */}
               <SettingSection icon={AlertTriangle} title="Review Preferences">
+                {/* Flashcards or the quiz. Saves itself — it lives on the
+                    profile so it follows the learner to the next device, and
+                    the same switch sits in every review page's header. */}
+                <div className="p-3 rounded-xl bg-card border border-border">
+                  <p className="font-medium text-foreground text-sm">How you review</p>
+                  <p className="text-xs text-muted-foreground mb-2">
+                    Flashcards: flip the card and rate yourself. Quiz: fill the gap, hear it,
+                    then say it — the app rates you, and each word's questions get harder as it
+                    sticks. The sentence you met a word in is always a tap away.
+                  </p>
+                  <div className="flex gap-2" role="radiogroup" aria-label="How you review">
+                    {([
+                      { value: 'flashcards', label: 'Flashcards' },
+                      { value: 'quiz', label: 'Quiz' },
+                    ] as Array<{ value: ReviewStyle; label: string }>).map(({ value, label }) => (
+                      <Button
+                        key={value}
+                        size="sm"
+                        variant={reviewStyle === value ? 'default' : 'outline'}
+                        role="radio"
+                        aria-checked={reviewStyle === value}
+                        onClick={() => setReviewStyle(value)}
+                        className="flex-1"
+                      >
+                        {label}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
                 {/* Off by default: the curriculum used to arrive in the review
                     deck unasked, mixed in with the words the learner had
                     collected themselves. Doing a lesson is how you ask for its

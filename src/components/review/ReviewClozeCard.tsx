@@ -4,7 +4,8 @@ import { Check, X, Volume2, Play, Loader2, Quote } from "lucide-react";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { useDialect } from "@/contexts/DialectContext";
 import { cn } from "@/lib/utils";
-import { findWordSpan } from "@/lib/arabicWord";
+import { findWordSpan, normalizeArabicWord } from "@/lib/arabicWord";
+import { buildChoices } from "@/lib/quizDistractors";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 
 interface Props {
@@ -14,17 +15,13 @@ interface Props {
   sentenceEnglish?: string | null;
   sentenceAudioUrl?: string | null;
   distractors: string[]; // other Arabic words from due queue
+  /**
+   * The word's meaning, shown above the gap before answering. The quiz
+   * ladder's first look offers it; later steps do not.
+   */
+  hintEnglish?: string | null;
   onAnswered?: (correct: boolean) => void;
 }
-
-const shuffle = <T,>(arr: T[]): T[] => {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-};
 
 // Replace the first occurrence of the target word with a blank. Matching is
 // normalized (harakat, hamza carriers, ى/ة, attached punctuation), because a
@@ -44,6 +41,7 @@ export const ReviewClozeCard = ({
   sentenceEnglish,
   sentenceAudioUrl,
   distractors,
+  hintEnglish,
   onAnswered,
 }: Props) => {
   const { activeDialect } = useDialect();
@@ -61,16 +59,18 @@ export const ReviewClozeCard = ({
     return `${cloze.before} ... ${cloze.after}`.replace(/\s+/g, " ").trim();
   }, [cloze, sentenceText]);
 
+  // Seeded on the card, not rolled per render: an unseeded shuffle re-dealt
+  // the options on every re-render — the offline queue's "Saving" badge, an
+  // XP toast — so the answer moved under the learner's finger. The pool is
+  // also de-duplicated by normalised form, so the answer in another spelling
+  // can never be offered as a wrong option.
   const options = useMemo(() => {
     // Only keep Arabic-script options so we never offer English answers when
     // the prompt requires an Arabic word.
-    const ARABIC_RE = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
-    const pool = distractors.filter(
-      (d) => d && d !== wordArabic && ARABIC_RE.test(d),
-    );
-    const picks = shuffle(pool).slice(0, 3);
-    return shuffle([wordArabic, ...picks]);
-  }, [distractors, wordArabic]);
+    const ARABIC_RE = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFE]/;
+    const pool = distractors.filter((d) => d && ARABIC_RE.test(d));
+    return buildChoices(wordArabic, pool, `${wordArabic}|${sentenceText}`, 4, normalizeArabicWord);
+  }, [distractors, wordArabic, sentenceText]);
 
   // Reset when card changes
   useEffect(() => {
@@ -123,6 +123,12 @@ export const ReviewClozeCard = ({
           Fill in the missing word
         </span>
       </div>
+
+      {hintEnglish && selected == null && (
+        <p className="text-sm text-muted-foreground mb-4">
+          The missing word means <span className="font-semibold text-foreground">{hintEnglish}</span>
+        </p>
+      )}
 
       {/* Sentence with blank */}
       <div

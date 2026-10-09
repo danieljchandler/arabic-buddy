@@ -64,10 +64,19 @@ export interface VocabularyWord {
   audio_url: string | null;
   // Nullable in the schema: words attached to a lesson have no topic.
   topic_id: string | null;
+  lesson_id?: string | null;
   image_position?: string | null;
   dialect_module?: string;
   /** Arabic root. Null until an admin backfills it; '' means the word has none. */
   root?: string | null;
+  transliteration?: string | null;
+  /**
+   * The authored example sentence (curriculum/tracks). The quiz style cuts
+   * its gap from this; the flip card never showed it.
+   */
+  example_arabic?: string | null;
+  example_english?: string | null;
+  example_transliteration?: string | null;
 }
 
 interface WordWithReview extends VocabularyWord {
@@ -78,6 +87,12 @@ interface WordWithReview extends VocabularyWord {
     gradient: string;
     icon: string;
   };
+  /**
+   * The lesson's authored dialogue (`lessons.dialogue`), for the quiz's
+   * "answer the line" step. Null for topic-backed words and lessons without
+   * one.
+   */
+  dialogue: unknown;
 }
 
 /**
@@ -116,7 +131,20 @@ async function fetchAllRows<T>(
   return all;
 }
 
-export const useDueWords = (mixAll = false) => {
+export interface DueWordsOptions {
+  /**
+   * Serve a word's production card only once its recognition stability (in
+   * days) has reached this. The quiz passes the ladder's "Hear it" threshold
+   * so "say it" follows the earlier steps instead of arriving in the same
+   * session as the first right answer (src/lib/quizLadder.ts,
+   * `holdsProduction`). The flashcards pass nothing and keep serving
+   * production the moment it unlocks.
+   */
+  holdProductionBelow?: number;
+}
+
+export const useDueWords = (mixAll = false, options: DueWordsOptions = {}) => {
+  const holdProductionBelow = options.holdProductionBelow ?? null;
   const { user } = useAuth();
   const { activeDialect } = useDialect();
   const { cap: newCap } = useNewCardCap();
@@ -138,7 +166,7 @@ export const useDueWords = (mixAll = false) => {
     // loading swap and a freshly reshuffled deck under the learner's feet,
     // once per new card. The queryFn reads the current budget whenever the
     // deck is genuinely (re)built instead.
-    queryKey: ['due-words', user?.id, mixAll ? 'all' : activeDialect, scope],
+    queryKey: ['due-words', user?.id, mixAll ? 'all' : activeDialect, scope, holdProductionBelow],
     queryFn: async (): Promise<DueCurriculumCard[]> => {
       if (!user) return [];
 
@@ -157,13 +185,18 @@ export const useDueWords = (mixAll = false) => {
             lesson_id,
             image_position,
             root,
+            transliteration,
+            example_arabic,
+            example_english,
+            example_transliteration,
             dialect_module,
             frequency_rank,
             lessons (
               title,
               title_arabic,
               gradient,
-              icon
+              icon,
+              dialogue
             ),
             topics (
               name,
@@ -227,6 +260,7 @@ export const useDueWords = (mixAll = false) => {
           ...word,
           review,
           topic: resolvedTopic as WordWithReview['topic'],
+          dialogue: lessonData?.dialogue ?? null,
         };
       });
 
@@ -263,7 +297,10 @@ export const useDueWords = (mixAll = false) => {
         const productionDue =
           !!review?.production_next_review_at &&
           new Date(review.production_next_review_at).getTime() <= nowMs;
-        if (productionDue && review) {
+        // `ease_factor` holds the recognition schedule's FSRS stability.
+        const productionHeld =
+          holdProductionBelow != null && (review?.ease_factor ?? 0) < holdProductionBelow;
+        if (productionDue && review && !productionHeld) {
           cards.push({
             ...word,
             card_type: 'production',

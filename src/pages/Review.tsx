@@ -33,6 +33,15 @@ import { Trophy, Brain, Sparkles, LogIn, Shuffle, Eye, Volume2, ImagePlus, WifiO
 import { GenerateImageDialog } from "@/components/mywords/GenerateImageDialog";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
 import { useReviewKeyboard } from "@/hooks/useKeyboardShortcuts";
+import { useReviewStyle } from "@/hooks/useReviewStyle";
+import { useCurriculumWordPool } from "@/hooks/useQuizPool";
+import { useAddXP } from "@/hooks/useGamification";
+import { QuizCardFrame, type QuizGraded, type QuizItem } from "@/components/review/QuizCardFrame";
+import { ReviewStyleSwitch } from "@/components/review/ReviewStyleSwitch";
+import { QuizSessionSummary } from "@/components/review/QuizSessionSummary";
+import { EMPTY_QUIZ_SESSION, comboBonus, recordQuizAnswer, type QuizSessionStats } from "@/lib/quizSession";
+import { LADDER_THRESHOLDS, rungForMemory } from "@/lib/quizLadder";
+import { asDialogue } from "@/lib/quizDialogue";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
@@ -58,10 +67,21 @@ const Review = () => {
   const { enabled: leechTrackingEnabled } = useLeechPrefs();
   const [mixAll, setMixAll] = useState(false);
 
-  const { data: dueWords, isLoading: wordsLoading, isError: wordsError, refetch } = useDueWords(mixAll);
+  // How the learner wants to be asked. The quiz serves the same cards from
+  // the same schedules; only the question and who grades it change — and a
+  // production card waits until the word has climbed to the picture step.
+  const { style: reviewStyle } = useReviewStyle();
+  const quiz = reviewStyle === "quiz";
+  const { data: dueWords, isLoading: wordsLoading, isError: wordsError, refetch } = useDueWords(
+    mixAll,
+    quiz ? { holdProductionBelow: LADDER_THRESHOLDS.pictureDays } : {},
+  );
   const { data: stats } = useReviewStats(mixAll);
   const { enqueue, pendingCount, isFlushing, isOnline } = useReviewQueue();
   const session = useReviewSession(mixAll);
+  const { data: wordPool, isLoading: poolLoading } = useCurriculumWordPool(activeDialect, mixAll, quiz);
+  const addXP = useAddXP();
+  const [quizStats, setQuizStats] = useState<QuizSessionStats>(EMPTY_QUIZ_SESSION);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [sessionCount, setSessionCount] = useState(0);
@@ -126,7 +146,9 @@ const Review = () => {
     // A relearn card outlives the fetched list, so gate on there being a card
     // rather than on the list being non-empty — otherwise a mid-session
     // invalidation leaves a card on screen that the keyboard cannot rate.
-    enabled: (dueWords?.length ?? 0) > 0 || !!relearnPick,
+    // The quiz grades, so its cards take no rating keys; the frame handles
+    // Enter and Space itself.
+    enabled: !quiz && ((dueWords?.length ?? 0) > 0 || !!relearnPick),
   });
 
   const playAudio = (url: string) => {
@@ -359,10 +381,42 @@ const Review = () => {
   };
 
 
+  /**
+   * A quiz answer. The app rated it, so this records the session tally (the
+   * step the card's new memory state lands on says whether it climbed) and
+   * hands the rating down the same path a tap on the rating buttons takes.
+   */
+  const handleQuizGraded = (graded: QuizGraded) => {
+    const word = relearnPick?.card ?? dueWords?.[currentIndex];
+    if (!word) return;
+    const direction = scheduleDirectionFor(word.card_type);
+    const { result } = buildReviewUpdate(graded.rating, direction, word.review, new Date(), {
+      fuzzSeed: word.id,
+      desiredRetention,
+      stabilityMultiplier,
+      weights,
+    });
+    const stepAfter = rungForMemory(
+      { stability: result.stability, repetitions: result.repetitions },
+      direction,
+    ).step;
+    const next = recordQuizAnswer(quizStats, {
+      correct: graded.correct,
+      stepBefore: graded.step,
+      stepAfter,
+    });
+    setQuizStats(next);
+    // A flourish, never a schedule: the combo pays XP and nothing else.
+    const bonus = comboBonus(next.combo);
+    if (bonus) addXP.mutate({ amount: bonus, reason: "quiz_combo" });
+    handleRate(graded.rating);
+  };
+
   const handleToggleMix = () => {
     setMixAll((prev) => !prev);
     setCurrentIndex(0);
     setSessionCount(0);
+    setQuizStats(EMPTY_QUIZ_SESSION);
     setShowAnswer(false);
     // Switching decks starts a new session; relearn cards belong to the old one.
     setRelearn([]);
@@ -444,6 +498,7 @@ const Review = () => {
         <div className="flex items-center justify-between mb-6">
           <PageCorner />
           <div className="flex items-center gap-2">
+            <ReviewStyleSwitch />
             <button
               onClick={handleToggleMix}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
@@ -480,6 +535,7 @@ const Review = () => {
           fallbackLabel={brandNew ? "Learn your first words" : "Go Home"}
           fallbackRoute={brandNew ? "/curriculum" : "/"}
         >
+          {quiz && <QuizSessionSummary stats={quizStats} />}
           {stats && (
             <div className="grid grid-cols-2 gap-4 mb-8">
               <div className="bg-card rounded-xl p-4 border border-border">
@@ -528,74 +584,11 @@ const Review = () => {
     isProduction ? review?.production_last_reviewed_at : review?.last_reviewed_at,
   );
 
-  return (
-    <AppShell compact>
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <PageCorner />
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleToggleMix}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
-              mixAll
-                ? "bg-primary/10 border-primary/30 text-primary"
-                : "bg-card border-border text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <Shuffle className="h-3.5 w-3.5" />
-            Mix All
-          </button>
-          <div className="px-3 py-1.5 rounded-lg bg-card border border-border">
-            <span className="text-sm font-medium text-foreground">
-              {currentWord.topic?.name || 'Review'}
-            </span>
-          </div>
-          {pendingCount > 0 && (
-            <div
-              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium ${
-                isOnline
-                  ? "bg-card border-border text-muted-foreground"
-                  : "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400"
-              }`}
-              title={isOnline ? "Saving ratings…" : "Offline — will retry when reconnected"}
-            >
-              {isOnline ? (
-                <CloudUpload className={`h-3.5 w-3.5 ${isFlushing ? "animate-pulse" : ""}`} />
-              ) : (
-                <WifiOff className="h-3.5 w-3.5" />
-              )}
-              {isOnline ? `Saving ${pendingCount}` : `${pendingCount} pending`}
-            </div>
-          )}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-card border border-border">
-            <Trophy className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium text-foreground">{sessionCount}</span>
-          </div>
-
-        </div>
-      </div>
-
-      {/* Dialect tag */}
-      {mixAll && (
-        <div className="flex justify-center mb-4">
-          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground">
-            {dialectFlag} {dialectLabel}
-          </span>
-        </div>
-      )}
-
-      {/* Progress bar */}
-      <SessionProgress
-        deckId="curriculum"
-        session={session}
-        position={safeIndex + 1}
-        total={dueWords?.length ?? 0}
-      />
-
-      {/* Card */}
-      <div className="py-4">
-        <div className="max-w-sm mx-auto">
-          {isAudio ? (
+  // The flip card and its rating buttons, as JSX the quiz frame can fall
+  // back to for a card the ladder has no question for.
+  const flashcard = (
+    <>
+      {isAudio ? (
             <ReviewAudioCard
               wordArabic={currentWord.word_arabic}
               wordEnglish={currentWord.word_english}
@@ -824,6 +817,152 @@ const Review = () => {
             )}
           </div>
           )}
+    </>
+  );
+
+  // Rating waits for the reveal. Grading before checking the answer is a
+  // judgment-of-learning, which runs overconfident — every inflated "Good"
+  // writes a too-long interval. The keyboard path has always gated this way
+  // (flip first, then rate); the buttons match.
+  const ratingButtons = (
+    <div className="mt-10">
+      <RatingButtons
+        onRate={handleRate}
+        stability={stability}
+        difficulty={difficulty}
+        intervalDays={intervalDays}
+        repetitions={repetitions}
+        elapsedDays={elapsedDays}
+        disabled={!showAnswer}
+        // Tapping a rating before the reveal flips the card instead of
+        // doing nothing at all.
+        onBlocked={handleFlip}
+      />
+    </div>
+  );
+
+  // The card as the quiz sees it: one direction, one memory state, and the
+  // authored sentence to cut a gap from. The id carries the direction so a
+  // word served both ways in one session is two distinct questions.
+  const quizItem: QuizItem = {
+    id: `${currentWord.id}:${currentWord.card_type}`,
+    arabic: currentWord.word_arabic,
+    english: currentWord.word_english,
+    transliteration: currentWord.transliteration ?? null,
+    audioUrl: currentWord.audio_url,
+    imageUrl: currentWord.image_url,
+    sentence: currentWord.example_arabic
+      ? { arabic: currentWord.example_arabic, english: currentWord.example_english ?? null }
+      : null,
+    // The lesson's dialogue for "answer the line", topped up with the other
+    // lessons' lines in the deck so a short dialogue still has wrong replies.
+    dialogue: currentWord.dialogue,
+    extraDialogueLines: (dueWords ?? [])
+      .filter((w) => w.lesson_id !== currentWord.lesson_id)
+      .flatMap((w) => asDialogue(w.dialogue)),
+    dialect: currentWord.dialect_module ?? activeDialect,
+    direction: scheduleDirectionFor(currentWord.card_type),
+    memory: { stability, repetitions },
+  };
+  const quizPool =
+    wordPool && wordPool.length > 0
+      ? wordPool
+      : (dueWords ?? []).map((w) => ({
+          arabic: w.word_arabic,
+          english: w.word_english,
+          imageUrl: w.image_url,
+          audioUrl: w.audio_url,
+        }));
+
+  return (
+    <AppShell compact>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <PageCorner />
+        <div className="flex items-center gap-2">
+          <ReviewStyleSwitch />
+          <button
+            onClick={handleToggleMix}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
+              mixAll
+                ? "bg-primary/10 border-primary/30 text-primary"
+                : "bg-card border-border text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Shuffle className="h-3.5 w-3.5" />
+            Mix All
+          </button>
+          <div className="px-3 py-1.5 rounded-lg bg-card border border-border">
+            <span className="text-sm font-medium text-foreground">
+              {currentWord.topic?.name || 'Review'}
+            </span>
+          </div>
+          {pendingCount > 0 && (
+            <div
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-medium ${
+                isOnline
+                  ? "bg-card border-border text-muted-foreground"
+                  : "bg-amber-500/10 border-amber-500/30 text-amber-700 dark:text-amber-400"
+              }`}
+              title={isOnline ? "Saving ratings…" : "Offline — will retry when reconnected"}
+            >
+              {isOnline ? (
+                <CloudUpload className={`h-3.5 w-3.5 ${isFlushing ? "animate-pulse" : ""}`} />
+              ) : (
+                <WifiOff className="h-3.5 w-3.5" />
+              )}
+              {isOnline ? `Saving ${pendingCount}` : `${pendingCount} pending`}
+            </div>
+          )}
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-card border border-border">
+            <Trophy className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium text-foreground">{sessionCount}</span>
+          </div>
+
+        </div>
+      </div>
+
+      {/* Dialect tag */}
+      {mixAll && (
+        <div className="flex justify-center mb-4">
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-muted text-muted-foreground">
+            {dialectFlag} {dialectLabel}
+          </span>
+        </div>
+      )}
+
+      {/* Progress bar */}
+      <SessionProgress
+        deckId="curriculum"
+        session={session}
+        position={safeIndex + 1}
+        total={dueWords?.length ?? 0}
+      />
+
+      {/* Card */}
+      <div className="py-4">
+        <div className="max-w-sm mx-auto">
+          {quiz ? (
+            <QuizCardFrame
+              // One mount per presentation: a failed card on a short deck is
+              // re-served at once under the same id, and must be asked afresh
+              // rather than shown already answered with its old rating.
+              key={`${quizItem.id}:${sessionCount}`}
+              item={quizItem}
+              pool={quizPool}
+              ready={!poolLoading}
+              combo={quizStats.combo}
+              onGraded={handleQuizGraded}
+              renderFlashcard={() => (
+                <>
+                  {flashcard}
+                  {ratingButtons}
+                </>
+              )}
+            />
+          ) : (
+            flashcard
+          )}
 
           {/* Rescue for a card the learner keeps failing. The personal decks
               have had this since leech tracking landed; the curriculum deck —
@@ -842,25 +981,9 @@ const Review = () => {
           )}
         </div>
 
-        {/* Rating waits for the reveal. Grading before checking the answer is
-            a judgment-of-learning, which runs overconfident — every inflated
-            "Good" writes a too-long interval. The keyboard path has always
-            gated this way (flip first, then rate); now the buttons match. */}
-        <div className="mt-10">
-          <RatingButtons
-            onRate={handleRate}
-            stability={stability}
-            difficulty={difficulty}
-            intervalDays={intervalDays}
-            repetitions={repetitions}
-            elapsedDays={elapsedDays}
-            disabled={!showAnswer}
-            // Tapping a rating before the reveal flips the card instead of
-            // doing nothing at all.
-            onBlocked={handleFlip}
-
-          />
-        </div>
+        {/* In the quiz style the app has rated; the buttons only return when
+            the ladder has no question for a card and the flip card stands in. */}
+        {!quiz && ratingButtons}
       </div>
 
       <GenerateImageDialog

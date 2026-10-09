@@ -127,6 +127,25 @@ describe("posing the question", () => {
   });
 });
 
+describe("the hint", () => {
+  it("names the missing word's meaning on a first look, until the answer", () => {
+    render({ hintEnglish: "the market" });
+
+    expect(screen.getByText(/the missing word means/i)).toHaveTextContent("the market");
+
+    choose(WORD);
+
+    // After answering, the card's own reveal carries the meaning.
+    expect(screen.queryByText(/the missing word means/i)).not.toBeInTheDocument();
+  });
+
+  it("shows no hint unless asked", () => {
+    render();
+
+    expect(screen.queryByText(/the missing word means/i)).not.toBeInTheDocument();
+  });
+});
+
 describe("the options", () => {
   it("offers the answer among words from the same deck", () => {
     render();

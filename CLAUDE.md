@@ -158,6 +158,20 @@ harness.
 - **The lint ratchet has a hard-coded baseline.** `scripts/lint-ratchet.mjs`
   pins `BASELINE` (currently 521 errors). If you legitimately reduce the count,
   lower `BASELINE` in the same commit — the script prints the new number.
+- **The quiz review style is a second renderer over the same decks, not a
+  second scheduler.** Settings → Review Preferences → "How you review"
+  (`profiles.review_style`, migration `20261009120000_profile_review_style`;
+  until the live project carries the column the preference is device-local
+  and a `typesDrift` entry names the migration). `src/lib/quizLadder.ts`
+  reads each card's question off its memory state — gap, picture, audio,
+  pick the word, answer the line, say it, say the line — and
+  `QuizCardFrame` turns the answer into a rating that goes down the pages'
+  existing rating paths, so the queue, relearn, leeches and `review_log`
+  never know the style. Two things it must keep: a choice answer never earns
+  Easy, and the quiz holds a word's production card until recognition
+  stability reaches the picture step (`holdsProduction`) so "say it" is not
+  served in the same session as the first right answer. Roadmap:
+  `docs/quiz-phases-2026-10.md`; writeup: README "Reviewing as a quiz".
 - **Flashcard scheduling is FSRS-6, not FSRS-4.5 or SM-2, and the weights are
   meant to be fitted.** `src/lib/spacedRepetition.ts` implements the FSRS-6
   formulas line for line from fsrs-rs (21 weights). Two things it must keep:

@@ -330,6 +330,24 @@ test.describe("review preferences", () => {
     await expect(leechRow().getByRole("switch")).not.toBeChecked();
   });
 
+  test("the review style saves itself to the profile", async ({ page, db }) => {
+    db.seed("profiles", [aProfile({ display_name: "Sami", review_style: null })]);
+    await page.goto("/settings");
+    await expect(page.getByLabel(/display name/i)).toHaveValue("Sami");
+
+    await page.getByRole("radiogroup", { name: /how you review/i }).getByRole("radio", { name: /quiz/i }).click();
+
+    // On the profile, not the device: the choice follows the learner to the
+    // next device, and no unsaved-changes bar is raised for it.
+    await expect.poll(() => db.rows("profiles")[0].review_style).toBe("quiz");
+    await expect(page.getByText(/unsaved changes/i)).toHaveCount(0);
+
+    await page.reload();
+    await expect(
+      page.getByRole("radiogroup", { name: /how you review/i }).getByRole("radio", { name: /quiz/i }),
+    ).toHaveAttribute("aria-checked", "true");
+  });
+
   test("the root-families toggle persists across a reload", async ({ page }) => {
     await page.goto("/settings");
 

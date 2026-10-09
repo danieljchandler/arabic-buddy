@@ -215,6 +215,81 @@ are stored as authoring metadata and have no learner-facing surface. Every
 section renders nothing when empty, so lessons imported before this was wired up
 are unaffected.
 
+### Reviewing as a quiz instead of flashcards
+
+Settings → Review Preferences → **How you review** (and the same switch in
+every review page's header) chooses between the flip card and the quiz. The
+choice lives on `profiles.review_style` so it follows the learner across
+devices, with a device-local cache under it (`src/lib/reviewStyle.ts`,
+`useReviewStyle`) so no page flashes the wrong style while the profile loads;
+until the migration that adds the column is applied to the live project the
+cache is the whole preference, and the profile write fails quietly.
+
+The quiz serves the same due cards from the same two schedules — recognition
+and production, exactly as the flashcards do — and changes only the question
+and who grades it. The question is read off the card's memory state by the
+ladder in `src/lib/quizLadder.ts`:
+
+| step | when (recognition stability unless stated) | question |
+|---|---|---|
+| 1 First look | new, or under a day (just lapsed) | the authored or saved sentence with the word blanked, four Arabic options, the meaning shown as a hint |
+| 2 Fill the gap | under 4 days | the same gap, no hint |
+| 3 Pick the picture | under 8 days | the word, seen and heard → four pictures |
+| 4 Hear it | under 16 days | the word's audio alone → pick the meaning |
+| 5 Pick the word | under 30 days | the picture (or the meaning) → four Arabic words, each with its recording |
+| 6 Answer the line | 30 days and up | a line of the lesson's own dialogue, said aloud → pick the reply that uses the word |
+| 7 Say it | production card, under 14 days | the picture alone (or the meaning) → say the word; scored |
+| 8 Say the line | production card, 14 days and up | the English line → say the Arabic sentence; scored |
+
+The climb within recognition goes from form to meaning (the gap, the picture,
+the audio) to meaning to form (pick the word) to use (answer the line);
+production goes from the word to the line. The reply step is built from the
+lesson's authored dialogue (`lessons.dialogue`, `src/lib/quizDialogue.ts`):
+the reply is the first line that uses the word, the prompt is the line before
+it, the wrong replies are the dialogue's other lines topped up from the other
+lessons in the deck, and nothing is generated. A translation of what was said,
+or the meaning behind a picture, is a tap away and counts as help.
+
+The decks unlock production on the first Good and serve the production card
+the moment it is due — in the same session, for the flashcards. The quiz
+holds it until the word's recognition stability reaches the picture step
+(`holdsProduction`), so "say it" follows the earlier steps rather than
+arriving on the refetch after the first right answer; the production schedule
+itself is untouched, the card waits.
+
+A card without the material for its step falls back a question (no sentence →
+ask the meaning; no picture, or too few other pictures → hear it; no dialogue →
+pick the word; too few other words for four options, or a device that cannot
+record → the ordinary flip card with its rating buttons), so the ladder never
+refuses to serve a card. Wrong options, pictures and recordings come from the
+wider deck (`useQuizPool`), so a two-card session still gets four of each. The sentence a word was met in is always a tap
+away; opening it before a choice answer counts as help. Nothing is typed —
+most learners have no Arabic keyboard, and saying the word is the skill — so
+the speaking steps record a take through `useTakeRecorder` and score it with
+`azure-pronunciation` (the calibrated score, never Azure's raw one) against
+the target, showing what was recognised beside the score.
+
+Grading is `src/lib/quizGrading.ts`: a right choice is Good (never Easy when
+the options were on screen — the lesson quiz's and debrief's rule), a right
+choice reached with help is Hard, wrong is Again; a spoken take is banded by
+its score, and a take that was a different word is Again whatever it scored.
+Every rating then goes down the page's existing path — the offline queue,
+relearn, leeches, production unlock, the `review_log` trigger — so nothing
+downstream knows the style. `QuizCardFrame` is the one place the ladder, the
+cards and the grading meet; the pages hand it a card and get a rating back.
+
+The game chrome rides on XP and never on scheduling: a combo of consecutive
+right answers pays small XP at milestones (`src/lib/quizSession.ts`), the step
+badge on each card shows where the word is on the ladder, and the end-of-deck
+summary counts words that climbed. A graded answer on the My Words or My
+Phrases decks also pays the flat review XP that the curriculum deck pays and
+those decks' flip cards never did. Under Flashcards, My Words serves plain flip
+cards — the every-other-card cloze it used to show now lives in the quiz.
+
+Proposal and the phases still to come (dialogue and story questions, a shared
+asset store for generated pictures and animations):
+`docs/quiz-modes-plan-2026-10.md`.
+
 ### The authored tracks (Stages 1–3, three dialects)
 
 The Pre-A1 → B1 curriculum for Gulf, Egyptian and Yemeni is authored in git,

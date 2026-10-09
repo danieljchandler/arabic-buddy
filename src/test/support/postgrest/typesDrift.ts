@@ -51,6 +51,12 @@ export const COLUMNS_MISSING_FROM_TYPES: DriftedColumn[] = [
     migration: "20260919120000_library_bridge",
   })),
 
+  // "How you review" (flashcards or quiz), on the profile so it follows the
+  // learner across devices. Merged from a branch, so absent from the live
+  // project until applied there. Delete this once a types regeneration
+  // carries the column.
+  { table: "profiles", column: "review_style", migration: "20261009120000_profile_review_style" },
+
   // The post-video debrief (20261004120000_video_debrief) and the daily recap
   // (20261005120000_learner_recaps) were pinned here from their merge until
   // 2026-10-05, when Lovable applied both to the live project and the types

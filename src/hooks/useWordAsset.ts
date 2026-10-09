@@ -3,10 +3,19 @@ import { supabase } from "@/integrations/supabase/client";
 import {
   assetKey,
   getAsset,
+  type AssetKey,
   type AssetKeyInput,
   type WordAsset,
   type WordAssetClient,
 } from "../../supabase/functions/_shared/wordAssets";
+
+/**
+ * The query a word's stored asset is cached under. Shared with
+ * `useEnsureWordAsset`, which invalidates it once it has made one.
+ */
+export function wordAssetQueryKey(key: AssetKey | null) {
+  return ["word-asset", key?.kind, key?.dialect, key?.conceptKey, key?.styleVersion] as const;
+}
 
 /**
  * The shared asset made for a word — its picture, recording or jingle — if
@@ -16,8 +25,9 @@ import {
  * the key is folded here by the same module the edge functions file under
  * (`_shared/wordAssets.ts`), so the browser and the generators cannot disagree
  * on what "the same word" means. Making a missing asset is a generation with a
- * cost, so it is not this hook's to start; `word-asset`'s `ensure` is for the
- * generators.
+ * cost, so it is not this hook's to start; that is `useEnsureWordAsset`, which
+ * the quiz's picture step calls and which invalidates this read when it has
+ * made one.
  *
  * Everything that is not an asset reads as none: a word the store cannot file
  * (no Arabic in it, Fusha) asks nothing at all, and a failed read — the table
@@ -32,7 +42,7 @@ export function useWordAsset(input: AssetKeyInput | null): {
   const key = input ? assetKey(input) : null;
 
   const { data, isLoading } = useQuery({
-    queryKey: ["word-asset", key?.kind, key?.dialect, key?.conceptKey, key?.styleVersion],
+    queryKey: wordAssetQueryKey(key),
     enabled: key !== null,
     // A filed asset never changes; only a new style version replaces it, and
     // that is a different key. A miss is not cached, so a picture filed a

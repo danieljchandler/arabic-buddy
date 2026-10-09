@@ -959,6 +959,11 @@ const Review = () => {
               ready={!poolLoading}
               combo={quizStats.combo}
               onGraded={handleQuizGraded}
+              // A curriculum word with no picture on its row is shown the
+              // shared store's, if one is filed. Read only: a learner cannot
+              // write `vocabulary_words`, and the rows are filled by
+              // scripts/curriculum-pictures.ts.
+              sharedPictures
               renderFlashcard={() => (
                 <>
                   {flashcard}

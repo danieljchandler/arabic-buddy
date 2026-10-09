@@ -699,6 +699,14 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
 
   "generate-mnemonic": () => ok({ mnemonic: "a memorable hook" }),
   "generate-flashcard-image": () => ok({ imageUrl: "https://cdn.test/flashcard.png" }),
+  // The shared asset store. `ensure` answers a freshly drawn picture that was
+  // not filed — the shape the real function gives while its table is not yet
+  // applied — and `get` a miss, so nothing downstream sees a stored asset
+  // unless a test seeds one.
+  "word-asset": ({ body }) =>
+    (body as { action?: string } | null)?.action === "ensure"
+      ? ok({ asset: null, url: "https://cdn.test/word-asset.png", cached: false, stored: false })
+      : ok({ asset: null, url: null, cached: false, stored: false }),
   // The mnemonic's illustration. `success` is read by nothing, but the real
   // function answers a refusal as a 200 with `fallback: true`, so a stub
   // without the success half would make the two indistinguishable.

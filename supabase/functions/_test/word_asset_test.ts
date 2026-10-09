@@ -221,10 +221,12 @@ Deno.test("word-asset ensure makes the picture in the Ink style and files it und
   assertStringIncludes(prompt, "No text of any kind");
   assertStringIncludes(prompt, "Arabian Gulf");
 
-  const path = await assetObjectPath(COFFEE_KEY, "png");
+  const sample = await assetObjectPath(COFFEE_KEY, "png");
+  const folder = sample.slice(0, sample.lastIndexOf("/"));
   const upload = uploads(calls)[0];
-  assertStringIncludes(upload.url, `/storage/v1/object/flashcard-images/${path}`);
-  assertEquals(body.url, `https://e2e.supabase.co/storage/v1/object/public/flashcard-images/${path}`);
+  assertStringIncludes(upload.url, `/storage/v1/object/flashcard-images/${folder}/`);
+  assertStringIncludes(String(body.url), `https://e2e.supabase.co/storage/v1/object/public/flashcard-images/${folder}/`);
+  assert(upload.url.endsWith(String(body.url).split("/flashcard-images/")[1]), "the url served is the object uploaded");
 
   assertEquals(table.rows.length, 1);
   const row = table.rows[0];
@@ -461,4 +463,40 @@ Deno.test("word-asset refuses a gloss that is a note rather than a sense", async
   );
   assertEquals(status, 400);
   assertEquals(body.error, "gloss_too_long");
+});
+
+// ── The illustrator draws in the same look ──────────────────────────────────
+//
+// A learner's own picture (a regeneration, a described one) and an admin's
+// curriculum picture come from `generate-flashcard-image`, beside the store's.
+// It asked for a stock photograph until the store arrived; the Ink brand rules
+// photography out, and a deck mixing the two looks is what `style_version`
+// exists to prevent.
+
+Deno.test("generate-flashcard-image draws in the store's Ink style, never a photograph", async () => {
+  const fn = await loadFunction("generate-flashcard-image", {
+    upstreams: upstreams({ id: LEARNER_A }, assetTable().handler),
+  });
+  try {
+    const response = await fn.handler(
+      jsonRequest("generate-flashcard-image", {
+        word_arabic: "قهوة",
+        word_english: "coffee",
+        custom_instructions: "steam rising from the cup",
+      }),
+    );
+    const body = await response.json();
+    assertEquals(response.status, 200);
+    assertEquals(body.success, true);
+
+    const prompt = fn.calls.find((c) => c.url.includes(GEMINI_IMAGE_ROUTE))?.body ?? "";
+    assertStringIncludes(prompt, 'the meaning \\"coffee\\"');
+    assertStringIncludes(prompt, "#6B1F1F");
+    assertStringIncludes(prompt, "Not a photograph");
+    assert(!/stock photo|photograph of/i.test(prompt), "the photo style guide is back");
+    // The learner's own description still reaches their own picture.
+    assertStringIncludes(prompt, "steam rising from the cup");
+  } finally {
+    fn.restore();
+  }
 });

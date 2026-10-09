@@ -329,3 +329,165 @@ Deno.test("generate-word-jingle reports a safety-filtered generation", async () 
   assertStringIncludes(String(body.error), "safety filter");
   assertStringIncludes(String(body.error), "Try a different word");
 });
+
+// ── The shared path (`share: true`) ─────────────────────────────────────────
+//
+// A jingle for a word another learner already has one for is that learner's
+// jingle: no lyric call, no Lyria call, nothing charged. A new one is filed for
+// the next learner only when its lyrics pass the leak detector and are what was
+// actually sung — the store serves every learner, so nothing in it is Fusha.
+
+const LYRIC_ROUTE = "generativelanguage.googleapis.com/v1beta/openai";
+
+const aStoredJingle = {
+  id: "asset-1",
+  concept_key: "كتاب|book",
+  kind: "jingle",
+  dialect: "Gulf",
+  style_version: "jingle-1",
+  url: "https://cdn.test/shared-kitab-jingle.wav",
+  payload: { lyrics: "كتاب كتاب يا حلو الكتاب" },
+  meta: {},
+  source: "generated",
+  approved_at: null,
+  created_at: "2026-10-01T00:00:00Z",
+};
+
+/** A `word_assets` that records what was filed and answers `stored` to reads. */
+function assetStore(stored: unknown[] = []) {
+  const filed: Record<string, unknown>[] = [];
+  const handler: UpstreamHandler = async (request) => {
+    if (request.method === "GET") return json(stored);
+    const row = JSON.parse(await request.text()) as Record<string, unknown>;
+    filed.push(row);
+    return json({ id: "asset-new", approved_at: null, created_at: "2026-10-09T00:00:00Z", ...row }, 201);
+  };
+  return { filed, handler };
+}
+
+const sharedCaller = (store: UpstreamHandler, writer: UpstreamHandler, extra: Record<string, UpstreamHandler> = {}) =>
+  caller({
+    "/rest/v1/word_assets": store,
+    "/storage/v1/object/flashcard-audio": () => json({ Key: "flashcard-audio/x" }),
+    [LYRIC_ROUTE]: writer,
+    "models/lyria": lyria(new Uint8Array([1, 2, 3, 4]), "audio/mpeg"),
+    ...extra,
+  });
+
+Deno.test("generate-word-jingle serves a shared jingle without writing or singing anything", async () => {
+  const store = assetStore([aStoredJingle]);
+  const { status, body, calls } = await call(
+    { ...aWord, share: true },
+    sharedCaller(store.handler, promptWriter({ lyrics: "x", prompt: "p" })),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(body.audioUrl, "https://cdn.test/shared-kitab-jingle.wav");
+  assertEquals(body.lyrics, "كتاب كتاب يا حلو الكتاب");
+  assertEquals(body.cached, true);
+  assert(!calls.some((u) => u.includes(LYRIC_ROUTE)), "a hit must not write lyrics");
+  assert(!calls.some((u) => u.includes("models/lyria")), "a hit must not sing");
+  assert(!calls.some((u) => u.includes("increment_usage_counter")), "a hit is not charged");
+});
+
+Deno.test("generate-word-jingle files a new shared jingle for the next learner", async () => {
+  const store = assetStore();
+  const { status, body, calls } = await call(
+    { ...aWord, share: true },
+    sharedCaller(store.handler, promptWriter({ lyrics: "كتاب كتاب يا حلو الكتاب", prompt: "Khaliji pop" })),
+  );
+
+  assertEquals(status, 200);
+  // Still the bytes, for the learner who asked; and the url they can store.
+  assertEquals(decode(body.audioBase64), new Uint8Array([1, 2, 3, 4]));
+  assertStringIncludes(String(body.audioUrl), "/flashcard-audio/word-assets/jingle/jingle-1/gulf/");
+  assert(calls.some((u) => u.includes("increment_usage_counter")), "a miss is charged");
+
+  assertEquals(store.filed.length, 1);
+  const row = store.filed[0];
+  assertEquals(row.concept_key, "كتاب|book");
+  assertEquals(row.kind, "jingle");
+  assertEquals(row.dialect, "Gulf");
+  assertEquals(row.url, body.audioUrl);
+  assertEquals(row.payload, { lyrics: "كتاب كتاب يا حلو الكتاب" });
+});
+
+Deno.test("generate-word-jingle never shares lyrics the leak detector flags as Fusha", async () => {
+  const store = assetStore();
+  const { status, body, calls } = await call(
+    { ...aWord, share: true },
+    sharedCaller(store.handler, promptWriter({ lyrics: "سوف أقرأ هذا الكتاب الآن", prompt: "Khaliji pop" })),
+  );
+
+  // The learner still gets their jingle, exactly as before the store.
+  assertEquals(status, 200);
+  assertEquals(decode(body.audioBase64), new Uint8Array([1, 2, 3, 4]));
+  assertEquals(body.audioUrl, undefined);
+  assertEquals(store.filed, []);
+  assert(!calls.some((u) => u.includes("/storage/v1/object/")), "nothing uploaded to share");
+});
+
+Deno.test("generate-word-jingle does not share a clip sung from the safe fallback", async () => {
+  // The fallback sings only the word, so the lyrics written for it are not
+  // what is heard, and filing them would mislabel the clip for everyone.
+  let lyriaCalls = 0;
+  const store = assetStore();
+  const { status, body } = await call(
+    { ...aWord, share: true },
+    sharedCaller(store.handler, promptWriter({ lyrics: "كتاب كتاب", prompt: "p" }), {
+      "models/lyria": (request) =>
+        lyriaCalls++ === 0
+          ? json({ candidates: [{ finishReason: "SAFETY", content: { parts: [] } }] })
+          : lyria(new Uint8Array([9, 9]), "audio/mpeg")(request),
+    }),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(body.audioUrl, undefined);
+  assertEquals(store.filed, []);
+});
+
+Deno.test("generate-word-jingle regenerates afresh without the store when share is off", async () => {
+  // A regeneration asks for a different jingle; and a client on an older
+  // bundle, which sends no `share`, must never get a hit it cannot play.
+  const store = assetStore([aStoredJingle]);
+  const { status, body, calls } = await call(
+    aWord,
+    sharedCaller(store.handler, promptWriter({ lyrics: "كتاب كتاب", prompt: "p" })),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(decode(body.audioBase64), new Uint8Array([1, 2, 3, 4]));
+  assertEquals(body.audioUrl, undefined);
+  assert(!calls.some((u) => u.includes("word_assets")), "share off must not touch the store");
+});
+
+Deno.test("generate-word-jingle still hands back a shareable url while the store's table does not exist", async () => {
+  const missing: UpstreamHandler = () =>
+    json({ code: "PGRST205", message: "Could not find the table 'public.word_assets' in the schema cache" }, 404);
+  const { status, body } = await call(
+    { ...aWord, share: true },
+    sharedCaller(missing, promptWriter({ lyrics: "كتاب كتاب", prompt: "p" })),
+  );
+
+  // Uploaded under a name of its own, so the caller stores this url as it
+  // would have stored its own upload; it is simply not filed for anyone else.
+  assertEquals(status, 200);
+  assertStringIncludes(String(body.audioUrl), "/flashcard-audio/word-assets/jingle/");
+});
+
+Deno.test("generate-word-jingle turns an anonymous caller away before looking anything up", async () => {
+  const store = assetStore([aStoredJingle]);
+  const fn = await loadFunction("generate-word-jingle", {
+    upstreams: sharedCaller(store.handler, promptWriter({ lyrics: "x", prompt: "p" })),
+  });
+  try {
+    const response = await fn.handler(jsonRequest("generate-word-jingle", { ...aWord, share: true }, { jwt: null }));
+    const body = await response.json();
+    assertEquals(response.status, 401);
+    assertEquals(body.error, "auth_required");
+    assertEquals(fn.callsTo("word_assets"), []);
+  } finally {
+    fn.restore();
+  }
+});

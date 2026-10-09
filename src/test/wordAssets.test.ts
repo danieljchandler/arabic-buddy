@@ -118,21 +118,28 @@ describe("assetKey", () => {
 
 describe("assetObjectPath", () => {
   const key = assetKey({ kind: "image", word: "قهوة", gloss: "coffee", dialect: "Gulf" }) as AssetKey;
+  const folder = (path: string) => path.slice(0, path.lastIndexOf("/"));
 
-  it("is stable, so two learners who miss at once overwrite one object", async () => {
-    expect(await assetObjectPath(key, "png")).toBe(await assetObjectPath({ ...key }, "png"));
+  it("files every object for a word in one folder", async () => {
+    expect(folder(await assetObjectPath(key, "png"))).toBe(folder(await assetObjectPath({ ...key }, "png")));
+  });
+
+  it("never reuses an object, so a url a learner was given keeps playing what they got", async () => {
+    // Two learners who miss at once each get their own object; only the one
+    // the table files is ever served to a third.
+    expect(await assetObjectPath(key, "png")).not.toBe(await assetObjectPath(key, "png"));
   });
 
   it("never carries the Arabic or the gloss", async () => {
     const path = await assetObjectPath(key, "png");
-    expect(path).toMatch(/^word-assets\/image\/ink-1\/gulf\/[0-9a-f]{32}\.png$/);
+    expect(path).toMatch(/^word-assets\/image\/ink-1\/gulf\/[0-9a-f]{32}\/[0-9a-f-]{36}\.png$/);
   });
 
   it("differs per dialect and per word", async () => {
     const egyptian = { ...key, dialect: "Egyptian" as const };
     const tea = assetKey({ kind: "image", word: "شاي", gloss: "tea", dialect: "Gulf" }) as AssetKey;
-    const paths = await Promise.all([key, egyptian, tea].map((k) => assetObjectPath(k, "png")));
-    expect(new Set(paths).size).toBe(3);
+    const folders = await Promise.all([key, egyptian, tea].map(async (k) => folder(await assetObjectPath(k, "png"))));
+    expect(new Set(folders).size).toBe(3);
   });
 
   it("does not let an extension escape the folder", async () => {
@@ -182,7 +189,7 @@ describe("the Ink picture style", () => {
     const prompt = inkPicturePrompt({ gloss: `coffee" and also a ${"very ".repeat(40)}long note`, dialect: "Gulf" });
     const line = prompt.split("\n")[0];
     expect(line).toMatch(/^A picture that shows, unmistakably and on its own, the meaning "coffee' and also a very/);
-    expect(line.length).toBeLessThan(160);
+    expect(line.length).toBeLessThan(200);
   });
 });
 

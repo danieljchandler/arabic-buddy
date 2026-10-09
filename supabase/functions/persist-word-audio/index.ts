@@ -17,6 +17,15 @@
  * accepting an uploaded blob, so a caller can't attach arbitrary audio to a
  * shared row).
  *
+ * The shared asset store (`_shared/wordAssets.ts`) is looked up before
+ * synthesising: one word turns up on several curriculum rows (a Stage 1 word
+ * revisited in a later lesson, an imported lesson repeating an authored one),
+ * and a row whose word, sense and dialect already have a recording gets that
+ * one copied onto it rather than a second synthesis. What is synthesised is
+ * filed there for the next row. Until the store's migration is applied the
+ * lookup misses and the filing fails quietly, which is this function as it
+ * was before.
+ *
  * Body: { wordId: string, dialect?: string }
  * Response: { audioUrl: string, cached: boolean }
  */
@@ -25,6 +34,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { synthesizeForDialect } from "../_shared/ttsVoiceRouting.ts";
+import { assetKey, getAsset, putAsset, type WordAssetClient } from "../_shared/wordAssets.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -52,9 +62,19 @@ serve(async (req) => {
       auth: { persistSession: false, autoRefreshToken: false },
     });
 
+    // Only fill an empty slot — never overwrite a recording an admin uploaded.
+    const fillEmptySlot = async (audioUrl: string) => {
+      const { error } = await admin
+        .from("vocabulary_words")
+        .update({ audio_url: audioUrl })
+        .eq("id", wordId)
+        .is("audio_url", null);
+      if (error) throw error;
+    };
+
     const { data: word, error: wordErr } = await admin
       .from("vocabulary_words")
-      .select("id, word_arabic, audio_url, dialect_module")
+      .select("id, word_arabic, word_english, audio_url, dialect_module")
       .eq("id", wordId)
       .maybeSingle();
 
@@ -73,6 +93,24 @@ serve(async (req) => {
       });
     }
 
+    const voicedIn = dialect || word.dialect_module;
+    const store = admin as unknown as WordAssetClient;
+    const key = assetKey({
+      kind: "word_audio",
+      word: word.word_arabic,
+      gloss: word.word_english,
+      dialect: voicedIn,
+    });
+
+    // The same word, sense and dialect recorded for another row: copy it on.
+    const stored = key ? await getAsset(store, key) : null;
+    if (stored?.url) {
+      await fillEmptySlot(stored.url);
+      return new Response(JSON.stringify({ audioUrl: stored.url, cached: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Synthesise here rather than accepting a client-uploaded blob: the row is
     // shared across every learner, so its audio must provably be this word.
     //
@@ -86,7 +124,7 @@ serve(async (req) => {
     try {
       ({ bytes: audio, plan } = await synthesizeForDialect(
         word.word_arabic,
-        dialect || word.dialect_module,
+        voicedIn,
         { minVoices: 1 },
       ));
     } catch (ttsErr) {
@@ -110,13 +148,16 @@ serve(async (req) => {
     const { data: urlData } = admin.storage.from(BUCKET).getPublicUrl(path);
     const audioUrl = urlData.publicUrl;
 
-    // Only fill an empty slot — never overwrite a recording an admin uploaded.
-    const { error: updateErr } = await admin
-      .from("vocabulary_words")
-      .update({ audio_url: audioUrl })
-      .eq("id", wordId)
-      .is("audio_url", null);
-    if (updateErr) throw updateErr;
+    await fillEmptySlot(audioUrl);
+
+    // Filed for the next row with this word. Never fails the request: the
+    // learner's audio is already stored on the row above.
+    if (key) {
+      await putAsset(store, key, {
+        url: audioUrl,
+        meta: { provider: plan.provider, voice: plan.voices[0] ?? null, content_type: plan.contentType },
+      });
+    }
 
     return new Response(JSON.stringify({ audioUrl, cached: false }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

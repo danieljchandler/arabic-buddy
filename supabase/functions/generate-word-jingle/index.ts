@@ -1,11 +1,51 @@
+/**
+ * generate-word-jingle — a short sung mnemonic for a word.
+ *
+ * With `share: true` the jingle is a shared asset (`_shared/wordAssets.ts`):
+ * a word, sense and dialect another learner already has a jingle for is served
+ * that one — no lyric call, no Lyria call, nothing charged — and a new one is
+ * stored in the public bucket and filed for the next learner, provided its
+ * lyrics pass the Brain's MSA leak detector. Nothing the store holds is Fusha.
+ * The answer then carries `audioUrl`, and the caller copies it onto its own
+ * row instead of uploading. A regeneration leaves `share` off: the learner
+ * asked for a different jingle, not the one everybody has.
+ *
+ * `share` is opt-in rather than the default so a client still running an
+ * older bundle never receives a hit it cannot read: a hit carries a url and
+ * no audio bytes.
+ *
+ * Until the store's migration is applied the lookup misses and the filing
+ * fails quietly; a shared jingle is still uploaded under a name of its own
+ * and handed back as `audioUrl`, which the caller stores exactly as it would
+ * have stored its own upload.
+ */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getDialectLabel, getDialectVocabRules } from "../_shared/dialectHelpers.ts";
-import { enforceDailyCap } from "../_shared/usageCap.ts";
+import { enforceDailyCap, resolveUserId } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getJingleStyleLine } from "../_shared/jingleStyles.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
+import { detectMsaLeaks } from "../_shared/msaLeakDetector.ts";
+import {
+  ASSET_BUCKETS,
+  assetKey,
+  assetObjectPath,
+  getAsset,
+  putAsset,
+  type AssetKey,
+  type WordAssetClient,
+} from "../_shared/wordAssets.ts";
 
+/** A gloss longer than this is a note; it can still be sung, but not shared. */
+const MAX_SHARED_GLOSS_LENGTH = 80;
+
+/** The lyrics a stored jingle was sung from. */
+function storedLyrics(payload: unknown): string | null {
+  const lyrics = (payload as { lyrics?: unknown } | null)?.lyrics;
+  return typeof lyrics === "string" && lyrics ? lyrics : null;
+}
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -13,18 +53,18 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  // Free-tier daily cap: 5 jingle generations / user / day (Lyria is expensive).
-  // Music generation (Lyria) costs real money per call. The free allowance
-  // comes down from 50 — which was uncapped-in-practice — and paid tiers get
-  // a ladder instead of a bypass.
-  const cap = await enforceDailyCap(req, "generate-word-jingle", 15, corsHeaders, {
-    standard: 40,
-    allin: 120,
-  });
-  if (cap.limited) return cap.response;
+  // Who is asking comes first. The daily cap below turns anonymous callers
+  // away too, but it also charges, and a shared hit costs nothing, so the cap
+  // waits until there is something to pay for.
+  if (!(await resolveUserId(req))) {
+    return new Response(
+      JSON.stringify({ error: "auth_required", message: "Please sign in to use this feature." }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
 
   try {
-    const { word_arabic, word_english, dialect = "Gulf" } = await req.json();
+    const { word_arabic, word_english, dialect = "Gulf", share = false } = await req.json();
 
     if (!word_arabic || !word_english) {
       return new Response(
@@ -32,6 +72,37 @@ serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // The shared path: the same word, sense and dialect already sung for
+    // another learner is served as it is.
+    const key = share === true && String(word_english).length <= MAX_SHARED_GLOSS_LENGTH
+      ? assetKey({ kind: "jingle", word: String(word_arabic), gloss: String(word_english), dialect })
+      : null;
+    const admin = key
+      ? createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
+        auth: { persistSession: false, autoRefreshToken: false },
+      })
+      : null;
+    const store = admin as unknown as WordAssetClient | null;
+    if (key && store) {
+      const stored = await getAsset(store, key);
+      if (stored?.url) {
+        return new Response(
+          JSON.stringify({ audioUrl: stored.url, lyrics: storedLyrics(stored.payload), cached: true }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+        );
+      }
+    }
+
+    // Free-tier daily cap: 5 jingle generations / user / day (Lyria is expensive).
+    // Music generation (Lyria) costs real money per call. The free allowance
+    // comes down from 50 — which was uncapped-in-practice — and paid tiers get
+    // a ladder instead of a bypass.
+    const cap = await enforceDailyCap(req, "generate-word-jingle", 15, corsHeaders, {
+      standard: 40,
+      allin: 120,
+    });
+    if (cap.limited) return cap.response;
 
     // Two legs, two keys: the lyric/prompt model routes through aiGateway,
     // while Lyria (the music model) has no route but Google's own API.
@@ -147,6 +218,9 @@ STRICT SAFETY RULES (the music model has a strict safety filter — violations c
     const safeFallbackPrompt = `A cheerful, family-friendly 10-second ${dialectLabel} children's jingle. ${dialectStyle}. A happy group of kids sings the Arabic word "${word_arabic}" three times in a playful, sing-song way over bright, bouncy percussion and a simple melodic hook. Sunny, wholesome, market-day vibe. No lyrics other than the repeated Arabic word and gentle "la la la" vocables.`;
 
     let lyriaResponse = await callLyria(musicPrompt);
+    // The safe fallback sings only the word, so the lyrics written above are
+    // not what is heard and the clip is not shared under them.
+    let sungFromFallback = false;
     let lyriaData: any = null;
     let audioPart: any = null;
 
@@ -184,6 +258,7 @@ STRICT SAFETY RULES (the music model has a strict safety filter — violations c
         }
       }
 
+      sungFromFallback = true;
       lyriaResponse = await callLyria(safeFallbackPrompt);
       if (!lyriaResponse.ok) {
         const errText = await lyriaResponse.text().catch(() => "");
@@ -255,11 +330,26 @@ STRICT SAFETY RULES (the music model has a strict safety filter — violations c
       audioBase64 += String.fromCharCode(...outBytes.subarray(i, i + 0x8000));
     }
 
+    const extension = outMime.includes("mpeg") || outMime.includes("mp3") ? "mp3" : "wav";
+
+    // Shared only when what is heard is what was written and checked: lyrics
+    // the leak detector passes, sung from those lyrics.
+    let audioUrl: string | null = null;
+    if (key && admin && store && lyrics && !sungFromFallback) {
+      const leaks = detectMsaLeaks(lyrics, key.dialect ?? "Gulf").leaks;
+      if (leaks.length === 0) {
+        audioUrl = await shareJingle(admin, store, key, outBytes, outMime, extension, lyrics, musicPrompt);
+      } else {
+        console.warn(`generate-word-jingle: not shared, MSA in the lyrics: ${leaks.join(", ")}`);
+      }
+    }
+
     return new Response(JSON.stringify({
       audioBase64: btoa(audioBase64),
       mimeType: outMime,
-      extension: outMime.includes("mpeg") || outMime.includes("mp3") ? "mp3" : "wav",
+      extension,
       lyrics: lyrics || null,
+      ...(audioUrl ? { audioUrl, cached: false } : {}),
     }), {
       headers: {
         ...corsHeaders,
@@ -274,3 +364,55 @@ STRICT SAFETY RULES (the music model has a strict safety filter — violations c
     );
   }
 });
+
+/** The slice of the service-role client the upload needs. */
+interface JingleStorage {
+  storage: {
+    from(bucket: string): {
+      upload(
+        path: string,
+        body: Uint8Array,
+        options: { contentType: string; upsert: boolean },
+      ): Promise<{ error: { message: string } | null }>;
+      getPublicUrl(path: string): { data: { publicUrl: string } };
+    };
+  };
+}
+
+/**
+ * Upload a new jingle under a name of its own and file it for the next
+ * learner. Returns the url of what this learner was sung, or null when the
+ * upload failed (the caller then uploads its own copy, as it always did).
+ * Filing can fail — the table not yet applied, or another learner filing
+ * first — without changing what this learner is handed.
+ */
+async function shareJingle(
+  admin: JingleStorage,
+  store: WordAssetClient,
+  key: AssetKey,
+  bytes: Uint8Array,
+  contentType: string,
+  extension: string,
+  lyrics: string,
+  musicPrompt: string,
+): Promise<string | null> {
+  try {
+    const bucket = ASSET_BUCKETS.jingle as string;
+    const path = await assetObjectPath(key, extension);
+    const { error } = await admin.storage.from(bucket).upload(path, bytes, { contentType, upsert: false });
+    if (error) {
+      console.warn(`generate-word-jingle: shared upload failed: ${error.message}`);
+      return null;
+    }
+    const url = admin.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+    await putAsset(store, key, {
+      url,
+      payload: { lyrics },
+      meta: { prompt: musicPrompt, lyric_model: MODEL_IDS.GEMINI_FAST },
+    });
+    return url;
+  } catch (err) {
+    console.warn(`generate-word-jingle: not shared: ${err instanceof Error ? err.message : String(err)}`);
+    return null;
+  }
+}

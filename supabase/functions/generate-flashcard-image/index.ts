@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { generateImageDataUrl, hasAnyProvider } from "../_shared/aiGateway.ts";
+import { inkPicturePrompt } from "../_shared/wordAssets.ts";
 
 
 serve(async (req) => {
@@ -50,19 +51,12 @@ serve(async (req) => {
 
     if (!hasAnyProvider()) throw new Error("No AI provider is configured");
 
-    let prompt = `A single realistic, professional photograph of: ${word_english}.
-STYLE GUIDE — follow exactly for every image:
-- Photo-realistic stock photo style, centered subject
-- Warm neutral background: soft beige, cream, or light wood surface
-- Soft diffused lighting, slightly warm color temperature
-- Clean minimal composition with no clutter or secondary objects
-- Subject fills roughly 60-70% of the frame
-- Shallow depth of field with gentle bokeh on background
-- No text, labels, watermarks, or overlays
-- No lens flare, no light shimmer, no sparkles, no glowing dots, no bokeh circles in the foreground
-- Consistent color grading: warm highlights, soft shadows
-- Matte finish, no glossy or specular highlights on the image surface`;
-    
+    // The shared asset store's Ink picture style, so a picture drawn here (a
+    // regeneration, a described picture, an admin's curriculum word) matches
+    // the one the store serves beside it. It replaced a photo-realistic stock
+    // shot: the Ink brand rules photography out (docs/brand-refresh.md).
+    let prompt = inkPicturePrompt({ gloss: String(word_english), dialect: null });
+
     if (custom_instructions) {
       prompt += `\nAdditional instructions: ${custom_instructions}`;
     }

@@ -210,7 +210,7 @@ async function makePicture(
   const path = await assetObjectPath(key, imageExtension(image.contentType));
   const { error: uploadError } = await admin.storage
     .from(bucket)
-    .upload(path, image.bytes, { contentType: image.contentType, upsert: true });
+    .upload(path, image.bytes, { contentType: image.contentType, upsert: false });
   if (uploadError) throw new Error(`Failed to upload picture: ${uploadError.message}`);
   const url = admin.storage.from(bucket).getPublicUrl(path).data.publicUrl;
 

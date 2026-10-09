@@ -179,9 +179,12 @@ export function assetKey(input: AssetKeyInput): AssetKey | null {
 }
 
 /**
- * Where a key's file goes in its bucket: stable, so two learners who miss at
- * once overwrite one object rather than littering two, and hashed, so a path
- * never carries Arabic or a learner's gloss.
+ * Where a newly made file goes in its bucket: in a folder named for the key,
+ * hashed so a path never carries Arabic or a learner's gloss, under a name of
+ * its own. Never reused, because a url handed to a learner must keep playing
+ * what they were given: two learners who miss at once (or every learner,
+ * while the table is not yet applied) each get their own object, and only the
+ * one the table files is served to anyone else.
  */
 export async function assetObjectPath(key: AssetKey, extension: string): Promise<string> {
   const ext = /^[a-z0-9]{1,5}$/.test(extension) ? extension : "bin";
@@ -193,7 +196,7 @@ export async function assetObjectPath(key: AssetKey, extension: string): Promise
     .join("")
     .slice(0, 32);
   const dialect = (key.dialect ?? "any").toLowerCase();
-  return `word-assets/${key.kind}/${key.styleVersion}/${dialect}/${hex}.${ext}`;
+  return `word-assets/${key.kind}/${key.styleVersion}/${dialect}/${hex}/${crypto.randomUUID()}.${ext}`;
 }
 
 // ── The Ink picture style ───────────────────────────────────────────────────
@@ -248,7 +251,7 @@ export function inkPicturePrompt(input: {
   /** An authored scene (a track word's `image_scene`); never a learner's text. */
   scene?: string | null;
 }): string {
-  const gloss = promptSafe(input.gloss, 80);
+  const gloss = promptSafe(input.gloss, 120);
   const scene = promptSafe(input.scene ?? "", 400);
   return [
     `A picture that shows, unmistakably and on its own, the meaning "${gloss}".`,

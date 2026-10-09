@@ -10,13 +10,14 @@ means — so a session can pick up the next phase cold.*
 | phase | what | status |
 |---|---|---|
 | 0 | Proposal and decisions | done |
-| 1 | The quiz style and the eight-step ladder | done (PR #422) |
+| 1 | The quiz style and the eight-step ladder (nine since Phase 4) | done (PR #422) |
 | 1b | Apply the `review_style` migration to the live project | **owner action** |
 | 2 | The shared asset store | done (PR #423) |
 | 2b | Apply the `word_assets` migration to the live project | **owner action** |
 | 3 | A picture for every word | built (PR #424); the pictures themselves are 3b |
 | 3b | Deploy `word-asset`, then run `scripts/curriculum-pictures.ts` | **owner action** (after 2b for anything to be kept) |
-| 4 | Generated dialogues, and saying the reply | next, after 2 |
+| 4 | Generated dialogues, and saying the reply | built (PR #425) |
+| 4b | Deploy `word-asset` (this version) | **owner action** (after 2b; one deploy covers 3b's) |
 | 5 | Animations for action words | after 2 and 3 |
 | 6 | Words in stories | after 2 |
 | 7 | The rest of the game | any time after 1 |
@@ -204,6 +205,15 @@ What shipped, so the later phases know what they stand on (writeups: README
   `useEnsureWordAsset.test.ts`, `QuizCardFrame.test.tsx`, and
   `review.spec.ts` ("a picture for a word that has none").
 
+An independent review before merge found the phrase mismatch, the short-word
+leniency, the uncheckable rewrite, the unchargeable-word loop and the URL
+bound; all five are fixed above. One design question it raised is left to
+the owner: step 9 is scored against the exact stored reply, so a learner who
+says a correct paraphrase loses on completeness and can be rated Again, a
+lapse on a production card at 30+ days. Showing the reply with the word
+gapped, or not counting such a take as a lapse when the word was clearly
+said, are the two ways out.
+
 Two things a later phase should know. The card waits up to 12 seconds for a
 drawing, and only when three other words in the pool have pictures — so on a
 learner's first few pictured words the fallback is asked and the picture
@@ -274,7 +284,109 @@ a saved word gets one the first time the quiz asks for a picture.
 
 ---
 
-## Phase 4 — generated dialogues, and saying the reply
+## Phase 4 — generated dialogues, and saying the reply (built, PR #425)
+
+What shipped, so the later phases know what they stand on (writeups: README
+"Reviewing as a quiz instead of flashcards" and "The asset store"):
+
+- **`kind: "dialogue"` in the store** (`_shared/wordDialogue.ts`): `payload`
+  is `{ lines: [said, reply] }`, each line `{ speaker, arabic, english,
+  transliteration }`; the reply uses the word as a whole word and the line
+  said does not (`asStoredDialogue`, read the same way by the function, the
+  pool and the frame). Style `text-1`, no bucket, filed with `putAsset`.
+- **`word-asset ensure` writes it** through `askBrain` (CONTENT lineup,
+  `draft_critic`, `enforceDialect` and `validateDialect`, a quality gate on
+  the word), files it only if every line passes the leak detector with the
+  rulebook's tokens (quotes stripped first, `dialogueLinesForScan`) and the
+  native reviewer passed the shipped text (a rewrite is judged too), and
+  charges `word-asset-dialogue` (30 / 100 / 300 a day). A word that is itself
+  a leak token is refused before the charge (`word_not_in_dialect`).
+- **`_shared/wordAssets.ts`** gains `lookupAsset` (a missing table told apart
+  from a miss) and `getAssets` (many keys in one query, at most
+  `MAX_KEYS_PER_READ` = 100 keys and `MAX_KEY_BYTES_PER_READ` = 6,000 bytes
+  encoded).
+- **`useEnsureWordAsset`** keeps every piece of session state per kind.
+- **`useQuizPool`**: each word entry carries `dialogueLine`, its stored reply,
+  read for the likeliest hundred words in one query (a learner's most settled,
+  the curriculum's earliest). Not for the phrase deck.
+- **The ladder**: step 9 "Say the reply" (`speak-reply`) at production
+  stability `LADDER_THRESHOLDS.replyDays` (30) and up; no reply → step 8, no
+  sentence either → say it, no microphone → the flip card. `QUIZ_STEP_COUNT`
+  is 9.
+- **`QuizSpeakCard`** `speak-reply`: the line is played once, the reply's
+  meaning is shown (or a gap when it has no English), the translation of the
+  line is help, and the grader sees `wordSpanSimilarity` — the word's span of
+  what was heard, an attached و/ب/ال taken off, a word of three letters or
+  fewer held to an exact match — so a reply without the word is Again.
+- **One rule for "uses the word"**, `lineUsesWord`, on the store's side and
+  the quiz's, so a phrase (a fifth of the curriculum) is asked from its
+  exchange like a word.
+- **`QuizCardFrame`** `storedDialogues` (the curriculum deck and My Words):
+  the lesson's dialogue first, else the stored exchange, else one written.
+  The picture and the exchange settle through one per-card hook
+  (`useCardAsset`), each bounded (`DIALOGUE_LOOKUP_WAIT_MS`,
+  `DIALOGUE_WRITING_WAIT_MS` = 12 s); the card waits on a writing only when
+  its question could be asked now.
+- Guards: `word_asset_test.ts` (17 dialogue cases), `wordDialogue.test.ts`,
+  `wordAssets.test.ts`, `quizLadder.test.ts`, `quizDialogue.test.ts`,
+  `quizGrading.test.ts`, `QuizSpeakCard.test.tsx`, `QuizCardFrame.test.tsx`,
+  `useEnsureWordAsset.test.ts`, `useQuizPool.test.ts`, and `review.spec.ts`
+  ("the reply steps, from a word's exchange").
+
+**Decided in this phase** (each argued in the README):
+
+1. *A shared prompt takes nothing from a learner.* The plan below said to give
+   the model the word's example sentence. A saved word's sentence is the
+   learner's own text, and an exchange is filed for every later learner of
+   the key, so a learner's miss carries the key's folded word, folded sense
+   and dialect only, as a picture's does. The trusted path (the same
+   `isServiceRoleCall` / `requireRole` gate as a picture's `scene`) may add
+   `example`, a curriculum word's authored example sentence
+   (`authoredExample`); that files as `authored`, uncharged, and takes the
+   place of an exchange a learner's miss wrote.
+2. *A leaking exchange is not served either.* A line the learner is about to
+   choose, or say as a model of the dialect, must not be MSA, so a failed
+   leak check or a native "rewrite" answers the graceful
+   `{ error, fallback: true }` and the card asks its fallback. The miss was
+   charged (the cap is taken before anything is made, as for a picture).
+3. *Its own counter, and both word decks may ask.* A picture is kept on the
+   learner's row, which a learner cannot write for a curriculum word; an
+   exchange lives in the store alone, and the curriculum's are bounded in
+   total, so the curriculum deck asks as My Words does.
+4. *No exchange while the table is missing.* It has nowhere else to live, so
+   one that cannot be filed would be paid for again at every encounter:
+   `ensure` answers `503 store_not_ready` before the cap.
+
+An independent review before merge found the phrase mismatch, the short-word
+leniency, the uncheckable rewrite, the unchargeable-word loop and the URL
+bound; all five are fixed above. One design question it raised is left to
+the owner: step 9 is scored against the exact stored reply, so a learner who
+says a correct paraphrase loses on completeness and can be rated Again, a
+lapse on a production card at 30+ days. Showing the reply with the word
+gapped, or not counting such a take as a lapse when the word was clearly
+said, are the two ways out.
+
+Two things a later phase should know. Step 6 needs three other words with
+stored replies before it can ask from a stored exchange, so on a learner's
+first few exchanges it picks the word while the exchange is written behind it
+(the same bootstrapping as the picture step). And no script fills the
+curriculum's exchanges from their authored examples: the trusted path accepts
+`example`, but nothing sends it yet, so curriculum words get learner-written
+exchanges, which an authored run would replace. That script is the obvious
+follow-up if the learner-written ones read worse than the authored lessons.
+
+### Phase 4b — owner action
+
+Deploy `word-asset` (this phase changed it again; one deploy covers 3b's
+step 2), after Phase 2b's migration. Until then the deployed function answers
+an exchange `kind_not_generated` (Phase 2 or 3) or 404 (none), uncharged, and
+the quiz asks its fallbacks: step 6 picks the word, step 9 says the line.
+Nothing to run.
+
+**Done when** (4b): a saved word from a video reaches step 6 with a written
+exchange in production, and a mature word is asked to say the reply.
+
+### The plan, as it was written
 
 **Goal.** "Someone says something, choose the reply" (step 6) exists only
 for words whose lesson dialogue uses them. Give every word a two-line

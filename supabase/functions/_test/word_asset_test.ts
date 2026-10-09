@@ -1,6 +1,6 @@
 import { assert, assertEquals, assertStringIncludes } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { FIXTURE_ENV, jsonRequest, loadFunction, NO_AI_PROVIDER, optionsRequest } from "./harness.ts";
-import { GEMINI_IMAGE_ROUTE, imageLadder, json, type UpstreamHandler } from "./upstreams.ts";
+import { chatCompletion, GEMINI_IMAGE_ROUTE, imageLadder, json, type UpstreamHandler } from "./upstreams.ts";
 import { assetKey, assetObjectPath, type AssetKey } from "../_shared/wordAssets.ts";
 
 /**
@@ -378,7 +378,7 @@ Deno.test("word-asset ensure serves the winner when another learner filed first"
 Deno.test("word-asset ensure does not make kinds it has no generator for yet", async () => {
   const table = assetTable();
   const { status, body, calls } = await call(
-    { action: "ensure", kind: "dialogue", word: "قهوة", gloss: "coffee", dialect: "Gulf" },
+    { action: "ensure", kind: "story_line", word: "قهوة", gloss: "coffee", dialect: "Gulf" },
     upstreams({ id: LEARNER_A }, table.handler),
   );
 
@@ -886,6 +886,402 @@ Deno.test("word-asset ensure keeps an authored scene to a prompt's length and on
 
 // ── Pictures that can be told apart ─────────────────────────────────────────
 
+// ── Exchanges (quiz Phase 4) ────────────────────────────────────────────────
+//
+// `kind: "dialogue"`: two lines, someone says something and the reply uses the
+// word, written through the Brain and filed for every later learner of the
+// key. What matters is the same as for pictures — who decides what reaches
+// the prompt (the key alone, plus the trusted path's authored example), who
+// pays (the learner who missed, on a counter of its own) — and what is never
+// filed: an exchange with MSA in it, one the native reviewer failed, or one
+// whose reply does not use the word.
+
+const COFFEE_TALK = { ...COFFEE, kind: "dialogue" };
+const COFFEE_TALK_KEY = assetKey(COFFEE_TALK) as AssetKey;
+
+const offer = { speaker: "Friend", arabic: "تبي شي تشربه؟", english: "Do you want something to drink?", transliteration: "tabi shay tishrabah?" };
+const reply = { speaker: "Guest", arabic: "ايه، عطني قهوة لو سمحت", english: "Yes, give me coffee please", transliteration: "eeh, 'atni gahwa law samaht" };
+const anExchange = (second: Record<string, unknown> = reply, first: Record<string, unknown> = offer) => ({ lines: [first, second] });
+
+/** Every chat model answers with `exchange`, as the Brain's tool call. */
+function writing(exchange: unknown): Record<string, UpstreamHandler> {
+  return {
+    "generativelanguage.googleapis.com/v1beta/openai": () => chatCompletion("", exchange),
+    "openrouter.ai": () => chatCompletion("", exchange),
+  };
+}
+
+const chatCalls = (calls: Calls) => calls.filter((c) => c.url.includes("/chat/completions"));
+/** The counters a call charged, by key. */
+const chargedOn = (calls: Calls) =>
+  calls
+    .filter((c) => c.url.includes("increment_usage_counter"))
+    .map((c) => (JSON.parse(c.body ?? "{}") as { _key?: string })._key);
+
+const storedTalk = (over: Record<string, unknown> = {}): StoredRow => ({
+  id: "asset-coffee-talk",
+  concept_key: COFFEE_TALK_KEY.conceptKey,
+  kind: "dialogue",
+  dialect: "Gulf",
+  style_version: "text-1",
+  url: null,
+  payload: anExchange(),
+  meta: {},
+  source: "generated",
+  approved_at: null,
+  created_at: "2026-10-01T00:00:00Z",
+  ...over,
+});
+
+Deno.test("word-asset ensure writes a word's exchange, files it, and serves the next learner for nothing", async () => {
+  const table = assetTable();
+  const first = await call(
+    { action: "ensure", ...COFFEE_TALK },
+    upstreams({ id: LEARNER_A }, table.handler, writing(anExchange())),
+  );
+
+  assertEquals(first.status, 200);
+  assertEquals(first.body.stored, true);
+  assertEquals(first.body.cached, false);
+  assertEquals((first.body.asset as Record<string, unknown>).payload, anExchange());
+  assert(chatCalls(first.calls).length > 0, "the exchange is written by a model");
+  assertEquals(imageCalls(first.calls), []);
+  // Filed under the word, as text: no file, no bucket.
+  assertEquals(uploads(first.calls), []);
+  assertEquals(table.rows.length, 1);
+  assertEquals(table.rows[0].kind, "dialogue");
+  assertEquals(table.rows[0].style_version, "text-1");
+  assertEquals(table.rows[0].concept_key, "قهوه|coffee");
+  assertEquals(table.rows[0].source, "generated");
+  assertEquals(table.rows[0].url, null);
+  assertEquals(chargedOn(first.calls), ["word-asset-dialogue"]);
+
+  // Another learner, the same word: the stored one, no model, no charge.
+  const second = await call(
+    { action: "ensure", ...COFFEE_TALK, word: "قهوه" },
+    upstreams({ id: LEARNER_B }, table.handler, writing(anExchange())),
+  );
+  assertEquals(second.status, 200);
+  assertEquals(second.body.cached, true);
+  assertEquals((second.body.asset as Record<string, unknown>).payload, anExchange());
+  assertEquals(chatCalls(second.calls), []);
+  assertEquals(chargedOn(second.calls), []);
+});
+
+Deno.test("word-asset ensure writes an exchange from the key alone: nothing a learner typed reaches the prompt", async () => {
+  // A learner's saved sentence, a would-be example, a scene, and a gloss
+  // carrying more than its sense: a shared exchange is steered by none of it.
+  const table = assetTable();
+  const { status, calls } = await call(
+    {
+      action: "ensure",
+      ...COFFEE_TALK,
+      word: "قَهْوَة",
+      gloss: "Coffee ☕ (ZZTOP)",
+      sentence: "يا جماعة ZZSENTENCE قهوة",
+      example: "ابي قهوة ZZEXAMPLE الحين",
+      scene: "ZZSCENE a cartoon dog",
+    },
+    upstreams({ id: LEARNER_A }, table.handler, writing(anExchange())),
+  );
+
+  assertEquals(status, 200);
+  const prompts = chatCalls(calls).map((c) => c.body ?? "").join("\n");
+  for (const typed of ["ZZSENTENCE", "ZZEXAMPLE", "ZZSCENE", "☕", "قَهْوَة"]) {
+    assert(!prompts.includes(typed), `${typed} reached the prompt`);
+  }
+  // What did reach it: the key's folded word and sense, and the dialect.
+  const draft = chatCalls(calls)[0]?.body ?? "";
+  assertStringIncludes(draft, "قهوه");
+  assertStringIncludes(draft, "coffee zztop");
+  assertStringIncludes(draft, "Gulf");
+  // And it is filed as a learner's, never claiming to be authored.
+  assertEquals(table.rows[0]?.source, "generated");
+  assert(!JSON.stringify(table.rows[0]).includes("ZZEXAMPLE"));
+  assertEquals(chargedOn(calls), ["word-asset-dialogue"]);
+});
+
+Deno.test("word-asset ensure charges an exchange on its own counter, apart from pictures", async () => {
+  // A counter that answers by key: one allowance spent, the other not.
+  const spent = (key: string): UpstreamHandler => async (request) => {
+    const asked = (JSON.parse(await request.text()) as { _key?: string })._key;
+    return json(asked === key ? 999 : 1);
+  };
+
+  // The day's pictures are spent; the exchange is still written.
+  const pictures = await call(
+    { action: "ensure", ...COFFEE },
+    upstreams({ id: LEARNER_A }, assetTable().handler, { "/rest/v1/rpc/increment_usage_counter": spent("generate-flashcard-image") }),
+  );
+  assertEquals(pictures.status, 429);
+  const talk = await call(
+    { action: "ensure", ...COFFEE_TALK },
+    upstreams({ id: LEARNER_A }, assetTable().handler, {
+      ...writing(anExchange()),
+      "/rest/v1/rpc/increment_usage_counter": spent("generate-flashcard-image"),
+    }),
+  );
+  assertEquals(talk.status, 200);
+  assertEquals(talk.body.stored, true);
+
+  // And the reverse.
+  const noTalk = await call(
+    { action: "ensure", ...COFFEE_TALK },
+    upstreams({ id: LEARNER_A }, assetTable().handler, {
+      ...writing(anExchange()),
+      "/rest/v1/rpc/increment_usage_counter": spent("word-asset-dialogue"),
+    }),
+  );
+  assertEquals(noTalk.status, 429);
+  assertEquals(noTalk.body.key, "word-asset-dialogue");
+  assertEquals(chatCalls(noTalk.calls), [], "a learner over their allowance costs no model call");
+  const picture = await call(
+    { action: "ensure", ...COFFEE },
+    upstreams({ id: LEARNER_A }, assetTable().handler, { "/rest/v1/rpc/increment_usage_counter": spent("word-asset-dialogue") }),
+  );
+  assertEquals(picture.status, 200);
+});
+
+Deno.test("word-asset ensure neither files nor serves an exchange with MSA in it", async () => {
+  // The repair pass is given the same answer, so the leak survives it.
+  const table = assetTable();
+  const leaking = anExchange({ ...reply, arabic: "لماذا ما تعطيني قهوة", english: "Why don't you give me coffee" });
+  const { status, body } = await call(
+    { action: "ensure", ...COFFEE_TALK },
+    upstreams({ id: LEARNER_A }, table.handler, writing(leaking)),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(body.error, "msa_leak");
+  assertEquals(body.fallback, true);
+  // Nothing to ask the learner with, and nothing for the next learner.
+  assertEquals(body.asset, undefined);
+  assertEquals(body.payload, undefined);
+  assertEquals(table.rows, []);
+});
+
+Deno.test("word-asset ensure looks for MSA inside quotation marks too", async () => {
+  // The detector skips quoted text (a contrastive example in a prompt), and a
+  // line a learner says is never one.
+  const table = assetTable();
+  const quoted = anExchange({ ...reply, arabic: "قال «لماذا» وعطاني قهوة", english: "He said 'why' and gave me coffee" });
+  const { body } = await call({ action: "ensure", ...COFFEE_TALK }, upstreams({ id: LEARNER_A }, table.handler, writing(quoted)));
+
+  assertEquals(body.error, "msa_leak");
+  assertEquals(table.rows, []);
+});
+
+Deno.test("word-asset ensure does not file an exchange whose reply does not use the word", async () => {
+  // Nor one whose opening line already says it: both are no question.
+  for (const exchange of [
+    anExchange({ ...reply, arabic: "ايه، عطني شاي لو سمحت", english: "Yes, give me tea please" }),
+    anExchange(reply, { ...offer, arabic: "تبي قهوة؟", english: "Do you want coffee?" }),
+    { lines: [offer] },
+  ]) {
+    const table = assetTable();
+    const { status, body } = await call(
+      { action: "ensure", ...COFFEE_TALK },
+      upstreams({ id: LEARNER_A }, table.handler, writing(exchange)),
+    );
+    assertEquals(status, 200, JSON.stringify(exchange));
+    assertEquals(body.error, "DIALOGUE_GENERATION_FAILED");
+    assertEquals(table.rows, [], JSON.stringify(exchange));
+  }
+});
+
+Deno.test("word-asset ensure does not file an exchange the native reviewer failed", async () => {
+  // The validator asks for a rewrite and the rewrite cannot run, so the Brain
+  // ships the draft it failed: that is not a model of the dialect to keep.
+  const route: UpstreamHandler = async (request) => {
+    const body = await request.text();
+    if (body.includes("You are reviewing a draft")) return json({ error: "down" }, 500);
+    if (body.includes("emit_dialogue")) return chatCompletion("", anExchange());
+    return chatCompletion("", { score: 2, verdict: "rewrite", leaks: [], notes: "reads as fusha" });
+  };
+  const table = assetTable();
+  const { status, body } = await call(
+    { action: "ensure", ...COFFEE_TALK },
+    upstreams({ id: LEARNER_A }, table.handler, {
+      "generativelanguage.googleapis.com/v1beta/openai": route,
+      "openrouter.ai": route,
+      "node.humain.test": route,
+      "api.fanar.qa": route,
+    }),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(body.error, "dialect_rejected");
+  assertEquals(table.rows, []);
+});
+
+Deno.test("word-asset ensure checks the rewrite as well as the draft, and files neither when the reviewer fails both", async () => {
+  // The validator orders a rewrite; the critic writes one; the reviewer is
+  // asked again about what is shipped, and fails it too.
+  let judged = 0;
+  const route: UpstreamHandler = async (request) => {
+    const body = await request.text();
+    if (body.includes("Candidate text in")) {
+      judged++;
+      return chatCompletion("", { score: 2, verdict: "rewrite", leaks: [], notes: "reads as fusha" });
+    }
+    return chatCompletion("", anExchange());
+  };
+  const table = assetTable();
+  const { status, body } = await call(
+    { action: "ensure", ...COFFEE_TALK },
+    upstreams({ id: LEARNER_A }, table.handler, {
+      "generativelanguage.googleapis.com/v1beta/openai": route,
+      "openrouter.ai": route,
+      "node.humain.test": route,
+      "api.fanar.qa": route,
+    }),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(body.error, "dialect_rejected");
+  assertEquals(table.rows, []);
+  // Two legs judged the draft; the rest judged the rewrite.
+  assert(judged >= 3, `the rewrite was never judged (${judged} judgements)`);
+});
+
+Deno.test("word-asset ensure serves an exchange the reviewer could not judge, but does not keep it", async () => {
+  // Every validator leg down: the leak detector passed it and the learner
+  // paid for it, so they get it; nobody else is served it unjudged.
+  const route: UpstreamHandler = async (request) => {
+    const body = await request.text();
+    if (body.includes("Candidate text in")) return json({ error: "down" }, 500);
+    return chatCompletion("", anExchange());
+  };
+  const table = assetTable();
+  const { status, body } = await call(
+    { action: "ensure", ...COFFEE_TALK },
+    upstreams({ id: LEARNER_A }, table.handler, {
+      "generativelanguage.googleapis.com/v1beta/openai": route,
+      "openrouter.ai": route,
+      "node.humain.test": route,
+      "api.fanar.qa": route,
+    }),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(body.stored, false);
+  assertEquals(body.payload, anExchange());
+  assertEquals(table.rows, []);
+});
+
+Deno.test("word-asset ensure turns away, uncharged, a word no exchange could be filed for", async () => {
+  // The reply must use the word as it is, and this one is on every dialect's
+  // leak list: each attempt would be charged and thrown away.
+  const table = assetTable();
+  const { status, body, calls } = await call(
+    { action: "ensure", kind: "dialogue", word: "لماذا", gloss: "why", dialect: "Gulf" },
+    upstreams({ id: LEARNER_A }, table.handler, writing(anExchange())),
+  );
+
+  assertEquals(status, 400);
+  assertEquals(body.error, "word_not_in_dialect");
+  assertEquals(chatCalls(calls), []);
+  assertEquals(chargedOn(calls), []);
+});
+
+Deno.test("word-asset ensure makes no exchange, and charges nothing, while the table does not exist", async () => {
+  // A picture still goes to the learner's own row. An exchange has nowhere to
+  // live but the store: made now, it would be paid for at every encounter.
+  const missing: UpstreamHandler = () =>
+    json({ code: "PGRST205", message: "Could not find the table 'public.word_assets' in the schema cache" }, 404);
+  const { status, body, calls } = await call(
+    { action: "ensure", ...COFFEE_TALK },
+    upstreams({ id: LEARNER_A }, missing, writing(anExchange())),
+  );
+
+  assertEquals(status, 503);
+  assertEquals(body.error, "store_not_ready");
+  assertEquals(chatCalls(calls), []);
+  assertEquals(chargedOn(calls), []);
+});
+
+Deno.test("word-asset ensure takes a curriculum word's authored example on the trusted path, and charges nobody", async () => {
+  const EXAMPLE = "القهوة جاهزة؟ ايه، قهوة عربية";
+  for (const [who, routes, opts] of [
+    ["the service role", serviceUpstreams(assetTable().handler, writing(anExchange())), { jwt: SERVICE_ROLE }],
+    [
+      "the content team",
+      upstreams({ id: LEARNER_A }, assetTable().handler, {
+        ...writing(anExchange()),
+        "/rest/v1/user_roles": rolesHeld("content_reviewer"),
+      }),
+      {},
+    ],
+  ] as const) {
+    const table = assetTable();
+    const merged = { ...routes, "/rest/v1/word_assets": table.handler };
+    const { status, body, calls } = await call({ action: "ensure", ...COFFEE_TALK, example: EXAMPLE }, merged, opts);
+
+    assertEquals(status, 200, who);
+    assertEquals(body.authored, true, who);
+    assertStringIncludes(chatCalls(calls)[0]?.body ?? "", EXAMPLE);
+    assertEquals(chargedOn(calls), [], `${who} was charged`);
+    assertEquals(table.rows[0]?.source, "authored", who);
+    assertEquals((table.rows[0]?.meta as Record<string, unknown>).example, EXAMPLE, who);
+  }
+});
+
+Deno.test("word-asset ensure does not take a token, or a sentence without the word, for an example", async () => {
+  for (const example of ["قهوة", "ابي شاي الحين", ".", "coffee please"]) {
+    const table = assetTable();
+    const { calls } = await call(
+      { action: "ensure", ...COFFEE_TALK, example },
+      upstreams({ id: LEARNER_A }, table.handler, {
+        ...writing(anExchange()),
+        "/rest/v1/user_roles": rolesHeld("content_reviewer"),
+      }),
+    );
+    assert(!(chatCalls(calls)[0]?.body ?? "").includes("the course uses the word"), JSON.stringify(example));
+    assertEquals(chargedOn(calls), ["word-asset-dialogue"], JSON.stringify(example));
+    assertEquals(table.rows[0]?.source, "generated", JSON.stringify(example));
+  }
+});
+
+Deno.test("word-asset ensure puts an authored exchange in the place of one a learner's miss wrote", async () => {
+  const table = assetTable([storedTalk()]);
+  const authored = anExchange({ ...reply, arabic: "ايه، قهوة عربية", english: "Yes, Arabic coffee" });
+  const { status, body } = await call(
+    { action: "ensure", ...COFFEE_TALK, example: "القهوة جاهزة؟ ايه، قهوة عربية" },
+    serviceUpstreams(table.handler, writing(authored)),
+    { jwt: SERVICE_ROLE },
+  );
+
+  assertEquals(status, 200);
+  assertEquals(body.replaced, true);
+  assertEquals(table.rows.length, 1);
+  assertEquals(table.rows[0].source, "authored");
+  assertEquals(table.rows[0].payload, authored);
+  // The row is updated in place, so what it held is kept in its meta.
+  assertEquals((table.rows[0].meta as Record<string, unknown>).replaces, anExchange());
+
+  // A learner's miss never replaces anything: what is filed is a hit.
+  const learner = await call(
+    { action: "ensure", ...COFFEE_TALK },
+    upstreams({ id: LEARNER_B }, table.handler, writing(anExchange())),
+  );
+  assertEquals(learner.body.cached, true);
+  assertEquals((learner.body.asset as Record<string, unknown>).payload, authored);
+  assertEquals(chatCalls(learner.calls), []);
+});
+
+Deno.test("word-asset get returns a stored exchange and never writes one", async () => {
+  const table = assetTable([storedTalk()]);
+  const { status, body, calls } = await call(
+    { action: "get", ...COFFEE_TALK },
+    upstreams({ id: LEARNER_A }, table.handler, writing(anExchange())),
+  );
+
+  assertEquals(status, 200);
+  assertEquals((body.asset as Record<string, unknown>).payload, anExchange());
+  assertEquals(chatCalls(calls), []);
+  assertEquals(chargedOn(calls), []);
+});
+
 Deno.test("word-asset ensure asks for a picture that can be told from three others", async () => {
   // The quiz deals a word's picture beside three other words'. Four generic
   // scenes are four right answers.
@@ -1069,4 +1465,40 @@ Deno.test("generate-flashcard-image never lets even the content team write into 
   } finally {
     fn.restore();
   }
+});
+
+// Last in the file on purpose: the approved rules it loads stay in
+// dialectHelpers' module cache for the rest of this file's run, and Yemeni is
+// a dialect no earlier test here primed.
+Deno.test("word-asset ensure holds an exchange back on the rulebook's forbidden words too", async () => {
+  // The leak detector as the Brain runs it, with the approved rulebook's
+  // forbidden tokens — not only its hard-coded lists, which do not name this.
+  const table = assetTable();
+  const book = { action: "ensure", kind: "dialogue", word: "كتاب", gloss: "book", dialect: "Yemeni" };
+  const exchange = {
+    lines: [
+      { speaker: "Friend", arabic: "ايش تشتي؟", english: "What do you want?", transliteration: "aysh tishti?" },
+      { speaker: "Student", arabic: "اشتي كتاب زقزقلوب", english: "I want a book", transliteration: "ashti kitaab" },
+    ],
+  };
+  const { status, body } = await call(
+    book,
+    upstreams({ id: LEARNER_A }, table.handler, {
+      ...writing(exchange),
+      "/rest/v1/dialect_rules": () =>
+        json([
+          {
+            id: "rule-1",
+            category: "lexis",
+            rule: "Say it the Yemeni way.",
+            examples: { good: ["كتاب"], bad: ["زقزقلوب"] },
+            priority: 1,
+          },
+        ]),
+    }),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(body.error, "msa_leak");
+  assertEquals(table.rows, []);
 });

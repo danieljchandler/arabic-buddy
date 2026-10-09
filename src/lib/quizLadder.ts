@@ -16,27 +16,32 @@
  *   step 4  Hear it          the word's audio alone → pick the meaning
  *   step 5  Pick the word    the picture (or meaning) → four Arabic words,
  *                            each with its audio
- *   step 6  Answer the line  a line of the lesson's dialogue → pick the reply
- *                            that uses the word
+ *   step 6  Answer the line  a line of dialogue (the lesson's, else the word's
+ *                            stored exchange) → pick the reply that uses
+ *                            the word
  *   step 7  Say it           the picture alone (or the meaning) → say the
  *                            word; scored
  *   step 8  Say the line     the English line → say the Arabic sentence;
  *                            scored
+ *   step 9  Say the reply    a line of dialogue is said → say the reply that
+ *                            uses the word; scored, the word required
  *
- * Steps 1–6 grade the recognition schedule, 7–8 the production schedule; the
+ * Steps 1–6 grade the recognition schedule, 7–9 the production schedule; the
  * deck already decides which direction a card is served in (it unlocks
  * production once recognition is confident), so the ladder only chooses the
  * question within that direction. Within recognition the climb goes from
  * form to meaning (gap, picture, listening) to meaning to form (pick the
- * word) to use (answer the line); production goes from the word to the line.
- * Nothing is typed: an Arabic keyboard is the one thing most learners do not
- * have, and saying the word is the skill.
+ * word) to use (answer the line); production goes from the word to the line
+ * to the line said back in a conversation. Nothing is typed: an Arabic
+ * keyboard is the one thing most learners do not have, and saying the word
+ * is the skill.
  *
  * Every step has a fallback so the ladder never blocks a review: a word with
  * no sentence is asked for its meaning instead of a gap, a word with no
  * picture skips the picture steps, a word with no dialogue is asked to pick
- * the word instead of the reply, and a card with no material for any
- * question is served as the ordinary flashcard.
+ * the word instead of the reply and to say the line instead of the reply,
+ * and a card with no material for any question is served as the ordinary
+ * flashcard.
  */
 
 export type QuizDirection = "recognition" | "production";
@@ -60,6 +65,8 @@ export type QuizFormat =
   | "speak"
   /** The English line → say the Arabic sentence; scored. */
   | "speak-sentence"
+  /** A line of dialogue is said → say the reply that uses the word; scored. */
+  | "speak-reply"
   /** Nothing above fits this card: the ordinary flip-and-rate card. */
   | "flashcard";
 
@@ -81,6 +88,11 @@ export interface QuizMaterial {
   imageDistractors?: number;
   /** A dialogue line uses the word, with a line before it and enough other lines. */
   hasReply?: boolean;
+  /**
+   * A dialogue line uses the word, with a line before it — enough to say the
+   * reply, which needs no wrong replies.
+   */
+  hasReplyLine?: boolean;
   /** Whether the device can record speech. */
   canSpeak: boolean;
 }
@@ -94,7 +106,7 @@ export interface QuizRung {
 }
 
 /** How many steps the ladder shows. */
-export const QUIZ_STEP_COUNT = 8;
+export const QUIZ_STEP_COUNT = 9;
 
 /** Options on a choice question, the answer included. */
 export const CHOICE_COUNT = 4;
@@ -120,6 +132,8 @@ export const LADDER_THRESHOLDS = {
   wordDays: 30,
   /** Production stability from which the whole sentence is asked for. */
   sentenceDays: 14,
+  /** Production stability from which the reply is asked for, in conversation. */
+  replyDays: 30,
 } as const;
 
 const RUNGS: Record<number, Omit<QuizRung, "step">> = {
@@ -131,6 +145,7 @@ const RUNGS: Record<number, Omit<QuizRung, "step">> = {
   6: { label: "Answer the line", format: "reply-choice" },
   7: { label: "Say it", format: "speak" },
   8: { label: "Say the line", format: "speak-sentence" },
+  9: { label: "Say the reply", format: "speak-reply" },
 };
 
 function rung(step: number): QuizRung {
@@ -141,6 +156,7 @@ function rung(step: number): QuizRung {
 export function rungForMemory(memory: QuizMemory, direction: QuizDirection): QuizRung {
   const stability = Number.isFinite(memory.stability) ? Math.max(0, memory.stability) : 0;
   if (direction === "production") {
+    if (stability >= LADDER_THRESHOLDS.replyDays) return rung(9);
     return rung(stability >= LADDER_THRESHOLDS.sentenceDays ? 8 : 7);
   }
   if (memory.repetitions <= 0 || stability < LADDER_THRESHOLDS.firstLookDays) return rung(1);
@@ -159,7 +175,8 @@ export function rungForMemory(memory: QuizMemory, direction: QuizDirection): Qui
  * on the schedule the deck served the card for. Within recognition a missing
  * piece of material falls to the nearest question the card can carry, so a
  * word without a picture is heard instead and a word without a dialogue is
- * picked from four instead of answered.
+ * picked from four instead of answered — or, on the production side, its line
+ * is said instead of the reply.
  */
 export function pickQuizFormat(
   memory: QuizMemory,
@@ -193,6 +210,10 @@ export function pickQuizFormat(
     case "speak-sentence":
       if (!material.canSpeak) return "flashcard";
       return material.hasSentence ? "speak-sentence" : "speak";
+    case "speak-reply":
+      if (!material.canSpeak) return "flashcard";
+      if (material.hasReplyLine) return "speak-reply";
+      return material.hasSentence ? "speak-sentence" : "speak";
     default:
       return "flashcard";
   }
@@ -223,5 +244,5 @@ export function isGradedFormat(format: QuizFormat): boolean {
 
 /** Whether a format asks the learner to speak. */
 export function isSpokenFormat(format: QuizFormat): boolean {
-  return format === "speak" || format === "speak-sentence";
+  return format === "speak" || format === "speak-sentence" || format === "speak-reply";
 }

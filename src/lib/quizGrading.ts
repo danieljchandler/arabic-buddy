@@ -1,4 +1,6 @@
+import { normalizeArabicWord } from "@/lib/arabicWord";
 import type { Rating } from "@/lib/spacedRepetition";
+import { arabicSimilarity } from "../../supabase/functions/_shared/arabicMatch";
 
 /**
  * How a quiz answer becomes an FSRS rating.
@@ -19,7 +21,9 @@ import type { Rating } from "@/lib/spacedRepetition";
  * (never Azure's raw number — see CLAUDE.md), and a take that was not the
  * target word at all is Again whatever it scored, since the assessment
  * scores the sounds against the reference even when a different word was
- * said.
+ * said. On "say the reply" the take is a whole line and the word is what the
+ * step is about, so the comparison is made on the word's span of what was
+ * heard (`wordSpanSimilarity`): a reply said without the word is Again.
  */
 
 export interface ChoiceOutcome {
@@ -74,6 +78,62 @@ export function gradeQuizAnswer(outcome: QuizOutcome): Rating {
   if (score >= SPEECH_THRESHOLDS.easy) return "easy";
   if (score >= SPEECH_THRESHOLDS.good) return "good";
   return "hard";
+}
+
+/**
+ * A word this short is one letter from another word (زين / وين, شو / شي,
+ * مو / ما), and a letter is well inside the similarity floor's allowance, so
+ * on "say the reply" only the word itself counts.
+ */
+export const SHORT_WORD_LETTERS = 3;
+
+/** The prefixes a speaker attaches to a word, in the order they stack: and/so, with/to/like, the. */
+const PROCLITICS = [/^[وف]/, /^[بلك]/, /^ال/];
+
+/** A heard word, and the same word with each attached prefix taken off in turn. */
+function withoutProclitics(token: string): string[] {
+  const variants = [token];
+  let rest = token;
+  for (const prefix of PROCLITICS) {
+    const stripped = rest.replace(prefix, "");
+    if (stripped !== rest && stripped.length >= 2) {
+      rest = stripped;
+      variants.push(rest);
+    }
+  }
+  return variants;
+}
+
+/**
+ * How close the closest stretch of what was heard came to the word: the best
+ * `arabicSimilarity` over every run of recognised words as long as the word
+ * itself, with a conjunction, preposition or article attached to the first
+ * of them taken off (والقهوة, بالسوق are the word). For a take that is a
+ * whole line (say the reply), where the line may be said well and the word
+ * left out — which is a different reply. A word of `SHORT_WORD_LETTERS` or
+ * fewer must be heard exactly; anything else is scored as a different word.
+ * Null when nothing was recognised, as for a single word.
+ */
+export function wordSpanSimilarity(recognized: string | null | undefined, word: string): number | null {
+  const heard = (recognized ?? "")
+    .split(/\s+/)
+    .map((token) => normalizeArabicWord(token))
+    .filter(Boolean);
+  if (heard.length === 0) return null;
+  const parts = word.trim().split(/\s+/);
+  const size = Math.max(1, parts.length);
+  const windows: string[][] = [];
+  if (heard.length <= size) windows.push(heard);
+  else for (let start = 0; start + size <= heard.length; start++) windows.push(heard.slice(start, start + size));
+
+  let best = 0;
+  for (const window of windows) {
+    for (const first of withoutProclitics(window[0])) {
+      best = Math.max(best, arabicSimilarity([first, ...window.slice(1)].join(" "), word));
+    }
+  }
+  const short = size === 1 && normalizeArabicWord(word).length <= SHORT_WORD_LETTERS;
+  return short && best < 1 ? Math.min(best, SPEECH_MATCH_FLOOR / 2) : best;
 }
 
 /** Whether a rating counts as a correct answer for the session's tally. */

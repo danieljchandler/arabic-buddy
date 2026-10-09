@@ -964,6 +964,12 @@ const Review = () => {
               // write `vocabulary_words`, and the rows are filled by
               // scripts/curriculum-pictures.ts.
               sharedPictures
+              // A word its lesson's dialogue never uses is asked its reply
+              // steps from the store's exchange, written for it on a miss.
+              // That needs no row write, so the curriculum deck may ask too;
+              // it is charged to this learner's dialogue allowance, once per
+              // word for every learner after them.
+              storedDialogues
               renderFlashcard={() => (
                 <>
                   {flashcard}

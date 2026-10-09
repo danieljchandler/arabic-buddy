@@ -26,6 +26,7 @@ const everything: QuizMaterial = {
   distractors: 10,
   imageDistractors: 10,
   hasReply: true,
+  hasReplyLine: true,
   canSpeak: true,
 };
 
@@ -56,10 +57,21 @@ describe("the step a memory state lands on", () => {
     expect(at(400)).toBe(6);
   });
 
-  it("asks a production card to say the word, then the line", () => {
+  it("asks a production card to say the word, then the line, then the reply", () => {
     expect(rungForMemory({ stability: 0, repetitions: 0 }, "production").step).toBe(7);
     expect(rungForMemory({ stability: T.sentenceDays - 1, repetitions: 3 }, "production").step).toBe(7);
     expect(rungForMemory({ stability: T.sentenceDays, repetitions: 3 }, "production").step).toBe(8);
+    expect(rungForMemory({ stability: T.replyDays - 0.01, repetitions: 5 }, "production").step).toBe(8);
+    expect(rungForMemory({ stability: T.replyDays, repetitions: 5 }, "production").step).toBe(9);
+    expect(rungForMemory({ stability: 400, repetitions: 9 }, "production")).toEqual({
+      step: 9,
+      label: "Say the reply",
+      format: "speak-reply",
+    });
+  });
+
+  it("puts the reply above the line on the production schedule", () => {
+    expect(T.replyDays).toBeGreaterThan(T.sentenceDays);
   });
 
   it("treats a missing or negative stability as new", () => {
@@ -74,8 +86,8 @@ describe("the step a memory state lands on", () => {
       expect(r.label.length).toBeGreaterThan(0);
       seen.add(r.step);
     }
-    for (const stability of [2, 30]) seen.add(rungForMemory({ stability, repetitions: 1 }, "production").step);
-    expect([...seen].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7, 8]);
+    for (const stability of [2, 20, 60]) seen.add(rungForMemory({ stability, repetitions: 1 }, "production").step);
+    expect([...seen].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
     expect(Math.max(...seen)).toBe(QUIZ_STEP_COUNT);
   });
 });
@@ -128,6 +140,20 @@ describe("the question asked, given the material", () => {
     expect(pickQuizFormat({ stability: 20, repetitions: 4 }, "production", everything)).toBe("speak-sentence");
   });
 
+  it("asks a well-settled production card to say the reply", () => {
+    expect(pickQuizFormat({ stability: T.replyDays, repetitions: 6 }, "production", everything)).toBe("speak-reply");
+    // Saying the reply needs no wrong replies: a line to answer is enough.
+    expect(
+      pickQuizFormat({ stability: T.replyDays, repetitions: 6 }, "production", { ...everything, hasReply: false }),
+    ).toBe("speak-reply");
+  });
+
+  it("says the line instead of the reply when the word has no dialogue, and the word when it has no sentence", () => {
+    const at9 = { stability: T.replyDays, repetitions: 6 };
+    expect(pickQuizFormat(at9, "production", { ...everything, hasReplyLine: false })).toBe("speak-sentence");
+    expect(pickQuizFormat(at9, "production", { ...everything, hasReplyLine: false, hasSentence: false })).toBe("speak");
+  });
+
   it("asks for the word alone when a mature production card has no sentence", () => {
     expect(
       pickQuizFormat({ stability: 20, repetitions: 4 }, "production", { ...everything, hasSentence: false }),
@@ -140,6 +166,7 @@ describe("the question asked, given the material", () => {
     const mute = { ...everything, canSpeak: false };
     expect(pickQuizFormat({ stability: 2, repetitions: 1 }, "production", mute)).toBe("flashcard");
     expect(pickQuizFormat({ stability: 20, repetitions: 4 }, "production", mute)).toBe("flashcard");
+    expect(pickQuizFormat({ stability: T.replyDays, repetitions: 6 }, "production", mute)).toBe("flashcard");
   });
 });
 
@@ -169,6 +196,7 @@ describe("what a format implies", () => {
   it("knows which formats are spoken", () => {
     expect(isSpokenFormat("speak")).toBe(true);
     expect(isSpokenFormat("speak-sentence")).toBe(true);
+    expect(isSpokenFormat("speak-reply")).toBe(true);
     expect(isSpokenFormat("listen")).toBe(false);
     expect(isSpokenFormat("reply-choice")).toBe(false);
   });

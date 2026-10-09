@@ -1332,6 +1332,10 @@ const MyWordsReview = () => {
               // gets one: the shared store's, or one drawn for it and filed
               // there. It is kept on the learner's own row.
               onPictureMade={(url) => saveQuizPicture(currentWord.id, url)}
+              // The reply steps get the word's exchange from the store, or
+              // one written for it: the word alone reaches the prompt, never
+              // the sentence it was saved from.
+              storedDialogues
               renderFlashcard={() => (
                 <>
                   {flashcard}

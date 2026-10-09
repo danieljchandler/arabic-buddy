@@ -1,8 +1,15 @@
 import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders, type HarnessOptions } from "@/test/support/react/harness";
+import type { QuizPoolEntry } from "@/hooks/useQuizPool";
 import type { SupabaseBackend } from "@/test/support/server/handler";
-import { PICTURE_DRAWING_WAIT_MS, PICTURE_LOOKUP_WAIT_MS, QuizCardFrame, type QuizItem } from "./QuizCardFrame";
+import {
+  DIALOGUE_WRITING_WAIT_MS,
+  PICTURE_DRAWING_WAIT_MS,
+  PICTURE_LOOKUP_WAIT_MS,
+  QuizCardFrame,
+  type QuizItem,
+} from "./QuizCardFrame";
 
 /**
  * The frame is where the ladder meets the cards. What it has to get right is
@@ -96,7 +103,7 @@ describe("which question is asked", () => {
 
     expect(screen.getByText("Fill in the missing word")).toBeInTheDocument();
     expect(screen.getByText(/the missing word means/i)).toHaveTextContent("the market");
-    expect(screen.getByRole("img", { name: /step 1 of 8/i })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /step 1 of 9/i })).toBeInTheDocument();
   });
 
   it("drops the hint once the word is young rather than new", () => {
@@ -104,7 +111,7 @@ describe("which question is asked", () => {
 
     expect(screen.getByText("Fill in the missing word")).toBeInTheDocument();
     expect(screen.queryByText(/the missing word means/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("img", { name: /step 2 of 8/i })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /step 2 of 9/i })).toBeInTheDocument();
   });
 
   it("asks for the meaning when there is no sentence to cut", () => {
@@ -124,14 +131,14 @@ describe("which question is asked", () => {
     render(anItem({ memory: { stability: 10, repetitions: 3 } }));
 
     expect(screen.getByText("What did you hear?")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: /step 4 of 8/i })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /step 4 of 9/i })).toBeInTheDocument();
   });
 
   it("asks for the picture once the word is a little settled, from the other words' pictures", () => {
     render(anItem({ imageUrl: "https://img.test/market.png", memory: { stability: 5, repetitions: 2 } }));
 
     expect(screen.getByText("Which picture?")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: /step 3 of 8/i })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /step 3 of 9/i })).toBeInTheDocument();
     const pictures = screen.getAllByRole("radio").map((r) => r.getAttribute("aria-label"));
     expect(pictures).toHaveLength(4);
     expect(pictures).toContain("the market");
@@ -149,7 +156,7 @@ describe("which question is asked", () => {
     render(anItem({ imageUrl: "https://img.test/market.png", memory: { stability: 20, repetitions: 3 } }));
 
     expect(screen.getByText("Which word?")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: /step 5 of 8/i })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /step 5 of 9/i })).toBeInTheDocument();
     expect(screen.getAllByRole("radio").map((r) => r.textContent?.trim())).toContain("السوق");
   });
 
@@ -157,7 +164,7 @@ describe("which question is asked", () => {
     render(anItem({ dialogue: DIALOGUE, memory: { stability: 40, repetitions: 5 } }));
 
     expect(screen.getByText("What would you say?")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: /step 6 of 8/i })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /step 6 of 9/i })).toBeInTheDocument();
     expect(screen.getByText("وين السوق؟")).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "السوق هناك" })).toBeInTheDocument();
   });
@@ -172,7 +179,7 @@ describe("which question is asked", () => {
     render(anItem({ direction: "production", memory: { stability: 2, repetitions: 1 } }));
 
     expect(screen.getByText("Say it in Arabic")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: /step 7 of 8/i })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /step 7 of 9/i })).toBeInTheDocument();
   });
 
   it("falls back to the flip card when there are too few other words", () => {
@@ -760,5 +767,318 @@ describe("a picture for a word that has none", () => {
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(backend.db.readsOf("word_assets")).toEqual([]);
     expect(backend.callsTo("word-asset")).toEqual([]);
+  });
+});
+
+describe("an exchange for a word its lesson has no line for", () => {
+  // Steps 6 and 9 ask from a dialogue. A word its lesson's dialogue never
+  // uses gets the shared store's exchange for it (two lines, the second
+  // using the word), or one written for it; the wrong replies on step 6 are
+  // the other words' stored replies.
+  const EXCHANGE = {
+    lines: [
+      { speaker: "Friend", arabic: "وين رحت أمس؟", english: "Where did you go yesterday?", transliteration: "" },
+      { speaker: "You", arabic: "رحت السوق مع أخوي", english: "I went to the market with my brother", transliteration: "" },
+    ],
+  };
+  const OTHER_REPLIES = ["ايه، البيت قريب", "المدرسة بعيدة شوي", "المطعم سكر بدري"];
+  /** The pool, with three other words' stored replies. */
+  const REPLY_POOL = POOL.map((entry, i) =>
+    i < OTHER_REPLIES.length ? { ...entry, dialogueLine: { speaker: "Friend", arabic: OTHER_REPLIES[i], english: "" } } : entry,
+  );
+
+  const filedExchange = (over: Record<string, unknown> = {}) => ({
+    id: "talk-market",
+    concept_key: "السوق|market",
+    kind: "dialogue",
+    dialect: "Gulf",
+    style_version: "text-1",
+    url: null,
+    payload: EXCHANGE,
+    meta: {},
+    source: "generated",
+    approved_at: null,
+    created_at: "2026-10-09T00:00:00Z",
+    ...over,
+  });
+  const WRITTEN = { asset: { id: "talk-market", payload: EXCHANGE }, url: null, cached: false, stored: true };
+
+  /** Settled past the word step, on recognition: "answer the line". */
+  const atReplyStep = (over: Partial<QuizItem> = {}) => anItem({ dialect: "Gulf", memory: { stability: 40, repetitions: 6 }, ...over });
+  /** Settled past the line step, on production: "say the reply". */
+  const atSayReplyStep = (over: Partial<QuizItem> = {}) =>
+    anItem({ dialect: "Gulf", direction: "production", memory: { stability: 40, repetitions: 6 }, ...over });
+
+  const signedIn = (seed?: (backend: SupabaseBackend) => void): HarnessOptions => ({
+    persona: "free",
+    seed: (backend) => {
+      backend.db.seed("word_assets", []);
+      backend.stubFunction("word-asset", WRITTEN);
+      seed?.(backend);
+    },
+  });
+
+  const replies = () => screen.getAllByRole("radio").map((r) => r.textContent ?? "");
+
+  it("asks the reply from the store's exchange, with the other words' stored replies as the wrong ones", async () => {
+    const { backend, onGraded } = render(
+      atReplyStep(),
+      { pool: REPLY_POOL, storedDialogues: true },
+      signedIn((b) => b.db.seed("word_assets", [filedExchange()])),
+    );
+
+    expect(await screen.findByText("What would you say?")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /step 6 of 9/i })).toBeInTheDocument();
+    expect(screen.getByText("وين رحت أمس؟")).toBeInTheDocument();
+    expect(replies()).toHaveLength(4);
+    expect(replies().some((text) => text.includes("رحت السوق مع أخوي"))).toBe(true);
+    for (const wrong of OTHER_REPLIES) expect(replies().some((text) => text.includes(wrong))).toBe(true);
+    // Found in the store: a free read, nothing written.
+    expect(backend.callsTo("word-asset")).toEqual([]);
+
+    fireEvent.click(screen.getByRole("radio", { name: /رحت السوق مع أخوي/ }));
+    fireEvent.click(screen.getByRole("button", { name: /continue/i }));
+    expect(onGraded).toHaveBeenCalledWith({ rating: "good", correct: true, format: "reply-choice", step: 6 });
+  });
+
+  it("has an exchange written for a word with none, waits for it, and asks with it", async () => {
+    const { backend } = render(
+      atReplyStep(),
+      { pool: REPLY_POOL, storedDialogues: true },
+      signedIn((b) => b.db.delayFunction("word-asset", 200)),
+    );
+
+    expect(await screen.findByRole("status", { name: "Writing a line for this word" })).toBeInTheDocument();
+    expect(await screen.findByText("What would you say?")).toBeInTheDocument();
+    expect(screen.getByText("وين رحت أمس؟")).toBeInTheDocument();
+
+    // Asked for once, by the word alone: never the sentence it was saved
+    // from, which is the learner's own text.
+    expect(backend.callsTo("word-asset")).toHaveLength(1);
+    expect(backend.lastCallTo("word-asset")?.body).toEqual({
+      action: "ensure",
+      kind: "dialogue",
+      word: "السوق",
+      gloss: "the market",
+      dialect: "Gulf",
+    });
+  });
+
+  it("picks the word instead when no exchange can be had, quietly", async () => {
+    for (const seed of [
+      (b: SupabaseBackend) => b.stubFunctionCapped("word-asset"),
+      (b: SupabaseBackend) => b.stubFunction("word-asset", { error: "msa_leak", fallback: true, message: "no" }),
+      (b: SupabaseBackend) => b.stubFunctionFailure("word-asset", 503, { error: "store_not_ready", fallback: true }),
+      (b: SupabaseBackend) => b.stubFunctionFailure("word-asset", 500),
+    ]) {
+      render(atReplyStep(), { pool: REPLY_POOL, storedDialogues: true }, signedIn(seed));
+      expect(await screen.findByText("Which word?")).toBeInTheDocument();
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+      cleanup?.();
+      cleanup = undefined;
+    }
+  });
+
+  it("picks the word while the store's table has not reached the live project, and writes nothing", async () => {
+    // The real function makes no exchange then, and charges nothing; the
+    // lookup reads the missing table as a miss.
+    const { backend } = render(
+      atReplyStep(),
+      { pool: REPLY_POOL, storedDialogues: true },
+      signedIn((b) => {
+        b.db.failAlways("word_assets", 404, {
+          code: "PGRST205",
+          message: "Could not find the table 'public.word_assets' in the schema cache",
+        });
+        b.stubFunctionFailure("word-asset", 503, { error: "store_not_ready", fallback: true });
+      }),
+    );
+    expect(await screen.findByText("Which word?")).toBeInTheDocument();
+    expect(backend.db.writes).toEqual([]);
+  });
+
+  it("asks pick-the-word at once while too few other words have stored replies, and writes the exchange behind it", async () => {
+    const { backend } = render(
+      atReplyStep(),
+      { pool: POOL, storedDialogues: true },
+      signedIn((b) => b.db.delayFunction("word-asset", 200)),
+    );
+
+    expect(await screen.findByText("Which word?")).toBeInTheDocument();
+    expect(screen.queryByRole("status", { name: "Writing a line for this word" })).not.toBeInTheDocument();
+    await waitFor(() => expect(backend.callsTo("word-asset")).toHaveLength(1));
+  });
+
+  it("keeps the question it asked when the exchange arrives after it", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      render(
+        atReplyStep(),
+        { pool: REPLY_POOL, storedDialogues: true },
+        signedIn((b) => b.db.delayFunction("word-asset", DIALOGUE_WRITING_WAIT_MS + 5_000)),
+      );
+      expect(await screen.findByRole("status", { name: "Writing a line for this word" })).toBeInTheDocument();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(DIALOGUE_WRITING_WAIT_MS + 100);
+      });
+      expect(screen.getByText("Which word?")).toBeInTheDocument();
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(6_000);
+      });
+      // Not swapped in under the learner: it is for the next time.
+      expect(screen.getByText("Which word?")).toBeInTheDocument();
+      expect(screen.queryByText("What would you say?")).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("asks the lesson's own dialogue when a line of it uses the word, and nothing of the store", async () => {
+    const { backend } = render(
+      atReplyStep({ dialogue: DIALOGUE }),
+      { pool: REPLY_POOL, storedDialogues: true },
+      signedIn((b) => b.db.seed("word_assets", [filedExchange()])),
+    );
+
+    expect(screen.getByText("What would you say?")).toBeInTheDocument();
+    expect(screen.getByText("وين السوق؟")).toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(backend.db.readsOf("word_assets")).toEqual([]);
+    expect(backend.callsTo("word-asset")).toEqual([]);
+  });
+
+  it("ignores a stored exchange whose reply does not use the word", async () => {
+    const other = { lines: [EXCHANGE.lines[0], { ...EXCHANGE.lines[1], arabic: "رحت المطعم مع أخوي" }] };
+    render(
+      atReplyStep(),
+      { pool: REPLY_POOL, storedDialogues: true },
+      signedIn((b) => {
+        b.db.seed("word_assets", [filedExchange({ payload: other })]);
+        b.stubFunction("word-asset", { asset: { id: "talk-market", payload: other }, url: null, cached: true, stored: true });
+      }),
+    );
+    expect(await screen.findByText("Which word?")).toBeInTheDocument();
+  });
+
+  it("asks a well-settled production card to say the reply from the store's exchange", async () => {
+    const { backend } = render(
+      atSayReplyStep(),
+      { pool: POOL, storedDialogues: true },
+      signedIn((b) => b.db.seed("word_assets", [filedExchange()])),
+    );
+
+    expect(await screen.findByText("Say the reply in Arabic")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /step 9 of 9/i })).toBeInTheDocument();
+    expect(screen.getByText("وين رحت أمس؟")).toBeInTheDocument();
+    expect(screen.getByText("I went to the market with my brother")).toBeInTheDocument();
+    // The reply is the answer: not on screen before the take.
+    expect(screen.queryByText("رحت السوق مع أخوي")).not.toBeInTheDocument();
+    expect(backend.callsTo("word-asset")).toEqual([]);
+  });
+
+  it("asks the reply from the lesson's dialogue too", async () => {
+    render(atSayReplyStep({ dialogue: DIALOGUE }), { storedDialogues: true }, signedIn());
+    expect(await screen.findByText("Say the reply in Arabic")).toBeInTheDocument();
+    expect(screen.getByText("وين السوق؟")).toBeInTheDocument();
+  });
+
+  it("says the line instead when no reply can be had", async () => {
+    render(
+      atSayReplyStep(),
+      { storedDialogues: true },
+      signedIn((b) => b.stubFunction("word-asset", { error: "msa_leak", fallback: true, message: "no" })),
+    );
+    expect(await screen.findByText("Say the line in Arabic")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /step 9 of 9/i })).toBeInTheDocument();
+  });
+
+  it("writes the exchange for the spoken reply, which needs no wrong replies", async () => {
+    const { backend } = render(atSayReplyStep(), { pool: POOL, storedDialogues: true }, signedIn());
+    expect(await screen.findByText("Say the reply in Arabic")).toBeInTheDocument();
+    expect(backend.callsTo("word-asset")).toHaveLength(1);
+  });
+
+  it("serves the flip card, and has nothing written, when the device cannot record", async () => {
+    recorder.supported = false;
+    const { backend } = render(atSayReplyStep(), { storedDialogues: true }, signedIn());
+    await waitFor(() => expect(screen.getByText("the flip card")).toBeInTheDocument());
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(backend.callsTo("word-asset")).toEqual([]);
+  });
+
+  it("looks nothing up, and has nothing written, on a deck that did not ask for exchanges", async () => {
+    const { backend } = render(atReplyStep(), { pool: REPLY_POOL }, signedIn());
+
+    expect(screen.getByText("Which word?")).toBeInTheDocument();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(backend.db.readsOf("word_assets")).toEqual([]);
+    expect(backend.callsTo("word-asset")).toEqual([]);
+  });
+
+  it("asks from a stored exchange for an item of two words", async () => {
+    // A fifth of the curriculum's items are phrases; the store files their
+    // exchanges, so the quiz must be able to ask from them.
+    const PHRASE = {
+      lines: [
+        { speaker: "Friend", arabic: "متى تروح السوق؟", english: "When do you go to the market?", transliteration: "" },
+        { speaker: "You", arabic: "اروح السوق كل يوم", english: "I go to the market every day", transliteration: "" },
+      ],
+    };
+    const { backend } = render(
+      atSayReplyStep({ arabic: "كل يوم", english: "every day" }),
+      { pool: POOL, storedDialogues: true },
+      signedIn((b) => b.db.seed("word_assets", [filedExchange({ concept_key: "كل يوم|every day", payload: PHRASE })])),
+    );
+
+    expect(await screen.findByText("Say the reply in Arabic")).toBeInTheDocument();
+    expect(screen.getByText("متى تروح السوق؟")).toBeInTheDocument();
+    expect(backend.callsTo("word-asset")).toEqual([]);
+  });
+
+  it("deals no other dialect's stored reply as a wrong one", async () => {
+    // A mixed session's pool holds every dialect's stored replies.
+    const egyptian: QuizPoolEntry[] = REPLY_POOL.map((entry: QuizPoolEntry) =>
+      entry.dialogueLine ? { ...entry, dialogueDialect: "Egyptian" } : entry,
+    );
+    render(
+      atReplyStep(),
+      { pool: egyptian, storedDialogues: true },
+      signedIn((b) => b.db.seed("word_assets", [filedExchange()])),
+    );
+    // Without this dialect's three, there are not enough wrong replies: the word is picked.
+    expect(await screen.findByText("Which word?")).toBeInTheDocument();
+  });
+
+  it("says nothing but a spinner while the pool is still loading", () => {
+    render(atReplyStep(), { pool: REPLY_POOL, storedDialogues: true, ready: false }, signedIn());
+    expect(screen.getByRole("status", { name: "Preparing the question" })).toHaveTextContent("");
+  });
+
+  it("looks a word's picture and its exchange up side by side, and asks with whichever it gets", async () => {
+    // At step 6 a word with no lesson line may end up picked from four with
+    // its picture as the prompt: both are looked up at once.
+    const { backend } = render(
+      atReplyStep(),
+      { pool: REPLY_POOL, storedDialogues: true, sharedPictures: true },
+      signedIn((b) => {
+        b.db.seed("word_assets", [
+          {
+            ...filedExchange(),
+            id: "asset-market",
+            kind: "image",
+            style_version: "ink-1",
+            url: "https://cdn.test/store/market-ink.png",
+            payload: null,
+          },
+        ]);
+        b.stubFunctionFailure("word-asset", 500);
+      }),
+    );
+
+    expect(await screen.findByText("Which word?")).toBeInTheDocument();
+    expect(document.querySelector('img[src="https://cdn.test/store/market-ink.png"]')).not.toBeNull();
+    expect(backend.db.readsOf("word_assets").length).toBeGreaterThanOrEqual(2);
   });
 });

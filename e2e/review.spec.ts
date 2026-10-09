@@ -623,6 +623,233 @@ test.describe("a picture for a word that has none", () => {
   });
 });
 
+test.describe("the reply steps, from a word's exchange", () => {
+  // Steps 6 and 9 ask from a dialogue. A word its lesson never uses (a saved
+  // word above all) is asked from the shared store's two-line exchange for
+  // it, written once by `word-asset` and kept for every later learner. The
+  // function is stubbed here: no model is called.
+  const LESSON = lessonId(0);
+  const OTHERS = lessonId(1);
+  const yesterday = () => new Date(Date.now() - 86_400_000).toISOString();
+  const nextMonth = () => new Date(Date.now() + 86_400_000 * 30).toISOString();
+  const quizProfile = () => ({ profiles: [aProfile({ review_style: "quiz" })] });
+
+  const EXCHANGE = {
+    lines: [
+      { speaker: "Friend", arabic: "وين رحت أمس؟", english: "Where did you go yesterday?", transliteration: "" },
+      { speaker: "You", arabic: "رحت السوق مع أخوي", english: "I went to the market with my brother", transliteration: "ruht is-suug ma' akhooy" },
+    ],
+  };
+
+  /** A stored exchange, as `word-asset` files it, keyed on the folded word and sense. */
+  const filed = (conceptKey: string, lines: unknown) => ({
+    id: `talk-${conceptKey}`,
+    concept_key: conceptKey,
+    kind: "dialogue",
+    dialect: "Gulf",
+    style_version: "text-1",
+    url: null,
+    payload: { lines },
+    meta: {},
+    source: "generated",
+    approved_at: null,
+    created_at: yesterday(),
+  });
+  const said = { speaker: "Friend", arabic: "شو صار؟", english: "What happened?", transliteration: "" };
+  /** Three other words' exchanges, whose replies are the wrong ones on step 6. */
+  const otherExchanges = [
+    filed("بيت|house", [said, { speaker: "You", arabic: "رحت بيت خالي بدري", english: "I went to my uncle's house early", transliteration: "" }]),
+    filed("مدرسه|school", [said, { speaker: "You", arabic: "سكرت مدرسة البنات اليوم", english: "The girls' school closed today", transliteration: "" }]),
+    filed("مطعم|restaurant", [said, { speaker: "You", arabic: "تغدينا في مطعم جديد", english: "We had lunch at a new restaurant", transliteration: "" }]),
+  ];
+
+  test("a saved word from a video reaches step 6 with an exchange written for it", async ({ page }) => {
+    await signIn(page);
+    const backend = await stubSupabase(page, {
+      tables: {
+        user_vocabulary: [
+          // Settled past the word step, due, and saved from a video with the
+          // line it was heard in: the learner's own text.
+          aUserVocabulary({
+            id: vocabId(0),
+            word_arabic: "السوق",
+            word_english: "the market",
+            ease_factor: 40,
+            repetitions: 6,
+            next_review_at: yesterday(),
+            source: "video",
+            sentence_text: "رحت السوق امس مع ZZTRANSCRIPT",
+          }),
+          ...["house", "school", "restaurant", "car"].map((english, i) =>
+            aUserVocabulary({
+              id: vocabId(i + 1),
+              word_arabic: ["بيت", "مدرسة", "مطعم", "سيارة"][i],
+              word_english: english,
+              next_review_at: nextMonth(),
+            }),
+          ),
+        ],
+        word_assets: otherExchanges,
+        ...quizProfile(),
+      },
+    });
+    backend.stubFunction("word-asset", { asset: { id: "talk-market", payload: EXCHANGE }, url: null, cached: false, stored: true });
+
+    await page.goto("/review/my-words");
+
+    await expect(page.getByText("What would you say?")).toBeVisible();
+    await expect(page.getByText("Answer the line")).toBeVisible();
+    await expect(page.getByText("وين رحت أمس؟")).toBeVisible();
+    const replies = page.getByRole("radiogroup", { name: /choose the reply/i });
+    await expect(replies.getByRole("radio")).toHaveCount(4);
+    // The wrong replies are the other words' stored replies.
+    for (const wrong of ["رحت بيت خالي بدري", "سكرت مدرسة البنات اليوم", "تغدينا في مطعم جديد"]) {
+      await expect(replies.getByRole("radio", { name: new RegExp(wrong) })).toBeVisible();
+    }
+
+    // Written for the word alone: never the line it was saved from.
+    expect(backend.callsTo("word-asset")).toHaveLength(1);
+    expect(backend.lastCallTo("word-asset")?.body).toEqual({
+      action: "ensure",
+      kind: "dialogue",
+      word: "السوق",
+      gloss: "the market",
+      dialect: "Gulf",
+    });
+
+    await replies.getByRole("radio", { name: /رحت السوق مع أخوي/ }).click();
+    await page.getByRole("button", { name: /continue/i }).click();
+    await expect.poll(() => backend.db.raw("user_vocabulary").find((w) => w.id === vocabId(0))?.repetitions).toBe(7);
+  });
+
+  /** A curriculum word whose production card is due at step 9, and whose lesson has no line for it. */
+  const matureDeck = () => ({
+    lessons: [
+      aLesson({ id: LESSON, title: "Started lesson", display_order: 1 }),
+      aLesson({ id: OTHERS, title: "Unopened lesson", display_order: 2 }),
+    ],
+    vocabulary_words: [
+      aVocabularyWord({
+        id: wordId(0),
+        lesson_id: LESSON,
+        word_arabic: "السوق",
+        word_english: "the market",
+        example_arabic: "رحت السوق أمس",
+        example_english: "I went to the market yesterday",
+      }),
+      ...["house", "school", "restaurant", "car"].map((english, i) =>
+        aVocabularyWord({ id: wordId(i + 1), lesson_id: OTHERS, word_arabic: ["بيت", "مدرسة", "مطعم", "سيارة"][i], word_english: english }),
+      ),
+    ],
+    word_reviews: [
+      aWordReview({
+        id: reviewId(0),
+        word_id: wordId(0),
+        // Recognition is settled and not due; production is due, and past
+        // the line step.
+        ease_factor: 60,
+        repetitions: 8,
+        next_review_at: nextMonth(),
+        production_ease_factor: 40,
+        production_repetitions: 5,
+        production_next_review_at: yesterday(),
+      }),
+    ],
+    lesson_progress: [aLessonProgress({ user_id: TEST_USER_ID, lesson_id: LESSON, words_total: 1, words_seen: 1 })],
+    word_assets: [filed("السوق|market", EXCHANGE.lines)],
+    ...quizProfile(),
+  });
+
+  /** Say the reply into the fake microphone, and wait for it to reach the scorer. */
+  async function sayTheReply(page: import("@playwright/test").Page, backend: Awaited<ReturnType<typeof stubSupabase>>) {
+    await page.getByRole("button", { name: /^say it$/i }).click();
+    await expect(page.getByText("Listening…")).toBeVisible();
+    // A quarter-second of the fake device, so the encoder has frames to flush.
+    await page.waitForTimeout(250);
+    await page.getByRole("button", { name: /^stop$/i }).click();
+    await expect.poll(() => backend.callsTo("azure-pronunciation").length, { timeout: 15_000 }).toBeGreaterThan(0);
+  }
+
+  test("a mature word is asked to say the reply, and the take is scored against it", async ({ page }) => {
+    await signIn(page);
+    const backend = await stubSupabase(page, { tables: matureDeck() });
+    // The scorer is stubbed: the calibrated score, and the reply it heard.
+    backend.stubFunction("azure-pronunciation", {
+      overall: 76,
+      accuracy: 78,
+      fluency: 80,
+      completeness: 100,
+      words: [],
+      recognizedText: "رحت السوق مع اخوي",
+      locale: "ar-SA",
+    });
+
+    await page.goto("/review");
+
+    await expect(page.getByText("Say the reply in Arabic")).toBeVisible();
+    await expect(page.getByText("Say the reply", { exact: true })).toBeVisible();
+    await expect(page.getByText("وين رحت أمس؟")).toBeVisible();
+    await expect(page.getByText("I went to the market with my brother")).toBeVisible();
+    // The reply is the answer: not on screen until it has been said.
+    await expect(page.getByText("رحت السوق مع أخوي")).toHaveCount(0);
+
+    await sayTheReply(page, backend);
+
+    // Scored against the stored reply, in the word's dialect.
+    expect(backend.lastCallTo("azure-pronunciation")?.body).toMatchObject({
+      referenceText: "رحت السوق مع أخوي",
+      locale: "ar-SA",
+    });
+    await expect(page.getByText("76")).toBeVisible();
+    await page.getByRole("button", { name: /continue/i }).click();
+
+    // 76 on the calibrated scale, with the word in it: Good, on the
+    // production schedule.
+    await expect.poll(() => backend.db.rows("word_reviews")[0]?.production_repetitions).toBe(6);
+    expect(backend.db.rows("word_reviews")[0]).toMatchObject({ last_result: "good" });
+    expect(backend.callsTo("word-asset")).toEqual([]);
+  });
+
+  test("a reply said well without the word is Again", async ({ page }) => {
+    await signIn(page);
+    const backend = await stubSupabase(page, { tables: matureDeck() });
+    backend.stubFunction("azure-pronunciation", {
+      overall: 92,
+      accuracy: 92,
+      fluency: 92,
+      completeness: 100,
+      words: [],
+      recognizedText: "رحت المطعم مع اخوي",
+      locale: "ar-SA",
+    });
+
+    await page.goto("/review");
+    await expect(page.getByText("Say the reply in Arabic")).toBeVisible();
+    await sayTheReply(page, backend);
+    await page.getByRole("button", { name: /continue/i }).click();
+
+    await expect.poll(() => backend.db.rows("word_reviews")[0]?.last_result).toBe("again");
+    expect(backend.db.rows("word_reviews")[0]?.production_lapses).toBe(1);
+  });
+
+  test("says the line instead while the store's table is not on the live project", async ({ page }) => {
+    // No exchange can be read or kept: the step falls back to step 8, and
+    // nothing is made.
+    await signIn(page);
+    const deck = matureDeck();
+    const backend = await stubSupabase(page, { tables: { ...deck, word_assets: [] } });
+    backend.db.failAlways("word_assets", 404, {
+      code: "PGRST205",
+      message: "Could not find the table 'public.word_assets' in the schema cache",
+    });
+
+    await page.goto("/review");
+
+    await expect(page.getByText("Say the line in Arabic")).toBeVisible();
+    await expect(page.getByText("I went to the market yesterday")).toBeVisible();
+  });
+});
+
 test.describe("a word's first jingle is the shared one", () => {
   const LESSON = lessonId(0);
   const SHARED =

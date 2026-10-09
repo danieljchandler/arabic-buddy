@@ -15,9 +15,13 @@ import {
   authoredScene,
   fileNewAsset,
   getAsset,
+  getAssets,
   inkPicturePrompt,
   isReplaceable,
   kindNeedsSense,
+  lookupAsset,
+  MAX_KEY_BYTES_PER_READ,
+  MAX_KEYS_PER_READ,
   normaliseAssetWord,
   normaliseGloss,
   putAsset,
@@ -575,6 +579,67 @@ describe("the store", () => {
     });
   });
 
+  describe("many words at once (getAssets)", () => {
+    const talk = (word: string, gloss: string, dialect = "Gulf") =>
+      assetKey({ kind: "dialogue", word, gloss, dialect }) as AssetKey;
+    const exchange = (word: string) => ({ lines: [{ arabic: "شو تبي؟" }, { arabic: `ابي ${word}` }] });
+
+    it("reads every word's asset in one query, and only the ones asked for", async () => {
+      await putAsset(client, talk("قهوة", "coffee"), { payload: exchange("قهوة") });
+      await putAsset(client, talk("شاي", "tea"), { payload: exchange("شاي") });
+      await putAsset(client, talk("خبز", "bread"), { payload: exchange("خبز") });
+      // Same word in another dialect, and a picture under the same word.
+      await putAsset(client, talk("قهوة", "coffee", "Egyptian"), { payload: exchange("قهوة") });
+      await putAsset(client, coffee(), { url: "https://cdn.test/coffee.png" });
+      const before = backend.db.readsOf("word_assets").length;
+
+      const found = await getAssets(client, [talk("قهوة", "coffee"), talk("شاي", "tea"), talk("ماي", "water")]);
+
+      expect(backend.db.readsOf("word_assets").length - before).toBe(1);
+      expect(found.map((asset) => [asset.conceptKey, asset.dialect, asset.kind]).sort()).toEqual([
+        ["شاي|tea", "Gulf", "dialogue"],
+        ["قهوه|coffee", "Gulf", "dialogue"],
+      ]);
+    });
+
+    it("reads at most MAX_KEYS_PER_READ keys, so the query string stays a size a gateway takes", async () => {
+      const keys = Array.from({ length: MAX_KEYS_PER_READ + 20 }, (_, i) => talk(`كلمة${"ب".repeat(i % 7)}${i}`, `word ${i}`));
+      await putAsset(client, keys[MAX_KEYS_PER_READ + 5], { payload: exchange("x") });
+      await putAsset(client, keys[3], { payload: exchange("x") });
+
+      const found = await getAssets(client, keys);
+
+      expect(found.map((asset) => asset.conceptKey)).toEqual([keys[3].conceptKey]);
+    });
+
+    it("stops short of a URL a gateway would refuse, however few keys that is", async () => {
+      // Saved words' senses can run long; forty long Arabic keys are well
+      // past the byte budget though far under the key count.
+      const long = (i: number) => talk(`${"كلمة".repeat(8)}${i}`, `a rather long english sense number ${i} ${"x".repeat(60)}`);
+      const keys = Array.from({ length: 40 }, (_, i) => long(i));
+      const fit = keys.findIndex((_, i) =>
+        keys.slice(0, i + 1).reduce((sum, key) => sum + encodeURIComponent(`"${key.conceptKey}",`).length, 0) >
+          MAX_KEY_BYTES_PER_READ,
+      );
+      expect(fit).toBeGreaterThan(0);
+      await putAsset(client, keys[0], { payload: exchange("x") });
+      await putAsset(client, keys[fit], { payload: exchange("x") });
+
+      const found = await getAssets(client, keys);
+
+      // The first fits and is found; the one past the budget is not asked for.
+      expect(found.map((asset) => asset.conceptKey)).toEqual([keys[0].conceptKey]);
+      const read = backend.db.readsOf("word_assets").at(-1);
+      expect(JSON.stringify(read)).not.toContain(keys[fit].conceptKey);
+    });
+
+    it("asks nothing for no keys, or for keys of different kinds", async () => {
+      expect(await getAssets(client, [])).toEqual([]);
+      expect(await getAssets(client, [talk("قهوة", "coffee"), coffee()])).toEqual([]);
+      expect(backend.db.readsOf("word_assets")).toEqual([]);
+    });
+  });
+
   describe("before the migration is applied to the live project", () => {
     const missingTable = {
       code: "PGRST205",
@@ -584,6 +649,13 @@ describe("the store", () => {
     it("misses rather than failing", async () => {
       backend.db.failAlways("word_assets", 404, missingTable);
       expect(await getAsset(client, coffee())).toBeNull();
+      expect(await getAssets(client, [coffee()])).toEqual([]);
+    });
+
+    it("says the table is missing, apart from an ordinary miss", async () => {
+      expect(await lookupAsset(client, coffee())).toEqual({ asset: null, missingTable: false });
+      backend.db.failAlways("word_assets", 404, missingTable);
+      expect(await lookupAsset(client, coffee())).toEqual({ asset: null, missingTable: true });
     });
 
     it("declines to file rather than throwing", async () => {

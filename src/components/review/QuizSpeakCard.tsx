@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Eye, Loader2, Mic, MicOff, Quote, RotateCcw, Volume2 } from "lucide-react";
+import { Eye, Languages, Loader2, Mic, MicOff, Quote, RotateCcw, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { useAzurePronunciation, scoreBand, type WordResult } from "@/hooks/useAzurePronunciation";
@@ -7,7 +7,8 @@ import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { useTakeRecorder } from "@/hooks/useTakeRecorder";
 import { findWordSpan } from "@/lib/arabicWord";
-import type { SpeechOutcome } from "@/lib/quizGrading";
+import { findPhraseSpan, type ReplyLine } from "@/lib/quizDialogue";
+import { wordSpanSimilarity, type SpeechOutcome } from "@/lib/quizGrading";
 import { cn } from "@/lib/utils";
 import { arabicSimilarity } from "../../../supabase/functions/_shared/arabicMatch";
 
@@ -17,8 +18,12 @@ export interface QuizSpeechResult extends SpeechOutcome {
 }
 
 interface QuizSpeakCardProps {
-  /** `speak` asks for the word; `speak-sentence` for the whole line. */
-  format: "speak" | "speak-sentence";
+  /**
+   * `speak` asks for the word; `speak-sentence` for the whole line;
+   * `speak-reply` plays a line of dialogue and asks for the reply that uses
+   * the word.
+   */
+  format: "speak" | "speak-sentence" | "speak-reply";
   id: string;
   arabic: string;
   english: string;
@@ -26,6 +31,8 @@ interface QuizSpeakCardProps {
   imageUrl?: string | null;
   dialect?: string | null;
   sentence?: { arabic: string; english?: string | null } | null;
+  /** For `speak-reply`: the line said, and the reply to say (the lesson's, or the word's stored exchange). */
+  reply?: ReplyLine | null;
   /** Called with every scored take; the last one is what the card is graded on. */
   onResult: (result: QuizSpeechResult) => void;
   /** The device cannot record, or the learner would rather rate it themselves. */
@@ -55,6 +62,13 @@ function localeFor(dialect: string | null | undefined): string {
  *
  * The sentence the word came from is always a tap away, with the word cut
  * out of it: context is the learner's own memory hook, not the answer.
+ *
+ * "Say the reply" is the top of the production climb: a line of dialogue is
+ * played, the reply's meaning is shown, and the learner says the reply in
+ * Arabic. It is scored against the reply, and the word must be in it: the
+ * similarity the grader sees is the word's span of what was heard
+ * (`wordSpanSimilarity`), so a line said well without the word is Again. The
+ * line's translation is a tap away and counts as help.
  */
 export const QuizSpeakCard = ({
   format,
@@ -65,10 +79,16 @@ export const QuizSpeakCard = ({
   imageUrl,
   dialect,
   sentence,
+  reply,
   onResult,
   onUnavailable,
 }: QuizSpeakCardProps) => {
-  const target = format === "speak-sentence" && sentence?.arabic ? sentence.arabic : arabic;
+  const replying = format === "speak-reply" && !!reply;
+  const target = replying
+    ? reply!.answer.arabic
+    : format === "speak-sentence" && sentence?.arabic
+      ? sentence.arabic
+      : arabic;
   const locale = localeFor(dialect);
   const { assess, result, isLoading, error, reset } = useAzurePronunciation();
   const [contextOpen, setContextOpen] = useState(false);
@@ -77,6 +97,7 @@ export const QuizSpeakCard = ({
   // tap away and asking for it before the take counts as help.
   const pictureOnly = format === "speak" && !!imageUrl;
   const [meaningOpen, setMeaningOpen] = useState(false);
+  const [translationOpen, setTranslationOpen] = useState(false);
   const hintUsedRef = useRef(false);
 
   // A saved phrase is several words asked as one card; give it a line's time.
@@ -87,7 +108,13 @@ export const QuizSpeakCard = ({
       const scored = await assess(blob, target, locale);
       if (!scored) return;
       const recognized = scored.recognizedText?.trim() || null;
-      const similarity = recognized ? arabicSimilarity(recognized, target) : null;
+      // A reply is a line, and the step is about the word: it is held to the
+      // word's span of what was heard, not to the line as a whole.
+      const similarity = !recognized
+        ? null
+        : replying
+          ? wordSpanSimilarity(recognized, arabic)
+          : arabicSimilarity(recognized, target);
       onResult({ kind: "speech", score: scored.overall, similarity, recognized, hintUsed: hintUsedRef.current });
     },
   });
@@ -95,13 +122,28 @@ export const QuizSpeakCard = ({
   // The target's own audio, played back after the take so the learner hears
   // the model right after their own attempt.
   const { ttsUrl, isLoading: ttsLoading } = useAzureTTS({ text: target, skip: !result, dialect });
-  const { play } = useAudioPlayer();
+  const { play, isPlaying } = useAudioPlayer();
+
+  // The line the learner answers, said aloud once when the card is dealt.
+  const promptText = replying ? reply!.prompt.arabic : "";
+  const { ttsUrl: promptUrl, isLoading: promptLoading } = useAzureTTS({
+    text: promptText,
+    skip: !replying,
+    dialect,
+  });
+  const promptPlayedFor = useRef<string | null>(null);
+  useEffect(() => {
+    if (!replying || !promptUrl || promptPlayedFor.current === id) return;
+    promptPlayedFor.current = id;
+    play(promptUrl);
+  }, [replying, promptUrl, id, play]);
 
   useEffect(() => {
     reset();
     setContextOpen(false);
     setNoSpeech(false);
     setMeaningOpen(false);
+    setTranslationOpen(false);
     hintUsedRef.current = false;
   }, [id, reset]);
 
@@ -109,6 +151,20 @@ export const QuizSpeakCard = ({
     if (!result) hintUsedRef.current = true;
     setMeaningOpen(true);
   };
+
+  const openTranslation = () => {
+    if (!result) hintUsedRef.current = true;
+    setTranslationOpen(true);
+  };
+
+  // A reply with no English is asked as a gap, like a line with none.
+  const replyGap = useMemo(() => {
+    if (!replying || reply!.answer.english) return null;
+    const span = findPhraseSpan(reply!.answer.arabic, arabic);
+    if (!span) return null;
+    const line = reply!.answer.arabic;
+    return `${line.slice(0, span.start)} ـــ ${line.slice(span.end)}`.replace(/\s+/g, " ").trim();
+  }, [replying, reply, arabic]);
 
   const gap = useMemo(() => {
     if (!sentence?.arabic) return null;
@@ -135,8 +191,51 @@ export const QuizSpeakCard = ({
     <div className="rounded-2xl bg-card border border-border p-8 text-center">
       <div className="flex items-center justify-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wider mb-6">
         <Mic className="h-3.5 w-3.5" />
-        {format === "speak" ? "Say it in Arabic" : "Say the line in Arabic"}
+        {format === "speak" ? "Say it in Arabic" : replying ? "Say the reply in Arabic" : "Say the line in Arabic"}
       </div>
+
+      {replying && (
+        <div className="mb-5 rounded-lg bg-muted/40 border border-border p-4 text-right" dir="rtl">
+          {reply!.prompt.speaker && (
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1" dir="ltr">
+              {reply!.prompt.speaker} says
+            </p>
+          )}
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-2xl leading-relaxed text-foreground" style={{ fontFamily: "var(--font-naskh)" }}>
+              {reply!.prompt.arabic}
+            </p>
+            <button
+              type="button"
+              onClick={() => promptUrl && play(promptUrl)}
+              disabled={!promptUrl}
+              aria-label="Play the line"
+              className={cn(
+                "flex-shrink-0 p-2.5 rounded-full border transition-all duration-200",
+                promptUrl
+                  ? "bg-primary/10 text-primary border-primary/20 hover:bg-primary/20"
+                  : "bg-muted text-muted-foreground border-border opacity-50 cursor-not-allowed",
+                isPlaying && "bg-primary text-primary-foreground border-primary",
+              )}
+            >
+              {promptLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Volume2 className="h-4 w-4" />}
+            </button>
+          </div>
+          {reply!.prompt.english &&
+            (translationOpen || result ? (
+              <p className="text-sm text-muted-foreground italic mt-2" dir="ltr">
+                {reply!.prompt.english}
+              </p>
+            ) : (
+              <div className="mt-2 text-left" dir="ltr">
+                <Button variant="ghost" size="sm" onClick={openTranslation} className="gap-1.5 text-muted-foreground -ml-2">
+                  <Languages className="h-4 w-4" />
+                  Show translation
+                </Button>
+              </div>
+            ))}
+        </div>
+      )}
 
       {format === "speak" && imageUrl && (
         <div className="mb-4 rounded-lg overflow-hidden bg-muted aspect-[4/3] flex items-center justify-center">
@@ -144,7 +243,26 @@ export const QuizSpeakCard = ({
         </div>
       )}
 
-      {format === "speak" ? (
+      {replying ? (
+        replyGap ? (
+          <div className="mb-6">
+            <p className="text-2xl leading-relaxed text-foreground" style={{ fontFamily: "var(--font-naskh)" }} dir="rtl">
+              {replyGap}
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Reply with the whole line, with <span className="font-semibold text-foreground">{english}</span> in the gap.
+            </p>
+          </div>
+        ) : (
+          <div className="mb-6">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">You reply</p>
+            <p className="text-2xl font-semibold text-foreground leading-snug">{reply!.answer.english}</p>
+            <p className="text-sm text-muted-foreground mt-2">
+              with <span className="font-semibold text-foreground">{english}</span>
+            </p>
+          </div>
+        )
+      ) : format === "speak" ? (
         pictureOnly && !meaningOpen && !result ? (
           <div className="mb-6">
             <Button variant="ghost" size="sm" onClick={openMeaning} className="gap-1.5 text-muted-foreground">
@@ -256,6 +374,9 @@ export const QuizSpeakCard = ({
           {format === "speak" && transliteration && (
             <p className="text-sm text-muted-foreground italic">{transliteration}</p>
           )}
+          {replying && reply!.answer.transliteration && (
+            <p className="text-sm text-muted-foreground italic">{reply!.answer.transliteration}</p>
+          )}
 
           {result.words.length > 1 && (
             <div className="flex flex-wrap justify-center gap-2 mt-3" dir="rtl">
@@ -275,7 +396,11 @@ export const QuizSpeakCard = ({
               <RotateCcw className="h-3.5 w-3.5" />
               Try again
             </Button>
-            <AskAISentence arabic={target} english={sentence?.english ?? english} variant="chip" />
+            <AskAISentence
+              arabic={target}
+              english={replying ? (reply!.answer.english ?? english) : (sentence?.english ?? english)}
+              variant="chip"
+            />
           </div>
         </div>
       )}

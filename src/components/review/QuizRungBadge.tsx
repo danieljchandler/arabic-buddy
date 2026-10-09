@@ -15,8 +15,8 @@ interface QuizRungBadgeProps {
  *
  * The ladder is invisible otherwise: a learner who is asked to fill a gap
  * today and to say the word next week has no way to see that the word moved.
- * Five dots and the step's name make the climb legible without a number to
- * chase.
+ * A dot per step (`QUIZ_STEP_COUNT`) and the step's name make the climb
+ * legible without a number to chase.
  */
 export const QuizRungBadge = ({ step, label, combo = 0, className }: QuizRungBadgeProps) => (
   <div className={cn("flex items-center justify-center gap-3 text-xs text-muted-foreground", className)}>

@@ -1,9 +1,10 @@
 import { act, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderHookWithProviders } from "@/test/support/react/harness";
 import { aUserPhrase, aUserVocabulary, aVocabularyWord, many, phraseId, vocabId, wordId, TEST_USER_ID } from "@/test/support/factories";
 import type { SupabaseBackend } from "@/test/support/server/handler";
-import { useCurriculumWordPool, useSavedPhrasePool, useSavedWordPool } from "./useQuizPool";
+import { assetKey } from "../../supabase/functions/_shared/wordAssets";
+import { STORED_REPLIES_WAIT_MS, useCurriculumWordPool, useSavedPhrasePool, useSavedWordPool } from "./useQuizPool";
 
 /**
  * Where the quiz's wrong options come from. The pool must stay inside the
@@ -133,5 +134,148 @@ describe("the saved pools", () => {
       await new Promise((resolve) => setTimeout(resolve, 20));
     });
     expect(r.result.current.data).toBeUndefined();
+  });
+});
+
+describe("stored replies, for the reply question's wrong options", () => {
+  /** A stored exchange for a word, as `word-asset` files it. */
+  const anExchange = (conceptKey: string, word: string, dialect = "Gulf", over: Record<string, unknown> = {}) => ({
+    id: `talk-${conceptKey}-${dialect}`,
+    concept_key: conceptKey,
+    kind: "dialogue",
+    dialect,
+    style_version: "text-1",
+    url: null,
+    payload: {
+      lines: [
+        { speaker: "Friend", arabic: "شو عندك؟", english: "What have you got?", transliteration: "" },
+        { speaker: "Me", arabic: `عندي ${word} اليوم`, english: `I have ${word} today`, transliteration: "" },
+      ],
+    },
+    meta: {},
+    source: "generated",
+    approved_at: null,
+    created_at: "2026-10-09T00:00:00Z",
+    ...over,
+  });
+
+  it("carries each curriculum word's stored reply, read in one query", async () => {
+    const r = renderHookWithProviders(() => useCurriculumWordPool("Gulf", false), {
+      persona: "free",
+      seed: (b) => {
+        b.db.seed("vocabulary_words", [
+          aVocabularyWord({ id: wordId(0), word_arabic: "بيت", word_english: "house", dialect_module: "Gulf" }),
+          aVocabularyWord({ id: wordId(1), word_arabic: "مدرسة", word_english: "school", dialect_module: "Gulf" }),
+        ]);
+        b.db.seed("word_assets", [
+          anExchange("بيت|house", "بيت"),
+          // Another dialect's exchange for the same word is not this deck's.
+          anExchange("مدرسه|school", "مدرسة", "Egyptian"),
+        ]);
+      },
+    });
+    cleanup = r.cleanup;
+
+    await waitFor(() => expect(r.result.current.data).toBeDefined());
+    const [house, school] = r.result.current.data!;
+    expect(house.dialogueLine).toMatchObject({ arabic: "عندي بيت اليوم", english: "I have بيت today" });
+    // Tagged with its dialect, so a mixed session deals it only for that dialect.
+    expect(house.dialogueDialect).toBe("Gulf");
+    expect(school.dialogueLine).toBeUndefined();
+    expect(r.backend.db.readsOf("word_assets")).toHaveLength(1);
+  });
+
+  it("carries a saved word's stored reply, and reads the most settled words first", async () => {
+    // More words than one read takes: the settled ones are the ones that have
+    // reached the reply step.
+    const words = many(aUserVocabulary, 130, (i) => ({
+      id: vocabId(i),
+      word_arabic: `كلمة${"ب".repeat(i % 5)}${i}`,
+      word_english: `word ${i}`,
+      dialect: "Gulf",
+      ease_factor: i === 7 ? 90 : 1,
+      created_at: new Date(Date.UTC(2026, 0, 1) + i * 60_000).toISOString(),
+    }));
+    const seventh = String(words[7].word_arabic);
+    const r = renderHookWithProviders(() => useSavedWordPool("Gulf", false), {
+      persona: "free",
+      seed: (b) => {
+        b.db.seed("user_vocabulary", words);
+        const key = assetKey({ kind: "dialogue", word: seventh, gloss: "word 7", dialect: "Gulf" });
+        b.db.seed("word_assets", [anExchange(key!.conceptKey, seventh)]);
+      },
+    });
+    cleanup = r.cleanup;
+
+    await waitFor(() => expect(r.result.current.data).toBeDefined());
+    const withReply = r.result.current.data!.filter((entry) => entry.dialogueLine);
+    expect(withReply.map((entry) => entry.english)).toEqual(["word 7"]);
+    expect(r.backend.db.readsOf("word_assets")).toHaveLength(1);
+  });
+
+  it("ignores a stored exchange whose reply does not use the word", async () => {
+    const r = renderHookWithProviders(() => useCurriculumWordPool("Gulf", false), {
+      persona: "free",
+      seed: (b) => {
+        b.db.seed("vocabulary_words", [aVocabularyWord({ id: wordId(0), word_arabic: "بيت", word_english: "house", dialect_module: "Gulf" })]);
+        b.db.seed("word_assets", [anExchange("بيت|house", "مدرسة")]);
+      },
+    });
+    cleanup = r.cleanup;
+
+    await waitFor(() => expect(r.result.current.data).toBeDefined());
+    expect(r.result.current.data![0].dialogueLine).toBeUndefined();
+  });
+
+  it("is the pool without replies, not an error, while the store's table is not there", async () => {
+    const r = renderHookWithProviders(() => useCurriculumWordPool("Gulf", false), {
+      persona: "free",
+      seed: (b) => {
+        seedCurriculum(b);
+        b.db.failAlways("word_assets", 404, {
+          code: "PGRST205",
+          message: "Could not find the table 'public.word_assets' in the schema cache",
+        });
+      },
+    });
+    cleanup = r.cleanup;
+
+    await waitFor(() => expect(r.result.current.data).toBeDefined());
+    expect(r.result.current.data!.map((e) => e.english)).toEqual(["word 0", "word 1", "word 2"]);
+    expect(r.result.current.data!.some((e) => e.dialogueLine)).toBe(false);
+  });
+
+  it("reads no stored replies for the phrase deck", async () => {
+    const r = renderHookWithProviders(() => useSavedPhrasePool("Gulf", false), {
+      persona: "free",
+      seed: (b) => b.db.seed("user_phrases", [aUserPhrase({ id: phraseId(0), user_id: TEST_USER_ID })]),
+    });
+    cleanup = r.cleanup;
+
+    await waitFor(() => expect(r.result.current.data).toBeDefined());
+    expect(r.backend.db.readsOf("word_assets")).toEqual([]);
+  });
+
+  it("goes on without the stored replies when the store is slow, rather than hold the session", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const r = renderHookWithProviders(() => useCurriculumWordPool("Gulf", false), {
+        persona: "free",
+        seed: (b) => {
+          b.db.seed("vocabulary_words", [aVocabularyWord({ id: wordId(0), word_arabic: "بيت", word_english: "house", dialect_module: "Gulf" })]);
+          b.db.seed("word_assets", [anExchange("بيت|house", "بيت")]);
+          b.db.delay("word_assets", STORED_REPLIES_WAIT_MS + 10_000);
+        },
+      });
+      cleanup = r.cleanup;
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(STORED_REPLIES_WAIT_MS + 100);
+      });
+      await waitFor(() => expect(r.result.current.data).toBeDefined());
+      expect(r.result.current.data).toEqual([{ arabic: "بيت", english: "house", imageUrl: null, audioUrl: null }]);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

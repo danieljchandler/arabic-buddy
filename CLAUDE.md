@@ -164,7 +164,7 @@ harness.
   until the live project carries the column the preference is device-local
   and a `typesDrift` entry names the migration). `src/lib/quizLadder.ts`
   reads each card's question off its memory state — gap, picture, audio,
-  pick the word, answer the line, say it, say the line — and
+  pick the word, answer the line, say it, say the line, say the reply — and
   `QuizCardFrame` turns the answer into a rating that goes down the pages'
   existing rating paths, so the queue, relearn, leeches and `review_log`
   never know the style. Two things it must keep: a choice answer never earns
@@ -182,22 +182,32 @@ harness.
   picture (a recording is keyed on its exact text instead, harakat kept), and
   Fusha is refused. A generator looks the store up before it generates and
   never charges a hit; a shared prompt is built from the key's folded sense,
-  never the gloss as typed; pictures are the Ink style (`INK_PICTURE_STYLE`,
-  no photographs, no text) and a jingle is filed only if its lyrics pass the
-  leak detector with the rulebook's tokens. New files go through
+  never the gloss as typed, and takes nothing else from a learner (not the
+  sentence a word was saved from); pictures are the Ink style
+  (`INK_PICTURE_STYLE`, no photographs, no text) and a jingle is filed only if
+  its lyrics pass the leak detector with the rulebook's tokens. A word's
+  two-line exchange (`kind: "dialogue"`, `_shared/wordDialogue.ts`) is text:
+  filed with `putAsset`, only when every line passes that detector and the
+  native validator passed the shipped text (the critic's rewrite included),
+  never served when either fails, charged on its own counter
+  (`word-asset-dialogue`), and never made while the table is missing.
+  "Uses the word" is `lineUsesWord` on both sides, so phrases count. New files go through
   `fileNewAsset` under fresh names and are never overwritten, and no caller
   may name a path in `word-assets/`. The one thing beyond the word that may
   reach a shared prompt is an authored `scene`, and only on `word-asset`'s
   trusted path: a service-role call (`scripts/curriculum-pictures.ts`) or
-  the content team, never a learner, and never charged to anyone. That path
-  alone may replace what is filed (`replaceAsset`), and only an unapproved
-  `generated` asset gives way (`isReplaceable`). In the browser,
+  the content team, never a learner, and never charged to anyone; for an
+  exchange the same path may send `example`, a curriculum word's authored
+  sentence. That path alone may replace what is filed (`replaceAsset`), and
+  only an unapproved `generated` asset gives way (`isReplaceable`). In the browser,
   `useWordAsset` stays a free read; a generation is `useEnsureWordAsset`,
-  which the quiz calls unprompted, so it asks once per word, pauses after a
-  cap answer or two failures in a row, and never raises a toast. In
-  `QuizCardFrame` a question is fixed once it is on screen (its picture and
-  the pool it was dealt from), so a picture that lands later never changes
-  it. README "The asset store".
+  which the quiz calls unprompted, so it asks once per word, pauses a kind
+  after a cap answer or two failures in a row (per kind: a spent picture
+  allowance never stops dialogues), and never raises a toast. In
+  `QuizCardFrame` a question is fixed once it is on screen (its picture, its
+  exchange and the pool it was dealt from, all settled through
+  `useCardAsset`), so an asset that lands later never changes it. README "The
+  asset store".
 - **Flashcard scheduling is FSRS-6, not FSRS-4.5 or SM-2, and the weights are
   meant to be fitted.** `src/lib/spacedRepetition.ts` implements the FSRS-6
   formulas line for line from fsrs-rs (21 weights). Two things it must keep:

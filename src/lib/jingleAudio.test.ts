@@ -278,7 +278,14 @@ describe("sharedJingleUrl", () => {
     );
   });
 
-  it("is null for bytes to upload, and for anything that is not an https url", () => {
+  it("reads a local stack's http url too", () => {
+    // `supabase start` serves storage over plain http on 127.0.0.1.
+    expect(sharedJingleUrl({ audioUrl: "http://127.0.0.1:54321/storage/v1/object/public/a.wav" })).toBe(
+      "http://127.0.0.1:54321/storage/v1/object/public/a.wav",
+    );
+  });
+
+  it("is null for bytes to upload, and for anything that is not a web url", () => {
     expect(sharedJingleUrl({ audioBase64: toBase64(WAV), mimeType: "audio/wav" })).toBeNull();
     expect(sharedJingleUrl({ audioUrl: "" })).toBeNull();
     expect(sharedJingleUrl({ audioUrl: "javascript:alert(1)" })).toBeNull();

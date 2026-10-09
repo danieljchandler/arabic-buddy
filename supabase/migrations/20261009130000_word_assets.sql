@@ -11,6 +11,7 @@
 -- The key is the word, not the learner: `concept_key` is the normalised Arabic
 -- (the same folding src/lib/arabicWord.ts uses) plus the English sense it was
 -- made for, so a homograph does not borrow another word's picture; for a
+-- recording it is exactly the text the voice read, harakat kept; for a
 -- language-neutral kind (an animation of jumping) it is the English concept
 -- alone and `dialect` is null. `style_version` is part of the key so a brand
 -- refresh regenerates rather than mixes two looks in one deck. The folding
@@ -60,6 +61,9 @@ GRANT ALL ON public.word_assets TO service_role;
 
 ALTER TABLE public.word_assets ENABLE ROW LEVEL SECURITY;
 
+-- Dropped first so the file can be run twice (Lovable re-running it, or a
+-- manual apply after a partial one) without failing on the policy.
+DROP POLICY IF EXISTS "Anyone can read word assets" ON public.word_assets;
 CREATE POLICY "Anyone can read word assets"
   ON public.word_assets
   FOR SELECT

@@ -398,9 +398,11 @@ Deno.test("generate-word-jingle files a new shared jingle for the next learner",
   );
 
   assertEquals(status, 200);
-  // Still the bytes, for the learner who asked; and the url they can store.
-  assertEquals(decode(body.audioBase64), new Uint8Array([1, 2, 3, 4]));
+  // The url the learner stores, and not the bytes again: a shared jingle is
+  // already in the bucket, and its base64 is a megabyte and more for nothing.
   assertStringIncludes(String(body.audioUrl), "/flashcard-audio/word-assets/jingle/jingle-1/gulf/");
+  assertEquals(body.audioBase64, undefined);
+  assertEquals(body.lyrics, "كتاب كتاب يا حلو الكتاب");
   assert(calls.some((u) => u.includes("increment_usage_counter")), "a miss is charged");
 
   assertEquals(store.filed.length, 1);
@@ -490,4 +492,65 @@ Deno.test("generate-word-jingle turns an anonymous caller away before looking an
   } finally {
     fn.restore();
   }
+});
+
+Deno.test("generate-word-jingle sings a shared jingle in the dialect and sense its key was folded to", async () => {
+  // "masri" is Egyptian, and filed as Egyptian, so it must be sung Egyptian —
+  // the style and label lookups match exact names and would sing it Gulf. And
+  // the meaning sung is the folded sense: an emoji the key dropped must not
+  // reach lyrics every learner of the key will hear.
+  const store = assetStore();
+  const { status, calls, bodies } = await call(
+    { ...aWord, word_english: "Book 💀", dialect: "masri", share: true },
+    sharedCaller(store.handler, promptWriter({ lyrics: "كتاب كتاب", prompt: "Egyptian pop" })),
+  );
+
+  assertEquals(status, 200);
+  const writer = bodies[calls.findIndex((u) => u.includes(LYRIC_ROUTE))] ?? "";
+  assertStringIncludes(writer, "Egyptian Arabic");
+  assertStringIncludes(writer, 'meaning \\"book\\"');
+  assert(!writer.includes("💀"), "an emoji the key dropped reached the lyric prompt");
+  assertEquals(store.filed[0]?.dialect, "Egyptian");
+});
+
+Deno.test("generate-word-jingle shares a jingle asked for with an unreadable dialect as Gulf", async () => {
+  // A number where a dialect label belongs used to just sing Gulf; folding it
+  // for the key must not turn that into a crash.
+  const store = assetStore();
+  const { status } = await call(
+    { ...aWord, dialect: 7, share: true },
+    sharedCaller(store.handler, promptWriter({ lyrics: "كتاب كتاب", prompt: "p" })),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(store.filed[0]?.dialect, "Gulf");
+});
+
+// Last in the file on purpose: the approved rules it loads stay in
+// dialectHelpers' module cache for the rest of this file's run.
+Deno.test("generate-word-jingle holds a jingle back on the rulebook's forbidden words too", async () => {
+  // The leak detector as the Brain runs it, with the approved rulebook's
+  // forbidden tokens — not only its hard-coded lists, which do not name this.
+  const store = assetStore();
+  const { status, body } = await call(
+    { ...aWord, dialect: "Yemeni", share: true },
+    sharedCaller(store.handler, promptWriter({ lyrics: "كتاب زقزقلوب كتاب", prompt: "p" }), {
+      "/rest/v1/dialect_rules": () =>
+        json([
+          {
+            id: "rule-1",
+            category: "lexis",
+            rule: "Say it the Yemeni way.",
+            examples: { good: ["كتاب"], bad: ["زقزقلوب"] },
+            priority: 1,
+          },
+        ]),
+    }),
+  );
+
+  // The learner still gets their jingle; the store does not.
+  assertEquals(status, 200);
+  assertEquals(decode(body.audioBase64), new Uint8Array([1, 2, 3, 4]));
+  assertEquals(body.audioUrl, undefined);
+  assertEquals(store.filed, []);
 });

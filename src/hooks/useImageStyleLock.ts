@@ -8,8 +8,13 @@ export interface ImageStyleLock {
   seed: string;
 }
 
+// In the Ink look the illustrator now draws in (`INK_PICTURE_STYLE` in
+// supabase/functions/_shared/wordAssets.ts), so a learner who locks the default
+// keeps their deck matching the shared pictures. It said "photo-realistic
+// stock-photo aesthetic" until the brand ruled photography out, which would now
+// argue with the illustrator's own style line in every prompt.
 const DEFAULT_DESCRIPTION =
-  "warm soft natural lighting, shallow depth of field, photo-realistic stock-photo aesthetic, neutral beige background, centered subject, no text, no watermark";
+  "flat screenprint poster look, bold simple shapes, plain cream background, centered subject, no text, no watermark";
 
 function generateSeed(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();

@@ -23,10 +23,11 @@ export interface GenerateImageWord {
 /**
  * The word's picture from the shared asset store: another learner's, or a new
  * one the `word-asset` function draws in the Ink style and files for the next.
- * Null when the store cannot answer — the function not deployed yet, a word it
- * cannot file — which sends the dialog down its own path, as before the store.
- * A refusal (the daily cap, a model that drew nothing) is the learner's answer,
- * not a reason to ask a second generator.
+ * Null only when the store turned the word away before charging anything — the
+ * function not deployed yet (404), a word it cannot file (400) — which sends
+ * the dialog down its own path, as before the store. Anything later (the daily
+ * cap, a model that drew nothing, an upload or a timeout after the charge) is
+ * the learner's answer: asking the illustrator then would charge them twice.
  */
 async function sharedPicture(word: GenerateImageWord): Promise<
   { url: string } | { limited: true } | { failed: string } | null
@@ -41,10 +42,13 @@ async function sharedPicture(word: GenerateImageWord): Promise<
     },
   });
   if (showCapToastIfLimited(error, data)) return { limited: true };
-  if (error) return null;
+  const unavailable = "Image generation is temporarily unavailable. Please try again.";
+  if (error) {
+    const status = (error as { context?: { status?: number } }).context?.status;
+    return status === 400 || status === 404 ? null : { failed: unavailable };
+  }
   if (typeof data?.url === "string" && data.url) return { url: data.url };
-  if (data?.fallback) return { failed: data?.message || "Image generation is temporarily unavailable. Please try again." };
-  return null;
+  return { failed: data?.message || unavailable };
 }
 
 interface GenerateImageDialogProps {

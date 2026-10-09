@@ -618,8 +618,11 @@ Deno.test("persist-word-audio stores Munsit's WAV under a .wav key", async () =>
     caller({ ...storage(), "/rest/v1/vocabulary_words": () => json(aWord()) }),
   );
 
-  const upload = calls.find((url) => url.includes("/storage/v1/object/flashcard-audio")) ?? "";
-  assertStringIncludes(decodeURIComponent(upload), `curriculum/word-${WORD_ID}.wav`);
+  const upload = decodeURIComponent(calls.find((url) => url.includes("/storage/v1/object/flashcard-audio")) ?? "");
+  // A fresh object in the shared store's folder for this text and voice, so a
+  // later synthesis for this row can never write over audio other rows play.
+  assertStringIncludes(upload, "/flashcard-audio/word-assets/word_audio/voice-1/gulf/");
+  assert(upload.endsWith(".wav"), upload);
 });
 
 Deno.test("persist-word-audio returns the existing audio without synthesising", async () => {
@@ -650,12 +653,12 @@ Deno.test("persist-word-audio copies a recording the asset store already holds, 
     { wordId: WORD_ID },
     caller({
       ...storage(),
-      "/rest/v1/vocabulary_words": () => json(aWord({ word_english: "book" })),
+      "/rest/v1/vocabulary_words": () => json(aWord()),
       "/rest/v1/word_assets": (request) =>
         request.method === "GET"
           ? json([{
             id: "asset-1",
-            concept_key: "كتاب|book",
+            concept_key: "كتاب",
             kind: "word_audio",
             dialect: "Gulf",
             style_version: "voice-1",
@@ -675,7 +678,8 @@ Deno.test("persist-word-audio copies a recording the asset store already holds, 
   assertEquals(body.audioUrl, "https://cdn.test/shared-kitab.wav");
   assert(!synthesised(calls));
   const lookup = calls.map((url) => decodeURIComponent(url)).find((url) => url.includes("word_assets"));
-  assertStringIncludes(lookup ?? "", "concept_key=eq.كتاب|book");
+  // Keyed on exactly the text the voice reads, harakat and all.
+  assertStringIncludes(lookup ?? "", "concept_key=eq.كتاب&");
   // Copied onto the row the same guarded way a fresh recording is.
   const update = calls
     .map((url) => decodeURIComponent(url))
@@ -683,13 +687,13 @@ Deno.test("persist-word-audio copies a recording the asset store already holds, 
   assert(update, `no conditional update found in:\n${calls.join("\n")}`);
 });
 
-Deno.test("persist-word-audio files what it synthesises for the next row with the word", async () => {
-  const { status, calls, bodies } = await call(
+Deno.test("persist-word-audio files what it synthesises for the next row with the text", async () => {
+  const { status, body, calls, bodies } = await call(
     "persist-word-audio",
     { wordId: WORD_ID, dialect: "Egyptian" },
     caller({
       ...storage(),
-      "/rest/v1/vocabulary_words": () => json(aWord({ word_english: "book" })),
+      "/rest/v1/vocabulary_words": () => json(aWord({ word_arabic: "كِتَاب" })),
       "/rest/v1/word_assets": (request) => (request.method === "GET" ? json([]) : json({}, 201)),
     }),
   );
@@ -699,11 +703,15 @@ Deno.test("persist-word-audio files what it synthesises for the next row with th
   const i = calls.findIndex((url, n) => url.includes("word_assets") && bodies[n] !== null);
   assert(i >= 0, "nothing was filed in the asset store");
   const filed = JSON.parse(bodies[i] ?? "{}") as Record<string, unknown>;
-  assertEquals(filed.concept_key, "كتاب|book");
+  // The vowelled text as written: re-vowelling a word to fix how it is said
+  // must reach a new recording, not this one.
+  assertEquals(filed.concept_key, "كِتَاب");
   assertEquals(filed.kind, "word_audio");
   // Filed under the dialect it was voiced in, not the row's own.
   assertEquals(filed.dialect, "Egyptian");
-  assertStringIncludes(String(filed.url), `curriculum/word-${WORD_ID}.wav`);
+  // The row and the store carry the same fresh object.
+  assertEquals(filed.url, body.audioUrl);
+  assertStringIncludes(String(filed.url), "/flashcard-audio/word-assets/word_audio/voice-1/egyptian/");
 });
 
 Deno.test("persist-word-audio voices a word in its own dialect", async () => {

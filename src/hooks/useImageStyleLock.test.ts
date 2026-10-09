@@ -42,12 +42,15 @@ describe("the starting point", () => {
     expect(result.current.description).toBe(DEFAULT_STYLE_DESCRIPTION);
   });
 
-  it("describes a plain, uncluttered photo look", () => {
+  it("describes a plain, uncluttered look in the brand's flat style, never a photograph", () => {
     // The default has to work for every noun a learner might save, so it asks
-    // for a neutral background and no text — an aesthetic that does not fight
-    // the word on the card.
-    expect(DEFAULT_STYLE_DESCRIPTION).toContain("neutral beige background");
+    // for a plain background and no text — an aesthetic that does not fight
+    // the word on the card. And it is the Ink look the illustrator draws in:
+    // a locked "photo-realistic" default contradicted the illustrator's own
+    // style line in every prompt it was appended to.
+    expect(DEFAULT_STYLE_DESCRIPTION).toContain("plain cream background");
     expect(DEFAULT_STYLE_DESCRIPTION).toContain("no text");
+    expect(DEFAULT_STYLE_DESCRIPTION).not.toMatch(/photo/i);
   });
 
   it("mints a six-digit seed", () => {

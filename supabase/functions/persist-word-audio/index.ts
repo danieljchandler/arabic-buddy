@@ -20,11 +20,15 @@
  * The shared asset store (`_shared/wordAssets.ts`) is looked up before
  * synthesising: one word turns up on several curriculum rows (a Stage 1 word
  * revisited in a later lesson, an imported lesson repeating an authored one),
- * and a row whose word, sense and dialect already have a recording gets that
- * one copied onto it rather than a second synthesis. What is synthesised is
- * filed there for the next row. Until the store's migration is applied the
- * lookup misses and the filing fails quietly, which is this function as it
- * was before.
+ * and a row whose exact text — harakat included — already has a recording in
+ * its dialect's voice gets that one copied onto it rather than a second
+ * synthesis. What is synthesised is filed there for the next row, under a
+ * name of its own that nothing ever writes over. Re-synthesising identical
+ * text in the same voice would give the same recording, so a hit is not a
+ * stale answer: to change how a word is said, upload a recording or change
+ * its text (re-vowelling it is a different key). Until the store's migration
+ * is applied the lookup misses and the filing fails quietly, which is this
+ * function as it was before.
  *
  * Body: { wordId: string, dialect?: string }
  * Response: { audioUrl: string, cached: boolean }
@@ -34,7 +38,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { synthesizeForDialect } from "../_shared/ttsVoiceRouting.ts";
-import { assetKey, getAsset, putAsset, type WordAssetClient } from "../_shared/wordAssets.ts";
+import { assetKey, fileNewAsset, getAsset, type WordAssetClient } from "../_shared/wordAssets.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -74,7 +78,7 @@ serve(async (req) => {
 
     const { data: word, error: wordErr } = await admin
       .from("vocabulary_words")
-      .select("id, word_arabic, word_english, audio_url, dialect_module")
+      .select("id, word_arabic, audio_url, dialect_module")
       .eq("id", wordId)
       .maybeSingle();
 
@@ -95,14 +99,9 @@ serve(async (req) => {
 
     const voicedIn = dialect || word.dialect_module;
     const store = admin as unknown as WordAssetClient;
-    const key = assetKey({
-      kind: "word_audio",
-      word: word.word_arabic,
-      gloss: word.word_english,
-      dialect: voicedIn,
-    });
+    const key = assetKey({ kind: "word_audio", word: word.word_arabic, dialect: voicedIn });
 
-    // The same word, sense and dialect recorded for another row: copy it on.
+    // The same text recorded in the same voice for another row: copy it on.
     const stored = key ? await getAsset(store, key) : null;
     if (stored?.url) {
       await fillEmptySlot(stored.url);
@@ -138,26 +137,31 @@ serve(async (req) => {
     // Extension and content type follow the provider. Munsit answers in WAV, so
     // hardcoding .mp3/audio/mpeg here would store WAV bytes under an .mp3 name
     // and serve them mislabelled.
-    const path = `curriculum/word-${wordId}.${plan.ext}`;
-
-    const { error: uploadErr } = await admin.storage
-      .from(BUCKET)
-      .upload(path, audio, { contentType: plan.contentType, upsert: true });
-    if (uploadErr) throw uploadErr;
-
-    const { data: urlData } = admin.storage.from(BUCKET).getPublicUrl(path);
-    const audioUrl = urlData.publicUrl;
+    let audioUrl: string;
+    if (key) {
+      // A fresh object, filed for the next row with this text. Filing never
+      // fails the request: the row gets this recording either way.
+      const filed = await fileNewAsset(
+        admin,
+        store,
+        key,
+        { bytes: audio, contentType: plan.contentType, extension: plan.ext },
+        { meta: { provider: plan.provider, voice: plan.voices[0] ?? null, content_type: plan.contentType } },
+      );
+      if ("error" in filed) throw new Error(filed.error);
+      audioUrl = filed.url;
+    } else {
+      // A word the store cannot key (no Arabic letter in it): the row's own
+      // object, as before the store.
+      const path = `curriculum/word-${wordId}.${plan.ext}`;
+      const { error: uploadErr } = await admin.storage
+        .from(BUCKET)
+        .upload(path, audio, { contentType: plan.contentType, upsert: true });
+      if (uploadErr) throw uploadErr;
+      audioUrl = admin.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+    }
 
     await fillEmptySlot(audioUrl);
-
-    // Filed for the next row with this word. Never fails the request: the
-    // learner's audio is already stored on the row above.
-    if (key) {
-      await putAsset(store, key, {
-        url: audioUrl,
-        meta: { provider: plan.provider, voice: plan.voices[0] ?? null, content_type: plan.contentType },
-      });
-    }
 
     return new Response(JSON.stringify({ audioUrl, cached: false }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

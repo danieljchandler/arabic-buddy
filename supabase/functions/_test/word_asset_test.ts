@@ -263,6 +263,22 @@ Deno.test("word-asset ensure builds the prompt from the word alone, whatever els
   assert(!prompt.includes("cartoon dog"), "a caller's own text reached the shared prompt");
 });
 
+Deno.test("word-asset ensure draws the folded sense, not whatever else the gloss carried", async () => {
+  // "house 💀🔥" folds to the key بيت|house, so the skull and the fire are in
+  // no key — and must not be in the picture every learner of بيت/house gets.
+  const table = assetTable();
+  const { status, calls } = await call(
+    { action: "ensure", kind: "image", word: "بيت", gloss: "House 💀🔥!!", dialect: "Gulf" },
+    upstreams({ id: LEARNER_A }, table.handler),
+  );
+
+  assertEquals(status, 200);
+  const prompt = imageCalls(calls)[0]?.body ?? "";
+  assertStringIncludes(prompt, 'the meaning \\"house\\"');
+  assert(!prompt.includes("💀") && !prompt.includes("🔥"), "an emoji the key dropped reached the shared prompt");
+  assertEquals(table.rows[0]?.concept_key, "بيت|house");
+});
+
 Deno.test("word-asset ensure turns a free learner over their picture budget away before any model call", async () => {
   const table = assetTable();
   const { status, body, calls } = await call(
@@ -360,15 +376,20 @@ Deno.test("word-asset ensure does not make kinds it has no generator for yet", a
 });
 
 Deno.test("word-asset ensure needs the meaning to draw it", async () => {
-  const table = assetTable();
-  const { status, body, calls } = await call(
-    { action: "ensure", kind: "image", word: "قهوة", dialect: "Gulf" },
-    upstreams({ id: LEARNER_A }, table.handler),
-  );
+  // No gloss, or one that folds to nothing: either way the key would be the
+  // bare word, which is the key a homograph shares.
+  for (const gloss of [undefined, "", "💀🔥 !!"]) {
+    const table = assetTable();
+    const { status, body, calls } = await call(
+      { action: "ensure", kind: "image", word: "قهوة", dialect: "Gulf", gloss },
+      upstreams({ id: LEARNER_A }, table.handler),
+    );
 
-  assertEquals(status, 400);
-  assertEquals(body.error, "gloss_required");
-  assertEquals(imageCalls(calls), []);
+    assertEquals(status, 400, JSON.stringify(gloss));
+    assertEquals(body.error, "gloss_required");
+    assertEquals(imageCalls(calls), []);
+    assertEquals(table.rows, []);
+  }
 });
 
 // ── Before the migration reaches the live project ───────────────────────────
@@ -445,6 +466,8 @@ Deno.test("word-asset refuses a key it cannot file: no Arabic, Fusha, or an unkn
     { ...COFFEE, word: "coffee" },
     { ...COFFEE, dialect: "MSA" },
     { ...COFFEE, kind: "poster" },
+    // The separator: this word would otherwise pose as بيت's "house".
+    { ...COFFEE, word: "بيت|house" },
   ]) {
     const { status, body, calls } = await call(
       { action: "ensure", ...bad },
@@ -496,6 +519,81 @@ Deno.test("generate-flashcard-image draws in the store's Ink style, never a phot
     assert(!/stock photo|photograph of/i.test(prompt), "the photo style guide is back");
     // The learner's own description still reaches their own picture.
     assertStringIncludes(prompt, "steam rising from the cup");
+  } finally {
+    fn.restore();
+  }
+});
+
+Deno.test("generate-flashcard-image cannot be pointed at a shared picture", async () => {
+  // The upload runs with the service role and upserts, so a caller-chosen path
+  // could write over any object in the bucket — a shared picture every learner
+  // of a word is served above all.
+  const shared = "word-assets/image/ink-1/gulf/0123456789abcdef0123456789abcdef/1.png";
+  for (const storage_path of [shared, `tutor/${LEARNER_A}/../../${shared}`, "curriculum/lesson-1/word-1.png"]) {
+    const fn = await loadFunction("generate-flashcard-image", {
+      upstreams: upstreams({ id: LEARNER_A }, assetTable().handler),
+    });
+    try {
+      const response = await fn.handler(
+        jsonRequest("generate-flashcard-image", { word_arabic: "قهوة", word_english: "coffee", storage_path }),
+      );
+      await response.body?.cancel();
+      assertEquals(response.status, 200);
+      const upload = fn.calls.find((c) => c.url.includes("/storage/v1/object/flashcard-images/"));
+      const path = decodeURIComponent(upload?.url ?? "").split("/storage/v1/object/flashcard-images/")[1] ?? "";
+      // A learner's picture lands in their own folder, whatever they asked for.
+      assert(path.startsWith(`tutor/${LEARNER_A}/`), `${storage_path} was written to ${path}`);
+      assert(!path.includes(".."));
+    } finally {
+      fn.restore();
+    }
+  }
+});
+
+Deno.test("generate-flashcard-image keeps a learner's own folder, and the content team's chosen path", async () => {
+  const own = `tutor/${LEARNER_A}/upload-1.png`;
+  const curriculum = "curriculum/lesson-1/word-1.png";
+  const cases: Array<[string, Record<string, UpstreamHandler>, string]> = [
+    [own, {}, own],
+    // The admin word pages file curriculum pictures by lesson and word.
+    [curriculum, { "/rest/v1/user_roles": () => json([{ role: "admin" }]) }, curriculum],
+  ];
+  for (const [storage_path, extra, expected] of cases) {
+    const fn = await loadFunction("generate-flashcard-image", {
+      upstreams: upstreams({ id: LEARNER_A }, assetTable().handler, extra),
+    });
+    try {
+      const response = await fn.handler(
+        jsonRequest("generate-flashcard-image", { word_arabic: "قهوة", word_english: "coffee", storage_path }),
+      );
+      await response.body?.cancel();
+      const upload = fn.calls.find((c) => c.url.includes("/storage/v1/object/flashcard-images/"));
+      assertStringIncludes(decodeURIComponent(upload?.url ?? ""), `/flashcard-images/${expected}`);
+    } finally {
+      fn.restore();
+    }
+  }
+});
+
+Deno.test("generate-flashcard-image never lets even the content team write into the shared store", async () => {
+  // `word-assets/` is filled only by the store's own writers, under names of
+  // their own; no caller names a path there.
+  const fn = await loadFunction("generate-flashcard-image", {
+    upstreams: upstreams({ id: LEARNER_A }, assetTable().handler, {
+      "/rest/v1/user_roles": () => json([{ role: "admin" }]),
+    }),
+  });
+  try {
+    const response = await fn.handler(
+      jsonRequest("generate-flashcard-image", {
+        word_arabic: "قهوة",
+        word_english: "coffee",
+        storage_path: "word-assets/image/ink-1/gulf/x/1.png",
+      }),
+    );
+    await response.body?.cancel();
+    const upload = fn.calls.find((c) => c.url.includes("/storage/v1/object/flashcard-images/"));
+    assertStringIncludes(decodeURIComponent(upload?.url ?? ""), `/flashcard-images/tutor/${LEARNER_A}/`);
   } finally {
     fn.restore();
   }

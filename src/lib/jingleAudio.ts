@@ -129,5 +129,5 @@ export async function createPlayableJingleAudioFromUrl(url: string): Promise<Jin
  */
 export function sharedJingleUrl(data: unknown): string | null {
   const url = (data as { audioUrl?: unknown } | null)?.audioUrl;
-  return typeof url === "string" && /^https:\/\//.test(url) ? url : null;
+  return typeof url === "string" && /^https?:\/\//.test(url) ? url : null;
 }

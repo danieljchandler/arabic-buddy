@@ -6,13 +6,15 @@
  * that one — no lyric call, no Lyria call, nothing charged — and a new one is
  * stored in the public bucket and filed for the next learner, provided its
  * lyrics pass the Brain's MSA leak detector. Nothing the store holds is Fusha.
- * The answer then carries `audioUrl`, and the caller copies it onto its own
- * row instead of uploading. A regeneration leaves `share` off: the learner
- * asked for a different jingle, not the one everybody has.
+ * The answer then carries `audioUrl` and no bytes, and the caller copies the
+ * url onto its own row instead of uploading. A shared jingle is sung in the
+ * dialect and from the sense its key was folded to. A regeneration leaves
+ * `share` off: the learner asked for a different jingle, not the one everybody
+ * has.
  *
  * `share` is opt-in rather than the default so a client still running an
- * older bundle never receives a hit it cannot read: a hit carries a url and
- * no audio bytes.
+ * older bundle never receives an answer it cannot read: a shared answer
+ * carries a url and no audio bytes.
  *
  * Until the store's migration is applied the lookup misses and the filing
  * fails quietly; a shared jingle is still uploaded under a name of its own
@@ -21,22 +23,19 @@
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
-import { getDialectLabel, getDialectVocabRules } from "../_shared/dialectHelpers.ts";
+import {
+  getDialectForbiddenTokens,
+  getDialectLabel,
+  getDialectVocabRules,
+  primeDialectPrompt,
+} from "../_shared/dialectHelpers.ts";
 import { enforceDailyCap, resolveUserId } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { getJingleStyleLine } from "../_shared/jingleStyles.ts";
 import { MODEL_IDS } from "../_shared/modelRegistry.ts";
 import { chatFetch, hasAnyProvider } from "../_shared/aiGateway.ts";
 import { detectMsaLeaks } from "../_shared/msaLeakDetector.ts";
-import {
-  ASSET_BUCKETS,
-  assetKey,
-  assetObjectPath,
-  getAsset,
-  putAsset,
-  type AssetKey,
-  type WordAssetClient,
-} from "../_shared/wordAssets.ts";
+import { assetKey, fileNewAsset, getAsset, type WordAssetClient } from "../_shared/wordAssets.ts";
 
 /** A gloss longer than this is a note; it can still be sung, but not shared. */
 const MAX_SHARED_GLOSS_LENGTH = 80;
@@ -76,8 +75,19 @@ serve(async (req) => {
     // The shared path: the same word, sense and dialect already sung for
     // another learner is served as it is.
     const key = share === true && String(word_english).length <= MAX_SHARED_GLOSS_LENGTH
-      ? assetKey({ kind: "jingle", word: String(word_arabic), gloss: String(word_english), dialect })
+      ? assetKey({
+        kind: "jingle",
+        word: String(word_arabic),
+        gloss: String(word_english),
+        dialect: typeof dialect === "string" ? dialect : null,
+      })
       : null;
+    // A shared jingle is sung from what its key was built from: the dialect
+    // folded onto the three ("masri" is Egyptian, so it must sound Egyptian),
+    // and the folded sense rather than the gloss as typed, so nothing the
+    // folding dropped reaches lyrics every learner of the key will hear.
+    const singIn = key?.dialect ?? dialect;
+    const meaning = key ? key.sense : word_english;
     const admin = key
       ? createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!, {
         auth: { persistSession: false, autoRefreshToken: false },
@@ -122,9 +132,9 @@ serve(async (req) => {
     }
 
     // Step 1: Generate a dialect-specific music prompt
-    const dialectLabel = getDialectLabel(dialect);
-    const dialectRules = getDialectVocabRules(dialect);
-    const dialectStyle = getJingleStyleLine(dialect);
+    const dialectLabel = getDialectLabel(singIn);
+    const dialectRules = getDialectVocabRules(singIn);
+    const dialectStyle = getJingleStyleLine(singIn);
 
     const promptGenResponse = await chatFetch(
       MODEL_IDS.GEMINI_FAST,
@@ -150,7 +160,7 @@ STRICT SAFETY RULES (the music model has a strict safety filter — violations c
             },
             {
               role: "user",
-              content: `Create a wholesome 10-second jingle that teaches the ${dialectLabel} word "${word_arabic}" (meaning "${word_english}"). Arabic must include tashkeel. Return JSON only.`,
+              content: `Create a wholesome 10-second jingle that teaches the ${dialectLabel} word "${word_arabic}" (meaning "${meaning}"). Arabic must include tashkeel. Return JSON only.`,
             },
           ],
           response_format: { type: "json_object" },
@@ -325,23 +335,44 @@ STRICT SAFETY RULES (the music model has a strict safety filter — violations c
       outMime = "audio/wav";
     }
 
-    let audioBase64 = "";
-    for (let i = 0; i < outBytes.length; i += 0x8000) {
-      audioBase64 += String.fromCharCode(...outBytes.subarray(i, i + 0x8000));
-    }
-
     const extension = outMime.includes("mpeg") || outMime.includes("mp3") ? "mp3" : "wav";
 
     // Shared only when what is heard is what was written and checked: lyrics
-    // the leak detector passes, sung from those lyrics.
+    // that pass the leak detector exactly as the Brain runs it (with the
+    // approved rulebook's forbidden tokens), sung from those lyrics.
     let audioUrl: string | null = null;
-    if (key && admin && store && lyrics && !sungFromFallback) {
-      const leaks = detectMsaLeaks(lyrics, key.dialect ?? "Gulf").leaks;
+    if (key?.dialect && admin && store && lyrics && !sungFromFallback) {
+      await primeDialectPrompt(key.dialect);
+      const leaks = detectMsaLeaks(lyrics, key.dialect, getDialectForbiddenTokens(key.dialect)).leaks;
       if (leaks.length === 0) {
-        audioUrl = await shareJingle(admin, store, key, outBytes, outMime, extension, lyrics, musicPrompt);
+        const filed = await fileNewAsset(
+          admin,
+          store,
+          key,
+          { bytes: outBytes, contentType: outMime, extension },
+          { payload: { lyrics }, meta: { prompt: musicPrompt, lyric_model: MODEL_IDS.GEMINI_FAST } },
+        );
+        // This learner keeps the jingle they waited for, filed or not: the
+        // object is theirs under a name of its own either way.
+        if ("url" in filed) audioUrl = filed.url;
+        else console.warn(`generate-word-jingle: not shared: ${filed.error}`);
       } else {
         console.warn(`generate-word-jingle: not shared, MSA in the lyrics: ${leaks.join(", ")}`);
       }
+    }
+
+    // A shared jingle is already stored, so its url is the whole answer; the
+    // bytes (a megabyte and more as base64) go only to a caller who uploads.
+    if (audioUrl) {
+      return new Response(
+        JSON.stringify({ audioUrl, cached: false, mimeType: outMime, extension, lyrics: lyrics || null }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
+    let audioBase64 = "";
+    for (let i = 0; i < outBytes.length; i += 0x8000) {
+      audioBase64 += String.fromCharCode(...outBytes.subarray(i, i + 0x8000));
     }
 
     return new Response(JSON.stringify({
@@ -349,7 +380,6 @@ STRICT SAFETY RULES (the music model has a strict safety filter — violations c
       mimeType: outMime,
       extension,
       lyrics: lyrics || null,
-      ...(audioUrl ? { audioUrl, cached: false } : {}),
     }), {
       headers: {
         ...corsHeaders,
@@ -364,55 +394,3 @@ STRICT SAFETY RULES (the music model has a strict safety filter — violations c
     );
   }
 });
-
-/** The slice of the service-role client the upload needs. */
-interface JingleStorage {
-  storage: {
-    from(bucket: string): {
-      upload(
-        path: string,
-        body: Uint8Array,
-        options: { contentType: string; upsert: boolean },
-      ): Promise<{ error: { message: string } | null }>;
-      getPublicUrl(path: string): { data: { publicUrl: string } };
-    };
-  };
-}
-
-/**
- * Upload a new jingle under a name of its own and file it for the next
- * learner. Returns the url of what this learner was sung, or null when the
- * upload failed (the caller then uploads its own copy, as it always did).
- * Filing can fail — the table not yet applied, or another learner filing
- * first — without changing what this learner is handed.
- */
-async function shareJingle(
-  admin: JingleStorage,
-  store: WordAssetClient,
-  key: AssetKey,
-  bytes: Uint8Array,
-  contentType: string,
-  extension: string,
-  lyrics: string,
-  musicPrompt: string,
-): Promise<string | null> {
-  try {
-    const bucket = ASSET_BUCKETS.jingle as string;
-    const path = await assetObjectPath(key, extension);
-    const { error } = await admin.storage.from(bucket).upload(path, bytes, { contentType, upsert: false });
-    if (error) {
-      console.warn(`generate-word-jingle: shared upload failed: ${error.message}`);
-      return null;
-    }
-    const url = admin.storage.from(bucket).getPublicUrl(path).data.publicUrl;
-    await putAsset(store, key, {
-      url,
-      payload: { lyrics },
-      meta: { prompt: musicPrompt, lyric_model: MODEL_IDS.GEMINI_FAST },
-    });
-    return url;
-  } catch (err) {
-    console.warn(`generate-word-jingle: not shared: ${err instanceof Error ? err.message : String(err)}`);
-    return null;
-  }
-}

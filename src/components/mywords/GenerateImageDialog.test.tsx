@@ -186,6 +186,31 @@ describe("a word's first picture", () => {
     expect(onImageSaved.mock.calls[0][1]).toMatch(/^https:\/\/images\.test\/apple\.png\?t=\d+$/);
   });
 
+  it("falls back to the illustrator for a word the store cannot file", async () => {
+    // A 400 is a refusal before anything was charged — a gloss that folds to
+    // no sense, say — so the illustrator is the learner's only way to a picture.
+    const { backend } = render({ seed: (b) => b.stubFunctionFailure("word-asset", 400) });
+
+    await generate();
+
+    await waitFor(() => expect(backend.callsTo("generate-flashcard-image")).toHaveLength(1));
+  });
+
+  it("does not charge the learner twice when the store failed after making the picture", async () => {
+    // A 500 (the upload failed) or a timeout comes after word-asset charged
+    // the daily counter the illustrator shares. Asking the illustrator then
+    // would charge the same learner again for the same picture.
+    const { backend, onImageSaved } = render({ seed: (b) => b.stubFunctionFailure("word-asset", 500) });
+
+    await generate();
+
+    await waitFor(() =>
+      expect(toasts.error).toHaveBeenCalledWith("Image generation is temporarily unavailable. Please try again."),
+    );
+    expect(backend.callsTo("generate-flashcard-image")).toEqual([]);
+    expect(onImageSaved).not.toHaveBeenCalled();
+  });
+
   it("says so when the store's model drew nothing, without asking a second one", async () => {
     const { backend } = render({
       seed: (b) =>

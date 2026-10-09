@@ -87,11 +87,14 @@ What shipped, so the later phases know what they stand on (writeup: README
   column rather than a `meta` field so it can be in the key. `kind` is not a
   CHECK, so a later phase's kind needs no migration.
 - `_shared/wordAssets.ts`: `assetKey` keys on the folded Arabic **plus the
-  English sense** (`كتاب|book`), because the folding strips the harakat that
-  tell homographs apart; Fusha is refused. `getAsset` / `putAsset` take any
-  client and never throw. `inkPicturePrompt` / `INK_PICTURE_STYLE` are the
-  picture look (`ink-1`). `assetObjectPath` gives every new object a name of
-  its own. Two kinds beyond the list below: `word_audio` and `jingle`.
+  folded English sense** (`كتاب|book`), because the folding strips the harakat
+  that tell homographs apart; every kind but a recording needs a sense
+  (`kindNeedsSense`), a recording is keyed on its exact text, harakat kept,
+  and Fusha is refused. `key.sense` is what a shared prompt is built from.
+  `getAsset` / `putAsset` take any client and never throw. `fileNewAsset`
+  uploads a new file under a name of its own and files it — the one way to
+  add a file. `inkPicturePrompt` / `INK_PICTURE_STYLE` are the picture look
+  (`ink-1`). Two kinds beyond the list below: `word_audio` and `jingle`.
 - `word-asset`: `get`, and `ensure` for `kind: "image"`. Charged only on a
   miss, on the `generate-flashcard-image` counter. The prompt is built from
   the sense and dialect alone; Phase 3's authored `image_scene` is the
@@ -99,7 +102,9 @@ What shipped, so the later phases know what they stand on (writeup: README
   a trusted (service-role or admin) caller.
 - Wired: `GenerateImageDialog` (first picture), `persist-word-audio`,
   `generate-word-jingle` with `share: true` (lyrics filed only when they pass
-  the leak detector). `generate-flashcard-image` now draws in the Ink style.
+  the leak detector with the rulebook's tokens). `generate-flashcard-image`
+  now draws in the Ink style and confines a caller-named `storage_path`
+  (learners to `tutor/<id>/`, never `word-assets/`).
 - `useWordAsset` (read-only).
 
 ### Phase 2b — owner action

@@ -6,6 +6,9 @@ import { generateImageDataUrl, hasAnyProvider } from "../_shared/aiGateway.ts";
 import { inkPicturePrompt } from "../_shared/wordAssets.ts";
 
 
+/** Staff who edit curriculum words, and so name where their pictures go. */
+const CONTENT_TEAM_ROLES = ["admin", "content_reviewer", "recorder"];
+
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -106,8 +109,30 @@ serve(async (req) => {
       bytes[i] = binaryStr.charCodeAt(i);
     }
 
-    const finalPath = storage_path || `tutor/${user.id}/${crypto.randomUUID()}.png`;
-    
+    // Where the picture goes. The upload runs with the service role, so the
+    // path is the only thing between a caller and every object in the bucket
+    // — the shared asset store's pictures above all, which must never be
+    // written over. A caller may name a path in their own folder (the tutor
+    // upload does); the content team may name any path (the admin word pages
+    // file curriculum pictures by lesson and word); nothing names one in
+    // `word-assets/`, which only the store's own writers fill. Anything else
+    // lands in the caller's own folder instead.
+    const ownFolder = `tutor/${user.id}/`;
+    const requested = typeof storage_path === "string" ? storage_path.replace(/^\/+/, "") : "";
+    const nameable = requested !== "" && !requested.includes("..") && !requested.startsWith("word-assets/");
+    let finalPath = `${ownFolder}${crypto.randomUUID()}.png`;
+    const isContentTeam = async () => {
+      const { data } = await supabaseAdmin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .in("role", CONTENT_TEAM_ROLES);
+      return Array.isArray(data) && data.length > 0;
+    };
+    if (nameable && (requested.startsWith(ownFolder) || (await isContentTeam()))) {
+      finalPath = requested;
+    }
+
     const { error: uploadError } = await supabaseAdmin.storage
       .from("flashcard-images")
       .upload(finalPath, bytes, { contentType: "image/png", upsert: true });

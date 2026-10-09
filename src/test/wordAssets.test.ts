@@ -9,12 +9,15 @@ import {
   STYLE_VERSIONS,
   assetKey,
   assetObjectPath,
+  fileNewAsset,
   getAsset,
   inkPicturePrompt,
+  kindNeedsSense,
   normaliseAssetWord,
   normaliseGloss,
   putAsset,
   type AssetKey,
+  type AssetStorage,
   type WordAssetClient,
 } from "../../supabase/functions/_shared/wordAssets";
 
@@ -98,7 +101,7 @@ describe("assetKey", () => {
     // Every dialect's "jump" shares one animation.
     const gulf = assetKey({ kind: "animation", word: "ينط", gloss: "to jump", dialect: "Gulf" });
     const egyptian = assetKey({ kind: "animation", word: "ينط", gloss: "jump", dialect: "Egyptian" });
-    expect(gulf).toEqual({ conceptKey: "jump", kind: "animation", dialect: null, styleVersion: "ink-1" });
+    expect(gulf).toEqual({ conceptKey: "jump", kind: "animation", dialect: null, styleVersion: "ink-1", sense: "jump" });
     expect(egyptian).toEqual(gulf);
     expect(assetKey({ kind: "animation", word: "ينط" })).toBeNull();
   });
@@ -109,6 +112,55 @@ describe("assetKey", () => {
       expect(key?.styleVersion).toBe(STYLE_VERSIONS[kind]);
     }
     expect(STYLE_VERSIONS.image).toBe("ink-1");
+  });
+
+  it("needs a meaning for anything that shows or sings one", () => {
+    // Without the sense the key is the bare folded word, which is exactly the
+    // key a homograph shares. A gloss of nothing but emoji or punctuation
+    // folds to no sense at all, so it is no gloss.
+    expect(kindNeedsSense("image")).toBe(true);
+    expect(kindNeedsSense("jingle")).toBe(true);
+    expect(kindNeedsSense("word_audio")).toBe(false);
+    expect(assetKey({ kind: "image", word: "حب", dialect: "Gulf" })).toBeNull();
+    expect(assetKey({ kind: "image", word: "حب", gloss: "💀🔥 !!", dialect: "Gulf" })).toBeNull();
+    expect(assetKey({ kind: "jingle", word: "حب", gloss: "", dialect: "Gulf" })).toBeNull();
+  });
+
+  it("carries the folded sense, which is what a shared prompt is built from", () => {
+    // The emoji is not in the key, so it must not be in the picture either.
+    const key = assetKey({ kind: "image", word: "بيت", gloss: "House 💀🔥", dialect: "Gulf" });
+    expect(key?.conceptKey).toBe("بيت|house");
+    expect(key?.sense).toBe("house");
+  });
+
+  it("refuses a word carrying the separator, so it cannot pose as another word's sense", () => {
+    // "بيت|house" with a gloss that folds away would otherwise land on the
+    // real بيت's "house" key.
+    expect(assetKey({ kind: "image", word: "بيت|house", gloss: "door", dialect: "Gulf" })).toBeNull();
+  });
+
+  it("keys a recording on exactly what is read, harakat and all", () => {
+    // The voice reads the harakat, so a word re-vowelled to fix how it is
+    // said is a new recording; the sense plays no part, since two homographs
+    // written alike are read alike.
+    const seeds = assetKey({ kind: "word_audio", word: "حَبّ", dialect: "Gulf" });
+    const love = assetKey({ kind: "word_audio", word: "حُبّ", dialect: "Gulf" });
+    expect(seeds?.conceptKey).toBe("حَبّ");
+    expect(love?.conceptKey).not.toBe(seeds?.conceptKey);
+    expect(assetKey({ kind: "word_audio", word: "  بيت  ", gloss: "house", dialect: "Gulf" })).toMatchObject({
+      conceptKey: "بيت",
+      sense: "",
+    });
+  });
+
+  it("does not take a run of tatweel for a word", () => {
+    expect(assetKey({ kind: "image", word: "ـــ", gloss: "line", dialect: "Gulf" })).toBeNull();
+    expect(assetKey({ kind: "word_audio", word: "ـــ", dialect: "Gulf" })).toBeNull();
+  });
+
+  it("files an unreadable dialect label as Gulf rather than throwing", () => {
+    const dialect = 7 as unknown as string;
+    expect(assetKey({ kind: "image", word: "قهوة", gloss: "coffee", dialect })?.dialect).toBe("Gulf");
   });
 
   it("refuses a key longer than anything worth filing", () => {
@@ -293,6 +345,62 @@ describe("the store", () => {
 
     expect(put.status).toBe("taken");
     expect(put.status === "taken" && put.asset?.url).toBe("https://cdn.test/first.png");
+  });
+
+  describe("fileNewAsset", () => {
+    /** A bucket that records what was put in it and can be told to refuse. */
+    function aBucket(refuse?: string) {
+      const uploads: Array<{ bucket: string; path: string; upsert: boolean; contentType: string }> = [];
+      const storage: AssetStorage = {
+        storage: {
+          from: (bucket) => ({
+            upload: async (path, _body, options) => {
+              uploads.push({ bucket, path, upsert: options.upsert, contentType: options.contentType });
+              return { error: refuse ? { message: refuse } : null };
+            },
+            getPublicUrl: (path) => ({ data: { publicUrl: `https://cdn.test/${bucket}/${path}` } }),
+          }),
+        },
+      };
+      return { storage, uploads };
+    }
+    const file = { bytes: new Uint8Array([1, 2, 3]), contentType: "image/png", extension: "png" };
+
+    it("uploads under a fresh name, never over another object, and files it", async () => {
+      const bucket = aBucket();
+      const result = await fileNewAsset(bucket.storage, client, coffee(), file, { meta: { model: "m" } });
+
+      expect(bucket.uploads).toHaveLength(1);
+      expect(bucket.uploads[0]).toMatchObject({ bucket: "flashcard-images", upsert: false, contentType: "image/png" });
+      expect(bucket.uploads[0].path).toMatch(/^word-assets\/image\/ink-1\/gulf\/[0-9a-f]{32}\/[0-9a-f-]{36}\.png$/);
+      expect(result).toMatchObject({ url: `https://cdn.test/flashcard-images/${bucket.uploads[0].path}`, filed: { status: "stored" } });
+      expect((await getAsset(client, coffee()))?.url).toBe("https://cdn.test/flashcard-images/" + bucket.uploads[0].path);
+    });
+
+    it("files nothing when the upload is refused", async () => {
+      const result = await fileNewAsset(aBucket("bucket full").storage, client, coffee(), file, {});
+      expect(result).toEqual({ error: "bucket full" });
+      expect(await getAsset(client, coffee())).toBeNull();
+    });
+
+    it("hands back its own url, and says another learner filed first, on a race", async () => {
+      await putAsset(client, coffee(), { url: "https://cdn.test/first.png" });
+      backend.db.failNextWrite("word_assets", 409, { code: "23505", message: "duplicate key" });
+
+      const result = await fileNewAsset(aBucket().storage, client, coffee(), file, {});
+
+      expect("url" in result && result.url).toMatch(/^https:\/\/cdn\.test\/flashcard-images\/word-assets\//);
+      expect("filed" in result && result.filed.status).toBe("taken");
+    });
+
+    it("refuses a kind that has no file", async () => {
+      const dialogue = assetKey({ kind: "dialogue", word: "قهوة", gloss: "coffee" }) as AssetKey;
+      const bucket = aBucket();
+      expect(await fileNewAsset(bucket.storage, client, dialogue, file, {})).toEqual({
+        error: "dialogue assets have no file",
+      });
+      expect(bucket.uploads).toEqual([]);
+    });
   });
 
   describe("before the migration is applied to the live project", () => {

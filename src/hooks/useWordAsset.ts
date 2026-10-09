@@ -35,8 +35,9 @@ export function useWordAsset(input: AssetKeyInput | null): {
     queryKey: ["word-asset", key?.kind, key?.dialect, key?.conceptKey, key?.styleVersion],
     enabled: key !== null,
     // A filed asset never changes; only a new style version replaces it, and
-    // that is a different key.
-    staleTime: 60 * 60 * 1000,
+    // that is a different key. A miss is not cached, so a picture filed a
+    // moment later (by this learner's own `ensure`) is seen on the next look.
+    staleTime: (query) => (query.state.data ? 60 * 60 * 1000 : 0),
     // `word_assets` is not in the generated types until its migration is
     // applied, hence the structural client.
     queryFn: () => getAsset(supabase as unknown as WordAssetClient, key!),

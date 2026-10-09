@@ -36,13 +36,14 @@ import { enforceDailyCap, resolveUserId } from "../_shared/usageCap.ts";
 import { generateImage, hasAnyProvider, imageExtension, type GeneratedImage } from "../_shared/aiGateway.ts";
 import { IMAGE_MODEL_IDS } from "../_shared/modelRegistry.ts";
 import {
-  ASSET_BUCKETS,
   assetKey,
-  assetObjectPath,
+  fileNewAsset,
   getAsset,
   inkPicturePrompt,
-  putAsset,
+  kindNeedsSense,
+  normaliseGloss,
   type AssetKey,
+  type AssetStorage,
   type WordAsset,
   type WordAssetClient,
 } from "../_shared/wordAssets.ts";
@@ -93,8 +94,16 @@ serve(async (req) => {
     return reply({ error: "gloss_too_long", message: `gloss is limited to ${MAX_GLOSS_LENGTH} characters` }, 400);
   }
 
+  // Checked on the folded sense, not the gloss as typed: a gloss of nothing
+  // but emoji or punctuation folds to nothing, and a picture keyed without a
+  // meaning is exactly what lets one homograph borrow another's.
+  const kind = text(body.kind);
+  if (kindNeedsSense(kind) && !normaliseGloss(gloss)) {
+    return reply({ error: "gloss_required", message: "gloss (the word's English sense) is required" }, 400);
+  }
+
   const key = assetKey({
-    kind: text(body.kind),
+    kind,
     word: text(body.word),
     gloss,
     dialect: text(body.dialect) || null,
@@ -129,9 +138,6 @@ serve(async (req) => {
       400,
     );
   }
-  // A picture shows the meaning, so it cannot be made without one.
-  if (!gloss) return reply({ error: "gloss_required", message: "gloss is required to make a picture" }, 400);
-
   if (!hasAnyProvider()) {
     return reply(
       {
@@ -152,7 +158,7 @@ serve(async (req) => {
   if (cap.limited) return cap.response;
 
   try {
-    return reply(await makePicture(admin, store, key, gloss));
+    return reply(await makePicture(admin, store, key));
   } catch (err) {
     console.error("word-asset error:", err);
     return reply({ error: err instanceof Error ? err.message : "Unknown error" }, 500);
@@ -163,27 +169,15 @@ function served(asset: WordAsset, cached: boolean) {
   return { asset, url: asset.url, cached, stored: true };
 }
 
-/** The slice of the service-role client the upload needs. */
-interface PictureStorage {
-  storage: {
-    from(bucket: string): {
-      upload(
-        path: string,
-        body: Uint8Array,
-        options: { contentType: string; upsert: boolean },
-      ): Promise<{ error: { message: string } | null }>;
-      getPublicUrl(path: string): { data: { publicUrl: string } };
-    };
-  };
-}
-
 async function makePicture(
-  admin: PictureStorage,
+  storage: AssetStorage,
   store: WordAssetClient,
   key: AssetKey,
-  gloss: string,
 ): Promise<Record<string, unknown>> {
-  const prompt = inkPicturePrompt({ gloss, dialect: key.dialect });
+  // From the folded sense the key was built from, never the gloss as typed:
+  // whatever the folding dropped is not in the key, so it must not be in the
+  // picture every learner of the key is shown.
+  const prompt = inkPicturePrompt({ gloss: key.sense, dialect: key.dialect });
 
   // One immediate re-ask, as the flashcard illustrator does: Gemini answers
   // with no image often enough on a first pass that asking again is cheaper
@@ -202,27 +196,24 @@ async function makePicture(
     return {
       error: "IMAGE_GENERATION_FAILED",
       fallback: true,
-      message: `Could not make a picture for "${gloss}" — please try again.`,
+      message: `Could not make a picture for "${key.sense}" — please try again.`,
     };
   }
 
-  const bucket = ASSET_BUCKETS[key.kind] as string;
-  const path = await assetObjectPath(key, imageExtension(image.contentType));
-  const { error: uploadError } = await admin.storage
-    .from(bucket)
-    .upload(path, image.bytes, { contentType: image.contentType, upsert: false });
-  if (uploadError) throw new Error(`Failed to upload picture: ${uploadError.message}`);
-  const url = admin.storage.from(bucket).getPublicUrl(path).data.publicUrl;
-
   // How it was made, for whoever reviews the store later. Never who asked:
   // the table is public-read.
-  const filed = await putAsset(store, key, {
-    url,
-    meta: { prompt, model: image.model, provider: image.provider, style: key.styleVersion },
-  });
-  if (filed.status === "stored") return served(filed.asset, false);
-  // Another learner missed at the same moment and filed first. Serve theirs.
-  if (filed.status === "taken" && filed.asset) return served(filed.asset, true);
+  const filed = await fileNewAsset(
+    storage,
+    store,
+    key,
+    { bytes: image.bytes, contentType: image.contentType, extension: imageExtension(image.contentType) },
+    { meta: { prompt, model: image.model, provider: image.provider, style: key.styleVersion } },
+  );
+  if ("error" in filed) throw new Error(`Failed to upload picture: ${filed.error}`);
+  if (filed.filed.status === "stored") return served(filed.filed.asset, false);
+  // Another learner missed at the same moment and filed first. Serve theirs,
+  // so every learner of the word sees the same picture.
+  if (filed.filed.status === "taken" && filed.filed.asset) return served(filed.filed.asset, true);
   // Not filed — the table not applied yet. The picture is still this learner's.
-  return { asset: null, url, cached: false, stored: false };
+  return { asset: null, url: filed.url, cached: false, stored: false };
 }

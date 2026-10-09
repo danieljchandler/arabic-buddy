@@ -15,11 +15,15 @@
  *   (punctuation off, harakat off, hamza carriers, ى and ة evened out), so the
  *   vocalised بَيْت an enrichment returned and the bare بيت a transcript holds
  *   share one picture;
- * - the English sense rides along (`كتاب|book`), because the harakat that tell
- *   a homograph apart are exactly what the folding removes: حَب "seeds" and
- *   حُب "love" fold to one word, and a learner shown seeds for love has been
- *   taught something wrong. Two glosses for one sense ("house" / "home") only
- *   cost a second generation, which is the safe way for the key to be wrong;
+ * - the English sense rides along (`كتاب|book`) on every kind that shows,
+ *   sings or uses the meaning, because the harakat that tell a homograph apart
+ *   are exactly what the folding removes: حَب "seeds" and حُب "love" fold to
+ *   one word, and a learner shown seeds for love has been taught something
+ *   wrong. Two glosses for one sense ("house" / "home") only cost a second
+ *   generation, which is the safe way for the key to be wrong;
+ * - a recording is the exception: it is keyed on exactly what was spoken,
+ *   harakat and all, because the harakat are what the voice reads. A word
+ *   re-vowelled to fix how it is said is a new recording, not the old one;
  * - the dialect is its own column, folded onto Gulf / Egyptian / Yemeni. MSA is
  *   refused: the store holds nothing a learner of a spoken dialect should not
  *   be shown;
@@ -66,6 +70,18 @@ export function isAssetKind(value: unknown): value is AssetKind {
 const LANGUAGE_NEUTRAL_KINDS: ReadonlySet<AssetKind> = new Set<AssetKind>(["animation"]);
 
 /**
+ * Kinds that are a voice reading text: keyed on the exact text read (harakat
+ * kept), with no sense. The voice says what is written, so two homographs
+ * written alike sound alike, and a re-vowelled word is a different recording.
+ */
+const SPOKEN_KINDS: ReadonlySet<AssetKind> = new Set<AssetKind>(["word_audio", "sentence_audio"]);
+
+/** Whether a kind shows, sings or uses the meaning, and so cannot be keyed without one. */
+export function kindNeedsSense(kind: string): boolean {
+  return isAssetKind(kind) && !SPOKEN_KINDS.has(kind);
+}
+
+/**
  * The style each kind is made in today. Bump one to have every later lookup
  * miss and regenerate in the new style; the old rows stay, unserved.
  *
@@ -108,8 +124,11 @@ const MAX_CONCEPT_KEY_LENGTH = 300;
  */
 const ARABIC_PUNCT_RE = /[،؛؟!.,?:;"'«»()[\]…–—-]/g;
 
-/** At least one Arabic letter, so a key is never built from English or digits. */
-const ARABIC_LETTER_RE = /[ء-يٮ-ۓۺ-ۿ]/;
+/**
+ * At least one Arabic letter, so a key is never built from English, digits or
+ * a run of tatweel (U+0640, which the folding keeps and which is not a letter).
+ */
+const ARABIC_LETTER_RE = /[\u0621-\u063F\u0641-\u064A\u066E-\u06D3\u06FA-\u06FF]/;
 
 /** A word folded for the key: `normalizeArabicWord`, exactly. */
 export function normaliseAssetWord(word: string | null | undefined): string {
@@ -136,8 +155,8 @@ export interface AssetKeyInput {
   /** The Arabic the asset is for. Ignored for a language-neutral kind. */
   word?: string | null;
   /**
-   * The English sense it is made for. Pass it for anything that shows or
-   * sings the meaning; it is the whole key for a language-neutral kind.
+   * The English sense it is made for. Required for every kind but a recording
+   * (`kindNeedsSense`); it is the whole key for a language-neutral kind.
    */
   gloss?: string | null;
   /** Any dialect label the app uses; folded onto three. Missing means Gulf. */
@@ -149,33 +168,56 @@ export interface AssetKey {
   kind: AssetKind;
   dialect: AssetDialect | null;
   styleVersion: string;
+  /**
+   * The folded English sense the key was built from ("" for a spoken kind).
+   * A shared prompt is built from this, never from the gloss as typed:
+   * whatever the folding drops (emoji, symbols, punctuation) is not in the key,
+   * so it must not be in what every learner of the key is shown either.
+   */
+  sense: string;
+}
+
+/** The exact text a voice reads, for a spoken kind: harakat kept, spacing evened. */
+function spokenText(text: string | null | undefined): string {
+  return (text ?? "").normalize("NFC").replace(/\s+/g, " ").trim();
 }
 
 /**
  * Where an asset is filed, or null when there is nothing a learner should be
- * served under it: an unknown kind, no Arabic letter in the word, MSA, or a
- * language-neutral kind with no English concept.
+ * served under it: an unknown kind, no Arabic letter in the word, a `|` in it
+ * (the separator, so a word cannot impersonate another word's sense), MSA, or
+ * a kind that needs a meaning given none that survives the folding.
  */
 export function assetKey(input: AssetKeyInput): AssetKey | null {
   if (!isAssetKind(input.kind)) return null;
   const kind = input.kind;
   const styleVersion = STYLE_VERSIONS[kind];
-  const sense = normaliseGloss(input.gloss);
 
   if (LANGUAGE_NEUTRAL_KINDS.has(kind)) {
+    const sense = normaliseGloss(input.gloss);
     if (!sense || sense.length > MAX_CONCEPT_KEY_LENGTH) return null;
-    return { conceptKey: sense, kind, dialect: null, styleVersion };
+    return { conceptKey: sense, kind, dialect: null, styleVersion, sense };
+  }
+
+  const dialect = typeof input.dialect === "string" || input.dialect == null
+    ? normalizeDialect(input.dialect)
+    : "Gulf";
+  if (dialect === "MSA") return null;
+
+  if (SPOKEN_KINDS.has(kind)) {
+    const text = spokenText(input.word);
+    if (!ARABIC_LETTER_RE.test(text) || text.length > MAX_CONCEPT_KEY_LENGTH) return null;
+    return { conceptKey: text, kind, dialect, styleVersion, sense: "" };
   }
 
   const arabic = normaliseAssetWord(input.word);
-  if (!ARABIC_LETTER_RE.test(arabic)) return null;
+  if (!ARABIC_LETTER_RE.test(arabic) || arabic.includes("|")) return null;
+  const sense = normaliseGloss(input.gloss);
+  if (!sense) return null;
 
-  const dialect = normalizeDialect(input.dialect);
-  if (dialect === "MSA") return null;
-
-  const conceptKey = sense ? `${arabic}|${sense}` : arabic;
+  const conceptKey = `${arabic}|${sense}`;
   if (conceptKey.length > MAX_CONCEPT_KEY_LENGTH) return null;
-  return { conceptKey, kind, dialect, styleVersion };
+  return { conceptKey, kind, dialect, styleVersion, sense };
 }
 
 /**
@@ -423,5 +465,58 @@ export async function putAsset(
     const message = err instanceof Error ? err.message : String(err);
     console.warn(`[wordAssets] store failed: ${message}`);
     return { status: "failed", error: message };
+  }
+}
+
+// ── Filing a newly made file ────────────────────────────────────────────────
+
+/** The slice of a service-role client an upload needs. */
+export interface AssetStorage {
+  storage: {
+    from(bucket: string): {
+      upload(
+        path: string,
+        body: Uint8Array,
+        options: { contentType: string; upsert: boolean },
+      ): Promise<{ error: { message: string } | null }>;
+      getPublicUrl(path: string): { data: { publicUrl: string } };
+    };
+  };
+}
+
+export type FiledFile =
+  /** `url` is the object this call uploaded; `filed` says what the table did with it. */
+  | { url: string; filed: PutOutcome }
+  /** Nothing uploaded, so nothing to serve or file. */
+  | { error: string };
+
+/**
+ * Upload a newly made file under a name of its own in its kind's bucket, then
+ * file it under `key`. The one way the generators add a file to the store, so
+ * every object is fresh and nothing a learner was handed is ever overwritten.
+ *
+ * What to serve is the caller's call: on `taken` another learner filed first,
+ * and a caller that wants every learner on one asset serves `filed.asset`;
+ * one whose learner already heard this one keeps `url`.
+ */
+export async function fileNewAsset(
+  storage: AssetStorage,
+  store: WordAssetClient,
+  key: AssetKey,
+  file: { bytes: Uint8Array; contentType: string; extension: string },
+  asset: Omit<NewWordAsset, "url">,
+): Promise<FiledFile> {
+  const bucket = ASSET_BUCKETS[key.kind];
+  if (!bucket) return { error: `${key.kind} assets have no file` };
+  try {
+    const path = await assetObjectPath(key, file.extension);
+    const { error } = await storage.storage
+      .from(bucket)
+      .upload(path, file.bytes, { contentType: file.contentType, upsert: false });
+    if (error) return { error: error.message };
+    const url = storage.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+    return { url, filed: await putAsset(store, key, { ...asset, url }) };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
   }
 }

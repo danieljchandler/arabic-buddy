@@ -553,7 +553,10 @@ const MyWordsReview = () => {
         body: {
           word_arabic: word.word_arabic,
           word_english: word.word_english,
-          dialect: activeDialect,
+          // The card's own dialect, as its picture is keyed: a mixed session
+          // serves all three decks, and a jingle filed under the active
+          // dialect would teach an Egyptian word in a Gulf voice.
+          dialect: word.dialect ?? activeDialect,
           // Two learners who saved the same word share its first jingle,
           // through the asset store. A regeneration stays this learner's own.
           share: !regenerate,

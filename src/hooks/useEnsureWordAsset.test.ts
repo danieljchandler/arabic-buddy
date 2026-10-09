@@ -2,6 +2,7 @@ import { act, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderHookWithProviders } from "@/test/support/react/harness";
 import type { SupabaseBackend } from "@/test/support/server/handler";
+import { capLimited } from "@/test/support/server/functions";
 import type { AssetKeyInput } from "../../supabase/functions/_shared/wordAssets";
 import { FORGET_FAILURE_MS, LIMITED_FOR_MS, PAUSE_AFTER_FAILURES, useEnsureWordAsset } from "./useEnsureWordAsset";
 import { useWordAsset } from "./useWordAsset";
@@ -34,6 +35,7 @@ const BREAD: AssetKeyInput = { kind: "image", word: "خبز", gloss: "bread", di
 const COFFEE: AssetKeyInput = { kind: "image", word: "قَهْوَة", gloss: "Coffee", dialect: "Gulf" };
 const TEA: AssetKeyInput = { kind: "image", word: "شاي", gloss: "tea", dialect: "Gulf" };
 const DRAWN = "https://cdn.test/coffee-drawn.png";
+const FAILED = { error: "IMAGE_GENERATION_FAILED", fallback: true, message: "Could not make a picture." };
 
 const filedCoffee = () => ({
   id: "asset-coffee",
@@ -114,7 +116,6 @@ describe("useEnsureWordAsset", () => {
     expect(backend.callsTo("word-asset")).toHaveLength(3);
   });
 
-  const FAILED = { error: "IMAGE_GENERATION_FAILED", fallback: true, message: "Could not make a picture." };
 
   it("does not try a word again for a while once it has failed", async () => {
     // A failed drawing was charged all the same: the card that is re-served
@@ -226,5 +227,124 @@ describe("useEnsureWordAsset", () => {
 
     await waitFor(() => expect(result.current.stored.url).toBe(DRAWN));
     expect(backend.callsTo("word-asset")).toHaveLength(1);
+  });
+});
+
+describe("each kind on its own", () => {
+  // Pictures and exchanges are charged on different counters and made by
+  // different models, so nothing one of them comes to may stop the other.
+  const TALK: AssetKeyInput = { kind: "dialogue", word: "قهوة", gloss: "coffee", dialect: "Gulf" };
+  const TEA_TALK: AssetKeyInput = { ...TEA, kind: "dialogue" };
+  const BREAD_TALK: AssetKeyInput = { ...BREAD, kind: "dialogue" };
+  const EXCHANGE = {
+    lines: [
+      { speaker: "Friend", arabic: "تبي شي؟", english: "Want something?", transliteration: "" },
+      { speaker: "Guest", arabic: "ابي قهوة", english: "I want coffee", transliteration: "" },
+    ],
+  };
+  const MADE_TALK = { asset: { id: "asset-talk", payload: EXCHANGE }, url: null, cached: false, stored: true };
+  const MADE_PICTURE = { asset: null, url: DRAWN, cached: false, stored: true };
+
+  /** word-asset answering each kind its own way. */
+  const byKind = (answers: Record<string, unknown>) => ({ body }: { body: unknown }) =>
+    answers[(body as { kind: string }).kind];
+
+  const calls = (backend: SupabaseBackend, kind: string) =>
+    backend.callsTo("word-asset").filter((call) => (call.body as { kind?: string }).kind === kind);
+
+  it("hands back an exchange's lines, which have no url", async () => {
+    const { result, backend } = render((b) => b.stubFunction("word-asset", MADE_TALK));
+
+    expect(await result.current.ensure(TALK)).toEqual({
+      status: "made",
+      url: null,
+      payload: EXCHANGE,
+      cached: false,
+      stored: true,
+    });
+    // The word alone, as for a picture: no sentence, no example.
+    expect(backend.lastCallTo("word-asset")?.body).toEqual({
+      action: "ensure",
+      kind: "dialogue",
+      word: "قهوة",
+      gloss: "coffee",
+      dialect: "Gulf",
+    });
+  });
+
+  it("asks for a word's picture and its exchange separately", async () => {
+    const { result, backend } = render((b) =>
+      b.stubFunction("word-asset", byKind({ image: MADE_PICTURE, dialogue: MADE_TALK })),
+    );
+
+    await result.current.ensure(COFFEE);
+    await result.current.ensure(TALK);
+    await result.current.ensure(TALK);
+    expect(calls(backend, "image")).toHaveLength(1);
+    expect(calls(backend, "dialogue")).toHaveLength(1);
+  });
+
+  it("still asks for exchanges once the day's pictures are spent, and the reverse", async () => {
+    const pictures = render((b) => b.stubFunction("word-asset", byKind({ image: capLimited(), dialogue: MADE_TALK })));
+    expect(await pictures.result.current.ensure(COFFEE)).toEqual({ status: "limited" });
+    expect(await pictures.result.current.ensure(TALK)).toMatchObject({ status: "made" });
+    expect(await pictures.result.current.ensure(TEA)).toEqual({ status: "limited" });
+    expect(calls(pictures.backend, "image")).toHaveLength(1);
+    cleanup?.();
+
+    const talk = render((b) => b.stubFunction("word-asset", byKind({ image: MADE_PICTURE, dialogue: capLimited() })));
+    expect(await talk.result.current.ensure(TALK)).toEqual({ status: "limited" });
+    expect(await talk.result.current.ensure(COFFEE)).toMatchObject({ status: "made" });
+    expect(await talk.result.current.ensure(TEA_TALK)).toEqual({ status: "limited" });
+    expect(calls(talk.backend, "dialogue")).toHaveLength(1);
+  });
+
+  it("pauses a kind after its own failures in a row, and goes on asking for the other", async () => {
+    const { result, backend } = render((b) => b.stubFunction("word-asset", byKind({ image: FAILED, dialogue: MADE_TALK })));
+
+    await result.current.ensure(COFFEE);
+    await result.current.ensure(TEA);
+    expect(await result.current.ensure(BREAD)).toMatchObject({ status: "failed" });
+    expect(calls(backend, "image")).toHaveLength(PAUSE_AFTER_FAILURES);
+
+    expect(await result.current.ensure(TALK)).toMatchObject({ status: "made" });
+    expect(await result.current.ensure(TEA_TALK)).toMatchObject({ status: "made" });
+    expect(calls(backend, "dialogue")).toHaveLength(2);
+  });
+
+  it("stops asking for a kind the function does not make, or cannot keep yet, and nothing else", async () => {
+    for (const [status, error] of [
+      [400, "kind_not_generated"],
+      [503, "store_not_ready"],
+    ] as const) {
+      const { result, backend } = render((b) =>
+        b.stubFunction(
+          "word-asset",
+          byKind({ image: MADE_PICTURE, dialogue: { status, body: { error, fallback: true } } }),
+        ),
+      );
+
+      expect(await result.current.ensure(TALK), error).toEqual({ status: "unavailable" });
+      // The next word's exchange would be turned away the same way: not asked.
+      await result.current.ensure(TEA_TALK);
+      await result.current.ensure(BREAD_TALK);
+      expect(calls(backend, "dialogue"), error).toHaveLength(1);
+      // Pictures are another matter.
+      expect(await result.current.ensure(COFFEE), error).toMatchObject({ status: "made" });
+
+      laterBy(FORGET_FAILURE_MS + 1_000);
+      await result.current.ensure(TEA_TALK);
+      expect(calls(backend, "dialogue"), error).toHaveLength(2);
+      cleanup?.();
+      cleanup = undefined;
+      vi.useRealTimers();
+    }
+  });
+
+  it("reads an exchange that could not be written as a failure for that word", async () => {
+    const { result } = render((b) =>
+      b.stubFunction("word-asset", { error: "msa_leak", fallback: true, message: "The line was not in the dialect." }),
+    );
+    expect(await result.current.ensure(TALK)).toEqual({ status: "failed", message: "The line was not in the dialect." });
   });
 });

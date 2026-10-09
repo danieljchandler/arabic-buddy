@@ -276,3 +276,82 @@ describe("asking for the line", () => {
     expect(screen.getByText(/with/)).toHaveTextContent("market");
   });
 });
+
+describe("asking for the reply", () => {
+  const REPLY = {
+    prompt: { speaker: "Friend", arabic: "وين رحت أمس؟", english: "Where did you go yesterday?" },
+    answer: {
+      speaker: "You",
+      arabic: "رحت السوق مع أخوي",
+      english: "I went to the market with my brother",
+      transliteration: "ruht is-suug ma' akhooy",
+    },
+  };
+  const replyCard = (over: Props = {}, seed?: (backend: SupabaseBackend) => void) =>
+    render({ format: "speak-reply", reply: REPLY, ...over }, seed);
+
+  it("plays the line, shows what to reply, and keeps the Arabic reply off the screen", async () => {
+    replyCard();
+
+    expect(screen.getByText("Say the reply in Arabic")).toBeInTheDocument();
+    expect(screen.getByText(/Friend says/)).toBeInTheDocument();
+    expect(screen.getByText("وين رحت أمس؟")).toBeInTheDocument();
+    expect(screen.getByText("I went to the market with my brother")).toBeInTheDocument();
+    expect(screen.getByText(/^with/)).toHaveTextContent("with market");
+    // The line is said once, by itself; the reply is the answer.
+    await waitFor(() => expect(audio.play).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText(REPLY.answer.arabic)).not.toBeInTheDocument();
+    expect(screen.queryByText("Where did you go yesterday?")).not.toBeInTheDocument();
+  });
+
+  it("scores against the reply, in the card's dialect, and holds the take to the word's span", async () => {
+    const heard = "رحت السوق مع اخوي";
+    const { onResult, backend } = replyCard({ dialect: "Yemeni" }, (b) =>
+      b.stubFunction("azure-pronunciation", aResult({ overall: 88, recognizedText: heard })),
+    );
+
+    await recordTake();
+
+    await waitFor(() => expect(onResult).toHaveBeenCalledTimes(1));
+    expect(backend.lastCallTo("azure-pronunciation")?.body).toMatchObject({
+      referenceText: REPLY.answer.arabic,
+      locale: "ar-YE",
+    });
+    expect(onResult.mock.calls[0][0]).toMatchObject({ kind: "speech", score: 88, recognized: heard, hintUsed: false });
+    expect(onResult.mock.calls[0][0].similarity).toBe(1);
+    // After the take, the reply is shown with its sound and transliteration.
+    expect(screen.getByText(REPLY.answer.arabic)).toBeInTheDocument();
+    expect(screen.getByText(REPLY.answer.transliteration)).toBeInTheDocument();
+  });
+
+  it("reports a reply said without the word as far from it, however close the line came", async () => {
+    // Everything but the word: the line is nearly right, the reply is not.
+    const { onResult } = replyCard({}, (b) =>
+      b.stubFunction("azure-pronunciation", aResult({ overall: 90, recognizedText: "رحت المطعم مع أخوي" })),
+    );
+
+    await recordTake();
+
+    await waitFor(() => expect(onResult).toHaveBeenCalledTimes(1));
+    expect(onResult.mock.calls[0][0].similarity).toBeLessThan(0.5);
+  });
+
+  it("counts the line's translation, asked for before the take, as help", async () => {
+    const { onResult } = replyCard();
+
+    fireEvent.click(screen.getByRole("button", { name: /show translation/i }));
+    expect(screen.getByText("Where did you go yesterday?")).toBeInTheDocument();
+
+    await recordTake();
+
+    await waitFor(() => expect(onResult).toHaveBeenCalledTimes(1));
+    expect(onResult.mock.calls[0][0]).toMatchObject({ hintUsed: true });
+  });
+
+  it("asks for a reply with no English as a gap", () => {
+    replyCard({ reply: { ...REPLY, answer: { ...REPLY.answer, english: null } } });
+
+    expect(screen.getByText(/رحت ـــ مع أخوي/)).toBeInTheDocument();
+    expect(screen.getByText(/in the gap/)).toHaveTextContent("market");
+  });
+});

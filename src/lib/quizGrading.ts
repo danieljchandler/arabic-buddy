@@ -1,4 +1,6 @@
+import { ARABIC_PUNCT_RE } from "@/lib/arabicWord";
 import type { Rating } from "@/lib/spacedRepetition";
+import { arabicSimilarity } from "../../supabase/functions/_shared/arabicMatch";
 
 /**
  * How a quiz answer becomes an FSRS rating.
@@ -19,7 +21,9 @@ import type { Rating } from "@/lib/spacedRepetition";
  * (never Azure's raw number — see CLAUDE.md), and a take that was not the
  * target word at all is Again whatever it scored, since the assessment
  * scores the sounds against the reference even when a different word was
- * said.
+ * said. On "say the reply" the take is a whole line and the word is what the
+ * step is about, so the comparison is made on the word's span of what was
+ * heard (`wordSpanSimilarity`): a reply said without the word is Again.
  */
 
 export interface ChoiceOutcome {
@@ -74,6 +78,28 @@ export function gradeQuizAnswer(outcome: QuizOutcome): Rating {
   if (score >= SPEECH_THRESHOLDS.easy) return "easy";
   if (score >= SPEECH_THRESHOLDS.good) return "good";
   return "hard";
+}
+
+/**
+ * How close the closest stretch of what was heard came to the word: the best
+ * `arabicSimilarity` over every run of recognised words as long as the word
+ * itself. For a take that is a whole line (say the reply), where the line may
+ * be said well and the word left out — which is a different reply. Null when
+ * nothing was recognised, as for a single word.
+ */
+export function wordSpanSimilarity(recognized: string | null | undefined, word: string): number | null {
+  const heard = (recognized ?? "")
+    .split(/\s+/)
+    .map((token) => token.replace(ARABIC_PUNCT_RE, ""))
+    .filter(Boolean);
+  if (heard.length === 0) return null;
+  const size = Math.max(1, word.trim().split(/\s+/).length);
+  if (heard.length <= size) return arabicSimilarity(heard.join(" "), word);
+  let best = 0;
+  for (let start = 0; start + size <= heard.length; start++) {
+    best = Math.max(best, arabicSimilarity(heard.slice(start, start + size).join(" "), word));
+  }
+  return best;
 }
 
 /** Whether a rating counts as a correct answer for the session's tally. */

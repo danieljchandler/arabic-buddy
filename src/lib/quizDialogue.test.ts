@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { asDialogue, buildReplyQuestion, type DialogueLine } from "./quizDialogue";
+import {
+  asDialogue,
+  buildReplyQuestion,
+  countWrongReplies,
+  dialogueForWord,
+  findReplyLine,
+  type DialogueLine,
+} from "./quizDialogue";
 
 /**
  * The reply question is the one step built from a conversation rather than
@@ -72,5 +79,73 @@ describe("building the reply question", () => {
   it("matches the word as a whole token, in any spelling", () => {
     expect(buildReplyQuestion(dialogue, "الباب", "card-1")?.answer.arabic).toBe("لا، مشكور. وين الباب؟");
     expect(buildReplyQuestion(dialogue, "باب", "card-1")).toBeNull();
+  });
+});
+
+describe("the word's exchange from the store", () => {
+  // `kind: "dialogue"` in the shared store: two lines, the second using the
+  // word, made once per word and dialect when its lesson has no line for it.
+  const stored = {
+    lines: [
+      { speaker: "Friend", arabic: "تبي شي تشربه؟", english: "Want something to drink?", transliteration: "" },
+      { speaker: "Guest", arabic: "ايه، عطني قهوة", english: "Yes, give me coffee", transliteration: "" },
+    ],
+  };
+
+  it("prefers the lesson's dialogue when a line of it uses the word", () => {
+    expect(dialogueForWord(dialogue, stored, "تفضل")).toEqual({ lines: dialogue, source: "lesson" });
+  });
+
+  it("falls back to the stored exchange when the lesson has no line for the word", () => {
+    for (const lesson of [dialogue, null, [], "not a dialogue"]) {
+      expect(dialogueForWord(lesson, stored, "قهوة"), JSON.stringify(lesson)).toEqual({
+        lines: stored.lines,
+        source: "store",
+      });
+    }
+  });
+
+  it("has nothing when neither uses the word", () => {
+    expect(dialogueForWord(dialogue, stored, "سيارة")).toBeNull();
+    expect(dialogueForWord(null, null, "قهوة")).toBeNull();
+    // A stored exchange whose reply is about another word is no question about this one.
+    expect(dialogueForWord(null, stored, "شاي")).toBeNull();
+  });
+
+  it("finds the line said and the reply that uses the word", () => {
+    expect(findReplyLine(stored.lines, "قهوة")).toEqual({ prompt: stored.lines[0], answer: stored.lines[1] });
+    expect(findReplyLine(stored.lines, "تشربه")).toBeNull();
+  });
+
+  it("asks the stored reply with wrong replies from other words' stored replies", () => {
+    const others: DialogueLine[] = [
+      { arabic: "ايه، الحين جاي" },
+      { arabic: "لا والله ما ادري" },
+      { arabic: "تمام، نشوفك بكره" },
+      // Another word's reply that happens to use this word too: never a wrong one.
+      { arabic: "القهوة زينة، عطني قهوة" },
+    ];
+    const q = buildReplyQuestion(dialogueForWord(null, stored, "قهوة")!.lines, "قهوة", "card-1", others);
+    expect(q?.prompt.arabic).toBe("تبي شي تشربه؟");
+    expect(q?.answer.arabic).toBe("ايه، عطني قهوة");
+    expect(q?.options).toHaveLength(4);
+    expect(q!.options.map((o) => o.arabic)).not.toContain("القهوة زينة، عطني قهوة");
+  });
+
+  it("cannot ask the choice without three other replies, though the reply can still be said", () => {
+    const lines = dialogueForWord(null, stored, "قهوة")!.lines;
+    expect(buildReplyQuestion(lines, "قهوة", "card-1", [{ arabic: "ايه، الحين جاي" }])).toBeNull();
+    expect(findReplyLine(lines, "قهوة")).not.toBeNull();
+  });
+
+  it("counts the wrong replies a question could deal before it is built", () => {
+    const lines: DialogueLine[] = [
+      { arabic: "ايه، الحين جاي" },
+      { arabic: "ايه، الحين جاي " },
+      { arabic: "عطني قهوة" },
+      { arabic: "تبي شي تشربه؟" },
+    ];
+    expect(countWrongReplies(lines, "قهوة")).toBe(2);
+    expect(countWrongReplies(lines, "قهوة", [stored.lines[0]])).toBe(1);
   });
 });

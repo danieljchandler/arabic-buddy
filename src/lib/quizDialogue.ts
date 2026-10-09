@@ -1,5 +1,6 @@
 import { sentenceHasWord } from "@/lib/arabicWord";
 import { seededShuffle } from "@/lib/quizDistractors";
+import { asStoredDialogue } from "../../supabase/functions/_shared/wordDialogue";
 
 /** One line of an authored lesson dialogue (`lessons.dialogue`). */
 export interface DialogueLine {
@@ -30,16 +31,61 @@ export function asDialogue(value: unknown): DialogueLine[] {
   );
 }
 
+/** A line said, and the reply to it that uses the word. */
+export interface ReplyLine {
+  prompt: DialogueLine;
+  answer: DialogueLine;
+}
+
+/**
+ * The first line of a dialogue that uses the word and has a line before it,
+ * with that line before: what "say the reply" asks, and what "answer the
+ * line" builds its question around. Null when the word opens the dialogue or
+ * is not in it.
+ */
+export function findReplyLine(dialogue: DialogueLine[], wordArabic: string): ReplyLine | null {
+  const index = dialogue.findIndex((line, i) => i > 0 && sentenceHasWord(line.arabic, wordArabic));
+  if (index < 1) return null;
+  return { prompt: dialogue[index - 1], answer: dialogue[index] };
+}
+
+/** Where a word's exchange came from. */
+export type DialogueSource = "lesson" | "store";
+
+/**
+ * The dialogue the reply steps are built from: the lesson's own when a line
+ * of it uses the word, else the word's exchange from the shared store
+ * (`kind: "dialogue"`, two lines, the second using the word), else nothing.
+ *
+ * The lesson's comes first because a person wrote it, in the lesson the word
+ * was taught in. The stored one is checked here as well as where it was
+ * filed (`asStoredDialogue`): a stored exchange whose reply does not use this
+ * spelling of the word is no question about it.
+ */
+export function dialogueForWord(
+  lessonDialogue: unknown,
+  stored: unknown,
+  wordArabic: string,
+): { lines: DialogueLine[]; source: DialogueSource } | null {
+  const lesson = asDialogue(lessonDialogue);
+  if (findReplyLine(lesson, wordArabic)) return { lines: lesson, source: "lesson" };
+  const exchange = asStoredDialogue(stored, wordArabic);
+  if (exchange && findReplyLine(exchange.lines, wordArabic)) return { lines: [...exchange.lines], source: "store" };
+  return null;
+}
+
 /**
  * "Someone says something; which reply fits?" — built from the lesson's own
- * dialogue, no generation.
+ * dialogue, or from the word's stored exchange when the lesson has none.
  *
  * The reply is the first line that uses the word and has a line before it;
  * the prompt is that line before. The wrong replies are the dialogue's other
  * lines, none of which use the word (a second line with the word would be a
  * second right answer), topped up from `extraLines` — other lessons'
- * dialogue — when the dialogue is short. Null when the word opens the
- * dialogue, is not in it, or there are fewer than three wrong replies.
+ * dialogue, and other words' stored replies — when the dialogue is short (a
+ * stored exchange is two lines, so all its wrong replies come from there).
+ * Null when the word opens the dialogue, is not in it, or there are fewer
+ * than three wrong replies.
  */
 export function buildReplyQuestion(
   dialogue: DialogueLine[],
@@ -47,10 +93,9 @@ export function buildReplyQuestion(
   seed: string,
   extraLines: DialogueLine[] = [],
 ): ReplyQuestion | null {
-  const index = dialogue.findIndex((line, i) => i > 0 && sentenceHasWord(line.arabic, wordArabic));
-  if (index < 1) return null;
-  const answer = dialogue[index];
-  const prompt = dialogue[index - 1];
+  const reply = findReplyLine(dialogue, wordArabic);
+  if (!reply) return null;
+  const { answer, prompt } = reply;
 
   const seen = new Set<string>([answer.arabic.trim(), prompt.arabic.trim()]);
   const wrong: DialogueLine[] = [];
@@ -68,4 +113,21 @@ export function buildReplyQuestion(
     answer,
     options: seededShuffle([answer, ...picks], `${seed}:reply-order`),
   };
+}
+
+/**
+ * How many distinct wrong replies `lines` hold for a word: lines that do not
+ * use it and are not `except` (the prompt and the answer). Enough to know
+ * whether a reply question could be asked before its exchange is in hand.
+ */
+export function countWrongReplies(lines: DialogueLine[], wordArabic: string, except: DialogueLine[] = []): number {
+  const seen = new Set(except.map((line) => line.arabic.trim()));
+  let count = 0;
+  for (const line of lines) {
+    const key = line.arabic.trim();
+    if (!key || seen.has(key) || sentenceHasWord(line.arabic, wordArabic)) continue;
+    seen.add(key);
+    count++;
+  }
+  return count;
 }

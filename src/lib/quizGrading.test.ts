@@ -4,6 +4,7 @@ import {
   SPEECH_THRESHOLDS,
   gradeQuizAnswer,
   isCorrectRating,
+  wordSpanSimilarity,
 } from "./quizGrading";
 
 /**
@@ -69,5 +70,35 @@ describe("the session tally", () => {
     expect(isCorrectRating("hard")).toBe(true);
     expect(isCorrectRating("good")).toBe(true);
     expect(isCorrectRating("easy")).toBe(true);
+  });
+});
+
+describe("the word's span of a spoken reply", () => {
+  it("finds the word anywhere in a line that was heard", () => {
+    expect(wordSpanSimilarity("ايه عطني قهوة لو سمحت", "قهوة")).toBe(1);
+    // Spelt differently by the recogniser, vowelled in the target.
+    expect(wordSpanSimilarity("ايه، عطني قهوه.", "قَهْوَة")).toBe(1);
+  });
+
+  it("is far from the word when the line was said without it", () => {
+    const similarity = wordSpanSimilarity("ايه عطني شاي لو سمحت", "قهوة");
+    expect(similarity).not.toBeNull();
+    expect(similarity!).toBeLessThan(SPEECH_MATCH_FLOOR);
+    // And that grades the take Again, however well the line was said.
+    expect(gradeQuizAnswer({ kind: "speech", score: 95, similarity })).toBe("again");
+  });
+
+  it("is generous to an attached article or conjunction, as for a single word", () => {
+    expect(wordSpanSimilarity("ايه والقهوة جاهزة", "قهوة")!).toBeGreaterThanOrEqual(SPEECH_MATCH_FLOOR);
+  });
+
+  it("compares a phrase against runs of as many words", () => {
+    expect(wordSpanSimilarity("الله يعطيك العافية يا خوي", "يعطيك العافية")).toBe(1);
+  });
+
+  it("is no comparison when nothing was heard", () => {
+    expect(wordSpanSimilarity("", "قهوة")).toBeNull();
+    expect(wordSpanSimilarity("  ، ", "قهوة")).toBeNull();
+    expect(wordSpanSimilarity(null, "قهوة")).toBeNull();
   });
 });

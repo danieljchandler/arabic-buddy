@@ -194,13 +194,13 @@ describe("stored replies, for the reply question's wrong options", () => {
       ease_factor: i === 7 ? 90 : 1,
       created_at: new Date(Date.UTC(2026, 0, 1) + i * 60_000).toISOString(),
     }));
-    const seventh = words[7];
+    const seventh = String(words[7].word_arabic);
     const r = renderHookWithProviders(() => useSavedWordPool("Gulf", false), {
       persona: "free",
       seed: (b) => {
         b.db.seed("user_vocabulary", words);
-        const key = assetKey({ kind: "dialogue", word: seventh.word_arabic, gloss: "word 7", dialect: "Gulf" });
-        b.db.seed("word_assets", [anExchange(key!.conceptKey, seventh.word_arabic)]);
+        const key = assetKey({ kind: "dialogue", word: seventh, gloss: "word 7", dialect: "Gulf" });
+        b.db.seed("word_assets", [anExchange(key!.conceptKey, seventh)]);
       },
     });
     cleanup = r.cleanup;

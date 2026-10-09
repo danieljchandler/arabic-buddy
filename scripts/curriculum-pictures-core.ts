@@ -191,7 +191,7 @@ export interface RunContext extends Project {
   log?: (line: string) => void;
 }
 
-function headers(ctx: Project, extra: Record<string, string> = {}): Record<string, string> {
+export function headers(ctx: Project, extra: Record<string, string> = {}): Record<string, string> {
   return {
     apikey: ctx.serviceRoleKey,
     Authorization: `Bearer ${ctx.serviceRoleKey}`,
@@ -200,12 +200,12 @@ function headers(ctx: Project, extra: Record<string, string> = {}): Record<strin
   };
 }
 
-interface RestError {
+export interface RestError {
   code?: string;
   message?: string;
 }
 
-async function readJson(response: Response): Promise<unknown> {
+export async function readJson(response: Response): Promise<unknown> {
   try {
     return await response.json();
   } catch {
@@ -214,7 +214,7 @@ async function readJson(response: Response): Promise<unknown> {
 }
 
 /** One page of a table. Throws on anything but rows: listing is all or nothing. */
-async function restGet<T>(ctx: RunContext, table: string, query: string): Promise<T[]> {
+export async function restGet<T>(ctx: RunContext, table: string, query: string): Promise<T[]> {
   const response = await ctx.fetch(`${ctx.supabaseUrl}/rest/v1/${table}?${query}`, { headers: headers(ctx) });
   const body = await readJson(response);
   if (!response.ok || !Array.isArray(body)) {
@@ -226,6 +226,32 @@ async function restGet<T>(ctx: RunContext, table: string, query: string): Promis
 
 /** A PostgREST `in.(...)` list of plain ids. */
 const inList = (ids: readonly string[]) => `in.(${ids.map((id) => encodeURIComponent(id)).join(",")})`;
+
+/**
+ * The `vocabulary_words` filter for a stage's lessons: "" for every stage,
+ * null when the stage has no lessons (in that dialect), so nothing is listed.
+ */
+export async function stageLessonFilter(
+  ctx: RunContext,
+  options: Pick<PictureOptions, "dialect" | "stage">,
+): Promise<string | null> {
+  if (options.stage === null) return "";
+  const stages = await restGet<{ id: string }>(
+    ctx,
+    "curriculum_stages",
+    `select=id&stage_number=eq.${options.stage}`,
+  );
+  if (stages.length === 0) return null;
+  const lessons = await restGet<{ id: string }>(
+    ctx,
+    "lessons",
+    `select=id&stage_id=${inList(stages.map((s) => s.id))}` +
+      (options.dialect ? `&dialect_module=eq.${options.dialect}` : "") +
+      "&limit=1000",
+  );
+  if (lessons.length === 0) return null;
+  return `&lesson_id=${inList(lessons.map((l) => l.id))}`;
+}
 
 export interface WordRow {
   id: string;
@@ -249,24 +275,8 @@ export async function listWordsWithoutPicture(
   ctx: RunContext,
   options: Pick<PictureOptions, "dialect" | "stage">,
 ): Promise<WordRow[]> {
-  let lessonFilter = "";
-  if (options.stage !== null) {
-    const stages = await restGet<{ id: string }>(
-      ctx,
-      "curriculum_stages",
-      `select=id&stage_number=eq.${options.stage}`,
-    );
-    if (stages.length === 0) return [];
-    const lessons = await restGet<{ id: string }>(
-      ctx,
-      "lessons",
-      `select=id&stage_id=${inList(stages.map((s) => s.id))}` +
-        (options.dialect ? `&dialect_module=eq.${options.dialect}` : "") +
-        "&limit=1000",
-    );
-    if (lessons.length === 0) return [];
-    lessonFilter = `&lesson_id=${inList(lessons.map((l) => l.id))}`;
-  }
+  const lessonFilter = await stageLessonFilter(ctx, options);
+  if (lessonFilter === null) return [];
 
   const base =
     "select=id,word_arabic,word_english,dialect_module,image_scene_description,lesson_id,display_order" +

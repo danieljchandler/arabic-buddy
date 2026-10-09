@@ -428,3 +428,63 @@ test.describe("the quiz style", () => {
     await expect.poll(() => backend.db.rows("profiles")[0].review_style).toBe("quiz");
   });
 });
+
+/**
+ * A word's first jingle is the shared one.
+ *
+ * Two learners asking for a jingle for the same word used to pay for two
+ * Lyria generations and keep two copies. The first jingle is now asked for
+ * with `share: true`: the generator answers from the shared asset store (or
+ * files a new one there) with a url, and the page stores that url on the
+ * learner's row instead of uploading bytes of its own. A regeneration asks
+ * for a different jingle, so it stays the learner's own, uploaded as before.
+ */
+test.describe("a word's first jingle is the shared one", () => {
+  const LESSON = lessonId(0);
+  const SHARED =
+    "https://e2e.supabase.co/storage/v1/object/public/flashcard-audio/word-assets/jingle/jingle-1/gulf/abc/1.wav";
+
+  const aDeck = (reviews: Record<string, unknown>[] = []) => ({
+    lessons: [aLesson({ id: LESSON, title: "Started lesson", display_order: 1 })],
+    vocabulary_words: [
+      aVocabularyWord({ id: wordId(0), lesson_id: LESSON, word_arabic: "السوق", word_english: "the market" }),
+    ],
+    word_reviews: reviews,
+    lesson_progress: [aLessonProgress({ user_id: TEST_USER_ID, lesson_id: LESSON, words_total: 1, words_seen: 1 })],
+  });
+
+  test("asks the store first, and keeps its url rather than uploading a copy", async ({ page }) => {
+    await signIn(page);
+    const backend = await stubSupabase(page, { tables: aDeck() });
+    backend.stubFunction("generate-word-jingle", { audioUrl: SHARED, lyrics: "السوق السوق", cached: true });
+
+    await page.goto("/review");
+    await page.getByRole("button", { name: /Create jingle/ }).click();
+
+    await expect(page.getByRole("button", { name: /Play jingle/ })).toBeVisible();
+    expect(backend.lastCallTo("generate-word-jingle")?.body).toMatchObject({
+      word_arabic: "السوق",
+      word_english: "the market",
+      share: true,
+    });
+    expect(backend.uploads().filter((key) => key.includes("jingles/"))).toEqual([]);
+    const row = backend.db.raw("word_reviews").find((review) => review.word_id === wordId(0));
+    expect(row?.jingle_audio_url).toBe(SHARED);
+    expect(row?.jingle_lyrics).toBe("السوق السوق");
+  });
+
+  test("a regeneration is the learner's own jingle, uploaded as before", async ({ page }) => {
+    await signIn(page);
+    const backend = await stubSupabase(page, {
+      tables: aDeck([aWordReview({ word_id: wordId(0), jingle_audio_url: SHARED, jingle_lyrics: "السوق" })]),
+    });
+
+    await page.goto("/review");
+    await page.getByRole("button", { name: /Regenerate/ }).click();
+
+    await expect.poll(() => backend.uploads().some((key) => key.includes("jingles/"))).toBe(true);
+    expect(backend.lastCallTo("generate-word-jingle")?.body).toMatchObject({ share: false });
+    const row = backend.db.raw("word_reviews").find((review) => review.word_id === wordId(0));
+    expect(row?.jingle_audio_url).not.toBe(SHARED);
+  });
+});

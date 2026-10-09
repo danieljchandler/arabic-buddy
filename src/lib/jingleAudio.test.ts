@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createPlayableJingleAudio, createPlayableJingleAudioFromUrl } from "./jingleAudio";
+import { createPlayableJingleAudio, createPlayableJingleAudioFromUrl, sharedJingleUrl } from "./jingleAudio";
 
 /**
  * Turning whatever the jingle generator returned into something a browser will
@@ -261,5 +261,35 @@ describe("loading from a URL", () => {
     await expect(createPlayableJingleAudioFromUrl("https://cdn.test/gone")).rejects.toThrow(
       /Could not load/i,
     );
+  });
+});
+
+describe("sharedJingleUrl", () => {
+  // The shared asset store answers with a url the learner's row can carry as
+  // it is; anything else is bytes for the caller to upload, as before.
+  it("reads the url of a jingle the generator stored itself", () => {
+    expect(sharedJingleUrl({ audioUrl: "https://cdn.test/kitab.wav", lyrics: "كتاب" })).toBe(
+      "https://cdn.test/kitab.wav",
+    );
+    // A url beside the bytes (a new jingle filed for the next learner) still
+    // means there is nothing to upload.
+    expect(sharedJingleUrl({ audioBase64: toBase64(WAV), audioUrl: "https://cdn.test/new.wav" })).toBe(
+      "https://cdn.test/new.wav",
+    );
+  });
+
+  it("reads a local stack's http url too", () => {
+    // `supabase start` serves storage over plain http on 127.0.0.1.
+    expect(sharedJingleUrl({ audioUrl: "http://127.0.0.1:54321/storage/v1/object/public/a.wav" })).toBe(
+      "http://127.0.0.1:54321/storage/v1/object/public/a.wav",
+    );
+  });
+
+  it("is null for bytes to upload, and for anything that is not a web url", () => {
+    expect(sharedJingleUrl({ audioBase64: toBase64(WAV), mimeType: "audio/wav" })).toBeNull();
+    expect(sharedJingleUrl({ audioUrl: "" })).toBeNull();
+    expect(sharedJingleUrl({ audioUrl: "javascript:alert(1)" })).toBeNull();
+    expect(sharedJingleUrl({ audioUrl: 42 })).toBeNull();
+    expect(sharedJingleUrl(null)).toBeNull();
   });
 });

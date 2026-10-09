@@ -172,6 +172,21 @@ harness.
   stability reaches the picture step (`holdsProduction`) so "say it" is not
   served in the same session as the first right answer. Roadmap:
   `docs/quiz-phases-2026-10.md`; writeup: README "Reviewing as a quiz".
+- **Generated word assets are shared, and keyed on the word, not the
+  learner.** `word_assets` (migration `20261009130000_word_assets`; until the
+  live project carries it, its columns sit in `typesDrift` and every lookup is
+  a miss) holds one picture, recording or jingle per word, sense, dialect and
+  style version. Build keys only with `assetKey` in `_shared/wordAssets.ts`
+  (the browser imports it too): the Arabic is folded like `arabicWord.ts`,
+  the folded English sense is part of the key so homographs never share a
+  picture (a recording is keyed on its exact text instead, harakat kept), and
+  Fusha is refused. A generator looks the store up before it generates and
+  never charges a hit; a shared prompt is built from the key's folded sense,
+  never the gloss as typed; pictures are the Ink style (`INK_PICTURE_STYLE`,
+  no photographs, no text) and a jingle is filed only if its lyrics pass the
+  leak detector with the rulebook's tokens. New files go through
+  `fileNewAsset` under fresh names and are never overwritten, and no caller
+  may name a path in `word-assets/`. README "The asset store".
 - **Flashcard scheduling is FSRS-6, not FSRS-4.5 or SM-2, and the weights are
   meant to be fitted.** `src/lib/spacedRepetition.ts` implements the FSRS-6
   formulas line for line from fsrs-rs (21 weights). Two things it must keep:

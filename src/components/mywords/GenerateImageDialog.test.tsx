@@ -16,6 +16,13 @@ import type { SupabaseBackend } from "@/test/support/server/handler";
  * Generation is metered, so a refusal for being over the daily cap is not an
  * error to report but a limit to explain, and it is handled before anything
  * else in the response is looked at.
+ *
+ * A word's first picture comes from the shared asset store (`word-asset`):
+ * the picture another learner already has for the word, or a new one drawn in
+ * the Ink style and filed for the next learner. A picture the learner
+ * describes, draws in their locked style, or asks for again is their own, and
+ * goes to the illustrator (`generate-flashcard-image`) as it always did — as
+ * does a first picture while the store cannot answer.
  */
 
 const toasts = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
@@ -32,6 +39,9 @@ const cap = vi.hoisted(() => ({
 vi.mock("@/lib/handleCapResponse", () => ({
   showCapToastIfLimited: (...a: unknown[]) => cap.showCapToastIfLimited(...a),
 }));
+
+const SHARED_URL =
+  "https://e2e.supabase.co/storage/v1/object/public/flashcard-images/word-assets/image/ink-1/gulf/abc/1.png";
 
 const A_WORD: GenerateImageWord = {
   id: "word-1",
@@ -73,6 +83,12 @@ function render({ word = A_WORD, seed }: Options = {}) {
     {
       persona: "free",
       seed: (backend) => {
+        backend.stubFunction("word-asset", {
+          asset: { id: "asset-1", kind: "image", url: SHARED_URL },
+          url: SHARED_URL,
+          cached: true,
+          stored: true,
+        });
         backend.stubFunction("generate-flashcard-image", {
           imageUrl: "https://images.test/apple.png",
         });
@@ -119,24 +135,149 @@ describe("setting up the picture", () => {
   });
 });
 
-describe("generating", () => {
-  it("asks for a picture of the word", async () => {
-    const { backend } = render();
+describe("a word's first picture", () => {
+  it("comes from the shared store, keyed on the word, its sense and its dialect", async () => {
+    const { backend } = render({ word: { ...A_WORD, dialect: "Egyptian" } });
 
     await generate();
 
+    expect(backend.lastCallTo("word-asset")?.body).toEqual({
+      action: "ensure",
+      kind: "image",
+      word: "تفاحة",
+      gloss: "apple",
+      dialect: "Egyptian",
+    });
+    expect(backend.callsTo("generate-flashcard-image")).toEqual([]);
+  });
+
+  it("names a curriculum word's dialect from its module", async () => {
+    const { backend } = render({ word: { ...A_WORD, dialect_module: "Yemeni" } });
+
+    await generate();
+
+    expect((backend.lastCallTo("word-asset")?.body as { dialect: string }).dialect).toBe("Yemeni");
+  });
+
+  it("shows the shared picture and tells the deck about it, as it is", async () => {
+    const { onImageSaved } = render();
+
+    await generate();
+
+    await waitFor(() => expect(onImageSaved).toHaveBeenCalledWith("word-1", SHARED_URL));
+    // Not cache-busted: a shared url is never overwritten, and every learner
+    // loading the same one is what lets the browser cache it.
+    expect(screen.getByRole("img")).toHaveAttribute("src", SHARED_URL);
+    expect(toasts.success).toHaveBeenCalledWith("Image generated!");
+  });
+
+  it("falls back to the illustrator while the store cannot answer", async () => {
+    // The function not deployed yet, or a word it cannot file: the dialog
+    // behaves exactly as it did before the store.
+    const { backend, onImageSaved } = render({ seed: (b) => b.stubFunctionFailure("word-asset", 404) });
+
+    await generate();
+
+    await waitFor(() => expect(onImageSaved).toHaveBeenCalled());
+    expect(backend.lastCallTo("generate-flashcard-image")?.body).toMatchObject({
+      word_arabic: "تفاحة",
+      word_english: "apple",
+    });
+    expect(onImageSaved.mock.calls[0][1]).toMatch(/^https:\/\/images\.test\/apple\.png\?t=\d+$/);
+  });
+
+  it("falls back to the illustrator for a word the store cannot file", async () => {
+    // A 400 is a refusal before anything was charged — a gloss that folds to
+    // no sense, say — so the illustrator is the learner's only way to a picture.
+    const { backend } = render({ seed: (b) => b.stubFunctionFailure("word-asset", 400) });
+
+    await generate();
+
+    await waitFor(() => expect(backend.callsTo("generate-flashcard-image")).toHaveLength(1));
+  });
+
+  it("does not charge the learner twice when the store failed after making the picture", async () => {
+    // A 500 (the upload failed) or a timeout comes after word-asset charged
+    // the daily counter the illustrator shares. Asking the illustrator then
+    // would charge the same learner again for the same picture.
+    const { backend, onImageSaved } = render({ seed: (b) => b.stubFunctionFailure("word-asset", 500) });
+
+    await generate();
+
+    await waitFor(() =>
+      expect(toasts.error).toHaveBeenCalledWith("Image generation is temporarily unavailable. Please try again."),
+    );
+    expect(backend.callsTo("generate-flashcard-image")).toEqual([]);
+    expect(onImageSaved).not.toHaveBeenCalled();
+  });
+
+  it("says so when the store's model drew nothing, without asking a second one", async () => {
+    const { backend } = render({
+      seed: (b) =>
+        b.stubFunction("word-asset", {
+          error: "IMAGE_GENERATION_FAILED",
+          fallback: true,
+          message: "Could not make a picture for \"apple\" — please try again.",
+        }),
+    });
+
+    await generate();
+
+    await waitFor(() =>
+      expect(toasts.error).toHaveBeenCalledWith('Could not make a picture for "apple" — please try again.'),
+    );
+    expect(backend.callsTo("generate-flashcard-image")).toEqual([]);
+  });
+
+  it("explains a daily limit rather than reporting it as an error", async () => {
+    cap.showCapToastIfLimited.mockReturnValue(true);
+    const { backend, onImageSaved } = render();
+
+    await generate();
+
+    // Being over the cap is a fact about the plan, not a fault. It is checked
+    // before anything else in the response so the generic error path never runs.
+    await waitFor(() => expect(cap.showCapToastIfLimited).toHaveBeenCalled());
+    expect(toasts.error).not.toHaveBeenCalled();
+    expect(onImageSaved).not.toHaveBeenCalled();
+    // The store's cap is the illustrator's: a refusal there is not a reason to
+    // try the other door.
+    expect(backend.callsTo("generate-flashcard-image")).toEqual([]);
+  });
+
+  it("does nothing at all without a word", async () => {
+    const { backend } = render({ word: null });
+
+    await generate();
+
+    expect(backend.callsTo("word-asset")).toEqual([]);
+    expect(backend.callsTo("generate-flashcard-image")).toEqual([]);
+  });
+});
+
+describe("a picture of the learner's own", () => {
+  const HAS_PICTURE = { ...A_WORD, image_url: "https://images.test/old.png" };
+
+  it("is what a regeneration asks for: a different picture, not the shared one again", async () => {
+    const { backend } = render({ word: HAS_PICTURE });
+
+    await generate();
+
+    expect(backend.callsTo("word-asset")).toEqual([]);
     expect(backend.lastCallTo("generate-flashcard-image")?.body).toMatchObject({
       word_arabic: "تفاحة",
       word_english: "apple",
     });
   });
 
-  it("passes on what the learner asked for", async () => {
+  it("is what a described picture is, and carries what the learner asked for", async () => {
     const { backend } = render();
 
     fireEvent.change(instructionsBox(), { target: { value: "on a wooden table, close up" } });
     await generate();
 
+    // Never filed under the word: the next learner did not ask for a table.
+    expect(backend.callsTo("word-asset")).toEqual([]);
     expect(
       (backend.lastCallTo("generate-flashcard-image")?.body as { custom_instructions: string })
         .custom_instructions,
@@ -144,7 +285,7 @@ describe("generating", () => {
   });
 
   it("shows the new picture and tells the deck about it", async () => {
-    const { onImageSaved } = render();
+    const { onImageSaved } = render({ word: HAS_PICTURE });
 
     await generate();
 
@@ -159,6 +300,7 @@ describe("generating", () => {
 
   it("says so when the generator declined", async () => {
     render({
+      word: HAS_PICTURE,
       seed: (b) =>
         b.stubFunction("generate-flashcard-image", {
           fallback: true,
@@ -174,16 +316,17 @@ describe("generating", () => {
   });
 
   it("treats a reply with no picture in it as a failure", async () => {
-    render({ seed: (b) => b.stubFunction("generate-flashcard-image", {}) });
+    render({ word: HAS_PICTURE, seed: (b) => b.stubFunction("generate-flashcard-image", {}) });
 
     await generate();
 
     await waitFor(() => expect(toasts.error).toHaveBeenCalled());
-    expect(screen.queryByRole("img")).toBeNull();
+    expect(screen.getByRole("img")).toHaveAttribute("src", "https://images.test/old.png");
   });
 
   it("reports a call that failed outright", async () => {
     const { onImageSaved } = render({
+      word: HAS_PICTURE,
       seed: (b) => b.stubFunctionFailure("generate-flashcard-image", 500),
     });
 
@@ -191,27 +334,6 @@ describe("generating", () => {
 
     await waitFor(() => expect(toasts.error).toHaveBeenCalled());
     expect(onImageSaved).not.toHaveBeenCalled();
-  });
-
-  it("explains a daily limit rather than reporting it as an error", async () => {
-    cap.showCapToastIfLimited.mockReturnValue(true);
-    const { onImageSaved } = render();
-
-    await generate();
-
-    // Being over the cap is a fact about the plan, not a fault. It is checked
-    // before anything else in the response so the generic error path never runs.
-    await waitFor(() => expect(cap.showCapToastIfLimited).toHaveBeenCalled());
-    expect(toasts.error).not.toHaveBeenCalled();
-    expect(onImageSaved).not.toHaveBeenCalled();
-  });
-
-  it("does nothing at all without a word", async () => {
-    const { backend } = render({ word: null });
-
-    await generate();
-
-    expect(backend.callsTo("generate-flashcard-image")).toEqual([]);
   });
 });
 
@@ -247,6 +369,8 @@ describe("the style lock", () => {
     fireEvent.change(instructionsBox(), { target: { value: "on a table" } });
     await generate();
 
+    // A locked style is the learner's look, not the deck's: never filed.
+    expect(backend.callsTo("word-asset")).toEqual([]);
     const body = backend.lastCallTo("generate-flashcard-image")?.body as {
       custom_instructions: string;
     };

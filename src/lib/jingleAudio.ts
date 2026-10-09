@@ -117,3 +117,17 @@ export async function createPlayableJingleAudioFromUrl(url: string): Promise<Jin
   if (!response.ok) throw new Error("Could not load generated jingle audio");
   return createPlayableJingleAudio(await response.blob());
 }
+/**
+ * The url of a jingle the generator stored itself, or null.
+ *
+ * Asked with `share: true`, `generate-word-jingle` answers from the shared
+ * asset store: another learner's jingle for the same word, sense and dialect
+ * (a url and no bytes), or a new one it uploaded and filed for the next
+ * learner (a url beside the bytes). Either way the url is what goes on the
+ * learner's row, and there is nothing to upload. Null means the answer is
+ * bytes for the caller to upload, as it always was.
+ */
+export function sharedJingleUrl(data: unknown): string | null {
+  const url = (data as { audioUrl?: unknown } | null)?.audioUrl;
+  return typeof url === "string" && /^https?:\/\//.test(url) ? url : null;
+}

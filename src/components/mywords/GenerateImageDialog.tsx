@@ -14,6 +14,41 @@ export interface GenerateImageWord {
   word_arabic: string;
   word_english: string;
   image_url?: string | null;
+  /** A saved word's dialect. */
+  dialect?: string | null;
+  /** A curriculum word's dialect. */
+  dialect_module?: string | null;
+}
+
+/**
+ * The word's picture from the shared asset store: another learner's, or a new
+ * one the `word-asset` function draws in the Ink style and files for the next.
+ * Null only when the store turned the word away before charging anything — the
+ * function not deployed yet (404), a word it cannot file (400) — which sends
+ * the dialog down its own path, as before the store. Anything later (the daily
+ * cap, a model that drew nothing, an upload or a timeout after the charge) is
+ * the learner's answer: asking the illustrator then would charge them twice.
+ */
+async function sharedPicture(word: GenerateImageWord): Promise<
+  { url: string } | { limited: true } | { failed: string } | null
+> {
+  const { data, error } = await supabase.functions.invoke("word-asset", {
+    body: {
+      action: "ensure",
+      kind: "image",
+      word: word.word_arabic,
+      gloss: word.word_english,
+      dialect: word.dialect ?? word.dialect_module ?? undefined,
+    },
+  });
+  if (showCapToastIfLimited(error, data)) return { limited: true };
+  const unavailable = "Image generation is temporarily unavailable. Please try again.";
+  if (error) {
+    const status = (error as { context?: { status?: number } }).context?.status;
+    return status === 400 || status === 404 ? null : { failed: unavailable };
+  }
+  if (typeof data?.url === "string" && data.url) return { url: data.url };
+  return { failed: data?.message || unavailable };
 }
 
 interface GenerateImageDialogProps {
@@ -28,6 +63,7 @@ export const GenerateImageDialog = ({ word, open, onOpenChange, onImageSaved }: 
   const [isGenerating, setIsGenerating] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const styleLock = useImageStyleLock();
+  const currentImage = previewUrl || word?.image_url;
 
   const handleGenerate = async () => {
     if (!word) return;
@@ -36,6 +72,23 @@ export const GenerateImageDialog = ({ word, open, onOpenChange, onImageSaved }: 
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Not authenticated");
+
+      // A word's first picture is the shared one. A picture described by the
+      // learner, drawn in their locked style, or asked for again is their own.
+      const own = Boolean(customInstructions.trim()) || styleLock.enabled || Boolean(currentImage);
+      if (!own) {
+        const shared = await sharedPicture(word);
+        if (shared && "limited" in shared) return;
+        if (shared && "failed" in shared) throw new Error(shared.failed);
+        if (shared) {
+          // Not cache-busted: a shared url is never overwritten, and every
+          // learner loading the same one is what lets the browser cache it.
+          if (onImageSaved) await onImageSaved(word.id, shared.url);
+          setPreviewUrl(shared.url);
+          toast.success("Image generated!");
+          return;
+        }
+      }
 
       const composed = composeStyledInstructions(customInstructions, styleLock);
 
@@ -70,8 +123,6 @@ export const GenerateImageDialog = ({ word, open, onOpenChange, onImageSaved }: 
       setIsGenerating(false);
     }
   };
-
-  const currentImage = previewUrl || word?.image_url;
 
   return (
     <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) { setPreviewUrl(null); setCustomInstructions(""); } }}>

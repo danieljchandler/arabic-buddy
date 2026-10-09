@@ -42,12 +42,39 @@ describe("the starting point", () => {
     expect(result.current.description).toBe(DEFAULT_STYLE_DESCRIPTION);
   });
 
-  it("describes a plain, uncluttered photo look", () => {
+  it("replaces the old photo default a returning learner has stored, and keeps their own words", () => {
+    // The hook saves on first mount, so the old default sits in storage as if
+    // typed. Turning the lock on must not bring the photograph back.
+    localStorage.setItem(
+      "hakiya:imageStyleLock:v1",
+      JSON.stringify({
+        enabled: false,
+        description:
+          "warm soft natural lighting, shallow depth of field, photo-realistic stock-photo aesthetic, neutral beige background, centered subject, no text, no watermark",
+        seed: "123456",
+      }),
+    );
+    const { result: legacy } = renderHook(() => useImageStyleLock());
+    expect(legacy.current.description).toBe(DEFAULT_STYLE_DESCRIPTION);
+    expect(legacy.current.seed).toBe("123456");
+
+    localStorage.setItem(
+      "hakiya:imageStyleLock:v1",
+      JSON.stringify({ enabled: true, description: "my own photo look, please", seed: "654321" }),
+    );
+    const { result: own } = renderHook(() => useImageStyleLock());
+    expect(own.current.description).toBe("my own photo look, please");
+  });
+
+  it("describes a plain, uncluttered look in the brand's flat style, never a photograph", () => {
     // The default has to work for every noun a learner might save, so it asks
-    // for a neutral background and no text — an aesthetic that does not fight
-    // the word on the card.
-    expect(DEFAULT_STYLE_DESCRIPTION).toContain("neutral beige background");
+    // for a plain background and no text — an aesthetic that does not fight
+    // the word on the card. And it is the Ink look the illustrator draws in:
+    // a locked "photo-realistic" default contradicted the illustrator's own
+    // style line in every prompt it was appended to.
+    expect(DEFAULT_STYLE_DESCRIPTION).toContain("plain cream background");
     expect(DEFAULT_STYLE_DESCRIPTION).toContain("no text");
+    expect(DEFAULT_STYLE_DESCRIPTION).not.toMatch(/photo/i);
   });
 
   it("mints a six-digit seed", () => {

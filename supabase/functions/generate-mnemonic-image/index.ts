@@ -15,10 +15,10 @@ import { generateImageDataUrl, hasAnyProvider } from "../_shared/aiGateway.ts";
  * over directly.
  *
  * It is deliberately not `generate-flashcard-image` with a different prompt.
- * That function illustrates a *meaning*, so its style guide asks for a
- * photo-realistic stock shot of one object; this illustrates an absurd
- * two-clause scene, where realism is actively wrong — the reason a mnemonic
- * sticks is that it is strange, and a plausible photograph is not strange.
+ * That function illustrates a *meaning*, so its style guide asks for one
+ * plain object, centred, in the Ink brand's flat poster style; this
+ * illustrates an absurd two-clause scene, where a plain, plausible picture is
+ * actively wrong — the reason a mnemonic sticks is that it is strange.
  * Hence a separate style guide, a separate daily counter, and no
  * `word_english`-only path: without the mnemonic there is nothing to draw.
  */

@@ -17,14 +17,28 @@
  * accepting an uploaded blob, so a caller can't attach arbitrary audio to a
  * shared row).
  *
+ * The shared asset store (`_shared/wordAssets.ts`) is looked up before
+ * synthesising: one word turns up on several curriculum rows (a Stage 1 word
+ * revisited in a later lesson, an imported lesson repeating an authored one),
+ * and a row whose exact text — harakat included — already has a recording in
+ * its dialect's voice gets that one copied onto it rather than a second
+ * synthesis. What is synthesised is filed there for the next row, under a
+ * name of its own that nothing ever writes over. Re-synthesising identical
+ * text in the same voice would give the same recording, so a hit is not a
+ * stale answer: to change how a word is said, upload a recording or change
+ * its text (re-vowelling it is a different key). Until the store's migration
+ * is applied the lookup misses and the filing fails quietly, which is this
+ * function as it was before.
+ *
  * Body: { wordId: string, dialect?: string }
  * Response: { audioUrl: string, cached: boolean }
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
 import { getCorsHeaders } from "../_shared/cors.ts";
-import { enforceDailyCap } from "../_shared/usageCap.ts";
+import { enforceDailyCap, resolveUserId } from "../_shared/usageCap.ts";
 import { synthesizeForDialect } from "../_shared/ttsVoiceRouting.ts";
+import { assetKey, fileNewAsset, getAsset, type WordAssetClient } from "../_shared/wordAssets.ts";
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SERVICE_ROLE = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -34,10 +48,16 @@ serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
-  // Generous cap: the whole point is that each word is synthesised once ever,
-  // so a learner should never approach this in normal use.
-  const cap = await enforceDailyCap(req, "persist-word-audio", 200, corsHeaders);
-  if (cap.limited) return cap.response;
+  // A signed-in caller first. The daily cap below turns anonymous callers away
+  // too, but it also charges, and handing back a recording that already
+  // exists — on the row or in the shared store — costs nothing, so the cap
+  // waits until there is something to synthesise.
+  if (!(await resolveUserId(req))) {
+    return new Response(
+      JSON.stringify({ error: "auth_required", message: "Please sign in to use this feature." }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } },
+    );
+  }
 
   try {
     const { wordId, dialect } = await req.json();
@@ -51,6 +71,16 @@ serve(async (req) => {
     const admin = createClient(SUPABASE_URL, SERVICE_ROLE, {
       auth: { persistSession: false, autoRefreshToken: false },
     });
+
+    // Only fill an empty slot — never overwrite a recording an admin uploaded.
+    const fillEmptySlot = async (audioUrl: string) => {
+      const { error } = await admin
+        .from("vocabulary_words")
+        .update({ audio_url: audioUrl })
+        .eq("id", wordId)
+        .is("audio_url", null);
+      if (error) throw error;
+    };
 
     const { data: word, error: wordErr } = await admin
       .from("vocabulary_words")
@@ -73,6 +103,24 @@ serve(async (req) => {
       });
     }
 
+    const voicedIn = dialect || word.dialect_module;
+    const store = admin as unknown as WordAssetClient;
+    const key = assetKey({ kind: "word_audio", word: word.word_arabic, dialect: voicedIn });
+
+    // The same text recorded in the same voice for another row: copy it on.
+    const stored = key ? await getAsset(store, key) : null;
+    if (stored?.url) {
+      await fillEmptySlot(stored.url);
+      return new Response(JSON.stringify({ audioUrl: stored.url, cached: true }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Generous cap: the whole point is that each word is synthesised once ever,
+    // so a learner should never approach this in normal use.
+    const cap = await enforceDailyCap(req, "persist-word-audio", 200, corsHeaders);
+    if (cap.limited) return cap.response;
+
     // Synthesise here rather than accepting a client-uploaded blob: the row is
     // shared across every learner, so its audio must provably be this word.
     //
@@ -86,7 +134,7 @@ serve(async (req) => {
     try {
       ({ bytes: audio, plan } = await synthesizeForDialect(
         word.word_arabic,
-        dialect || word.dialect_module,
+        voicedIn,
         { minVoices: 1 },
       ));
     } catch (ttsErr) {
@@ -100,23 +148,31 @@ serve(async (req) => {
     // Extension and content type follow the provider. Munsit answers in WAV, so
     // hardcoding .mp3/audio/mpeg here would store WAV bytes under an .mp3 name
     // and serve them mislabelled.
-    const path = `curriculum/word-${wordId}.${plan.ext}`;
+    let audioUrl: string;
+    if (key) {
+      // A fresh object, filed for the next row with this text. Filing never
+      // fails the request: the row gets this recording either way.
+      const filed = await fileNewAsset(
+        admin,
+        store,
+        key,
+        { bytes: audio, contentType: plan.contentType, extension: plan.ext },
+        { meta: { provider: plan.provider, voice: plan.voices[0] ?? null, content_type: plan.contentType } },
+      );
+      if ("error" in filed) throw new Error(filed.error);
+      audioUrl = filed.url;
+    } else {
+      // A word the store cannot key (no Arabic letter in it): the row's own
+      // object, as before the store.
+      const path = `curriculum/word-${wordId}.${plan.ext}`;
+      const { error: uploadErr } = await admin.storage
+        .from(BUCKET)
+        .upload(path, audio, { contentType: plan.contentType, upsert: true });
+      if (uploadErr) throw uploadErr;
+      audioUrl = admin.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+    }
 
-    const { error: uploadErr } = await admin.storage
-      .from(BUCKET)
-      .upload(path, audio, { contentType: plan.contentType, upsert: true });
-    if (uploadErr) throw uploadErr;
-
-    const { data: urlData } = admin.storage.from(BUCKET).getPublicUrl(path);
-    const audioUrl = urlData.publicUrl;
-
-    // Only fill an empty slot — never overwrite a recording an admin uploaded.
-    const { error: updateErr } = await admin
-      .from("vocabulary_words")
-      .update({ audio_url: audioUrl })
-      .eq("id", wordId)
-      .is("audio_url", null);
-    if (updateErr) throw updateErr;
+    await fillEmptySlot(audioUrl);
 
     return new Response(JSON.stringify({ audioUrl, cached: false }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -45,7 +45,7 @@ import { asDialogue } from "@/lib/quizDialogue";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
-import { createPlayableJingleAudio, createPlayableJingleAudioFromUrl } from "@/lib/jingleAudio";
+import { createPlayableJingleAudio, createPlayableJingleAudioFromUrl, sharedJingleUrl } from "@/lib/jingleAudio";
 import { showCapToastIfLimited } from "@/lib/handleCapResponse";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -206,18 +206,24 @@ const Review = () => {
           word_arabic: word.word_arabic,
           word_english: word.word_english,
           dialect: word.dialect_module ?? activeDialect,
+          // The first jingle for a word comes from the shared asset store —
+          // another learner's, or a new one filed for the next. A regeneration
+          // asks for a different one, so it stays this learner's own.
+          share: !regenerate,
         },
       });
       if (showCapToastIfLimited(response.error, response.data)) return;
       if (response.error) throw new Error(response.error.message || "Failed to generate jingle");
-      const audioFile = await createPlayableJingleAudio(response.data);
-      const fileName = `jingles/${user.id}/curriculum-${word.id}-${Date.now()}.${audioFile.extension}`;
-      const { error: uploadError } = await supabase.storage
-        .from("flashcard-audio")
-        .upload(fileName, audioFile.blob, { contentType: audioFile.mimeType, upsert: true });
-      if (uploadError) throw uploadError;
-      const { data: urlData } = supabase.storage.from("flashcard-audio").getPublicUrl(fileName);
-      const jingleUrl = urlData.publicUrl;
+      let jingleUrl = sharedJingleUrl(response.data);
+      if (!jingleUrl) {
+        const audioFile = await createPlayableJingleAudio(response.data);
+        const fileName = `jingles/${user.id}/curriculum-${word.id}-${Date.now()}.${audioFile.extension}`;
+        const { error: uploadError } = await supabase.storage
+          .from("flashcard-audio")
+          .upload(fileName, audioFile.blob, { contentType: audioFile.mimeType, upsert: true });
+        if (uploadError) throw uploadError;
+        jingleUrl = supabase.storage.from("flashcard-audio").getPublicUrl(fileName).data.publicUrl;
+      }
       const lyrics = (response.data as { lyrics?: string | null })?.lyrics ?? null;
       const { data: savedReview, error: saveError } = await supabase
         .from("word_reviews")

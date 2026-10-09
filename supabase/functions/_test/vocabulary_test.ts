@@ -618,8 +618,11 @@ Deno.test("persist-word-audio stores Munsit's WAV under a .wav key", async () =>
     caller({ ...storage(), "/rest/v1/vocabulary_words": () => json(aWord()) }),
   );
 
-  const upload = calls.find((url) => url.includes("/storage/v1/object/flashcard-audio")) ?? "";
-  assertStringIncludes(decodeURIComponent(upload), `curriculum/word-${WORD_ID}.wav`);
+  const upload = decodeURIComponent(calls.find((url) => url.includes("/storage/v1/object/flashcard-audio")) ?? "");
+  // A fresh object in the shared store's folder for this text and voice, so a
+  // later synthesis for this row can never write over audio other rows play.
+  assertStringIncludes(upload, "/flashcard-audio/word-assets/word_audio/voice-1/gulf/");
+  assert(upload.endsWith(".wav"), upload);
 });
 
 Deno.test("persist-word-audio returns the existing audio without synthesising", async () => {
@@ -640,6 +643,138 @@ Deno.test("persist-word-audio returns the existing audio without synthesising", 
   // learners. A cache miss that re-synthesised would multiply the cost by the
   // user count.
   assert(!synthesised(calls));
+});
+
+Deno.test("persist-word-audio copies a recording the asset store already holds, without synthesising", async () => {
+  // One word on two curriculum rows (a Stage 1 word met again in a later
+  // lesson) is one recording, not two.
+  const { status, body, calls } = await call(
+    "persist-word-audio",
+    { wordId: WORD_ID },
+    caller({
+      ...storage(),
+      "/rest/v1/vocabulary_words": () => json(aWord()),
+      "/rest/v1/word_assets": (request) =>
+        request.method === "GET"
+          ? json([{
+            id: "asset-1",
+            concept_key: "كتاب",
+            kind: "word_audio",
+            dialect: "Gulf",
+            style_version: "voice-1",
+            url: "https://cdn.test/shared-kitab.wav",
+            payload: null,
+            meta: {},
+            source: "generated",
+            approved_at: null,
+            created_at: "2026-10-01T00:00:00Z",
+          }])
+          : json({}, 201),
+    }),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(body.cached, true);
+  assertEquals(body.audioUrl, "https://cdn.test/shared-kitab.wav");
+  assert(!synthesised(calls));
+  const lookup = calls.map((url) => decodeURIComponent(url)).find((url) => url.includes("word_assets"));
+  // Keyed on exactly the text the voice reads, harakat and all.
+  assertStringIncludes(lookup ?? "", "concept_key=eq.كتاب&");
+  // Copied onto the row the same guarded way a fresh recording is.
+  const update = calls
+    .map((url) => decodeURIComponent(url))
+    .find((url) => url.includes("vocabulary_words") && url.includes("is.null"));
+  assert(update, `no conditional update found in:\n${calls.join("\n")}`);
+});
+
+Deno.test("persist-word-audio files what it synthesises for the next row with the text", async () => {
+  const { status, body, calls, bodies } = await call(
+    "persist-word-audio",
+    { wordId: WORD_ID, dialect: "Egyptian" },
+    caller({
+      ...storage(),
+      "/rest/v1/vocabulary_words": () => json(aWord({ word_arabic: "كِتَاب" })),
+      "/rest/v1/word_assets": (request) => (request.method === "GET" ? json([]) : json({}, 201)),
+    }),
+  );
+
+  assertEquals(status, 200);
+  assert(synthesised(calls));
+  const i = calls.findIndex((url, n) => url.includes("word_assets") && bodies[n] !== null);
+  assert(i >= 0, "nothing was filed in the asset store");
+  const filed = JSON.parse(bodies[i] ?? "{}") as Record<string, unknown>;
+  // The vowelled text as written: re-vowelling a word to fix how it is said
+  // must reach a new recording, not this one.
+  assertEquals(filed.concept_key, "كِتَاب");
+  assertEquals(filed.kind, "word_audio");
+  // Filed under the dialect it was voiced in, not the row's own.
+  assertEquals(filed.dialect, "Egyptian");
+  // The row and the store carry the same fresh object.
+  assertEquals(filed.url, body.audioUrl);
+  assertStringIncludes(String(filed.url), "/flashcard-audio/word-assets/word_audio/voice-1/egyptian/");
+});
+
+Deno.test("persist-word-audio hands a learner at their cap a recording that already exists", async () => {
+  // Copying a recording on costs nothing, so it is never charged — and a
+  // learner over the limit still hears the word rather than a 429.
+  const atTheCap = {
+    "/rest/v1/subscribers": () => json(null),
+    "/rest/v1/rpc/increment_usage_counter": () => json(999),
+  };
+  const stored = {
+    id: "asset-1",
+    concept_key: "كتاب",
+    kind: "word_audio",
+    dialect: "Gulf",
+    style_version: "voice-1",
+    url: "https://cdn.test/shared-kitab.wav",
+    payload: null,
+    meta: {},
+    source: "generated",
+    approved_at: null,
+    created_at: "2026-10-01T00:00:00Z",
+  };
+
+  const fromStore = await call(
+    "persist-word-audio",
+    { wordId: WORD_ID },
+    caller({
+      ...storage(),
+      ...atTheCap,
+      "/rest/v1/vocabulary_words": () => json(aWord()),
+      "/rest/v1/word_assets": (request) => (request.method === "GET" ? json([stored]) : json({}, 201)),
+    }),
+  );
+  assertEquals(fromStore.status, 200);
+  assertEquals(fromStore.body.audioUrl, "https://cdn.test/shared-kitab.wav");
+  assert(!fromStore.calls.some((url) => url.includes("increment_usage_counter")), "a store hit was charged");
+
+  const onTheRow = await call(
+    "persist-word-audio",
+    { wordId: WORD_ID },
+    caller({
+      ...storage(),
+      ...atTheCap,
+      "/rest/v1/vocabulary_words": () => json(aWord({ audio_url: "https://cdn.test/existing.mp3" })),
+    }),
+  );
+  assertEquals(onTheRow.status, 200);
+  assertEquals(onTheRow.body.audioUrl, "https://cdn.test/existing.mp3");
+  assert(!onTheRow.calls.some((url) => url.includes("increment_usage_counter")), "a cached row was charged");
+
+  // A miss is what costs, so a miss at the cap is refused before any synthesis.
+  const miss = await call(
+    "persist-word-audio",
+    { wordId: WORD_ID },
+    caller({
+      ...storage(),
+      ...atTheCap,
+      "/rest/v1/vocabulary_words": () => json(aWord()),
+      "/rest/v1/word_assets": (request) => (request.method === "GET" ? json([]) : json({}, 201)),
+    }),
+  );
+  assertEquals(miss.status, 429);
+  assert(!synthesised(miss.calls));
 });
 
 Deno.test("persist-word-audio voices a word in its own dialect", async () => {
@@ -1049,7 +1184,7 @@ Deno.test("generate-mnemonic-image draws the mnemonic, not the word", async () =
   assertEquals(result.body.success, true);
   const prompt = imagePrompt(result);
   // The hook is the subject. Sending the English alone would produce the same
-  // stock photograph generate-flashcard-image already makes.
+  // plain one-object picture generate-flashcard-image already makes.
   assertStringIncludes(prompt, "welcome mat laid across a restaurant doorway");
   // ...with the meaning alongside it, because the hook is usually a pun on the
   // sound and an illustrator given only the pun draws the mat and drops the

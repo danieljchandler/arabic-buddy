@@ -12,8 +12,9 @@ means — so a session can pick up the next phase cold.*
 | 0 | Proposal and decisions | done |
 | 1 | The quiz style and the eight-step ladder | done (PR #422) |
 | 1b | Apply the `review_style` migration to the live project | **owner action** |
-| 2 | The shared asset store | next |
-| 3 | A picture for every word | after 2 |
+| 2 | The shared asset store | done (PR #423) |
+| 2b | Apply the `word_assets` migration to the live project | **owner action** |
+| 3 | A picture for every word | next (after 2b for anything to be kept) |
 | 4 | Generated dialogues, and saying the reply | after 2 |
 | 5 | Animations for action words | after 2 and 3 |
 | 6 | Words in stories | after 2 |
@@ -75,7 +76,45 @@ then the preference is device-local. Once the next types regeneration carries
 
 ---
 
-## Phase 2 — the shared asset store
+## Phase 2 — the shared asset store (done, PR #423)
+
+What shipped, so the later phases know what they stand on (writeup: README
+"The asset store"):
+
+- `word_assets` (migration `20261009130000_word_assets.sql`), unique on
+  `(concept_key, kind, coalesce(dialect, ''), style_version)` — an expression
+  index, so a null-dialect row is unique on any Postgres; `style_version` is a
+  column rather than a `meta` field so it can be in the key. `kind` is not a
+  CHECK, so a later phase's kind needs no migration.
+- `_shared/wordAssets.ts`: `assetKey` keys on the folded Arabic **plus the
+  folded English sense** (`كتاب|book`), because the folding strips the harakat
+  that tell homographs apart; every kind but a recording needs a sense
+  (`kindNeedsSense`), a recording is keyed on its exact text, harakat kept,
+  and Fusha is refused. `key.sense` is what a shared prompt is built from.
+  `getAsset` / `putAsset` take any client and never throw. `fileNewAsset`
+  uploads a new file under a name of its own and files it — the one way to
+  add a file. `inkPicturePrompt` / `INK_PICTURE_STYLE` are the picture look
+  (`ink-1`). Two kinds beyond the list below: `word_audio` and `jingle`.
+- `word-asset`: `get`, and `ensure` for `kind: "image"`. Charged only on a
+  miss, on the `generate-flashcard-image` counter. The prompt is built from
+  the sense and dialect alone; Phase 3's authored `image_scene` is the
+  `scene` argument `inkPicturePrompt` already takes, to be passed only from
+  a trusted (service-role or admin) caller.
+- Wired: `GenerateImageDialog` (first picture), `persist-word-audio`,
+  `generate-word-jingle` with `share: true` (lyrics filed only when they pass
+  the leak detector with the rulebook's tokens). `generate-flashcard-image`
+  now draws in the Ink style and confines a caller-named `storage_path`
+  (learners to `tutor/<id>/`, never `word-assets/`).
+- `useWordAsset` (read-only).
+
+### Phase 2b — owner action
+
+Apply `20261009130000_word_assets.sql` to the live project and deploy
+`word-asset` with the other changed functions. Until then every lookup misses
+and nothing is kept. Once a types regeneration carries `word_assets`, delete
+its entries in `src/test/support/postgrest/typesDrift.ts`.
+
+### The plan, as it was written
 
 **Goal.** Every picture, animation, recording or line made for a word is
 made once and kept, for every learner and every later phase. Today a My

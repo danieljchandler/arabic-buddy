@@ -3,7 +3,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { enforceDailyCap } from "../_shared/usageCap.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { generateImageDataUrl, hasAnyProvider } from "../_shared/aiGateway.ts";
+import { inkPicturePrompt } from "../_shared/wordAssets.ts";
 
+
+/** Staff who edit curriculum words, and so name where their pictures go. */
+const CONTENT_TEAM_ROLES = ["admin", "content_reviewer", "recorder"];
 
 serve(async (req) => {
   const corsHeaders = getCorsHeaders(req);
@@ -50,19 +54,12 @@ serve(async (req) => {
 
     if (!hasAnyProvider()) throw new Error("No AI provider is configured");
 
-    let prompt = `A single realistic, professional photograph of: ${word_english}.
-STYLE GUIDE — follow exactly for every image:
-- Photo-realistic stock photo style, centered subject
-- Warm neutral background: soft beige, cream, or light wood surface
-- Soft diffused lighting, slightly warm color temperature
-- Clean minimal composition with no clutter or secondary objects
-- Subject fills roughly 60-70% of the frame
-- Shallow depth of field with gentle bokeh on background
-- No text, labels, watermarks, or overlays
-- No lens flare, no light shimmer, no sparkles, no glowing dots, no bokeh circles in the foreground
-- Consistent color grading: warm highlights, soft shadows
-- Matte finish, no glossy or specular highlights on the image surface`;
-    
+    // The shared asset store's Ink picture style, so a picture drawn here (a
+    // regeneration, a described picture, an admin's curriculum word) matches
+    // the one the store serves beside it. It replaced a photo-realistic stock
+    // shot: the Ink brand rules photography out (docs/brand-refresh.md).
+    let prompt = inkPicturePrompt({ gloss: String(word_english), dialect: null });
+
     if (custom_instructions) {
       prompt += `\nAdditional instructions: ${custom_instructions}`;
     }
@@ -112,8 +109,30 @@ STYLE GUIDE — follow exactly for every image:
       bytes[i] = binaryStr.charCodeAt(i);
     }
 
-    const finalPath = storage_path || `tutor/${user.id}/${crypto.randomUUID()}.png`;
-    
+    // Where the picture goes. The upload runs with the service role, so the
+    // path is the only thing between a caller and every object in the bucket
+    // — the shared asset store's pictures above all, which must never be
+    // written over. A caller may name a path in their own folder (the tutor
+    // upload does); the content team may name any path (the admin word pages
+    // file curriculum pictures by lesson and word); nothing names one in
+    // `word-assets/`, which only the store's own writers fill. Anything else
+    // lands in the caller's own folder instead.
+    const ownFolder = `tutor/${user.id}/`;
+    const requested = typeof storage_path === "string" ? storage_path.replace(/^\/+/, "") : "";
+    const nameable = requested !== "" && !requested.includes("..") && !requested.startsWith("word-assets/");
+    let finalPath = `${ownFolder}${crypto.randomUUID()}.png`;
+    const isContentTeam = async () => {
+      const { data } = await supabaseAdmin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .in("role", CONTENT_TEAM_ROLES);
+      return Array.isArray(data) && data.length > 0;
+    };
+    if (nameable && (requested.startsWith(ownFolder) || (await isContentTeam()))) {
+      finalPath = requested;
+    }
+
     const { error: uploadError } = await supabaseAdmin.storage
       .from("flashcard-images")
       .upload(finalPath, bytes, { contentType: "image/png", upsert: true });

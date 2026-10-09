@@ -699,14 +699,22 @@ export const defaultFunctions: Record<string, FunctionHandler> = {
 
   "generate-mnemonic": () => ok({ mnemonic: "a memorable hook" }),
   "generate-flashcard-image": () => ok({ imageUrl: "https://cdn.test/flashcard.png" }),
-  // The shared asset store. `ensure` answers a freshly drawn picture that was
-  // not filed — the shape the real function gives while its table is not yet
-  // applied — and `get` a miss, so nothing downstream sees a stored asset
-  // unless a test seeds one.
-  "word-asset": ({ body }) =>
-    (body as { action?: string } | null)?.action === "ensure"
-      ? ok({ asset: null, url: "https://cdn.test/word-asset.png", cached: false, stored: false })
-      : ok({ asset: null, url: null, cached: false, stored: false }),
+  // The shared asset store, answering as the real function does while its
+  // table is not yet applied: `ensure` draws a picture and hands it back
+  // unfiled, makes no exchange (a dialogue has no row of the learner's to land
+  // on, so none is made or charged until it can be kept), and `get` misses —
+  // so nothing downstream sees a stored asset unless a test seeds one.
+  "word-asset": ({ body }) => {
+    const { action, kind } = (body ?? {}) as { action?: string; kind?: string };
+    if (action !== "ensure") return ok({ asset: null, url: null, cached: false, stored: false });
+    if (kind === "dialogue") {
+      return {
+        status: 503,
+        body: { error: "store_not_ready", fallback: true, message: "Dialogues cannot be kept yet, so none is made." },
+      };
+    }
+    return ok({ asset: null, url: "https://cdn.test/word-asset.png", cached: false, stored: false });
+  },
   // The mnemonic's illustration. `success` is read by nothing, but the real
   // function answers a refusal as a 200 with `fallback: true`, so a stub
   // without the success half would make the two indistinguishable.

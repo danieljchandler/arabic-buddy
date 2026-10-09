@@ -286,9 +286,76 @@ Phrases decks also pays the flat review XP that the curriculum deck pays and
 those decks' flip cards never did. Under Flashcards, My Words serves plain flip
 cards — the every-other-card cloze it used to show now lives in the quiz.
 
-Proposal and the phases still to come (dialogue and story questions, a shared
-asset store for generated pictures and animations):
-`docs/quiz-modes-plan-2026-10.md`.
+Proposal and the phases still to come (dialogue and story questions,
+animations, a picture for every word): `docs/quiz-modes-plan-2026-10.md`;
+the execution roadmap is `docs/quiz-phases-2026-10.md`.
+
+### The asset store
+
+Every picture, recording or jingle made for a word is made once and kept, for
+every learner and for the quiz's later steps. Before the store a My Words
+picture or jingle was generated per learner onto their own row, so two
+learners who saved the same word paid twice and nothing could reuse what was
+made. The table is `word_assets` (migration `20261009130000_word_assets`):
+public read, service-role writes, so a learner reaches a shared row only
+through a generation the server made.
+
+**The key is the word, never the learner** (`_shared/wordAssets.ts`,
+`assetKey`). The Arabic is folded exactly as `src/lib/arabicWord.ts` folds a
+saved word, so the vocalised بَيْت an enrichment returned and the bare بيت a
+transcript holds share one picture. The English sense rides along
+(`كتاب|book`): the harakat that tell a homograph apart are exactly what the
+folding removes, and حَب "seeds" and حُب "love" must not share a picture. Two
+glosses for one sense ("house", "home") only cost a second generation, which
+is the safe way for the key to be wrong. The dialect is folded onto Gulf,
+Egyptian or Yemeni, and Fusha is refused: the store holds nothing a dialect
+learner should not be shown. A language-neutral kind (an animation of
+jumping, later) is keyed on the English concept alone. `style_version` is part
+of the unique key (`ink-1` for pictures), so a brand refresh regenerates
+rather than mixes two looks in one deck.
+
+**`word-asset`** is the door: `get` returns what is filed (free), `ensure`
+returns it or, on a miss, makes it, files it and returns it. Only a miss calls
+a model and only a miss is charged — to the learner who missed, on the
+flashcard illustrator's daily counter, so the picture dialog's two paths share
+one allowance. The prompt is built from nothing but the word's sense and
+dialect: the first learner to miss decides what every later learner is shown,
+so they must not be able to decide anything beyond the word. Today `ensure`
+makes pictures; the later phases add their kinds.
+
+**On brand and in dialect.** Pictures are drawn in the Ink style
+(`INK_PICTURE_STYLE`): a flat screenprint poster in oxblood, mustard and
+near-black on cream, never a photograph, and no text of any kind — which is
+also what keeps a picture out of Fusha, since an image model's lettering is
+Fusha when it is Arabic at all. `generate-flashcard-image`, which draws a
+learner's own picture and the admin's curriculum pictures, uses the same
+style; it asked for a stock photograph before. A jingle is filed only when its
+lyrics pass the Brain's MSA leak detector and are what was actually sung (a
+clip from the safety-filter fallback sings only the word, so it is not filed
+under lyrics it did not sing).
+
+**What looks the store up first:**
+
+| generator | on a hit | on a miss |
+|---|---|---|
+| The picture dialog (`GenerateImageDialog`) | a word's first picture comes from `word-asset ensure`; the url goes on the learner's row as a generated one did | `ensure` draws and files it. A regeneration, a described picture or a locked style is the learner's own and goes to `generate-flashcard-image`, as does a first picture while the store cannot answer |
+| `persist-word-audio` | a curriculum row gets the recording another row with the same word, sense and dialect already has | synthesises, stores on the row, files it for the next row |
+| `generate-word-jingle` with `share: true` (both review pages, for a first jingle) | no lyric call, no Lyria call, nothing charged; the answer carries `audioUrl` and the page stores it instead of uploading | sings, uploads, files it if the lyrics pass; the answer carries the bytes *and* `audioUrl` |
+
+`share` is opt-in so a client still running an older bundle never receives a
+hit it cannot play (a hit carries a url and no bytes); a regeneration leaves it
+off. New objects are always written under a name of their own
+(`assetObjectPath`), so no url ever handed to a learner is overwritten — two
+learners who miss at once each keep what they were given, and only the one the
+table files is served to anyone else.
+
+**Until the migration is applied to the live project** every lookup misses and
+every filing fails quietly (`getAsset` reads a missing table as a miss,
+`putAsset` never throws), which leaves each generator doing what it did before
+the store existed; the table's columns are pinned in `typesDrift.ts` until a
+types regeneration carries them. `useWordAsset` is the browser's read of the
+store (no `ensure`: making an asset is a generation with a cost), for the
+quiz's picture steps to use from Phase 3.
 
 ### The authored tracks (Stages 1–3, three dialects)
 

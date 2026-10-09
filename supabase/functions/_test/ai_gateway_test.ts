@@ -1,6 +1,22 @@
 import { assert, assertEquals, assertRejects } from "https://deno.land/std@0.224.0/assert/mod.ts";
 import { loadSharedModule, stubUpstreams, type StubbedUpstreams } from "./harness.ts";
-import { chatCompletion, geminiImage, json, openaiImage } from "./upstreams.ts";
+import {
+  chatCompletion,
+  FIXTURE_MP4,
+  geminiImage,
+  json,
+  openaiImage,
+  OPENROUTER_VIDEO_JOB,
+  OPENROUTER_VIDEOS_ROUTE,
+  openRouterVideoLadder,
+  PIXEL_PNG_B64,
+  VEO_FILE_ROUTE,
+  VEO_OPERATION,
+  VEO_OPERATION_ROUTE,
+  VEO_START_ROUTE,
+  veoDone,
+  veoLadder,
+} from "./upstreams.ts";
 
 /**
  * `_shared/aiGateway.ts` — which upstream actually receives a model call.
@@ -675,6 +691,185 @@ Deno.test("every leg refusing is a null, not a throw", async () => {
       "api.openai.com/v1/images/generations": () => json({ error: "refused" }, 400),
       [OPENROUTER]: () => chatCompletion("no picture here"),
     },
+  });
+});
+
+// ── Video ───────────────────────────────────────────────────────────────────
+//
+// A clip is a job: started, polled, downloaded. The routes are the image
+// ladder's — the model's vendor, then the same model on OpenRouter — with one
+// rule the images do not need: a job a provider accepted is never started
+// again elsewhere, because a render still going when the budget ran out may
+// be billed, and a second provider would bill it again.
+
+const poster = () => ({
+  bytes: Uint8Array.from(atob(PIXEL_PNG_B64), (c) => c.charCodeAt(0)),
+  contentType: "image/png",
+  url: "https://e2e.supabase.co/storage/v1/object/public/word-animations/word-assets/animation/ink-1/any/abc/poster.png",
+});
+
+Deno.test("a Veo clip is started on Google under its preview name, polled and downloaded", async () => {
+  await withGateway(async (mod, up) => {
+    const frame = poster();
+    const video = await mod.generateVideo("a figure jumps", {
+      durationSeconds: 4,
+      firstFrame: frame,
+      lastFrame: frame,
+      pollMs: 1,
+    });
+
+    assert(video, "expected a clip");
+    assertEquals(video.provider, "google");
+    assertEquals(video.contentType, "video/mp4");
+    assertEquals([...video.bytes], [...FIXTURE_MP4]);
+
+    const [start] = up.callsTo(VEO_START_ROUTE);
+    assert(start, "expected the job to be started on Google");
+    // Google serves the Preview under its own name; the registry id is OpenRouter's form.
+    assert(start.url.includes("/models/veo-3.1-lite-generate-preview:predictLongRunning"), start.url);
+    assertEquals(start.headers["x-goog-api-key"], "fixture-gemini");
+    const body = bodyOf(start) as { instances: Array<Record<string, unknown>>; parameters: Record<string, unknown> };
+    // The same still first and last is what makes the clip loop.
+    const inline = { inlineData: { mimeType: "image/png", data: PIXEL_PNG_B64 } };
+    assertEquals(body.instances[0].image, inline);
+    assertEquals(body.instances[0].lastFrame, inline);
+    assertEquals(body.parameters.durationSeconds, 4);
+    assertEquals(body.parameters.resolution, "720p");
+    assertEquals(body.parameters.personGeneration, "allow_adult");
+    assertEquals("reasoning" in body || "reasoning_effort" in body, false);
+
+    const [download] = up.callsTo(VEO_FILE_ROUTE);
+    assertEquals(download.headers["x-goog-api-key"], "fixture-gemini");
+    assertEquals(up.callsTo(OPENROUTER_VIDEOS_ROUTE), [], "a clip Google made is not made again");
+  }, { upstreams: veoLadder() });
+});
+
+Deno.test("a job still rendering is polled again until it is done", async () => {
+  let polls = 0;
+  await withGateway(async (mod, up) => {
+    const video = await mod.generateVideo("a figure jumps", { pollMs: 1 });
+
+    assert(video);
+    assertEquals(up.callsTo(VEO_OPERATION_ROUTE).length, 3);
+  }, {
+    upstreams: veoLadder({
+      operation: () => (++polls < 3 ? json({ name: VEO_OPERATION, done: false }) : veoDone()),
+    }),
+  });
+});
+
+Deno.test("a Google start that is refused hands the same model to OpenRouter, without audio", async () => {
+  await withGateway(async (mod, up) => {
+    const frame = poster();
+    const video = await mod.generateVideo("a figure jumps", { firstFrame: frame, lastFrame: frame, pollMs: 1 });
+
+    assert(video, "expected OpenRouter's clip");
+    assertEquals(video.provider, "openrouter");
+    const [start] = up.callsTo(OPENROUTER_VIDEOS_ROUTE).filter((c) => c.method === "POST");
+    assertEquals(start.headers.authorization, "Bearer fixture-openrouter");
+    const body = bodyOf(start);
+    // A provider swap, never a model swap.
+    assertEquals(body.model, "google/veo-3.1-lite");
+    assertEquals(body.generate_audio, false);
+    assertEquals(body.duration, 4);
+    // OpenRouter fetches its frames, so they go by the poster's public URL.
+    assertEquals(body.frame_images, [
+      { type: "image_url", image_url: { url: frame.url }, frame_type: "first_frame" },
+      { type: "image_url", image_url: { url: frame.url }, frame_type: "last_frame" },
+    ]);
+    const [content] = up.callsTo(`${OPENROUTER_VIDEO_JOB}/content`);
+    assertEquals(content.headers.authorization, "Bearer fixture-openrouter");
+  }, {
+    upstreams: {
+      ...veoLadder({ start: () => json({ error: { message: "quota" } }, 403) }),
+      ...openRouterVideoLadder(),
+    },
+  });
+});
+
+Deno.test("a clip the safety filter blocked is not billed, so OpenRouter may try", async () => {
+  await withGateway(async (mod, up) => {
+    const video = await mod.generateVideo("a figure jumps", { pollMs: 1 });
+
+    assertEquals(video?.provider, "openrouter");
+    assertEquals(up.callsTo(VEO_FILE_ROUTE), []);
+  }, {
+    upstreams: {
+      ...veoLadder({
+        operation: () =>
+          json({
+            name: VEO_OPERATION,
+            done: true,
+            response: { generateVideoResponse: { raiMediaFilteredCount: 1, raiMediaFilteredReasons: ["blocked"] } },
+          }),
+      }),
+      ...openRouterVideoLadder(),
+    },
+  });
+});
+
+Deno.test("a job Google accepted and did not finish in time is never started again on OpenRouter", async () => {
+  await withGateway(async (mod, up) => {
+    const video = await mod.generateVideo("a figure jumps", { pollMs: 5, timeoutMs: 60 });
+
+    assertEquals(video, null);
+    assert(up.callsTo(VEO_OPERATION_ROUTE).length > 0);
+    assertEquals(up.callsTo(OPENROUTER_VIDEOS_ROUTE), [], "it may be billed; a second render would be billed again");
+  }, {
+    upstreams: {
+      ...veoLadder({ operation: () => json({ name: VEO_OPERATION, done: false }) }),
+      ...openRouterVideoLadder(),
+    },
+  });
+});
+
+Deno.test("the Google key is never sent to a download URL off Google's host", async () => {
+  await withGateway(async (mod, up) => {
+    const video = await mod.generateVideo("a figure jumps", { pollMs: 1 });
+
+    assertEquals(video, null);
+    assertEquals(up.callsTo("evil.example"), []);
+    // It was accepted, so nothing is started elsewhere either.
+    assertEquals(up.callsTo(OPENROUTER_VIDEOS_ROUTE), []);
+  }, {
+    upstreams: {
+      ...veoLadder({ operation: () => veoDone("https://evil.example/clip.mp4") }),
+      "evil.example": () => new Response(FIXTURE_MP4),
+      ...openRouterVideoLadder(),
+    },
+  });
+});
+
+Deno.test("a failed OpenRouter job is a null, not a throw", async () => {
+  await withGateway(async (mod) => {
+    assertEquals(await mod.generateVideo("a figure jumps", { pollMs: 1 }), null);
+  }, {
+    upstreams: {
+      ...veoLadder({ start: () => json({ error: "refused" }, 400) }),
+      ...openRouterVideoLadder({ poll: () => json({ id: OPENROUTER_VIDEO_JOB, status: "failed", error: "nope" }) }),
+    },
+  });
+});
+
+Deno.test("with no Google key the clip goes straight to OpenRouter", async () => {
+  await withGateway(async (mod, up) => {
+    const video = await mod.generateVideo("a figure jumps", { pollMs: 1 });
+
+    assertEquals(video?.provider, "openrouter");
+    assertEquals(up.callsTo(VEO_START_ROUTE), []);
+  }, {
+    upstreams: { ...veoLadder(), ...openRouterVideoLadder() },
+    env: { GEMINI_API_KEY: undefined, GOOGLE_API_KEY: undefined },
+  });
+});
+
+Deno.test("no video provider configured is a null without a request", async () => {
+  await withGateway(async (mod, up) => {
+    assertEquals(await mod.generateVideo("a figure jumps", { pollMs: 1 }), null);
+    assertEquals(up.calls, []);
+  }, {
+    upstreams: { ...veoLadder(), ...openRouterVideoLadder() },
+    env: { GEMINI_API_KEY: undefined, GOOGLE_API_KEY: undefined, OPENROUTER_API_KEY: undefined },
   });
 });
 

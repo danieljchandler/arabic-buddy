@@ -6,11 +6,16 @@ import {
   DEFAULT_DRAFTERS,
   DEFAULT_FAST,
   DEFAULT_JUDGE,
+  IMAGE_MODEL_IDS,
+  IMAGE_PRICE_USD,
   MODEL_IDS,
   MODEL_LINEUPS,
   MODEL_WEIGHTS,
+  VIDEO_MODEL_IDS,
+  VIDEO_PRICE_USD_PER_SECOND,
   getLineup,
   getModelWeight,
+  reasoningFloor,
   type LineupName,
 } from "../../supabase/functions/_shared/modelRegistry.ts";
 
@@ -31,6 +36,9 @@ import {
 
 const FUNCTIONS = join(process.cwd(), "supabase", "functions");
 const KNOWN_IDS = Object.values(MODEL_IDS) as string[];
+const VIDEO_IDS = Object.values(VIDEO_MODEL_IDS) as string[];
+/** Every id the registry owns, chat, image and video: what the no-hardcoding scan looks for. */
+const OWNED_IDS = [...KNOWN_IDS, ...(Object.values(IMAGE_MODEL_IDS) as string[]), ...VIDEO_IDS];
 const LINEUP_NAMES = Object.keys(MODEL_LINEUPS) as LineupName[];
 
 describe("the lineups", () => {
@@ -135,6 +143,48 @@ describe("the voting weights", () => {
   });
 });
 
+describe("the video lineup", () => {
+  it("names at least one video model", () => {
+    // generateVideo defaults to one; an empty lineup would leave the
+    // animation kind with nothing to ask.
+    expect(VIDEO_IDS.length).toBeGreaterThan(0);
+  });
+
+  it("keeps every video id in the vendor/model form OpenRouter can address", () => {
+    // generateVideo's safety net is the same id on OpenRouter's /videos, so
+    // an id outside that namespace would have no second route.
+    for (const id of VIDEO_IDS) expect(id, id).toMatch(/^[a-z0-9-]+\/[a-z0-9.-]+$/);
+  });
+
+  it("prices every video model on both routes, so a dry run can say what a run costs", () => {
+    for (const id of VIDEO_IDS) {
+      const price = VIDEO_PRICE_USD_PER_SECOND[id];
+      expect(price, id).toBeDefined();
+      expect(price.vendor, id).toBeGreaterThan(0);
+      expect(price.openrouter, id).toBeGreaterThan(0);
+      // A second of clip that cost a dollar would be a typo, not a price.
+      expect(Math.max(price.vendor, price.openrouter), id).toBeLessThan(1);
+    }
+    expect(Object.keys(VIDEO_PRICE_USD_PER_SECOND).sort()).toEqual([...VIDEO_IDS].sort());
+  });
+
+  it("prices the picture a clip starts from", () => {
+    // Every clip is animated from a poster drawn on the image model first.
+    expect(IMAGE_PRICE_USD[IMAGE_MODEL_IDS.GEMINI]).toBeGreaterThan(0);
+  });
+
+  it("names a reasoning floor of none for every video model, rather than the vendor's guess", () => {
+    // reasoningFloor falls back by prefix, and google/ reads as a Gemini that
+    // must reason. A video model takes no reasoning field at all.
+    for (const id of VIDEO_IDS) expect(reasoningFloor(id), id).toBe("none");
+  });
+
+  it("keeps the video models out of the chat lineups", () => {
+    const drafted = new Set(LINEUP_NAMES.flatMap((name) => [...MODEL_LINEUPS[name].drafters, MODEL_LINEUPS[name].judge]));
+    for (const id of VIDEO_IDS) expect(drafted.has(id), id).toBe(false);
+  });
+});
+
 describe("the Fanar pins", () => {
   it("pins a specific generation rather than the bare alias", () => {
     // The bare "Fanar" alias silently tracks generation 1 with a 4k context,
@@ -224,8 +274,8 @@ describe("the no-hardcoding rule", () => {
     const found: string[] = [];
 
     for (const { path, text } of await functionSources()) {
-      for (const id of KNOWN_IDS) {
-        // A quoted literal, not a MODEL_IDS reference.
+      for (const id of OWNED_IDS) {
+        // A quoted literal, not a MODEL_IDS / IMAGE_MODEL_IDS / VIDEO_MODEL_IDS reference.
         if (new RegExp(`["'\`]${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}["'\`]`).test(text)) {
           found.push(`${path} → ${id}`);
         }

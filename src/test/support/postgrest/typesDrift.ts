@@ -57,6 +57,26 @@ export const COLUMNS_MISSING_FROM_TYPES: DriftedColumn[] = [
   // carries the column.
   { table: "profiles", column: "review_style", migration: "20261009120000_profile_review_style" },
 
+  // The shared asset store (quiz Phase 2): one picture, recording or jingle
+  // per word for every learner. Merged from a branch, so the whole table is
+  // absent from the live project — and from types.ts — until applied there;
+  // until then every lookup misses and the generators behave as before. Delete
+  // these once a types regeneration carries the table (it has anon and
+  // authenticated SELECT grants, so the generator will pick it up).
+  ...[
+    "id",
+    "concept_key",
+    "kind",
+    "dialect",
+    "style_version",
+    "url",
+    "payload",
+    "meta",
+    "source",
+    "approved_at",
+    "created_at",
+  ].map((column) => ({ table: "word_assets", column, migration: "20261009130000_word_assets" })),
+
   // The post-video debrief (20261004120000_video_debrief) and the daily recap
   // (20261005120000_learner_recaps) were pinned here from their merge until
   // 2026-10-05, when Lovable applied both to the live project and the types

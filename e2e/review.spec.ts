@@ -4,10 +4,12 @@ import {
   aLesson,
   aLessonProgress,
   aProfile,
+  aUserVocabulary,
   aVocabularyWord,
   aWordReview,
   lessonId,
   reviewId,
+  vocabId,
   wordId,
 } from "../src/test/support/factories";
 
@@ -439,6 +441,188 @@ test.describe("the quiz style", () => {
  * learner's row instead of uploading bytes of its own. A regeneration asks
  * for a different jingle, so it stays the learner's own, uploaded as before.
  */
+/**
+ * A picture for every word (quiz Phase 3).
+ *
+ * "Pick the picture" only fires for a word that has a picture, and neither
+ * the authored tracks nor a learner's saved words come with one. The
+ * curriculum's are drawn by a script and written onto the rows; until a row
+ * is filled the quiz shows what the shared store holds for the word, reading
+ * only, since a learner cannot write the curriculum. A learner's own word has
+ * its picture made the first time the quiz wants one, and keeps it.
+ */
+test.describe("a picture for a word that has none", () => {
+  const PIXEL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+  const LESSON = lessonId(0);
+  const OTHERS = lessonId(1);
+  const yesterday = () => new Date(Date.now() - 86_400_000).toISOString();
+  const quizProfile = () => ({ profiles: [aProfile({ review_style: "quiz" })] });
+
+  test("the curriculum deck shows the store's picture, and leaves the row as it is", async ({ page }) => {
+    await signIn(page);
+    const backend = await stubSupabase(page, {
+      tables: {
+        lessons: [
+          aLesson({ id: LESSON, title: "Started lesson", display_order: 1 }),
+          aLesson({ id: OTHERS, title: "Unopened lesson", display_order: 2 }),
+        ],
+        vocabulary_words: [
+          // The due word: no picture on its row.
+          aVocabularyWord({ id: wordId(0), lesson_id: LESSON, word_arabic: "السوق", word_english: "the market" }),
+          // The rest of the dialect's words have theirs, to be dealt beside it.
+          ...["house", "school", "restaurant", "car"].map((english, i) =>
+            aVocabularyWord({
+              id: wordId(i + 1),
+              lesson_id: OTHERS,
+              word_arabic: ["بيت", "مدرسة", "مطعم", "سيارة"][i],
+              word_english: english,
+              image_url: `${PIXEL}#${i}`,
+            }),
+          ),
+        ],
+        word_reviews: [
+          aWordReview({ id: reviewId(0), word_id: wordId(0), ease_factor: 5, repetitions: 2, next_review_at: yesterday() }),
+        ],
+        lesson_progress: [aLessonProgress({ user_id: TEST_USER_ID, lesson_id: LESSON, words_total: 1, words_seen: 1 })],
+        // What scripts/curriculum-pictures.ts (or another learner) filed for
+        // the word: keyed on the folded word and sense, in the Ink style.
+        word_assets: [
+          {
+            id: "asset-market",
+            concept_key: "السوق|market",
+            kind: "image",
+            dialect: "Gulf",
+            style_version: "ink-1",
+            url: `${PIXEL}#stored`,
+            payload: null,
+            meta: {},
+            source: "authored",
+            approved_at: null,
+            created_at: yesterday(),
+          },
+        ],
+        ...quizProfile(),
+      },
+    });
+
+    await page.goto("/review");
+
+    await expect(page.getByText("Which picture?")).toBeVisible();
+    const pictures = page.getByRole("radiogroup", { name: /choose the picture/i });
+    await expect(pictures.getByRole("radio")).toHaveCount(4);
+    await expect(pictures.getByRole("radio", { name: "the market" }).locator("img")).toHaveAttribute("src", `${PIXEL}#stored`);
+
+    await pictures.getByRole("radio", { name: "the market" }).click();
+    await page.getByRole("button", { name: /continue/i }).click();
+    await expect.poll(() => backend.db.rows("word_reviews")[0]?.last_result).toBe("good");
+
+    // Read only: nothing drawn, and the curriculum row is not the learner's to write.
+    expect(backend.callsTo("word-asset")).toEqual([]);
+    expect(backend.db.writesTo("vocabulary_words")).toEqual([]);
+    expect(backend.db.raw("vocabulary_words").find((w) => w.id === wordId(0))?.image_url).toBeNull();
+  });
+
+  test("a saved word gets its picture the first time the quiz asks for one, and keeps it", async ({ page }) => {
+    await signIn(page);
+    const backend = await stubSupabase(page, {
+      tables: {
+        user_vocabulary: [
+          // Past the gap step and due: "pick the picture", with no picture.
+          aUserVocabulary({
+            id: vocabId(0),
+            word_arabic: "السوق",
+            word_english: "the market",
+            ease_factor: 5,
+            repetitions: 2,
+            next_review_at: yesterday(),
+          }),
+          // Not due: the pool the wrong pictures come from.
+          ...["house", "school", "restaurant", "car"].map((english, i) =>
+            aUserVocabulary({
+              id: vocabId(i + 1),
+              word_arabic: ["بيت", "مدرسة", "مطعم", "سيارة"][i],
+              word_english: english,
+              image_url: `${PIXEL}#${i}`,
+              next_review_at: new Date(Date.now() + 86_400_000 * 30).toISOString(),
+            }),
+          ),
+        ],
+        word_assets: [],
+        ...quizProfile(),
+      },
+    });
+    // The function is stubbed: no model is called. The shape is the real
+    // one for a picture drawn and filed.
+    backend.stubFunction("word-asset", { asset: { id: "a" }, url: `${PIXEL}#drawn`, cached: false, stored: true });
+
+    await page.goto("/review/my-words");
+
+    // The picture question, asked with the picture that was just made.
+    await expect(page.getByText("Which picture?")).toBeVisible();
+    const pictures = page.getByRole("radiogroup", { name: /choose the picture/i });
+    await expect(pictures.getByRole("radio")).toHaveCount(4);
+    await expect(pictures.getByRole("radio", { name: "the market" }).locator("img")).toHaveAttribute("src", `${PIXEL}#drawn`);
+
+    // Asked for once, by the word alone: nothing a learner could steer a
+    // shared picture with.
+    expect(backend.callsTo("word-asset")).toHaveLength(1);
+    expect(backend.lastCallTo("word-asset")?.body).toEqual({
+      action: "ensure",
+      kind: "image",
+      word: "السوق",
+      gloss: "the market",
+      dialect: "Gulf",
+    });
+
+    // And it is on the learner's own word from now on.
+    await expect.poll(() => backend.db.raw("user_vocabulary").find((w) => w.id === vocabId(0))?.image_url).toBe(`${PIXEL}#drawn`);
+
+    await pictures.getByRole("radio", { name: "the market" }).click();
+    await page.getByRole("button", { name: /continue/i }).click();
+    await expect.poll(() => backend.db.raw("user_vocabulary").find((w) => w.id === vocabId(0))?.repetitions).toBe(3);
+    expect(backend.callsTo("word-asset")).toHaveLength(1);
+  });
+
+  test("a saved word is asked its fallback, quietly, when its picture cannot be made", async ({ page }) => {
+    await signIn(page);
+    const backend = await stubSupabase(page, {
+      tables: {
+        user_vocabulary: [
+          aUserVocabulary({
+            id: vocabId(0),
+            word_arabic: "السوق",
+            word_english: "the market",
+            ease_factor: 5,
+            repetitions: 2,
+            next_review_at: yesterday(),
+          }),
+          ...["house", "school", "restaurant", "car"].map((english, i) =>
+            aUserVocabulary({
+              id: vocabId(i + 1),
+              word_arabic: ["بيت", "مدرسة", "مطعم", "سيارة"][i],
+              word_english: english,
+              image_url: `${PIXEL}#${i}`,
+              next_review_at: new Date(Date.now() + 86_400_000 * 30).toISOString(),
+            }),
+          ),
+        ],
+        word_assets: [],
+        ...quizProfile(),
+      },
+    });
+    // The day's picture allowance is spent.
+    backend.stubFunctionCapped("word-asset");
+
+    await page.goto("/review/my-words");
+
+    // The step's own fallback, and no word about a limit the learner did not
+    // run into by pressing anything.
+    await expect(page.getByText("What did you hear?")).toBeVisible();
+    await expect(page.getByText(/daily free limit/i)).toHaveCount(0);
+    expect(backend.db.raw("user_vocabulary").find((w) => w.id === vocabId(0))?.image_url).toBeNull();
+  });
+});
+
 test.describe("a word's first jingle is the shared one", () => {
   const LESSON = lessonId(0);
   const SHARED =

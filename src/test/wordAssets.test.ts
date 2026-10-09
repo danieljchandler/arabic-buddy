@@ -6,18 +6,25 @@ import { SUPABASE_URL, type SupabaseBackend } from "./support/server/handler";
 import {
   ASSET_KINDS,
   INK_PICTURE_STYLE,
+  MAX_SCENE_LENGTH,
+  MIN_SCENE_LENGTH,
+  PICTURE_DISTINCT_LINE,
   STYLE_VERSIONS,
   assetKey,
   assetObjectPath,
+  authoredScene,
   fileNewAsset,
   getAsset,
   inkPicturePrompt,
+  isReplaceable,
   kindNeedsSense,
   normaliseAssetWord,
   normaliseGloss,
   putAsset,
+  replaceAsset,
   type AssetKey,
   type AssetStorage,
+  type WordAsset,
   type WordAssetClient,
 } from "../../supabase/functions/_shared/wordAssets";
 
@@ -237,6 +244,38 @@ describe("the Ink picture style", () => {
     expect(prompt).toContain("Scene: a brass dallah pouring into a small finjan");
   });
 
+  it("keeps an authored scene to a sentence or two", () => {
+    const prompt = inkPicturePrompt({ gloss: "coffee", dialect: "Gulf", scene: "steam ".repeat(200) });
+    const line = prompt.split("\n").find((l) => l.startsWith("Scene: ")) ?? "";
+    expect(line.length).toBeLessThanOrEqual("Scene: ".length + MAX_SCENE_LENGTH);
+  });
+
+  it("knows a scene from a token, by one rule for the function and the script", () => {
+    expect(authoredScene("  a brass dallah\n pouring into a small finjan ")).toBe("a brass dallah pouring into a small finjan");
+    for (const not of [null, undefined, "", ".", "x", "TBD", "a red door", "1234567890123", "            "]) {
+      expect(authoredScene(not), JSON.stringify(not)).toBe("");
+    }
+    expect(authoredScene("a".repeat(MIN_SCENE_LENGTH))).toHaveLength(MIN_SCENE_LENGTH);
+    expect(authoredScene("steam ".repeat(200)).length).toBeLessThanOrEqual(MAX_SCENE_LENGTH);
+    // An Arabic description is one too.
+    expect(authoredScene("دلة نحاس تصب في فنجان صغير")).not.toBe("");
+  });
+
+  it("asks for a picture that can be told from three others", () => {
+    // The quiz's picture step deals four pictures, one per word. A template
+    // that lets every word be "a person in a room" makes four right answers.
+    for (const scene of [null, "a brass dallah pouring into a small finjan"]) {
+      const prompt = inkPicturePrompt({ gloss: "coffee", dialect: "Gulf", scene });
+      expect(prompt).toContain(PICTURE_DISTINCT_LINE);
+    }
+    expect(PICTURE_DISTINCT_LINE).toMatch(/beside the pictures of three other words/);
+    expect(PICTURE_DISTINCT_LINE).toMatch(/particular to\s+this meaning/);
+    // Part of the template, not of the look: the look is what a style-version
+    // bump is for, and this must not need one.
+    expect(INK_PICTURE_STYLE).not.toContain("three other words");
+    expect(STYLE_VERSIONS.image).toBe("ink-1");
+  });
+
   it("keeps a learner's gloss short and unable to close the quote", () => {
     const prompt = inkPicturePrompt({ gloss: `coffee" and also a ${"very ".repeat(40)}long note`, dialect: "Gulf" });
     const line = prompt.split("\n")[0];
@@ -400,6 +439,139 @@ describe("the store", () => {
         error: "dialogue assets have no file",
       });
       expect(bucket.uploads).toEqual([]);
+    });
+  });
+
+  describe("replacing a picture drawn from the gloss alone", () => {
+    // Curriculum words and learners' words share keys, and whichever is made
+    // first is filed. The script's authored scene takes the place of what a
+    // learner's miss drew — and of nothing a person authored or passed.
+    const AUTHORED = { url: "https://cdn.test/authored.png", source: "authored" as const, meta: { scene: "a dallah" } };
+
+    async function filed(over: Record<string, unknown> = {}): Promise<WordAsset> {
+      backend.db.seed("word_assets", [
+        {
+          id: "a1",
+          concept_key: "قهوه|coffee",
+          kind: "image",
+          dialect: "Gulf",
+          style_version: "ink-1",
+          url: "https://cdn.test/gloss-only.png",
+          payload: null,
+          meta: { model: "m" },
+          source: "generated",
+          approved_at: null,
+          created_at: "2026-10-09T00:00:00Z",
+          ...over,
+        },
+      ]);
+      return (await getAsset(client, coffee())) as WordAsset;
+    }
+
+    it("is only ever an unapproved generated asset that gives way", async () => {
+      expect(isReplaceable(await filed())).toBe(true);
+      expect(isReplaceable(await filed({ source: "authored" }))).toBe(false);
+      expect(isReplaceable(await filed({ source: "reviewed" }))).toBe(false);
+      expect(isReplaceable(await filed({ approved_at: "2026-10-09T10:00:00Z" }))).toBe(false);
+    });
+
+    it("points the same row at the authored picture, and records what it took the place of", async () => {
+      const existing = await filed();
+      const outcome = await replaceAsset(client, coffee(), existing, AUTHORED);
+
+      expect(outcome).toMatchObject({
+        status: "replaced",
+        previousUrl: "https://cdn.test/gloss-only.png",
+        asset: { id: "a1", url: "https://cdn.test/authored.png", source: "authored" },
+      });
+      // One row for the key still, and it is what the next learner is served.
+      expect(backend.db.raw("word_assets")).toHaveLength(1);
+      expect(await getAsset(client, coffee())).toMatchObject({
+        url: "https://cdn.test/authored.png",
+        meta: { scene: "a dallah", replaces: "https://cdn.test/gloss-only.png" },
+      });
+    });
+
+    it("refuses anything that is not authored or reviewed, without asking the database", async () => {
+      // What a learner's generation holds. Nothing it has is accepted here.
+      const existing = await filed();
+      for (const source of ["generated", undefined] as const) {
+        expect(await replaceAsset(client, coffee(), existing, { url: "https://cdn.test/mine.png", source })).toEqual({
+          status: "failed",
+          error: "only an authored or reviewed asset replaces a filed one",
+        });
+      }
+      expect(await replaceAsset(client, coffee(), existing, { source: "authored" })).toEqual({
+        status: "failed",
+        error: "nothing to store",
+      });
+      expect((await getAsset(client, coffee()))?.url).toBe("https://cdn.test/gloss-only.png");
+    });
+
+    it("leaves an authored, reviewed or approved asset where it is", async () => {
+      for (const over of [{ source: "authored" }, { source: "reviewed" }, { approved_at: "2026-10-09T10:00:00Z" }]) {
+        const existing = await filed(over);
+        const outcome = await replaceAsset(client, coffee(), existing, AUTHORED);
+        expect(outcome).toMatchObject({ status: "taken", asset: { url: "https://cdn.test/gloss-only.png" } });
+        expect((await getAsset(client, coffee()))?.url).toBe("https://cdn.test/gloss-only.png");
+      }
+    });
+
+    it("does not overwrite a picture approved between the read and the write", async () => {
+      // Read as replaceable; a reviewer approved it before the update landed.
+      // The update is conditional, so it matches nothing.
+      const stale = await filed();
+      await filed({ approved_at: "2026-10-09T10:00:00Z" });
+
+      const outcome = await replaceAsset(client, coffee(), stale, AUTHORED);
+
+      expect(outcome).toMatchObject({
+        status: "taken",
+        asset: { url: "https://cdn.test/gloss-only.png", approvedAt: "2026-10-09T10:00:00Z" },
+      });
+    });
+
+    it("uploads the replacement as a new object and never over the old one", async () => {
+      const existing = await filed();
+      const uploads: Array<{ path: string; upsert: boolean }> = [];
+      const storage: AssetStorage = {
+        storage: {
+          from: (bucket) => ({
+            upload: async (path, _body, options) => {
+              uploads.push({ path, upsert: options.upsert });
+              return { error: null };
+            },
+            getPublicUrl: (path) => ({ data: { publicUrl: `https://cdn.test/${bucket}/${path}` } }),
+          }),
+        },
+      };
+
+      const result = await fileNewAsset(
+        storage,
+        client,
+        coffee(),
+        { bytes: new Uint8Array([1]), contentType: "image/png", extension: "png" },
+        { source: "authored", meta: { scene: "a dallah" } },
+        { replace: existing },
+      );
+
+      expect(uploads).toHaveLength(1);
+      expect(uploads[0].upsert).toBe(false);
+      expect(uploads[0].path).toMatch(/^word-assets\/image\/ink-1\/gulf\/[0-9a-f]{32}\/[0-9a-f-]{36}\.png$/);
+      expect(result).toMatchObject({
+        url: `https://cdn.test/flashcard-images/${uploads[0].path}`,
+        filed: { status: "replaced", previousUrl: "https://cdn.test/gloss-only.png" },
+      });
+      expect(backend.db.raw("word_assets")).toHaveLength(1);
+    });
+
+    it("declines rather than throwing while the table is not there", async () => {
+      const existing = await filed();
+      backend.db.failAlways("word_assets", 404, {
+        code: "PGRST205",
+        message: "Could not find the table 'public.word_assets' in the schema cache",
+      });
+      expect((await replaceAsset(client, coffee(), existing, AUTHORED)).status).toBe("failed");
     });
   });
 

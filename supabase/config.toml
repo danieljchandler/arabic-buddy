@@ -405,5 +405,8 @@ verify_jwt = false
 # The shared word asset store (quiz Phase 2). `get` reads the store, `ensure`
 # makes a picture on a miss and charges the caller's daily image budget, so
 # both resolve the learner from their JWT; writes run under the service role.
+# The one caller that is not a learner is scripts/curriculum-pictures.ts
+# (Phase 3), which sends the service-role key itself; the function tells the
+# two apart with isServiceRoleCall, never by this gate.
 [functions.word-asset]
 verify_jwt = true

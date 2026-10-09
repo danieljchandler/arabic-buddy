@@ -261,7 +261,49 @@ A card without the material for its step falls back a question (no sentence →
 ask the meaning; no picture, or too few other pictures → hear it; no dialogue →
 pick the word; too few other words for four options, or a device that cannot
 record → the ordinary flip card with its rating buttons), so the ladder never
-refuses to serve a card. Wrong options, pictures and recordings come from the
+refuses to serve a card.
+
+**A picture for a word that has none.** Steps 3, 5 and 7 want a picture, and
+neither the authored tracks nor a learner's saved words come with one, so the
+frame looks beyond the card's own row (`QuizCardFrame`; the store is "The
+asset store" below):
+
+- *The curriculum deck* (`sharedPictures`). A word whose row has no
+  `image_url` is shown the shared store's picture, if one is filed, on any of
+  the three steps. It is a read of a public table through `useWordAsset`, and
+  nothing is written: a learner cannot write `vocabulary_words`. The rows
+  themselves are filled by `scripts/curriculum-pictures.ts`, and a word
+  nobody has drawn yet is simply heard instead.
+- *A learner's own words* (`onPictureMade`). The same lookup, and a saved word
+  that reaches "pick the picture" with no picture anywhere has one made:
+  `useEnsureWordAsset` calls `word-asset`'s `ensure`, which draws it in the
+  Ink style, files it for every later learner of the word, and charges this
+  learner's existing daily picture allowance (a picture the store already had
+  costs nothing). The url goes on the learner's `user_vocabulary.image_url`,
+  only where the row still has none, and is patched into the deck and the
+  pool so the next word's question can deal it as a wrong picture. Only step
+  3 has a picture drawn; steps 5 and 7 show one when there is one. And only
+  on a deck the quiz can ask questions of: with too few saved words for four
+  options every card is the flip card, and nothing is drawn for those.
+
+Nobody pressed a button for this, so it is quiet and careful with the
+allowance (`useEnsureWordAsset`): a word is asked for once, whatever came
+back, and a failure is not retried for ten minutes; nothing is asked for an
+hour after an answer says the day's allowance is spent; two failures in a
+row pause the asking altogether, because `word-asset` charges before it draws
+and a provider that is down would otherwise cost a picture per card for
+nothing; and no failure raises a toast — the card is asked its fallback. The
+card waits for
+the drawing, saying "Drawing a picture for this word…", for at most
+`PICTURE_DRAWING_WAIT_MS` (12 s), and only when a picture question could
+follow, which takes three other words with pictures; a learner whose words
+have none yet is asked the fallback at once while the picture is drawn behind
+it, so the picture question starts to appear once four of their words have
+one. A question is fixed when it goes on screen — the card's own picture as
+it was dealt, and the pool its wrong answers came from — so a picture that
+arrives afterwards, the card's own or another word's patched into the pool,
+is for the next card and never a different question, or different pictures,
+under the learner's finger. Wrong options, pictures and recordings come from the
 wider deck (`useQuizPool`), so a two-card session still gets four of each. The sentence a word was met in is always a tap
 away; opening it before a choice answer counts as help. Nothing is typed —
 most learners have no Arabic keyboard, and saying the word is the skill — so
@@ -287,8 +329,8 @@ those decks' flip cards never did. Under Flashcards, My Words serves plain flip
 cards — the every-other-card cloze it used to show now lives in the quiz.
 
 Proposal and the phases still to come (dialogue and story questions,
-animations, a picture for every word): `docs/quiz-modes-plan-2026-10.md`;
-the execution roadmap is `docs/quiz-phases-2026-10.md`.
+animations): `docs/quiz-modes-plan-2026-10.md`; the execution roadmap is
+`docs/quiz-phases-2026-10.md`.
 
 ### The asset store
 
@@ -330,6 +372,88 @@ the key is shown. The first learner to miss decides what every later learner
 sees, so they must not be able to decide anything beyond the word. Today
 `ensure` makes pictures; the later phases add their kinds.
 
+**The trusted path: an authored scene.** One thing beyond the word may reach
+a shared prompt, and not from a learner: `scene`, a track word's authored
+`image_scene` (the curriculum seed writes it to
+`vocabulary_words.image_scene_description`), which becomes the `scene`
+argument of `inkPicturePrompt`. `word-asset` honours it from two callers
+only — a call made with the service-role key (`isServiceRoleCall`; that is
+`scripts/curriculum-pictures.ts`) and the content team (`requireRole` with
+`CONTENT_MANAGER_ROLES`: an admin or a content reviewer, read from
+`user_roles`, never from the request). A `scene` from anyone else is ignored
+rather than refused, and that caller goes on as the learner they are; so is
+one too short to be a description (`MIN_SCENE_LENGTH`), since a scene is what
+lifts a staff call off the cap. A staff member's authored draw is uncapped and
+leaves a line in the function log naming them — the table is public-read, so
+who asked is never in it. On the trusted path:
+
+- *nothing is charged.* There is no learner behind the service role, and an
+  authored picture is the catalogue's, not a staff member's own allowance. A
+  staff member who sends no scene is asking for their own word's picture and
+  is charged like anyone;
+- *what is filed is `source: "authored"`*, with the scene in `meta`, and the
+  answer carries `authored: true`. The script checks that before it writes a
+  row. The Phase 2 function already refuses the service-role key outright, so
+  this is a second line: no deployment that draws without the scene can fill
+  the curriculum from glosses, at full price, one word after another;
+- *it takes the place of a gloss-only picture filed earlier.* Curriculum
+  words and learners' words share keys — a curriculum word's sense is its
+  `word_english` — so a learner who saved قهوة / "coffee" before the script
+  ran has already filed whatever "coffee" alone drew. **Decision: the authored
+  scene replaces it.** The scene was written by the lesson's author and
+  checked against the rest of the lesson; the other is what the first miss
+  happened to produce. `isReplaceable` is the whole rule: only an unapproved
+  `generated` asset gives way. An `authored`, `reviewed` or approved one is a
+  hit like any other, so a second run of the script costs nothing, an edited
+  scene does not redraw by itself, and nothing a person passed is overwritten
+  by a script. `replaceAsset` updates the row in place, conditionally on its
+  still being replaceable (a reviewer who approved it a moment ago wins), and
+  records the old url in `meta.replaces`; it accepts only an `authored` or
+  `reviewed` asset, and only the trusted branch calls it. The new picture is
+  a new object (`fileNewAsset` with `replace`), and the old file is neither
+  written over nor deleted — a learner whose own row already carries it keeps
+  the picture they were given, and every later lookup gets the authored one.
+
+**Pictures that can be told apart.** The quiz deals a word's picture beside
+three other words', so the prompt template says so
+(`PICTURE_DISTINCT_LINE`): draw what is particular to this meaning, one
+subject with a silhouette of its own, not a general scene that could stand
+for another word. It is part of the template and not of the look, so it did
+not bump `STYLE_VERSIONS.image`; the frame, for its part, never deals one url
+twice or the word's own picture as a wrong one.
+
+**Filling the curriculum: `scripts/curriculum-pictures.ts`.** For every
+`vocabulary_words` row with no `image_url` (null or empty), it asks
+`word-asset` for the picture on the trusted path, with the row's
+`image_scene_description` as the scene, and writes the url onto the row —
+only if the row still has none, so a picture an admin added while it ran is
+left alone. `--dialect`, `--stage`, `--limit`, `--dry-run`. A local tool with
+no CI gate, like `curriculum-brain.ts`: it needs the service-role key and
+spends one image generation per word drawn on the project's provider keys.
+The deciding is in `scripts/curriculum-pictures-core.ts` with `fetch` passed
+in, covered against the in-memory project by
+`src/test/curriculumPictures.test.ts`.
+
+```sh
+# What would be drawn, redrawn or copied, and how many generations it comes
+# to. Reads only: no function is called and no row is written.
+SUPABASE_SERVICE_ROLE_KEY=... deno run --allow-env --allow-read --allow-net \
+  scripts/curriculum-pictures.ts --dry-run
+
+# Then a few, to look at before the rest.
+SUPABASE_SERVICE_ROLE_KEY=... deno run --allow-env --allow-read --allow-net \
+  scripts/curriculum-pictures.ts --dialect Gulf --stage 1 --limit 10
+```
+
+`SUPABASE_URL` is read from the environment, else from the `project_id` in
+`supabase/config.toml`. Order matters: apply the `word_assets` migration and
+deploy this `word-asset` first. It is safe to run again — a filled row is not
+listed and a word already in the store is copied, not redrawn — and it stops
+at the first answer that says every later word would fail the same way (the
+key refused, the function not deployed or not this version, no image
+provider, a row it is not allowed to write), or after five failures in a row.
+Words it could not draw are left empty for the next run.
+
 **On brand and in dialect.** Pictures are drawn in the Ink style
 (`INK_PICTURE_STYLE`): a flat screenprint poster in oxblood, mustard and
 near-black on cream, never a photograph, and no text of any kind — which is
@@ -348,6 +472,8 @@ sense its key was folded to.
 
 | generator | on a hit | on a miss |
 |---|---|---|
+| The quiz's picture step, for a learner's own word (`QuizCardFrame` → `useEnsureWordAsset`) | the store's picture goes on the learner's row, uncharged; found by the free `useWordAsset` read first, so most hits never reach the function | `ensure` draws and files it, on the learner's daily picture allowance; once per word per session, and silent on any failure |
+| `scripts/curriculum-pictures.ts` (the trusted path) | the url is copied onto the curriculum row, unless what is filed is a gloss-only picture and the row has an authored scene, which is then drawn in its place | `ensure` draws from the authored scene and files it as `authored`; charged to nobody |
 | The picture dialog (`GenerateImageDialog`) | a word's first picture comes from `word-asset ensure`; the url goes on the learner's row as a generated one did | `ensure` draws and files it. A regeneration, a described picture or a locked style is the learner's own and goes to `generate-flashcard-image`, as does a first picture the store turned away before charging (404 not deployed, 400 a word it cannot file); a failure after the charge is reported, never retried on the illustrator |
 | `persist-word-audio` | a curriculum row gets the recording another row with the same exact text and dialect already has | synthesises, puts it on the row and files it for the next row, as one fresh object |
 | `generate-word-jingle` with `share: true` (both review pages, for a first jingle, in the card's own dialect) | no lyric call, no Lyria call, nothing charged; the answer carries `audioUrl` and the page stores it instead of uploading | sings, uploads, files it if the lyrics pass; the answer carries `audioUrl` and no bytes |
@@ -371,11 +497,26 @@ voice chain itself changes.
 
 **Until the migration is applied to the live project** every lookup misses and
 every filing fails quietly (`getAsset` reads a missing table as a miss,
-`putAsset` never throws), which leaves each generator doing what it did before
-the store existed; the table's columns are pinned in `typesDrift.ts` until a
-types regeneration carries them. `useWordAsset` is the browser's read of the
-store (no `ensure`: making an asset is a generation with a cost), for the
-quiz's picture steps to use from Phase 3.
+`putAsset` and `replaceAsset` never throw), which leaves each generator doing
+what it did before the store existed; the table's columns are pinned in
+`typesDrift.ts` until a types regeneration carries them. Phase 3 degrades the
+same way. `ensure` answers `stored: false` with a url, so a learner's word
+still gets its picture on its own row and the script still writes each url
+onto its curriculum row — it warns at the top that nothing drawn is being
+kept in the store, which means a learner who later saves the same word will
+not share that picture. The curriculum deck's lookup reads as none and the
+card is asked its fallback.
+
+**Until this `word-asset` is deployed** it depends on what is there. With no
+`word-asset` at all the quiz's ask is turned away uncharged (404) and it
+stops asking; with the Phase 2 one, a learner's ask is served and charged as
+it always was, drawn without the line about telling pictures apart. Either
+way the script stops on its first word: neither accepts the service-role key.
+
+`useWordAsset` is the browser's read of the store and stays read-only: making
+an asset is a generation with a cost, so that is a separate hook,
+`useEnsureWordAsset`, which invalidates the word's `["word-asset", …]` read
+once it has made one.
 
 ### The authored tracks (Stages 1–3, three dialects)
 

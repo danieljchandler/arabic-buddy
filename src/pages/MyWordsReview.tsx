@@ -34,7 +34,7 @@ import { showCapToastIfLimited } from "@/lib/handleCapResponse";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { useTranscriptCloze } from "@/hooks/useTranscriptCloze";
 import { useReviewStyle } from "@/hooks/useReviewStyle";
-import { useSavedWordPool } from "@/hooks/useQuizPool";
+import { useSavedWordPool, type QuizPoolEntry } from "@/hooks/useQuizPool";
 import { useAddXP, useIncrementReviews, REVIEW_XP } from "@/hooks/useGamification";
 import { QuizCardFrame, type QuizGraded, type QuizItem } from "@/components/review/QuizCardFrame";
 import { ReviewStyleSwitch } from "@/components/review/ReviewStyleSwitch";
@@ -1192,6 +1192,43 @@ const MyWordsReview = () => {
     />
   );
 
+  /**
+   * A picture the quiz got for a saved word that had none (QuizCardFrame's
+   * `onPictureMade`). Written to the learner's row only where the row still
+   * has no picture, so one the learner made in the meantime is not replaced,
+   * and patched into the deck and the pool rather than refetched: a refetch
+   * would reshuffle the session under the learner, and the pool is what lets
+   * the next word's picture question deal this one as a wrong answer. Quiet
+   * on failure — the learner did not ask for this.
+   */
+  const saveQuizPicture = async (wordId: string, imageUrl: string) => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from("user_vocabulary")
+        .update({ image_url: imageUrl })
+        .eq("id", wordId)
+        .eq("user_id", user.id)
+        .or("image_url.is.null,image_url.eq.")
+        .select("id, word_arabic, word_english");
+      if (error || !data || data.length === 0) return;
+      const [saved] = data;
+      queryClient.setQueriesData<DueCard[] | undefined>({ queryKey: ["user-vocabulary-due-words"] }, (prev) =>
+        prev?.map((card) => (card.id === wordId && !card.image_url ? { ...card, image_url: imageUrl } : card)),
+      );
+      queryClient.setQueriesData<QuizPoolEntry[] | undefined>({ queryKey: ["quiz-pool", "my-words"] }, (prev) =>
+        prev?.map((entry) =>
+          !entry.imageUrl && entry.arabic === saved.word_arabic.trim() && entry.english === saved.word_english.trim()
+            ? { ...entry, imageUrl }
+            : entry,
+        ),
+      );
+      queryClient.invalidateQueries({ queryKey: ["user-vocabulary"] });
+    } catch (err) {
+      console.warn("Could not keep the quiz picture:", err);
+    }
+  };
+
   // The card as the quiz sees it: one direction, one memory state, and the
   // sentence it was saved from to cut a gap from. The id carries the
   // direction so a word served both ways in one session is two questions.
@@ -1291,6 +1328,10 @@ const MyWordsReview = () => {
               ready={!poolLoading}
               combo={quizStats.combo}
               onGraded={handleQuizGraded}
+              // A saved word that reaches "pick the picture" with no picture
+              // gets one: the shared store's, or one drawn for it and filed
+              // there. It is kept on the learner's own row.
+              onPictureMade={(url) => saveQuizPicture(currentWord.id, url)}
               renderFlashcard={() => (
                 <>
                   {flashcard}

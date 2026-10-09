@@ -14,8 +14,9 @@ means — so a session can pick up the next phase cold.*
 | 1b | Apply the `review_style` migration to the live project | **owner action** |
 | 2 | The shared asset store | done (PR #423) |
 | 2b | Apply the `word_assets` migration to the live project | **owner action** |
-| 3 | A picture for every word | next (after 2b for anything to be kept) |
-| 4 | Generated dialogues, and saying the reply | after 2 |
+| 3 | A picture for every word | built (PR #424); the pictures themselves are 3b |
+| 3b | Deploy `word-asset`, then run `scripts/curriculum-pictures.ts` | **owner action** (after 2b for anything to be kept) |
+| 4 | Generated dialogues, and saying the reply | next, after 2 |
 | 5 | Animations for action words | after 2 and 3 |
 | 6 | Words in stories | after 2 |
 | 7 | The rest of the game | any time after 1 |
@@ -162,7 +163,85 @@ learner already generated gets the stored one without a model call, and the
 
 ---
 
-## Phase 3 — a picture for every word
+## Phase 3 — a picture for every word (built; the run is 3b)
+
+What shipped, so the later phases know what they stand on (writeups: README
+"The asset store" and "Reviewing as a quiz instead of flashcards"):
+
+- **The trusted path in `word-asset`.** A service-role call
+  (`isServiceRoleCall`) or the content team (`requireRole`,
+  `CONTENT_MANAGER_ROLES`) may send `scene`, a track word's authored
+  `image_scene`; a learner's is ignored, as before. Nothing on that path is
+  charged to anyone. What it files is `source: "authored"` with the scene in
+  `meta`, and the answer says `authored: true`. A scene too short to be a
+  description is not one (`MIN_SCENE_LENGTH`), and a staff member's authored
+  draw, which is uncapped, is named in the function log.
+- **Decided: an authored scene replaces a gloss-only picture filed earlier**
+  under the same key (curriculum and learners share keys). `isReplaceable`
+  is the rule — only an unapproved `generated` asset gives way — and
+  `replaceAsset` in `_shared/wordAssets.ts` does it: the row is updated in
+  place and conditionally, the new picture is a new object, and the old file
+  is never written over or deleted, so a learner whose own row carries it
+  keeps it. Only the trusted branch calls it.
+- **`scripts/curriculum-pictures.ts`** (`--dialect`, `--stage`, `--limit`,
+  `--dry-run`), with its deciding half in `curriculum-pictures-core.ts` and
+  `src/test/curriculumPictures.test.ts`. It reads the scene from
+  `vocabulary_words.image_scene_description` (the seed writes it there), not
+  from the track JSON, and writes the url onto `image_url` even when the
+  store kept nothing.
+- **The lazy path.** `useEnsureWordAsset` (the `ensure` call, apart from the
+  read-only `useWordAsset`, which it invalidates; one ask per word, a pause
+  after two failures in a row or a cap answer, never a toast). `QuizCardFrame` takes
+  `onPictureMade` from My Words: a saved word at step 3 with no picture gets
+  the store's, or has one made on the learner's daily picture allowance, and
+  the page keeps it on `user_vocabulary.image_url`. It takes `sharedPictures`
+  from the curriculum deck: the store's picture is shown for a row that has
+  none, read only.
+- **Pictures that can be told apart.** `PICTURE_DISTINCT_LINE` in the prompt
+  template; the frame deals each url once and never the word's own.
+- Guards: `word_asset_test.ts` (the trusted scene path, replacement, nothing
+  charged), `wordAssets.test.ts`, `curriculumPictures.test.ts`,
+  `useEnsureWordAsset.test.ts`, `QuizCardFrame.test.tsx`, and
+  `review.spec.ts` ("a picture for a word that has none").
+
+Two things a later phase should know. The card waits up to 12 seconds for a
+drawing, and only when three other words in the pool have pictures — so on a
+learner's first few pictured words the fallback is asked and the picture
+lands behind it. And every lazy picture comes off the learner's daily
+picture allowance (20 a day on the free tier), the same one the "Generate
+image" button draws on: a long quiz session of unpictured words can use the
+day's allowance up. If that turns out to bite, the fix is a counter of its
+own for the quiz in `word-asset`, not a client-side limit.
+
+### Phase 3b — owner action
+
+1. Apply `20261009130000_word_assets.sql` (Phase 2b) if it is not on the live
+   project yet. Without it the script still fills every row, and says so,
+   but nothing it draws is kept in the store.
+2. Deploy `word-asset` (this phase changed it). Until then the script stops
+   on its first word, since no earlier version accepts the service-role key.
+   The quiz's own ask is turned away uncharged if no `word-asset` is deployed
+   at all, and served as Phase 2 serves it if that one is.
+3. Run the script, dry first — it prints how many image generations the run
+   comes to. The authored tracks are 837 words across the three dialects;
+   the script takes every `vocabulary_words` row with no picture, so words
+   imported from a workbook are in the count too, drawn from their gloss
+   where they have no scene:
+
+   ```sh
+   SUPABASE_SERVICE_ROLE_KEY=... deno run --allow-env --allow-read --allow-net \
+     scripts/curriculum-pictures.ts --dry-run
+   SUPABASE_SERVICE_ROLE_KEY=... deno run --allow-env --allow-read --allow-net \
+     scripts/curriculum-pictures.ts --dialect Gulf --stage 1 --limit 10
+   ```
+
+   Look at those ten before running the rest; a picture that came out wrong
+   is fixed by clearing the row's `image_url` and its `word_assets` row and
+   running again.
+
+**Done when** (3b): every Stage 1–3 word in the three dialects has a picture.
+
+### The plan, as it was written
 
 **Goal.** Steps 3, 5 and 7 of the ladder only fire for words that have a
 picture, and the authored tracks ship without one. Fill them in, on brand,

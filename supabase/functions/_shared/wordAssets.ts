@@ -281,6 +281,45 @@ function promptSafe(text: string, max: number): string {
   return text.replace(/["“”]/g, "'").replace(/\s+/g, " ").trim().slice(0, max);
 }
 
+/** The longest authored scene a prompt carries; a track's are a sentence or two. */
+export const MAX_SCENE_LENGTH = 400;
+
+/**
+ * The shortest text that counts as a scene. A scene is a description;
+ * anything shorter (a full stop, "x") is not one, and must not be what lifts
+ * a call onto `word-asset`'s trusted path, where nothing is charged and what
+ * is filed is never replaced by a script again. The shortest in the authored
+ * tracks is forty characters.
+ */
+export const MIN_SCENE_LENGTH = 12;
+
+/**
+ * An authored scene as a prompt carries it: one line, at most
+ * `MAX_SCENE_LENGTH`, or "" when it is not a description at all. The one
+ * rule for what a scene is, shared by `word-asset` (which honours it) and
+ * `scripts/curriculum-pictures-core.ts` (which sends it and then checks the
+ * answer says it was honoured), so the two cannot disagree about a short one.
+ */
+export function authoredScene(text: string | null | undefined): string {
+  const scene = (text ?? "").replace(/\s+/g, " ").trim().slice(0, MAX_SCENE_LENGTH);
+  return scene.length >= MIN_SCENE_LENGTH && /\p{L}/u.test(scene) ? scene : "";
+}
+
+/**
+ * What makes a picture usable as a question. The quiz's picture step deals a
+ * word's picture beside three other words' (`QuizCardFrame`), so four pictures
+ * that are all "a person in a room" are four right answers. This asks for the
+ * one thing that is this word; it is part of the template, not of the look
+ * (`INK_PICTURE_STYLE`), so it does not go with a style-version bump.
+ */
+export const PICTURE_DISTINCT_LINE = [
+  "This picture will be shown beside the pictures of three other words, and a learner",
+  "has to tell at a glance which of the four is this one. So draw what is particular to",
+  "this meaning: one subject with a silhouette of its own, the action or object itself",
+  "rather than a general scene that could stand for another word, and nothing in the",
+  "background that could be mistaken for the subject.",
+].join(" ");
+
 /**
  * The prompt for a word's picture, built only from what the key was built
  * from (the sense and the dialect) plus an optional authored scene. Nothing
@@ -294,10 +333,11 @@ export function inkPicturePrompt(input: {
   scene?: string | null;
 }): string {
   const gloss = promptSafe(input.gloss, 120);
-  const scene = promptSafe(input.scene ?? "", 400);
+  const scene = promptSafe(input.scene ?? "", MAX_SCENE_LENGTH);
   return [
     `A picture that shows, unmistakably and on its own, the meaning "${gloss}".`,
     scene ? `Scene: ${scene}` : "",
+    PICTURE_DISTINCT_LINE,
     INK_PICTURE_STYLE,
     input.dialect ? DIALECT_SETTING[input.dialect] : "",
   ]
@@ -354,8 +394,20 @@ export interface WordAssetClient {
     insert(values: Record<string, unknown>): {
       select(columns: string): { single(): PromiseLike<Settled> };
     };
+    update(values: Record<string, unknown>): AssetUpdate;
   };
 }
+
+/** A filtered update that hands back the row it changed, if it changed one. */
+interface AssetUpdate {
+  eq(column: string, value: string): AssetUpdate;
+  is(column: string, value: null): AssetUpdate;
+  select(columns: string): { maybeSingle(): PromiseLike<Settled> };
+}
+
+/** Every column a caller is shown, in one place so a read and a write agree. */
+const ASSET_COLUMNS =
+  "id, concept_key, kind, dialect, style_version, url, payload, meta, source, approved_at, created_at";
 
 /**
  * PostgREST's "no such table" (PGRST205, or 42P01 from Postgres itself): the
@@ -399,7 +451,7 @@ export async function getAsset(client: WordAssetClient, key: AssetKey): Promise<
   try {
     let query = client
       .from("word_assets")
-      .select("id, concept_key, kind, dialect, style_version, url, payload, meta, source, approved_at, created_at")
+      .select(ASSET_COLUMNS)
       .eq("concept_key", key.conceptKey)
       .eq("kind", key.kind)
       .eq("style_version", key.styleVersion);
@@ -419,6 +471,11 @@ export async function getAsset(client: WordAssetClient, key: AssetKey): Promise<
 export type PutOutcome =
   /** Filed under the key; this is now what every learner is served. */
   | { status: "stored"; asset: WordAsset }
+  /**
+   * Filed in the place of a picture drawn from the gloss alone
+   * (`replaceAsset`). `previousUrl` still serves whoever was handed it.
+   */
+  | { status: "replaced"; asset: WordAsset; previousUrl: string | null }
   /** Someone filed one first. Serve theirs, so every learner sees the same. */
   | { status: "taken"; asset: WordAsset | null }
   /** Not filed (the table not yet applied, most likely). Serve your own. */
@@ -451,7 +508,7 @@ export async function putAsset(
         meta: asset.meta ?? {},
         source: asset.source ?? "generated",
       })
-      .select("id, concept_key, kind, dialect, style_version, url, payload, meta, source, approved_at, created_at")
+      .select(ASSET_COLUMNS)
       .single();
     if (error) {
       // The unique index: another learner missed at the same moment and won.
@@ -464,6 +521,81 @@ export async function putAsset(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.warn(`[wordAssets] store failed: ${message}`);
+    return { status: "failed", error: message };
+  }
+}
+
+// ── Replacing what a learner's miss filed ───────────────────────────────────
+
+/**
+ * Whether a filed asset may be replaced by an authored one.
+ *
+ * Curriculum words and learners' words share keys, and whichever is made
+ * first is filed. A learner's miss is drawn from the gloss alone — "coffee" —
+ * while a track word carries a scene its author wrote and checked against the
+ * rest of its lesson. So the authored one wins whenever it arrives second,
+ * and only then: an asset someone authored, reviewed or approved is never
+ * replaced by a script, and one authored asset never replaces another (a
+ * re-run with the same scene, or an edited one, is a hit and costs nothing).
+ */
+export function isReplaceable(asset: Pick<WordAsset, "source" | "approvedAt">): boolean {
+  return asset.source === "generated" && asset.approvedAt === null;
+}
+
+/**
+ * Point `existing`'s row at a newly made asset, when it is still replaceable.
+ *
+ * For the trusted path alone (`word-asset` under the service role or for the
+ * content team): what goes in must be `authored` or `reviewed`, so a caller
+ * holding only a generation has nothing this will accept, and the update is
+ * conditional on the row still being an unapproved `generated` one, so a
+ * reviewer who approved it a moment ago is not overwritten.
+ *
+ * The row is updated in place and the old file is left where it is: a url is
+ * never reused or deleted, so a learner whose own row carries the old picture
+ * keeps seeing the picture they were given. `meta.replaces` records it.
+ * Never throws; `taken` means it was no longer replaceable and carries what
+ * is filed now.
+ */
+export async function replaceAsset(
+  client: WordAssetClient,
+  key: AssetKey,
+  existing: WordAsset,
+  asset: NewWordAsset,
+): Promise<PutOutcome> {
+  if (asset.source !== "authored" && asset.source !== "reviewed") {
+    return { status: "failed", error: "only an authored or reviewed asset replaces a filed one" };
+  }
+  const url = asset.url ?? null;
+  const payload = asset.payload ?? null;
+  if (!url && payload === null) return { status: "failed", error: "nothing to store" };
+  if (!isReplaceable(existing)) return { status: "taken", asset: existing };
+
+  try {
+    const { data, error } = await client
+      .from("word_assets")
+      .update({
+        url,
+        payload,
+        meta: { ...(asset.meta ?? {}), replaces: existing.url },
+        source: asset.source,
+      })
+      .eq("id", existing.id)
+      .eq("source", "generated")
+      .is("approved_at", null)
+      .select(ASSET_COLUMNS)
+      .maybeSingle();
+    if (error) {
+      if (!isMissingTable(error)) console.warn(`[wordAssets] replace failed: ${error.message}`);
+      return { status: "failed", error: error.message };
+    }
+    const stored = toWordAsset(data);
+    if (stored) return { status: "replaced", asset: stored, previousUrl: existing.url };
+    // Nothing matched: it was authored, reviewed or approved in the meantime.
+    return { status: "taken", asset: await getAsset(client, key) };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn(`[wordAssets] replace failed: ${message}`);
     return { status: "failed", error: message };
   }
 }
@@ -498,6 +630,10 @@ export type FiledFile =
  * What to serve is the caller's call: on `taken` another learner filed first,
  * and a caller that wants every learner on one asset serves `filed.asset`;
  * one whose learner already heard this one keeps `url`.
+ *
+ * With `options.replace` the file is made the same way and the row that
+ * exists is pointed at it instead (the trusted path's authored scene taking
+ * the place of a gloss-only picture); nothing is overwritten then either.
  */
 export async function fileNewAsset(
   storage: AssetStorage,
@@ -505,6 +641,11 @@ export async function fileNewAsset(
   key: AssetKey,
   file: { bytes: Uint8Array; contentType: string; extension: string },
   asset: Omit<NewWordAsset, "url">,
+  /**
+   * `replace`: the asset filed under `key` that this one takes the place of
+   * (`replaceAsset`, with its rules). The new file is still a new object.
+   */
+  options: { replace?: WordAsset | null } = {},
 ): Promise<FiledFile> {
   const bucket = ASSET_BUCKETS[key.kind];
   if (!bucket) return { error: `${key.kind} assets have no file` };
@@ -515,7 +656,10 @@ export async function fileNewAsset(
       .upload(path, file.bytes, { contentType: file.contentType, upsert: false });
     if (error) return { error: error.message };
     const url = storage.storage.from(bucket).getPublicUrl(path).data.publicUrl;
-    return { url, filed: await putAsset(store, key, { ...asset, url }) };
+    const filed = options.replace
+      ? await replaceAsset(store, key, options.replace, { ...asset, url })
+      : await putAsset(store, key, { ...asset, url });
+    return { url, filed };
   } catch (err) {
     return { error: err instanceof Error ? err.message : String(err) };
   }

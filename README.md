@@ -233,22 +233,36 @@ ladder in `src/lib/quizLadder.ts`:
 | step | when (recognition stability unless stated) | question |
 |---|---|---|
 | 1 First look | new, or under a day (just lapsed) | the authored or saved sentence with the word blanked, four Arabic options, the meaning shown as a hint |
-| 2 Fill the gap | under 7 days | the same gap, no hint |
-| 3 Hear it | 7 days and up | the word's audio alone → pick the meaning |
-| 4 Say it | production card, under 14 days | the meaning (and picture) → say the word; scored |
-| 5 Say the line | production card, 14 days and up | the English line → say the Arabic sentence; scored |
+| 2 Fill the gap | under 4 days | the same gap, no hint |
+| 3 Pick the picture | under 8 days | the word, seen and heard → four pictures |
+| 4 Hear it | under 16 days | the word's audio alone → pick the meaning |
+| 5 Pick the word | under 30 days | the picture (or the meaning) → four Arabic words, each with its recording |
+| 6 Answer the line | 30 days and up | a line of the lesson's own dialogue, said aloud → pick the reply that uses the word |
+| 7 Say it | production card, under 14 days | the picture alone (or the meaning) → say the word; scored |
+| 8 Say the line | production card, 14 days and up | the English line → say the Arabic sentence; scored |
+
+The climb within recognition goes from form to meaning (the gap, the picture,
+the audio) to meaning to form (pick the word) to use (answer the line);
+production goes from the word to the line. The reply step is built from the
+lesson's authored dialogue (`lessons.dialogue`, `src/lib/quizDialogue.ts`):
+the reply is the first line that uses the word, the prompt is the line before
+it, the wrong replies are the dialogue's other lines topped up from the other
+lessons in the deck, and nothing is generated. A translation of what was said,
+or the meaning behind a picture, is a tap away and counts as help.
 
 The decks unlock production on the first Good and serve the production card
 the moment it is due — in the same session, for the flashcards. The quiz
-holds it until the word's recognition stability reaches the "Hear it"
-threshold (`holdsProduction`), so "say it" follows the earlier steps rather
-than arriving on the refetch after the first right answer; the production
-schedule itself is untouched, the card waits.
+holds it until the word's recognition stability reaches the picture step
+(`holdsProduction`), so "say it" follows the earlier steps rather than
+arriving on the refetch after the first right answer; the production schedule
+itself is untouched, the card waits.
 
 A card without the material for its step falls back a question (no sentence →
-ask the meaning; too few other words for four options, or a device that
-cannot record → the ordinary flip card with its rating buttons), so the ladder
-never refuses to serve a card. The sentence a word was met in is always a tap
+ask the meaning; no picture, or too few other pictures → hear it; no dialogue →
+pick the word; too few other words for four options, or a device that cannot
+record → the ordinary flip card with its rating buttons), so the ladder never
+refuses to serve a card. Wrong options, pictures and recordings come from the
+wider deck (`useQuizPool`), so a two-card session still gets four of each. The sentence a word was met in is always a tap
 away; opening it before a choice answer counts as help. Nothing is typed —
 most learners have no Arabic keyboard, and saying the word is the skill — so
 the speaking steps record a take through `useTakeRecorder` and score it with

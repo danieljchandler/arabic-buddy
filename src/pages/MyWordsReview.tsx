@@ -302,9 +302,9 @@ const MyWordsReview = () => {
           .range(from, to) as any);
         if (!mixAll) q = q.eq("dialect", activeDialect);
         // The quiz asks a word to be said only once its recognition has
-        // climbed to the heard step (`ease_factor` is the recognition
+        // climbed to the picture step (`ease_factor` is the recognition
         // stability) — see holdsProduction in src/lib/quizLadder.ts.
-        if (quiz) q = q.gte("ease_factor", LADDER_THRESHOLDS.gapDays);
+        if (quiz) q = q.gte("ease_factor", LADDER_THRESHOLDS.pictureDays);
         return q;
       });
 
@@ -1202,7 +1202,12 @@ const MyWordsReview = () => {
   const quizPool =
     wordPool && wordPool.length > 0
       ? wordPool
-      : (dueWords ?? []).map((w) => ({ arabic: w.word_arabic, english: w.word_english }));
+      : (dueWords ?? []).map((w) => ({
+          arabic: w.word_arabic,
+          english: w.word_english,
+          imageUrl: w.image_url,
+          audioUrl: w.word_audio_url,
+        }));
 
   return (
     <AppShell compact>

@@ -30,10 +30,18 @@ vi.mock("@/hooks/useTakeRecorder", () => ({
 
 const SENTENCE = "رحت السوق أمس";
 const POOL = [
-  { arabic: "بيت", english: "house" },
-  { arabic: "مدرسة", english: "school" },
-  { arabic: "مطعم", english: "restaurant" },
+  { arabic: "بيت", english: "house", imageUrl: "https://img.test/house.png", audioUrl: "https://audio.test/house.mp3" },
+  { arabic: "مدرسة", english: "school", imageUrl: "https://img.test/school.png" },
+  { arabic: "مطعم", english: "restaurant", imageUrl: "https://img.test/restaurant.png" },
   { arabic: "سيارة", english: "car" },
+];
+
+const DIALOGUE = [
+  { speaker: "Customer", arabic: "وين السوق؟", english: "Where is the market?" },
+  { speaker: "Vendor", arabic: "السوق هناك", english: "The market is there" },
+  { speaker: "Customer", arabic: "مشكور", english: "Thanks" },
+  { speaker: "Vendor", arabic: "العفو", english: "You're welcome" },
+  { speaker: "Customer", arabic: "مع السلامة", english: "Goodbye" },
 ];
 
 const anItem = (over: Partial<QuizItem> = {}): QuizItem => ({
@@ -77,7 +85,7 @@ describe("which question is asked", () => {
 
     expect(screen.getByText("Fill in the missing word")).toBeInTheDocument();
     expect(screen.getByText(/the missing word means/i)).toHaveTextContent("the market");
-    expect(screen.getByRole("img", { name: /step 1 of 5/i })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /step 1 of 8/i })).toBeInTheDocument();
   });
 
   it("drops the hint once the word is young rather than new", () => {
@@ -85,7 +93,7 @@ describe("which question is asked", () => {
 
     expect(screen.getByText("Fill in the missing word")).toBeInTheDocument();
     expect(screen.queryByText(/the missing word means/i)).not.toBeInTheDocument();
-    expect(screen.getByRole("img", { name: /step 2 of 5/i })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /step 2 of 8/i })).toBeInTheDocument();
   });
 
   it("asks for the meaning when there is no sentence to cut", () => {
@@ -101,18 +109,59 @@ describe("which question is asked", () => {
     expect(screen.getByText("What does it mean?")).toBeInTheDocument();
   });
 
-  it("plays the audio alone once the word is settled", () => {
-    render(anItem({ memory: { stability: 30, repetitions: 4 } }));
+  it("plays the audio alone once the word is past the picture step", () => {
+    render(anItem({ memory: { stability: 10, repetitions: 3 } }));
 
     expect(screen.getByText("What did you hear?")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: /step 3 of 5/i })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /step 4 of 8/i })).toBeInTheDocument();
+  });
+
+  it("asks for the picture once the word is a little settled, from the other words' pictures", () => {
+    render(anItem({ imageUrl: "https://img.test/market.png", memory: { stability: 5, repetitions: 2 } }));
+
+    expect(screen.getByText("Which picture?")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /step 3 of 8/i })).toBeInTheDocument();
+    const pictures = screen.getAllByRole("radio").map((r) => r.getAttribute("aria-label"));
+    expect(pictures).toHaveLength(4);
+    expect(pictures).toContain("the market");
+    // Only words with a picture can be wrong pictures; the car has none.
+    expect(pictures).not.toContain("car");
+  });
+
+  it("hears a word with no picture at the picture step", () => {
+    render(anItem({ memory: { stability: 5, repetitions: 2 } }));
+
+    expect(screen.getByText("What did you hear?")).toBeInTheDocument();
+  });
+
+  it("asks to pick the word, with its picture as the prompt, once it is heard reliably", () => {
+    render(anItem({ imageUrl: "https://img.test/market.png", memory: { stability: 20, repetitions: 3 } }));
+
+    expect(screen.getByText("Which word?")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /step 5 of 8/i })).toBeInTheDocument();
+    expect(screen.getAllByRole("radio").map((r) => r.textContent?.trim())).toContain("السوق");
+  });
+
+  it("asks for the reply from the lesson's dialogue once the word is settled", () => {
+    render(anItem({ dialogue: DIALOGUE, memory: { stability: 40, repetitions: 5 } }));
+
+    expect(screen.getByText("What would you say?")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /step 6 of 8/i })).toBeInTheDocument();
+    expect(screen.getByText("وين السوق؟")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "السوق هناك" })).toBeInTheDocument();
+  });
+
+  it("picks the word instead when the word has no dialogue", () => {
+    render(anItem({ memory: { stability: 40, repetitions: 5 } }));
+
+    expect(screen.getByText("Which word?")).toBeInTheDocument();
   });
 
   it("asks a production card to be said", () => {
     render(anItem({ direction: "production", memory: { stability: 2, repetitions: 1 } }));
 
     expect(screen.getByText("Say it in Arabic")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: /step 4 of 5/i })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /step 7 of 8/i })).toBeInTheDocument();
   });
 
   it("falls back to the flip card when there are too few other words", () => {
@@ -163,14 +212,14 @@ describe("turning an answer into a rating", () => {
   });
 
   it("rates a meaning picked with the sentence open Hard", () => {
-    const { onGraded } = render(anItem({ sentence: null, memory: { stability: 30, repetitions: 4 } }), {
+    const { onGraded } = render(anItem({ sentence: null, memory: { stability: 10, repetitions: 3 } }), {
       pool: POOL,
     });
     // No sentence on the card means no hint to open; give it one via a
     // settled card instead.
     cleanup?.();
     const settled = render(
-      anItem({ memory: { stability: 30, repetitions: 4 }, sentence: { arabic: "البيت كبير", english: "the house is big" }, arabic: "البيت", english: "the house" }),
+      anItem({ memory: { stability: 10, repetitions: 3 }, sentence: { arabic: "البيت كبير", english: "the house is big" }, arabic: "البيت", english: "the house" }),
     );
 
     fireEvent.click(screen.getByRole("button", { name: /show the sentence/i }));

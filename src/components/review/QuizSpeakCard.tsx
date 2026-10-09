@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Mic, MicOff, Quote, RotateCcw, Volume2 } from "lucide-react";
+import { Eye, Loader2, Mic, MicOff, Quote, RotateCcw, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { useAzurePronunciation, scoreBand, type WordResult } from "@/hooks/useAzurePronunciation";
@@ -73,6 +73,11 @@ export const QuizSpeakCard = ({
   const { assess, result, isLoading, error, reset } = useAzurePronunciation();
   const [contextOpen, setContextOpen] = useState(false);
   const [noSpeech, setNoSpeech] = useState(false);
+  // A word with a picture is asked from the picture alone; the meaning is a
+  // tap away and asking for it before the take counts as help.
+  const pictureOnly = format === "speak" && !!imageUrl;
+  const [meaningOpen, setMeaningOpen] = useState(false);
+  const hintUsedRef = useRef(false);
 
   // A saved phrase is several words asked as one card; give it a line's time.
   const recorder = useTakeRecorder({
@@ -83,7 +88,7 @@ export const QuizSpeakCard = ({
       if (!scored) return;
       const recognized = scored.recognizedText?.trim() || null;
       const similarity = recognized ? arabicSimilarity(recognized, target) : null;
-      onResult({ kind: "speech", score: scored.overall, similarity, recognized });
+      onResult({ kind: "speech", score: scored.overall, similarity, recognized, hintUsed: hintUsedRef.current });
     },
   });
 
@@ -96,7 +101,14 @@ export const QuizSpeakCard = ({
     reset();
     setContextOpen(false);
     setNoSpeech(false);
+    setMeaningOpen(false);
+    hintUsedRef.current = false;
   }, [id, reset]);
+
+  const openMeaning = () => {
+    if (!result) hintUsedRef.current = true;
+    setMeaningOpen(true);
+  };
 
   const gap = useMemo(() => {
     if (!sentence?.arabic) return null;
@@ -133,7 +145,16 @@ export const QuizSpeakCard = ({
       )}
 
       {format === "speak" ? (
-        <p className="text-3xl font-bold text-foreground mb-6 break-words max-w-full">{english}</p>
+        pictureOnly && !meaningOpen && !result ? (
+          <div className="mb-6">
+            <Button variant="ghost" size="sm" onClick={openMeaning} className="gap-1.5 text-muted-foreground">
+              <Eye className="h-4 w-4" />
+              Show meaning
+            </Button>
+          </div>
+        ) : (
+          <p className="text-3xl font-bold text-foreground mb-6 break-words max-w-full">{english}</p>
+        )
       ) : lineGap ? (
         <div className="mb-6">
           <p className="text-2xl leading-relaxed text-foreground" style={{ fontFamily: "var(--font-naskh)" }} dir="rtl">

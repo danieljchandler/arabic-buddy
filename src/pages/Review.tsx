@@ -41,6 +41,7 @@ import { ReviewStyleSwitch } from "@/components/review/ReviewStyleSwitch";
 import { QuizSessionSummary } from "@/components/review/QuizSessionSummary";
 import { EMPTY_QUIZ_SESSION, comboBonus, recordQuizAnswer, type QuizSessionStats } from "@/lib/quizSession";
 import { LADDER_THRESHOLDS, rungForMemory } from "@/lib/quizLadder";
+import { asDialogue } from "@/lib/quizDialogue";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import { TappableArabicText } from "@/components/shared/TappableArabicText";
@@ -68,12 +69,12 @@ const Review = () => {
 
   // How the learner wants to be asked. The quiz serves the same cards from
   // the same schedules; only the question and who grades it change — and a
-  // production card waits until the word has climbed to the heard step.
+  // production card waits until the word has climbed to the picture step.
   const { style: reviewStyle } = useReviewStyle();
   const quiz = reviewStyle === "quiz";
   const { data: dueWords, isLoading: wordsLoading, isError: wordsError, refetch } = useDueWords(
     mixAll,
-    quiz ? { holdProductionBelow: LADDER_THRESHOLDS.gapDays } : {},
+    quiz ? { holdProductionBelow: LADDER_THRESHOLDS.pictureDays } : {},
   );
   const { data: stats } = useReviewStats(mixAll);
   const { enqueue, pendingCount, isFlushing, isOnline } = useReviewQueue();
@@ -853,6 +854,12 @@ const Review = () => {
     sentence: currentWord.example_arabic
       ? { arabic: currentWord.example_arabic, english: currentWord.example_english ?? null }
       : null,
+    // The lesson's dialogue for "answer the line", topped up with the other
+    // lessons' lines in the deck so a short dialogue still has wrong replies.
+    dialogue: currentWord.dialogue,
+    extraDialogueLines: (dueWords ?? [])
+      .filter((w) => w.lesson_id !== currentWord.lesson_id)
+      .flatMap((w) => asDialogue(w.dialogue)),
     dialect: currentWord.dialect_module ?? activeDialect,
     direction: scheduleDirectionFor(currentWord.card_type),
     memory: { stability, repetitions },
@@ -860,7 +867,12 @@ const Review = () => {
   const quizPool =
     wordPool && wordPool.length > 0
       ? wordPool
-      : (dueWords ?? []).map((w) => ({ arabic: w.word_arabic, english: w.word_english }));
+      : (dueWords ?? []).map((w) => ({
+          arabic: w.word_arabic,
+          english: w.word_english,
+          imageUrl: w.image_url,
+          audioUrl: w.audio_url,
+        }));
 
   return (
     <AppShell compact>

@@ -83,25 +83,35 @@ lapses, and the ordering and new-card rules in `buildReviewOrder` are untouched.
 | step | when (recognition stability unless stated) | question | grades |
 |---|---|---|---|
 | 1 First look | new, or under a day (just lapsed) | sentence gap, four Arabic options, the meaning shown as a hint | recognition |
-| 2 Fill the gap | under 7 days | the same gap, no hint | recognition |
-| 3 Hear it | 7 days and up | audio alone → pick the meaning | recognition |
-| 4 Say it | production card, under 14 days | meaning (and picture) → say the word; scored | production |
-| 5 Say the line | production card, 14 days and up | the English line → say the Arabic sentence; scored | production |
+| 2 Fill the gap | under 4 days | the same gap, no hint | recognition |
+| 3 Pick the picture | under 8 days | the word, seen and heard → four pictures | recognition |
+| 4 Hear it | under 16 days | audio alone → pick the meaning | recognition |
+| 5 Pick the word | under 30 days | the picture (or meaning) → four Arabic words with their recordings | recognition |
+| 6 Answer the line | 30 days and up | a line of the lesson's dialogue → pick the reply that uses the word | recognition |
+| 7 Say it | production card, under 14 days | the picture alone (or the meaning) → say the word; scored | production |
+| 8 Say the line | production card, 14 days and up | the English line → say the Arabic sentence; scored | production |
+
+The climb within recognition goes from form to meaning (gap, picture, audio)
+to meaning to form (pick the word) to use (answer the line); production goes
+from the word to the line. The reply step is built from the lesson's authored
+dialogue (`src/lib/quizDialogue.ts`), not generated: the reply is the first
+line that uses the word, the prompt the line before it, the wrong replies the
+dialogue's other lines topped up from the deck's other lessons.
 
 Fallbacks, so the ladder never blocks a review: no sentence → ask the meaning
-(the word shown on a first look, heard afterwards); too few other words for
+(the word shown on a first look, heard afterwards); no picture or too few
+other pictures → hear it; no dialogue → pick the word; too few other words for
 four options → the flip card; a device that cannot record → the flip card for
 production cards, never a choice question, because the rating lands on the
 production schedule. A saved phrase keeps one schedule, so its direction is
-read off its stability: under 7 days it is asked for its meaning, from 7 days
+read off its stability: under 8 days it is asked for its meaning, from 8 days
 it is asked to be said.
 
 The decks unlock production on the first Good and serve the production card
 the moment it is due — for the flashcards, on the refetch after the last card
 of the same session. The quiz holds it until recognition stability reaches
-the "Hear it" threshold (`holdsProduction`), so "say it" is the third
-encounter or so, after the gap without a hint and the audio alone; the
-production schedule is untouched, the card waits.
+the picture step (`holdsProduction`), so "say it" is the third encounter or
+so; the production schedule is untouched, the card waits.
 
 The thresholds are a first guess and live in `LADDER_THRESHOLDS` so they can
 be tuned from `review_log` once the quiz has history.
@@ -231,20 +241,25 @@ and stored on their own row, so two learners who save "jump" pay twice.
 ### Phase 3 — the upper steps
 
 Built on the asset store, each one an extra format the frame can render and
-the ladder can place above step 5:
+the ladder can place above step 8:
 
-- **Act it out (step 6).** For a verb or an action noun, the animation of the
-  concept (made once, shared) replaces the meaning as the prompt: the learner
-  says the word for what they see. `kind: "animation"`, keyed on the English
-  concept, so every dialect's "jump" shares one.
-- **Answer the line (step 7).** A two-line dialogue the Brain writes in the
-  dialect with the word in the reply (`kind: "dialogue"`, keyed on the word
-  and dialect, run through `askBrain` with the native validator and stored
-  once): the first line plays, the learner says the reply, scored against it
-  with the word required.
-- **In a story (step 8).** The word in a short passage from the reading
-  library or a generated one (`kind: "story_line"`): a gap to say, or a
-  comprehension question about the line, graded like the others.
+- **Act it out.** For a verb or an action noun, the animation of the concept
+  (made once, shared) replaces the picture as the "say it" prompt: the
+  learner says the word for what they see. `kind: "animation"`, keyed on the
+  English concept, so every dialect's "jump" shares one.
+- **Say the reply.** The spoken form of step 6: the line plays, the learner
+  says the reply rather than picking it, scored against it with the word
+  required. For words whose lesson has no usable dialogue, a two-line
+  exchange the Brain writes in the dialect (`kind: "dialogue"`, keyed on the
+  word and dialect, run through `askBrain` with the native validator and
+  stored once) supplies both this and step 6.
+- **In a story.** The word in a short passage from the reading library or a
+  generated one (`kind: "story_line"`): a gap to say, or a comprehension
+  question about the line, graded like the others.
+- **Pictures for every word.** Step 3 and the picture prompts of steps 5 and 7
+  only fire for words that have a picture, and the authored tracks ship
+  without them; the asset store's `ensure` for `kind: "image"` is what fills
+  that in, on brand, once per word.
 
 Each new format is a `QuizFormat` value, a rung in `rungForMemory`, a card
 component, and a row in the README table. The frame and the grading do not

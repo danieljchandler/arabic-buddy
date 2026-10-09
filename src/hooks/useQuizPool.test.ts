@@ -41,6 +41,24 @@ describe("the curriculum pool", () => {
     expect(english).toEqual(["word 0", "word 1", "word 2"]);
   });
 
+  it("carries each word's picture and recording for the picture and word questions", async () => {
+    const r = renderHookWithProviders(() => useCurriculumWordPool("Gulf", false), {
+      persona: "free",
+      seed: (b) =>
+        b.db.seed("vocabulary_words", [
+          aVocabularyWord({ id: wordId(0), word_arabic: "بيت", word_english: "house", image_url: "https://img.test/house.png", audio_url: "https://audio.test/house.mp3" }),
+          aVocabularyWord({ id: wordId(1), word_arabic: "مدرسة", word_english: "school" }),
+        ]),
+    });
+    cleanup = r.cleanup;
+
+    await waitFor(() => expect(r.result.current.data).toBeDefined());
+    expect(r.result.current.data).toEqual([
+      { arabic: "بيت", english: "house", imageUrl: "https://img.test/house.png", audioUrl: "https://audio.test/house.mp3" },
+      { arabic: "مدرسة", english: "school", imageUrl: null, audioUrl: null },
+    ]);
+  });
+
   it("spans every dialect when the session does", async () => {
     const r = renderHookWithProviders(() => useCurriculumWordPool("Gulf", true), { persona: "free", seed: seedCurriculum });
     cleanup = r.cleanup;
@@ -89,7 +107,7 @@ describe("the saved pools", () => {
     cleanup = r.cleanup;
 
     await waitFor(() => expect(r.result.current.data).toBeDefined());
-    expect(r.result.current.data).toEqual([{ arabic: "ملكي", english: "mine" }]);
+    expect(r.result.current.data).toEqual([{ arabic: "ملكي", english: "mine", imageUrl: null, audioUrl: null }]);
   });
 
   it("draws the learner's phrases the same way", async () => {
@@ -104,7 +122,7 @@ describe("the saved pools", () => {
     cleanup = r.cleanup;
 
     await waitFor(() => expect(r.result.current.data).toBeDefined());
-    expect(r.result.current.data).toEqual([{ arabic: "عبارتي", english: "my phrase" }]);
+    expect(r.result.current.data).toEqual([{ arabic: "عبارتي", english: "my phrase", imageUrl: null, audioUrl: null }]);
   });
 
   it("waits for a signed-in learner", async () => {

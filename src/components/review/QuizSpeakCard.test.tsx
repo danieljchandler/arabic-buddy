@@ -227,6 +227,34 @@ describe("asking for the word", () => {
   });
 });
 
+describe("asking from a picture", () => {
+  it("shows the picture alone and keeps the meaning behind a tap that counts as help", async () => {
+    const { onResult } = render({ imageUrl: "https://img.test/market.png" });
+
+    expect(screen.getByRole("img", { hidden: true })).toBeInTheDocument();
+    expect(screen.queryByText("market")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /show meaning/i }));
+    expect(screen.getByText("market")).toBeInTheDocument();
+
+    await recordTake();
+
+    await waitFor(() => expect(onResult).toHaveBeenCalledTimes(1));
+    expect(onResult.mock.calls[0][0]).toMatchObject({ hintUsed: true });
+  });
+
+  it("is not help when the meaning was never asked for", async () => {
+    const { onResult } = render({ imageUrl: "https://img.test/market.png" });
+
+    await recordTake();
+
+    await waitFor(() => expect(onResult).toHaveBeenCalledTimes(1));
+    expect(onResult.mock.calls[0][0]).toMatchObject({ hintUsed: false });
+    // After the take the meaning is shown regardless.
+    expect(screen.getByText("market")).toBeInTheDocument();
+  });
+});
+
 describe("asking for the line", () => {
   it("shows the English line and scores against the Arabic line", async () => {
     const { backend } = render({ format: "speak-sentence" });

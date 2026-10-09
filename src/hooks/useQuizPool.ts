@@ -6,14 +6,25 @@ import { useAuth } from "@/hooks/useAuth";
 export interface QuizPoolEntry {
   arabic: string;
   english: string;
+  /** Its picture, for the picture question's wrong options. */
+  imageUrl?: string | null;
+  /** Its recording, so a wrong Arabic option can be played. */
+  audioUrl?: string | null;
 }
 
 /** Enough to draw three wrong options from without repeating a session. */
 const POOL_SIZE = 300;
 
-function usable(rows: Array<{ arabic: string | null; english: string | null }>): QuizPoolEntry[] {
+function usable(
+  rows: Array<{ arabic: string | null; english: string | null; imageUrl?: string | null; audioUrl?: string | null }>,
+): QuizPoolEntry[] {
   return rows
-    .map((row) => ({ arabic: (row.arabic ?? "").trim(), english: (row.english ?? "").trim() }))
+    .map((row) => ({
+      arabic: (row.arabic ?? "").trim(),
+      english: (row.english ?? "").trim(),
+      imageUrl: row.imageUrl ?? null,
+      audioUrl: row.audioUrl ?? null,
+    }))
     .filter((row) => row.arabic !== "" && row.english !== "");
 }
 
@@ -37,13 +48,20 @@ export function useCurriculumWordPool(dialect: string, mixAll: boolean, enabled 
     queryFn: async (): Promise<QuizPoolEntry[]> => {
       let query = supabase
         .from("vocabulary_words")
-        .select("word_arabic, word_english")
+        .select("word_arabic, word_english, image_url, audio_url")
         .order("display_order")
         .limit(POOL_SIZE);
       if (!mixAll) query = query.eq("dialect_module", dialect);
       const { data, error } = await query;
       if (error) return [];
-      return usable((data ?? []).map((row) => ({ arabic: row.word_arabic, english: row.word_english })));
+      return usable(
+        (data ?? []).map((row) => ({
+          arabic: row.word_arabic,
+          english: row.word_english,
+          imageUrl: row.image_url,
+          audioUrl: row.audio_url,
+        })),
+      );
     },
   });
 }
@@ -57,14 +75,21 @@ export function useSavedWordPool(dialect: string, mixAll: boolean, enabled = tru
     queryFn: async (): Promise<QuizPoolEntry[]> => {
       let query = supabase
         .from("user_vocabulary")
-        .select("word_arabic, word_english")
+        .select("word_arabic, word_english, image_url, word_audio_url")
         .eq("user_id", user!.id)
         .order("created_at", { ascending: false })
         .limit(POOL_SIZE);
       if (!mixAll) query = query.eq("dialect", dialect);
       const { data, error } = await query;
       if (error) return [];
-      return usable((data ?? []).map((row) => ({ arabic: row.word_arabic, english: row.word_english })));
+      return usable(
+        (data ?? []).map((row) => ({
+          arabic: row.word_arabic,
+          english: row.word_english,
+          imageUrl: row.image_url,
+          audioUrl: row.word_audio_url,
+        })),
+      );
     },
   });
 }

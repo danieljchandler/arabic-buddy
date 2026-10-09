@@ -64,6 +64,7 @@ export interface VocabularyWord {
   audio_url: string | null;
   // Nullable in the schema: words attached to a lesson have no topic.
   topic_id: string | null;
+  lesson_id?: string | null;
   image_position?: string | null;
   dialect_module?: string;
   /** Arabic root. Null until an admin backfills it; '' means the word has none. */
@@ -86,6 +87,12 @@ interface WordWithReview extends VocabularyWord {
     gradient: string;
     icon: string;
   };
+  /**
+   * The lesson's authored dialogue (`lessons.dialogue`), for the quiz's
+   * "answer the line" step. Null for topic-backed words and lessons without
+   * one.
+   */
+  dialogue: unknown;
 }
 
 /**
@@ -188,7 +195,8 @@ export const useDueWords = (mixAll = false, options: DueWordsOptions = {}) => {
               title,
               title_arabic,
               gradient,
-              icon
+              icon,
+              dialogue
             ),
             topics (
               name,
@@ -252,6 +260,7 @@ export const useDueWords = (mixAll = false, options: DueWordsOptions = {}) => {
           ...word,
           review,
           topic: resolvedTopic as WordWithReview['topic'],
+          dialogue: lessonData?.dialogue ?? null,
         };
       });
 

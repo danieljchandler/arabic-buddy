@@ -312,6 +312,86 @@ test.describe("the quiz style", () => {
     await expect.poll(() => backend.db.rows("word_reviews")[0]?.last_result).toBe("good");
   });
 
+  // A tiny valid PNG, so the picture question can be seeded without any
+  // network: the e2e harness answers no image host.
+  const PIXEL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+
+  test("asks for the picture once the word is a little settled", async ({ page }) => {
+    await signIn(page);
+    const yesterday = new Date(Date.now() - 86_400_000).toISOString();
+    const deck = aDeck();
+    const backend = await stubSupabase(page, {
+      tables: {
+        ...deck,
+        // Every word in the pool has its own picture, so four can be dealt
+        // (the frame deals each picture once, so they must differ).
+        vocabulary_words: deck.vocabulary_words.map((w, i) => ({ ...w, image_url: `${PIXEL}#${i}` })),
+        // Stability past the gap step: the picture is asked for.
+        word_reviews: [
+          aWordReview({ id: reviewId(0), word_id: wordId(0), ease_factor: 5, repetitions: 2, next_review_at: yesterday }),
+        ],
+        ...quizProfile(),
+      },
+    });
+
+    await page.goto("/review");
+
+    await expect(page.getByText("Which picture?")).toBeVisible();
+    await expect(page.getByText("Pick the picture")).toBeVisible();
+    await expect(page.getByText("السوق")).toBeVisible();
+    const pictures = page.getByRole("radiogroup", { name: /choose the picture/i });
+    await expect(pictures.getByRole("radio")).toHaveCount(4);
+
+    await pictures.getByRole("radio", { name: "the market" }).click();
+    await page.getByRole("button", { name: /continue/i }).click();
+
+    await expect.poll(() => backend.db.rows("word_reviews")[0]?.last_result).toBe("good");
+  });
+
+  test("asks for the reply from the lesson's dialogue once the word is settled", async ({ page }) => {
+    await signIn(page);
+    const yesterday = new Date(Date.now() - 86_400_000).toISOString();
+    const deck = aDeck();
+    const backend = await stubSupabase(page, {
+      tables: {
+        ...deck,
+        lessons: [
+          aLesson({
+            id: LESSON,
+            title: "Started lesson",
+            display_order: 1,
+            dialogue: [
+              { speaker: "Customer", arabic: "وين السوق؟", english: "Where is the market?" },
+              { speaker: "Vendor", arabic: "السوق هناك", english: "The market is there" },
+              { speaker: "Customer", arabic: "مشكور", english: "Thanks" },
+              { speaker: "Vendor", arabic: "العفو", english: "You're welcome" },
+              { speaker: "Customer", arabic: "مع السلامة", english: "Goodbye" },
+            ],
+          }),
+          aLesson({ id: OTHERS, title: "Unopened lesson", display_order: 2 }),
+        ],
+        // Stability past the word step: the reply is asked for.
+        word_reviews: [
+          aWordReview({ id: reviewId(0), word_id: wordId(0), ease_factor: 40, repetitions: 5, next_review_at: yesterday }),
+        ],
+        ...quizProfile(),
+      },
+    });
+
+    await page.goto("/review");
+
+    await expect(page.getByText("What would you say?")).toBeVisible();
+    await expect(page.getByText("Answer the line")).toBeVisible();
+    await expect(page.getByText("وين السوق؟")).toBeVisible();
+    const replies = page.getByRole("radiogroup", { name: /choose the reply/i });
+    await expect(replies.getByRole("radio")).toHaveCount(4);
+
+    await replies.getByRole("radio", { name: "السوق هناك" }).click();
+    await page.getByRole("button", { name: /continue/i }).click();
+
+    await expect.poll(() => backend.db.rows("word_reviews")[0]?.last_result).toBe("good");
+  });
+
   test("asks for the meaning when the word has no sentence", async ({ page }) => {
     await signIn(page);
     await stubSupabase(page, {

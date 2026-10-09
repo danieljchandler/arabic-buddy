@@ -12,7 +12,9 @@ import type { Rating } from "@/lib/spacedRepetition";
  * hint (the meaning on a first look, the sentence's translation) is Hard:
  * the card stays close without being called a lapse.
  *
- * A spoken answer is the one honest route to Easy. The score is the
+ * A spoken answer is the one honest route to Easy, unless the learner asked
+ * what a picture meant first — then the recall was from the meaning, and the
+ * take is capped at Hard like a helped choice. The score is the
  * calibrated pronunciation score the `azure-pronunciation` function returns
  * (never Azure's raw number — see CLAUDE.md), and a take that was not the
  * target word at all is Again whatever it scored, since the assessment
@@ -36,6 +38,8 @@ export interface SpeechOutcome {
    * or null when nothing was recognised to compare.
    */
   similarity: number | null;
+  /** The learner asked for the meaning before saying a word shown as a picture. */
+  hintUsed?: boolean;
 }
 
 export type QuizOutcome = ChoiceOutcome | SpeechOutcome;
@@ -63,10 +67,13 @@ export function gradeQuizAnswer(outcome: QuizOutcome): Rating {
 
   if (outcome.similarity != null && outcome.similarity < SPEECH_MATCH_FLOOR) return "again";
   const score = Number.isFinite(outcome.score) ? outcome.score : 0;
+  if (score < SPEECH_THRESHOLDS.hard) return "again";
+  // A word said well after asking what the picture meant was recalled from
+  // the meaning, not the picture: the sounds earn their band, capped at Hard.
+  if (outcome.hintUsed) return "hard";
   if (score >= SPEECH_THRESHOLDS.easy) return "easy";
   if (score >= SPEECH_THRESHOLDS.good) return "good";
-  if (score >= SPEECH_THRESHOLDS.hard) return "hard";
-  return "again";
+  return "hard";
 }
 
 /** Whether a rating counts as a correct answer for the session's tally. */

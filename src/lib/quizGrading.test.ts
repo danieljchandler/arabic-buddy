@@ -45,6 +45,15 @@ describe("a spoken answer", () => {
     ).toBe("again");
   });
 
+  it("caps a take at Hard when the meaning was asked for first", () => {
+    expect(gradeQuizAnswer({ kind: "speech", score: 95, similarity: 1, hintUsed: true })).toBe("hard");
+    expect(gradeQuizAnswer({ kind: "speech", score: 75, similarity: 1, hintUsed: true })).toBe("hard");
+    // A poor take is still a miss, help or no help.
+    expect(
+      gradeQuizAnswer({ kind: "speech", score: SPEECH_THRESHOLDS.hard - 1, similarity: 1, hintUsed: true }),
+    ).toBe("again");
+  });
+
   it("trusts the score alone when nothing was recognised to compare", () => {
     expect(gradeQuizAnswer({ kind: "speech", score: 90, similarity: null })).toBe("easy");
   });

@@ -46,7 +46,7 @@ describe("the step badge", () => {
     const harness = renderWithProviders(<QuizRungBadge step={2} label="Fill the gap" combo={1} />);
     cleanup = harness.cleanup;
 
-    expect(screen.getByRole("img", { name: "Step 2 of 5: Fill the gap" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Step 2 of 8: Fill the gap" })).toBeInTheDocument();
     expect(screen.getByText("Fill the gap")).toBeInTheDocument();
     expect(screen.queryByLabelText(/in a row/)).not.toBeInTheDocument();
   });

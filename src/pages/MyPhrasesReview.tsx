@@ -47,7 +47,7 @@ import { AskAISentence } from "@/components/shared/AskAISentence";
 
 /** The ladder's direction for a phrase, which keeps a single schedule. */
 function quizDirectionFor(stability: number): QuizDirection {
-  return stability >= LADDER_THRESHOLDS.gapDays ? "production" : "recognition";
+  return stability >= LADDER_THRESHOLDS.pictureDays ? "production" : "recognition";
 }
 
 const MyPhrasesReview = () => {

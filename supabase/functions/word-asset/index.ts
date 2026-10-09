@@ -47,7 +47,7 @@
  * did before the store existed.
  *
  * Body: { action: "get" | "ensure", kind, word, gloss?, dialect?, scene? }
- * Response: { asset, url, cached, stored, replaced? }
+ * Response: { asset, url, cached, stored, replaced?, authored? }
  */
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.45.0";
@@ -285,11 +285,16 @@ async function makePicture(
     outcome = await replaceAsset(store, key, outcome.asset, { ...asset, url: filed.url });
   }
 
-  if (outcome.status === "stored") return served(outcome.asset, false);
-  if (outcome.status === "replaced") return served(outcome.asset, false, true);
+  // `authored` says the picture this call drew was drawn from the scene it
+  // sent. The script checks it before writing a row, so a deployment that
+  // does not know the trusted path is caught on the first word rather than
+  // after every word has been drawn from its gloss.
+  const made = authored.scene ? { authored: true } : {};
+  if (outcome.status === "stored") return { ...served(outcome.asset, false), ...made };
+  if (outcome.status === "replaced") return { ...served(outcome.asset, false, true), ...made };
   // Someone filed first (or, for a replacement, authored or approved theirs
   // in the meantime). Serve theirs, so every learner sees the same picture.
   if (outcome.status === "taken" && outcome.asset) return served(outcome.asset, true);
   // Not filed — the table not applied yet. The picture is still the caller's.
-  return { asset: null, url: filed.url, cached: false, stored: false };
+  return { asset: null, url: filed.url, cached: false, stored: false, ...made };
 }

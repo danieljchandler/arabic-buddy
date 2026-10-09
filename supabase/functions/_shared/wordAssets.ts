@@ -517,7 +517,7 @@ export async function putAsset(
  * replaced by a script, and one authored asset never replaces another (a
  * re-run with the same scene, or an edited one, is a hit and costs nothing).
  */
-export function isReplaceable(asset: WordAsset): boolean {
+export function isReplaceable(asset: Pick<WordAsset, "source" | "approvedAt">): boolean {
   return asset.source === "generated" && asset.approvedAt === null;
 }
 

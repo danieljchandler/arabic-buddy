@@ -470,6 +470,8 @@ Deno.test("word-asset ensure draws a service-role caller's authored scene, and c
   assertEquals(status, 200);
   assertEquals(body.stored, true);
   assertEquals(body.cached, false);
+  // What the script checks before it writes a row.
+  assertEquals(body.authored, true);
 
   const prompt = imageCalls(calls)[0]?.body ?? "";
   assertStringIncludes(prompt, `Scene: ${DALLAH}`);
@@ -524,7 +526,7 @@ Deno.test("word-asset ensure still ignores a learner's scene, and charges them a
   // scene is simply not heard, and the role is read from user_roles, never
   // from anything the caller says about themselves.
   const table = assetTable();
-  const { status, calls } = await call(
+  const { status, body, calls } = await call(
     { action: "ensure", ...COFFEE, scene: DALLAH, role: "admin", trusted: true },
     upstreams({ id: LEARNER_A }, table.handler),
   );
@@ -535,6 +537,7 @@ Deno.test("word-asset ensure still ignores a learner's scene, and charges them a
   assert(!prompt.includes("dallah"), "a learner's scene reached the shared prompt");
   assert(!prompt.includes("Scene:"));
   assertEquals(charged(calls), true, "a learner's miss is still the learner's to pay for");
+  assertEquals(body.authored, undefined, "a picture that ignored the scene must not claim it");
   assertEquals(table.rows[0]?.source, "generated");
   assert(!JSON.stringify(table.rows[0]).includes("dallah"));
 });
@@ -759,6 +762,7 @@ Deno.test("word-asset ensure hands the script its picture while the table does n
   assertEquals(status, 200);
   assertEquals(body.stored, false);
   assertEquals(body.asset, null);
+  assertEquals(body.authored, true);
   assertStringIncludes(String(body.url), "/flashcard-images/word-assets/image/ink-1/gulf/");
   assertStringIncludes(imageCalls(calls)[0]?.body ?? "", `Scene: ${DALLAH}`);
   assertEquals(charged(calls), false);

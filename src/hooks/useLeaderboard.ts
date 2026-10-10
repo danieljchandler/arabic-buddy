@@ -35,6 +35,32 @@ export interface Institution {
   verified: boolean;
 }
 
+type UntypedRpc = (fn: string, args: Record<string, unknown>) => PromiseLike<{ data: unknown; error: unknown }>;
+
+/**
+ * Each learner's ladder climbs this week, by user id, from the
+ * `leaderboard_climbs` RPC (migration 20261010120000_leaderboard_climbs). The
+ * database counts them from `review_log`, which only triggers write, so a
+ * climb on the board is a real review. Null on any failure — above all the
+ * RPC not yet on the live project — and the board shows XP alone, as before.
+ */
+export async function readClimbs(userIds: string[]): Promise<Map<string, number> | null> {
+  if (userIds.length === 0) return new Map();
+  try {
+    // Not in the generated types until the migration is on the live project.
+    const { data, error } = await (supabase.rpc as unknown as UntypedRpc)("leaderboard_climbs", { _user_ids: userIds });
+    if (error || !Array.isArray(data)) return null;
+    const climbs = new Map<string, number>();
+    for (const row of data as Array<{ user_id?: unknown; climbs_this_week?: unknown }>) {
+      const count = Number(row.climbs_this_week);
+      if (typeof row.user_id === "string" && Number.isFinite(count)) climbs.set(row.user_id, count);
+    }
+    return climbs;
+  } catch {
+    return null;
+  }
+}
+
 function buildEntries(
   xpData: any[],
   profiles: any[],
@@ -91,6 +117,29 @@ export function useWeeklyLeaderboard(limit = 20) {
     },
     staleTime: 30 * 1000,
   });
+}
+
+/**
+ * Ladder climbs this week for the learners on the weekly board (quiz Phase
+ * 7.4), beside their XP: how many times one of their words moved up a step
+ * of the quiz ladder. A query of its own, so the board never waits on it; null
+ * while it loads and whenever it cannot be read, above all before the
+ * migration that counts them is on the live project — the board then shows
+ * XP alone, as before.
+ */
+export function useLeaderboardClimbs(userIds: string[]) {
+  return useQuery({
+    queryKey: ["leaderboard", "climbs", userIds],
+    queryFn: () => readClimbs(userIds),
+    enabled: userIds.length > 0,
+    staleTime: 30 * 1000,
+  });
+}
+
+/** A learner's climbs from what `useLeaderboardClimbs` read: none counted is 0; nothing read is null. */
+export function climbsFor(climbs: Map<string, number> | null | undefined, userId: string): number | null {
+  if (!climbs) return null;
+  return climbs.get(userId) ?? 0;
 }
 
 export function useAllTimeLeaderboard(limit = 20) {

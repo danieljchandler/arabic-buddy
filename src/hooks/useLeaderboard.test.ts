@@ -1,10 +1,12 @@
 import { act, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { renderHookWithProviders, TEST_USER_ID } from "@/test/support/react/harness";
-import { aProfile, aUserXp } from "@/test/support/factories";
+import { aProfile, aReviewLog, aUserXp } from "@/test/support/factories";
 import { useAuth } from "./useAuth";
 import {
+  climbsFor,
   useAllTimeLeaderboard,
+  useLeaderboardClimbs,
   useMyProfile,
   useMyRank,
   useUpdateProfile,
@@ -159,6 +161,93 @@ describe("the weekly board", () => {
     // worthless on the rows where it matters.
     expect(result.current.data?.[0].institution_name).toBe("Somewhere Else");
     expect(result.current.data?.[0].institution_verified).toBe(false);
+  });
+});
+
+/**
+ * Ladder climbs beside the week's XP (quiz Phase 7.4). The database counts
+ * them from the review log (`leaderboard_climbs`); the board shows what it
+ * says, and nothing at all when it cannot say — the migration not yet applied
+ * on the live project — rather than a row of zeros that would read as fact.
+ */
+describe("ladder climbs on the weekly board", () => {
+  const now = new Date().toISOString();
+  /** Rival climbs twice this week; I hold my step; Third has not chosen the board in profiles. */
+  const seedClimbs = (backend: SupabaseBackend) => {
+    seedBoard(backend);
+    backend.db.seed("profiles", [
+      aProfile({ id: "p-rival", user_id: RIVAL, show_on_leaderboard: true }),
+      aProfile({ id: "p-third", user_id: THIRD, show_on_leaderboard: false }),
+    ]);
+    backend.db.raw("profiles").forEach((row) => {
+      if (row.user_id === TEST_USER_ID) row.show_on_leaderboard = true;
+    });
+    backend.db.seed("review_log", [
+      aReviewLog({ id: 1, user_id: RIVAL, stability_before: 3, stability_after: 5, repetitions_after: 2, reviewed_at: now }),
+      aReviewLog({ id: 2, user_id: RIVAL, stability_before: 12, stability_after: 20, repetitions_after: 4, direction: "production", reviewed_at: now }),
+      // A lapse is no climb.
+      aReviewLog({ id: 3, user_id: RIVAL, rating: "again", stability_before: 20, stability_after: 2, repetitions_after: 4, reviewed_at: now }),
+      aReviewLog({ id: 4, user_id: TEST_USER_ID, stability_before: 5, stability_after: 7, repetitions_after: 3, reviewed_at: now }),
+      aReviewLog({ id: 5, user_id: THIRD, stability_before: 3, stability_after: 5, repetitions_after: 2, reviewed_at: now }),
+    ]);
+  };
+
+  const ON_BOARD = [RIVAL, TEST_USER_ID, THIRD];
+
+  it("reads each learner's climbs this week, for the board's learners", async () => {
+    const { result } = render(() => useLeaderboardClimbs(ON_BOARD), seedClimbs);
+
+    await waitFor(() => expect(result.current.data).toBeDefined());
+    const climbs = result.current.data!;
+    // Third is on the public view but has not chosen the board in their
+    // profile: the database answers nothing for them, which reads as none.
+    expect([RIVAL, TEST_USER_ID, THIRD].map((id) => climbsFor(climbs, id))).toEqual([2, 0, 0]);
+  });
+
+  it("reads none at all while the database cannot count them", async () => {
+    const { result } = render(
+      () => useLeaderboardClimbs(ON_BOARD),
+      (backend) => {
+        seedClimbs(backend);
+        backend.stubRpc("leaderboard_climbs", () => {
+          throw new Error("Could not find the function public.leaderboard_climbs");
+        });
+      },
+    );
+
+    await waitFor(() => expect(result.current.isFetched).toBe(true));
+    expect(result.current.data).toBeNull();
+    expect(climbsFor(result.current.data, RIVAL)).toBeNull();
+  });
+
+  it("is a query of its own: the board comes back whether or not climbs can be read", async () => {
+    const { result } = render(
+      () => useWeeklyLeaderboard(),
+      (backend) => {
+        seedClimbs(backend);
+        backend.stubRpc("leaderboard_climbs", () => {
+          throw new Error("Could not find the function public.leaderboard_climbs");
+        });
+      },
+    );
+
+    await waitFor(() => expect(result.current.data).toHaveLength(3));
+    expect(result.current.data!.map((row) => row.display_name)).toEqual(["Rival", "Third", "Me"]);
+  });
+
+  it("asks nothing for an empty board", async () => {
+    let asked = 0;
+    const { result } = render(
+      () => useLeaderboardClimbs([]),
+      (backend) => {
+        backend.stubRpc("leaderboard_climbs", () => {
+          asked += 1;
+          return [];
+        });
+      },
+    );
+    expect(result.current.fetchStatus).toBe("idle");
+    expect(asked).toBe(0);
   });
 });
 

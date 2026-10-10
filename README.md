@@ -600,6 +600,43 @@ waits for the answer, since it prints the hook, and then offers what it always
 does (a new hook, its picture, clearing the leech flag); under every other
 card, the flip card included, it is there from the start.
 
+**Ladder climbs on the leaderboard** (quiz Phase 7). The weekly board shows,
+beside each learner's XP this week, their **climbs** this week: how many times
+one of their curriculum words moved up a step of the ladder ("3 climbs"), the
+count the session summary's "Climbed" tile keeps for one session. The board
+does not rank by it; XP still does. The page's hint says what it counts.
+
+The count is the database's, not posted by the browser. `leaderboard_climbs` (an
+RPC, migration `20261010120000_leaderboard_climbs`) reads `review_log`, which
+only the schedule tables' triggers write, so a climb is counted from a schedule
+write rather than from a counter the client bumps. That is not proof against a
+determined learner — their own `word_reviews` rows are theirs to write through
+the API, as `award_xp` is theirs to call — so the count bounds what such writes
+can buy: this week's reviews only, never one stamped in the future, only a
+Hard, Good or Easy, and at most one climb per card, direction and day. A review
+climbs when the step its memory lands on is above the step it was asked at, by
+the ladder written out in SQL (`quiz_ladder_step`, a plain expression the
+planner inlines). Its thresholds are held to `LADDER_THRESHOLDS` by
+`src/test/leaderboardClimbs.test.ts`, and `migrationReplay.test.ts` runs it
+against `rungForMemory` on a grid of memory states and runs the count on a
+seeded week; the same rule in TypeScript (`src/lib/ladderClimbs.ts`) is what
+the in-memory backend answers with. The log keeps no repetitions before a
+review, so they are read as one fewer than after (the scheduler adds one on
+every review but a lapse, and a lapse is never a climb); a first review was
+asked as a new card. The week runs from Monday 00:00 UTC, the week
+`weekly_goals` counts XP in. The function answers only for learners who chose
+to be on the board, a page (100) at a time, and only with a count.
+
+The page reads the climbs in a query of their own (`useLeaderboardClimbs`), so
+the board never waits on them. Two things follow from counting them in the
+database. It counts **what the log logs**: the curriculum deck's words, in
+either review style — the step is a function of a card's memory, not of how it
+was asked — and not My Words or My Phrases, which the log does not cover (a
+quiz there shows "Climbed" in its summary that the board will not). And until
+the migration is applied to the live project (an owner action, quiz Phase 7b)
+the RPC is missing: `readClimbs` answers null and the board shows XP alone,
+exactly as before, rather than a row of zeros.
+
 Proposal and the phases still to come (the rest of the game, tuning from real
 reviews): `docs/quiz-modes-plan-2026-10.md`; the execution roadmap is
 `docs/quiz-phases-2026-10.md`.

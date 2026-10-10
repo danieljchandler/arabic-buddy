@@ -87,7 +87,7 @@ export const PAGE_HINTS: Record<string, { title: string; body: string; cta?: str
   },
   leaderboard: {
     title: "Leaderboard",
-    body: "See how your XP stacks up against other learners this week. Friendly competition = consistent practice.",
+    body: "See how your XP stacks up against other learners this week. Friendly competition = consistent practice. Climbs count your curriculum words that moved up a step of the quiz ladder this week.",
   },
   friends: {
     title: "Friends",

@@ -26,6 +26,8 @@ import { InfoHint } from "@/components/InfoHint";
 import { PAGE_HINTS } from "@/lib/pageHints";
 import {
   useWeeklyLeaderboard,
+  useLeaderboardClimbs,
+  climbsFor,
   useAllTimeLeaderboard,
   useMyProfile,
   useUpdateProfile,
@@ -38,6 +40,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { QueryErrorState } from "@/components/shared/QueryErrorState";
 import { toast } from "sonner";
 import {
+  ArrowUpRight,
   Trophy,
   Medal,
   Crown,
@@ -84,9 +87,12 @@ const RankBadge = ({ rank }: { rank: number }) => {
 const LeaderboardRow = ({
   entry,
   isCurrentUser,
+  climbs = null,
 }: {
   entry: LeaderboardEntry;
   isCurrentUser: boolean;
+  /** Ladder climbs this week, beside the XP; null to show none (the all-time tab, or not countable yet). */
+  climbs?: number | null;
 }) => {
   const showInst = entry.show_institution && entry.institution_name;
 
@@ -136,6 +142,14 @@ const LeaderboardRow = ({
       <div className="text-right shrink-0">
         <p className="font-bold text-primary">{entry.xp_this_week.toLocaleString()}</p>
         <p className="text-xs text-muted-foreground">XP this week</p>
+        {/* Ladder climbs beside the XP (quiz Phase 7.4): words that moved up a
+            step this week. Absent until the database can count them. */}
+        {climbs != null && (
+          <p className="text-xs text-muted-foreground inline-flex items-center gap-0.5">
+            <ArrowUpRight className="h-3 w-3 text-primary" aria-hidden />
+            {climbs.toLocaleString()} {climbs === 1 ? "climb" : "climbs"}
+          </p>
+        )}
       </div>
     </div>
   );
@@ -287,6 +301,8 @@ const Leaderboard = () => {
   const { data: myRank } = useMyRank();
 
   const data = tab === "weekly" ? weeklyData : allTimeData;
+  // Climbs beside the week's XP, in a query of their own so the board never waits on them.
+  const { data: climbs } = useLeaderboardClimbs(tab === "weekly" ? (weeklyData ?? []).map((e) => e.user_id) : []);
   const isLoading = tab === "weekly" ? weeklyLoading : allTimeLoading;
   const isError = tab === "weekly" ? weeklyFailed : allTimeFailed;
   const queryError = tab === "weekly" ? weeklyError : allTimeError;
@@ -377,6 +393,7 @@ const Leaderboard = () => {
                 key={entry.user_id}
                 entry={entry}
                 isCurrentUser={entry.user_id === user?.id}
+                climbs={tab === "weekly" ? climbsFor(climbs, entry.user_id) : null}
               />
             ))
           ) : (

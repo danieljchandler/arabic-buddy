@@ -1,5 +1,5 @@
 import { expect, test } from "./support/fixtures";
-import { aProfile, aUserXp, TEST_USER_ID } from "../src/test/support/factories";
+import { aProfile, aReviewLog, aUserXp, TEST_USER_ID } from "../src/test/support/factories";
 import type { MemoryDb } from "../src/test/support/postgrest/store";
 
 /**
@@ -415,5 +415,56 @@ test.describe("editing the public profile", () => {
     await expect
       .poll(() => db.rows("profiles").find((r) => r.user_id === TEST_USER_ID))
       .toMatchObject({ custom_institution: "Evening class", institution_id: null });
+  });
+});
+
+/**
+ * Ladder climbs beside the week's XP (quiz Phase 7.4): how many times a
+ * learner's words moved up a step of the quiz ladder this week, counted by
+ * the database from the review log. Until the migration that counts them is
+ * on the live project, the board shows XP alone.
+ */
+test.describe("ladder climbs", () => {
+  const now = () => new Date().toISOString();
+  const seedClimbs = (db: MemoryDb) => {
+    seedBoard(db, [
+      { user_id: RIVAL, display_name: "Layla", xp_this_week: 500 },
+      { user_id: THIRD, display_name: "Omar", xp_this_week: 300 },
+    ]);
+    db.seed("profiles", [
+      aProfile({ id: "p-rival", user_id: RIVAL, show_on_leaderboard: true }),
+      aProfile({ id: "p-third", user_id: THIRD, show_on_leaderboard: true }),
+    ]);
+    db.seed("review_log", [
+      // Two words, so two climbs: one card counts once a day.
+      aReviewLog({ id: 1, user_id: RIVAL, card_id: "00000000-0000-4000-8000-0000000000d1", stability_before: 3, stability_after: 5, repetitions_after: 2, reviewed_at: now() }),
+      aReviewLog({ id: 2, user_id: RIVAL, card_id: "00000000-0000-4000-8000-0000000000d2", stability_before: 5, stability_after: 9, repetitions_after: 3, reviewed_at: now() }),
+      aReviewLog({ id: 3, user_id: THIRD, stability_before: 3, stability_after: 5, repetitions_after: 2, reviewed_at: now() }),
+    ]);
+  };
+
+  test("sit beside each learner's XP on the weekly board", async ({ page, signInAs, db }) => {
+    await signInAs("anonymous");
+    seedClimbs(db);
+
+    await page.goto("/leaderboard");
+
+    await expect(page.getByText("Layla")).toBeVisible();
+    await expect(page.getByText("2 climbs", { exact: true })).toBeVisible();
+    await expect(page.getByText("1 climb", { exact: true })).toBeVisible();
+  });
+
+  test("are left out, and the board shown as before, while the database cannot count them", async ({ page, signInAs, db, backend }) => {
+    await signInAs("anonymous");
+    seedClimbs(db);
+    backend.stubRpc("leaderboard_climbs", () => {
+      throw new Error("Could not find the function public.leaderboard_climbs");
+    });
+
+    await page.goto("/leaderboard");
+
+    await expect(page.getByText("Layla")).toBeVisible();
+    await expect(page.getByText("XP this week").first()).toBeVisible();
+    await expect(page.getByText(/\bclimbs?\b/)).toHaveCount(0);
   });
 });

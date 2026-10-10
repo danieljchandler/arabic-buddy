@@ -22,7 +22,8 @@ means — so a session can pick up the next phase cold.*
 | 5b | Apply the bucket migration, deploy `word-asset`, run `scripts/curriculum-animations.ts` | **owner action** (after 2b) |
 | 6 | Words in stories | built (PR #428) |
 | 6b | Deploy `word-asset` (this version), then run `scripts/curriculum-stories.ts` | **owner action** (after 2b) |
-| 7 | The rest of the game | in progress: "Why not this one?" (PR #430), the lightning round (PR #431) and the boss card (PR #432) built |
+| 7 | The rest of the game | built: "Why not this one?" (PR #430), the lightning round (PR #431), the boss card (PR #432), ladder climbs (PR #433); XP parity is the owner's question |
+| 7b | Apply the `leaderboard_climbs` migration to the live project | **owner action** |
 | 8 | Tuning from real reviews | once the quiz has weeks of history |
 | 9 | Housekeeping | any time |
 
@@ -879,7 +880,7 @@ One PR per item, in this order, each independent of the asset store:
 | 7.1 "Why not this one?" on every choice step | built (PR #430) |
 | 7.2 The lightning round | built (PR #431, on #430) |
 | 7.3 The boss card | built (PR #432, on #431) |
-| 7.4 Ladder climbs on the leaderboard | next |
+| 7.4 Ladder climbs on the leaderboard | built (PR #433, on #432); the migration is 7b |
 | XP parity for the flip cards | **a question for the owner**, not built |
 
 ### 7.1 "Why not this one?" on every choice step (built, PR #430)
@@ -1081,6 +1082,91 @@ latched boss with the rating, and takes a choice answer once. Also fixed: the
 rescue panel waits beside a card still being prepared, as it did before (not
 beside the boss), and the celebration's copy no longer says "word" of a
 phrase.
+
+### 7.4 Ladder climbs on the leaderboard (built, PR #433; the migration is 7b)
+
+What shipped (writeup: README "Reviewing as a quiz instead of flashcards",
+ladder climbs on the leaderboard):
+
+- **Migration `20261010120000_leaderboard_climbs.sql`**:
+  `quiz_ladder_step(stability, repetitions, direction)` (the ladder in SQL, an
+  inlinable expression) and `leaderboard_climbs(_user_ids uuid[])`, a
+  security-definer RPC that counts this UTC week's climbs in `review_log`
+  (deck `word`; Hard, Good or Easy only; never a review stamped in the future;
+  one per card, direction and day) for opted-in learners only, 100 a call.
+- **`src/lib/ladderClimbs.ts`**: `isLadderClimb`, `climbWeekStart` and
+  `countWeekClimbs`, the rule in TypeScript; the in-memory backend's
+  `leaderboard_climbs` uses it.
+- **`useLeaderboard`**: `readClimbs` (null on any failure),
+  `useLeaderboardClimbs` (a query of its own, so the board never waits) and
+  `climbsFor`; the weekly row shows "n climbs" under the XP, and the page's
+  hint says what it counts.
+- **`extractQueries`** (the contract inventory) sees a call through
+  parentheses and casts, so `schemaContract` now catches a renamed
+  `leaderboard_climbs` (and the other RPCs called through a cast).
+- Guards: `ladderClimbs.test.ts`; `leaderboardClimbs.test.ts` (the SQL's
+  thresholds held to `LADDER_THRESHOLDS`, and the rules the count rests on);
+  `migrationReplay.test.ts` (the SQL step against `rungForMemory` on 120
+  memory states, and the count on a seeded week, against Postgres in CI's
+  replay job); `useLeaderboard.test.ts`; `schemaContract.test.ts`;
+  `leaderboard.spec.ts` ("ladder climbs").
+
+**Decided in this item:**
+
+1. *Counted by the database from `review_log`, not posted by the client.* A
+   climb comes from a schedule write, not a counter; and since a learner can
+   write their own schedule rows (as they can call `award_xp`), the count
+   bounds what that buys (see the migration). The cost is coverage: My Words
+   and My Phrases are not in the log, so their climbs are not counted.
+   Logging them is its own migration.
+2. *Every curriculum review counts, flashcard or quiz*: the step is read off
+   memory, so a word climbs the same whichever way it was asked.
+3. *Beside XP, not instead*: the board still ranks by XP.
+4. *No zeros before the migration*: a missing RPC hides the climbs, and the
+   board never waits on them.
+5. *The step before is inferred*: the log keeps repetitions after a review
+   only. One fewer is exact for every review but a lapse and a learning
+   card's Hard (which stays at 0, and is read so); lapses and unrated rows
+   are left out.
+6. *One climb per card, direction and day.* The session summary counts every
+   promotion, so a card that climbs twice in a day counts twice there and
+   once on the board; it is rare, and it is what keeps a row rewritten in a
+   loop from buying a climb per write.
+
+An independent review before the PR found no critical or high problems; its
+checks in Postgres agreed with the code. Four medium ones, fixed: the step
+function's `SET search_path` kept the planner from inlining it (5 s against
+0.3 s on 300k rows) and the board waited on the count (it now has its own
+query); climbs could be bought with future-stamped or looped schedule writes
+(the bounds above; the docs had claimed nobody could post themselves a
+number, which was too strong); `schemaContract` could not see the RPC call
+through its cast (the inventory now looks through casts); and the SQL's
+behaviour was not tested in CI (it is now, in the replay job). Low ones,
+fixed: unrated rows counted, a non-finite stability stepped differently in SQL
+and TypeScript, the docs called the week XP's (no migration resets
+`xp_this_week`; `weekly_goals` is what follows the UTC week), and the board's
+scope was only in a tooltip (it is in the page's hint now). Left as it is, and
+older than this phase, for the owner: nothing in the repo resets
+`user_xp.xp_this_week` (`award_xp` only adds to it), so unless a scheduled job
+on the live project does, "XP this week" is not this week's, while climbs
+are.
+
+### 7b — owner action
+
+Apply `20261010120000_leaderboard_climbs.sql` to the live project (ask Lovable
+to run it, or `supabase db push`). It adds two functions and touches no table.
+Until then the weekly board shows XP alone. Nothing is waiting on a types
+regeneration (no column is added), and `typesDrift` has no entry for it.
+
+**Done when** (7b): the weekly board in production shows climbs beside XP.
+
+### XP parity for the flip cards — the owner's question
+
+Not built. A graded quiz answer on My Words or My Phrases pays the flat review
+XP and bumps the weekly review count; those decks' flip cards still pay
+nothing, while the curriculum deck's flip cards pay. Paying the flip cards
+would change existing behaviour (and the board's XP), so it waits on the
+owner.
 
 ### The plan, as it was written
 

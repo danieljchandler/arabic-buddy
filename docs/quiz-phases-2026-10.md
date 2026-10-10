@@ -1201,10 +1201,15 @@ high. Fixed from its review:
   which refetched and then pointed its index into the server's list, without
   the phrases rated earlier: it now patches the session's list to the row it
   restored and lands on the phrase by id, refetching only when the phrase has
-  left the list. My Words' Undo had the same refetch (before this PR) and
-  takes the same fix; an e2e undoes on My Phrases and checks it stays.
-  Both decks also drop their due list on leaving the page, as `/review` does,
-  so coming back never serves the list from before the visit's ratings.
+  left the list; an e2e undoes on My Phrases and checks it stays. Both decks
+  also drop their due list on leaving the page, as `/review` does, so coming
+  back never serves the list from before the visit's ratings.
+- *Left as it is:* My Words' Undo refetches its list, as it always has, so
+  the index it goes back to can point at another card once the refetch
+  lands. The same fix was tried and taken back after review: a saved word's
+  two directions are two cards with one id, and an Undo of a relearn rating
+  must not rewind the list, so it needs the card's direction and the relearn
+  pass in its undo record. That is its own change.
 - *Low:* the pages' fallback pools (used when the pool read fails) carried no
   dialect; they do now. `wordForMeaning` compares dialects with
   `normalizeDialect`, as the reply question does. Two boss e2e asserted the

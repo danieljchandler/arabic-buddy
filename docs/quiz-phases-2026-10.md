@@ -1020,7 +1020,8 @@ the boss card):
   `QuizBossBanner` (the hook and its picture behind one tap, which is help);
   `QuizGraded.step` is the card's own step; the leech rescue panel is placed
   by the frame (`leechPanel`), held back under the boss until the answer.
-- **The pages** celebrate a win once the rating is saved (`bossBeaten`).
+- **The pages** celebrate a win once the rating is on its way (`bossBeaten`):
+  saved on My Words and My Phrases, queued on the curriculum deck.
 - **`celebrations.ts`**: a `boss` kind, the small tier, "Boss beaten!".
 - **`phraseDirection`** moved from `MyPhrasesReview` to `quizLadder.ts`, so
   the phrase deck's due list and its page read a phrase's direction one way.
@@ -1068,6 +1069,18 @@ well past 1 is still asked a first look, as the plan says, and a right answer
 there is Good; the hook stays hidden so that Good is earned, but the question
 is easier than its step. Untested at unit level: `useDueWords({ bossFirst })`
 and the pages' `isBossTurn` wiring (the e2e covers `/review`).
+
+A last review of the four Phase 7 PRs together, before merging, found one
+more, high, in the fix above: with the rescue panel shown after the answer,
+its "Not stuck — clear leech flag" patched the deck, the page stopped marking
+the card a boss, and the answered card turned into its own step's question
+(another wait, possibly a paid picture or exchange, and a second answer that
+could replace the first rating; no celebration). Fixed: the frame latches the
+boss for the card's presentation, as it latches the picture, reports the
+latched boss with the rating, and takes a choice answer once. Also fixed: the
+rescue panel waits beside a card still being prepared, as it did before (not
+beside the boss), and the celebration's copy no longer says "word" of a
+phrase.
 
 ### The plan, as it was written
 

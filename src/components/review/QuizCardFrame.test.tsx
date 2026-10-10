@@ -509,6 +509,44 @@ describe("the boss card", () => {
     expect(screen.getByText("the rescue panel")).toBeInTheDocument();
   });
 
+  it("stays the boss, its question and its answer, when the page clears its leech flag after the answer", () => {
+    // The rescue panel's "Not stuck" patches the deck: the page re-renders the
+    // card with no boss. The answered question must not turn into its own step.
+    const { onGraded, rerenderWith } = render(aBoss(), { leechPanel: RESCUE });
+    pick(true);
+    rerenderWith({ ...aBoss(), boss: null }, { leechPanel: RESCUE });
+
+    expect(screen.getByRole("region", { name: "Boss card" })).toBeInTheDocument();
+    expect(screen.getByText("Fill in the missing word")).toBeInTheDocument();
+    expect(screen.queryByText("What did you hear?")).not.toBeInTheDocument();
+    // The answer given stands: the options are spent.
+    for (const option of arabicChoices()) expect(option).toBeDisabled();
+    continueOn();
+
+    expect(onGraded).toHaveBeenCalledTimes(1);
+    expect(onGraded).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rating: "good",
+        format: "cloze-hint",
+        step: 4,
+        // Reported as the boss it was asked as, so the page celebrates it.
+        item: expect.objectContaining({ boss: expect.objectContaining({ lapses: 7 }) }),
+      }),
+    );
+  });
+
+  it("keeps the rescue panel beside a card that is still being prepared, but not beside the boss", () => {
+    const { unmount } = render(anItem(), { leechPanel: RESCUE, ready: false });
+    expect(screen.getByRole("status", { name: /preparing the question/i })).toBeInTheDocument();
+    expect(screen.getByText("the rescue panel")).toBeInTheDocument();
+    unmount();
+    cleanup?.();
+
+    render(aBoss(), { leechPanel: RESCUE, ready: false });
+    expect(screen.getByRole("status", { name: /preparing the question/i })).toBeInTheDocument();
+    expect(screen.queryByText("the rescue panel")).not.toBeInTheDocument();
+  });
+
   it("offers no tap when there is neither hook nor picture", () => {
     render(aBoss({ imageUrl: null, boss: { lapses: 1, mnemonic: null, pictureUrl: null } }));
     expect(screen.getByRole("region", { name: "Boss card" })).toHaveTextContent("missed once");

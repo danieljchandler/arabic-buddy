@@ -86,6 +86,23 @@ describe("withoutProclitics and wordUseCount", () => {
     expect(wordUseCount("سوقه زحمة", "سوق")).toBe(1);
   });
 
+  it("counts a word stored with its article however a passage says it", () => {
+    // The fixtures' own word, and the curriculum's الحساب, اليوم, الصبح...
+    expect(wordUseCount("رحنا للسوق", "السوق")).toBe(1);
+    expect(wordUseCount("نزلنا عالسوق", "السوق")).toBe(1);
+    expect(wordUseCount("سوق كبير", "السوق")).toBe(1);
+    expect(wordUseCount("سوقنا زحمة", "السوق")).toBe(1);
+    expect(wordUseCount("دفعت للحساب", "الحساب")).toBe(1);
+    expect(wordUseCount("رحنا للسوق. السوق كان زحمة.", "السوق")).toBe(2);
+    // Never down to two letters: الله is not heard in every له.
+    expect(wordUseCount("قلت له", "الله")).toBe(0);
+  });
+
+  it("counts the word inside curly quotation marks", () => {
+    expect(wordUseCount("قال “قهوة” وراح", "قهوة")).toBe(1);
+    expect(wordUseCount("قالت ‘السوق’", "السوق")).toBe(1);
+  });
+
   it("does not count another word that only begins like a short one", () => {
     // كل is a prefix of كلب and كلام: no ending is looked for on a word this short.
     expect(wordUseCount("شفت كلب", "كل")).toBe(0);

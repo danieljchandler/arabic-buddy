@@ -56,6 +56,7 @@ function render({
   seed,
   ask,
   askAgain,
+  reopen = false,
   route = "/reading",
   pageContext,
 }: {
@@ -63,6 +64,8 @@ function render({
   ask?: string;
   /** A second opener on the same sentence, with another question. */
   askAgain?: string;
+  /** A second opener on the same sentence, with no question. */
+  reopen?: boolean;
   route?: string;
   pageContext?: PageAiContext;
 } = {}) {
@@ -72,6 +75,7 @@ function render({
       {pageContext && <PagePublisher ctx={pageContext} />}
       <Opener seed={seed} ask={ask} />
       {askAgain && <Opener seed={seed} ask={askAgain} label="ask-again" />}
+      {reopen && <Opener seed={seed} label="reopen" />}
       <AskAiPanel />
     </AiAssistantProvider>,
     {
@@ -194,7 +198,11 @@ describe("AskAiPanel", () => {
 
   it("asks a question the opening tap named, once, and sends the sentence alone as the seed", async () => {
     const question = "In this passage I put «شاي» in the gap, but the word is «قهوة». Why doesn't «شاي» fit here?";
-    const { backend } = render({ seed: { arabic: "طلب الريال قهوة حارة.", english: "He ordered hot coffee." }, ask: question });
+    const { backend } = render({
+      seed: { arabic: "طلب الريال قهوة حارة.", english: "He ordered hot coffee." },
+      ask: question,
+      reopen: true,
+    });
 
     await open();
 
@@ -211,6 +219,14 @@ describe("AskAiPanel", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
     expect(backend.callsTo("assistant-chat")).toHaveLength(1);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "reopen" }));
+    });
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(backend.callsTo("assistant-chat")).toHaveLength(1);
+    expect(screen.getByText("it is idiomatic.", { exact: false })).toBeInTheDocument();
   });
 
   it("asks a second question about the same sentence as the next message of its conversation", async () => {

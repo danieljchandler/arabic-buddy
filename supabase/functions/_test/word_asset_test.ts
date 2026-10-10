@@ -2083,6 +2083,24 @@ Deno.test("word-asset ensure writes a passage when no story uses the word, and c
   assertEquals(chargedOn(calls), ["word-asset-dialogue"]);
 });
 
+Deno.test("word-asset ensure files a written passage as written: a story the model names is not kept", async () => {
+  // Only a passage taken from a published story says "From the story …".
+  const table = assetTable();
+  const { status, body } = await call(
+    { action: "ensure", ...COFFEE_STORY },
+    upstreams(
+      { id: LEARNER_A },
+      table.handler,
+      writing({ ...aPassage(), story: { id: STORY_ID, title: "A story it made up", titleArabic: "" } }),
+    ),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(table.rows[0].source, "generated");
+  assertEquals(table.rows[0].payload, aPassage());
+  assertEquals((body.asset as Record<string, unknown>).payload, aPassage());
+});
+
 Deno.test("word-asset ensure writes a passage from the key alone: nothing a learner typed reaches the prompt", async () => {
   const table = assetTable();
   const { status, calls } = await call(

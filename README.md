@@ -420,9 +420,9 @@ missing word (`QuizStoryCard`):
   given, so no voice can say it, and both readings — muted before the take and
   whole after it — are in the passage's dialect's voice. The cloze card used to
   read in the learner's active dialect; it now reads in the card's.
-- *The meaning is named beside the gap.* A gap in running speech fits more than
-  one word, and a right word that is not this one would be scored as a
-  different word. The passage's translation is a tap away, and counts as help.
+- *The meaning is named beside the spoken gap.* A gap in running speech fits
+  more than one word, and a right word that is not this one would be scored as
+  a different word. The passage's translation is a tap away, and counts as help.
 - *The take* is the word, scored against the word in the passage's locale and
   read through `singleWordSimilarity`: the word heard with a prefix attached
   (و, ب, ال, لل) is the word, a word of three letters or fewer must be heard
@@ -431,7 +431,11 @@ missing word (`QuizStoryCard`):
   reading the sentence back: the best stretch of a take, which a reply is
   read by, would be the word, and a pronunciation score charges extra words
   only a few points. It is banded like any single-word take, and a different
-  word is Again. The muted reading never starts once a take has. **The
+  word is Again. The muted reading never starts once a take has. The
+  four-option gap does not name the meaning: with four set options the
+  meaning would make it a translation match rather than a reading of the
+  passage, and it follows the cloze card's later steps, which do not name it
+  either; the translation is still a tap away, as help. **The
   step-9 rule (`REPLY_WORD_CLEAR`) does not apply:** it lifts a reply out of
   Again because a learner can answer a line rightly in other words than the
   stored reply and lose on completeness, and here the reference is the word
@@ -756,7 +760,10 @@ places, in this order.
     `arabic_vocalized`, and the story's `body_fusha`) being the Modern
     Standard Arabic it was imported from and `dialect` the spoken rendering;
     only `dialect` is read, and a rendering that is its own fusha word for word
-    was never converted. `body_dialect` is not read for text either: it fills
+    was never converted — nor is a sentence of a rendering that is one of its
+    fusha's sentences word for word (a conversion can leave one sentence of a
+    line untouched; it keeps its place, so the sentences either side of it are
+    never paired across it). `body_dialect` is not read for text either: it fills
     every line the conversion skipped with that line's fusha. *Published
     only:* `status = 'published'`, the one status the reader's RLS serves to
     anyone (`draft` and `content_approved` are an editor's work in progress).
@@ -801,7 +808,11 @@ places, in this order.
   the one before it (the story leading into the gap), or the one after when
   the word opens the story or the one before does not make a passage; two
   sentences pair only if they follow on in the story, and the word's sentence
-  is never cut. Of every passage the shelf holds, the shortest is taken, since
+  is never cut. The word is said once in the two (`wordUseCount`), counting
+  every form the muted reading would give it away in: an attached prefix
+  (و, ب, ال, للسوق, عالسوق), a pronoun or plural ending (قهوتي, بيتين),
+  quotation marks, and, for a word stored with its article, the word without
+  it (سوق, سوقنا for السوق). Of every passage the shelf holds, the shortest is taken, since
   the learner hears all of it. The search reads public data only: the
   published stories, their rendered lines a page at a time, and the bodies of
   the stories a passage was found in, bounded by `MAX_STORIES_PER_SEARCH` and

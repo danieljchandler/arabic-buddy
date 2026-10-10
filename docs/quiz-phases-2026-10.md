@@ -609,7 +609,7 @@ reading library"):
   gap with four options; too few options → the flip card. `QUIZ_STEP_COUNT` is
   10, and the badge has ten dots.
 - **`QuizStoryCard`**: the passage with the gap cut by `findPhraseSpan`
-  (`src/lib/quizStory.ts`), the meaning named beside it, the translation a tap
+  (`src/lib/quizStory.ts`), the meaning named beside the spoken gap, the translation a tap
   away (help), the passage read with the word muted and whole after.
   `story-gap` scores the word against the word in the passage's locale, read
   through `singleWordSimilarity` (prefixes off, short words exact, and a take
@@ -681,8 +681,11 @@ reading library"):
    reference is the word itself has no such gap. Ordinary bands,
    `SPEECH_MATCH_FLOOR`, a different word is Again; `wordSpanSimilarity` reads
    the take, so the attached-prefix and short-word lessons hold.
-10. *The meaning is named beside the gap*: running speech fits more than one
-    word, and a right other word would be scored as a different one.
+10. *The meaning is named beside the spoken gap*: running speech fits more
+    than one word, and a right other word would be scored as a different one.
+    Not beside the four-option gap, which follows the cloze card's later steps:
+    with four set options the meaning would turn the passage into a
+    translation match.
 11. *A device that cannot record gets the four-option gap*, the one choice on
     the production schedule, never better than Good; "rate it myself" still
     gives the flip card, as on every speaking step.
@@ -705,6 +708,25 @@ passage was never asked (now the one-shot `pendingAsk`), a late reading that
 could autoplay into a take, a title that could say the word, and docs that
 claimed an unset licence was refused when the column defaults to
 `public_domain`. Questions it raised for the owner are in 6b.
+
+A second review, cold, before the merge, found five more, all fixed. The
+second-use rule compared what a passage said with the word as stored, so a
+word stored with its article (السوق, and the curriculum's الحساب, اليوم,
+الصبح…) was not counted in للسوق, سوقنا or a bare سوق, and the muted reading
+could say the answer in the other sentence; it now counts the word without
+its article too, and through curly quotation marks. A sentence a conversion
+left as its fusha, inside a line cut into sentences, could be the gap's (the
+copy check compared whole lines); each sentence is checked now, and keeps its
+place so its neighbours are never paired across it. The take-back check read
+a story's first thousand lines only, so a passage cut past them was taken
+back on every run; it pages now, as the search does. A written passage kept a
+`story` the model might name. And a test that said it reopened the panel
+did not. It also asked why the four-option gap does not name the meaning:
+decision 10 is about the spoken gap, and the four-option one follows the
+cloze card's later steps (said so above). It found the same second-use gap in
+Phase 4's exchange, which is not fixed here: an opening line is checked with
+`lineUsesWord` alone, so "رحنا للسوق؟" can open an exchange whose reply is
+the word السوق.
 
 ### Phase 6b — owner action
 
@@ -747,6 +769,15 @@ claimed an unset licence was refused when the column defaults to
   since the word appears in the gap.
 - *A story line's English translates the fusha*, not the rendering, so a
   sentence's English can be a little off its dialect text.
+- *A hesitation in the take* ("اه قهوة") is a take of more words than the
+  item, so it is a different word, Again. Whether Azure's recognised text
+  keeps fillers in Arabic is not known from here; the result shows what was
+  heard, and "Try again" is there. A filler list would need care: ايه is
+  "yes" in Egyptian and could be the word.
+- *Phase 4's exchange can give the word away in its opening line* when the
+  word is said there with a prefix (the second review's finding above). The
+  fix is `wordUseCount(first, word) === 0` in `asStoredDialogue`; exchanges
+  already filed would need re-checking. Not done here: Phase 4 is merged.
 
 **Done when** (6b): a mature curriculum word is asked in a story in
 production, from a published story's sentences where the shelf has one.

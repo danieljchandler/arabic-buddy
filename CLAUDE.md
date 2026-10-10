@@ -224,7 +224,10 @@ harness.
   fusha), `status = 'published'`, a public-domain or CC0 licence, the story's
   dialect exactly (`storyDialect`: `normalizeDialect` reads Levantine and MSA
   as Gulf), the word's sense (`englishNamesSense`: the folding cannot tell
-  homographs apart), and its current rendering (`inCurrentRendering`). Only
+  homographs apart), and its current rendering (`inCurrentRendering`); no
+  sentence that is one of its fusha's word for word, and the word said once
+  in the two by `wordUseCount`, which counts it under a prefix, an ending or
+  quotation marks, and without the article it was stored with. Only
   then is one written, through the same `writeText` as an exchange. A
   learner's miss is charged on the exchange's counter before the search,
   found or written, since a miss is a shelf search and a public row.

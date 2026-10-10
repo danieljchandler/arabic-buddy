@@ -46,10 +46,11 @@
  *      label. `body_dialect` is rebuilt from the latest conversion alone, so a
  *      line whose text is not one of its lines is from an earlier one
  *      (`inCurrentRendering`). And a "rendering" that is its own fusha line
- *      word for word was never converted.
+ *      word for word was never converted, nor is a sentence of one that is
+ *      one of its fusha's sentences word for word.
  *    Every sentence also passes the leak detector here, as a generated one
- *    must: it is free, and the rulebook may have grown since the story's
- *    conversion was checked.
+ *    must: the check costs nothing, and the rulebook may have grown since the
+ *    story's conversion was checked.
  *
  * 2. **Written for the word** through the Brain, once per word, sense and
  *    dialect, under the dialogue kind's rules exactly (`word-asset`): from the
@@ -398,6 +399,12 @@ interface Unit {
   /** The first or last sentence of its line, for telling neighbours across lines. */
   first: boolean;
   last: boolean;
+  /**
+   * A sentence the conversion left as its fusha, word for word. It keeps its
+   * place, so the sentences either side of it are never taken as neighbours,
+   * but no passage is cut from it.
+   */
+  fusha: boolean;
 }
 
 /**
@@ -405,7 +412,9 @@ interface Unit {
  * sentences is cut only where its English has as many, so each sentence keeps
  * its own translation; otherwise the line is one sentence of the passage, as
  * long as it is short enough to be one. Nothing is taken from a line with no
- * rendering, no English, or a rendering that is its fusha word for word.
+ * rendering, no English, or a rendering that is its fusha word for word; and
+ * none from a sentence of a rendering that is one of the fusha's sentences
+ * word for word (a conversion can leave one sentence of a line untouched).
  */
 function lineUnits(line: StoryLineRow): Unit[] {
   const rendering = str(line.dialect);
@@ -417,6 +426,7 @@ function lineUnits(line: StoryLineRow): Unit[] {
   const parts = arabicParts.length > 1 && arabicParts.length === englishParts.length
     ? arabicParts.map((arabic, i) => ({ arabic, english: englishParts[i] }))
     : [{ arabic: rendering, english }];
+  const fushaSentences = new Set(splitSentences(line.arabic ?? "").map(normaliseAssetWord).filter(Boolean));
   return parts.map((part, i) => ({
     lineIndex: line.line_index,
     rendering,
@@ -424,6 +434,7 @@ function lineUnits(line: StoryLineRow): Unit[] {
     english: part.english,
     first: i === 0,
     last: i === parts.length - 1,
+    fusha: splitSentences(part.arabic).some((sentence) => fushaSentences.has(normaliseAssetWord(sentence))),
   }));
 }
 
@@ -471,7 +482,7 @@ export function storyPassages(
       .sort((a, b) => a.line_index - b.line_index)
       .flatMap(lineUnits);
     const passageOf = (a: Unit | undefined, b: Unit | undefined): StoryPassage | null => {
-      if (!a || !b || !follows(a, b)) return null;
+      if (!a || !b || a.fusha || b.fusha || !follows(a, b)) return null;
       const sentences = [
         { arabic: a.arabic, english: a.english },
         { arabic: b.arabic, english: b.english },
@@ -568,6 +579,26 @@ const rows = <T>(settled: Settled): T[] => {
   return Array.isArray(settled.data) ? (settled.data as T[]) : [];
 };
 
+/** The rendered lines of some stories, in story and line order, a page at a time, at most `budget` of them. */
+async function readStoryLines(client: StoryClient, ids: readonly string[], budget: number): Promise<StoryLineRow[]> {
+  const lines: StoryLineRow[] = [];
+  for (let offset = 0; lines.length < budget; offset += STORY_LINES_PER_PAGE) {
+    const page = rows<StoryLineRow>(
+      await client
+        .from("authentic_story_lines")
+        .select("story_id, line_index, arabic, dialect, english")
+        .in("story_id", ids)
+        .not("dialect", "is", null)
+        .order("story_id", { ascending: true })
+        .order("line_index", { ascending: true })
+        .range(offset, offset + STORY_LINES_PER_PAGE - 1),
+    );
+    lines.push(...page);
+    if (page.length < STORY_LINES_PER_PAGE) break;
+  }
+  return lines;
+}
+
 /**
  * The shortest passage a published story holds for the key's word, or null.
  * The word is the key's folded word (`keyWord`), never one a caller typed.
@@ -603,20 +634,7 @@ export async function findStoryPassage(
     const lines: StoryLineRow[] = [];
     for (let i = 0; i < stories.length && lines.length < MAX_STORY_LINES_PER_SEARCH; i += STORY_IDS_PER_READ) {
       const ids = stories.slice(i, i + STORY_IDS_PER_READ).map((story) => story.id);
-      for (let offset = 0; lines.length < MAX_STORY_LINES_PER_SEARCH; offset += STORY_LINES_PER_PAGE) {
-        const page = rows<StoryLineRow>(
-          await client
-            .from("authentic_story_lines")
-            .select("story_id, line_index, arabic, dialect, english")
-            .in("story_id", ids)
-            .not("dialect", "is", null)
-            .order("story_id", { ascending: true })
-            .order("line_index", { ascending: true })
-            .range(offset, offset + STORY_LINES_PER_PAGE - 1),
-        );
-        lines.push(...page);
-        if (page.length < STORY_LINES_PER_PAGE) break;
-      }
+      lines.push(...(await readStoryLines(client, ids, MAX_STORY_LINES_PER_SEARCH - lines.length)));
     }
 
     const passages = storyPassages(word, key.sense, dialect, stories, lines, opts.leaksIn);
@@ -665,15 +683,9 @@ export async function storyPassageStillLent(
         .limit(1),
     );
     if (!story || storySourceProblem(story, dialect) !== null) return false;
-    const lines = rows<StoryLineRow>(
-      await client
-        .from("authentic_story_lines")
-        .select("story_id, line_index, arabic, dialect, english")
-        .eq("story_id", storyId)
-        .not("dialect", "is", null)
-        .order("line_index", { ascending: true })
-        .range(0, STORY_LINES_PER_PAGE - 1),
-    );
+    // Every line, as the search reads them: a passage cut past the first page
+    // is still the story's.
+    const lines = await readStoryLines(client, [storyId], MAX_STORY_LINES_PER_SEARCH);
     const same = (passage: StoryPassage) =>
       passage.sentences.every(
         (sentence, i) => sentence.arabic === filed.sentences[i].arabic && sentence.english === filed.sentences[i].english,

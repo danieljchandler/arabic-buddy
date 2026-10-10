@@ -978,8 +978,8 @@ const Review = () => {
               // scripts/curriculum-animations.ts, never on a learner's miss.
               animations
               // A mature word is asked in a story: its passage from the store,
-              // found in a published story on a miss (free), or written for
-              // it on this learner's dialogue allowance.
+              // found in a published story on a miss or written for it, either
+              // way on this learner's dialogue allowance.
               storyLines
               renderFlashcard={() => (
                 <>

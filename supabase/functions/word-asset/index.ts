@@ -195,7 +195,9 @@ const TEXT_CAP = { key: "word-asset-dialogue", free: 30, tiers: { standard: 100,
  *   apart because they cost differently; these two cost alike, and a counter
  *   of their own would have given every learner a second thirty text calls a
  *   day for a step a word reaches after two months. A passage taken from a
- *   published story calls no model and is charged nothing.
+ *   published story calls no model, but a learner's miss is charged before
+ *   the search all the same: it reads the whole shelf and can file a public
+ *   row, and the gloss that picks the key is the caller's to vary.
  */
 const CAPS = {
   image: { key: "generate-flashcard-image", free: 20, tiers: { standard: 60, allin: 200 } },
@@ -672,7 +674,11 @@ async function makeStoryLine(
     // no gap, and the critic is sent back to fix exactly that.
     gate: (parsed) => storyLineProblem(parsed, word),
     arabicTextPath: storyLineArabic,
-    read: (output) => asStoredStoryLine(output, word),
+    // Written, not taken: a story the model names is not one it came from.
+    read: (output) => {
+      const line = asStoredStoryLine(output, word);
+      return line && { ...line, story: null };
+    },
     scan: storyLineSentencesForScan,
     payload: storyLinePayload,
     noun: "passage",

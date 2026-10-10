@@ -86,6 +86,16 @@ describe("asStoredStoryLine", () => {
     }
   });
 
+  it("is no gap when a word stored with its article is said again without it, or in quotation marks", () => {
+    // The muted reading would say the answer aloud in the other sentence.
+    const market = { arabic: "السوق كان زحمة.", english: "The market was crowded." };
+    for (const other of ["رحنا للسوق الصبح.", "نزلنا عالسوق.", "سوقنا قريب."]) {
+      expect(asStoredStoryLine({ sentences: [{ arabic: other, english: "x" }, market] }, "السوق"), other).toBeNull();
+    }
+    expect(asStoredStoryLine({ sentences: [{ arabic: "قال “قهوة” وراح.", english: "x" }, ordered] }, "قهوة")).toBeNull();
+    expect(asStoredStoryLine({ sentences: [morning, market] }, "السوق")?.gap).toBe(1);
+  });
+
   it("does not take a word with something attached for the gap itself", () => {
     // The gap is cut on a whole word; بالسوق alone is no place to cut سوق from.
     expect(asStoredStoryLine({ sentences: [morning, { arabic: "رحنا بالسوق.", english: "x" }] }, "سوق")).toBeNull();
@@ -285,6 +295,37 @@ describe("cutting a passage from a story", () => {
       storyPassages("قهوة", "coffee", "Gulf", [story()], [
         line(0, morning.arabic, morning.english),
         line(1, fusha, ordered.english, { arabic: fusha }),
+      ]),
+    ).toEqual([]);
+  });
+
+  it("never takes a sentence its conversion left as its fusha, and never pairs across one", () => {
+    const fushaMorning = "كان الصباح باردا جدا.";
+    const fushaOrdered = "طلب الرجل قهوة ساخنة.";
+    const fusha = `${fushaMorning} ${fushaOrdered} ثم جلس مع أصدقائه.`;
+    const english = `${morning.english} ${ordered.english} ${sat.english}`;
+    // The word's sentence left as it was: no gap is cut from it.
+    expect(
+      storyPassages("قهوة", "coffee", "Gulf", [story()], [line(0, `${morning.arabic} ${fushaOrdered} ${sat.arabic}`, english, { arabic: fusha })]),
+    ).toEqual([]);
+    // The sentence before it left as it was: the passage is the word's with the one after.
+    const [after] = storyPassages("قهوة", "coffee", "Gulf", [story()], [
+      line(0, `${fushaMorning} ${ordered.arabic} ${sat.arabic}`, english, { arabic: fusha }),
+    ]);
+    expect(after.sentences).toEqual([ordered, sat]);
+    // A fusha sentence between two dialect ones keeps them apart.
+    expect(
+      storyPassages("قهوة", "coffee", "Gulf", [story()], [
+        line(0, `${morning.arabic} ${fushaMorning} ${ordered.arabic}`, `${morning.english} ${morning.english} ${ordered.english}`, {
+          arabic: `${fushaMorning} ${fushaMorning} ${fushaOrdered}`,
+        }),
+      ]),
+    ).toEqual([]);
+    // Nor when the line is kept whole because its English does not split the same way.
+    expect(
+      storyPassages("قهوة", "coffee", "Gulf", [story()], [
+        line(0, morning.arabic, morning.english),
+        line(1, `${ordered.arabic} ثم جلس مع أصدقائه.`, "He ordered hot coffee and sat.", { arabic: fusha }),
       ]),
     ).toEqual([]);
   });
@@ -493,6 +534,20 @@ describe("findStoryPassage against the project's own tables", () => {
       expect(await storyPassageStillLent(client, coffee(), filedFrom())).toBe(false);
       seed([]);
       expect(await storyPassageStillLent(client, coffee(), filedFrom())).toBe(false);
+    });
+
+    it("is for a passage cut past a long story's first thousand lines", async () => {
+      const filler = Array.from({ length: 1100 }, (_, i) => ({
+        arabic: `سطر ${i}`,
+        dialect: `كلام عادي رقم ${i}.`,
+        english: `Plain talk number ${i}.`,
+      }));
+      filler[1049] = { arabic: "كان الصباح باردا جدا.", dialect: morning.arabic, english: morning.english };
+      filler[1050] = { arabic: "طلب الرجل قهوة ساخنة.", dialect: ordered.arabic, english: ordered.english };
+      seed([{ story: {}, lines: filler }]);
+      expect(await storyPassageStillLent(client, coffee(), filedFrom({ meta: { ...filedFrom().meta, line_indexes: [1049, 1050] } }))).toBe(
+        true,
+      );
     });
 
     it("has nothing to say about a passage written for the word, or when a read fails", async () => {

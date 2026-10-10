@@ -126,23 +126,44 @@ function hasEnclitic(token: string, word: string): boolean {
 }
 
 /**
+ * Curly and low quotation marks, which the store's folding keeps (its
+ * punctuation set is the browser's, and the keys depend on it) but a story's
+ * quoted speech is written in: “قهوة” is the word said again.
+ */
+const QUOTE_MARKS_RE = /[“”‘’„‟‹›]/g;
+
+/**
+ * The forms of a word's first token a passage may say it in: as stored, and,
+ * for a word stored with its article, without it (السوق → سوق), so that للسوق,
+ * عالسوق, سوقنا and a bare سوق are all the word. Only where at least three
+ * letters are left, so الله is never heard in every له.
+ */
+function wordForms(first: string): string[] {
+  const bare = first.replace(/^ال/, "");
+  return bare !== first && bare.length >= 3 ? [first, bare] : [first];
+}
+
+/**
  * How many times `text` says the word: as `lineUsesWord` counts a use, and
  * also where something attached hides it from that rule — a prefix (و, ف, ب,
- * ل, ك, ال, and ال contracted, as in للسوق and عالسوق) or, for a single word of
- * three letters or more, a pronoun or plural ending (قهوتي, بيتين). For a
- * passage with a gap, where any second use, bare or not, is the answer given
- * away. A word conjugated or derived into another form (روح, هروح) is another
- * word, and is not counted.
+ * ل, ك, ال, and ال contracted, as in للسوق and عالسوق), quotation marks, or,
+ * for a single word of three letters or more, a pronoun or plural ending
+ * (قهوتي, بيتين); and a word stored with its article said without it, or with
+ * another prefix in its place. For a passage with a gap, where any second
+ * use, bare or not, is the answer given away. A word conjugated or derived
+ * into another form (روح, هروح) is another word, and is not counted.
  */
 export function wordUseCount(text: string, word: string): number {
-  const target = foldedTokens(word);
+  const target = foldedTokens(word.replace(QUOTE_MARKS_RE, ""));
   if (target.length === 0) return 0;
-  const tokens = foldedTokens(text);
+  const forms = wordForms(target[0]);
+  const tokens = foldedTokens(text.replace(QUOTE_MARKS_RE, " "));
   let count = 0;
   for (let start = 0; start + target.length <= tokens.length; start++) {
     const variants = withoutProclitics(tokens[start]);
     const first =
-      variants.includes(target[0]) || (target.length === 1 && variants.some((v) => hasEnclitic(v, target[0])));
+      variants.some((v) => forms.includes(v)) ||
+      (target.length === 1 && variants.some((v) => forms.some((form) => hasEnclitic(v, form))));
     if (!first) continue;
     if (target.every((part, i) => i === 0 || tokens[start + i] === part)) count++;
   }

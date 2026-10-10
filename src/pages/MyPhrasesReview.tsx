@@ -1,9 +1,15 @@
 import { useState, useRef, useEffect, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { usePageAiContext } from "@/contexts/AiAssistantContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useDialect } from "@/contexts/DialectContext";
-import { useDueUserPhrases, useUpdateUserPhraseReview, useDeleteUserPhrase } from "@/hooks/useUserPhrases";
+import {
+  useDueUserPhrases,
+  useUpdateUserPhraseReview,
+  useDeleteUserPhrase,
+  type UserPhrase,
+} from "@/hooks/useUserPhrases";
 import { useReviewSession } from "@/hooks/useReviewSession";
 import { SessionHandoff } from "@/components/review/SessionHandoff";
 import { SessionProgress } from "@/components/review/SessionProgress";
@@ -65,6 +71,11 @@ const MyPhrasesReview = () => {
   // The quiz opens on the boss: the leech asked for its meaning with the
   // most lapses goes first (src/lib/bossCard.ts), while leeches are tracked.
   const { data: duePhrases, isLoading, refetch } = useDueUserPhrases(false, { bossFirst: quiz && leechTrackingEnabled });
+  const queryClient = useQueryClient();
+  // Leaving the page drops the list it walked: it is not refetched as ratings
+  // are saved, so a cached one served on the way back in would be the list
+  // from before this visit's ratings.
+  useEffect(() => () => queryClient.removeQueries({ queryKey: ["user-phrases-due"] }), [queryClient]);
   const session = useReviewSession();
   const updateReview = useUpdateUserPhraseReview();
   const deletePhrase = useDeleteUserPhrase();
@@ -334,10 +345,24 @@ const MyPhrasesReview = () => {
         .eq("id", target.phraseId);
       if (error) throw error;
       setSessionCount((p) => Math.max(0, p - 1));
-      setCurrentIndex(target.prevIndex);
       setShowAnswer(false);
       setLastAction(null);
-      await refetch();
+      // The session's list still holds the phrase as it was before the rating
+      // (it is not refetched as ratings are saved), so patch it to the row just
+      // restored and land on it by id. Refetching here returned the server's
+      // list, without the phrases rated earlier, and the index then pointed at
+      // another card. Only a phrase the end-of-list refetch has since dropped
+      // is asked for again.
+      queryClient.setQueriesData<UserPhrase[] | undefined>({ queryKey: ["user-phrases-due"] }, (prev) =>
+        prev?.map((p) => (p.id === target.phraseId ? ({ ...p, ...target.snapshot } as UserPhrase) : p)),
+      );
+      let at = (duePhrases ?? []).findIndex((p) => p.id === target.phraseId);
+      if (at < 0) {
+        const { data } = await refetch();
+        at = Math.max(0, (data ?? []).findIndex((p) => p.id === target.phraseId));
+      }
+      setCurrentIndex(at);
+      queryClient.invalidateQueries({ queryKey: ["user-phrases-due-count"] });
       toast.success("Rating undone");
     } catch (err) {
       console.error("Undo failed:", err);

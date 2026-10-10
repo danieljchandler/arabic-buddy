@@ -17,6 +17,7 @@ let cleanup: (() => void) | undefined;
 afterEach(() => {
   cleanup?.();
   cleanup = undefined;
+  vi.restoreAllMocks();
 });
 
 const yesterday = new Date(Date.now() - 86_400_000).toISOString();
@@ -77,6 +78,5 @@ describe("rating a phrase", () => {
     // The badge's count is refreshed; the list the page is walking is not.
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ["user-phrases-due-count"] });
     expect(invalidate).not.toHaveBeenCalledWith({ queryKey: ["user-phrases-due"] });
-    invalidate.mockRestore();
   });
 });

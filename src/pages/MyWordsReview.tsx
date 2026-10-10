@@ -242,6 +242,9 @@ const MyWordsReview = () => {
     };
   }, []);
 
+  // Leaving the page drops the list it walked, so a cached one served on the
+  // way back in is never the list from before this visit's ratings.
+  useEffect(() => () => queryClient.removeQueries({ queryKey: ["user-vocabulary-due-words"] }), [queryClient]);
   const { data: dueWords, isLoading, refetch } = useQuery({
     // The remaining new-card budget is deliberately NOT part of the key:
     // rating a new card claims budget and invalidates the daily count, and
@@ -839,10 +842,20 @@ const MyWordsReview = () => {
         .eq("id", target.cardId);
       if (error) throw error;
       setSessionCount((prev) => Math.max(0, prev - 1));
-      setCurrentIndex(target.prevIndex);
       setShowAnswer(false);
       setLastAction(null);
-      await queryClient.invalidateQueries({ queryKey: ["user-vocabulary-due-words"] });
+      // As on My Phrases: patch the session's list to the row just restored
+      // and land on the card by id, rather than refetch a list that no longer
+      // holds the cards rated earlier and point the index at another card.
+      queryClient.setQueriesData<DueCard[] | undefined>({ queryKey: ["user-vocabulary-due-words"] }, (prev) =>
+        prev?.map((c) => (c.id === target.cardId ? ({ ...c, ...target.snapshot } as DueCard) : c)),
+      );
+      let at = (dueWords ?? []).findIndex((c) => c.id === target.cardId);
+      if (at < 0) {
+        const { data } = await refetch();
+        at = Math.max(0, (data ?? []).findIndex((c) => c.id === target.cardId));
+      }
+      setCurrentIndex(at);
       queryClient.invalidateQueries({ queryKey: ["user-vocabulary"] });
       queryClient.invalidateQueries({ queryKey: ["user-vocabulary-due"] });
       toast.success("Rating undone");

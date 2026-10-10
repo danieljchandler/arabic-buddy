@@ -97,14 +97,48 @@ test.describe("reviewing saved phrases in the quiz style", () => {
     await expect(boss.getByText(HOOK)).toBeVisible();
     await page.getByRole("button", { name: /continue/i }).click();
 
+    // Closed at once: a small celebration closes itself after a moment, and
+    // it hides the page from the accessibility tree while it is open.
     const beaten = page.getByRole("dialog", { name: "Boss beaten!" });
     await expect(beaten).toBeVisible();
-    await expect.poll(() => db.rows("user_phrases").find((r) => r.id === phraseId(1))?.repetitions).toBe(4);
-    // Past the celebration (it hides the page from the accessibility tree
-    // while open), the next phrase is an ordinary card.
     await beaten.getByRole("button", { name: "Continue" }).click();
+    await expect.poll(() => db.rows("user_phrases").find((r) => r.id === phraseId(1))?.repetitions).toBe(4);
+    // The next phrase is an ordinary card.
     await expect(page.getByRole("img", { name: /step \d+ of 10/i })).toBeVisible();
     await expect(page.getByRole("region", { name: "Boss card" })).toHaveCount(0);
+  });
+
+  test("undoing a rating goes back to that phrase, and stays there", async ({ page, db }) => {
+    const PHRASES: Array<[string, string]> = [
+      ["على راسي", "with pleasure"],
+      ["ما عليه", "never mind"],
+      ["إن شاء الله", "God willing"],
+    ];
+    db.seed("user_phrases", [
+      ...PHRASES.map(([arabic, english], index) =>
+        firstLook(index, arabic, english, { next_review_at: new Date(Date.now() - (3 - index) * DAY).toISOString() }),
+      ),
+      ...pool(),
+    ]);
+
+    await page.goto("/review/my-phrases");
+    for (const [arabic, english] of PHRASES.slice(0, 2)) {
+      await expect(page.getByText(arabic, { exact: true })).toBeVisible();
+      await page.getByRole("radio", { name: english }).click();
+      await page.getByRole("button", { name: /continue/i }).click();
+    }
+    await expect(page.getByText("إن شاء الله", { exact: true })).toBeVisible();
+    await expect.poll(() => db.rows("user_phrases").find((r) => r.id === phraseId(1))?.repetitions).toBe(1);
+
+    await page.getByRole("button", { name: /^undo$/i }).click();
+
+    // The second phrase again, its rating taken back; and still it, a moment
+    // later, rather than the card a refetched list would put at its place.
+    await expect(page.getByText("ما عليه", { exact: true })).toBeVisible();
+    await expect.poll(() => db.rows("user_phrases").find((r) => r.id === phraseId(1))?.repetitions).toBe(0);
+    await page.waitForTimeout(1500);
+    await expect(page.getByText("ما عليه", { exact: true })).toBeVisible();
+    await expect(page.getByText("إن شاء الله", { exact: true })).toHaveCount(0);
   });
 
   test("offers the lightning round after the session, and the round writes nothing", async ({ page, db, backend }) => {

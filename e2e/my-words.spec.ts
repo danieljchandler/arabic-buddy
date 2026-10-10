@@ -425,13 +425,14 @@ test.describe("reviewing in the quiz style", () => {
     await expect(boss.getByText(HOOK)).toBeVisible();
     await page.getByRole("button", { name: /continue/i }).click();
 
+    // Closed at once: a small celebration closes itself after a moment, and
+    // it hides the page from the accessibility tree while it is open.
     const beaten = page.getByRole("dialog", { name: "Boss beaten!" });
     await expect(beaten).toBeVisible();
+    await beaten.getByRole("button", { name: "Continue" }).click();
     // Graded as a first look, Good, on the leech's own row.
     await expect.poll(() => db.rows("user_vocabulary").find((r) => r.id === vocabId(1))?.repetitions).toBe(5);
-    // Past the celebration (it hides the page from the accessibility tree
-    // while open), the next word is an ordinary card.
-    await beaten.getByRole("button", { name: "Continue" }).click();
+    // The next word is an ordinary card.
     await expect(page.getByRole("img", { name: /step \d+ of 10/i })).toBeVisible();
     await expect(page.getByRole("region", { name: "Boss card" })).toHaveCount(0);
   });

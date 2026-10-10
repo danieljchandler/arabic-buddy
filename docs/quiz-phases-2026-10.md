@@ -1197,7 +1197,14 @@ high. Fixed from its review:
   next card shifted under it once the refetch landed and a phrase was
   skipped until the end of the list. The rating now refreshes only the
   count, as My Words' does; the page refetches at the end of the list, and
-  the e2e asserts the order.
+  the e2e asserts the order. A second look found that this broke Undo,
+  which refetched and then pointed its index into the server's list, without
+  the phrases rated earlier: it now patches the session's list to the row it
+  restored and lands on the phrase by id, refetching only when the phrase has
+  left the list. My Words' Undo had the same refetch (before this PR) and
+  takes the same fix; an e2e undoes on My Phrases and checks it stays.
+  Both decks also drop their due list on leaving the page, as `/review` does,
+  so coming back never serves the list from before the visit's ratings.
 - *Low:* the pages' fallback pools (used when the pool read fails) carried no
   dialect; they do now. `wordForMeaning` compares dialects with
   `normalizeDialect`, as the reply question does. Two boss e2e asserted the

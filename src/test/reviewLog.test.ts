@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { installSupabaseFetch } from "@/test/support/transports/vitest";
@@ -52,6 +52,22 @@ describe("review_log migration — access rules", () => {
     // choice in the same words.
     const definers = MIGRATION.match(/LANGUAGE plpgsql\s+SECURITY DEFINER/g) ?? [];
     expect(definers.length).toBe(2);
+  });
+
+  it("keeps the word trigger SECURITY DEFINER in its latest definition, not only its first", () => {
+    // A later migration that replaces the function (20261010130000 adds the
+    // question a rating was asked as) must restate the same terms, or the
+    // log's inserts start needing a grant no client has.
+    const dir = resolve(__dirname, "../../supabase/migrations");
+    const latest = readdirSync(dir)
+      .filter((name) => name.endsWith(".sql"))
+      .sort()
+      .map((name) => readFileSync(resolve(dir, name), "utf8"))
+      .map((sql) => sql.match(/CREATE OR REPLACE FUNCTION public\.log_word_review\(\)[\s\S]*?\$\$;/)?.[0])
+      .filter((definition): definition is string => definition != null)
+      .at(-1);
+    expect(latest).toBeDefined();
+    expect(latest).toMatch(/LANGUAGE plpgsql\s+SECURITY DEFINER\s+SET search_path = public/);
   });
 });
 

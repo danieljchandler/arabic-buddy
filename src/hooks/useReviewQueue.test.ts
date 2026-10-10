@@ -256,11 +256,15 @@ describe("what the quiz asked it as", () => {
     });
 
     await waitFor(() => expect(backend.db.writesTo("word_reviews")).toHaveLength(1));
-    expect(backend.db.lastWriteTo("word_reviews")?.payload[0]).toMatchObject({
+    const written = backend.db.lastWriteTo("word_reviews")?.payload[0] ?? {};
+    expect(written).toMatchObject({
       last_result: "good",
       last_quiz_format: "picture-choice",
       last_quiz_step: 3,
     });
+    // Stamped with the rating's own moment: the trigger copies the question
+    // only when the two match.
+    expect(written.last_quiz_at).toBe(written.last_reviewed_at);
   });
 
   it("is nulls for a flip card, so the row does not keep the last question's", async () => {
@@ -274,6 +278,7 @@ describe("what the quiz asked it as", () => {
     expect(backend.db.lastWriteTo("word_reviews")?.payload[0]).toMatchObject({
       last_quiz_format: null,
       last_quiz_step: null,
+      last_quiz_at: null,
     });
   });
 
@@ -295,8 +300,29 @@ describe("what the quiz asked it as", () => {
     expect(saved).toMatchObject({ last_result: "good" });
     expect(saved).not.toHaveProperty("last_quiz_format");
     expect(saved).not.toHaveProperty("last_quiz_step");
+    expect(saved).not.toHaveProperty("last_quiz_at");
     // Not a permanent error: nothing was dropped or toasted.
     expect(Number(backend.db.rows("word_reviews")[0]?.repetitions)).toBe(3);
+  });
+
+  it("is left off a first rating's insert the same way", async () => {
+    const { result, backend } = await renderQueue();
+    backend.db.seed("vocabulary_words", [aVocabularyWord({ id: wordId(1) })]);
+    backend.db.failNextWrite("word_reviews", 400, MISSING_COLUMN);
+
+    act(() => {
+      result.current.enqueue({
+        wordId: wordId(1),
+        rating: "good",
+        currentReview: null,
+        asked: { format: "cloze-hint", step: 1 },
+      });
+    });
+
+    await waitFor(() => expect(result.current.pendingCount).toBe(0));
+    const inserted = backend.db.rows("word_reviews").find((row) => row.word_id === wordId(1));
+    expect(inserted).toMatchObject({ user_id: TEST_USER_ID, last_result: "good" });
+    expect(backend.db.lastWriteTo("word_reviews")?.payload[0]).not.toHaveProperty("last_quiz_format");
   });
 
   it("stays off for the next rating, rather than being refused again", async () => {

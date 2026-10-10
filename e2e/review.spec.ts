@@ -259,12 +259,15 @@ test.describe("the quiz style", () => {
     // how the round went.
     await expect.poll(() => backend.db.rows("word_reviews").length).toBe(1);
     // With the rating, what it was asked as, for the review log (quiz Phase 8).
-    expect(backend.db.rows("word_reviews")[0]).toMatchObject({
+    const rated = backend.db.rows("word_reviews")[0];
+    expect(rated).toMatchObject({
       word_id: wordId(0),
       last_result: "good",
       last_quiz_format: "cloze-hint",
       last_quiz_step: 1,
     });
+    // Stamped with the rating's own moment, which is what the trigger checks.
+    expect(rated.last_quiz_at).toBe(rated.last_reviewed_at);
     await expect(page.getByRole("list", { name: /quiz session summary/i })).toBeVisible();
     await expect(page.getByText("100%")).toBeVisible();
   });
@@ -383,7 +386,11 @@ test.describe("the quiz style", () => {
 
     expect(backend.db.writesTo("word_reviews")).toHaveLength(1);
     // A flip card's rating records no question, so the log is not told one.
-    expect(backend.db.lastWriteTo("word_reviews")?.payload[0]).toMatchObject({ last_quiz_format: null, last_quiz_step: null });
+    expect(backend.db.lastWriteTo("word_reviews")?.payload[0]).toMatchObject({
+      last_quiz_format: null,
+      last_quiz_step: null,
+      last_quiz_at: null,
+    });
     // What comes next is a new card: remembering the word unlocked saying it.
     await expect(page.getByText("Say it in Arabic")).toBeVisible();
   });

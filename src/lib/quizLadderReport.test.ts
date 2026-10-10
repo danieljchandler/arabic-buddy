@@ -5,6 +5,7 @@ import {
   formatQuizLadderReport,
   parseReportArgs,
   reportQuizLadder,
+  wilsonInterval,
   type FetchLike,
   type LoggedQuizAnswer,
 } from "./quizLadderReport";
@@ -15,22 +16,29 @@ import {
  */
 
 /** An answer asked on the ladder: the step and format the memory puts it on. */
-function onLadder(stability: number, right: boolean, direction: QuizDirection = "recognition"): LoggedQuizAnswer {
+function onLadder(
+  stability: number,
+  right: boolean,
+  direction: QuizDirection = "recognition",
+  learner = "learner-0",
+): LoggedQuizAnswer {
   const rung = rungForMemory({ stability, repetitions: 3 }, direction);
   return {
+    user_id: learner,
     direction,
     rating: right ? "good" : "again",
     quiz_format: rung.format,
     quiz_step: rung.step,
     stability_before: stability,
-    repetitions_after: 4,
+    repetitions_before: 3,
+    repetitions_after: right ? 4 : 3,
   };
 }
 
-/** `n` answers at a stability, `rightShare` of them right. */
+/** `n` answers at a stability, `rightShare` of them right, from six learners in turn. */
 function many(n: number, stability: number, rightShare: number, direction?: QuizDirection): LoggedQuizAnswer[] {
   const right = Math.round(n * rightShare);
-  return Array.from({ length: n }, (_, i) => onLadder(stability, i < right, direction));
+  return Array.from({ length: n }, (_, i) => onLadder(stability, i < right, direction, `learner-${i % 6}`));
 }
 
 const picture = (report: ReturnType<typeof reportQuizLadder>) => report.thresholds.find((t) => t.name === "pictureDays")!;
@@ -75,14 +83,47 @@ describe("what it counts", () => {
 
   it("reads a first review (no stability before) as asked at the first look", () => {
     const first: LoggedQuizAnswer = {
+      user_id: "learner-0",
       direction: "recognition",
       rating: "good",
       quiz_format: "cloze-hint",
       quiz_step: 1,
       stability_before: null,
+      repetitions_before: null,
       repetitions_after: 1,
     };
     expect(reportQuizLadder([first]).onLadder).toBe(1);
+  });
+
+  it("reads a lapse from the repetitions it had, which a lapse leaves as they were", () => {
+    // A card on its first repetition, asked the gap (step 2) and missed:
+    // repetitions stay at 1. Read as repetitions_after - 1, it would be a
+    // first look, and the answer would count as off the ladder.
+    const lapse: LoggedQuizAnswer = {
+      user_id: "learner-0",
+      direction: "recognition",
+      rating: "again",
+      quiz_format: "cloze",
+      quiz_step: 2,
+      stability_before: 2,
+      repetitions_before: 1,
+      repetitions_after: 1,
+    };
+    expect(reportQuizLadder([lapse])).toMatchObject({ onLadder: 1, offLadder: 0 });
+    // And read back the same way from the rating, where the log has no count.
+    expect(reportQuizLadder([{ ...lapse, repetitions_before: null }])).toMatchObject({ onLadder: 1, offLadder: 0 });
+  });
+
+  it("counts a question the app does not ask nowhere else", () => {
+    const report = reportQuizLadder([
+      onLadder(10, true),
+      { ...onLadder(10, true), quiz_format: "Picture; drop" },
+      { ...onLadder(10, true), quiz_format: "flashcard" },
+      { ...onLadder(10, true), quiz_step: 42 },
+    ]);
+    expect(report).toMatchObject({ rows: 4, unknown: 3, onLadder: 1 });
+    expect(report.byFormat.map((f) => f.format)).toEqual(["listen"]);
+    expect(report.byStep.map((s) => s.step)).toEqual([4]);
   });
 });
 
@@ -104,9 +145,40 @@ describe("where a threshold should be", () => {
     expect(picture(report)).toMatchObject({ verdict: "too-few", proposed: null, answers: 10 });
   });
 
+  it("says nothing on too few learners, however many answers they gave", () => {
+    const keen = Array.from({ length: 45 }, (_, i) => onLadder(i % 2 ? 9 : 13, true, "recognition", `learner-${i % 4}`));
+    expect(picture(reportQuizLadder(keen))).toMatchObject({ verdict: "too-few", learners: 4, proposed: null });
+  });
+
+  it("counts each learner only so far toward a threshold", () => {
+    const steady = [...many(20, 8.5, 0.9), ...many(20, 13, 0.95)];
+    const keen = Array.from({ length: 200 }, () => onLadder(9, false, "recognition", "keen"));
+    const report = reportQuizLadder([...steady, ...keen], { maxPerLearner: 10 });
+    expect(picture(report)).toMatchObject({ answers: 50, learners: 7 });
+  });
+
+  it("is not raised on a thin band at the threshold", () => {
+    // Five answers just above 8 days, all right, then plenty above: whether
+    // 8 holds is not yet known, so neither holding nor raising is said.
+    const report = reportQuizLadder([...many(5, 8.5, 1), ...many(40, 12, 0.95)]);
+    expect(picture(report)).toMatchObject({ verdict: "unclear", proposed: null, settlesAt: null });
+  });
+
+  it("holds where the band at the threshold is under the target but not clearly so", () => {
+    // 9 of 12 is 75%, but 12 answers cannot tell that from 85%.
+    expect(wilsonInterval(9, 12).high).toBeGreaterThan(0.85);
+    const report = reportQuizLadder([...many(12, 9, 0.75), ...many(40, 12, 0.95)]);
+    expect(picture(report)).toMatchObject({ verdict: "hold", proposed: 8 });
+  });
+
   it("says when the step never reaches the target in its range", () => {
     const report = reportQuizLadder([...many(30, 9, 0.5), ...many(30, 14, 0.6)]);
     expect(picture(report)).toMatchObject({ verdict: "never-settles", proposed: null });
+  });
+
+  it("is unclear, not never-settles, when the step is under the target but not clearly", () => {
+    const report = reportQuizLadder([...many(30, 9, 0.8), ...many(30, 14, 0.8)]);
+    expect(picture(report)).toMatchObject({ verdict: "unclear", proposed: null });
   });
 
   it("is not moved by a boss or a fallback, however they went", () => {
@@ -134,13 +206,32 @@ describe("where a threshold should be", () => {
   });
 });
 
+describe("Wilson's interval", () => {
+  it("is wide on a few answers and narrows on many, around the share", () => {
+    // The published 95% values for 9 of 10 and 900 of 1000.
+    const few = wilsonInterval(9, 10);
+    const lots = wilsonInterval(900, 1000);
+    expect(few.low).toBeCloseTo(0.5958, 3);
+    expect(few.high).toBeCloseTo(0.9821, 3);
+    expect(lots.low).toBeCloseTo(0.8798, 3);
+    expect(lots.high).toBeCloseTo(0.917, 3);
+    expect(wilsonInterval(0, 0)).toEqual({ low: 0, high: 1 });
+  });
+});
+
 describe("the text", () => {
   it("says what was read and what each threshold should be", () => {
     const text = formatQuizLadderReport(reportQuizLadder([...many(20, 9, 0.6), ...many(40, 12, 0.95)]));
     expect(text).toContain("60 reviews read; 60 on the ladder");
+    expect(text).toContain("6 learners");
     expect(text).toContain("pictureDays");
     expect(text).toContain("raise from 8 to 11.3 days");
     expect(text).toContain("too few answers");
+  });
+
+  it("says when the answers do not decide", () => {
+    const text = formatQuizLadderReport(reportQuizLadder([...many(5, 8.5, 1), ...many(40, 12, 0.95)]));
+    expect(text).toContain("the answers do not decide yet (45, from 6 learners)");
   });
 });
 
@@ -152,13 +243,24 @@ describe("reading the log", () => {
     text: async () => JSON.stringify(body),
   });
 
-  it("reads curriculum reviews with a question recorded, a page at a time, with the service role", async () => {
+  const row = (id: number, extra: Record<string, unknown> = {}) => ({
+    id,
+    user_id: "learner-0",
+    direction: "recognition",
+    rating: "good",
+    quiz_format: "listen",
+    quiz_step: 4,
+    stability_before: "9.5",
+    repetitions_before: 3,
+    repetitions_after: 4,
+    ...extra,
+  });
+
+  it("reads curriculum reviews with a question recorded, a page at a time on the id, with the service role", async () => {
     const pages = [
-      [
-        { direction: "recognition", rating: "good", quiz_format: "listen", quiz_step: 4, stability_before: "9.5", repetitions_after: 4 },
-        { direction: "production", rating: "again", quiz_format: "speak", quiz_step: 7, stability_before: null, repetitions_after: null },
-      ],
-      [{ direction: "recognition", rating: "hard", quiz_format: "cloze", quiz_step: 2, stability_before: 2, repetitions_after: 3 }],
+      [row(1), row(2, { direction: "production", rating: "again", quiz_format: "speak", quiz_step: 7, stability_before: null, repetitions_before: null })],
+      [row(5, { rating: "hard", quiz_format: "cloze", quiz_step: 2, stability_before: 2 })],
+      [],
     ];
     const fetch = vi.fn<FetchLike>(async () => response(pages.shift() ?? []));
 
@@ -172,22 +274,38 @@ describe("reading the log", () => {
 
     expect(rows).toHaveLength(3);
     expect(rows[0]).toEqual({
+      user_id: "learner-0",
       direction: "recognition",
       rating: "good",
       quiz_format: "listen",
       quiz_step: 4,
       stability_before: 9.5,
+      repetitions_before: 3,
       repetitions_after: 4,
     });
-    expect(rows[1]).toMatchObject({ direction: "production", stability_before: null });
-    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(rows[1]).toMatchObject({ direction: "production", stability_before: null, repetitions_before: null });
+    // A short page is not the end (the project may cap a page): it reads on
+    // until a page comes back empty.
+    expect(fetch).toHaveBeenCalledTimes(3);
     const [url, init] = fetch.mock.calls[0];
     const query = new URL(url).searchParams;
     expect(query.get("deck")).toBe("eq.word");
     expect(query.get("quiz_step")).toBe("not.is.null");
     expect(query.get("reviewed_at")).toBe("gte.2026-11-01");
-    expect(new URL(fetch.mock.calls[1][0]).searchParams.get("offset")).toBe("2");
-    expect(init?.headers).toMatchObject({ apikey: "service", Authorization: "Bearer service" });
+    expect(query.get("order")).toBe("id.asc");
+    expect(query.get("id")).toBeNull();
+    expect(query.get("offset")).toBeNull();
+    expect(new URL(fetch.mock.calls[1][0]).searchParams.get("id")).toBe("gt.2");
+    expect(new URL(fetch.mock.calls[2][0]).searchParams.get("id")).toBe("gt.5");
+    expect(init).toMatchObject({ headers: { apikey: "service", Authorization: "Bearer service" }, redirect: "error" });
+  });
+
+  it("stops when a page does not move forward, rather than read the same rows again", async () => {
+    const fetch = vi.fn<FetchLike>(async () => response([row(3)]));
+    await expect(
+      fetchQuizAnswers({ supabaseUrl: "https://project.test", serviceRoleKey: "k", fetch, since: "2026-11-01" }),
+    ).rejects.toThrow(/did not move forward/);
+    expect(fetch).toHaveBeenCalledTimes(2);
   });
 
   it("stops on a failed read, rather than report on half the log", async () => {

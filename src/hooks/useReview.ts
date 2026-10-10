@@ -586,7 +586,8 @@ export async function submitRatingToServer(
   // copy (src/lib/quizRatingFields.ts). Where the live project does not have
   // those columns yet, the write is refused for them, and is sent again
   // without: a rating never fails for want of them.
-  const write = { ...update, ...quizRatingFields(asked) };
+  const reviewedAt = String(update.last_reviewed_at ?? update.production_last_reviewed_at);
+  const write = { ...update, ...quizRatingFields(asked, reviewedAt) };
   const send = async (fields: Record<string, unknown>) =>
     currentReview
       ? supabase.from('word_reviews').update(fields as never).eq('id', currentReview.id).select('*').single()

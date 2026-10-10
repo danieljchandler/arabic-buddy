@@ -169,9 +169,12 @@ describe.skipIf(!DATABASE_URL)("migration replay", () => {
 
   /**
    * What a curriculum rating was asked as (quiz Phase 8): the rating's write
-   * carries it on word_reviews, and the review_log trigger copies it beside
-   * the rating, on either schedule; a rating with nothing asked (a flip card)
-   * writes nulls, and is logged with none.
+   * carries it on word_reviews, stamped with the rating's own moment, and the
+   * review_log trigger copies it beside the rating, on either schedule. A
+   * rating with nothing asked (a flip card) is logged with none; so is a
+   * write that moves last_reviewed_at without restamping the question (an
+   * older client), and a value the app could not have asked. The log also
+   * keeps the repetitions before the review, which a lapse leaves unchanged.
    */
   it("logs what a rating was asked as, beside the rating", () => {
     const user = "00000000-0000-4000-8000-0000000000b1";
@@ -180,22 +183,44 @@ describe.skipIf(!DATABASE_URL)("migration replay", () => {
       BEGIN;
       INSERT INTO auth.users (id) VALUES ('${user}') ON CONFLICT DO NOTHING;
       INSERT INTO public.vocabulary_words (id, word_arabic, word_english) VALUES ('${word}', 'سوق', 'market');
-      INSERT INTO public.word_reviews (user_id, word_id, ease_factor, repetitions, last_reviewed_at, last_result, last_quiz_format, last_quiz_step)
-        VALUES ('${user}', '${word}', 0.5, 1, now() - interval '1 day', 'good', 'cloze-hint', 1);
+      INSERT INTO public.word_reviews (user_id, word_id, ease_factor, repetitions, last_reviewed_at, last_result, last_quiz_format, last_quiz_step, last_quiz_at)
+        VALUES ('${user}', '${word}', 0.5, 1, '2026-11-01 09:00+00', 'good', 'cloze-hint', 1, '2026-11-01 09:00+00');
+      -- A flip card: nulls.
       UPDATE public.word_reviews
-        SET ease_factor = 3, repetitions = 2, last_reviewed_at = now(), last_result = 'hard', last_quiz_format = NULL, last_quiz_step = NULL
+        SET ease_factor = 3, repetitions = 2, last_reviewed_at = '2026-11-02 09:00+00', last_result = 'hard',
+            last_quiz_format = NULL, last_quiz_step = NULL, last_quiz_at = NULL
         WHERE word_id = '${word}';
+      -- The production side, asked as a question.
       UPDATE public.word_reviews
-        SET production_ease_factor = 2, production_last_reviewed_at = now(), last_result = 'good', last_quiz_format = 'speak', last_quiz_step = 7
+        SET production_ease_factor = 2, production_last_reviewed_at = '2026-11-03 09:00+00', last_result = 'good',
+            last_quiz_format = 'speak', last_quiz_step = 7, last_quiz_at = '2026-11-03 09:00+00'
+        WHERE word_id = '${word}';
+      -- A lapse, asked as a picture.
+      UPDATE public.word_reviews
+        SET ease_factor = 1, last_reviewed_at = '2026-11-04 09:00+00', last_result = 'again',
+            last_quiz_format = 'picture-choice', last_quiz_step = 3, last_quiz_at = '2026-11-04 09:00+00'
+        WHERE word_id = '${word}';
+      -- An older client: last_reviewed_at moves, the question is left as it was.
+      UPDATE public.word_reviews
+        SET ease_factor = 2, repetitions = 3, last_reviewed_at = '2026-11-05 09:00+00', last_result = 'good'
+        WHERE word_id = '${word}';
+      -- What the app could not have asked.
+      UPDATE public.word_reviews
+        SET ease_factor = 3, repetitions = 4, last_reviewed_at = '2026-11-06 09:00+00', last_result = 'good',
+            last_quiz_format = 'Picture; drop', last_quiz_step = 42, last_quiz_at = '2026-11-06 09:00+00'
         WHERE word_id = '${word}';
       SELECT direction || ':' || rating || ':' || coalesce(quiz_format, '-') || ':' || coalesce(quiz_step::text, '-')
-        FROM public.review_log WHERE user_id = '${user}' ORDER BY id;
+             || ':' || coalesce(repetitions_before::text, '-') || '>' || repetitions_after
+        FROM public.review_log WHERE user_id = '${user}' ORDER BY reviewed_at;
       ROLLBACK;
     `);
     expect(out.split("\n").filter((line) => line.includes(":"))).toEqual([
-      "recognition:good:cloze-hint:1",
-      "recognition:hard:-:-",
-      "production:good:speak:7",
+      "recognition:good:cloze-hint:1:->1",
+      "recognition:hard:-:-:1>2",
+      "production:good:speak:7:0>0",
+      "recognition:again:picture-choice:3:2>2",
+      "recognition:good:-:-:2>3",
+      "recognition:good:-:-:3>4",
     ]);
   });
 

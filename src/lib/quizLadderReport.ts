@@ -1,4 +1,4 @@
-import { LADDER_THRESHOLDS, rungForMemory, type QuizDirection } from "@/lib/quizLadder";
+import { LADDER_THRESHOLDS, QUIZ_STEP_COUNT, rungForMemory, type QuizDirection, type QuizFormat } from "@/lib/quizLadder";
 
 /**
  * The quiz ladder, read back from real ratings (quiz Phase 8).
@@ -12,8 +12,9 @@ import { LADDER_THRESHOLDS, rungForMemory, type QuizDirection } from "@/lib/quiz
  * this is the arithmetic, pure, so it can be tested on fixtures.
  *
  * Three kinds of answer, told apart by recomputing the step from the memory
- * the card was asked from (stability before, and repetitions before, which the
- * log keeps as `repetitions_after - 1`, as the climbs count does):
+ * the card was asked from (`stability_before`, and `repetitions_before`, which
+ * the same migration logs: `repetitions_after - 1` is wrong for a lapse,
+ * which leaves repetitions as they were):
  *
  * - on the ladder: asked at that step, in that step's own format. Only these
  *   set a threshold.
@@ -21,6 +22,14 @@ import { LADDER_THRESHOLDS, rungForMemory, type QuizDirection } from "@/lib/quiz
  *   (no picture, no recording, no device that records).
  * - off the ladder: asked at another step. A boss is (a first look whatever
  *   its stability); so is every row logged under thresholds since changed.
+ *
+ * A threshold is judged on evidence, not on a share alone. It needs enough
+ * answers from enough learners (one keen learner's hundred answers are one
+ * learner, so each counts at most `maxPerLearner` toward a threshold), enough
+ * answers at the stability it would be set to, and the bands it is moved past
+ * clearly below the target (the Wilson interval's top under it). Where the
+ * answers are there but do not decide, it says so ("unclear") rather than
+ * moving a threshold on noise.
  *
  * What it cannot say: whether a threshold could come down. The ladder never
  * asks a step's question below its threshold, so the log has no answers
@@ -30,11 +39,14 @@ import { LADDER_THRESHOLDS, rungForMemory, type QuizDirection } from "@/lib/quiz
 
 /** One logged curriculum review, as the report reads it. */
 export interface LoggedQuizAnswer {
+  user_id: string;
   direction: QuizDirection;
   rating: string | null;
   quiz_format: string | null;
   quiz_step: number | null;
   stability_before: number | null;
+  /** Logged with the question; null on a first review (an insert). */
+  repetitions_before: number | null;
   repetitions_after: number | null;
 }
 
@@ -52,7 +64,15 @@ export interface Band extends Tally {
   to: number | null;
 }
 
-export type ThresholdVerdict = "hold" | "raise" | "too-few" | "never-settles";
+/**
+ * - hold: answered right at the target from the threshold up.
+ * - raise: missed below `proposed`, clearly, and answered right from it up.
+ * - too-few: not enough answers, or not enough learners, to say anything.
+ * - never-settles: missed, clearly, across the step's whole range.
+ * - unclear: enough answers, but they do not decide (thin at the threshold,
+ *   or below the target without being clearly so).
+ */
+export type ThresholdVerdict = "hold" | "raise" | "too-few" | "never-settles" | "unclear";
 
 export interface ThresholdReport {
   name: keyof typeof LADDER_THRESHOLDS;
@@ -60,8 +80,10 @@ export interface ThresholdReport {
   /** The step this threshold opens. */
   step: number;
   current: number;
-  /** On-ladder answers at that step. */
+  /** On-ladder answers at that step, at most `maxPerLearner` from each learner. */
   answers: number;
+  /** Learners those answers came from. */
+  learners: number;
   bands: Band[];
   /** The lowest stability from which the step is answered right at the target, or null. */
   settlesAt: number | null;
@@ -73,10 +95,15 @@ export interface ThresholdReport {
 export interface QuizLadderReport {
   target: number;
   minAnswers: number;
+  minLearners: number;
   /** Rows read. */
   rows: number;
+  /** Learners the rows came from. */
+  learners: number;
   /** Rows with no question recorded (flip cards, or logged before the columns) or no rating. */
   unrecorded: number;
+  /** Rows recording a question the app does not ask: not counted anywhere else. */
+  unknown: number;
   onLadder: number;
   fallback: number;
   offLadder: number;
@@ -90,8 +117,12 @@ export interface ReportOptions {
   target?: number;
   /** Fewest answers to say anything about a threshold. */
   minAnswers?: number;
-  /** Fewest answers for a band to count against settling. */
+  /** Fewest answers in a band: to be set to it, or to count against settling. */
   minBandAnswers?: number;
+  /** Fewest learners to say anything about a threshold. */
+  minLearners?: number;
+  /** Most answers one learner counts toward a threshold. */
+  maxPerLearner?: number;
 }
 
 /** Each threshold, the direction it is on, and the step it opens (rungForMemory). */
@@ -108,6 +139,38 @@ const BOUNDARIES: ReadonlyArray<{ name: keyof typeof LADDER_THRESHOLDS; directio
 
 const RIGHT = new Set(["hard", "good", "easy"]);
 
+/**
+ * The formats the quiz asks and records (QuizCardFrame's `onGraded`). The
+ * flip card is not one: it is rated, not asked, and records nulls. Typed so
+ * that a format added to the ladder has to be added here.
+ */
+const ASKED_FORMATS: ReadonlySet<string> = new Set(
+  Object.keys({
+    "cloze-hint": true,
+    cloze: true,
+    meaning: true,
+    "picture-choice": true,
+    listen: true,
+    "word-choice": true,
+    "reply-choice": true,
+    speak: true,
+    "speak-sentence": true,
+    "speak-reply": true,
+    "story-gap": true,
+    "story-choice": true,
+  } satisfies Record<Exclude<QuizFormat, "flashcard">, true>),
+);
+
+/** Wilson's 95% interval for a share: what `right` of `answers` says about the real one. */
+export function wilsonInterval(right: number, answers: number, z = 1.96): { low: number; high: number } {
+  if (answers <= 0) return { low: 0, high: 1 };
+  const share = right / answers;
+  const z2 = z * z;
+  const centre = (share + z2 / (2 * answers)) / (1 + z2 / answers);
+  const half = (z * Math.sqrt((share * (1 - share)) / answers + z2 / (4 * answers * answers))) / (1 + z2 / answers);
+  return { low: Math.max(0, centre - half), high: Math.min(1, centre + half) };
+}
+
 /** One more answer under a key: [answers, right]. */
 function count<K>(map: Map<K, [number, number]>, key: K, right: boolean): void {
   const [answers, rightCount] = map.get(key) ?? [0, 0];
@@ -118,13 +181,37 @@ function tally(answers: number, right: number): Tally {
   return { answers, right, accuracy: answers > 0 ? right / answers : null };
 }
 
-/** The memory a review was asked from, as the log keeps it. */
+/**
+ * The memory a review was asked from, as the log keeps it. A row without
+ * `repetitions_before` (none should have a question recorded, since both
+ * arrive with the same migration) is read back from the rating: a lapse
+ * leaves repetitions as they were, anything else adds one.
+ */
 function memoryBefore(row: LoggedQuizAnswer) {
-  const first = row.stability_before == null;
+  if (row.stability_before == null) return { stability: 0, repetitions: 0 };
+  const after = row.repetitions_after ?? 0;
   return {
-    stability: row.stability_before ?? 0,
-    repetitions: first ? 0 : Math.max((row.repetitions_after ?? 0) - 1, 0),
+    stability: row.stability_before,
+    repetitions: row.repetitions_before ?? (row.rating === "again" ? after : Math.max(after - 1, 0)),
   };
+}
+
+/** Answers and right answers, summed. */
+function pool(bands: readonly Tally[]): { answers: number; right: number } {
+  return bands.reduce((sum, band) => ({ answers: sum.answers + band.answers, right: sum.right + band.right }), {
+    answers: 0,
+    right: 0,
+  });
+}
+
+/** At most `cap` answers from each learner, the first in the log's order. */
+function capPerLearner<T extends { row: LoggedQuizAnswer }>(answers: readonly T[], cap: number): T[] {
+  const seen = new Map<string, number>();
+  return answers.filter((answer) => {
+    const n = seen.get(answer.row.user_id) ?? 0;
+    seen.set(answer.row.user_id, n + 1);
+    return n < cap;
+  });
 }
 
 /** Half-octave bands from a threshold up to the next one in its direction (or open). */
@@ -155,17 +242,29 @@ export function reportQuizLadder(rows: readonly LoggedQuizAnswer[], options: Rep
   const target = options.target ?? 0.85;
   const minAnswers = options.minAnswers ?? 30;
   const minBandAnswers = options.minBandAnswers ?? 10;
+  const minLearners = options.minLearners ?? 5;
+  const maxPerLearner = options.maxPerLearner ?? 50;
 
   const steps = new Map<number, [number, number]>();
   const formats = new Map<string, [number, number]>();
   const onLadder: Array<{ row: LoggedQuizAnswer; stability: number; right: boolean }> = [];
   let unrecorded = 0;
+  let unknown = 0;
   let fallback = 0;
   let offLadder = 0;
 
   for (const row of rows) {
     if (row.quiz_step == null || !row.quiz_format || !row.rating) {
       unrecorded++;
+      continue;
+    }
+    if (
+      !ASKED_FORMATS.has(row.quiz_format) ||
+      !Number.isInteger(row.quiz_step) ||
+      row.quiz_step < 1 ||
+      row.quiz_step > QUIZ_STEP_COUNT
+    ) {
+      unknown++;
       continue;
     }
     const right = RIGHT.has(row.rating);
@@ -181,37 +280,60 @@ export function reportQuizLadder(rows: readonly LoggedQuizAnswer[], options: Rep
 
   const thresholds = BOUNDARIES.map((boundary, index): ThresholdReport => {
     const current = LADDER_THRESHOLDS[boundary.name];
-    const at = onLadder.filter((a) => a.row.direction === boundary.direction && a.row.quiz_step === boundary.step);
+    const at = capPerLearner(
+      onLadder.filter((a) => a.row.direction === boundary.direction && a.row.quiz_step === boundary.step),
+      maxPerLearner,
+    );
+    const learners = new Set(at.map((a) => a.row.user_id)).size;
     const bands = bandEdges(current, nextThreshold(index)).map((edge) => {
       const inBand = at.filter((a) => a.stability >= edge.from && (edge.to == null || a.stability < edge.to));
       return { ...edge, ...tally(inBand.length, inBand.filter((a) => a.right).length) };
     });
 
-    let settlesAt: number | null = null;
+    // Clearly below the target: the top of its interval under it, on enough answers.
+    const clearlyMissed = (band: Tally) =>
+      band.answers >= minBandAnswers && wilsonInterval(band.right, band.answers).high < target;
+
+    // The lowest band it could be set to: enough answers there, enough from
+    // there up and right at the target, and no band above clearly missed.
+    let settles: number | null = null;
     for (let i = 0; i < bands.length; i++) {
-      const above = bands.slice(i);
-      const pooled = above.reduce((sum, band) => ({ answers: sum.answers + band.answers, right: sum.right + band.right }), {
-        answers: 0,
-        right: 0,
-      });
-      const holds =
-        pooled.answers >= minAnswers &&
-        pooled.right / pooled.answers >= target &&
-        above.every((band) => band.answers < minBandAnswers || (band.accuracy ?? 0) >= target);
-      if (holds) {
-        settlesAt = bands[i].from;
+      const above = pool(bands.slice(i));
+      if (
+        bands[i].answers >= minBandAnswers &&
+        above.answers >= minAnswers &&
+        above.right / above.answers >= target &&
+        !bands.slice(i).some(clearlyMissed)
+      ) {
+        settles = i;
         break;
       }
     }
 
+    const missedBelow = (to: number) => {
+      const below = pool(bands.slice(0, to));
+      return below.answers >= minBandAnswers && wilsonInterval(below.right, below.answers).high < target;
+    };
     const verdict: ThresholdVerdict =
-      at.length < minAnswers ? "too-few" : settlesAt == null ? "never-settles" : settlesAt > current ? "raise" : "hold";
+      at.length < minAnswers || learners < minLearners
+        ? "too-few"
+        : settles === 0
+          ? "hold"
+          : settles != null
+            ? missedBelow(settles)
+              ? "raise"
+              : "unclear"
+            : missedBelow(bands.length)
+              ? "never-settles"
+              : "unclear";
+    const settlesAt = verdict === "hold" || verdict === "raise" ? bands[settles!].from : null;
     return {
       ...boundary,
       current,
       answers: at.length,
+      learners,
       bands,
-      settlesAt: verdict === "too-few" ? null : settlesAt,
+      settlesAt,
       proposed: verdict === "hold" ? current : verdict === "raise" ? round(settlesAt!) : null,
       verdict,
     };
@@ -220,8 +342,11 @@ export function reportQuizLadder(rows: readonly LoggedQuizAnswer[], options: Rep
   return {
     target,
     minAnswers,
+    minLearners,
     rows: rows.length,
+    learners: new Set(rows.map((row) => row.user_id)).size,
     unrecorded,
+    unknown,
     onLadder: onLadder.length,
     fallback,
     offLadder,
@@ -243,8 +368,10 @@ const percent = (accuracy: number | null) => (accuracy == null ? "  —" : `${Ma
 export function formatQuizLadderReport(report: QuizLadderReport): string {
   const lines = [
     `Quiz ladder report: ${report.rows} reviews read; ${report.onLadder} on the ladder, ${report.fallback} fallbacks, ` +
-      `${report.offLadder} off it (a boss, or older thresholds), ${report.unrecorded} with no question recorded.`,
-    `Target: ${Math.round(report.target * 100)}% right; a threshold needs ${report.minAnswers} answers to say anything.`,
+      `${report.offLadder} off it (a boss, or older thresholds), ${report.unrecorded} with no question recorded, ` +
+      `${report.unknown} recording a question the app does not ask. ${report.learners} learners.`,
+    `Target: ${Math.round(report.target * 100)}% right; a threshold needs ${report.minAnswers} answers ` +
+      `from ${report.minLearners} learners to say anything.`,
     "",
     "By step (as asked):",
     ...report.byStep.map((s) => `  step ${String(s.step).padStart(2)}  ${percent(s.accuracy)}  of ${s.answers}`),
@@ -257,12 +384,14 @@ export function formatQuizLadderReport(report: QuizLadderReport): string {
   for (const t of report.thresholds) {
     const what =
       t.verdict === "too-few"
-        ? `too few answers (${t.answers})`
+        ? `too few answers (${t.answers}, from ${t.learners} learners)`
         : t.verdict === "never-settles"
           ? `never reaches the target above ${t.current} days`
-          : t.verdict === "hold"
-            ? `holds at ${t.current} days (lowering it needs answers below it, which the ladder never asks)`
-            : `raise from ${t.current} to ${t.proposed} days`;
+          : t.verdict === "unclear"
+            ? `the answers do not decide yet (${t.answers}, from ${t.learners} learners)`
+            : t.verdict === "hold"
+              ? `holds at ${t.current} days (lowering it needs answers below it, which the ladder never asks)`
+              : `raise from ${t.current} to ${t.proposed} days`;
     lines.push(`  ${t.name.padEnd(14)} (${t.direction}, opens step ${t.step}): ${what}`);
     for (const band of t.bands) {
       if (band.answers === 0) continue;
@@ -275,7 +404,7 @@ export function formatQuizLadderReport(report: QuizLadderReport): string {
 
 // ── Reading the log ──────────────────────────────────────────────────────────
 
-export type FetchLike = (input: string, init?: { headers?: Record<string, string> }) => Promise<{
+export type FetchLike = (input: string, init?: { headers?: Record<string, string>; redirect?: "error" }) => Promise<{
   ok: boolean;
   status: number;
   json: () => Promise<unknown>;
@@ -286,6 +415,11 @@ export type FetchLike = (input: string, init?: { headers?: Record<string, string
  * Every curriculum review with a question recorded since a day, a page at a
  * time, with the service role (review_log is readable only by its owner
  * otherwise). Read-only.
+ *
+ * Paged on the id, not an offset, so a row logged during the read neither
+ * shifts a page nor is read twice; and read until a page comes back empty,
+ * since the project may cap a page below the size asked for. A redirect is an
+ * error: the key is not sent on to wherever it points.
  */
 export async function fetchQuizAnswers(ctx: {
   supabaseUrl: string;
@@ -296,32 +430,40 @@ export async function fetchQuizAnswers(ctx: {
 }): Promise<LoggedQuizAnswer[]> {
   const pageSize = ctx.pageSize ?? 1000;
   const rows: LoggedQuizAnswer[] = [];
-  for (let offset = 0; ; offset += pageSize) {
+  for (let after: number | null = null; ; ) {
     const query = new URLSearchParams({
-      select: "direction,rating,quiz_format,quiz_step,stability_before,repetitions_after",
+      select: "id,user_id,direction,rating,quiz_format,quiz_step,stability_before,repetitions_before,repetitions_after",
       deck: "eq.word",
       quiz_step: "not.is.null",
       reviewed_at: `gte.${ctx.since}`,
-      order: "id",
+      order: "id.asc",
       limit: String(pageSize),
-      offset: String(offset),
     });
+    if (after != null) query.set("id", `gt.${after}`);
     const response = await ctx.fetch(`${ctx.supabaseUrl}/rest/v1/review_log?${query}`, {
       headers: { apikey: ctx.serviceRoleKey, Authorization: `Bearer ${ctx.serviceRoleKey}` },
+      redirect: "error",
     });
     if (!response.ok) throw new Error(`review_log read failed (${response.status}): ${await response.text()}`);
     const page = (await response.json()) as Array<Record<string, unknown>>;
+    if (page.length === 0) return rows;
     for (const raw of page) {
       rows.push({
+        user_id: String(raw.user_id),
         direction: raw.direction === "production" ? "production" : "recognition",
         rating: typeof raw.rating === "string" ? raw.rating : null,
         quiz_format: typeof raw.quiz_format === "string" ? raw.quiz_format : null,
         quiz_step: raw.quiz_step == null ? null : Number(raw.quiz_step),
         stability_before: raw.stability_before == null ? null : Number(raw.stability_before),
+        repetitions_before: raw.repetitions_before == null ? null : Number(raw.repetitions_before),
         repetitions_after: raw.repetitions_after == null ? null : Number(raw.repetitions_after),
       });
     }
-    if (page.length < pageSize) return rows;
+    const last = Number(page[page.length - 1].id);
+    if (!Number.isFinite(last) || (after != null && last <= after)) {
+      throw new Error("review_log read did not move forward; stopping rather than read the same rows again");
+    }
+    after = last;
   }
 }
 
@@ -339,7 +481,9 @@ export const REPORT_USAGE = `Usage: npm run quiz:ladder-report -- [--since YYYY-
 
 Reads review_log on the project in SUPABASE_URL with SUPABASE_SERVICE_ROLE_KEY
 (read-only) and prints how often each quiz step and format is answered right,
-and where each LADDER_THRESHOLDS value should be. --since defaults to 30 days ago.`;
+and where each LADDER_THRESHOLDS value should be. --since defaults to 30 days
+ago; --min is the fewest answers a threshold needs (from at least 5 learners,
+each counted for at most 50).`;
 
 /** The script's arguments, or what is wrong with them. */
 export function parseReportArgs(argv: readonly string[], now: Date = new Date()): ReportArgs | { error: string } | { help: true } {

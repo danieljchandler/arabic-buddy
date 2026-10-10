@@ -1273,12 +1273,24 @@ quiz has weeks of ratings, set them from the data.
   asked from: 1 for a boss) beside `format`. The page hands both to the queue
   (`QueuedRating.asked`), and `submitRatingToServer` writes them on the
   rating's own write as `word_reviews.last_quiz_format` and
-  `last_quiz_step`, nulls for a flip card (the row keeps its last values, and
-  a flip rating after a quiz one would otherwise be logged as the quiz
-  question). Migration `20261010130000_quiz_rating_asked` adds those columns,
-  `review_log.quiz_format` and `quiz_step`, and re-creates the log trigger
-  (`log_word_review`) to copy them beside the rating, so the log stays
-  trigger-written: a learner can no more author it than the rating itself.
+  `last_quiz_step`, stamped `last_quiz_at` with the same moment as the
+  `last_reviewed_at` it writes; nulls for a flip card and for a lesson's
+  grade (`useSubmitReview`). Migration `20261010130000_quiz_rating_asked`
+  adds those three columns, `review_log.quiz_format`, `quiz_step` and
+  `repetitions_before`, and re-creates the log trigger (`log_word_review`,
+  still `SECURITY DEFINER`) to copy the question beside the rating. It
+  copies it only when `last_quiz_at` is the direction's new
+  `last_reviewed_at`, so a write that moves the review without restamping
+  the question (an older tab, a device that has stopped sending it) is
+  logged with none rather than with the previous rating's; and only a
+  format of lowercase words and a step from 1 to 10. The row is the
+  learner's own to write; the log keeps nothing else from it, and stays
+  trigger-written.
+- **Repetitions before.** The report recomputes the step a card was asked
+  at from its memory before the review. `repetitions_after - 1` (what the
+  climbs count reads) is wrong for a lapse, which leaves repetitions as they
+  were: a card missed on its first repetition would read as a first look. The
+  trigger logs `OLD.repetitions` (or the production count) instead.
 - **Why not `feature_metrics`.** The plan suggested the existing sink; the
   browser cannot write it (insert has been service-role only since
   `20260723000000`), and an edge function to take each rating would be a
@@ -1289,21 +1301,31 @@ quiz has weeks of ratings, set them from the data.
   `last_quiz_*`), the write is sent again without them, and the device stops
   sending them for a day (`markQuizColumnsMissing`, `src/lib/quizRatingFields.ts`)
   before trying again, so the fields start flowing on their own once the
-  migration is applied. The four columns sit in `typesDrift` until a types
+  migration is applied. The six columns sit in `typesDrift` until a types
   regeneration carries them.
 - **The report.** `src/lib/quizLadderReport.ts` (pure, tested on fixtures)
   and `npm run quiz:ladder-report` (`scripts/quiz-ladder-report.ts`, read-only,
-  service role). For each review with a question recorded it recomputes the
-  step from the logged memory (repetitions before are `repetitions_after - 1`,
-  as the climbs count reads them) and sorts it: on the ladder (that step, in
-  its own format), a fallback (that step, another format, for want of
-  material), or off it (another step: a boss, or a row logged under
-  thresholds since changed). It reports accuracy per step and per format as
-  asked, and for each threshold the bands of stability above it in
-  half-octaves. A threshold *holds* when the step it opens is answered right
-  at the target (85%) from its first band, is *raised* to the lowest band from
-  which the step stays at the target, and says *too few* or *never settles*
-  otherwise. Only answers on the ladder move a threshold.
+  service role). It pages the log on its id until a page comes back empty,
+  and refuses a redirect (the key goes to no other host). For each review
+  with a question recorded it recomputes the step from the logged memory
+  (`stability_before`, `repetitions_before`) and sorts it: on the ladder
+  (that step, in its own format), a fallback (that step, another format, for
+  want of material), or off it (another step: a boss, or a row logged under
+  thresholds since changed); a format the quiz does not ask, or a step
+  outside 1–10, is counted apart and nowhere else. It reports accuracy per
+  step and per format as asked, and for each threshold the bands of
+  stability above it in half-octaves.
+- **What it takes to move a threshold.** At least 30 answers (`--min`) from
+  at least 5 learners, each learner counted at most 50 times, so one keen
+  learner cannot set a threshold for everyone. It *holds* when the band at
+  the threshold has at least 10 answers, the step is answered right at the
+  target (85%) from there up, and no band above is clearly under it (the top
+  of its 95% Wilson interval below the target). It is *raised* to the lowest
+  band that meets the same test, but only when the bands it is moved past
+  are, pooled, clearly under the target. It *never settles* when the step's
+  whole range is clearly under it. Anything else with enough answers is
+  *unclear*: thin at the threshold, or under the target without being
+  clearly so. Only answers on the ladder move a threshold.
 - **What it cannot say.** Whether a threshold could come down: the ladder
   never asks a step's question below its threshold, so the log has no
   answers there. A threshold that holds from its first band may be higher
@@ -1313,23 +1335,32 @@ quiz has weeks of ratings, set them from the data.
   `review_log` (logging them is its own migration, and an owner question).
   `LADDER_THRESHOLDS` is unchanged.
 
-**Tests.** `quizRatingFields` (the fields, nulls, the refusal, a day's
-pause); the queue writes them with the rating, nulls for a flip card, and
-saves the rating without them when the project refuses them
-(`useReviewQueue.test.ts`); the frame reports `askedStep`, 1 for a boss whose
-own step is 4; the report on fixtures (each verdict, bosses and fallbacks not
-moving a threshold, the bands, the text, the paged read, the arguments); the
-migration replay runs the trigger against Postgres (a quiz rating, a flip
-rating, a production rating); and the e2e `/review` answer writes
-`cloze-hint` at step 1 while a flip card writes nulls.
+**Tests.** `quizRatingFields` (the fields and their stamp, nulls, the
+refusal, a day's pause); the queue writes them with the rating, stamped with
+its `last_reviewed_at`, nulls for a flip card, and saves the rating without
+them when the project refuses them, on an update and on a first rating's
+insert (`useReviewQueue.test.ts`); a lesson's grade writes nulls and saves
+without the columns (`useReview.test.ts`); the frame reports `askedStep`, 1
+for a boss whose own step is 4; the report on fixtures (each verdict, a
+lapse read from the repetitions it had, a question the app does not ask,
+too few learners, the per-learner cap, a thin band at the threshold, a band
+under the target but not clearly, Wilson's interval against published
+values, bosses and fallbacks not moving a threshold, the bands, the text,
+keyset paging past a short page, a read that does not move forward, the
+arguments); the migration replay runs the trigger against Postgres (a quiz
+rating, a flip rating, a production rating, a lapse's repetitions before, a
+write that moves the review without restamping the question, and values
+out of bounds); `reviewLog.test.ts` holds the trigger's latest definition to
+`SECURITY DEFINER`; and the e2e `/review` answer writes `cloze-hint` at step
+1 while a flip card writes nulls.
 
 ### Phase 8b — owner action
 
 Apply `20261010130000_quiz_rating_asked.sql` to the live project (ask Lovable
-to run it, or `supabase db push`). It adds two nullable columns to
-`word_reviews` and two to `review_log`, and replaces `log_word_review` with
+to run it, or `supabase db push`). It adds three nullable columns to
+`word_reviews` and three to `review_log`, and replaces `log_word_review` with
 the same trigger plus the copy. Then let the types regenerate and delete the
-four `typesDrift` entries. Until then ratings save as before and the log
+six `typesDrift` entries. Until then ratings save as before and the log
 records no question.
 
 **Done when** (8b): a quiz rating in production leaves a `review_log` row
@@ -1339,8 +1370,21 @@ with `quiz_format` set.
 
 After a month of ratings with the columns live:
 `SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… npm run quiz:ladder-report -- --since <the day 8b went live>`.
-Move each threshold the report raises, leave the ones that hold, and note
-in the README table that the numbers now come from the data.
+Move each threshold the report raises, leave the ones that hold (and the
+unclear ones, until more answers decide them), and note in the README table
+that the numbers now come from the data. Moving one touches three things:
+
+- `LADDER_THRESHOLDS` in `src/lib/quizLadder.ts`.
+- The ladder in SQL: a new migration re-creating `quiz_ladder_step` (first
+  defined in `20261010120000_leaderboard_climbs`) with the same numbers,
+  which is itself an owner action to apply. `leaderboardClimbs.test.ts`
+  holds the latest definition to the TypeScript, so CI fails until both move.
+- `pictureDays` is also when a word's production card is first served
+  (`holdsProduction`) and when a saved phrase is asked to be said
+  (`phraseDirection`); raising it holds both back. Decide that with it.
+
+Rows logged under the old thresholds then read as off the ladder, so the
+next report is run `--since` the day the new ones went live.
 
 **Done when** (Phase 8). The thresholds have been set from at least a month
 of ratings and the README table says so.

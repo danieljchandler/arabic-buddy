@@ -9,6 +9,12 @@ import type { QuizFormat } from "@/lib/quizLadder";
  * from the ladder's own question, when it sets the thresholds from real
  * ratings.
  *
+ * They are stamped with the rating's own moment (`last_quiz_at`, the same
+ * string as the direction's `last_reviewed_at`), and the trigger copies them
+ * only when the two match: a write that moves `last_reviewed_at` without
+ * them (an older tab, a device that has stopped sending them) is logged with
+ * no question rather than with the previous rating's.
+ *
  * The columns come with migration 20261010130000_quiz_rating_asked, which is
  * an owner action (Phase 8b): merged through GitHub it is not on the live
  * project, and PostgREST refuses a write that names a column it does not have.
@@ -57,19 +63,25 @@ export function markQuizColumnsMissing(nowMs: number = Date.now()): void {
 }
 
 /**
- * The fields for a rating write: what it was asked as, or nulls for a flip
- * card. Every rating sends them while the columns are there, nulls included:
- * the row keeps its last values, and a flip rating after a quiz one would
- * otherwise be logged as the quiz question.
+ * The fields for a rating write: what it was asked as, stamped with the
+ * rating's `last_reviewed_at` (`reviewedAt`), or nulls for a flip card. Every
+ * rating sends them while the columns are there, nulls included, so the row
+ * never holds a question the learner was not asked.
  */
-export function quizRatingFields(asked: QuizAsked | null | undefined, nowMs: number = Date.now()): Record<string, unknown> {
+export function quizRatingFields(
+  asked: QuizAsked | null | undefined,
+  reviewedAt: string,
+  nowMs: number = Date.now(),
+): Record<string, unknown> {
   if (!quizColumnsAvailable(nowMs)) return {};
-  return { last_quiz_format: asked?.format ?? null, last_quiz_step: asked?.step ?? null };
+  return asked
+    ? { last_quiz_format: asked.format, last_quiz_step: asked.step, last_quiz_at: reviewedAt }
+    : { last_quiz_format: null, last_quiz_step: null, last_quiz_at: null };
 }
 
 /** The write without them, to send again when the project has no such columns. */
 export function withoutQuizFields(write: Record<string, unknown>): Record<string, unknown> {
-  const { last_quiz_format: _format, last_quiz_step: _step, ...rest } = write;
+  const { last_quiz_format: _format, last_quiz_step: _step, last_quiz_at: _at, ...rest } = write;
   return rest;
 }
 
@@ -82,7 +94,7 @@ export function isMissingQuizColumn(error: { code?: string | null; message?: str
   if (!error) return false;
   const code = error.code ?? "";
   if (code !== "PGRST204" && code !== "42703") return false;
-  return /last_quiz_(format|step)/.test(error.message ?? "");
+  return /last_quiz_(format|step|at)/.test(error.message ?? "");
 }
 
 /** For tests: forget what this page load learned. */

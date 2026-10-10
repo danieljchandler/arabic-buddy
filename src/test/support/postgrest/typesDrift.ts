@@ -86,16 +86,17 @@ export const COLUMNS_MISSING_FROM_TYPES: DriftedColumn[] = [
   // typesDrift.test.ts.
 
   // What a curriculum rating was asked as (quiz Phase 8): written with the
-  // rating, copied into the review log by its trigger. Merged from a branch,
+  // rating, copied into the review log by its trigger, which also logs the
+  // repetitions a card had before the review. Merged from a branch,
   // so absent from the live project until applied there (Phase 8b); the
   // client sends them again without when the project refuses them. Delete
   // these once a types regeneration carries the columns.
-  ...["last_quiz_format", "last_quiz_step"].map((column) => ({
+  ...["last_quiz_format", "last_quiz_step", "last_quiz_at"].map((column) => ({
     table: "word_reviews",
     column,
     migration: "20261010130000_quiz_rating_asked",
   })),
-  ...["quiz_format", "quiz_step"].map((column) => ({
+  ...["quiz_format", "quiz_step", "repetitions_before"].map((column) => ({
     table: "review_log",
     column,
     migration: "20261010130000_quiz_rating_asked",

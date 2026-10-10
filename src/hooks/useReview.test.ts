@@ -1,4 +1,4 @@
-import { waitFor } from "@testing-library/react";
+import { act, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { renderHookWithProviders, TEST_USER_ID } from "@/test/support/react/harness";
 import {
@@ -12,8 +12,10 @@ import {
   wordId,
 } from "@/test/support/factories";
 import { all as queuedRatings, enqueue as enqueueRating, remove as removeRating } from "@/lib/reviewQueue";
+import { resetQuizColumnsForTests } from "@/lib/quizRatingFields";
 import type { SupabaseBackend } from "@/test/support/server/handler";
-import { useDueWords } from "./useReview";
+import { useAuth } from "./useAuth";
+import { useDueWords, useSubmitReview, type WordReview } from "./useReview";
 
 /**
  * The curriculum deck's due list, and the quiz's boss in it.
@@ -25,11 +27,15 @@ import { useDueWords } from "./useReview";
  */
 
 let cleanup: (() => void) | undefined;
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+  resetQuizColumnsForTests();
+});
 afterEach(() => {
   cleanup?.();
   cleanup = undefined;
   localStorage.clear();
+  resetQuizColumnsForTests();
 });
 
 function seed(backend: SupabaseBackend) {
@@ -195,5 +201,53 @@ describe("the boss", () => {
     const withBoss = await deck(true);
 
     expect(withBoss).toEqual(["the worst leech", ...plain.filter((w) => w !== "the worst leech")]);
+  });
+});
+
+describe("a lesson's rating (useSubmitReview)", () => {
+  // The lesson grades a word without the quiz's ladder, so its write says so:
+  // nulls for the question (quiz Phase 8), never the last quiz question's.
+  // And, like the queue's, it saves on a project without those columns.
+  type Submit = { current: { submit: ReturnType<typeof useSubmitReview> } };
+  async function rate(backend: SupabaseBackend, result: Submit) {
+    const currentReview = backend.db.rows("word_reviews").find((row) => row.id === reviewId(1)) as unknown as WordReview;
+    await act(async () => {
+      await result.current.submit.mutateAsync({ wordId: wordId(1), rating: "good", currentReview });
+    });
+    return backend.db.lastWriteTo("word_reviews")?.payload[0] ?? {};
+  }
+
+  /** The hook, once the session has resolved (useAuth resolves a tick after mount). */
+  async function renderSubmit() {
+    const r = renderHookWithProviders(() => ({ submit: useSubmitReview(), auth: useAuth() }), { persona: "free", seed });
+    cleanup = r.cleanup;
+    await waitFor(() => expect(r.result.current.auth.user).toBeTruthy());
+    return r;
+  }
+
+  it("records no question for it", async () => {
+    const { result, backend } = await renderSubmit();
+
+    expect(await rate(backend, result)).toMatchObject({
+      last_result: "good",
+      last_quiz_format: null,
+      last_quiz_step: null,
+      last_quiz_at: null,
+    });
+  });
+
+  it("saves on a project without the columns", async () => {
+    const { result, backend } = await renderSubmit();
+    backend.db.failNextWrite("word_reviews", 400, {
+      code: "PGRST204",
+      message: "Could not find the 'last_quiz_at' column of 'word_reviews' in the schema cache",
+      details: null,
+      hint: null,
+    });
+
+    const saved = await rate(backend, result);
+    expect(saved).toMatchObject({ last_result: "good" });
+    expect(saved).not.toHaveProperty("last_quiz_at");
+    expect(backend.db.rows("word_reviews").find((row) => row.id === reviewId(1))).toMatchObject({ last_result: "good" });
   });
 });

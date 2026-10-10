@@ -149,7 +149,7 @@ import {
   keyWord,
 } from "../_shared/wordDialogue.ts";
 import {
-  asStoredStoryLine,
+  asWrittenStoryLine,
   findStoryPassage,
   STORY_LINE_TOOL,
   storyLineArabic,
@@ -674,11 +674,10 @@ async function makeStoryLine(
     // no gap, and the critic is sent back to fix exactly that.
     gate: (parsed) => storyLineProblem(parsed, word),
     arabicTextPath: storyLineArabic,
-    // Written, not taken: a story the model names is not one it came from.
-    read: (output) => {
-      const line = asStoredStoryLine(output, word);
-      return line && { ...line, story: null };
-    },
+    // The gate only steers the critic, and what ships may still fail it:
+    // read by the same rule, so a sentence past fourteen words is not filed,
+    // and a story the model names is not kept.
+    read: (output) => asWrittenStoryLine(output, word),
     scan: storyLineSentencesForScan,
     payload: storyLinePayload,
     noun: "passage",

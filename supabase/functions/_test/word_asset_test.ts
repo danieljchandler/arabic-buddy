@@ -1086,10 +1086,13 @@ Deno.test("word-asset ensure looks for MSA inside quotation marks too", async ()
 });
 
 Deno.test("word-asset ensure does not file an exchange whose reply does not use the word", async () => {
-  // Nor one whose opening line already says it: both are no question.
+  // Nor one whose opening line already says it, bare or with something
+  // attached (القهوة, قهوتك): both are no question.
   for (const exchange of [
     anExchange({ ...reply, arabic: "ايه، عطني شاي لو سمحت", english: "Yes, give me tea please" }),
     anExchange(reply, { ...offer, arabic: "تبي قهوة؟", english: "Do you want coffee?" }),
+    anExchange(reply, { ...offer, arabic: "وين القهوة؟", english: "Where is the coffee?" }),
+    anExchange(reply, { ...offer, arabic: "تبي قهوتك الحين؟", english: "Do you want your coffee now?" }),
     { lines: [offer] },
   ]) {
     const table = assetTable();
@@ -2220,6 +2223,53 @@ Deno.test("word-asset ensure files no passage without the word, or with the word
     assertEquals(body.error, "STORY_LINE_GENERATION_FAILED", JSON.stringify(passage));
     assertEquals(table.rows, [], JSON.stringify(passage));
   }
+});
+
+Deno.test("word-asset ensure files no written passage with a sentence past fourteen words", async () => {
+  // What the prompt and the critic ask for. Well under the character limit,
+  // so only the word count stands between it and every learner of the word.
+  const fifteen = {
+    arabic: "رجع من الدوام وطلب الريال قهوة حارة وقعد يسولف مع ربعه في المجلس لين الليل.",
+    english: "He came back from work, the man ordered hot coffee and sat chatting with his friends in the majlis until night.",
+  };
+  const table = assetTable();
+  const { status, body, calls } = await call(
+    { action: "ensure", ...COFFEE_STORY },
+    upstreams({ id: LEARNER_A }, table.handler, writing(aPassage(morning, fifteen))),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(body.error, "STORY_LINE_GENERATION_FAILED");
+  assertEquals(table.rows, []);
+  // The gate sent the critic back over it (nothing else here would: the
+  // validator passes it), and what shipped was read by the same rule.
+  assert(chatCalls(calls).some((c) => (c.body ?? "").includes("You are reviewing a draft")), "the gate did not run the critic");
+});
+
+Deno.test("word-asset ensure still takes a story's sentence past fourteen words: the limit is the writer's", async () => {
+  // A person wrote and published the story; its line is held to the
+  // character limit only, as it always was.
+  const long = "بعد ما رجع من الدوام طلب الريال قهوة حارة وقعد يسولف مع ربعه في المجلس لين الليل.";
+  const table = assetTable();
+  const { status, calls } = await call(
+    { action: "ensure", ...COFFEE_STORY },
+    upstreams({ id: LEARNER_A }, table.handler, {
+      ...library(
+        [aStory({ body_dialect: [morning.arabic, long, "بعدين قعد مع ربعه."].join("\n") })],
+        storyLines([{}, {
+          dialect: long,
+          english: "After he came back from work, the man ordered hot coffee and sat chatting with his friends in the majlis until night.",
+        }]),
+      ),
+      ...writing(aPassage()),
+    }),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(chatCalls(calls), [], "written instead of taken from the story");
+  assertEquals(table.rows[0]?.source, "reviewed");
+  const sentences = (table.rows[0]?.payload as { sentences: Array<{ arabic: string }> }).sentences;
+  assertEquals(sentences.map((sentence) => sentence.arabic), [morning.arabic, long]);
 });
 
 Deno.test("word-asset ensure files no passage the native reviewer failed, and keeps none it could not judge", async () => {

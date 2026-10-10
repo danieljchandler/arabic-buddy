@@ -3,6 +3,7 @@ import { seededShuffle } from "@/lib/quizDistractors";
 import {
   asStoredDialogue,
   lineUsesWord,
+  wordUseCount,
   type StoredDialogue,
 } from "../../supabase/functions/_shared/wordDialogue";
 
@@ -46,16 +47,24 @@ export interface ReplyLine {
  * run of whole words for a phrase, compared after folding), so an exchange
  * the store filed for a two-word item is one the quiz can ask from. For a
  * single word it is exactly `sentenceHasWord`.
+ *
+ * "Says the word" is wider, `wordUseCount`: the word with a prefix or an
+ * ending attached too (للسوق, قهوتي). A line said to the learner, or offered
+ * as a wrong reply, must not say it at all: "رحنا للسوق؟" before a reply with
+ * السوق hands over the answer, and a "wrong" reply with للسوق in it is not
+ * wrong.
  */
 
 /**
- * The first line of a dialogue that uses the word and has a line before it,
- * with that line before: what "say the reply" asks, and what "answer the
- * line" builds its question around. Null when the word opens the dialogue or
- * is not in it.
+ * The first line of a dialogue that uses the word and has a line before it
+ * that does not say it, with that line before: what "say the reply" asks, and
+ * what "answer the line" builds its question around. Null when the word
+ * opens the dialogue, is not in it, or is said in every line before a use.
  */
 export function findReplyLine(dialogue: DialogueLine[], wordArabic: string): ReplyLine | null {
-  const index = dialogue.findIndex((line, i) => i > 0 && lineUsesWord(line.arabic, wordArabic));
+  const index = dialogue.findIndex(
+    (line, i) => i > 0 && lineUsesWord(line.arabic, wordArabic) && wordUseCount(dialogue[i - 1].arabic, wordArabic) === 0,
+  );
   if (index < 1) return null;
   return { prompt: dialogue[index - 1], answer: dialogue[index] };
 }
@@ -89,12 +98,12 @@ export function dialogueForWord(
  * "Someone says something; which reply fits?" — built from the lesson's own
  * dialogue, or from the word's stored exchange when the lesson has none.
  *
- * The reply is the first line that uses the word and has a line before it;
- * the prompt is that line before. The wrong replies are the dialogue's other
- * lines, none of which use the word (a second line with the word would be a
- * second right answer), topped up from `extraLines` — other lessons'
- * dialogue, and other words' stored replies — when the dialogue is short (a
- * stored exchange is two lines, so all its wrong replies come from there).
+ * The reply and the prompt are `findReplyLine`'s. The wrong replies are the
+ * dialogue's other lines, none of which say the word in any form (a second
+ * line with the word would be a second right answer), topped up from
+ * `extraLines` — other lessons' dialogue, and other words' stored replies —
+ * when the dialogue is short (a stored exchange is two lines, so all its
+ * wrong replies come from there).
  * Null when the word opens the dialogue, is not in it, or there are fewer
  * than three wrong replies.
  */
@@ -112,7 +121,7 @@ export function buildReplyQuestion(
   const wrong: DialogueLine[] = [];
   for (const line of [...dialogue, ...extraLines]) {
     const key = line.arabic.trim();
-    if (seen.has(key) || lineUsesWord(line.arabic, wordArabic)) continue;
+    if (seen.has(key) || wordUseCount(line.arabic, wordArabic) > 0) continue;
     seen.add(key);
     wrong.push(line);
   }
@@ -128,15 +137,16 @@ export function buildReplyQuestion(
 
 /**
  * How many distinct wrong replies `lines` hold for a word: lines that do not
- * use it and are not `except` (the prompt and the answer). Enough to know
- * whether a reply question could be asked before its exchange is in hand.
+ * say it in any form and are not `except` (the prompt and the answer), as
+ * `buildReplyQuestion` picks them. Enough to know whether a reply question
+ * could be asked before its exchange is in hand.
  */
 export function countWrongReplies(lines: DialogueLine[], wordArabic: string, except: DialogueLine[] = []): number {
   const seen = new Set(except.map((line) => line.arabic.trim()));
   let count = 0;
   for (const line of lines) {
     const key = line.arabic.trim();
-    if (!key || seen.has(key) || lineUsesWord(line.arabic, wordArabic)) continue;
+    if (!key || seen.has(key) || wordUseCount(line.arabic, wordArabic) > 0) continue;
     seen.add(key);
     count++;
   }

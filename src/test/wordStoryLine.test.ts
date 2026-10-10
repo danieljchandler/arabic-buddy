@@ -9,10 +9,12 @@ import { assetKey, type AssetKey } from "../../supabase/functions/_shared/wordAs
 import { detectMsaLeaks } from "../../supabase/functions/_shared/msaLeakDetector";
 import {
   asStoredStoryLine,
+  asWrittenStoryLine,
   englishNamesSense,
   findStoryPassage,
   inCurrentRendering,
   MAX_STORY_SENTENCE_LENGTH,
+  MAX_WRITTEN_SENTENCE_WORDS,
   splitSentences,
   storyDialect,
   storyLicenseShareable,
@@ -132,6 +134,40 @@ describe("asStoredStoryLine", () => {
     const quoted = { arabic: "قال «لماذا» وطلب قهوة.", english: "x" };
     const [, scanned] = storyLineSentencesForScan({ sentences: [morning, quoted] });
     expect(detectMsaLeaks(scanned, "Gulf").leaks).toContain("لماذا");
+  });
+});
+
+describe("asWrittenStoryLine: a passage written for the word", () => {
+  // The prompt and the critic ask for at most fourteen words a sentence, and
+  // what ships is filed for every learner of the word, so the writer holds it
+  // to that; a story's own sentence is held only to the character limit.
+  const fourteen = { arabic: "رجع من الدوام وطلب الريال قهوة حارة وقعد يسولف مع ربعه في المجلس الكبير.", english: "x" };
+  const fifteen = { arabic: "رجع من الدوام وطلب الريال قهوة حارة وقعد يسولف مع ربعه في المجلس لين الليل.", english: "x" };
+
+  it("takes a sentence of fourteen words, and counts no lone punctuation as one", () => {
+    expect(MAX_WRITTEN_SENTENCE_WORDS).toBe(14);
+    expect(asWrittenStoryLine({ sentences: [morning, fourteen] }, "قهوة")?.gap).toBe(1);
+    const dashed = { ...fourteen, arabic: "رجع من الدوام وطلب الريال قهوة حارة — وقعد يسولف مع ربعه في المجلس الكبير." };
+    expect(asWrittenStoryLine({ sentences: [morning, dashed] }, "قهوة")?.gap).toBe(1);
+  });
+
+  it("refuses a sentence past fourteen words, though it is well under the character limit", () => {
+    expect(fifteen.arabic.length).toBeLessThan(MAX_STORY_SENTENCE_LENGTH);
+    expect(asWrittenStoryLine({ sentences: [morning, fifteen] }, "قهوة")).toBeNull();
+    const longScene = { arabic: "كان الصبح بارد وايد وكل الناس قاعدين في بيوتهم وما حد طلع من الصبح للظهر.", english: "x" };
+    expect(asWrittenStoryLine({ sentences: [longScene, ordered] }, "قهوة")).toBeNull();
+    expect(storyLineProblem({ sentences: [morning, fifteen] }, "قهوة")).toMatch(/at most fourteen words/);
+  });
+
+  it("is the writer's rule alone: the passage every side reads by still takes the longer sentence", () => {
+    expect(asStoredStoryLine({ sentences: [morning, fifteen] }, "قهوة")?.gap).toBe(1);
+  });
+
+  it("keeps no story the model names, and holds everything else to the passage rule", () => {
+    const story = { id: "s1", title: "A story it made up", titleArabic: "" };
+    expect(asWrittenStoryLine({ sentences: [morning, ordered], story }, "قهوة")?.story).toBeNull();
+    expect(asWrittenStoryLine({ sentences: [morning, sat] }, "قهوة")).toBeNull();
+    expect(asWrittenStoryLine({ sentences: [ordered] }, "قهوة")).toBeNull();
   });
 });
 

@@ -164,9 +164,27 @@ describe("asStoredDialogue", () => {
     }
   });
 
+  it("refuses an opening line that says the word with something attached", () => {
+    // Line 1 is said before the learner chooses or says the reply, so any
+    // form of the word in it is the answer handed over (`wordUseCount`):
+    // "رحنا للسوق؟" before a reply with السوق.
+    const market = { ...reply, arabic: "ايه، السوق زحمة اليوم", english: "Yes, the market is crowded today" };
+    for (const opener of ["رحنا للسوق؟", "وين السوق؟", "عالسوق؟", "سوقنا قريب؟", "تبي نروح سوق؟"]) {
+      expect(asStoredDialogue({ lines: [{ ...offer, arabic: opener }, market] }, "السوق"), opener).toBeNull();
+    }
+    for (const opener of ["وين القهوة؟", "تبي قهوتك؟", "بقهوة ولا شاي؟"]) {
+      expect(asStoredDialogue({ lines: [{ ...offer, arabic: opener }, reply] }, "قهوة"), opener).toBeNull();
+    }
+    // An opening line about something else is still one.
+    expect(asStoredDialogue({ lines: [{ ...offer, arabic: "وين رحتوا امس؟" }, market] }, "السوق")?.lines[1]).toEqual(market);
+  });
+
   it("gives the critic a reason only when there is something to fix", () => {
     expect(dialogueProblem({ lines: [offer, reply] }, "قهوه")).toBeNull();
     expect(dialogueProblem({ lines: [offer, { ...reply, arabic: "ايه" }] }, "قهوه")).toMatch(/second line must contain the word قهوه/);
+    expect(dialogueProblem({ lines: [{ ...offer, arabic: "وين القهوة؟" }, reply] }, "قهوه")).toMatch(
+      /first line must not contain it in any form/,
+    );
   });
 });
 

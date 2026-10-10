@@ -32,6 +32,12 @@ interface Props {
    * translation, no tutor. The round costs nothing and moves on by itself.
    */
   bare?: boolean;
+  /**
+   * Seeds the options' deal; the word and sentence when unset. The lightning
+   * round passes its own, so a second round does not deal the same four in
+   * the same places.
+   */
+  seed?: string;
   onAnswered?: (correct: boolean) => void;
 }
 
@@ -56,6 +62,7 @@ export const ReviewClozeCard = ({
   hintEnglish,
   dialect,
   bare = false,
+  seed,
   onAnswered,
 }: Props) => {
   const [selected, setSelected] = useState<string | null>(null);
@@ -88,8 +95,8 @@ export const ReviewClozeCard = ({
     // the prompt requires an Arabic word.
     const ARABIC_RE = /[\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFE]/;
     const pool = distractors.filter((d) => d && ARABIC_RE.test(d));
-    return buildChoices(wordArabic, pool, `${wordArabic}|${sentenceText}`, 4, normalizeArabicWord);
-  }, [distractors, wordArabic, sentenceText]);
+    return buildChoices(wordArabic, pool, seed ?? `${wordArabic}|${sentenceText}`, 4, normalizeArabicWord);
+  }, [distractors, wordArabic, sentenceText, seed]);
 
   // Reset when card changes
   useEffect(() => {

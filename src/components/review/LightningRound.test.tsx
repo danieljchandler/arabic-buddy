@@ -132,9 +132,63 @@ describe("a round", () => {
 
     advance(2000);
     answerOnScreen(true);
+    // The last answer stops the clock but stays on screen for its beat.
+    expect(screen.queryByRole("heading", { name: /every word/i })).not.toBeInTheDocument();
+    advance(LIGHTNING_REVEAL_MS.right);
 
-    expect(screen.getByRole("heading", { name: /every word in 11 s/i })).toBeInTheDocument();
+    const heading = screen.getByRole("heading", { name: /every word in 11 s/i });
+    expect(heading).toHaveFocus();
     expect(screen.getByLabelText(/lightning round score/i)).toHaveTextContent("2 / 3");
+  });
+
+  it("shows a missed last word's answer before the result", () => {
+    render();
+    fireEvent.click(screen.getByRole("button", { name: /start/i }));
+    for (let i = 0; i < 2; i++) {
+      answerOnScreen(true);
+      advance(LIGHTNING_REVEAL_MS.right);
+    }
+    const last = wordOnScreen();
+    answerOnScreen(false);
+    // Still the question, now with its answer: the gap names the word's
+    // meaning, a meaning question says it.
+    expect(screen.queryByRole("heading", { name: /every word in/i })).not.toBeInTheDocument();
+    if (last.format === "cloze") expect(screen.getByText(`— ${last.item.english}`)).toBeInTheDocument();
+    else expect(screen.getByRole("status")).toHaveTextContent(last.item.english);
+    advance(LIGHTNING_REVEAL_MS.wrong);
+    expect(screen.getByRole("heading", { name: /every word in/i })).toBeInTheDocument();
+  });
+
+  it("moves focus to each new question, so the keyboard stays in the round", () => {
+    render();
+    fireEvent.click(screen.getByRole("button", { name: /start/i }));
+    expect(screen.getByLabelText("Question 1 of 3")).toHaveFocus();
+    answerOnScreen(true);
+    advance(LIGHTNING_REVEAL_MS.right);
+    expect(screen.getByLabelText("Question 2 of 3")).toHaveFocus();
+  });
+
+  it("never offers another gloss of the word itself as a wrong meaning", () => {
+    // The pool holds بيت twice, under two glosses; on بيت's question the
+    // other one would be a right answer scored wrong.
+    const harness = renderWithProviders(
+      <LightningRound
+        words={WORDS}
+        pool={[...POOL, { arabic: "بيت", english: "home" }, { arabic: "بَيْت", english: "dwelling" }]}
+      />,
+    );
+    cleanup = harness.cleanup;
+    fireEvent.click(screen.getByRole("button", { name: /start/i }));
+    for (let i = 0; i < 3; i++) {
+      if (wordOnScreen().id === "bait") {
+        const offered = screen.getAllByRole("radio").map((r) => r.textContent?.trim());
+        expect(offered).toContain("house");
+        expect(offered).not.toContain("home");
+        expect(offered).not.toContain("dwelling");
+      }
+      answerOnScreen(true);
+      advance(LIGHTNING_REVEAL_MS.right);
+    }
   });
 
   it("ends on the minute, mid-question", () => {
@@ -153,11 +207,23 @@ describe("a round", () => {
 
   it("plays again with the words in a new order", () => {
     render();
+    const playThrough = () => {
+      const asked: string[] = [];
+      for (let i = 0; i < 3; i++) {
+        asked.push(wordOnScreen().id);
+        answerOnScreen(true);
+        advance(LIGHTNING_REVEAL_MS.right);
+      }
+      return asked;
+    };
     fireEvent.click(screen.getByRole("button", { name: /start/i }));
-    advance(61_000);
+    const first = playThrough();
     fireEvent.click(screen.getByRole("button", { name: /play again/i }));
-    expect(screen.getByText("1 / 3")).toBeInTheDocument();
     expect(screen.getByLabelText("60 seconds left")).toBeInTheDocument();
+    const second = playThrough();
+
+    expect([...second].sort()).toEqual([...first].sort());
+    expect(second).not.toEqual(first);
   });
 });
 

@@ -22,7 +22,7 @@ means — so a session can pick up the next phase cold.*
 | 5b | Apply the bucket migration, deploy `word-asset`, run `scripts/curriculum-animations.ts` | **owner action** (after 2b) |
 | 6 | Words in stories | built (PR #428) |
 | 6b | Deploy `word-asset` (this version), then run `scripts/curriculum-stories.ts` | **owner action** (after 2b) |
-| 7 | The rest of the game | in progress: "Why not this one?" (PR #430), the lightning round (PR #LIGHTNING) and the boss card (PR #BOSS) built |
+| 7 | The rest of the game | in progress: "Why not this one?" (PR #430), the lightning round (PR #431) and the boss card (PR #BOSS) built |
 | 8 | Tuning from real reviews | once the quiz has weeks of history |
 | 9 | Housekeeping | any time |
 
@@ -877,8 +877,8 @@ One PR per item, in this order, each independent of the asset store:
 | item | status |
 |---|---|
 | 7.1 "Why not this one?" on every choice step | built (PR #430) |
-| 7.2 The lightning round | built (PR #LIGHTNING, on #430) |
-| 7.3 The boss card | built (PR #BOSS, on #LIGHTNING) |
+| 7.2 The lightning round | built (PR #431, on #430) |
+| 7.3 The boss card | built (PR #BOSS, on #431) |
 | 7.4 Ladder climbs on the leaderboard | next |
 | XP parity for the flip cards | **a question for the owner**, not built |
 
@@ -942,7 +942,7 @@ that meaning, so the naming is not false, only perhaps not the mix-up they
 made; carrying the dialect on `QuizPoolEntry` and naming only the card's own
 dialect's word would close it.
 
-### 7.2 The lightning round (built, PR #LIGHTNING)
+### 7.2 The lightning round (built, PR #431)
 
 What shipped (writeup: README "Reviewing as a quiz instead of flashcards",
 the lightning round):
@@ -989,7 +989,19 @@ the lightning round):
 5. *No XP*: "score and time only". A combo, a best score kept on the
    device, or XP for a round would each be a separate decision.
 6. *Moves on by itself*: half a second after a right answer, 1.2 s after a
-   wrong one. The clock runs on through the beat; the last answer stops it.
+   wrong one. The clock runs on through the beat; the last answer stops it,
+   and its beat still plays before the result.
+
+An independent review before the PR found two medium problems, both fixed: the
+round's meaning questions could offer another gloss of the word itself as a
+wrong answer (the frame's guard, from 7.1, was not shared; it is now
+`otherMeanings` in `quizDistractors.ts`, used by both), and keyboard focus fell
+to the page on every question (it now follows the question, then the result).
+And five low ones, fixed: the last answer's reveal was skipped, a replay could
+deal the same order and the gap the same options, the "nothing written" checks
+were one-shot (they now wait a second), My Words had no test of its wiring (an
+e2e now plays a round there), and the clock and score lacked roles. Not
+tested on its own: My Phrases' wiring, which is the same three lines.
 
 ### 7.3 The boss card (built, PR #BOSS)
 
@@ -1030,6 +1042,9 @@ the boss card):
    switched leech tracking off has no leeches to fight.
 5. *The small celebration*, on Continue: the session has the rest of its
    cards to go.
+6. *No rescue panel under the boss.* `LeechHelperPanel` prints the hook, so
+   under the boss it would hand over what the banner keeps behind a tap; the
+   e2e found this. Every other leech keeps its panel.
 
 ### The plan, as it was written
 

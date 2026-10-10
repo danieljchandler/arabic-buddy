@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { normalizeArabicWord } from "./arabicWord";
-import { buildChoices, pickDistractors, seededShuffle } from "./quizDistractors";
+import { buildChoices, otherMeanings, pickDistractors, seededShuffle } from "./quizDistractors";
 
 /**
  * Options for a choice question. Two things hold: the same card gives the
@@ -65,5 +65,32 @@ describe("building choices", () => {
 
   it("offers fewer options rather than padding with nonsense", () => {
     expect(buildChoices("dog", ["cat"], "seed")).toHaveLength(2);
+  });
+});
+
+describe("otherMeanings", () => {
+  const word = { arabic: "السوق", english: "the market" };
+
+  it("is the other words' glosses, once each", () => {
+    const pool = [
+      { arabic: "بيت", english: "house" },
+      { arabic: "دار", english: "House" },
+      { arabic: "مدرسة", english: "school" },
+    ];
+    expect(otherMeanings(pool, word)).toEqual(["house", "school"]);
+  });
+
+  it("never the word's own gloss, nor another gloss of the word in any spelling", () => {
+    const pool = [
+      { arabic: "مطعم", english: "The market " },
+      { arabic: "السوق", english: "the souq" },
+      { arabic: "السُّوق", english: "bazaar" },
+      { arabic: "سيارة", english: "car" },
+    ];
+    expect(otherMeanings(pool, word)).toEqual(["car"]);
+  });
+
+  it("skips a blank gloss", () => {
+    expect(otherMeanings([{ arabic: "بيت", english: " " }], word)).toEqual([]);
   });
 });

@@ -25,7 +25,6 @@ import { otherMeanings, seededShuffle } from "@/lib/quizDistractors";
 import { gradeQuizAnswer, isCorrectRating } from "@/lib/quizGrading";
 import { storyGap } from "@/lib/quizStory";
 import { BOSS_MEMORY } from "@/lib/bossCard";
-import { celebrate } from "@/lib/celebrations";
 import {
   CHOICE_COUNT,
   pickQuizFormat,
@@ -78,7 +77,8 @@ export interface QuizItem {
    * The session's boss (quiz Phase 7, `src/lib/bossCard.ts`): the learner's
    * worst word, opening the session. Asked as a first look whatever its
    * memory, with its picture in view and its memory hook a tap away; beating
-   * it is a celebration. A recognition card only: the pages set it so.
+   * it is a celebration (the page's, once the rating is saved). A recognition
+   * card only: the pages set it so.
    */
   boss?: {
     lapses: number;
@@ -159,6 +159,13 @@ interface QuizCardFrameProps {
    * well as a learner's own words.
    */
   storyLines?: boolean;
+  /**
+   * The rescue panel for a leech (`LeechHelperPanel`), shown below the card.
+   * Under the boss it waits for the answer, since it prints the memory hook
+   * the boss keeps behind a tap; on every other card, the flip card included,
+   * it is there from the start, as it always was.
+   */
+  leechPanel?: ReactNode;
 }
 
 /**
@@ -364,6 +371,7 @@ export const QuizCardFrame = ({
   storedDialogues = false,
   animations = false,
   storyLines = false,
+  leechPanel = null,
 }: QuizCardFrameProps) => {
   // A card the device could not record for is served as the flashcard; the
   // ladder is consulted again for the next one.
@@ -705,9 +713,6 @@ export const QuizCardFrame = ({
 
   const advance = () => {
     if (!answered) return;
-    // Beating the boss is the moment; it plays as the session moves on, so
-    // the answer is seen first.
-    if (boss && answered.correct) celebrate({ kind: "boss", detail: item.arabic });
     onGraded({ ...answered, format, step: ownStep, item });
   };
 
@@ -760,7 +765,14 @@ export const QuizCardFrame = ({
     );
   }
 
-  if (format === "flashcard") return <>{renderFlashcard()}</>;
+  // No question for this card: the flip card, and no boss with it.
+  if (format === "flashcard")
+    return (
+      <>
+        {renderFlashcard()}
+        {leechPanel}
+      </>
+    );
 
   const context = item.sentence?.arabic
     ? { arabic: item.sentence.arabic, english: item.sentence.english ?? null }
@@ -948,6 +960,7 @@ export const QuizCardFrame = ({
           </Button>
         </div>
       )}
+      {(!boss || answered) && leechPanel}
     </div>
   );
 };

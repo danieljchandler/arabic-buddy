@@ -335,7 +335,8 @@ export const useDueWords = (mixAll = false, options: DueWordsOptions = {}) => {
       return bossFirst
         ? withBossFirst(ordered, (card) => ({
             isLeech: !!card.review?.is_leech,
-            lapses: card.review?.lapses ?? 0,
+            // The word's misses on either schedule: "the most lapses".
+            lapses: (card.review?.lapses ?? 0) + (card.review?.production_lapses ?? 0),
             direction: scheduleDirectionFor(card.card_type),
           }))
         : ordered;

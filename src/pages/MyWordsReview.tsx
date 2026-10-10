@@ -43,7 +43,8 @@ import { LightningRound } from "@/components/review/LightningRound";
 import { addLightningWord, lightningWordFor, type LightningWord } from "@/lib/lightningRound";
 import { EMPTY_QUIZ_SESSION, comboBonus, recordQuizAnswer, type QuizSessionStats } from "@/lib/quizSession";
 import { LADDER_THRESHOLDS, rungForMemory } from "@/lib/quizLadder";
-import { isBossTurn, withBossFirst } from "@/lib/bossCard";
+import { bossBeaten, isBossTurn, withBossFirst } from "@/lib/bossCard";
+import { celebrate } from "@/lib/celebrations";
 import { useNewCardCap, NEW_CAP_OPTIONS, formatCap } from "@/hooks/useNewCardCap";
 import { useRemainingNewCardBudget, useClaimNewCard } from "@/hooks/useNewCardBudget";
 import { useReviewSession } from "@/hooks/useReviewSession";
@@ -400,7 +401,8 @@ const MyWordsReview = () => {
       return quiz && leechTrackingEnabled
         ? withBossFirst(ordered, (card) => ({
             isLeech: card.is_leech,
-            lapses: card.card_type === "production" ? card.production_lapses : card.lapses,
+            // The word's misses on either schedule: "the most lapses".
+            lapses: card.lapses + card.production_lapses,
             direction: scheduleDirectionFor(card.card_type),
           }))
         : ordered;
@@ -793,6 +795,9 @@ const MyWordsReview = () => {
     if (lightning) setLightningWords((prev) => addLightningWord(prev, lightning));
     const saved = await handleRate(graded.rating);
     if (!saved) return;
+    // Beating the boss is the moment, celebrated once the rating is on its
+    // way, as the session moves on.
+    if (bossBeaten(graded)) celebrate({ kind: "boss", detail: graded.item.arabic });
     addXP.mutate({ amount: REVIEW_XP, reason: "review" });
     incrementReviews.mutate();
     // A flourish, never a schedule: the combo pays XP and nothing else.
@@ -1271,13 +1276,33 @@ const MyWordsReview = () => {
         position: Math.min(currentIndex, (dueWords?.length ?? 1) - 1),
         candidate: {
           isLeech: leechTrackingEnabled && currentWord.is_leech,
-          lapses: currentWord.lapses,
+          lapses: currentWord.lapses + currentWord.production_lapses,
           direction: scheduleDirectionFor(currentWord.card_type),
         },
       })
-        ? { lapses: currentWord.lapses, mnemonic: currentWord.mnemonic, pictureUrl: currentWord.mnemonic_image_url }
+        ? {
+            lapses: currentWord.lapses + currentWord.production_lapses,
+            mnemonic: currentWord.mnemonic,
+            pictureUrl: currentWord.mnemonic_image_url,
+          }
         : null,
   };
+  // Rescue for a leech: below the card. In the quiz the frame places it, and
+  // under the boss holds it back until the answer (it prints the hook).
+  const leechPanel =
+    leechTrackingEnabled && currentWord.is_leech ? (
+      <LeechHelperPanel
+        kind="word"
+        rowId={currentWord.id}
+        arabic={currentWord.word_arabic}
+        english={currentWord.word_english}
+        dialect={activeDialect}
+        mnemonic={currentWord.mnemonic}
+        mnemonicImageUrl={currentWord.mnemonic_image_url}
+        deckKeys={[["user-vocabulary-due-words"]]}
+      />
+    ) : null;
+
   const quizPool =
     wordPool && wordPool.length > 0
       ? wordPool
@@ -1362,6 +1387,7 @@ const MyWordsReview = () => {
               ready={!poolLoading}
               combo={quizStats.combo}
               onGraded={handleQuizGraded}
+              leechPanel={leechPanel}
               // A saved word that reaches "pick the picture" with no picture
               // gets one: the shared store's, or one drawn for it and filed
               // there. It is kept on the learner's own row.
@@ -1396,20 +1422,9 @@ const MyWordsReview = () => {
             />
           )}
 
-          {/* Not under the boss: the panel prints the memory hook, which the
-              boss banner keeps behind a tap until the answer is in. */}
-          {leechTrackingEnabled && currentWord.is_leech && !(quiz && quizItem.boss) && (
-            <LeechHelperPanel
-              kind="word"
-              rowId={currentWord.id}
-              arabic={currentWord.word_arabic}
-              english={currentWord.word_english}
-              dialect={activeDialect}
-              mnemonic={currentWord.mnemonic}
-              mnemonicImageUrl={currentWord.mnemonic_image_url}
-              deckKeys={[["user-vocabulary-due-words"]]}
-            />
-          )}
+          {/* In the quiz the frame shows it, under the card: there it waits
+              for the boss's answer, since it prints the memory hook. */}
+          {!quiz && leechPanel}
         </div>
 
         {/* In the quiz style the app has rated; the buttons only return when

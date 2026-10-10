@@ -65,5 +65,14 @@ export function isBossTurn(input: { answered: number; position: number; candidat
   return input.answered === 0 && input.position === 0 && canBeBoss(input.candidate);
 }
 
+/**
+ * Whether an answer beat the boss: the card was asked as the boss and the
+ * answer was right. The page celebrates once the rating is saved, so a save
+ * that fails is never celebrated.
+ */
+export function bossBeaten(graded: { correct: boolean; item: { boss?: unknown } }): boolean {
+  return graded.correct && !!graded.item.boss;
+}
+
 /** The memory a boss is asked from: a first look, whatever its stability. */
 export const BOSS_MEMORY: QuizMemory = { stability: 0, repetitions: 0 };

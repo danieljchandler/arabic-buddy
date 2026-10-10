@@ -1307,6 +1307,7 @@ const MyWordsReview = () => {
           english: w.word_english,
           imageUrl: w.image_url,
           audioUrl: w.word_audio_url,
+          dialect: w.dialect ?? activeDialect,
         }));
 
   return (

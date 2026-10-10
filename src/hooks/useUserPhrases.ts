@@ -163,8 +163,11 @@ export const useUpdateUserPhraseReview = () => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["user-phrases"] });
-      queryClient.invalidateQueries({ queryKey: ["user-phrases-due"] });
       queryClient.invalidateQueries({ queryKey: ["user-phrases-due-count"] });
+      // Not "user-phrases-due": the review page advances its own index, and a
+      // refetch mid-session drops the phrase just rated and shifts the list
+      // under it, skipping the next card (the same reason My Words leaves
+      // its due list alone). The page refetches at the end of the list.
     },
   });
 };

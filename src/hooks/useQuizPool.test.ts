@@ -114,6 +114,36 @@ describe("the saved pools", () => {
     expect(r.result.current.data).toEqual([{ arabic: "ملكي", english: "mine", imageUrl: null, audioUrl: null, dialect: "Gulf" }]);
   });
 
+  it("keeps each saved word's own dialect, in a session that mixes them", async () => {
+    const r = renderHookWithProviders(() => useSavedWordPool("Gulf", true), {
+      persona: "free",
+      seed: (b) =>
+        b.db.seed("user_vocabulary", [
+          aUserVocabulary({ id: vocabId(0), word_arabic: "ملكي", word_english: "mine", dialect: "Gulf" }),
+          aUserVocabulary({ id: vocabId(1), word_arabic: "مصري", word_english: "mine, egyptian", dialect: "Egyptian" }),
+        ]),
+    });
+    cleanup = r.cleanup;
+
+    await waitFor(() => expect(r.result.current.data).toHaveLength(2));
+    expect(r.result.current.data!.find((e) => e.arabic === "مصري")?.dialect).toBe("Egyptian");
+  });
+
+  it("keeps each saved phrase's own dialect, in a session that mixes them", async () => {
+    const r = renderHookWithProviders(() => useSavedPhrasePool("Gulf", true), {
+      persona: "free",
+      seed: (b) =>
+        b.db.seed("user_phrases", [
+          aUserPhrase({ id: phraseId(0), user_id: TEST_USER_ID, phrase_arabic: "عبارتي", phrase_english: "my phrase" }),
+          aUserPhrase({ id: phraseId(1), user_id: TEST_USER_ID, phrase_arabic: "دلوقتي", phrase_english: "now", dialect: "Egyptian" }),
+        ]),
+    });
+    cleanup = r.cleanup;
+
+    await waitFor(() => expect(r.result.current.data).toHaveLength(2));
+    expect(r.result.current.data!.find((e) => e.arabic === "دلوقتي")?.dialect).toBe("Egyptian");
+  });
+
   it("draws the learner's phrases the same way", async () => {
     const r = renderHookWithProviders(() => useSavedPhrasePool("Gulf", false), {
       persona: "free",

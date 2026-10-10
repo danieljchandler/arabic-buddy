@@ -83,6 +83,15 @@ export interface QuizItem {
   boss?: BossInfo | null;
 }
 
+/** Whether two boss descriptions say the same, whatever objects they are. */
+function sameBoss(a: BossInfo, b: BossInfo): boolean {
+  return (
+    a.lapses === b.lapses &&
+    (a.mnemonic ?? null) === (b.mnemonic ?? null) &&
+    (a.pictureUrl ?? null) === (b.pictureUrl ?? null)
+  );
+}
+
 export interface QuizGraded {
   rating: Rating;
   correct: boolean;
@@ -384,13 +393,15 @@ export const QuizCardFrame = ({
   // leech flag from the rescue panel after the answer patches the deck, and a
   // boss that stopped being one under the learner would turn the answered card
   // into another question (with its own wait, and its own answer to give).
-  // What is latched is that it is the boss; its hook is read live while the
-  // page still marks it, so a hook made in the rescue panel after the answer
-  // shows in the banner too, not only in the panel beneath it.
+  // What is latched is that it is the boss; its hook follows the page while
+  // the page still marks it, so a hook made in the rescue panel after the
+  // answer shows in the banner too, and stays there if the flag is cleared
+  // after it.
   const liveBoss = item.boss && item.direction === "recognition" ? item.boss : null;
   const [bossLatch, setBossLatch] = useState({ id: item.id, boss: liveBoss });
   if (bossLatch.id !== item.id) setBossLatch({ id: item.id, boss: liveBoss });
-  const boss = bossLatch.id === item.id ? (bossLatch.boss ? (liveBoss ?? bossLatch.boss) : null) : liveBoss;
+  else if (bossLatch.boss && liveBoss && !sameBoss(bossLatch.boss, liveBoss)) setBossLatch({ id: item.id, boss: liveBoss });
+  const boss = bossLatch.id === item.id ? bossLatch.boss : liveBoss;
   const memory = boss ? BOSS_MEMORY : item.memory;
   const rung = rungForMemory(memory, item.direction);
   const ownStep = boss ? rungForMemory(item.memory, item.direction).step : rung.step;
@@ -483,12 +494,13 @@ export const QuizCardFrame = ({
   // for), and a meaning two of them share names neither.
   const wordForMeaning = useMemo(() => {
     const ownWord = normalizeArabicWord(item.arabic);
-    const ownDialect = item.dialect?.trim().toLowerCase() || null;
+    // Compared as the reply question compares them (normalizeDialect).
+    const ownDialect = item.dialect ? normalizeDialect(item.dialect) : null;
     const words = new Map<string, string | null>();
     for (const other of dealtPool) {
       const key = other.english.trim().toLowerCase();
       if (!key || !ARABIC_RE.test(other.arabic)) continue;
-      const dialect = other.dialect?.trim().toLowerCase() || null;
+      const dialect = other.dialect ? normalizeDialect(other.dialect) : null;
       if (ownDialect && dialect && dialect !== ownDialect) continue;
       const word = normalizeArabicWord(other.arabic);
       if (word === ownWord) continue;

@@ -534,7 +534,8 @@ frame hands it to the card: a picture option carries its word, unrendered, and
 a meaning is looked up among the other words of the card's own dialect
 (`wordForMeaning`; a Mix All session's pool spans dialects, and each entry
 carries its own), naming none when two different words share it — a wrong
-guess there would explain the wrong mix-up. The question is the one-shot `pendingAsk` described above, never
+guess there would explain the wrong mix-up. The question is the one-shot
+`pendingAsk` described above, never
 part of the seed, so unlike the "Ask AI" chip it replaces, a tap is a tutor
 turn (`docs/ai-spend-2026-10.md` §2), on the chat's own cap. The pick is
 graded exactly as before, and opening the tutor after it changes nothing.
@@ -636,7 +637,8 @@ counted as a climb from step 1 (nor, past step 4, a word for the lightning
 round). It opens a session once: the three decks ask one function, `bossFor`
 (the first card, before anything is answered, never a relearn card come back,
 and only while the learner tracks leeches); a deck rebuilt later in the session
-may put a leech first again, and that one is an ordinary card. The rescue panel under a leech
+may put a leech first again, and that one is an ordinary card. The rescue panel
+under a leech
 (`LeechHelperPanel`) is placed by the frame in the quiz: under the boss it
 waits for the answer, since it prints the hook, and then offers what it always
 does (a new hook, its picture, clearing the leech flag); under every other

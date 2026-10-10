@@ -754,10 +754,14 @@ test.describe("the boss card", () => {
     await expect(page.getByText(HOOK)).toHaveCount(2);
     await page.getByRole("button", { name: /continue/i }).click();
 
-    await expect(page.getByRole("dialog", { name: "Boss beaten!" })).toBeVisible();
+    const beaten = page.getByRole("dialog", { name: "Boss beaten!" });
+    await expect(beaten).toBeVisible();
     // Graded as a first look: Good, on the leech's own row.
     await expect.poll(() => backend.db.rows("word_reviews").find((r) => r.id === reviewId(0))?.last_result).toBe("good");
-    // The next card is an ordinary one.
+    // The next card is an ordinary one: asserted past the celebration, which
+    // hides the page from the accessibility tree while it is open.
+    await beaten.getByRole("button", { name: "Continue" }).click();
+    await expect(page.getByText("قهوة").first()).toBeVisible();
     await expect(page.getByRole("region", { name: "Boss card" })).toHaveCount(0);
   });
 

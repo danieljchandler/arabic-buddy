@@ -585,6 +585,21 @@ describe("the boss card", () => {
     expect(screen.getByRole("region", { name: "Boss card" })).not.toHaveTextContent(HOOK);
   });
 
+  it("keeps the new hook when the leech flag is cleared after it", () => {
+    const { rerenderWith } = render(aBoss(), { leechPanel: RESCUE });
+    pick(true);
+    const fresh = "A sock on every stall in the souq";
+    // A new hook from the panel, which drops the old one's picture...
+    rerenderWith(aBoss({ boss: { lapses: 7, mnemonic: fresh, pictureUrl: null } }), { leechPanel: RESCUE });
+    // ...then "Not stuck": the page stops marking the card.
+    rerenderWith({ ...aBoss(), boss: null }, { leechPanel: RESCUE });
+
+    const banner = screen.getByRole("region", { name: "Boss card" });
+    expect(banner).toHaveTextContent(fresh);
+    expect(banner).not.toHaveTextContent(HOOK);
+    expect(banner.querySelector('img[src="https://img.test/hook.png"]')).toBeNull();
+  });
+
   it("keeps the rescue panel beside a card that is still being prepared, but not beside the boss", () => {
     const { unmount } = render(anItem(), { leechPanel: RESCUE, ready: false });
     expect(screen.getByRole("status", { name: /preparing the question/i })).toBeInTheDocument();

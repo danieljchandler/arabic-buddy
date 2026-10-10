@@ -638,7 +638,7 @@ const MyPhrasesReview = () => {
   const quizPool =
     phrasePool && phrasePool.length > 0
       ? phrasePool
-      : duePhrases.map((p) => ({ arabic: p.phrase_arabic, english: p.phrase_english }));
+      : duePhrases.map((p) => ({ arabic: p.phrase_arabic, english: p.phrase_english, dialect: p.dialect ?? activeDialect }));
 
   return (
     <AppShell compact>

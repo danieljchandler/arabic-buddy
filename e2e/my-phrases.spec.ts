@@ -97,8 +97,13 @@ test.describe("reviewing saved phrases in the quiz style", () => {
     await expect(boss.getByText(HOOK)).toBeVisible();
     await page.getByRole("button", { name: /continue/i }).click();
 
-    await expect(page.getByRole("dialog", { name: "Boss beaten!" })).toBeVisible();
+    const beaten = page.getByRole("dialog", { name: "Boss beaten!" });
+    await expect(beaten).toBeVisible();
     await expect.poll(() => db.rows("user_phrases").find((r) => r.id === phraseId(1))?.repetitions).toBe(4);
+    // Past the celebration (it hides the page from the accessibility tree
+    // while open), the next phrase is an ordinary card.
+    await beaten.getByRole("button", { name: "Continue" }).click();
+    await expect(page.getByText("ما عليه")).toBeVisible();
     await expect(page.getByRole("region", { name: "Boss card" })).toHaveCount(0);
   });
 
@@ -108,8 +113,11 @@ test.describe("reviewing saved phrases in the quiz style", () => {
       ["ما عليه", "never mind"],
       ["إن شاء الله", "God willing"],
     ];
+    // Most overdue first, so the session's order is known.
     db.seed("user_phrases", [
-      ...PHRASES.map(([arabic, english], index) => firstLook(index, arabic, english)),
+      ...PHRASES.map(([arabic, english], index) =>
+        firstLook(index, arabic, english, { next_review_at: new Date(Date.now() - (3 - index) * DAY).toISOString() }),
+      ),
       ...pool(),
     ]);
     // The phrase on screen, among those not yet answered, once it is there.
@@ -129,11 +137,11 @@ test.describe("reviewing saved phrases in the quiz style", () => {
     };
 
     await page.goto("/review/my-phrases");
-    const asked = new Set<string>();
-    for (let i = 0; i < 3; i++) {
+    // Each phrase in turn, none skipped: the deck is not refetched under the
+    // session as each rating is saved.
+    for (const [arabic, english] of PHRASES) {
       await expect(page.getByText("What does it mean?")).toBeVisible();
-      const [arabic, english] = await nextPhrase(page, asked);
-      asked.add(arabic);
+      await expect(page.getByText(arabic, { exact: true })).toBeVisible();
       await page.getByRole("radio", { name: english }).click();
       await page.getByRole("button", { name: /continue/i }).click();
     }

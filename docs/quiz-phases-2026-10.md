@@ -1186,6 +1186,25 @@ What the four Phase 7 PRs left open, closed:
 - **Doc nits.** `QuizItem.boss` and `bossCard.ts` still said the picture was
   in view; it is behind the hook's tap since the review of 7.3.
 
+A second agent, which had not seen the work, reviewed it and found nothing
+high. Fixed from its review:
+
+- *Medium:* the banner went back to the hook it was mounted with when the
+  leech flag was cleared after a new hook was made (with the old hook's
+  picture, which the panel had cleared). The frame now latches the last hook
+  the page marked.
+- *Medium:* rating a phrase invalidated My Phrases' due list, so the page's
+  next card shifted under it once the refetch landed and a phrase was
+  skipped until the end of the list. The rating now refreshes only the
+  count, as My Words' does; the page refetches at the end of the list, and
+  the e2e asserts the order.
+- *Low:* the pages' fallback pools (used when the pool read fails) carried no
+  dialect; they do now. `wordForMeaning` compares dialects with
+  `normalizeDialect`, as the reply question does. Two boss e2e asserted the
+  banner gone while the celebration's dialog hid the page from the
+  accessibility tree (the original on `/review` too); they now close it
+  first. The saved pools gained mixed-dialect cases.
+
 ### 7b — owner action
 
 Apply `20261010120000_leaderboard_climbs.sql` to the live project (ask Lovable

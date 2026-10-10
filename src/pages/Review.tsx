@@ -1001,6 +1001,7 @@ const Review = () => {
           english: w.word_english,
           imageUrl: w.image_url,
           audioUrl: w.audio_url,
+          dialect: w.dialect_module ?? activeDialect,
         }));
 
   return (

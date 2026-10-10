@@ -453,7 +453,16 @@ test.describe("the quiz style", () => {
     await expect(page.getByText(/the missing word means/i)).toContainText("coffee", { timeout: 10_000 });
   });
 
-  test("coming back offline says so, rather than that nothing is due", async ({ page, context }) => {
+  test("coming back offline says so, rather than that nothing is due", async ({ page }) => {
+    // The app is taken offline as React Query and the queue see it (the
+    // browser's events and navigator.onLine), not the browser's network: cut
+    // that, and the dev server's client reloads the page once its socket drops.
+    const setAppOnline = (online: boolean) =>
+      page.evaluate((value) => {
+        Object.defineProperty(navigator, "onLine", { configurable: true, get: () => value });
+        window.dispatchEvent(new Event(value ? "online" : "offline"));
+      }, online);
+
     await signIn(page);
     await stubSupabase(page, { tables: { ...aDeck(), ...quizProfile() } });
 
@@ -461,12 +470,9 @@ test.describe("the quiz style", () => {
     await expect(page.getByText("Fill in the missing word")).toBeVisible();
     await page.getByRole("button", { name: /go home/i }).click();
     await expect(page).not.toHaveURL(/\/review$/);
-    // Home's code has loaded before the connection drops.
-    await page.waitForLoadState("networkidle");
 
     // The deck was dropped on the way out; offline, its first fetch waits.
-    // Back inside the app (a browser back offline would load the document).
-    await context.setOffline(true);
+    await setAppOnline(false);
     await page.evaluate(() => {
       window.history.pushState({}, "", "/review");
       window.dispatchEvent(new PopStateEvent("popstate"));
@@ -476,7 +482,7 @@ test.describe("the quiz style", () => {
     await expect(page).toHaveURL(/\/review$/);
 
     // Back online, the deck loads.
-    await context.setOffline(false);
+    await setAppOnline(true);
     await expect(page.getByText("Fill in the missing word")).toBeVisible({ timeout: 10_000 });
   });
 

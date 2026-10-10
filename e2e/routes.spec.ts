@@ -51,6 +51,12 @@ async function waitForPage(page: Page): Promise<void> {
  * — the screen learners spend the most time on — ended up with no way to ask
  * about the clip playing on it. The hit test is what catches that class of
  * bug, and it is cheap to run on a sweep that is already loading every page.
+ *
+ * A toast is looked past. The toaster is mounted at the app root like the disc,
+ * sits in the same corner, and dismisses itself, so it cannot strand a learner
+ * without the tutor; and a page that toasts once its first request settles
+ * (/set-phrases/practice, on an empty quiz) lands it before or after this check
+ * at random, which is what made the sweep fail one run in three there.
  */
 async function expectAskAiReachable(page: Page, route: RouteSpec): Promise<void> {
   // By its aria-label, not role + name: a page's own "Ask AI" chip (the
@@ -61,7 +67,8 @@ async function expectAskAiReachable(page: Page, route: RouteSpec): Promise<void>
 
   const covered = await button.evaluate((el) => {
     const box = el.getBoundingClientRect();
-    const onTop = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+    const stack = document.elementsFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+    const onTop = stack.find((node) => !node.closest("[data-sonner-toaster]"));
     return !(onTop && el.contains(onTop));
   });
 

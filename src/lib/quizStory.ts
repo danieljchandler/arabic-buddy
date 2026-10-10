@@ -77,15 +77,3 @@ export function storyGap(line: StoredStoryLine | null | undefined, word: string,
     title,
   };
 }
-
-/**
- * What a wrong pick asks the tutor ("Why not this one?"): the pair, and the
- * passage it was picked for, so the answer is about this gap and not about
- * the two words in general.
- */
-export function whyNotQuestion(input: { picked: string; answer: string; meaning: string }): string {
-  return (
-    `In this passage I put «${input.picked}» in the gap, but the word is «${input.answer}» ("${input.meaning}"). ` +
-    `Why doesn't «${input.picked}» fit here?`
-  );
-}

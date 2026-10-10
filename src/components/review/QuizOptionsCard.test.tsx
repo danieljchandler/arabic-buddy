@@ -1,6 +1,7 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@/test/support/react/harness";
+import { useAiAssistant } from "@/contexts/AiAssistantContext";
 import { QuizOptionsCard, type QuizOption } from "./QuizOptionsCard";
 
 /**
@@ -208,5 +209,102 @@ describe("answer the line", () => {
 
     expect(onAnswer).toHaveBeenCalledWith({ correct: false, hintUsed: false });
     expect(screen.getByRole("status")).toHaveTextContent(/isn't what fits/i);
+  });
+});
+
+/** What the assistant was opened on, for the "Why not this one?" chip. */
+function Probe() {
+  const { isOpen, seed, pendingAsk } = useAiAssistant();
+  return <div data-testid="probe">{isOpen ? `open|${seed?.arabic}|${seed?.english ?? ""}|${pendingAsk?.text ?? ""}` : "closed"}</div>;
+}
+
+describe("why not this one?", () => {
+  function renderWithProbe(props: Omit<Props, "onAnswer" | "id">) {
+    const harness = renderWithProviders(
+      <>
+        <QuizOptionsCard id="card-1" onAnswer={vi.fn()} {...props} />
+        <Probe />
+      </>,
+    );
+    cleanup = harness.cleanup;
+  }
+  const whyNot = () => screen.getByRole("button", { name: /why not this one/i });
+  const probe = () => screen.getByTestId("probe");
+
+  it("on a wrong picture, asks how to tell the word from what the picture shows, naming that word", () => {
+    renderWithProbe({
+      format: "picture-choice",
+      prompt: { arabic: "السوق" },
+      options: [
+        { key: "wrong-0", imageUrl: "https://img.test/house.png", english: "house", arabic: "بيت" },
+        { key: "answer", imageUrl: "https://img.test/market.png", english: "the market" },
+        { key: "wrong-1", imageUrl: "https://img.test/school.png", english: "school", arabic: "مدرسة" },
+        { key: "wrong-2", imageUrl: "https://img.test/car.png", english: "car", arabic: "سيارة" },
+      ],
+      answerKey: "answer",
+    });
+    fireEvent.click(screen.getByRole("radio", { name: "house" }));
+
+    fireEvent.click(whyNot());
+    expect(probe()).toHaveTextContent("open|السوق|the market|");
+    expect(probe()).toHaveTextContent(
+      'I picked the picture of "house" (that\'s «بيت») for «السوق», but «السوق» means "the market". How do I tell them apart?',
+    );
+  });
+
+  it("offers nothing after a right picture, as before", () => {
+    renderWithProbe({
+      format: "picture-choice",
+      prompt: { arabic: "السوق" },
+      options: [
+        { key: "wrong-0", imageUrl: "https://img.test/house.png", english: "house", arabic: "بيت" },
+        { key: "answer", imageUrl: "https://img.test/market.png", english: "the market" },
+      ],
+      answerKey: "answer",
+    });
+    fireEvent.click(screen.getByRole("radio", { name: "the market" }));
+    expect(screen.queryByRole("button", { name: /why not this one|ask ai/i })).not.toBeInTheDocument();
+  });
+
+  const words: QuizOption[] = [
+    { key: "answer", arabic: "السوق", english: "the market" },
+    { key: "wrong-0", arabic: "بيت", english: "house" },
+    { key: "wrong-1", arabic: "مدرسة", english: "school" },
+    { key: "wrong-2", arabic: "سيارة", english: "car" },
+  ];
+
+  it("on a wrong word, asks why it is not the word for the meaning, with the word picked's own meaning", () => {
+    renderWithProbe({ format: "word-choice", prompt: { imageUrl: "https://img.test/market.png", english: "the market" }, options: words, answerKey: "answer" });
+    fireEvent.click(screen.getByRole("radio", { name: "بيت" }));
+
+    fireEvent.click(whyNot());
+    expect(probe()).toHaveTextContent("open|السوق|the market|");
+    expect(probe()).toHaveTextContent('I picked «بيت» ("house") for "the market", but the word is «السوق». Why isn\'t it «بيت»?');
+  });
+
+  it("offers the plain question after a right word", () => {
+    renderWithProbe({ format: "word-choice", prompt: { english: "the market" }, options: words, answerKey: "answer" });
+    fireEvent.click(screen.getByRole("radio", { name: "السوق" }));
+    expect(screen.queryByRole("button", { name: /why not this one/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /ask ai/i })).toBeInTheDocument();
+  });
+
+  it("on a wrong reply, opens on the line said and asks why the reply picked does not answer it", () => {
+    renderWithProbe({
+      format: "reply-choice",
+      prompt: { arabic: "سمحلي، ماي لو سمحت", english: "Excuse me, water please" },
+      options: [
+        { key: "answer", arabic: "أكيد. تفضل", english: "Sure. Here you go" },
+        { key: "wrong-0", arabic: "مشكور", english: "Thanks" },
+      ],
+      answerKey: "answer",
+    });
+    fireEvent.click(screen.getByRole("radio", { name: "مشكور" }));
+
+    fireEvent.click(whyNot());
+    expect(probe()).toHaveTextContent("open|سمحلي، ماي لو سمحت|Excuse me, water please|");
+    expect(probe()).toHaveTextContent(
+      "Someone said «سمحلي، ماي لو سمحت» and I answered «مشكور», but the reply is «أكيد. تفضل». Why doesn't «مشكور» fit as the answer?",
+    );
   });
 });

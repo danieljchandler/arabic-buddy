@@ -5,6 +5,7 @@ import { AskAISentence } from "@/components/shared/AskAISentence";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { buildChoices } from "@/lib/quizDistractors";
+import { whyNotQuestion } from "@/lib/quizWhyNot";
 import { cn } from "@/lib/utils";
 
 export interface QuizChoiceAnswer {
@@ -26,6 +27,12 @@ interface QuizChoiceCardProps {
   dialect?: string | null;
   /** English meanings of other cards, for the wrong options. */
   pool: string[];
+  /**
+   * The Arabic word a wrong option's meaning belongs to, where the deck says
+   * which: named in "Why not this one?", since what the learner took the word
+   * for is the confusion to explain.
+   */
+  wordForMeaning?: (english: string) => string | null;
   /** The sentence the word was learnt in, offered as a hint. */
   context?: { arabic: string; english?: string | null } | null;
   onAnswer: (answer: QuizChoiceAnswer) => void;
@@ -53,6 +60,7 @@ export const QuizChoiceCard = ({
   audioUrl,
   dialect,
   pool,
+  wordForMeaning,
   context,
   onAnswer,
 }: QuizChoiceCardProps) => {
@@ -229,7 +237,24 @@ export const QuizChoiceCard = ({
 
       {answered && (
         <div className="mt-3 flex justify-center">
-          <AskAISentence arabic={arabic} english={english} variant="chip" />
+          {correct ? (
+            <AskAISentence arabic={arabic} english={english} variant="chip" />
+          ) : (
+            // The word and the meaning picked for it, to the tutor.
+            <AskAISentence
+              arabic={arabic}
+              english={english}
+              variant="chip"
+              label="Why not this one?"
+              ask={whyNotQuestion({
+                format,
+                word: arabic,
+                picked: selected,
+                pickedWord: wordForMeaning?.(selected) ?? null,
+                meaning: english,
+              })}
+            />
+          )}
         </div>
       )}
     </div>

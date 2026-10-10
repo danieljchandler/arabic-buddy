@@ -5,6 +5,7 @@ import { AskAISentence } from "@/components/shared/AskAISentence";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { QuizAnimation } from "@/components/review/QuizAnimation";
+import { whyNotQuestion } from "@/lib/quizWhyNot";
 import { cn } from "@/lib/utils";
 import type { StoredAnimation } from "../../../supabase/functions/_shared/wordAnimation";
 
@@ -104,6 +105,50 @@ export const QuizOptionsCard = ({ id, format, prompt, options, answerKey, dialec
     dialect,
   });
   const answerAudio = answer?.audioUrl || answerTts;
+
+  // On a wrong pick, "Why not this one?": the pair and what it was picked
+  // for, to the tutor — the word and the picture's meaning, the meaning and
+  // the word, the line said and the reply. The panel opens on the word, or on
+  // the line for a reply. Null when a piece of the pair is missing.
+  const picked = useMemo(() => options.find((o) => o.key === selected) ?? null, [options, selected]);
+  const whyNot = useMemo(() => {
+    if (!picked || picked.key === answerKey || !answer) return null;
+    if (format === "picture-choice") {
+      if (!prompt.arabic || !picked.english || !answer.english) return null;
+      return {
+        arabic: prompt.arabic,
+        english: answer.english,
+        ask: whyNotQuestion({
+          format,
+          word: prompt.arabic,
+          picked: picked.english,
+          pickedWord: picked.arabic ?? null,
+          meaning: answer.english,
+        }),
+      };
+    }
+    if (format === "word-choice") {
+      const meaning = prompt.english ?? answer.english;
+      if (!picked.arabic || !answer.arabic || !meaning) return null;
+      return {
+        arabic: answer.arabic,
+        english: answer.english ?? meaning,
+        ask: whyNotQuestion({
+          format,
+          picked: picked.arabic,
+          pickedMeaning: picked.english ?? null,
+          answer: answer.arabic,
+          meaning,
+        }),
+      };
+    }
+    if (!prompt.arabic || !picked.arabic || !answer.arabic) return null;
+    return {
+      arabic: prompt.arabic,
+      english: prompt.english ?? undefined,
+      ask: whyNotQuestion({ format, line: prompt.arabic, picked: picked.arabic, answer: answer.arabic }),
+    };
+  }, [picked, answerKey, answer, format, prompt.arabic, prompt.english]);
 
   const choose = (key: string) => {
     if (answered) return;
@@ -380,10 +425,23 @@ export const QuizOptionsCard = ({ id, format, prompt, options, answerKey, dialec
         <p className="mt-4 text-base text-foreground animate-in fade-in duration-200">{hint.text}</p>
       )}
 
-      {answered && answer?.arabic && (
+      {answered && whyNot ? (
         <div className="mt-3 flex justify-center">
-          <AskAISentence arabic={answer.arabic} english={answer.english ?? prompt.english ?? ""} variant="chip" />
+          <AskAISentence
+            arabic={whyNot.arabic}
+            english={whyNot.english}
+            variant="chip"
+            label="Why not this one?"
+            ask={whyNot.ask}
+          />
         </div>
+      ) : (
+        answered &&
+        answer?.arabic && (
+          <div className="mt-3 flex justify-center">
+            <AskAISentence arabic={answer.arabic} english={answer.english ?? prompt.english ?? ""} variant="chip" />
+          </div>
+        )
       )}
     </div>
   );

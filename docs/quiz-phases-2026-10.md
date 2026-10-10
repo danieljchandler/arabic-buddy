@@ -22,7 +22,7 @@ means — so a session can pick up the next phase cold.*
 | 5b | Apply the bucket migration, deploy `word-asset`, run `scripts/curriculum-animations.ts` | **owner action** (after 2b) |
 | 6 | Words in stories | built (PR #428) |
 | 6b | Deploy `word-asset` (this version), then run `scripts/curriculum-stories.ts` | **owner action** (after 2b) |
-| 7 | The rest of the game | any time after 1 |
+| 7 | The rest of the game | in progress: "Why not this one?" built (PR #430) |
 | 8 | Tuning from real reviews | once the quiz has weeks of history |
 | 9 | Housekeeping | any time |
 
@@ -870,7 +870,79 @@ question about the line.
 
 ---
 
-## Phase 7 — the rest of the game
+## Phase 7 — the rest of the game (in progress)
+
+One PR per item, in this order, each independent of the asset store:
+
+| item | status |
+|---|---|
+| 7.1 "Why not this one?" on every choice step | built (PR #430) |
+| 7.2 The lightning round | next |
+| 7.3 The boss card | to build |
+| 7.4 Ladder climbs on the leaderboard | to build |
+| XP parity for the flip cards | **a question for the owner**, not built |
+
+### 7.1 "Why not this one?" on every choice step (built, PR #430)
+
+What shipped (writeup: README "Reviewing as a quiz instead of flashcards",
+"Why not this one?" on every choice step):
+
+- **`src/lib/quizWhyNot.ts`**: `whyNotQuestion`, moved out of
+  `quizStory.ts` and keyed on the choice format, one question per family:
+  a gap (cloze, cloze with the hint, the story's four options: "In this
+  sentence / passage I put «X» in the gap…", the story's text unchanged); a
+  meaning picked for the word, seen, heard or pictured ("I picked "house"
+  (that's «بيت») for «سوق»…", "I heard «سوق» and picked…"); a word picked
+  for a meaning; a reply picked for a line. `quizWhyNot.test.ts` holds every
+  `QuizFormat` in a `Record`, so a new choice format with no question fails
+  the typecheck and the test.
+- **The cards**: `ReviewClozeCard`, `QuizChoiceCard` (meaning, listen) and
+  `QuizOptionsCard` (picture, word, reply) offer the chip on a wrong pick, in
+  place of "Ask AI", through `AskAISentence`'s `label` and `ask` as the story
+  card does. The panel opens on the sentence, the word, the answer, or the
+  line said (for a reply).
+- **`QuizCardFrame`** hands over the half of the pair the learner never saw:
+  a wrong picture option carries its word (unrendered), and `wordForMeaning`
+  names the word a wrong meaning belongs to, or none when two different words
+  share it.
+- Found on the way, and fixed: the meaning questions dealt another gloss of
+  the word itself as a wrong meaning (a mixed deck holding السوق as "the
+  market" and as "the souq"), so a right pick was graded Again, and "Why not
+  this one?" would have named the word as the other one. `englishPool` and
+  `wordForMeaning` leave the word out in any spelling now.
+- Guards: `quizWhyNot.test.ts`, `ReviewClozeCard.test.tsx`,
+  `QuizChoiceCard.test.tsx`, `QuizOptionsCard.test.tsx`,
+  `QuizCardFrame.test.tsx` ("why not this one?"), `QuizStoryCard.test.tsx`,
+  and `review.spec.ts` ("a wrong pick in the gap asks the tutor why").
+
+**Decided in this item:**
+
+1. *A right pick keeps its plain "Ask AI"*, and the picture question still
+   has none after a right pick: the chip replaces, it does not add.
+2. *The meaning's word is named only when the deck is sure of it.* A
+   meaning two different words share ("house": بيت, دار) names neither; the
+   same word in two spellings is one word. A wrong guess would explain a
+   mix-up the learner did not make.
+3. *The chip sits under the options, as on the story card*, rather than on
+   the picked option itself (the plan's "one tap on the picked option"): an
+   option is a radio, and a second action on the same control would be easy
+   to set off by tapping again to look.
+4. *A tap is a tutor turn.* The "Ask AI" chip it replaces only opened the
+   panel; this one asks, so each tap is an assistant-chat turn on the chat's
+   own cap (a line in `docs/ai-spend-2026-10.md` §2 says so). Nothing is sent
+   without a tap. No new route, no migration, and the pick is graded as
+   before.
+
+An independent review before the PR found the own-gloss bug above, and
+three things in the docs (fixed). One thing it raised is left as it is: in a
+mixed session the pool carries no dialect, so a wrong meaning can be named
+by another dialect's word for it ("bread" as the Egyptian «عيش» under a Gulf
+card, where عيش is rice). The word named is one the learner's deck holds for
+that meaning, so the naming is not false, only perhaps not the mix-up they
+made; carrying the dialect on `QuizPoolEntry` and naming only the card's own
+dialect's word would close it.
+
+### The plan, as it was written
 
 **Goal.** The flourishes designed in the plan and not yet built. Each is
 independent of the asset store.

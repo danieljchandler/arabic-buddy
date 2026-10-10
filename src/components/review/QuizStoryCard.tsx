@@ -12,7 +12,8 @@ import { useTakeRecorder } from "@/hooks/useTakeRecorder";
 import { normalizeArabicWord } from "@/lib/arabicWord";
 import { assessmentLocale, singleWordSimilarity } from "@/lib/quizGrading";
 import { buildChoices } from "@/lib/quizDistractors";
-import { whyNotQuestion, type StoryGap } from "@/lib/quizStory";
+import type { StoryGap } from "@/lib/quizStory";
+import { whyNotQuestion } from "@/lib/quizWhyNot";
 import { cn } from "@/lib/utils";
 
 export interface QuizStoryChoice {
@@ -352,7 +353,7 @@ export const QuizStoryCard = ({
                     english={story.english}
                     variant="chip"
                     label="Why not this one?"
-                    ask={whyNotQuestion({ picked: picked!, answer: arabic, meaning: english })}
+                    ask={whyNotQuestion({ format: "story-choice", picked: picked!, answer: arabic, meaning: english })}
                   />
                 ) : (
                   <AskAISentence arabic={story.text} english={story.english} variant="chip" />

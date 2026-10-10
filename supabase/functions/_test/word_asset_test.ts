@@ -1664,7 +1664,7 @@ Deno.test("word-asset makes a clip for the content team, counted on a clip count
 
 Deno.test("word-asset stops a reviewer's clips at the day's cap, before anything is drawn", async () => {
   const table = assetTable();
-  const { status, calls } = await call(
+  const { status, body, calls } = await call(
     { action: "ensure", ...JUMP },
     staffClipUpstreams(table.handler, ["content_reviewer"], {
       // The eleventh of the day.
@@ -1673,6 +1673,9 @@ Deno.test("word-asset stops a reviewer's clips at the day's cap, before anything
   );
 
   assertEquals(status, 429);
+  assertEquals(body.error, "daily_limit_reached");
+  // No upgrade lifts it: the same ten on every plan.
+  assertEquals(String(body.message).includes("Upgrade"), false);
   assertEquals(imageCalls(calls), [], "no poster");
   assertEquals(videoCalls(calls), [], "no render");
   assertEquals(table.rows.length, 0);

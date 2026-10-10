@@ -420,7 +420,17 @@ serve(async (req) => {
   if (key.kind === "animation" && !viaServiceRole) {
     const { key: capKey, perDay } = ANIMATION_STAFF_CAP;
     const limited = await enforceDailyCap(req, capKey, perDay, corsHeaders, { standard: perDay, allin: perDay });
-    if (limited.limited) return limited.response;
+    // The cap's own message offers an upgrade, which lifts nothing here: the
+    // limit is the same on every plan.
+    if (limited.limited) {
+      return reply(
+        {
+          error: "daily_limit_reached",
+          message: `The content team can make ${perDay} animations a day each; the count resets tomorrow.`,
+        },
+        429,
+      );
+    }
   }
 
   // Charged only now, on the miss, and only to a learner, on the kind's own

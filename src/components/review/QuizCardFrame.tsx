@@ -3,6 +3,7 @@ import { ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { QuizChoiceCard } from "@/components/review/QuizChoiceCard";
 import { QuizOptionsCard, type QuizOption } from "@/components/review/QuizOptionsCard";
+import { QuizBossBanner } from "@/components/review/QuizBossBanner";
 import { QuizRungBadge } from "@/components/review/QuizRungBadge";
 import { QuizSpeakCard, type QuizSpeechResult } from "@/components/review/QuizSpeakCard";
 import { QuizStoryCard } from "@/components/review/QuizStoryCard";
@@ -23,6 +24,7 @@ import {
 import { otherMeanings, seededShuffle } from "@/lib/quizDistractors";
 import { gradeQuizAnswer, isCorrectRating } from "@/lib/quizGrading";
 import { storyGap } from "@/lib/quizStory";
+import { BOSS_MEMORY } from "@/lib/bossCard";
 import {
   CHOICE_COUNT,
   pickQuizFormat,
@@ -71,13 +73,30 @@ export interface QuizItem {
   /** The schedule the deck served the card on. */
   direction: QuizDirection;
   memory: QuizMemory;
+  /**
+   * The session's boss (quiz Phase 7, `src/lib/bossCard.ts`): the learner's
+   * worst word, opening the session. Asked as a first look whatever its
+   * memory, with its picture in view and its memory hook a tap away; beating
+   * it is a celebration (the page's, once the rating is saved). A recognition
+   * card only: the pages set it so.
+   */
+  boss?: {
+    lapses: number;
+    mnemonic?: string | null;
+    /** The hook's picture, else the word's own. */
+    pictureUrl?: string | null;
+  } | null;
 }
 
 export interface QuizGraded {
   rating: Rating;
   correct: boolean;
   format: QuizFormat;
-  /** The step the card was asked on. */
+  /**
+   * The step the card's memory puts it on. A boss is asked a first look
+   * whatever its step; this is still its own, so beating it is not counted
+   * as a climb from step 1.
+   */
   step: number;
   /** The card that was asked, as the frame was handed it (the lightning round asks it again). */
   item: QuizItem;
@@ -140,6 +159,13 @@ interface QuizCardFrameProps {
    * well as a learner's own words.
    */
   storyLines?: boolean;
+  /**
+   * The rescue panel for a leech (`LeechHelperPanel`), shown below the card.
+   * Under the boss it waits for the answer, since it prints the memory hook
+   * the boss keeps behind a tap; on every other card, the flip card included,
+   * it is there from the start, as it always was.
+   */
+  leechPanel?: ReactNode;
 }
 
 /**
@@ -345,6 +371,7 @@ export const QuizCardFrame = ({
   storedDialogues = false,
   animations = false,
   storyLines = false,
+  leechPanel = null,
 }: QuizCardFrameProps) => {
   // A card the device could not record for is served as the flashcard; the
   // ladder is consulted again for the next one.
@@ -355,8 +382,25 @@ export const QuizCardFrame = ({
     setAnswered(null);
   }, [item.id]);
 
-  const rung = rungForMemory(item.memory, item.direction);
+  // The boss is asked as a first look, whatever its memory; its own step is
+  // what the page is told, so the session's climbs are counted from it.
+  //
+  // Latched for the card's presentation, as its picture is: clearing the
+  // leech flag from the rescue panel after the answer patches the deck, and a
+  // boss that stopped being one under the learner would turn the answered card
+  // into another question (with its own wait, and its own answer to give).
+  const liveBoss = item.boss && item.direction === "recognition" ? item.boss : null;
+  const [bossLatch, setBossLatch] = useState({ id: item.id, boss: liveBoss });
+  if (bossLatch.id !== item.id) setBossLatch({ id: item.id, boss: liveBoss });
+  const boss = bossLatch.id === item.id ? bossLatch.boss : liveBoss;
+  const memory = boss ? BOSS_MEMORY : item.memory;
+  const rung = rungForMemory(memory, item.direction);
+  const ownStep = boss ? rungForMemory(item.memory, item.direction).step : rung.step;
   const canSpeak = recordingSupported();
+  // The boss's memory hook, open; opened before the answer, it is help.
+  const [hook, setHook] = useState<{ id: string; helped: boolean } | null>(null);
+  const hookOpen = hook?.id === item.id;
+  const hookHelped = hookOpen && hook.helped;
 
   // The lesson's dialogue, and the line of it that uses the word, if any.
   const lessonLines = useMemo(() => asDialogue(item.dialogue), [item.dialogue]);
@@ -648,7 +692,7 @@ export const QuizCardFrame = ({
   const format: QuizFormat =
     unavailableFor === item.id
       ? "flashcard"
-      : pickQuizFormat(item.memory, item.direction, {
+      : pickQuizFormat(memory, item.direction, {
           hasSentence,
           hasImage: !!pictureUrl || !!ownClip,
           distractors: Math.min(arabicPool.length, englishPool.length),
@@ -661,8 +705,11 @@ export const QuizCardFrame = ({
 
   const settle = (rating: Rating) => setAnswered({ rating, correct: isCorrectRating(rating) });
 
-  const onChoice = (correct: boolean, hintUsed = false) =>
-    settle(gradeQuizAnswer({ kind: "choice", correct, hintUsed }));
+  // A choice is answered once. (A take may be retaken: the last one grades.)
+  const onChoice = (correct: boolean, hintUsed = false) => {
+    if (answered) return;
+    settle(gradeQuizAnswer({ kind: "choice", correct, hintUsed: hintUsed || hookHelped }));
+  };
 
   const onSpeech = (result: QuizSpeechResult) =>
     settle(
@@ -677,7 +724,9 @@ export const QuizCardFrame = ({
 
   const advance = () => {
     if (!answered) return;
-    onGraded({ ...answered, format, step: rung.step, item });
+    // The card as it was asked: a boss is still the boss when the page has
+    // since cleared its leech flag, so the page celebrates what was beaten.
+    onGraded({ ...answered, format, step: ownStep, item: { ...item, boss } });
   };
 
   // Enter or Space moves on once a card is answered, matching the flip card's
@@ -714,22 +763,33 @@ export const QuizCardFrame = ({
           ? "Drawing a picture for this word"
           : "Preparing the question";
     return (
-      <div
-        role="status"
-        aria-label={why}
-        className="rounded-2xl bg-card border border-border p-8 flex flex-col items-center justify-center gap-3 min-h-[16rem]"
-      >
-        <span className={lookingUp ? "animate-in fade-in duration-300 delay-300 fill-mode-backwards" : undefined}>
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </span>
-        {(writingPassage || writingLine || drawingPicture) && (
-          <p className="text-sm text-muted-foreground text-center">{why}…</p>
-        )}
-      </div>
+      <>
+        <div
+          role="status"
+          aria-label={why}
+          className="rounded-2xl bg-card border border-border p-8 flex flex-col items-center justify-center gap-3 min-h-[16rem]"
+        >
+          <span className={lookingUp ? "animate-in fade-in duration-300 delay-300 fill-mode-backwards" : undefined}>
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </span>
+          {(writingPassage || writingLine || drawingPicture) && (
+            <p className="text-sm text-muted-foreground text-center">{why}…</p>
+          )}
+        </div>
+        {/* The rescue panel waits with the card, as it always did; under the boss, for the answer. */}
+        {!boss && leechPanel}
+      </>
     );
   }
 
-  if (format === "flashcard") return <>{renderFlashcard()}</>;
+  // No question for this card: the flip card, and no boss with it.
+  if (format === "flashcard")
+    return (
+      <>
+        {renderFlashcard()}
+        {leechPanel}
+      </>
+    );
 
   const context = item.sentence?.arabic
     ? { arabic: item.sentence.arabic, english: item.sentence.english ?? null }
@@ -898,6 +958,16 @@ export const QuizCardFrame = ({
   return (
     <div>
       <QuizRungBadge step={rung.step} label={rung.label} combo={combo} className="mb-4" />
+      {boss && (
+        <QuizBossBanner
+          lapses={boss.lapses}
+          mnemonic={boss.mnemonic}
+          pictureUrl={boss.pictureUrl ?? item.imageUrl ?? null}
+          answered={!!answered}
+          hookOpen={hookOpen}
+          onOpenHook={() => setHook({ id: item.id, helped: !answered })}
+        />
+      )}
       {card}
       {answered && (
         <div className="mt-6 flex justify-center animate-in fade-in duration-200">
@@ -907,6 +977,7 @@ export const QuizCardFrame = ({
           </Button>
         </div>
       )}
+      {(!boss || answered) && leechPanel}
     </div>
   );
 };

@@ -6,6 +6,7 @@ import {
   holdsProduction,
   isGradedFormat,
   isSpokenFormat,
+  phraseDirection,
   pickQuizFormat,
   rungForMemory,
   type QuizMaterial,
@@ -237,5 +238,13 @@ describe("what a format implies", () => {
     expect(isSpokenFormat("story-choice")).toBe(false);
     expect(isSpokenFormat("listen")).toBe(false);
     expect(isSpokenFormat("reply-choice")).toBe(false);
+  });
+});
+
+describe("a saved phrase's direction", () => {
+  it("is asked for its meaning until it is settled past the picture step, then to be said", () => {
+    expect(phraseDirection(0)).toBe("recognition");
+    expect(phraseDirection(LADDER_THRESHOLDS.pictureDays - 0.1)).toBe("recognition");
+    expect(phraseDirection(LADDER_THRESHOLDS.pictureDays)).toBe("production");
   });
 });

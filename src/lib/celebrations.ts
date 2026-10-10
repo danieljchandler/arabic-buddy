@@ -26,7 +26,16 @@ import { ladderFor, resolveVignette, vignetteById, vignettesFor } from "@/lib/vi
  * moment with `celebrate()`.
  */
 
-export type CelebrationKind = "lesson" | "letter" | "deck" | "goal" | "streak" | "achievement" | "preview";
+export type CelebrationKind =
+  | "lesson"
+  | "letter"
+  | "deck"
+  | "goal"
+  | "streak"
+  | "achievement"
+  /** The quiz's boss card beaten: the session's worst word, answered right (quiz Phase 7). */
+  | "boss"
+  | "preview";
 
 /** The badge a celebration is for: what the stage shows, and what the song is about. */
 export interface CelebrationBadge {
@@ -74,13 +83,15 @@ export const TIER_DURATION_MS: Record<CelebrationTier, number> = {
 /**
  * How big each moment is. The everyday wins (a lesson, a letter, a cleared
  * deck, a badge) play the three-second scene; the day's goal and a streak
- * milestone play the full six.
+ * milestone play the full six. A boss beaten is the small one, a second and
+ * a half: it lands on the session's first card, with the rest still to do.
  */
 export const KIND_TIER: Record<CelebrationKind, CelebrationTier> = {
   lesson: "medium",
   letter: "medium",
   deck: "medium",
   achievement: "medium",
+  boss: "small",
   goal: "large",
   streak: "large",
   preview: "medium",
@@ -326,6 +337,11 @@ export function celebrationCopy(event: CelebrationEvent): { title: string; subti
       return {
         title: "Badge earned!",
         subtitle: detail ? String(detail) : "A new badge for your collection.",
+      };
+    case "boss":
+      return {
+        title: "Boss beaten!",
+        subtitle: detail ? `${detail}, the one you kept missing, is yours.` : "The one you kept missing is yours.",
       };
     case "preview":
       return { title: "Preview", subtitle: "How a celebration looks." };

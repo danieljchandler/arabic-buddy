@@ -274,6 +274,15 @@ export function holdsProduction(recognitionStability: number): boolean {
   return stability < LADDER_THRESHOLDS.pictureDays;
 }
 
+/**
+ * The ladder's direction for a saved phrase, which keeps a single schedule:
+ * a new phrase is asked for its meaning, one settled past the picture step
+ * is asked to be said.
+ */
+export function phraseDirection(stability: number): QuizDirection {
+  return stability >= LADDER_THRESHOLDS.pictureDays ? "production" : "recognition";
+}
+
 /** Whether a format is scored by the app (true) or self-rated (false). */
 export function isGradedFormat(format: QuizFormat): boolean {
   return format !== "flashcard";

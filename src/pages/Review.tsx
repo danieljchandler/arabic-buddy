@@ -43,6 +43,8 @@ import { LightningRound } from "@/components/review/LightningRound";
 import { addLightningWord, lightningWordFor, type LightningWord } from "@/lib/lightningRound";
 import { EMPTY_QUIZ_SESSION, comboBonus, recordQuizAnswer, type QuizSessionStats } from "@/lib/quizSession";
 import { LADDER_THRESHOLDS, rungForMemory } from "@/lib/quizLadder";
+import { bossBeaten, isBossTurn } from "@/lib/bossCard";
+import { celebrate } from "@/lib/celebrations";
 import { asDialogue } from "@/lib/quizDialogue";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { usePageAiContext } from "@/contexts/AiAssistantContext";
@@ -76,7 +78,9 @@ const Review = () => {
   const quiz = reviewStyle === "quiz";
   const { data: dueWords, isLoading: wordsLoading, isError: wordsError, refetch } = useDueWords(
     mixAll,
-    quiz ? { holdProductionBelow: LADDER_THRESHOLDS.pictureDays } : {},
+    // The quiz opens on the boss: the recognition leech with the most lapses
+    // goes first (src/lib/bossCard.ts), while the learner tracks leeches.
+    quiz ? { holdProductionBelow: LADDER_THRESHOLDS.pictureDays, bossFirst: leechTrackingEnabled } : {},
   );
   const { data: stats } = useReviewStats(mixAll);
   const { enqueue, pendingCount, isFlushing, isOnline } = useReviewQueue();
@@ -422,6 +426,9 @@ const Review = () => {
     const bonus = comboBonus(next.combo);
     if (bonus) addXP.mutate({ amount: bonus, reason: "quiz_combo" });
     handleRate(graded.rating);
+    // Beating the boss is the moment, celebrated once the rating is on its
+    // way, as the session moves on.
+    if (bossBeaten(graded)) celebrate({ kind: "boss", detail: graded.item.arabic });
   };
 
   const handleToggleMix = () => {
@@ -879,7 +886,42 @@ const Review = () => {
     category: currentWord.category ?? null,
     direction: scheduleDirectionFor(currentWord.card_type),
     memory: { stability, repetitions },
+    // The session's first card, when it is the boss: asked as a first look
+    // with its picture and its memory hook.
+    boss:
+      !relearnPick &&
+      isBossTurn({
+        answered: sessionCount,
+        position: safeIndex,
+        candidate: {
+          isLeech: leechTrackingEnabled && !!review?.is_leech,
+          lapses: (review?.lapses ?? 0) + (review?.production_lapses ?? 0),
+          direction: scheduleDirectionFor(currentWord.card_type),
+        },
+      })
+        ? {
+            lapses: (review?.lapses ?? 0) + (review?.production_lapses ?? 0),
+            mnemonic: review?.mnemonic ?? null,
+            pictureUrl: review?.mnemonic_image_url ?? null,
+          }
+        : null,
   };
+  // Rescue for a leech: below the card. In the quiz the frame places it, and
+  // under the boss holds it back until the answer (it prints the hook).
+  const leechPanel =
+    leechTrackingEnabled && review?.is_leech && review?.id ? (
+      <LeechHelperPanel
+        kind="curriculum"
+        rowId={review.id}
+        arabic={currentWord.word_arabic}
+        english={currentWord.word_english}
+        dialect={currentWord.dialect_module ?? activeDialect}
+        mnemonic={review.mnemonic ?? null}
+        mnemonicImageUrl={review.mnemonic_image_url ?? null}
+        deckKeys={[["due-words"]]}
+      />
+    ) : null;
+
   const quizPool =
     wordPool && wordPool.length > 0
       ? wordPool
@@ -969,6 +1011,7 @@ const Review = () => {
               ready={!poolLoading}
               combo={quizStats.combo}
               onGraded={handleQuizGraded}
+              leechPanel={leechPanel}
               // A curriculum word with no picture on its row is shown the
               // shared store's, if one is filed. Read only: a learner cannot
               // write `vocabulary_words`, and the rows are filled by
@@ -1003,18 +1046,9 @@ const Review = () => {
           {/* Rescue for a card the learner keeps failing. The personal decks
               have had this since leech tracking landed; the curriculum deck —
               the one the app hands every learner — had nothing. */}
-          {leechTrackingEnabled && review?.is_leech && review?.id && (
-            <LeechHelperPanel
-              kind="curriculum"
-              rowId={review.id}
-              arabic={currentWord.word_arabic}
-              english={currentWord.word_english}
-              dialect={currentWord.dialect_module ?? activeDialect}
-              mnemonic={review.mnemonic ?? null}
-              mnemonicImageUrl={review.mnemonic_image_url ?? null}
-              deckKeys={[["due-words"]]}
-            />
-          )}
+          {/* In the quiz the frame shows it, under the card: there it waits
+              for the boss's answer, since it prints the memory hook. */}
+          {!quiz && leechPanel}
         </div>
 
         {/* In the quiz style the app has rated; the buttons only return when

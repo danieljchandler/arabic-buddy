@@ -566,6 +566,73 @@ test.describe("the lightning round", () => {
   });
 });
 
+test.describe("the boss card", () => {
+  const LESSON = lessonId(0);
+  const OTHERS = lessonId(1);
+  const HOOK = "A souq stall selling socks";
+
+  /**
+   * Two due words in a started lesson: an ordinary one, the more overdue, and
+   * a leech missed seven times, settled enough to be heard alone (step 4).
+   */
+  const bossDeck = () => ({
+    lessons: [
+      aLesson({ id: LESSON, title: "Started lesson", display_order: 1 }),
+      aLesson({ id: OTHERS, title: "Unopened lesson", display_order: 2 }),
+    ],
+    vocabulary_words: [
+      aVocabularyWord({ id: wordId(0), lesson_id: LESSON, word_arabic: "السوق", word_english: "the market", example_arabic: "رحت السوق أمس", example_english: "I went to the market yesterday" }),
+      aVocabularyWord({ id: wordId(1), lesson_id: LESSON, word_arabic: "قهوة", word_english: "coffee", example_arabic: "شربت قهوة الصبح", example_english: "I drank coffee in the morning" }),
+      aVocabularyWord({ id: wordId(3), lesson_id: OTHERS, word_arabic: "بيت", word_english: "house" }),
+      aVocabularyWord({ id: wordId(4), lesson_id: OTHERS, word_arabic: "مدرسة", word_english: "school" }),
+      aVocabularyWord({ id: wordId(5), lesson_id: OTHERS, word_arabic: "مطعم", word_english: "restaurant" }),
+      aVocabularyWord({ id: wordId(6), lesson_id: OTHERS, word_arabic: "سيارة", word_english: "car" }),
+    ],
+    word_reviews: [
+      aWordReview({ id: reviewId(0), word_id: wordId(0), ease_factor: 10, repetitions: 4, interval_days: 3, is_leech: true, lapses: 7, mnemonic: HOOK, next_review_at: new Date(Date.now() - 86_400_000).toISOString() }),
+      aWordReview({ id: reviewId(1), word_id: wordId(1), ease_factor: 10, repetitions: 4, interval_days: 3, next_review_at: new Date(Date.now() - 3 * 86_400_000).toISOString() }),
+    ],
+    lesson_progress: [aLessonProgress({ user_id: TEST_USER_ID, lesson_id: LESSON, words_total: 2, words_seen: 2 })],
+    profiles: [aProfile({ review_style: "quiz" })],
+  });
+
+  test("the worst leech opens the session as a first look, and beating it is celebrated", async ({ page }) => {
+    await signIn(page);
+    const backend = await stubSupabase(page, { tables: bossDeck() });
+    await page.goto("/review");
+
+    // The leech, though the other word is more overdue: a first look, with
+    // its hook a tap away.
+    const boss = page.getByRole("region", { name: "Boss card" });
+    await expect(boss).toContainText("missed 7 times");
+    await expect(page.getByText(/the missing word means/i)).toContainText("the market");
+    await expect(page.getByText(HOOK)).toHaveCount(0);
+
+    await page.getByRole("button", { name: "السوق", exact: true }).click();
+    // The hook is the lesson once the answer is in: in the banner, and in the
+    // rescue panel, which waited for the answer.
+    await expect(page.getByRole("region", { name: "Boss card" }).getByText(HOOK)).toBeVisible();
+    await expect(page.getByText(HOOK)).toHaveCount(2);
+    await page.getByRole("button", { name: /continue/i }).click();
+
+    await expect(page.getByRole("dialog", { name: "Boss beaten!" })).toBeVisible();
+    // Graded as a first look: Good, on the leech's own row.
+    await expect.poll(() => backend.db.rows("word_reviews").find((r) => r.id === reviewId(0))?.last_result).toBe("good");
+    // The next card is an ordinary one.
+    await expect(page.getByRole("region", { name: "Boss card" })).toHaveCount(0);
+  });
+
+  test("there is no boss when the learner does not track leeches", async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("hakiya:leech-tracking-enabled", "false"));
+    await signIn(page);
+    await stubSupabase(page, { tables: bossDeck() });
+    await page.goto("/review");
+
+    await expect(page.getByRole("img", { name: /step \d+ of 10/i })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Boss card" })).toHaveCount(0);
+  });
+});
+
 test.describe("a picture for a word that has none", () => {
   const PIXEL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
   const LESSON = lessonId(0);

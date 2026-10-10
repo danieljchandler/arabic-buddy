@@ -22,7 +22,7 @@ means — so a session can pick up the next phase cold.*
 | 5b | Apply the bucket migration, deploy `word-asset`, run `scripts/curriculum-animations.ts` | **owner action** (after 2b) |
 | 6 | Words in stories | built (PR #428) |
 | 6b | Deploy `word-asset` (this version), then run `scripts/curriculum-stories.ts` | **owner action** (after 2b) |
-| 7 | The rest of the game | in progress: "Why not this one?" (PR #430) and the lightning round (PR #431) built |
+| 7 | The rest of the game | in progress: "Why not this one?" (PR #430), the lightning round (PR #431) and the boss card (PR #432) built |
 | 8 | Tuning from real reviews | once the quiz has weeks of history |
 | 9 | Housekeeping | any time |
 
@@ -878,8 +878,8 @@ One PR per item, in this order, each independent of the asset store:
 |---|---|
 | 7.1 "Why not this one?" on every choice step | built (PR #430) |
 | 7.2 The lightning round | built (PR #431, on #430) |
-| 7.3 The boss card | next |
-| 7.4 Ladder climbs on the leaderboard | to build |
+| 7.3 The boss card | built (PR #432, on #431) |
+| 7.4 Ladder climbs on the leaderboard | next |
 | XP parity for the flip cards | **a question for the owner**, not built |
 
 ### 7.1 "Why not this one?" on every choice step (built, PR #430)
@@ -1002,6 +1002,85 @@ deal the same order and the gap the same options, the "nothing written" checks
 were one-shot (they now wait a second), My Words had no test of its wiring (an
 e2e now plays a round there), and the clock and score lacked roles. Not
 tested on its own: My Phrases' wiring, which is the same three lines.
+
+### 7.3 The boss card (built, PR #432)
+
+What shipped (writeup: README "Reviewing as a quiz instead of flashcards",
+the boss card):
+
+- **`src/lib/bossCard.ts`**, pure: `canBeBoss` (a recognition leech with
+  lapses), `pickBoss` (the most lapses, the deck's order on a tie),
+  `withBossFirst` (reorders, never adds or drops), `isBossTurn` (the
+  session's first card, before any answer), `BOSS_MEMORY` (a first look).
+- **The decks**: `useDueWords({ bossFirst })`, `useDueUserPhrases(mixAll,
+  { bossFirst })` and My Words' due query put the boss first while the quiz
+  is on and leeches are tracked; each page marks `QuizItem.boss` (lapses,
+  mnemonic, the hook's picture) on its first card.
+- **`QuizCardFrame`**: a boss is asked from `BOSS_MEMORY`, under
+  `QuizBossBanner` (the hook and its picture behind one tap, which is help);
+  `QuizGraded.step` is the card's own step; the leech rescue panel is placed
+  by the frame (`leechPanel`), held back under the boss until the answer.
+- **The pages** celebrate a win once the rating is on its way (`bossBeaten`):
+  saved on My Words and My Phrases, queued on the curriculum deck.
+- **`celebrations.ts`**: a `boss` kind, the small tier, "Boss beaten!".
+- **`phraseDirection`** moved from `MyPhrasesReview` to `quizLadder.ts`, so
+  the phrase deck's due list and its page read a phrase's direction one way.
+- Guards: `bossCard.test.ts`, `QuizCardFrame.test.tsx` ("the boss card"),
+  `useUserPhrases.test.ts` (new), `quizLadder.test.ts`,
+  `celebrations.test.ts`, and `review.spec.ts` ("the boss card").
+
+**Decided in this item:**
+
+1. *Chosen from what is due, recognition only.* Nothing is reviewed early,
+   and a first look grades the recognition schedule; a production leech is
+   asked as itself.
+2. *Graded as a first look*: Good when right, Hard when the hook was opened
+   first, Again when wrong. The hook is a tap away rather than in view,
+   because in view it would be the answer, and a Good earned off it would
+   stretch the interval of exactly the card that needs an honest one.
+3. *A leech settled past step 1 is still asked step 1*, as the plan says;
+   after its lapses a leech is usually there anyway. Its own step is what
+   the session tally sees.
+4. *Once per session*, and *only while leeches are tracked*: a learner who
+   switched leech tracking off has no leeches to fight.
+5. *The small celebration*, on Continue: the session has the rest of its
+   cards to go.
+6. *The rescue panel waits for the boss's answer.* `LeechHelperPanel` prints
+   the hook, so before the answer it would hand over what the banner keeps
+   behind a tap (the e2e found this); after it, its tools (a new hook, its
+   picture, clearing the leech flag) are there as for any leech.
+7. *"The most lapses" is the word's, on either schedule*, as `is_leech` is
+   flagged on either; the boss is still asked on the recognition side.
+
+An independent review before the PR found a high one, fixed: the banner
+showed the picture from the start, and where a boss falls back to "what does
+it mean?" (any phrase, any word whose sentence lacks it) the picture was the
+answer, graded Good. The picture now sits behind the hook's tap. And a medium
+one, fixed: hiding the rescue panel under the boss hid its tools for good (no
+way to make a hook for a boss that has none, or to clear the flag of one beaten
+every time), and hid it on the flip-card fallback too; the frame now holds it
+back only until the answer. Low ones fixed: "Boss beaten!" played before the
+rating was saved (a failed save on My Words was still celebrated), the
+ranking read recognition lapses alone while `is_leech` reads both, the
+banner's copy said "toughest word" of a phrase, its tap had no
+`aria-expanded` and what it revealed was not announced, and its colours were
+a raw amber. A question it raised for the owner: a leech whose own step is
+well past 1 is still asked a first look, as the plan says, and a right answer
+there is Good; the hook stays hidden so that Good is earned, but the question
+is easier than its step. Untested at unit level: `useDueWords({ bossFirst })`
+and the pages' `isBossTurn` wiring (the e2e covers `/review`).
+
+A last review of the four Phase 7 PRs together, before merging, found one
+more, high, in the fix above: with the rescue panel shown after the answer,
+its "Not stuck — clear leech flag" patched the deck, the page stopped marking
+the card a boss, and the answered card turned into its own step's question
+(another wait, possibly a paid picture or exchange, and a second answer that
+could replace the first rating; no celebration). Fixed: the frame latches the
+boss for the card's presentation, as it latches the picture, reports the
+latched boss with the rating, and takes a choice answer once. Also fixed: the
+rescue panel waits beside a card still being prepared, as it did before (not
+beside the boss), and the celebration's copy no longer says "word" of a
+phrase.
 
 ### The plan, as it was written
 

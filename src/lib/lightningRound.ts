@@ -46,7 +46,11 @@ export type LightningFormat = "cloze" | "meaning" | "listen";
 /** What the round needs of a session's right answer. */
 export interface LightningAnswer {
   correct: boolean;
-  /** The ladder's step for the card when it was asked. */
+  /**
+   * The ladder's step for the card, from its own memory (`QuizGraded.step`).
+   * A boss asked as a first look reports its own step, so a boss well past
+   * step 4 is not in the round.
+   */
   step: number;
   /** The question it was asked as. */
   format: QuizFormat;

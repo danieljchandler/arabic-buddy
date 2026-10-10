@@ -406,6 +406,161 @@ describe("why not this one?", () => {
 });
 
 /**
+ * The boss card (quiz Phase 7). The page marks the session's first card when
+ * it is the recognition leech with the most lapses; the frame asks it as a
+ * first look whatever its memory, shows its picture and keeps its memory hook
+ * a tap away, grades it as any first look (the hook, opened first, is help),
+ * reports its own step rather than the first look's, and celebrates a win as
+ * the learner moves on.
+ */
+describe("the boss card", () => {
+  const HOOK = "Picture a souq stall selling socks";
+  // Settled enough to be heard alone (step 4) if it were not the boss.
+  const aBoss = (over: Partial<QuizItem> = {}) =>
+    anItem({
+      memory: { stability: 10, repetitions: 4 },
+      imageUrl: "https://img.test/market.png",
+      boss: { lapses: 7, mnemonic: HOOK, pictureUrl: "https://img.test/hook.png" },
+      ...over,
+    });
+  const continueOn = () => fireEvent.click(screen.getByRole("button", { name: /continue/i }));
+  const pick = (right: boolean) =>
+    fireEvent.click(arabicChoices().find((b) => (b.textContent?.trim() === "السوق") === right)!);
+  const RESCUE = <div>the rescue panel</div>;
+
+  it("opens on a first look, whatever its memory, with its hook and picture behind one tap", () => {
+    const { container } = render(aBoss());
+
+    expect(screen.getByRole("region", { name: "Boss card" })).toHaveTextContent("missed 7 times");
+    expect(screen.getByText("Fill in the missing word")).toBeInTheDocument();
+    expect(screen.getByText(/the missing word means/i)).toHaveTextContent("the market");
+    expect(screen.getByRole("img", { name: /step 1 of 10/i })).toBeInTheDocument();
+    // Neither the hook nor its picture is in view before the answer.
+    expect(screen.queryByText(HOOK)).not.toBeInTheDocument();
+    expect(container.querySelector('img[src="https://img.test/hook.png"]')).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /show your memory hook/i }));
+    expect(screen.getByText(HOOK)).toBeInTheDocument();
+    // The hook's picture, not the word's.
+    expect(container.querySelector('img[src="https://img.test/hook.png"]')).not.toBeNull();
+  });
+
+  it("never shows the picture beside the meaning question, where it would be the answer", () => {
+    const { container } = render(aBoss({ sentence: null, boss: { lapses: 3, mnemonic: null, pictureUrl: null } }));
+
+    expect(screen.getByText("What does it mean?")).toBeInTheDocument();
+    expect(container.querySelector('img[src="https://img.test/market.png"]')).toBeNull();
+    expect(screen.getByRole("button", { name: /show its picture/i })).toBeInTheDocument();
+  });
+
+  it("is Good when beaten and reports its own step, with the boss on the card for the page to celebrate", () => {
+    const { onGraded, container } = render(aBoss());
+    pick(true);
+
+    // The hook and its picture are the lesson once the answer is in.
+    expect(screen.getByText(HOOK)).toBeInTheDocument();
+    expect(container.querySelector('img[src="https://img.test/hook.png"]')).not.toBeNull();
+    continueOn();
+
+    expect(onGraded).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rating: "good",
+        correct: true,
+        format: "cloze-hint",
+        step: 4,
+        item: expect.objectContaining({ boss: expect.objectContaining({ lapses: 7 }) }),
+      }),
+    );
+  });
+
+  it("counts the hook, opened before the answer, as help: Hard", () => {
+    const { onGraded } = render(aBoss());
+    fireEvent.click(screen.getByRole("button", { name: /show your memory hook/i }));
+    pick(true);
+    continueOn();
+
+    expect(onGraded).toHaveBeenCalledWith(expect.objectContaining({ rating: "hard", correct: true }));
+  });
+
+  it("is Again when it wins", () => {
+    const { onGraded } = render(aBoss());
+    pick(false);
+    continueOn();
+
+    expect(onGraded).toHaveBeenCalledWith(expect.objectContaining({ rating: "again", correct: false }));
+  });
+
+  it("holds the rescue panel back until the boss is answered, since it prints the hook", () => {
+    render(aBoss(), { leechPanel: RESCUE });
+    expect(screen.queryByText("the rescue panel")).not.toBeInTheDocument();
+    pick(true);
+    expect(screen.getByText("the rescue panel")).toBeInTheDocument();
+  });
+
+  it("shows the rescue panel from the start on any other card, and on the flip card", () => {
+    const { unmount } = render(anItem(), { leechPanel: RESCUE });
+    expect(screen.getByText("the rescue panel")).toBeInTheDocument();
+    unmount();
+    cleanup?.();
+    // Too few other words for a question: the flip card, no boss, the panel.
+    render(aBoss(), { leechPanel: RESCUE, pool: POOL.slice(0, 1) });
+    expect(screen.getByText("the flip card")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Boss card" })).not.toBeInTheDocument();
+    expect(screen.getByText("the rescue panel")).toBeInTheDocument();
+  });
+
+  it("stays the boss, its question and its answer, when the page clears its leech flag after the answer", () => {
+    // The rescue panel's "Not stuck" patches the deck: the page re-renders the
+    // card with no boss. The answered question must not turn into its own step.
+    const { onGraded, rerenderWith } = render(aBoss(), { leechPanel: RESCUE });
+    pick(true);
+    rerenderWith({ ...aBoss(), boss: null }, { leechPanel: RESCUE });
+
+    expect(screen.getByRole("region", { name: "Boss card" })).toBeInTheDocument();
+    expect(screen.getByText("Fill in the missing word")).toBeInTheDocument();
+    expect(screen.queryByText("What did you hear?")).not.toBeInTheDocument();
+    // The answer given stands: the options are spent.
+    for (const option of arabicChoices()) expect(option).toBeDisabled();
+    continueOn();
+
+    expect(onGraded).toHaveBeenCalledTimes(1);
+    expect(onGraded).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rating: "good",
+        format: "cloze-hint",
+        step: 4,
+        // Reported as the boss it was asked as, so the page celebrates it.
+        item: expect.objectContaining({ boss: expect.objectContaining({ lapses: 7 }) }),
+      }),
+    );
+  });
+
+  it("keeps the rescue panel beside a card that is still being prepared, but not beside the boss", () => {
+    const { unmount } = render(anItem(), { leechPanel: RESCUE, ready: false });
+    expect(screen.getByRole("status", { name: /preparing the question/i })).toBeInTheDocument();
+    expect(screen.getByText("the rescue panel")).toBeInTheDocument();
+    unmount();
+    cleanup?.();
+
+    render(aBoss(), { leechPanel: RESCUE, ready: false });
+    expect(screen.getByRole("status", { name: /preparing the question/i })).toBeInTheDocument();
+    expect(screen.queryByText("the rescue panel")).not.toBeInTheDocument();
+  });
+
+  it("offers no tap when there is neither hook nor picture", () => {
+    render(aBoss({ imageUrl: null, boss: { lapses: 1, mnemonic: null, pictureUrl: null } }));
+    expect(screen.getByRole("region", { name: "Boss card" })).toHaveTextContent("missed once");
+    expect(screen.queryByRole("button", { name: /memory hook|its picture/i })).not.toBeInTheDocument();
+  });
+
+  it("is never a production card: that one is asked as itself", () => {
+    render(aBoss({ direction: "production", memory: { stability: 5, repetitions: 2 } }));
+    expect(screen.queryByRole("region", { name: "Boss card" })).not.toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /step 7 of 10/i })).toBeInTheDocument();
+  });
+});
+
+/**
  * Quiz Phase 3. "Pick the picture" (and the two later steps that show one)
  * only fire for a word that has a picture, and neither the authored tracks
  * nor a learner's saved words ship with one. The frame looks the shared store

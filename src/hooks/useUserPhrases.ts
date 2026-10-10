@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 import { useDialect } from "@/contexts/DialectContext";
+import { withBossFirst } from "@/lib/bossCard";
+import { phraseDirection } from "@/lib/quizLadder";
 
 export interface UserPhrase {
   id: string;
@@ -83,12 +85,15 @@ export const useUserPhrasesDueCount = (mixAll = false) => {
   });
 };
 
-export const useDueUserPhrases = (mixAll = false) => {
+export const useDueUserPhrases = (mixAll = false, options: { bossFirst?: boolean } = {}) => {
   const { user } = useAuth();
   const { activeDialect } = useDialect();
+  // The quiz's boss first (src/lib/bossCard.ts): the leech asked for its
+  // meaning with the most lapses. Nothing is added or dropped.
+  const bossFirst = options.bossFirst ?? false;
 
   return useQuery({
-    queryKey: ["user-phrases-due", user?.id, mixAll ? "all" : activeDialect],
+    queryKey: ["user-phrases-due", user?.id, mixAll ? "all" : activeDialect, bossFirst],
     queryFn: async (): Promise<UserPhrase[]> => {
       if (!user) return [];
       const now = new Date().toISOString();
@@ -101,7 +106,14 @@ export const useDueUserPhrases = (mixAll = false) => {
       if (!mixAll) q = q.eq("dialect", activeDialect);
       const { data, error } = await q;
       if (error) throw error;
-      return (data ?? []) as UserPhrase[];
+      const phrases = (data ?? []) as UserPhrase[];
+      return bossFirst
+        ? withBossFirst(phrases, (phrase) => ({
+            isLeech: !!phrase.is_leech,
+            lapses: phrase.lapses ?? 0,
+            direction: phraseDirection(Number(phrase.ease_factor) || 0),
+          }))
+        : phrases;
     },
     enabled: !!user,
   });

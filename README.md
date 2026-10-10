@@ -561,6 +561,45 @@ The words are the session's, kept on the page as they are answered right
 (`lightningWordFor` makes the word, `addLightningWord` keeps it once), and a
 deck switch starts afresh with the summary.
 
+**The boss card** (quiz Phase 7). A quiz session opens on the learner's
+most-missed card: of the cards due, the recognition leech with the most lapses
+(on either schedule, the word's misses) goes first (`withBossFirst` in
+`src/lib/bossCard.ts`, applied by the three decks' due lists while the quiz is
+on and the learner tracks leeches — Settings' leech switch turns it off with
+the rest). It is asked as a **first look** whatever its stability — the gap
+with its meaning beside it, or the meaning on its own where it has no sentence
+— under a "Boss card" header that says how often it has been missed
+(`QuizBossBanner`). Its memory hook and its picture (the hook's, else the
+word's own) are one tap away, together, and opening them before answering is
+help, as opening the sentence is: either can be the answer, a picture beside
+"what does it mean?" being the meaning. After the answer both are shown
+anyway, since a card missed this often is one to learn again, not only to
+grade. With too few other words for four options it is the flip card, as any
+card would be, and no boss. Beating it is a celebration, the small tier
+(`celebrate({ kind: "boss" })`, "Boss beaten!"), played by the page once the
+rating is on its way (`bossBeaten`): saved, on My Words and My Phrases, so a
+save that fails is never celebrated; queued, on the curriculum deck, whose
+offline queue saves it when it can. A boss stays the boss for its whole
+presentation, even if the learner clears its leech flag from the rescue panel
+after answering: the question, the answer given and the celebration are the
+ones it was asked with.
+
+The boss is chosen from what is due and only reordered, so nothing is reviewed
+early, and only on the recognition side: a first look grades the recognition
+schedule, and a production card's rating would land on the other one (on My
+Phrases, a phrase settled enough to be said is not a boss either). Its answer
+is graded exactly as any first look's — right is Good, right after opening the
+hook is Hard (help, like the sentence), wrong is Again — and the frame reports
+the card's own step, not the first look's, so beating the boss is never
+counted as a climb from step 1 (nor, past step 4, a word for the lightning
+round). It opens a session once (`isBossTurn`: the first card, before anything
+is answered); a deck rebuilt later in the session may put a leech first again,
+and that one is an ordinary card. The rescue panel under a leech
+(`LeechHelperPanel`) is placed by the frame in the quiz: under the boss it
+waits for the answer, since it prints the hook, and then offers what it always
+does (a new hook, its picture, clearing the leech flag); under every other
+card, the flip card included, it is there from the start.
+
 Proposal and the phases still to come (the rest of the game, tuning from real
 reviews): `docs/quiz-modes-plan-2026-10.md`; the execution roadmap is
 `docs/quiz-phases-2026-10.md`.

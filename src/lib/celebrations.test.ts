@@ -73,6 +73,11 @@ describe("how long each moment plays", () => {
     for (const kind of ["lesson", "letter", "deck", "achievement"] as const) expect(KIND_TIER[kind]).toBe("medium");
   });
 
+  it("gives a boss beaten the shortest, since the session goes on after it", () => {
+    expect(KIND_TIER.boss).toBe("small");
+    expect(tierFor({ kind: "boss", detail: "السوق" })).toBe("small");
+  });
+
   it("lets an event ask for its own tier", () => {
     expect(tierFor({ kind: "lesson" })).toBe("medium");
     expect(tierFor({ kind: "preview", tier: "large" })).toBe("large");
@@ -325,6 +330,15 @@ describe("what the screen says", () => {
     });
     expect(celebrationCopy({ kind: "streak", detail: "30" }).title).toBe("30-day streak!");
     expect(celebrationCopy({ kind: "streak" }).title).toBe("Streak milestone!");
+  });
+
+  it("names the boss beaten", () => {
+    expect(celebrationCopy({ kind: "boss", detail: "السوق" })).toEqual({
+      title: "Boss beaten!",
+      subtitle: "السوق, the one you kept missing, is yours.",
+    });
+    expect(celebrationCopy({ kind: "boss" }).subtitle).toBe("The one you kept missing is yours.");
+    expect(celebrationSummary({ kind: "boss", detail: "السوق" })).toBe("Boss beaten!");
   });
 
   it("names the letter", () => {

@@ -53,16 +53,6 @@ export const AUDIO_AUTOPLAY_DELAY_MS = 300;
 /** Delay (ms) after answering before moving to the next quiz card. */
 export const QUIZ_ADVANCE_DELAY_MS = 1500;
 
-// ─── Review / Spaced Repetition ──────────────────────────────────────────────
-
-/** XP awarded per review rating. */
-export const REVIEW_XP: Record<string, number> = {
-  again: 5,
-  hard: 10,
-  good: 15,
-  easy: 20,
-};
-
 // ─── Weekly goals ────────────────────────────────────────────────────────────
 
 export const WEEKLY_GOALS = [

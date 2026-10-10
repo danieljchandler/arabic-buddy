@@ -245,6 +245,26 @@ describe("when the connection drops", () => {
     expect(result.current.pendingCount).toBe(0);
   });
 
+  it("waits out the backoff between attempts rather than retrying at once", async () => {
+    const { result, backend } = await renderQueue();
+    backend.db.failWrites("word_reviews", 503, NETWORK_ERROR);
+
+    act(() => {
+      result.current.enqueue({ wordId: wordId(0), rating: "good", currentReview: snapshot() });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+
+    // The first attempt, then one after the 1s backoff; the next is due at 3s.
+    // Every render used to re-run the drain-on-mount effect (the mutation
+    // hooks return a new object each render, and flush depended on them),
+    // and its cleanup cancelled the backoff: hundreds of attempts in these
+    // two seconds against a server that was down.
+    expect(all(TEST_USER_ID)[0]?.attempts).toBeGreaterThanOrEqual(1);
+    expect(all(TEST_USER_ID)[0]?.attempts).toBeLessThanOrEqual(3);
+  });
+
   it("awards no XP for a rating the server has not taken", async () => {
     const { result, backend } = await renderQueue();
     backend.db.failWrites("word_reviews", 503, NETWORK_ERROR);
@@ -365,6 +385,140 @@ describe("when the server rejects the rating outright", () => {
     // One bad rating must not cost the learner the ones after it.
     await waitFor(() => expect(result.current.pendingCount).toBe(0));
     expect(backend.db.writesTo("word_reviews")).toHaveLength(1);
+  });
+});
+
+describe("settling the queue", () => {
+  // The curriculum deck's end of the list waits on this before it asks what
+  // is due next: a refetch that beat the queue served a card just rated.
+
+  it("resolves once the queued rating has reached the server", async () => {
+    const { result, backend } = await renderQueue();
+
+    act(() => {
+      result.current.enqueue({ wordId: wordId(0), rating: "good", currentReview: snapshot() });
+    });
+    let settled: boolean | undefined;
+    await act(async () => {
+      settled = await result.current.settle(4000);
+    });
+
+    // Asserted straight after, not polled: the promise is the guarantee.
+    expect(settled).toBe(true);
+    expect(backend.db.writesTo("word_reviews")).toHaveLength(1);
+  });
+
+  it("waits for every rating queued so far, joining the drain already running", async () => {
+    const { result, backend } = await renderQueue((b) => {
+      seedCard(b);
+      b.db.add("vocabulary_words", aVocabularyWord({ id: wordId(1) }));
+      b.db.add("word_reviews", aWordReview({ id: reviewId(1), word_id: wordId(1) }));
+    });
+
+    act(() => {
+      result.current.enqueue({ wordId: wordId(0), rating: "good", currentReview: snapshot() });
+      result.current.enqueue({
+        wordId: wordId(1),
+        rating: "good",
+        currentReview: { ...snapshot(), id: reviewId(1) },
+      });
+    });
+    let settled: boolean | undefined;
+    await act(async () => {
+      settled = await result.current.settle(4000);
+    });
+
+    expect(settled).toBe(true);
+    expect(backend.db.writesTo("word_reviews")).toHaveLength(2);
+  });
+
+  it("waits through a dropped connection's retry", async () => {
+    const { result, backend } = await renderQueue();
+    backend.db.failNextWrite("word_reviews", 503, NETWORK_ERROR);
+
+    act(() => {
+      result.current.enqueue({ wordId: wordId(0), rating: "good", currentReview: snapshot() });
+    });
+    let settled: boolean | undefined;
+    await act(async () => {
+      const pending = result.current.settle(4000);
+      await vi.advanceTimersByTimeAsync(1500);
+      settled = await pending;
+    });
+
+    // Giving up at the first failure would refetch before the retry landed,
+    // which is the race this exists to close.
+    expect(settled).toBe(true);
+    expect(all(TEST_USER_ID)).toHaveLength(0);
+    expect(Number(backend.db.rows("word_reviews")[0]?.repetitions)).toBe(3);
+  });
+
+  it("gives up after its bound, leaving the rating queued for the backoff", async () => {
+    const { result, backend } = await renderQueue();
+    backend.db.failWrites("word_reviews", 503, NETWORK_ERROR);
+
+    act(() => {
+      result.current.enqueue({ wordId: wordId(0), rating: "good", currentReview: snapshot() });
+    });
+    let settled: boolean | undefined;
+    await act(async () => {
+      const pending = result.current.settle(2500);
+      await vi.advanceTimersByTimeAsync(3000);
+      settled = await pending;
+    });
+
+    expect(settled).toBe(false);
+    expect(all(TEST_USER_ID)).toHaveLength(1);
+  });
+
+  it("does not wait while the browser is offline", async () => {
+    const { result, backend } = await renderQueue();
+    backend.db.failWrites("word_reviews", 503, NETWORK_ERROR);
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+
+    act(() => {
+      result.current.enqueue({ wordId: wordId(0), rating: "good", currentReview: snapshot() });
+    });
+    let settled: boolean | undefined;
+    await act(async () => {
+      // A minute's bound, never waited out: no timer is advanced here, so a
+      // settle that waited would time the test out.
+      settled = await result.current.settle(60_000);
+    });
+
+    expect(settled).toBe(false);
+    expect(all(TEST_USER_ID)).toHaveLength(1);
+  });
+
+  it("resolves at once when nothing is queued", async () => {
+    const { result, backend } = await renderQueue();
+
+    let settled: boolean | undefined;
+    await act(async () => {
+      settled = await result.current.settle(4000);
+    });
+
+    expect(settled).toBe(true);
+    expect(backend.db.writesTo("word_reviews")).toHaveLength(0);
+  });
+
+  it("lists the ratings not yet on the server", async () => {
+    const { result, backend } = await renderQueue();
+    backend.db.failWrites("word_reviews", 503, NETWORK_ERROR);
+
+    act(() => {
+      result.current.enqueue({
+        wordId: wordId(0),
+        rating: "good",
+        currentReview: snapshot(),
+        direction: "production",
+      });
+    });
+    await waitFor(() => expect(result.current.pendingCount).toBe(1));
+
+    expect(result.current.queued()).toEqual([
+      expect.objectContaining({ wordId: wordId(0), direction: "production", rating: "good" }),
+    ]);
   });
 });
 

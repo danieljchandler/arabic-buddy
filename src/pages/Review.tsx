@@ -26,6 +26,7 @@ import { LoadingPanel } from "@/components/loading/LoadingPanel";
 import { useDialect } from "@/contexts/DialectContext";
 import { Rating, calculateNextReview, elapsedDaysSince } from "@/lib/spacedRepetition";
 import { scheduleDirectionFor } from "@/lib/reviewOrder";
+import { withoutQueued } from "@/lib/reviewQueue";
 import { ReviewAudioCard } from "@/components/review/ReviewAudioCard";
 import { LeechHelperPanel } from "@/components/review/LeechHelperPanel";
 import { useLeechPrefs } from "@/hooks/useLeechPrefs";
@@ -62,6 +63,13 @@ const DIALECT_FLAGS: Record<string, string> = {
   Yemeni: "🇾🇪",
 };
 
+/**
+ * How long the end of the list waits for the session's ratings to reach the
+ * server before asking what is due next: long enough for the queue's first
+ * retries, short enough that a dropped connection does not hold the page.
+ */
+const LIST_SETTLE_MS = 4000;
+
 const Review = () => {
   const navigate = useNavigate();
   const { isAuthenticated, loading: authLoading, user } = useAuth();
@@ -83,7 +91,7 @@ const Review = () => {
     quiz ? { holdProductionBelow: LADDER_THRESHOLDS.pictureDays, bossFirst: leechTrackingEnabled } : {},
   );
   const { data: stats } = useReviewStats(mixAll);
-  const { enqueue, pendingCount, isFlushing, isOnline } = useReviewQueue();
+  const { enqueue, settle, queued, pendingCount, isFlushing, isOnline } = useReviewQueue();
   const session = useReviewSession(mixAll);
   const { data: wordPool, isLoading: poolLoading } = useCurriculumWordPool(activeDialect, mixAll, quiz);
   const addXP = useAddXP();
@@ -114,6 +122,8 @@ const Review = () => {
   const [relearn, setRelearn] = useState<RelearnEntry<DueCurriculumCard>[]>([]);
   // The main list has been walked to the end; only relearn cards remain.
   const [mainDone, setMainDone] = useState(false);
+  // The list has been walked and the page is waiting to ask what is due next.
+  const [closingList, setClosingList] = useState(false);
   const desiredRetention = useDesiredRetention();
   const stabilityMultiplier = useFsrsCalibration();
   const { weights } = useFsrsWeights();
@@ -313,15 +323,30 @@ const Review = () => {
     }
   }, [dueWords, currentIndex, activeDialect, relearnPick]);
 
-  const goToNext = async () => {
-    if (!dueWords) return;
-    setShowAnswer(false);
-    setShowLyrics(false);
-    if (currentIndex < dueWords.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
-    } else {
+  /**
+   * The end of the list: ask the server what is due now, once the ratings just
+   * given have reached it. Refetching straight away raced the queue: the server
+   * still had the last cards due, and the session served one it had just rated.
+   * The wait is bounded, since a dropped connection must not hold the page, and
+   * a card whose rating is still queued when it gives up is dropped from what
+   * comes back: it is not due, whatever the fetch says.
+   */
+  const closeList = async () => {
+    setClosingList(true);
+    try {
+      const settled = await settle(LIST_SETTLE_MS);
       await refetch();
+      if (!settled) {
+        const pending = queued();
+        queryClient.setQueriesData<DueCurriculumCard[] | undefined>({ queryKey: ["due-words"] }, (prev) =>
+          prev
+            ? withoutQueued(prev, pending, (c) => ({ wordId: c.id, direction: scheduleDirectionFor(c.card_type) }))
+            : prev,
+        );
+      }
+    } finally {
       setCurrentIndex(0);
+      setClosingList(false);
     }
   };
 
@@ -374,8 +399,7 @@ const Review = () => {
       // relearn card resolves after the main list is done, the session is over.
       if (mainDone && nextQueue.length === 0) {
         setMainDone(false);
-        void refetch();
-        setCurrentIndex(0);
+        void closeList();
       }
       return;
     }
@@ -388,9 +412,8 @@ const Review = () => {
       // open and present them instead of refetching into "all caught up".
       setMainDone(true);
     } else {
-      // End of list: refetch (queue keeps flushing in background)
-      void refetch();
-      setCurrentIndex(0);
+      // End of list: what is due next, once the queue has landed.
+      void closeList();
     }
   };
 
@@ -447,6 +470,16 @@ const Review = () => {
     return (
       <AppShell compact>
         <LoadingPanel variant="page" statusOverride="Loading your reviews…" />
+      </AppShell>
+    );
+  }
+
+  // Between the last card and what comes next. The list on screen is the one
+  // just walked, every card of it rated, so showing it would serve one again.
+  if (closingList) {
+    return (
+      <AppShell compact>
+        <LoadingPanel variant="page" statusOverride="Saving your answers…" />
       </AppShell>
     );
   }

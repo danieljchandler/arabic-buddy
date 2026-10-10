@@ -119,3 +119,30 @@ export function clearForUser(userId: string) {
 export function count(userId: string): number {
   return safeRead(userId).length;
 }
+
+/**
+ * The cards with no rating still queued for the schedule they are served on.
+ *
+ * A card whose rating has not reached the server is not due, whatever a fetch
+ * made before it landed says. The curriculum deck's end-of-list refetch waits
+ * for the queue first, but that wait is bounded (a dropped connection must not
+ * hold the page), so whatever is still queued when it gives up is dropped from
+ * what comes back: the session never serves a card it has just rated.
+ *
+ * Keyed on the word and the schedule, since recognition and production are
+ * separate schedules for the same word. An entry with no direction predates
+ * directions and is a recognition rating, as the flush reads it.
+ */
+export function withoutQueued<T>(
+  cards: readonly T[],
+  queued: readonly Pick<QueuedRating, "wordId" | "direction">[],
+  keyOf: (card: T) => { wordId: string; direction: ScheduleDirection },
+): T[] {
+  if (queued.length === 0) return [...cards];
+  const key = (wordId: string, direction: ScheduleDirection) => `${wordId}|${direction}`;
+  const pending = new Set(queued.map((item) => key(item.wordId, item.direction ?? "recognition")));
+  return cards.filter((card) => {
+    const { wordId, direction } = keyOf(card);
+    return !pending.has(key(wordId, direction));
+  });
+}

@@ -25,7 +25,7 @@ means — so a session can pick up the next phase cold.*
 | 7 | The rest of the game | built: "Why not this one?" (PR #430), the lightning round (PR #431), the boss card (PR #432), ladder climbs (PR #433); XP parity is the owner's question |
 | 7b | Apply the `leaderboard_climbs` migration to the live project | **owner action** |
 | 8 | Tuning from real reviews | once the quiz has weeks of history |
-| 9 | Housekeeping | any time |
+| 9 | Housekeeping | built (PR #PRA); a zero-day Good in the scheduler is the owner's question |
 
 Conventions that hold in every phase, from `CLAUDE.md`:
 
@@ -871,16 +871,16 @@ question about the line.
 
 ---
 
-## Phase 7 — the rest of the game (in progress)
+## Phase 7 — the rest of the game (built; the migration is 7b)
 
 One PR per item, in this order, each independent of the asset store:
 
 | item | status |
 |---|---|
 | 7.1 "Why not this one?" on every choice step | built (PR #430) |
-| 7.2 The lightning round | built (PR #431, on #430) |
-| 7.3 The boss card | built (PR #432, on #431) |
-| 7.4 Ladder climbs on the leaderboard | built (PR #433, on #432); the migration is 7b |
+| 7.2 The lightning round | built (PR #431) |
+| 7.3 The boss card | built (PR #432) |
+| 7.4 Ladder climbs on the leaderboard | built (PR #433); the migration is 7b |
 | XP parity for the flip cards | **a question for the owner**, not built |
 
 ### 7.1 "Why not this one?" on every choice step (built, PR #430)
@@ -1211,7 +1211,76 @@ ratings and the README table says so.
 
 ---
 
-## Phase 9 — housekeeping
+## Phase 9 — housekeeping (built, PR #PRA)
+
+| item | status |
+|---|---|
+| Delete `ReviewQuizCard` and `ReviewImageQuizCard` | done |
+| Delete the stale per-rating `REVIEW_XP` map in `src/config.ts` | done |
+| Remove `useTranscriptCloze`'s flip-card branch | nothing left to remove |
+| The end-of-queue refetch race | fixed, with a backoff bug found on the way |
+| A Good that schedules a card due at once | **found; the owner's question**, not changed |
+
+**What shipped.**
+
+- `ReviewQuizCard` and `ReviewImageQuizCard` are gone with their four test
+  files (two in `src/components/review/`, two in `src/test/`). Nothing else
+  imported them, and the hooks they named (`useAudioPlayer`, `useAzureTTS`)
+  are still named by other tests, so `hookCoverage` holds.
+- `src/config.ts` no longer carries the per-rating `REVIEW_XP` map (5 / 10 /
+  15 / 20). Nothing imported it; the flat `REVIEW_XP = 15` in
+  `useGamification` is the live one, and the reason it is flat is written
+  there.
+- `useTranscriptCloze` has no flip-card branch left: My Words only runs the
+  lookup when the quiz is on (`enabled: quiz && …`).
+- **The end-of-queue refetch.** On the curriculum deck the last rating went
+  into the queue, and the page refetched at once and showed card 0 of the old
+  list while it did. The server still had the last cards due, so the session
+  served one it had just rated. Now:
+  - `useReviewQueue` has `settle(timeoutMs)`. It waits for the ratings queued
+    so far to reach the server, retrying a network error every second while
+    it waits, and resolves false when the bound runs out or the browser is
+    offline. `flush` returns the drain in progress, which is what makes it
+    joinable.
+  - `Review.tsx`'s `closeList` waits for it (`LIST_SETTLE_MS`, 4 s), then
+    refetches. "Saving your answers…" replaces the walked list meanwhile (the
+    panel's 600 ms delay keeps a quick save from flashing it). If the wait
+    runs out, `withoutQueued` (`src/lib/reviewQueue.ts`) drops any card whose
+    rating is still queued from what comes back, keyed on the word and the
+    schedule.
+  - The unused `goToNext` went with it; it had the same unguarded refetch.
+  - My Words and My Phrases save each rating before they move on, so they
+    never had the race.
+- **Found on the way: the backoff was defeated.** `flush` depended on the
+  mutation hooks, which return a new object every render, so every render
+  re-ran the drain-on-mount effect. Its cleanup cancelled the pending backoff
+  timer and its body retried at once. Under the test clock that was hundreds
+  of attempts in two seconds; with `settle`'s reworked drain it happened in
+  the browser too. The drain now reads them through a ref, `flush` keeps one
+  identity per user, and "waits out the backoff between attempts" holds the
+  attempts to the schedule (it times out with the old dependencies).
+
+**Tests.** `withoutQueued` in `src/lib/reviewQueue.test.ts`; `settle`,
+`queued` and the backoff in `src/hooks/useReviewQueue.test.ts`; and the e2e
+"waits for the last answer to be saved before asking what is due next", in
+which the write fails until the page is seen saving, then lands, and the
+deck's last read comes after it. It fails against the old page.
+
+**The owner's question: a Good that is due at once.** `calculateNextReview`
+sets a recalled card's interval to `Math.round(newStability * intervalFactor)`
+before the "sub-day intervals keep minute precision" step, so a stability
+under half a day rounds to 0, and the card is due the moment it is rated. It
+happens to a Good minutes after a lapse (stability 0.25 in the e2e "asked
+afresh"), and the card is served again at the end of the list. Two ways to
+fix it, and it is the scheduler, so it waits for a decision:
+
+1. Keep the sub-day value when the rounding would give 0 (only those cards
+   change).
+2. Drop the rounding there and let the step below round day+ intervals, as its
+   comment says. That also moves stabilities between 0.5 and 1 day from a
+   1-day interval to 12–24 hours.
+
+### The list, as it was written
 
 - `ReviewQuizCard` and `ReviewImageQuizCard` are superseded by
   `QuizOptionsCard` and still imported by nothing but their tests; delete

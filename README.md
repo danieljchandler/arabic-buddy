@@ -215,6 +215,31 @@ are stored as authoring metadata and have no learner-facing surface. Every
 section renders nothing when empty, so lessons imported before this was wired up
 are unaffected.
 
+### Saving a rating, and the end of the list
+
+A curriculum card's rating goes through an offline queue (`useReviewQueue`,
+stored in localStorage by `src/lib/reviewQueue.ts`), so the page moves on
+before the server has answered. A network error is retried on a backoff (1 s,
+2 s, 5 s, 15 s, 60 s); a write the server rejects is dropped with a toast, so
+it cannot wedge the ratings behind it. My Words and My Phrases save each rating
+before moving on and have no queue. Two things the queue must keep:
+
+- **The end of the list waits for it.** When the last card is rated the page
+  asks the server what is due next, and it used to ask at once. The server
+  still had the last cards due, so the session served one it had just rated.
+  It now waits for the queue (`settle`, at most `LIST_SETTLE_MS`, 4 s) and
+  shows "Saving your answers…" while it does. If the wait runs out, any card
+  whose rating is still queued is dropped from what comes back
+  (`withoutQueued`): it is not due, whatever a fetch made before the rating
+  landed says.
+- **`flush` keeps one identity per user.** The mutation hooks it calls return a
+  new object every render. While they were its dependencies, every render
+  re-ran the drain-on-mount effect, whose cleanup cancelled the pending backoff
+  and whose body retried at once. Under the test clock that was hundreds of
+  attempts in two seconds against a server that was down, and the reworked
+  drain made it happen in the browser too. The drain now reads them through a
+  ref, and a test holds the attempts to the backoff.
+
 ### Reviewing as a quiz instead of flashcards
 
 Settings → Review Preferences → **How you review** (and the same switch in

@@ -307,11 +307,46 @@ test.describe("the quiz style", () => {
     await page.getByRole("button", { name: "السوق", exact: true }).click();
     await page.getByRole("button", { name: /continue/i }).click();
 
-    // The relearned card's rating lands on the same row. (What the page shows
-    // next is the existing race between the end-of-queue refetch and the
-    // queue's flush, which the flip cards share; the first test above covers
-    // the summary.)
+    // The relearned card's rating lands on the same row. What the page shows
+    // next is the scheduler's call, not a race with the queue: a Good this soon
+    // after a lapse leaves stability under half a day, which the interval
+    // rounds to zero, so the card is due again at once. That rounding is an
+    // open question in docs/quiz-phases-2026-10.md (Phase 9); the race has its
+    // own test below.
     await expect.poll(() => backend.db.rows("word_reviews")[0]?.last_result).toBe("good");
+  });
+
+  test("waits for the last answer to be saved before asking what is due next", async ({ page }) => {
+    await signIn(page);
+    const backend = await stubSupabase(page, { tables: { ...aDeck(), ...quizProfile() } });
+
+    await page.goto("/review");
+    await expect(page.getByText("Fill in the missing word")).toBeVisible();
+
+    // The connection drops as the last answer is saved, so the rating waits in
+    // the queue. Asking the server what is due before it lands would get this
+    // card back as new, and serve it again: the end of the list waits instead.
+    backend.db.failWrites("word_reviews", 503, {
+      code: "503",
+      message: "Failed to fetch",
+      details: null,
+      hint: null,
+    });
+    await page.getByRole("button", { name: "السوق", exact: true }).click();
+    await page.getByRole("button", { name: /continue/i }).click();
+
+    await expect(page.getByText(/saving your answers/i)).toBeVisible();
+    await expect(page.getByText("Fill in the missing word")).toHaveCount(0);
+
+    // The connection comes back; the rating lands, and only then is the deck
+    // asked what is due.
+    backend.db.clearFailure("word_reviews");
+    await expect(page.getByRole("list", { name: /quiz session summary/i })).toBeVisible();
+    await expect(page.getByText("Fill in the missing word")).toHaveCount(0);
+    expect(backend.db.rows("word_reviews")[0]).toMatchObject({ word_id: wordId(0), last_result: "good" });
+    const landed = backend.db.lastWriteTo("word_reviews");
+    expect(landed).toBeDefined();
+    expect(backend.db.readsOf("word_reviews").at(-1)?.at).toBeGreaterThanOrEqual(landed?.at ?? Infinity);
   });
 
   test("a wrong pick in the gap asks the tutor why, about this sentence", async ({ page }) => {

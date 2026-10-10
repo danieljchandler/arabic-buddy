@@ -240,12 +240,14 @@ ladder in `src/lib/quizLadder.ts`:
 | 6 Answer the line | 30 days and up | a line of dialogue (the lesson's, else the word's stored exchange), said aloud → pick the reply that uses the word |
 | 7 Say it | production card, under 14 days | the picture alone — an action word's clip, where it has one — or the meaning → say the word; scored |
 | 8 Say the line | production card, 14 to 30 days | the English line → say the Arabic sentence; scored |
-| 9 Say the reply | production card, 30 days and up | a line of dialogue, said aloud, and the reply's meaning → say the reply; scored, the word required |
+| 9 Say the reply | production card, 30 to 60 days | a line of dialogue, said aloud, and the reply's meaning → say the reply; scored, the word required |
+| 10 In a story | production card, 60 days and up | two sentences of a story, shown and read aloud with the word muted, and the word's meaning → say the word; scored |
 
 The climb within recognition goes from form to meaning (the gap, the picture,
 the audio) to meaning to form (pick the word) to use (answer the line);
 production goes from the word to the line to the line said back in a
-conversation. The reply steps are built from a dialogue (`src/lib/quizDialogue.ts`):
+conversation, and at the top to the word heard in someone else's sentences,
+at speed, and said into its place. The reply steps are built from a dialogue (`src/lib/quizDialogue.ts`):
 the reply is the first line that uses the word, the prompt is the line before
 it, and on step 6 the wrong replies are the dialogue's other lines, topped up
 from the other lessons in the deck and from the other words' stored replies.
@@ -264,9 +266,13 @@ itself is untouched, the card waits.
 A card without the material for its step falls back a question (no sentence →
 ask the meaning; no picture, or too few other pictures → hear it; no dialogue →
 pick the word, or on the production side say the line (and with no sentence
-either, the word); too few other words for four options, or a device that
-cannot record → the ordinary flip card with its rating buttons), so the ladder
-never refuses to serve a card.
+either, the word); no story passage → say the reply, and so on down; too few
+other words for four options, or a device that cannot record → the ordinary
+flip card with its rating buttons), so the ladder never refuses to serve a
+card. The top step is the one production step with a choice below it: a
+device that cannot record is asked the story's gap with four options, which is
+never better than Good, rather than handed the flip card, whose buttons go up
+to Easy.
 
 **An exchange for a word its lesson has none for.** Steps 6 and 9 need a line
 that uses the word, and only some words appear in their lesson's dialogue —
@@ -392,6 +398,55 @@ four seconds of the action in the Ink style, looping, from the shared store
   its meaning, exactly as before, and a clip filed while a question is on
   screen is for the next time it is dealt.
 
+**A word in a story** (quiz Phase 6). The top step puts a mature word back
+where a learner will meet it: in the middle of someone else's sentences,
+heard at speed. Two sentences of a story, one of which uses the word, are shown
+with the word cut out and read aloud with it muted, and the learner says the
+missing word (`QuizStoryCard`):
+
+- *The passage* is the shared store's (`kind: "story_line"`, "The asset store"
+  below): two sentences from a published story in the reading library that
+  already uses the word where there is one, else two written for the word,
+  once, and kept for every learner after. The curriculum deck and My Words
+  ask for one (`storyLines`); the phrase deck does not.
+- *The gap* is cut by `findPhraseSpan` (`src/lib/quizStory.ts`), the quiz's
+  one rule for a word's span, so a phrase is cut whole. A passage the word is
+  said in twice is no passage — not even with و, ب or ال attached the second
+  time, which would say the answer the gap mutes.
+- *The reading* is the cloze card's (`useMaskedSentenceAudio`, which both
+  cards now share): the word is replaced by a pause in the text the voice is
+  given, so no voice can say it, and both readings — muted before the take and
+  whole after it — are in the passage's dialect's voice. The cloze card used to
+  read in the learner's active dialect; it now reads in the card's.
+- *The meaning is named beside the gap.* A gap in running speech fits more than
+  one word, and a right word that is not this one would be scored as a
+  different word. The passage's translation is a tap away, and counts as help.
+- *The take* is the word, scored against the word in the passage's locale and
+  read through `wordSpanSimilarity`: the word heard with و, ب or ال attached is
+  the word, and a word of three letters or fewer must be heard exactly. It is
+  banded like any single-word take, and a different word is Again. **The
+  step-9 rule (`REPLY_WORD_CLEAR`) does not apply:** it lifts a reply out of
+  Again because a learner can answer a line rightly in other words than the
+  stored reply and lose on completeness, and here the reference is the word
+  itself, so a low score is a verdict on the word.
+- *Settling.* The passage is a fourth thing a card may wait for, through the
+  same per-card `useCardAsset` as its picture, exchange and clip
+  (`STORY_LINE_LOOKUP_WAIT_MS`, then `STORY_LINE_WRITING_WAIT_MS` = 12 s for one
+  being found or written, saying "Finding a story for this word…"). It is asked
+  for, and waited for, only where its question can be asked now: said on a
+  device that records, or picked from four, which needs three other words.
+  The card's fallback (say the reply) reads the word's exchange but never has
+  one written, so a card is not charged for its passage and its fallback both.
+  A passage that arrives after the question is on screen is for the next time.
+- *On a device that cannot record*, the same passage and gap with four
+  options. A wrong pick offers **"Why not this one?"**, which opens the tutor
+  on the passage and asks, by itself, why the word picked does not fit where
+  the right one does (`AskAISentence` with `label` and `ask`: the seed's
+  question is sent once as the learner's first message, and the server is
+  sent only the sentence as the seed).
+- *Until the store's table is on the live project* there is no passage and the
+  card is asked the reply, exactly as before Phase 6.
+
 Grading is `src/lib/quizGrading.ts`: a right choice is Good (never Easy when
 the options were on screen — the lesson quiz's and debrief's rule), a right
 choice reached with help is Hard, wrong is Again; a spoken take is banded by
@@ -417,8 +472,8 @@ Phrases decks also pays the flat review XP that the curriculum deck pays and
 those decks' flip cards never did. Under Flashcards, My Words serves plain flip
 cards — the every-other-card cloze it used to show now lives in the quiz.
 
-Proposal and the phases still to come (story questions, the rest of the game):
-`docs/quiz-modes-plan-2026-10.md`; the execution roadmap is
+Proposal and the phases still to come (the rest of the game, tuning from real
+reviews): `docs/quiz-modes-plan-2026-10.md`; the execution roadmap is
 `docs/quiz-phases-2026-10.md`.
 
 ### The asset store
@@ -461,8 +516,9 @@ dialect — never the gloss as typed, since whatever the folding drops (an
 emoji, a symbol) is in no key and must not be in a picture every learner of
 the key is shown. The first learner to miss decides what every later learner
 sees, so they must not be able to decide anything beyond the word. `ensure`
-makes pictures, exchanges (quiz Phase 4) and animations (Phase 5, on the
-trusted path only); the later phases add their kinds.
+makes pictures, exchanges (quiz Phase 4), animations (Phase 5, on the
+trusted path only) and story passages (Phase 6, taken from the reading library
+where it can, written where it cannot).
 
 **The trusted path: an authored scene.** One thing beyond the word may reach
 a shared prompt, and not from a learner: for a picture, `scene`, a track
@@ -663,6 +719,116 @@ one clip of eating serves the three.
   and while the bucket is missing `503 bucket_not_ready`, both before the
   poster is drawn.
 
+**Story passages (`kind: "story_line"`, quiz Phase 6).** The quiz's top step
+asks a word in two sentences of a story (`_shared/wordStoryLine.ts`):
+`payload` is `{ sentences: [first, second], story? }`, each sentence
+`{ arabic, english }`, exactly one of them using the word and the word said
+nowhere else in the two, not even with و, ب or ال attached (`wordUseCount`,
+beside `lineUsesWord` in `wordDialogue.ts`; `asStoredStoryLine` is the one
+rule the store, the frame and the script read a passage by). Text, so no
+bucket; style `text-1`; filed with `putAsset`. A passage comes from one of two
+places, in this order.
+
+- *A published story that already uses the word* (`findStoryPassage`), with no
+  model call, charged to nobody, filed as `source: "reviewed"` (a person
+  published the story) with the story, its lines and its licence in `meta`.
+  The reading library was the plan's source; the roadmap called it
+  `reading_library`, which is no table. The two candidates in the schema, and
+  what was decided about each:
+  - **`authentic_stories` and `authentic_story_lines`: the source, under five
+    rules** (`storySourceProblem`, `inCurrentRendering`). *The dialect text
+    only:* a line carries its sentence twice, `arabic` (and
+    `arabic_vocalized`, and the story's `body_fusha`) being the Modern
+    Standard Arabic it was imported from and `dialect` the spoken rendering;
+    only `dialect` is read, and a rendering that is its own fusha word for word
+    was never converted. `body_dialect` is not read for text either: it fills
+    every line the conversion skipped with that line's fusha. *Published
+    only:* `status = 'published'`, the one status the reader's RLS serves to
+    anyone (`draft` and `content_approved` are an editor's work in progress).
+    *A licence that asks nothing of a passage shown on its own:* public domain
+    and CC0. **Decided: CC-BY and CC-BY-SA are left out.** CC-BY must be
+    credited wherever its text is shown, and a two-sentence quiz card, filed
+    in a public table with no licence column, carries no credit; CC-BY-SA also
+    puts every adaptation under the same licence, and a dialect rendering cut
+    to two sentences is one. A licence nobody set is left out too. *The
+    story's own dialect, exactly:* the story form also offers Levantine and
+    MSA, which the app-wide `normalizeDialect` reads as Gulf; here a label
+    that is not Gulf, Egyptian or Yemeni is no dialect (`storyDialect`). *The
+    story's current rendering:* `translate-story-dialect` leaves a line its
+    model skipped with the dialect it already had, so a story moved from Gulf
+    to Egyptian can keep a Gulf line under an Egyptian label; `body_dialect`
+    is rebuilt from the latest conversion alone, so a line whose rendering is
+    not one of its lines is from an earlier one and is not taken. Every
+    sentence also passes the leak detector with the rulebook's tokens, which
+    costs nothing and catches a rulebook that grew after the story was
+    checked.
+  - **`reading_passages`: left out.** Its `dialect` column is never written by
+    the one path that fills the table (the curriculum builder's approval
+    inserts no dialect, so every row takes the default, Gulf), so an Egyptian
+    passage would be filed and served as Gulf. Its text is one blob with one
+    English blob beside it, so no sentence has its own translation either.
+  *Cutting two sentences.* A line is cut into sentences at . ! ? ؟ or … (and a
+  newline), but only where its English splits into as many, so each sentence
+  keeps its own translation; otherwise the line is one sentence of the
+  passage, if it is short enough to follow by ear
+  (`MAX_STORY_SENTENCE_LENGTH`, 200). The passage is the word's sentence and
+  the one before it (the story leading into the gap), or the one after when
+  the word opens the story or the one before does not make a passage; two
+  sentences pair only if they follow on in the story, and the word's sentence
+  is never cut. Of every passage the shelf holds, the shortest is taken, since
+  the learner hears all of it. The search reads public data only: the
+  published stories, their rendered lines a page at a time, and the bodies of
+  the stories a passage was found in, bounded by `MAX_STORIES_PER_SEARCH` and
+  `MAX_STORY_LINES_PER_SEARCH`; a failed read is no passage, never an error.
+- *Written for the word,* under the dialogue kind's rules exactly — the same
+  writer in `word-asset` (`writeText`), so they cannot drift: from the key's
+  folded word, folded sense and dialect alone (`storyLinePrompt`; nothing a
+  learner typed, not the sentence a saved word came from), the CONTENT lineup
+  drafted and critiqued with the native validator on the draft and on what
+  ships, a quality gate that sends the critic back when the word is missing or
+  said twice, and filed only when every sentence passes the leak detector with
+  the rulebook's tokens and the validator passed the shipped text; anything
+  that fails either is neither filed nor served, and one the validator could
+  not judge is the paying learner's, unfiled. The trusted path may add
+  `example`, a curriculum word's authored sentence, exactly as for an exchange;
+  a published story's passage is still taken before that.
+- *Who pays.* **Decided: a written passage is charged on the exchange's
+  counter**, `word-asset-dialogue` (30 / 100 / 300 a day). Pictures and
+  exchanges have separate counters because they cost differently; a passage
+  and an exchange cost the same (the same lineup, strategy and validator, a few
+  hundred tokens), and a counter of its own would have given every learner
+  another thirty text calls a day for a step a word reaches after two months.
+  `useEnsureWordAsset` latches the allowance per counter, so a spent one pauses
+  both kinds; failures still pause each on its own. A passage from a story is
+  charged nothing, even to a learner whose allowance is spent.
+- *Order and refusals.* A filed passage is a hit, free. On a miss: while the
+  table is missing, `503 store_not_ready` before anything is read or charged;
+  a word on its dialect's leak lists, `400 word_not_in_dialect`, before the
+  search; then the story search; then, only if that found nothing, the provider
+  check, the charge and the writing. A published story's passage takes the
+  place of a written one only on the trusted path (`replaceAsset`), which is
+  what `scripts/curriculum-stories.ts` is for.
+
+**Filling the curriculum's passages from stories:
+`scripts/curriculum-stories.ts`.** For every `vocabulary_words` row it runs the
+same search and files what it finds, under the service-role key; a word no
+story uses is left for its first learner at the top step, whose miss writes
+one. A passage a learner's miss wrote gives way to a story's
+(`isReplaceable`); one someone authored, reviewed or approved does not. It
+calls no function and no model and costs nothing, so it needs only the
+`word_assets` migration, not a deployed function. `--dialect`, `--stage`,
+`--limit` (passages filed), and `--dry-run`, which writes nothing and prints
+what each word would take, what the shelf holds, and why each story left out
+was. The deciding is in `scripts/curriculum-stories-core.ts`, covered by
+`src/test/curriculumStories.test.ts`.
+
+```sh
+SUPABASE_SERVICE_ROLE_KEY=... deno run --allow-env --allow-read --allow-net \
+  scripts/curriculum-stories.ts --dry-run
+SUPABASE_SERVICE_ROLE_KEY=... deno run --allow-env --allow-read --allow-net \
+  scripts/curriculum-stories.ts --stage 1 --limit 10
+```
+
 **Filling the curriculum's clips: `scripts/curriculum-animations.ts`.** For
 every `vocabulary_words` row that qualifies, it makes sure the store holds its
 action's clip, once per action, on the trusted path; nothing is written onto
@@ -749,6 +915,8 @@ poster, its inks stay flat, its camera stays still, and no text appears.
 | The quiz's picture step, for a learner's own word (`QuizCardFrame` → `useEnsureWordAsset`) | the store's picture goes on the learner's row, uncharged; found by the free `useWordAsset` read first, so most hits never reach the function | `ensure` draws and files it, on the learner's daily picture allowance; once per word per session, and silent on any failure |
 | The quiz's reply steps (6 and 9), on the curriculum deck and My Words, for a word its lesson has no line for (`QuizCardFrame` `storedDialogues`) | the stored exchange is asked, uncharged; found by the free `useWordAsset` read first | `ensure` writes and files it, on the learner's daily dialogue allowance, if it passes the leak detector and the native reviewer; otherwise nothing is served and the card asks its fallback |
 | The quiz's "say it" and picture question, on the curriculum deck, for an action word (`QuizCardFrame` `animations`) | the action's clip is shown, uncharged; found by the free `useWordAsset` read, and by `useQuizPool`'s one batched read for the wrong options | nothing is made: the card is asked with its picture, or its meaning |
+| The quiz's top step ("in a story"), on the curriculum deck and My Words (`QuizCardFrame` `storyLines`) | the stored passage is asked, uncharged; found by the free `useWordAsset` read first | `ensure` takes one from a published story (free) or writes one, on the learner's daily dialogue allowance, if it passes the leak detector and the native reviewer; otherwise the card asks the reply |
+| `scripts/curriculum-stories.ts` (the service role, no function) | nothing to do, unless what is filed is a passage a learner's miss wrote, which a story's takes the place of | files the passage a published story holds for the word; a word no story uses is left for its first learner |
 | `scripts/curriculum-animations.ts` (the trusted path) | nothing to do, and not counted against `--limit` | `ensure` draws the poster, animates it and files both; charged to nobody (a content team member's own ask is counted on `word-asset-animation`, ten a day) |
 | `scripts/curriculum-pictures.ts` (the trusted path) | the url is copied onto the curriculum row, unless what is filed is a gloss-only picture and the row has an authored scene, which is then drawn in its place | `ensure` draws from the authored scene and files it as `authored`; charged to nobody |
 | The picture dialog (`GenerateImageDialog`) | a word's first picture comes from `word-asset ensure`; the url goes on the learner's row as a generated one did | `ensure` draws and files it. A regeneration, a described picture or a locked style is the learner's own and goes to `generate-flashcard-image`, as does a first picture the store turned away before charging (404 not deployed, 400 a word it cannot file); a failure after the charge is reported, never retried on the illustrator |
@@ -785,7 +953,10 @@ not share that picture. The curriculum deck's lookup reads as none and the
 card is asked its fallback. No exchange is made at all (`store_not_ready`,
 uncharged), so step 6 picks the word and step 9 says the line, exactly as
 before Phase 4. No clip is made either (`store_not_ready`) and none is read,
-so "say it" and the picture question show pictures as before Phase 5.
+so "say it" and the picture question show pictures as before Phase 5. No story
+passage is taken or written (`store_not_ready`, before the search), so the
+top step asks the reply, as before Phase 6, and `scripts/curriculum-stories.ts`
+stops before it searches.
 
 **Until this `word-asset` is deployed** it depends on what is there. With no
 `word-asset` at all the quiz's ask is turned away uncharged (404) and it
@@ -797,7 +968,10 @@ Neither makes an exchange either: the Phase 2 and Phase 3 functions answer
 exchanges for a while and asks the fallback. A `word-asset` from before Phase
 5 answers an animation `kind_not_generated` too, and
 `scripts/curriculum-animations.ts` stops on its first action; the quiz never
-asks for a clip to be made, so it notices nothing.
+asks for a clip to be made, so it notices nothing. A `word-asset` from before
+Phase 6 answers a story passage `kind_not_generated`, uncharged, and the quiz
+stops asking for passages for a while and asks the reply;
+`scripts/curriculum-stories.ts` calls no function and is not affected.
 
 `useWordAsset` is the browser's read of the store and stays read-only: making
 an asset is a generation with a cost, so that is a separate hook,
@@ -1032,6 +1206,14 @@ synthesised instead. Keeping those two honest is what `storedClipFor` is for,
 and what makes `translate-story-dialect` drop the recording of every line whose
 words it changed. The controls used to be gated on a stored recording
 existing at all, so a story nobody had narrated could not be heard.
+
+**Its stories lend the quiz its passages.** The quiz's top step asks a mature
+word in two sentences of a story, and takes them from here where a published
+story already uses the word: the dialect rendering only, never the fusha, and
+only from a public-domain or CC0 story in exactly the word's dialect, as its
+latest conversion left it ("The asset store", story passages). A story moved
+to another dialect lends nothing from a line the conversion skipped, and a
+CC-BY or CC-BY-SA story lends nothing at all.
 
 Two narration bugs worth not reintroducing: the generators asked for
 `dialect_vocalized || arabic_vocalized || dialect`, which reads as a preference

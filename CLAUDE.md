@@ -164,7 +164,8 @@ harness.
   until the live project carries the column the preference is device-local
   and a `typesDrift` entry names the migration). `src/lib/quizLadder.ts`
   reads each card's question off its memory state — gap, picture, audio,
-  pick the word, answer the line, say it, say the line, say the reply — and
+  pick the word, answer the line, say it, say the line, say the reply, the
+  word in a story — and
   `QuizCardFrame` turns the answer into a rating that goes down the pages'
   existing rating paths, so the queue, relearn, leeches and `review_log`
   never know the style. Two things it must keep: a choice answer never earns
@@ -215,7 +216,16 @@ harness.
   poster that Veo animates as its first and last frame, into the
   `word-animations` bucket; only a curriculum word qualifies
   (`qualifiesForAnimation`: its category's head is "verb", or an action
-  noun), and the quiz only reads clips. README "The asset store".
+  noun), and the quiz only reads clips. A story passage (`kind: "story_line"`,
+  quiz Phase 6, `_shared/wordStoryLine.ts`) is taken from a published story
+  before anything is written: `authentic_story_lines.dialect` only (never
+  `arabic`, `body_fusha` or `body_dialect`, which backfills skipped lines with
+  fusha), `status = 'published'`, a public-domain or CC0 licence, the story's
+  dialect exactly (`storyDialect`: `normalizeDialect` reads Levantine and MSA
+  as Gulf), and its current rendering (`inCurrentRendering`). Only then is one
+  written, through the same `writeText` as an exchange, charged on the
+  exchange's counter. `reading_passages` is not a source: its `dialect` is
+  never written. README "The asset store".
 - **Flashcard scheduling is FSRS-6, not FSRS-4.5 or SM-2, and the weights are
   meant to be fitted.** `src/lib/spacedRepetition.ts` implements the FSRS-6
   formulas line for line from fsrs-rs (21 weights). Two things it must keep:

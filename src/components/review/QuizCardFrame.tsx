@@ -438,6 +438,21 @@ export const QuizCardFrame = ({
     return out;
   }, [dealtPool, item.english]);
 
+  // Which word each wrong meaning belongs to, for "Why not this one?" on the
+  // meaning questions: what the learner took the word for. A meaning two of
+  // the other words share names neither.
+  const wordForMeaning = useMemo(() => {
+    const words = new Map<string, string | null>();
+    for (const other of dealtPool) {
+      const key = other.english.trim().toLowerCase();
+      if (!key || !ARABIC_RE.test(other.arabic)) continue;
+      const seen = words.get(key);
+      if (seen === undefined) words.set(key, other.arabic);
+      else if (seen !== null && normalizeArabicWord(seen) !== normalizeArabicWord(other.arabic)) words.set(key, null);
+    }
+    return (english: string) => words.get(english.trim().toLowerCase()) ?? null;
+  }, [dealtPool]);
+
   // Pictures of other words, once each, and never one that means what this
   // word means (another dialect's word for it, in a mixed deck) or shows its
   // action ("eat" where this one says "I eat", "watch" beside "watch / see",
@@ -757,6 +772,7 @@ export const QuizCardFrame = ({
           audioUrl={item.audioUrl}
           dialect={item.dialect}
           pool={englishPool}
+          wordForMeaning={wordForMeaning}
           context={context}
           onAnswer={({ correct, hintUsed }) => onChoice(correct, hintUsed)}
         />
@@ -772,9 +788,11 @@ export const QuizCardFrame = ({
           ? { key: "answer", animation: ownClip, english: item.english }
           : { key: "answer", imageUrl: pictureUrl, english: item.english },
         (e, i) =>
+          // The word behind a wrong picture is never shown; "Why not this
+          // one?" names it to the tutor once the pick is made.
           e.animation
-            ? { key: `wrong-${i}`, animation: e.animation, english: e.english }
-            : { key: `wrong-${i}`, imageUrl: e.imageUrl, english: e.english },
+            ? { key: `wrong-${i}`, animation: e.animation, english: e.english, arabic: e.arabic }
+            : { key: `wrong-${i}`, imageUrl: e.imageUrl, english: e.english, arabic: e.arabic },
       );
       const moving = dealt.filter((option) => option.animation).length >= MIN_MOVING_OPTIONS;
       card = (

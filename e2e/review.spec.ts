@@ -314,6 +314,34 @@ test.describe("the quiz style", () => {
     await expect.poll(() => backend.db.rows("word_reviews")[0]?.last_result).toBe("good");
   });
 
+  test("a wrong pick in the gap asks the tutor why, about this sentence", async ({ page }) => {
+    await signIn(page);
+    const backend = await stubSupabase(page, { tables: { ...aDeck(), ...quizProfile() } });
+
+    await page.goto("/review");
+    await expect(page.getByText("Fill in the missing word")).toBeVisible();
+
+    // Any option but the answer: which three were dealt is the card's seed.
+    const wrong = page.getByRole("button", { name: /^(بيت|مدرسة|مطعم|سيارة)$/ }).first();
+    const picked = ((await wrong.textContent()) ?? "").trim();
+    await wrong.click();
+
+    await page.getByRole("button", { name: /why not this one/i }).click();
+    // The tutor is asked about the pair, in this sentence, by itself; the
+    // seed is the sentence alone.
+    await expect.poll(() => backend.callsTo("assistant-chat").length).toBeGreaterThan(0);
+    const body = backend.lastCallTo("assistant-chat")?.body as { messages?: Array<{ content: string }>; seed?: unknown };
+    expect(body.messages?.[0]?.content).toContain(
+      `In this sentence I put «${picked}» in the gap, but the word is «السوق» ("the market")`,
+    );
+    expect(body.seed).toEqual({ arabic: "رحت السوق أمس", english: "I went to the market yesterday" });
+
+    // The pick is still graded as it was: Again.
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: /continue/i }).click();
+    await expect.poll(() => backend.db.rows("word_reviews")[0]?.last_result).toBe("again");
+  });
+
   // A tiny valid PNG, so the picture question can be seeded without any
   // network: the e2e harness answers no image host.
   const PIXEL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";

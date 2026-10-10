@@ -5,6 +5,7 @@ import { useMaskedSentenceAudio } from "@/hooks/useMaskedSentenceAudio";
 import { cn } from "@/lib/utils";
 import { findWordSpan, normalizeArabicWord } from "@/lib/arabicWord";
 import { buildChoices } from "@/lib/quizDistractors";
+import { whyNotQuestion } from "@/lib/quizWhyNot";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 
 interface Props {
@@ -219,11 +220,28 @@ export const ReviewClozeCard = ({
             </div>
           )}
           <div className="mt-3 flex justify-center">
-            <AskAISentence
-              arabic={sentenceText}
-              english={sentenceEnglish ?? wordEnglish}
-              variant="chip"
-            />
+            {selected !== wordArabic ? (
+              // The pair and the sentence, to the tutor: why this gap takes
+              // one word and not the other.
+              <AskAISentence
+                arabic={sentenceText}
+                english={sentenceEnglish ?? wordEnglish}
+                variant="chip"
+                label="Why not this one?"
+                ask={whyNotQuestion({
+                  format: hintEnglish ? "cloze-hint" : "cloze",
+                  picked: selected,
+                  answer: wordArabic,
+                  meaning: wordEnglish,
+                })}
+              />
+            ) : (
+              <AskAISentence
+                arabic={sentenceText}
+                english={sentenceEnglish ?? wordEnglish}
+                variant="chip"
+              />
+            )}
           </div>
         </div>
       )}

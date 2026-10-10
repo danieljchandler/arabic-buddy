@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders, type HarnessOptions } from "@/test/support/react/harness";
 import type { QuizPoolEntry } from "@/hooks/useQuizPool";
 import type { SupabaseBackend } from "@/test/support/server/handler";
+import { useAiAssistant } from "@/contexts/AiAssistantContext";
 import {
   ANIMATION_LOOKUP_WAIT_MS,
   DIALOGUE_WRITING_WAIT_MS,
@@ -300,6 +301,83 @@ describe("turning an answer into a rating", () => {
     render(anItem(), { combo: 4 });
 
     expect(screen.getByLabelText("4 in a row")).toBeInTheDocument();
+  });
+});
+
+/**
+ * "Why not this one?" (quiz Phase 7). The cards build the question; what the
+ * frame owes them is the other half of the pair the learner never saw: the
+ * word a wrong meaning belongs to, and the word behind a wrong picture.
+ */
+describe("why not this one?", () => {
+  function AskedProbe() {
+    const { pendingAsk } = useAiAssistant();
+    return <div data-testid="asked">{pendingAsk?.text ?? ""}</div>;
+  }
+
+  function renderAsking(item: QuizItem, pool: ReadonlyArray<QuizPoolEntry> = POOL) {
+    const onGraded = vi.fn();
+    const harness = renderWithProviders(
+      <>
+        <QuizCardFrame item={item} pool={pool} onGraded={onGraded} renderFlashcard={() => <div>the flip card</div>} />
+        <AskedProbe />
+      </>,
+    );
+    cleanup = harness.cleanup;
+  }
+
+  const WORDS: Record<string, string> = { house: "بيت", school: "مدرسة", restaurant: "مطعم", car: "سيارة" };
+  const askWhy = () => fireEvent.click(screen.getByRole("button", { name: /why not this one/i }));
+
+  it("names the word a wrong meaning belongs to", () => {
+    renderAsking(anItem({ sentence: null, memory: { stability: 10, repetitions: 3 } }));
+    expect(screen.getByText("What did you hear?")).toBeInTheDocument();
+    const wrong = screen.getAllByRole("radio").map((r) => r.textContent!.trim()).find((m) => m !== "the market")!;
+    fireEvent.click(screen.getByRole("radio", { name: wrong }));
+
+    askWhy();
+    expect(screen.getByTestId("asked")).toHaveTextContent(`picked "${wrong}" (that's «${WORDS[wrong]}»)`);
+  });
+
+  // Three other meanings, so all three are dealt and "house" can be picked.
+  it("names neither word when two of the others share the meaning picked", () => {
+    const pool = [
+      { arabic: "بيت", english: "house" },
+      { arabic: "دار", english: "house" },
+      { arabic: "مدرسة", english: "school" },
+      { arabic: "سيارة", english: "car" },
+    ];
+    renderAsking(anItem({ sentence: null }), pool);
+    fireEvent.click(screen.getByRole("radio", { name: "house" }));
+
+    askWhy();
+    expect(screen.getByTestId("asked")).toHaveTextContent('I picked "house" for «السوق»');
+    expect(screen.getByTestId("asked")).not.toHaveTextContent("that's");
+  });
+
+  it("names the word when the meaning's two words are one word spelled two ways", () => {
+    const pool = [
+      { arabic: "بيت", english: "house" },
+      { arabic: "بَيْت", english: "house" },
+      { arabic: "مدرسة", english: "school" },
+      { arabic: "سيارة", english: "car" },
+    ];
+    renderAsking(anItem({ sentence: null }), pool);
+    fireEvent.click(screen.getByRole("radio", { name: "house" }));
+
+    askWhy();
+    expect(screen.getByTestId("asked")).toHaveTextContent(`I picked "house" (that's «بيت») for «السوق»`);
+  });
+
+  it("names the word behind a wrong picture", () => {
+    renderAsking(anItem({ imageUrl: "https://img.test/market.png", memory: { stability: 5, repetitions: 2 } }));
+    expect(screen.getByText("Which picture?")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: "house" }));
+
+    askWhy();
+    expect(screen.getByTestId("asked")).toHaveTextContent(
+      'I picked the picture of "house" (that\'s «بيت») for «السوق», but «السوق» means "the market".',
+    );
   });
 });
 

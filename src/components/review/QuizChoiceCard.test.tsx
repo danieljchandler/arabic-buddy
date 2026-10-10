@@ -1,6 +1,7 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@/test/support/react/harness";
+import { useAiAssistant } from "@/contexts/AiAssistantContext";
 import { QuizChoiceCard } from "./QuizChoiceCard";
 
 /**
@@ -183,5 +184,78 @@ describe("the sentence hint", () => {
     render();
 
     expect(screen.queryByRole("button", { name: /show the sentence/i })).not.toBeInTheDocument();
+  });
+});
+
+/** What the assistant was opened on, for the "Why not this one?" chip. */
+function Probe() {
+  const { isOpen, seed, pendingAsk } = useAiAssistant();
+  return <div data-testid="probe">{isOpen ? `open|${seed?.arabic}|${seed?.english}|${pendingAsk?.text ?? ""}` : "closed"}</div>;
+}
+
+describe("why not this one?", () => {
+  const WORDS: Record<string, string> = { house: "بيت", school: "مدرسة", restaurant: "مطعم", car: "سيارة" };
+
+  function renderWithProbe(over: Props = {}) {
+    const harness = renderWithProviders(
+      <>
+        <QuizChoiceCard
+          format="meaning"
+          id="card-1"
+          arabic={WORD}
+          english={MEANING}
+          pool={POOL}
+          wordForMeaning={(english) => WORDS[english] ?? null}
+          onAnswer={vi.fn()}
+          {...over}
+        />
+        <Probe />
+      </>,
+    );
+    cleanup = harness.cleanup;
+  }
+
+  const wrongOption = () => options().map((o) => o.textContent!.trim()).find((label) => label !== MEANING)!;
+
+  it("asks the tutor, on a wrong pick, how to tell the word from the meaning picked, and whose meaning that is", () => {
+    renderWithProbe();
+    const wrong = wrongOption();
+    pick(wrong);
+
+    fireEvent.click(screen.getByRole("button", { name: /why not this one/i }));
+    const probe = screen.getByTestId("probe");
+    expect(probe).toHaveTextContent(`open|${WORD}|${MEANING}|`);
+    expect(probe).toHaveTextContent(
+      `I picked "${wrong}" (that's «${WORDS[wrong]}») for «${WORD}», but «${WORD}» means "${MEANING}". How do I tell them apart?`,
+    );
+  });
+
+  it("asks about the sound when the word was only heard", () => {
+    renderWithProbe({ format: "listen" });
+    const wrong = wrongOption();
+    pick(wrong);
+
+    fireEvent.click(screen.getByRole("button", { name: /why not this one/i }));
+    expect(screen.getByTestId("probe")).toHaveTextContent(
+      `I heard «${WORD}» and picked "${wrong}" (that's «${WORDS[wrong]}»), but it means "${MEANING}". How do I hear the difference?`,
+    );
+  });
+
+  it("names no word when the deck does not say whose meaning it is", () => {
+    renderWithProbe({ wordForMeaning: () => null });
+    const wrong = wrongOption();
+    pick(wrong);
+
+    fireEvent.click(screen.getByRole("button", { name: /why not this one/i }));
+    expect(screen.getByTestId("probe")).toHaveTextContent(`I picked "${wrong}" for «${WORD}»`);
+    expect(screen.getByTestId("probe")).not.toHaveTextContent("that's");
+  });
+
+  it("offers the plain question after a right answer", () => {
+    renderWithProbe();
+    pick(MEANING);
+
+    expect(screen.queryByRole("button", { name: /why not this one/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /ask ai/i })).toBeInTheDocument();
   });
 });

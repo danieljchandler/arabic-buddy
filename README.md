@@ -466,9 +466,36 @@ missing word (`QuizStoryCard`):
   the learner's message: the first of a new conversation, or the next one
   when the panel is already about that passage. It is never part of the
   seed, so the server is sent only the sentence, and History never replays
-  it).
+  it). Every other choice step offers the same since Phase 7 (below).
 - *Until the store's table is on the live project* there is no passage and the
   card is asked the reply, exactly as before Phase 6.
+
+**"Why not this one?" on every choice step** (quiz Phase 7). A wrong pick is
+the moment a learner most wants to know what they mixed up, so every question
+with options — the gap, the meaning seen or heard, the picture, the word, the
+reply, and the story's four-option gap — offers **"Why not this one?"** once
+the pick is wrong, in place of its "Ask AI" chip (the picture question had
+none, and still has none after a right pick). One tap opens the tutor and asks, by
+itself, about the pair and what it was picked for (`whyNotQuestion` in
+`src/lib/quizWhyNot.ts`, one question per choice format; a test fails if the
+ladder gains a choice format with none):
+
+| step | the panel opens on | it asks |
+|---|---|---|
+| the gap (1, 2) and the story's (10) | the sentence, or the passage | why the word put in the gap does not fit there |
+| the meaning (shown) and the picture (3) | the word | how to tell the word from the meaning picked, naming that meaning's word |
+| hear it (4) | the word | how to hear the difference, naming that meaning's word |
+| pick the word (5) | the answer | why the word picked, with its own meaning, is not the word |
+| answer the line (6) | the line said | why the reply picked does not answer it |
+
+The word behind a wrong meaning or a wrong picture is the half of the pair the
+learner never saw, and it is the confusion to explain (سوق heard as ساق), so the
+frame hands it to the card: a picture option carries its word, unrendered, and
+a meaning is looked up among the other words (`wordForMeaning`), naming none
+when two different words share it — a wrong guess there would explain the
+wrong mix-up. The question is the one-shot `pendingAsk` described above, never
+part of the seed. The pick is graded exactly as before, and opening the
+tutor after it changes nothing.
 
 Grading is `src/lib/quizGrading.ts`: a right choice is Good (never Easy when
 the options were on screen — the lesson quiz's and debrief's rule), a right

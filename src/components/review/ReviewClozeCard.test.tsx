@@ -1,6 +1,7 @@
 import { act, fireEvent, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@/test/support/react/harness";
+import { useAiAssistant } from "@/contexts/AiAssistantContext";
 import { ReviewClozeCard } from "./ReviewClozeCard";
 
 /**
@@ -306,6 +307,58 @@ describe("answering", () => {
     choose(WORD);
 
     expect(screen.getByText("— the market")).toBeInTheDocument();
+  });
+});
+
+/** What the assistant was opened on, for the "Why not this one?" chip. */
+function Probe() {
+  const { isOpen, seed, pendingAsk } = useAiAssistant();
+  return <div data-testid="probe">{isOpen ? `open|${seed?.arabic}|${seed?.english}|${pendingAsk?.text ?? ""}` : "closed"}</div>;
+}
+
+describe("why not this one?", () => {
+  function renderWithProbe(over: Props = {}) {
+    const harness = renderWithProviders(
+      <>
+        <ReviewClozeCard
+          wordArabic={WORD}
+          wordEnglish="the market"
+          sentenceText={SENTENCE}
+          sentenceEnglish="I went to the market yesterday"
+          distractors={DISTRACTORS}
+          {...over}
+        />
+        <Probe />
+      </>,
+    );
+    cleanup = harness.cleanup;
+  }
+
+  it("asks the tutor, on a wrong pick, why the word picked does not fit this sentence's gap", () => {
+    renderWithProbe();
+    choose("بيت");
+
+    fireEvent.click(screen.getByRole("button", { name: /why not this one/i }));
+    const probe = screen.getByTestId("probe");
+    expect(probe).toHaveTextContent(`open|${SENTENCE}|I went to the market yesterday|`);
+    expect(probe).toHaveTextContent(
+      'In this sentence I put «بيت» in the gap, but the word is «السوق» ("the market"). Why doesn\'t «بيت» fit here?',
+    );
+  });
+
+  it("offers the plain question after a right answer", () => {
+    renderWithProbe();
+    choose(WORD);
+
+    expect(screen.queryByRole("button", { name: /why not this one/i })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /ask ai/i }));
+    expect(screen.getByTestId("probe")).toHaveTextContent(`open|${SENTENCE}|I went to the market yesterday|`);
+    expect(screen.getByTestId("probe").textContent?.endsWith("|")).toBe(true);
+  });
+
+  it("is not offered before the answer", () => {
+    renderWithProbe();
+    expect(screen.queryByRole("button", { name: /why not this one/i })).not.toBeInTheDocument();
   });
 });
 

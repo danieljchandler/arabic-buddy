@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { storyGap, whyNotQuestion } from "./quizStory";
+import { storyGap } from "./quizStory";
 import { asStoredStoryLine } from "../../supabase/functions/_shared/wordStoryLine";
 
 /**
@@ -81,13 +81,5 @@ describe("storyGap", () => {
   it("is no gap without a passage", () => {
     expect(storyGap(null, "قهوة", "coffee")).toBeNull();
     expect(storyGap(undefined, "قهوة", "coffee")).toBeNull();
-  });
-});
-
-describe("whyNotQuestion", () => {
-  it("puts the pair to the tutor, about this gap", () => {
-    expect(whyNotQuestion({ picked: "شاي", answer: "قهوة", meaning: "coffee" })).toBe(
-      'In this passage I put «شاي» in the gap, but the word is «قهوة» ("coffee"). Why doesn\'t «شاي» fit here?',
-    );
   });
 });

@@ -22,7 +22,7 @@ means — so a session can pick up the next phase cold.*
 | 5b | Apply the bucket migration, deploy `word-asset`, run `scripts/curriculum-animations.ts` | **owner action** (after 2b) |
 | 6 | Words in stories | built (PR #428) |
 | 6b | Deploy `word-asset` (this version), then run `scripts/curriculum-stories.ts` | **owner action** (after 2b) |
-| 7 | The rest of the game | in progress: "Why not this one?" built (PR #430) |
+| 7 | The rest of the game | in progress: "Why not this one?" (PR #430) and the lightning round (PR #LIGHTNING) built |
 | 8 | Tuning from real reviews | once the quiz has weeks of history |
 | 9 | Housekeeping | any time |
 
@@ -877,8 +877,8 @@ One PR per item, in this order, each independent of the asset store:
 | item | status |
 |---|---|
 | 7.1 "Why not this one?" on every choice step | built (PR #430) |
-| 7.2 The lightning round | next |
-| 7.3 The boss card | to build |
+| 7.2 The lightning round | built (PR #LIGHTNING, on #430) |
+| 7.3 The boss card | next |
 | 7.4 Ladder climbs on the leaderboard | to build |
 | XP parity for the flip cards | **a question for the owner**, not built |
 
@@ -941,6 +941,55 @@ card, where عيش is rice). The word named is one the learner's deck holds for
 that meaning, so the naming is not false, only perhaps not the mix-up they
 made; carrying the dialect on `QuizPoolEntry` and naming only the card's own
 dialect's word would close it.
+
+### 7.2 The lightning round (built, PR #LIGHTNING)
+
+What shipped (writeup: README "Reviewing as a quiz instead of flashcards",
+the lightning round):
+
+- **`src/lib/lightningRound.ts`**, pure, the clock passed in:
+  `lightningFormat` (which right answers are in the round and how each is
+  asked), `storedRecording` and `lightningWordFor` (a session's answer as a
+  word for the round), `addLightningWord` (once per word),
+  `canOfferLightning` (`LIGHTNING_MIN_WORDS`, 3), and the round itself:
+  `startLightning` (a seeded order), `answerLightning`, `nextLightning`,
+  `expireLightning`, `lightningRemainingMs`, `lightningResult`
+  (`LIGHTNING_SECONDS`, 60; `LIGHTNING_REVEAL_MS`, a beat after each answer).
+- **`LightningRound`** on the end screen of all three quiz decks, under the
+  summary: the offer, the round (a clock bar, "n / total", the score), and
+  the result with "Play again" (a new order).
+- **`bare`** on `ReviewClozeCard` and `QuizChoiceCard`, and `skip` on
+  `useMaskedSentenceAudio`: nothing synthesised, nothing played by itself
+  but a stored recording, no translation, sentence hint or tutor.
+- **`QuizGraded` carries the `item`** the frame asked, so a page can keep
+  the right answers without rebuilding the card.
+- Guards: `lightningRound.test.ts`, `LightningRound.test.tsx` (fake timers:
+  the minute, the reveal, nothing synthesised), `ReviewClozeCard.test.tsx`,
+  `QuizChoiceCard.test.tsx` and `useMaskedSentenceAudio.test.ts` (bare /
+  skip), `QuizCardFrame.test.tsx`, and `review.spec.ts` ("the lightning
+  round": a session, the round, and no rating, XP or voice from it).
+
+**Decided in this item:**
+
+1. *"Today's" right answers are the session's*: the page's, kept as they
+   are answered, like the summary. A round on My Words does not reach back
+   into the curriculum session before it.
+2. *Each word once, against the clock*; the round ends at the minute or at
+   the last word, and the time is part of the result. Words are not dealt
+   again to fill the minute, so a short session is a short round.
+3. *Three questions, not four*: the gap, the word shown → its meaning (for
+   the picture, too), and the word heard. The picture question is not asked
+   again: dealing four pictures needs the frame's whole picture logic (one
+   visual a word, no sense or action overlap, clips held still), and the
+   word → meaning direction is the same question with the meanings as text.
+4. *Nothing is synthesised.* A gap is read in silence; a word whose only
+   voice was synthesised is shown. A round of fifteen gaps would otherwise
+   be fifteen sentence readings (`docs/ai-spend-2026-10.md`: about $0.004
+   a line) for a flourish.
+5. *No XP*: "score and time only". A combo, a best score kept on the
+   device, or XP for a round would each be a separate decision.
+6. *Moves on by itself*: half a second after a right answer, 1.2 s after a
+   wrong one. The clock runs on through the beat; the last answer stops it.
 
 ### The plan, as it was written
 

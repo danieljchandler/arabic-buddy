@@ -528,6 +528,34 @@ Phrases decks also pays the flat review XP that the curriculum deck pays and
 those decks' flip cards never did. Under Flashcards, My Words serves plain flip
 cards — the every-other-card cloze it used to show now lives in the quiz.
 
+**The lightning round** (quiz Phase 7). On each quiz deck's end screen, under
+the summary, a session with at least three right answers at the ladder's
+first four steps is offered sixty seconds over those words
+(`LightningRound`, its rules pure in `src/lib/lightningRound.ts`). Each word
+is asked once, in an order of its own, and moves on by itself after a beat
+(half a second after a right answer, 1.2 s after a wrong one, so the right
+one can be read); the round ends when the clock runs out, mid-question or
+not, or when the last word is answered, and the result is the score and the
+time ("Every word in 23 s", or "Time!"). The questions are the session's own
+cards, asked **bare** (`bare` on `ReviewClozeCard` and `QuizChoiceCard`):
+
+- a gap (steps 1 and 2) is asked as the gap, without the first look's hint;
+- the picture, and the meaning shown, as the word shown → pick its meaning
+  (the picture question's direction, with the meanings as words);
+- the word heard alone as the word heard alone, but only when it has a
+  stored recording — otherwise as the word shown.
+
+It is fenced off from everything the session does. No answer in it is a
+rating, nothing is written, and no XP is paid. And it costs nothing: a bare
+card synthesises no voice and plays nothing by itself but a stored
+recording, and offers no translation, sentence hint or tutor, so the round
+calls no function at all. That is why a word the session heard in a
+synthesised voice is shown rather than heard (and why a page's `blob:` url,
+revoked once its card changes, is dropped from the word: `storedRecording`).
+The words are the session's, kept on the page as they are answered right
+(`lightningWordFor`, once per word), and a deck switch starts afresh with the
+summary.
+
 Proposal and the phases still to come (the rest of the game, tuning from real
 reviews): `docs/quiz-modes-plan-2026-10.md`; the execution roadmap is
 `docs/quiz-phases-2026-10.md`.

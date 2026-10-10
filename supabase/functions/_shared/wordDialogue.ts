@@ -74,6 +74,47 @@ export function lineUsesWord(line: string, word: string): boolean {
   return false;
 }
 
+/** The prefixes a speaker attaches to a word, in the order they stack: and/so, with/to/like, the. */
+const PROCLITICS = [/^[وف]/, /^[بلك]/, /^ال/];
+
+/**
+ * A folded token, and the same token with each attached prefix taken off in
+ * turn (والقهوه → القهوه → قهوه), never down to a single letter. The one rule
+ * for "an attached و, ب or ال does not make it another word": the quiz's
+ * grader reads what was heard through it (`wordSpanSimilarity`), and a
+ * passage counts the word's uses through it (`wordUseCount`).
+ */
+export function withoutProclitics(token: string): string[] {
+  const variants = [token];
+  let rest = token;
+  for (const prefix of PROCLITICS) {
+    const stripped = rest.replace(prefix, "");
+    if (stripped !== rest && stripped.length >= 2) {
+      rest = stripped;
+      variants.push(rest);
+    }
+  }
+  return variants;
+}
+
+/**
+ * How many times `text` says the word: as `lineUsesWord` counts a use, and
+ * also where an attached و, ب or ال hides it from that rule (بالسوق is the
+ * word سوق said again). For a passage with a gap, where any second use, bare
+ * or not, is the answer given away.
+ */
+export function wordUseCount(text: string, word: string): number {
+  const target = foldedTokens(word);
+  if (target.length === 0) return 0;
+  const tokens = foldedTokens(text);
+  let count = 0;
+  for (let start = 0; start + target.length <= tokens.length; start++) {
+    if (!withoutProclitics(tokens[start]).includes(target[0])) continue;
+    if (target.every((part, i) => i === 0 || tokens[start + i] === part)) count++;
+  }
+  return count;
+}
+
 const str = (value: unknown): string => (typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "");
 
 function asLine(value: unknown): StoredDialogueLine | null {
@@ -170,20 +211,22 @@ export function authoredExample(text: string | null | undefined, word: string): 
   return foldedTokens(example).length > foldedTokens(word).length ? example : "";
 }
 
-const DIALECT_NAME: Readonly<Record<AssetDialect, string>> = {
+/** How a shared prompt names each dialect. A story passage's prompt uses them too. */
+export const DIALECT_NAME: Readonly<Record<AssetDialect, string>> = {
   Gulf: "Gulf (Khaliji) Arabic",
   Egyptian: "Egyptian Arabic",
   Yemeni: "Yemeni Arabic",
 };
 
-const DIALECT_PLACES: Readonly<Record<AssetDialect, string>> = {
+/** Where a shared prompt sets each dialect's text: everyday life, today. */
+export const DIALECT_PLACES: Readonly<Record<AssetDialect, string>> = {
   Gulf: "everyday life in the Gulf today: home, the majlis, a café, the souq, work, the car",
   Egyptian: "everyday life in Egypt today: home, a Cairo street, a café, the market, work, a microbus",
   Yemeni: "everyday life in Yemen today: home, the souq, a qat chew, work, a family visit",
 };
 
 /** Quote-free and one line, since the sense and example sit inside quotes in the prompt. */
-function promptSafe(text: string, max: number): string {
+export function promptSafe(text: string, max: number): string {
   return text.replace(/["“”«»]/g, "'").replace(/\s+/g, " ").trim().slice(0, max);
 }
 

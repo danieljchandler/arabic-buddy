@@ -12,6 +12,8 @@ import {
   dialogueProblem,
   keyWord,
   lineUsesWord,
+  withoutProclitics,
+  wordUseCount,
 } from "../../supabase/functions/_shared/wordDialogue";
 
 /**
@@ -48,6 +50,36 @@ describe("lineUsesWord", () => {
   it("finds a phrase as a run of whole words", () => {
     expect(lineUsesWord("الله يعطيك العافية يا بو محمد", "يعطيك العافية")).toBe(true);
     expect(lineUsesWord("الله يعطيك يا بو محمد العافية", "يعطيك العافية")).toBe(false);
+  });
+});
+
+describe("withoutProclitics and wordUseCount", () => {
+  it("takes an attached و or ف, then ب, ل or ك, then ال, off in turn, never down to one letter", () => {
+    expect(withoutProclitics("والقهوه")).toEqual(["والقهوه", "القهوه", "قهوه"]);
+    expect(withoutProclitics("بالسوق")).toEqual(["بالسوق", "السوق", "سوق"]);
+    expect(withoutProclitics("قهوه")).toEqual(["قهوه"]);
+    expect(withoutProclitics("وي")).toEqual(["وي"]);
+  });
+
+  it("counts the word wherever it is said, bare or with و, ب or ال attached", () => {
+    expect(wordUseCount("طلب قهوة حارة", "قهوة")).toBe(1);
+    expect(wordUseCount("طلب قهوة وشرب القهوة", "قهوة")).toBe(2);
+    expect(wordUseCount("رحنا بالسوق", "سوق")).toBe(1);
+    expect(wordUseCount("طلب شاي", "قهوة")).toBe(0);
+  });
+
+  it("counts a phrase as one use, with the prefix on its first word only", () => {
+    expect(wordUseCount("نشرب قهوة كل يوم وبكل يوم", "كل يوم")).toBe(2);
+    expect(wordUseCount("كل الناس يوم الجمعة", "كل يوم")).toBe(0);
+  });
+
+  it("agrees with lineUsesWord on a bare use, and goes further only where a prefix is attached", () => {
+    for (const [line, word] of [["طلب قهوة", "قهوة"], ["وين رحت", "زين"], ["الجو زين", "زين"], ["كل يوم نروح", "كل يوم"]] as const) {
+      expect(wordUseCount(line, word) > 0, line).toBe(lineUsesWord(line, word));
+    }
+    // The gap is never cut on القهوة, and it still says the word.
+    expect(lineUsesWord("القهوة حارة", "قهوة")).toBe(false);
+    expect(wordUseCount("القهوة حارة", "قهوة")).toBe(1);
   });
 });
 

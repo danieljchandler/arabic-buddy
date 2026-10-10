@@ -1,6 +1,7 @@
 import { normalizeArabicWord } from "@/lib/arabicWord";
 import type { Rating } from "@/lib/spacedRepetition";
 import { arabicSimilarity } from "../../supabase/functions/_shared/arabicMatch";
+import { withoutProclitics } from "../../supabase/functions/_shared/wordDialogue";
 
 /**
  * How a quiz answer becomes an FSRS rating.
@@ -112,23 +113,6 @@ export function gradeQuizAnswer(outcome: QuizOutcome): Rating {
  * on "say the reply" only the word itself counts.
  */
 export const SHORT_WORD_LETTERS = 3;
-
-/** The prefixes a speaker attaches to a word, in the order they stack: and/so, with/to/like, the. */
-const PROCLITICS = [/^[وف]/, /^[بلك]/, /^ال/];
-
-/** A heard word, and the same word with each attached prefix taken off in turn. */
-function withoutProclitics(token: string): string[] {
-  const variants = [token];
-  let rest = token;
-  for (const prefix of PROCLITICS) {
-    const stripped = rest.replace(prefix, "");
-    if (stripped !== rest && stripped.length >= 2) {
-      rest = stripped;
-      variants.push(rest);
-    }
-  }
-  return variants;
-}
 
 /**
  * How close the closest stretch of what was heard came to the word: the best

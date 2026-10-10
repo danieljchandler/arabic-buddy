@@ -57,7 +57,8 @@
  *    key's folded word, folded sense and dialect alone (`storyLinePrompt`;
  *    the trusted path may add a curriculum word's authored example), drafted
  *    and critiqued with the native validator on, and filed only when every
- *    sentence passes the leak detector and the validator passed what was
+ *    sentence is at most fourteen words (`asWrittenStoryLine`, the writer's
+ *    rule alone), passes the leak detector, and the validator passed what was
  *    shipped.
  *
  * What counts as a passage is one rule, `asStoredStoryLine`: exactly two
@@ -110,10 +111,18 @@ export interface StoredStoryLine {
 
 /**
  * A sentence longer than this is not one a learner can follow by ear in a
- * quiz card. A written one is asked for at fourteen words; a story's line can
- * run longer, and one that does is not cut from.
+ * quiz card. A written one is held to `MAX_WRITTEN_SENTENCE_WORDS` as well; a
+ * story's line can run longer, and one that does is not cut from.
  */
 export const MAX_STORY_SENTENCE_LENGTH = 200;
+
+/**
+ * The most words in a sentence written for a word: what its prompt and its
+ * critic ask for ("at most fourteen words"). The writer's rule alone
+ * (`asWrittenStoryLine`): a story's own sentence is held to
+ * `MAX_STORY_SENTENCE_LENGTH`, and a person wrote it.
+ */
+export const MAX_WRITTEN_SENTENCE_WORDS = 14;
 
 /** Longer than any translation of a sentence that short. */
 const MAX_STORY_ENGLISH_LENGTH = 400;
@@ -174,9 +183,29 @@ export function storyLinePayload(line: Pick<StoredStoryLine, "sentences" | "stor
   return { sentences: line.sentences, ...(line.story ? { story: line.story } : {}) };
 }
 
+/** Words in a sentence: its whitespace tokens with a letter or a digit in them, so a lone dash is none. */
+function sentenceWords(text: string): number {
+  return text.split(/\s+/).filter((token) => /[\p{L}\p{N}]/u.test(token)).length;
+}
+
+/**
+ * A passage written for `word`, or null when it is not one to file: what
+ * `asStoredStoryLine` takes, with every sentence at most
+ * `MAX_WRITTEN_SENTENCE_WORDS` words, and no story, since a story the model
+ * names is not one it came from. The writer's rule only: a passage taken from
+ * a published story, or read back from the store, is `asStoredStoryLine`'s.
+ */
+export function asWrittenStoryLine(value: unknown, word: string): StoredStoryLine | null {
+  const line = asStoredStoryLine(value, word);
+  if (!line || line.sentences.some((sentence) => sentenceWords(sentence.arabic) > MAX_WRITTEN_SENTENCE_WORDS)) {
+    return null;
+  }
+  return { ...line, story: null };
+}
+
 /** Why a draft is not a passage the quiz can use, for the Brain's critic; null when it is. */
 export function storyLineProblem(value: unknown, word: string): string | null {
-  if (asStoredStoryLine(value, word)) return null;
+  if (asWrittenStoryLine(value, word)) return null;
   return (
     `The output must be exactly two sentences, each with Arabic and an English translation, each at most ` +
     `fourteen words. Exactly one of them must contain the word ${word} exactly as written, as a whole word ` +

@@ -2222,6 +2222,52 @@ Deno.test("word-asset ensure files no passage without the word, or with the word
   }
 });
 
+Deno.test("word-asset ensure files no written passage with a sentence past fourteen words", async () => {
+  // What the prompt and the critic ask for. Well under the character limit,
+  // so only the word count stands between it and every learner of the word.
+  const fifteen = {
+    arabic: "رجع من الدوام وطلب الريال قهوة حارة وقعد يسولف مع ربعه في المجلس لين الليل.",
+    english: "He came back from work, the man ordered hot coffee and sat chatting with his friends in the majlis until night.",
+  };
+  const table = assetTable();
+  const { status, body, calls } = await call(
+    { action: "ensure", ...COFFEE_STORY },
+    upstreams({ id: LEARNER_A }, table.handler, writing(aPassage(morning, fifteen))),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(body.error, "STORY_LINE_GENERATION_FAILED");
+  assertEquals(table.rows, []);
+  // The critic was sent back over it, and what it shipped was read by the same rule.
+  assert(chatCalls(calls).some((c) => (c.body ?? "").includes("at most fourteen words")), "the critic was not told");
+});
+
+Deno.test("word-asset ensure still takes a story's sentence past fourteen words: the limit is the writer's", async () => {
+  // A person wrote and published the story; its line is held to the
+  // character limit only, as it always was.
+  const long = "بعد ما رجع من الدوام طلب الريال قهوة حارة وقعد يسولف مع ربعه في المجلس لين الليل.";
+  const table = assetTable();
+  const { status, calls } = await call(
+    { action: "ensure", ...COFFEE_STORY },
+    upstreams({ id: LEARNER_A }, table.handler, {
+      ...library(
+        [aStory({ body_dialect: [morning.arabic, long, "بعدين قعد مع ربعه."].join("\n") })],
+        storyLines([{}, {
+          dialect: long,
+          english: "After he came back from work, the man ordered hot coffee and sat chatting with his friends in the majlis until night.",
+        }]),
+      ),
+      ...writing(aPassage()),
+    }),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(chatCalls(calls), [], "written instead of taken from the story");
+  assertEquals(table.rows[0]?.source, "reviewed");
+  const sentences = (table.rows[0]?.payload as { sentences: Array<{ arabic: string }> }).sentences;
+  assertEquals(sentences.map((sentence) => sentence.arabic), [morning.arabic, long]);
+});
+
 Deno.test("word-asset ensure files no passage the native reviewer failed, and keeps none it could not judge", async () => {
   const failing: UpstreamHandler = async (request) => {
     const body = await request.text();

@@ -24,7 +24,9 @@ means — so a session can pick up the next phase cold.*
 | 6b | Deploy `word-asset` (this version), then run `scripts/curriculum-stories.ts` | **owner action** (after 2b) |
 | 7 | The rest of the game | built: "Why not this one?" (PR #430), the lightning round (PR #431), the boss card (PR #432), ladder climbs (PR #433); XP parity is the owner's question |
 | 7b | Apply the `leaderboard_climbs` migration to the live project | **owner action** |
-| 8 | Tuning from real reviews | once the quiz has weeks of history |
+| 8 | Tuning from real reviews | groundwork built (PR #436): each rating records what it was asked as, and the report is written; the tuning itself is 8c |
+| 8b | Apply the `quiz_rating_asked` migration to the live project | **owner action** |
+| 8c | Run `npm run quiz:ladder-report` after a month of ratings, and set the thresholds | **owner action** (after 8b) |
 | 9 | Housekeeping | built (PR #434); a zero-day interval in the scheduler is the owner's question |
 
 Conventions that hold in every phase, from `CLAUDE.md`:
@@ -1259,21 +1261,151 @@ e2e for the round.
 
 ---
 
-## Phase 8 — tuning from real reviews
+## Phase 8 — tuning from real reviews (groundwork built, PR #436; the tuning is 8c)
 
 **Goal.** The thresholds in `LADDER_THRESHOLDS` are a first guess. Once the
 quiz has weeks of ratings, set them from the data.
 
-**Build.** A script over `review_log` (which records every curriculum and
-set-phrase rating with stability before and after) reporting accuracy per
-step and per format, and the stability at which each step's accuracy
-settles; move the thresholds to where the next step's accuracy would be
-about 85%. Add the format to what the page records (a `review_log.detail`
-jsonb, or the existing `featureMetrics` sink) so the report can tell a gap
-from a picture.
+**What shipped (the groundwork).**
 
-**Done when.** The thresholds have been set from at least a month of
-ratings and the README table says so.
+- **Each curriculum rating records what it was asked as.** `QuizGraded`
+  carries `askedStep` (the ladder's step for the memory the question was
+  asked from: 1 for a boss) beside `format`. The page hands both to the queue
+  (`QueuedRating.asked`), and `submitRatingToServer` writes them on the
+  rating's own write as `word_reviews.last_quiz_format` and
+  `last_quiz_step`, stamped `last_quiz_at` with the same moment as the
+  `last_reviewed_at` it writes; nulls for a flip card and for a lesson's
+  grade (`useSubmitReview`). Migration `20261010130000_quiz_rating_asked`
+  adds those three columns, `review_log.quiz_format`, `quiz_step` and
+  `repetitions_before`, and re-creates the log trigger (`log_word_review`,
+  still `SECURITY DEFINER`) to copy the question beside the rating. It
+  copies it only when `last_quiz_at` is the direction's new
+  `last_reviewed_at`, so a write that moves the review without restamping
+  the question (an older tab, a device that has stopped sending it) is
+  logged with none rather than with the previous rating's; and only a
+  format of lowercase words and a step from 1 to 10. The row is the
+  learner's own to write; the log keeps nothing else from it, and stays
+  trigger-written.
+- **Repetitions before.** The report recomputes the step a card was asked
+  at from its memory before the review. `repetitions_after - 1` (what the
+  climbs count reads) is wrong for a lapse, which leaves repetitions as they
+  were: a card missed on its first repetition would read as a first look. The
+  trigger logs `OLD.repetitions` (or the production count) instead.
+- **Why not `feature_metrics`.** The plan suggested the existing sink; the
+  browser cannot write it (insert has been service-role only since
+  `20260723000000`), and an edge function to take each rating would be a
+  deploy. The log trigger was there already.
+- **It cannot break a rating.** Until the owner applies the migration (8b),
+  PostgREST refuses a write that names the new columns. `isMissingQuizColumn`
+  recognises that refusal (PGRST204, or Postgres's 42703, naming
+  `last_quiz_*`), the write is sent again without them, and the device stops
+  sending them for a day (`markQuizColumnsMissing`, `src/lib/quizRatingFields.ts`)
+  before trying again, so the fields start flowing on their own once the
+  migration is applied. The six columns sit in `typesDrift` until a types
+  regeneration carries them.
+- **The report.** `src/lib/quizLadderReport.ts` (pure, tested on fixtures)
+  and `npm run quiz:ladder-report` (`scripts/quiz-ladder-report.ts`, read-only,
+  service role). It pages the log on its id until a page comes back empty,
+  and refuses a redirect (the key goes to no other host). For each review
+  with a question recorded it recomputes the step from the logged memory
+  (`stability_before`, `repetitions_before`) and sorts it: on the ladder
+  (that step, in its own format), a fallback (that step, another format, for
+  want of material), or off it (another step: a boss, or a row logged under
+  thresholds since changed); a format the quiz does not ask, or a step
+  outside 1–10, is counted apart and nowhere else. It reports accuracy per
+  step and per format as asked, and for each threshold the bands of
+  stability above it in half-octaves.
+- **What it takes to move a threshold.** At least 30 answers (`--min`) from
+  at least 5 learners, each learner counted at most 50 times, so one keen
+  learner cannot set a threshold for everyone. It *holds* when the band at
+  the threshold has at least 10 answers, the step is answered right at the
+  target (85%) from there up, and no band above is clearly under it (the top
+  of its 95% Wilson interval below the target). It is *raised* to the lowest
+  band that meets the same test, but only when the bands it is moved past
+  are, pooled, clearly under the target. It *never settles* when the step's
+  whole range is clearly under it. Anything else with enough answers is
+  *unclear*: thin at the threshold, or under the target without being
+  clearly so. Only answers on the ladder move a threshold.
+- **What it cannot say.** Whether a threshold could come down: on the
+  ladder, a step's own question is never asked below its threshold, so the
+  log has no answers there that count (a boss or a fallback can be asked
+  there, and neither does). A threshold that holds from its first band may be higher
+  than it needs to be; finding out would take an experiment that asks below
+  it, which is a decision for later.
+- **Scope.** The curriculum deck only: My Words and My Phrases are not in
+  `review_log` (logging them is its own migration, and an owner question).
+  `LADDER_THRESHOLDS` is unchanged.
+
+**Tests.** `quizRatingFields` (the fields and their stamp, nulls, the
+refusal, a day's pause); the queue writes them with the rating, stamped with
+its `last_reviewed_at`, nulls for a flip card, and saves the rating without
+them when the project refuses them, on an update and on a first rating's
+insert (`useReviewQueue.test.ts`); a lesson's grade writes nulls and saves
+without the columns (`useReview.test.ts`); the frame reports `askedStep`, 1
+for a boss whose own step is 4; the report on fixtures (each verdict, a
+lapse read from the repetitions it had, a question the app does not ask,
+too few learners, the per-learner cap, a thin band at the threshold, a band
+under the target but not clearly, Wilson's interval against published
+values, bosses and fallbacks not moving a threshold, the bands, the text,
+keyset paging past a short page, a read that does not move forward, the
+arguments); the migration replay runs the trigger against Postgres (a quiz
+rating, a flip rating, a production rating, a lapse's repetitions before, a
+write that moves the review without restamping the question, and values
+out of bounds); `reviewLog.test.ts` holds the trigger's latest definition to
+`SECURITY DEFINER`; and the e2e `/review` answer writes `cloze-hint` at step
+1 while a flip card writes nulls.
+
+### Phase 8b — owner action
+
+Apply `20261010130000_quiz_rating_asked.sql` to the live project (ask Lovable
+to run it, or `supabase db push`). It adds three nullable columns to
+`word_reviews` and three to `review_log`, and replaces `log_word_review` with
+the same trigger plus the copy. Then let the types regenerate and delete the
+six `typesDrift` entries. Until then ratings save as before and the log
+records no question.
+
+**Done when** (8b): a quiz rating in production leaves a `review_log` row
+with `quiz_format` set. Check from a fresh browser, or after clearing the
+`hakiya:quiz-rating-fields-missing-until` key: a device that was refused the
+columns before they were applied leaves them off for up to a day.
+
+### Phase 8c — owner action
+
+After a month of ratings with the columns live:
+`SUPABASE_URL=… SUPABASE_SERVICE_ROLE_KEY=… npm run quiz:ladder-report -- --since <the day 8b went live>`.
+Move each threshold the report raises, leave the ones that hold (and the
+unclear ones, until more answers decide them), and note in the README table
+that the numbers now come from the data. Moving one touches three things:
+
+- `LADDER_THRESHOLDS` in `src/lib/quizLadder.ts`.
+- The ladder in SQL: a new migration re-creating `quiz_ladder_step` (first
+  defined in `20261010120000_leaderboard_climbs`) with the same numbers,
+  which is itself an owner action to apply. `leaderboardClimbs.test.ts`
+  holds the latest definition to the TypeScript, so CI fails until both move.
+- `pictureDays` is also when a word's production card is first served
+  (`holdsProduction`) and when a saved phrase is asked to be said
+  (`phraseDirection`); raising it holds both back. Decide that with it.
+
+A threshold that *never settles* says the step's question is too hard for
+the range the ladder gives it, and raising the threshold cannot mend that
+(past the next one, the step is never asked). Leave it, and look at the
+question: its material, its distractors, its format.
+
+A row logged under the old thresholds whose step the retune moves then reads
+as off the ladder, and the rest are read against numbers they were not asked
+under, so the next report is run `--since` the day the new ones went live.
+
+**Done when** (Phase 8). The thresholds have been set from at least a month
+of ratings and the README table says so.
+
+### The plan, as it was written
+
+A script over `review_log` (which records every curriculum and set-phrase
+rating with stability before and after) reporting accuracy per step and per
+format, and the stability at which each step's accuracy settles; move the
+thresholds to where the next step's accuracy would be about 85%. Add the
+format to what the page records (a `review_log.detail` jsonb, or the existing
+`featureMetrics` sink) so the report can tell a gap from a picture.
 
 ---
 

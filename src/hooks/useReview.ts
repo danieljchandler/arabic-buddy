@@ -20,6 +20,13 @@ import { useCurriculumDeckScope } from './useCurriculumDeckScope';
 import { selectRequestedCurriculumWords } from '@/lib/curriculumDeck';
 import { withBossFirst } from '@/lib/bossCard';
 import { all as queuedRatings, claimsNewCard, ratingsHidingCards, withoutQueued } from '@/lib/reviewQueue';
+import {
+  isMissingQuizColumn,
+  markQuizColumnsMissing,
+  quizRatingFields,
+  withoutQuizFields,
+  type QuizAsked,
+} from '@/lib/quizRatingFields';
 
 export interface WordReview {
   id: string;
@@ -547,6 +554,8 @@ export async function submitRatingToServer(
   currentReview: WordReview | null,
   direction: ScheduleDirection = 'recognition',
   options?: ScheduleOptions,
+  /** What the quiz asked it as (quiz Phase 8); absent for a flip card. */
+  asked?: QuizAsked | null,
 ) {
   // A production rating with no existing row would build a production-only
   // column set and insert it without next_review_at, which is NOT NULL — a
@@ -573,26 +582,31 @@ export async function submitRatingToServer(
   // on the (user_id, word_id) unique constraint.
   let savedReview: WordReview | null = null;
 
-  if (currentReview) {
-    const { data: updated, error } = await supabase
-      .from('word_reviews')
-      .update(update as never)
-      .eq('id', currentReview.id)
-      .select('*')
-      .single();
-    if (error) throw error;
-    savedReview = updated as unknown as WordReview;
-  } else {
-    // A word with no row can only be rated in recognition — production is
-    // unlocked from an existing recognition row, never created cold.
-    const { data: inserted, error } = await supabase
-      .from('word_reviews')
-      .insert({ user_id: userId, word_id: wordId, ...update } as never)
-      .select('*')
-      .single();
-    if (error) throw error;
-    savedReview = inserted as unknown as WordReview;
+  // What it was asked as goes on the same write, for the review_log trigger to
+  // copy (src/lib/quizRatingFields.ts). Where the live project does not have
+  // those columns yet, the write is refused for them, and is sent again
+  // without: a rating never fails for want of them.
+  const reviewedAt = String(update.last_reviewed_at ?? update.production_last_reviewed_at);
+  const write = { ...update, ...quizRatingFields(asked, reviewedAt) };
+  const send = async (fields: Record<string, unknown>) =>
+    currentReview
+      ? supabase.from('word_reviews').update(fields as never).eq('id', currentReview.id).select('*').single()
+      : // A word with no row can only be rated in recognition — production is
+        // unlocked from an existing recognition row, never created cold.
+        supabase
+          .from('word_reviews')
+          .insert({ user_id: userId, word_id: wordId, ...fields } as never)
+          .select('*')
+          .single();
+  let { data: saved, error } = await send(write);
+  if (error && isMissingQuizColumn(error)) {
+    markQuizColumnsMissing();
+    ({ data: saved, error } = await send(withoutQuizFields(write)));
+  }
+  if (error) throw error;
+  savedReview = saved as unknown as WordReview;
 
+  if (!currentReview) {
     // First-ever rating of this word: claim daily new-card budget (shared
     // with the personal-vocab review path). Best-effort — never blocks the
     // review submission.

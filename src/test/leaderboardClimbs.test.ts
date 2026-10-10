@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { LADDER_THRESHOLDS } from "@/lib/quizLadder";
 
@@ -19,12 +19,21 @@ import { LADDER_THRESHOLDS } from "@/lib/quizLadder";
  * answers with.
  */
 
-const MIGRATION = resolve(__dirname, "../../supabase/migrations/20261010120000_leaderboard_climbs.sql");
-const sql = readFileSync(MIGRATION, "utf8");
-const stepFunction = sql.slice(
-  sql.indexOf("CREATE OR REPLACE FUNCTION public.quiz_ladder_step"),
-  sql.indexOf("GRANT EXECUTE ON FUNCTION public.quiz_ladder_step"),
-);
+const MIGRATIONS = resolve(__dirname, "../../supabase/migrations");
+const sql = readFileSync(resolve(MIGRATIONS, "20261010120000_leaderboard_climbs.sql"), "utf8");
+/**
+ * The ladder in SQL as the database last defines it. A retune (quiz Phase 8c)
+ * re-creates `quiz_ladder_step` in a migration of its own, and the numbers
+ * are held to that one, not to the first.
+ */
+const stepFunction =
+  readdirSync(MIGRATIONS)
+    .filter((name) => name.endsWith(".sql"))
+    .sort()
+    .map((name) => readFileSync(resolve(MIGRATIONS, name), "utf8"))
+    .map((text) => text.match(/CREATE OR REPLACE FUNCTION public\.quiz_ladder_step[\s\S]*?\$\$;/)?.[0])
+    .filter((definition): definition is string => definition != null)
+    .at(-1) ?? "";
 const climbsFunction = sql.slice(sql.indexOf("CREATE OR REPLACE FUNCTION public.leaderboard_climbs"));
 
 /** The number a `>= n THEN step` (production) or `< n THEN step` (recognition) line gives `step`. */

@@ -285,6 +285,36 @@ ladder in `src/lib/quizLadder.ts`:
 | 9 Say the reply | production card, 30 to 60 days | a line of dialogue, said aloud, and the reply's meaning → say the reply; scored, the word required |
 | 10 In a story | production card, 60 days and up | two sentences of a story, shown and read aloud with the word muted, and the word's meaning → say the word; scored |
 
+The thresholds are a first guess, to be set from real ratings (quiz Phase 8).
+Each curriculum rating records what it was asked as: the format and the step
+(`QuizGraded.askedStep`, 1 for a boss) go on the rating's own write as
+`word_reviews.last_quiz_format` and `last_quiz_step`, stamped with the
+rating's moment (`last_quiz_at`, the same value as the `last_reviewed_at` it
+writes), nulls for a flip card or a lesson's grade. The `review_log` trigger
+copies them beside the rating only when that stamp is the review's own, the
+format is lowercase words and the step is 1 to 10
+(`20261010130000_quiz_rating_asked`; the report sets aside any format the
+quiz does not ask),
+so a write that moves `last_reviewed_at` without them is logged with no
+question rather than the previous one; the log also gains
+`repetitions_before`. Until the live project carries those columns the write
+is refused for them, so it is sent again without them and the device leaves
+them off for a day (`src/lib/quizRatingFields.ts`): a rating never fails for
+want of them. `npm run quiz:ladder-report` reads the log (read-only, service
+role) and reports accuracy per step and per format, and for each threshold
+whether the step it opens is answered right 85% of the time from the
+threshold up (it holds), only from higher (raise it to there), or clearly
+not at all; it needs 30 answers from 5 learners, counts one learner at most
+50 times, and says "unclear" rather than move a threshold on bands too thin
+to decide (Wilson intervals). Bosses and fallback questions are counted but
+never move a threshold (`src/lib/quizLadderReport.ts`). It cannot say a
+threshold should come down: on the ladder, a step's own question is never
+asked below its threshold (a boss or a fallback can be, and neither counts).
+Moving one is more than the constant: the leaderboard's climbs count the
+ladder in SQL (`quiz_ladder_step`), and `pictureDays` also decides when a
+word's production card is served (`holdsProduction`) and when a saved phrase
+is asked to be said (`phraseDirection`).
+
 The climb within recognition goes from form to meaning (the gap, the picture,
 the audio) to meaning to form (pick the word) to use (answer the line);
 production goes from the word to the line to the line said back in a

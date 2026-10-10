@@ -102,6 +102,13 @@ export interface QuizGraded {
    * as a climb from step 1.
    */
   step: number;
+  /**
+   * The step the question was asked at: the ladder's step for the memory it
+   * was asked from, which for a boss is the first look's (1). With `format`,
+   * what the rating records it was asked as (quiz Phase 8), so a report can
+   * tell a boss or a fallback from the ladder's own question.
+   */
+  askedStep: number;
   /** The card that was asked, as the frame was handed it (the lightning round asks it again). */
   item: QuizItem;
 }
@@ -741,7 +748,7 @@ export const QuizCardFrame = ({
     if (!answered) return;
     // The card as it was asked: a boss is still the boss when the page has
     // since cleared its leech flag, so the page celebrates what was beaten.
-    onGraded({ ...answered, format, step: ownStep, item: { ...item, boss } });
+    onGraded({ ...answered, format, step: ownStep, askedStep: rung.step, item: { ...item, boss } });
   };
 
   // Enter or Space moves on once a card is answered, matching the flip card's

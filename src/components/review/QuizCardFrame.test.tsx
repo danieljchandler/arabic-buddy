@@ -369,6 +369,30 @@ describe("why not this one?", () => {
     expect(screen.getByTestId("asked")).toHaveTextContent(`I picked "house" (that's «بيت») for «السوق»`);
   });
 
+  it("never deals another gloss of the word itself as a wrong meaning, nor names the word as the other one", () => {
+    // A mixed deck holds the word more than once, under other glosses:
+    // picking one would be a right answer graded Again. Five of them beside
+    // three other words, so a deal that let them in would deal some.
+    const OWN = ["the souq", "souq", "bazaar", "marketplace", "the bazaar"];
+    const pool = [
+      ...OWN.map((english, i) => ({ arabic: i % 2 ? "السُّوق" : "السوق", english })),
+      { arabic: "بيت", english: "house" },
+      { arabic: "مدرسة", english: "school" },
+      { arabic: "سيارة", english: "car" },
+    ];
+    renderAsking(anItem({ sentence: null }), pool);
+    const options = screen.getAllByRole("radio").map((r) => r.textContent!.trim());
+    expect(options).toHaveLength(4);
+    for (const gloss of OWN) expect(options).not.toContain(gloss);
+
+    const wrong = options.find((m) => m !== "the market")!;
+    fireEvent.click(screen.getByRole("radio", { name: wrong }));
+    askWhy();
+    expect(screen.getByTestId("asked")).not.toHaveTextContent("that's «السوق»");
+    expect(screen.getByTestId("asked")).not.toHaveTextContent("that's «السُّوق»");
+    expect(screen.getByTestId("asked")).toHaveTextContent(`(that's «${WORDS[wrong]}»)`);
+  });
+
   it("names the word behind a wrong picture", () => {
     renderAsking(anItem({ imageUrl: "https://img.test/market.png", memory: { stability: 5, repetitions: 2 } }));
     expect(screen.getByText("Which picture?")).toBeInTheDocument();

@@ -941,7 +941,7 @@ by another dialect's word for it ("bread" as the Egyptian «عيش» under a Gul
 card, where عيش is rice). The word named is one the learner's deck holds for
 that meaning, so the naming is not false, only perhaps not the mix-up they
 made; carrying the dialect on `QuizPoolEntry` and naming only the card's own
-dialect's word would close it. *Closed in the Phase 7 follow-ups (PR #PRB):
+dialect's word would close it. *Closed in the Phase 7 follow-ups (PR #435):
 every pool entry carries its dialect, and `wordForMeaning` names only the
 card's own.*
 
@@ -1005,7 +1005,7 @@ deal the same order and the gap the same options, the "nothing written" checks
 were one-shot (they now wait a second), My Words had no test of its wiring (an
 e2e now plays a round there), and the clock and score lacked roles. Not
 tested on its own: My Phrases' wiring, which is the same three lines. *Now
-tested in the Phase 7 follow-ups (PR #PRB): `e2e/my-phrases.spec.ts`, the deck's
+tested in the Phase 7 follow-ups (PR #435): `e2e/my-phrases.spec.ts`, the deck's
 first e2e, plays a round there.*
 
 ### 7.3 The boss card (built, PR #432)
@@ -1074,7 +1074,7 @@ well past 1 is still asked a first look, as the plan says, and a right answer
 there is Good; the hook stays hidden so that Good is earned, but the question
 is easier than its step. Untested at unit level: `useDueWords({ bossFirst })`
 and the pages' `isBossTurn` wiring (the e2e covers `/review`). *Closed in the
-Phase 7 follow-ups (PR #PRB): `useReview.test.ts` covers the due list's boss,
+Phase 7 follow-ups (PR #435): `useReview.test.ts` covers the due list's boss,
 the three pages ask one pure `bossFor`, and My Words and My Phrases each have a
 boss e2e.*
 
@@ -1158,7 +1158,7 @@ older than this phase, for the owner: nothing in the repo resets
 on the live project does, "XP this week" is not this week's, while climbs
 are.
 
-### Phase 7 follow-ups (PR #PRB)
+### Phase 7 follow-ups (PR #435)
 
 What the four Phase 7 PRs left open, closed:
 

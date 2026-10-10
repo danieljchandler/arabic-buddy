@@ -22,7 +22,7 @@ means — so a session can pick up the next phase cold.*
 | 5b | Apply the bucket migration, deploy `word-asset`, run `scripts/curriculum-animations.ts` | **owner action** (after 2b) |
 | 6 | Words in stories | built (PR #428) |
 | 6b | Deploy `word-asset` (this version), then run `scripts/curriculum-stories.ts` | **owner action** (after 2b) |
-| 7 | The rest of the game | in progress: "Why not this one?" (PR #430), the lightning round (PR #431) and the boss card (PR #BOSS) built |
+| 7 | The rest of the game | in progress: "Why not this one?" (PR #430), the lightning round (PR #431) and the boss card (PR #432) built |
 | 8 | Tuning from real reviews | once the quiz has weeks of history |
 | 9 | Housekeeping | any time |
 
@@ -878,7 +878,7 @@ One PR per item, in this order, each independent of the asset store:
 |---|---|
 | 7.1 "Why not this one?" on every choice step | built (PR #430) |
 | 7.2 The lightning round | built (PR #431, on #430) |
-| 7.3 The boss card | built (PR #BOSS, on #431) |
+| 7.3 The boss card | built (PR #432, on #431) |
 | 7.4 Ladder climbs on the leaderboard | next |
 | XP parity for the flip cards | **a question for the owner**, not built |
 
@@ -1003,7 +1003,7 @@ were one-shot (they now wait a second), My Words had no test of its wiring (an
 e2e now plays a round there), and the clock and score lacked roles. Not
 tested on its own: My Phrases' wiring, which is the same three lines.
 
-### 7.3 The boss card (built, PR #BOSS)
+### 7.3 The boss card (built, PR #432)
 
 What shipped (writeup: README "Reviewing as a quiz instead of flashcards",
 the boss card):

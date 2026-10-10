@@ -453,6 +453,33 @@ test.describe("the quiz style", () => {
     await expect(page.getByText(/the missing word means/i)).toContainText("coffee", { timeout: 10_000 });
   });
 
+  test("coming back offline says so, rather than that nothing is due", async ({ page, context }) => {
+    await signIn(page);
+    await stubSupabase(page, { tables: { ...aDeck(), ...quizProfile() } });
+
+    await page.goto("/review");
+    await expect(page.getByText("Fill in the missing word")).toBeVisible();
+    await page.getByRole("button", { name: /go home/i }).click();
+    await expect(page).not.toHaveURL(/\/review$/);
+    // Home's code has loaded before the connection drops.
+    await page.waitForLoadState("networkidle");
+
+    // The deck was dropped on the way out; offline, its first fetch waits.
+    // Back inside the app (a browser back offline would load the document).
+    await context.setOffline(true);
+    await page.evaluate(() => {
+      window.history.pushState({}, "", "/review");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    await expect(page.getByText(/you're offline/i)).toBeVisible();
+    await expect(page.getByText(/you've reviewed all your due/i)).toHaveCount(0);
+    await expect(page).toHaveURL(/\/review$/);
+
+    // Back online, the deck loads.
+    await context.setOffline(false);
+    await expect(page.getByText("Fill in the missing word")).toBeVisible({ timeout: 10_000 });
+  });
+
   test("a wrong pick in the gap asks the tutor why, about this sentence", async ({ page }) => {
     await signIn(page);
     const backend = await stubSupabase(page, { tables: { ...aDeck(), ...quizProfile() } });

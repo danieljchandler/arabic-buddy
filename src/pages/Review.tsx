@@ -86,7 +86,13 @@ const Review = () => {
   // production card waits until the word has climbed to the picture step.
   const { style: reviewStyle } = useReviewStyle();
   const quiz = reviewStyle === "quiz";
-  const { data: fetchedDueWords, isLoading: wordsLoading, isError: wordsError, refetch } = useDueWords(
+  const {
+    data: fetchedDueWords,
+    isLoading: wordsLoading,
+    isPaused: wordsPaused,
+    isError: wordsError,
+    refetch,
+  } = useDueWords(
     mixAll,
     // The quiz opens on the boss: the recognition leech with the most lapses
     // goes first (src/lib/bossCard.ts), while the learner tracks leeches.
@@ -494,6 +500,23 @@ const Review = () => {
     return (
       <AppShell compact>
         <LoadingPanel variant="page" statusOverride="Loading your reviews…" />
+      </AppShell>
+    );
+  }
+
+  // Offline before the deck has loaded at all: its first fetch waits for the
+  // connection, which React Query does not count as loading. That is not an
+  // empty deck, so neither "all caught up" nor a forward to another one.
+  if (fetchedDueWords === undefined && wordsPaused) {
+    return (
+      <AppShell compact>
+        <div className="max-w-md mx-auto text-center pt-24" role="status">
+          <h1 className="text-xl font-bold text-foreground mb-3">You&apos;re offline</h1>
+          <p className="text-muted-foreground mb-8">Your reviews load as soon as the connection is back.</p>
+          <Button variant="outline" onClick={() => navigate("/")}>
+            Go Home
+          </Button>
+        </div>
       </AppShell>
     );
   }

@@ -245,7 +245,10 @@ before moving on and have no queue. Three things this must keep:
   with a way home, and no celebration or summary until the answer lands (the
   end of the session, or more cards). Offline, React Query holds the fetch until
   the connection is back. Leaving the page drops the deck it built, so coming
-  back never serves the list from before this visit's ratings.
+  back never serves the list from before this visit's ratings; coming back
+  offline says "You're offline" until the deck can load, rather than that
+  nothing is due (a first fetch paused offline is not, to React Query,
+  loading).
 - **`flush` keeps one identity per user.** The mutation hooks it calls return a
   new object every render. While they were its dependencies, every render re-ran
   the drain-on-mount effect, whose cleanup cancelled the pending backoff and

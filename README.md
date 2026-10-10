@@ -229,16 +229,23 @@ before moving on and have no queue. Three things this must keep:
   reads the queue before and after its fetch and leaves such a card out
   (`withoutQueued`), on the schedule the rating is for. Every refetch gets this,
   "Try again" on a failed one included, however slow or absent the connection.
+  For a day at most (`QUEUED_HIDES_CARD_MS`): a queue that cannot drain does not
+  hide its cards for good. A queued first rating is counted against today's
+  new-card cap before the server counts it (`claimsNewCard`), and a saved one
+  refreshes the budget, so an end-of-list refetch does not offer the whole cap
+  again.
 - **The walked list is spent at the end.** When the last card is rated the page
   asks what is due next. It used to show the walked list's first card while the
   refetch was out, and the server, not yet holding the last ratings, could send
   the same cards back, so the session served a card it had just rated (and the
   rating keys, still live, could rate it again). Now the list is marked spent at
-  once and never shown again (`closeList` in `Review.tsx`), the keys have
-  nothing to rate, and "Checking for more cards…" shows for at most 4 s
-  (`LIST_WAIT_MS`) before the end of the session does. What the fetch brings is
-  served when it lands; offline, React Query holds it until the connection is
-  back.
+  once and never shown again (`closeList` in `Review.tsx`), and the keys have
+  nothing to rate. "Checking for more cards…" shows for up to 4 s
+  (`LIST_WAIT_MS`); past that, with the fetch still out, a quiet "Still checking"
+  with a way home, and no celebration or summary until the answer lands (the
+  end of the session, or more cards). Offline, React Query holds the fetch until
+  the connection is back. Leaving the page drops the deck it built, so coming
+  back never serves the list from before this visit's ratings.
 - **`flush` keeps one identity per user.** The mutation hooks it calls return a
   new object every render. While they were its dependencies, every render re-ran
   the drain-on-mount effect, whose cleanup cancelled the pending backoff and

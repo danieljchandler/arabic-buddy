@@ -21,18 +21,20 @@ labelled as one. The model that produced the tables is reproducible from the
   $0.067, served once and never stored. The code to share them is written
   and tested; it is waiting on the migration. Apply it and pictures fall from
   the #1 line to a rounding error.
-- **Paid tiers bypass most caps entirely.** Of the 75 gated endpoints, ten
-  carry a per-tier ceiling; on the other 65 a subscriber is unlimited. The
+- **Paid tiers bypass most caps entirely.** Of the 75 cap call sites (on 73
+  functions), 13 carry a per-tier ceiling and four are subscriber-only
+  gates; on the other 58 a subscriber is unlimited. The
   worst-case daily spend of one All-In learner is unbounded on chat,
   how-do-i-say, stories, listening episodes and meme analysis.
 - **Gemini Flash doubles in price on 2027-01-01.** Google's pricing page
-  shows the current Flash rate ($0.75 / $3.75 per Mtok) as promotional through
-  31 December 2026, with $1.50 / $7.50 after. Flash is the model behind most
+  lists the Flash tier (3.8 Flash; the registry's 3.7 is no longer on the
+  page) at $0.75 / $3.75 per Mtok as promotional through 31 December 2026,
+  with $1.50 / $7.50 after. OpenRouter serves 3.7 at the same rate today. Flash is the model behind most
   of the app's Arabic; budget for every Flash line below to double in twelve
   weeks unless the registry moves.
 - **Build the library.** Filling the whole authored curriculum with pictures
-  once costs about **$170** (or **$87** on Google's batch tier). Today the app
-  spends that much on pictures for roughly **three** typical subscribers in a
+  once costs about **$56** (or **$28** on Google's batch tier). Today the app
+  spends that much on pictures for roughly **seven** typical subscribers in a
   month.
 - **Revisit before launch.** §8 is the launch gate: four decisions (the
   store, the voice allowance, which tutor each tier gets, the price points),
@@ -151,9 +153,10 @@ subscriber bypasses the cap (`enforceDailyCap` without a `TierLimits` table).
 
 Three things in that table are worth reading twice.
 
-- **A chat turn is five calls, not one.** The Sonnet reply is ~65% of the
-  cost; the embedding, the Flash tool plan, the HUMAIN native review and the
-  Flash memory update are the other ~35%, and all four fire on every turn.
+- **A chat turn is up to five calls, not one.** The Sonnet reply is ~65% of
+  the cost; the embedding, the Flash tool plan and the Flash memory update
+  fire on every turn, and the HUMAIN native review whenever the reply
+  contains Arabic, which for a tutor of Arabic is most turns.
 - **A minute of voice costs a cent more than the per-minute list price**
   because the `live` engine bills its backend model separately. At the
   allowances on the pricing page, Standard's 120 minutes come to $6.17 and
@@ -218,9 +221,9 @@ them. `pregenerate-daily` builds a daily story for every recently active
 learner each night, opened or not — $0.039 × active learners × days, about
 **$1.20 per active learner per month**, free users included (it stops at a
 batch of 10–50 and a 100 s budget per run, so it is bounded by how often it
-is scheduled, not by demand). And the Realtime engine's learner-error
-extraction fires after every voice and simulator turn (`extract-learner-errors`,
-Flash, ~$0.003).
+is scheduled, not by demand). And learner-error extraction (`extract-learner-errors`, Flash, ~$0.003)
+fires after every voice-practice turn, and after a simulator turn in which
+the tutor corrected the learner.
 
 ## 4. Where the caps do not hold
 
@@ -250,11 +253,12 @@ subscriber on a feature with no `TierLimits`.
 | generate-story | $0.46 | uncapped | uncapped |
 | learner upload transcribe | $0.35 | uncapped | uncapped |
 
-Only ten endpoints carry a tier table today (`generate-celebration-song`,
+Only eleven functions carry a tier table today (`generate-celebration-song`,
 `enrich-word-roots`, `generate-flashcard-image`, `generate-mnemonic-image`,
 `generate-phrase-jingle`, `generate-word-jingle`, `generate-worksheet`,
-`mistake-drill`, `monologue-prompts`, `writing-coach`, plus `word-asset`'s
-own). The August audit's "make caps tier-aware" was done for the features
+`mistake-drill`, `monologue-prompts`, `writing-coach` and `word-asset`: 13
+call sites). Four more are subscriber-only gates. The other 58 call sites
+let any subscriber through uncapped. The August audit's "make caps tier-aware" was done for the features
 that *looked* expensive (images, music) and not for the ones that are
 expensive in aggregate (chat, council, ensembles, TTS, uploads). The
 `ai-canary` trips at **$10/day** total (`CANARY_MAX_DAILY_USD`), which is
@@ -275,9 +279,10 @@ Each lever with its effect on the typical subscriber ($28.33 today).
    difference between the "today" and "after" columns for pictures, and it
    needs no new code.**
 2. **Fill the library once, on the batch tier.** `scripts/curriculum-pictures.ts
-   --dry-run` prints the bill. The authored tracks hold about **2,550** word
-   entries (Gulf 1,098, Yemeni 933, Egyptian 518); at $0.067 that is about
-   **$170**, or **$87** if the picture route is given Google's batch endpoint
+   --dry-run` prints the bill. The authored tracks hold **837** vocabulary
+   words (Gulf 357, Yemeni 304, Egyptian 176; imported `.xlsx` lessons add to
+   that); at $0.067 that is about **$56**, or **$28** if the picture route is
+   given Google's batch endpoint
    ($0.034 per 1K image, half price, hours of latency — fine for a script,
    wrong for a learner waiting). The 62 curriculum clips are another $16.55
    (already costed in the README). A learner's own saved words still draw on
@@ -351,13 +356,13 @@ same audio and the merge reconciles them, so a clip pays for all of them:
 
 | Engine | Billed | Per 3-minute clip |
 |---|---|---:|
-| ElevenLabs Scribe v2 (diarised, word timestamps) | ~$0.40/h | $0.020 |
+| ElevenLabs Scribe v2 (diarised, word timestamps) | $0.22/h | $0.011 |
 | Soniox `stt-async-v5` with one-way English | $0.10/h + ~$0.16/h translation | $0.013 |
 | Munsit `munsit-en-ar` — audio over 9 MB is chunked, up to three passes | 1,000 credits/min | $0.105 to $0.315 |
-| Azure fast transcription | ~$1/h | $0.050 |
+| Azure fast transcription | about $0.3–1/h (the USD page masks the rate) | $0.02–0.05 |
 | Fanar STT | free; rationed 8 long-form + 18 short per day | $0 |
 | Cohere transcribe pilot | only with `COHERE_API_KEY` | — |
-| **ASR subtotal** | | **$0.19 to $0.40** |
+| **ASR subtotal** | | **$0.15 to $0.39** |
 
 **Analysis** (`analyze-gulf-arabic`, one call per attempt, up to two attempts):
 
@@ -380,9 +385,9 @@ $0.014 each), a title when missing (Flash, no `max_tokens`), `rate-video-cefr`
 (Flash, no `max_tokens`, $0.003) and the study guide (Sonnet 3k plus a
 possible repair, $0.043). About **$0.06 to $0.08**.
 
-**Per clip, all in: about $0.40 to $0.65.** A Re-transcribe repeats the
+**Per clip, all in: about $0.37 to $0.63.** A Re-transcribe repeats the
 whole amount; a second analysis attempt adds ~$0.16. A hundred clips a month
-is **$40 to $65**; three hundred is **$120 to $195**. The two levers are the
+is **$37 to $63**; three hundred is **$111 to $189**. The two levers are the
 Munsit chunk passes (the only ASR leg that scales with length and retries)
 and the translation ensemble's reasoning budget (Sonnet's thinking is billed
 as output at $10 per Mtok; `TRANSLATION_REASONING=off` halves that line, at
@@ -469,6 +474,11 @@ per call, a strategy multiplier, and a daily count per persona. Run it with
   standing validator leg, the chat native review and the transcript
   ensemble, so its real rate moves several lines; Node's console has it.
 - Voice: three backend Luna turns per minute, most of the context cached.
+- A shared asset (picture, dialogue, jingle) serving **40** learners over its
+  life, which is what turns $0.067 into ~$0.002 in the lean tables.
+- Azure's USD speech rates and the HUMAIN M3 rate are the two prices this
+  document could not read from an official page; ElevenLabs Scribe ($0.22/h)
+  and everything else in §1 were.
 - Stripe at 2.9% + $0.30 per monthly charge.
 
 Every one of these can be replaced by a query. `llm_usage_logs` carries
@@ -512,7 +522,7 @@ and they are the cheapest part to check.
 until the four decisions below are made and the numbers in §3 have been
 re-run against real `llm_usage_logs` rows.** With the setup as it stands a
 Standard plan covers about three active days of typical use and an All-In
-plan about eight; nothing here is profitable for a daily user, and most of
+plan about ten; nothing here is profitable for a daily user, and most of
 the gap is a handful of fixable things rather than the product itself.
 
 ### The four decisions
@@ -600,7 +610,7 @@ the practice generators.
 | All-In, Sonnet tutor, $14.26 net | $0.35 | $6.17 | about 23 |
 | All-In on a heavy day (30 Sonnet turns, 40 TTS lines) | $0.95 | $6.17 | about 8 |
 
-Today those break-evens are three days and eight days. The caps also bound
+Today those break-evens are about three days and ten days. The caps also bound
 abuse: a Standard account that hits every cap every day costs about $46 a
 month instead of unbounded; an All-In one about $189, almost all of it story
 video, transcription and Sonnet chat, which is why those sit on All-In

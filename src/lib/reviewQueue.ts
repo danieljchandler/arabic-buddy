@@ -123,11 +123,11 @@ export function count(userId: string): number {
 /**
  * The cards with no rating still queued for the schedule they are served on.
  *
- * A card whose rating has not reached the server is not due, whatever a fetch
- * made before it landed says. The curriculum deck's end-of-list refetch waits
- * for the queue first, but that wait is bounded (a dropped connection must not
- * hold the page), so whatever is still queued when it gives up is dropped from
- * what comes back: the session never serves a card it has just rated.
+ * A card whose rating has not reached the server is not due, whatever the
+ * server says: it still holds the schedule from before the rating. The
+ * curriculum deck's due list (`useDueWords`) drops these, reading the queue
+ * before and after its fetch, so a refetch never serves a card just rated,
+ * however slow or absent the connection.
  *
  * Keyed on the word and the schedule, since recognition and production are
  * separate schedules for the same word. An entry with no direction predates

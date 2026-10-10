@@ -25,7 +25,7 @@ means — so a session can pick up the next phase cold.*
 | 7 | The rest of the game | built: "Why not this one?" (PR #430), the lightning round (PR #431), the boss card (PR #432), ladder climbs (PR #433); XP parity is the owner's question |
 | 7b | Apply the `leaderboard_climbs` migration to the live project | **owner action** |
 | 8 | Tuning from real reviews | once the quiz has weeks of history |
-| 9 | Housekeeping | built (PR #PRA); a zero-day Good in the scheduler is the owner's question |
+| 9 | Housekeeping | built (PR #PRA); a zero-day interval in the scheduler is the owner's question |
 
 Conventions that hold in every phase, from `CLAUDE.md`:
 
@@ -1219,7 +1219,7 @@ ratings and the README table says so.
 | Delete the stale per-rating `REVIEW_XP` map in `src/config.ts` | done |
 | Remove `useTranscriptCloze`'s flip-card branch | nothing left to remove |
 | The end-of-queue refetch race | fixed, with a backoff bug found on the way |
-| A Good that schedules a card due at once | **found; the owner's question**, not changed |
+| A pass that schedules a card due at once | **found; the owner's question**, not changed |
 
 **What shipped.**
 
@@ -1235,43 +1235,55 @@ ratings and the README table says so.
   lookup when the quiz is on (`enabled: quiz && …`).
 - **The end-of-queue refetch.** On the curriculum deck the last rating went
   into the queue, and the page refetched at once and showed card 0 of the old
-  list while it did. The server still had the last cards due, so the session
-  served one it had just rated. Now:
-  - `useReviewQueue` has `settle(timeoutMs)`. It waits for the ratings queued
-    so far to reach the server, retrying a network error every second while
-    it waits, and resolves false when the bound runs out or the browser is
-    offline. `flush` returns the drain in progress, which is what makes it
-    joinable.
-  - `Review.tsx`'s `closeList` waits for it (`LIST_SETTLE_MS`, 4 s), then
-    refetches. "Saving your answers…" replaces the walked list meanwhile (the
-    panel's 600 ms delay keeps a quick save from flashing it). If the wait
-    runs out, `withoutQueued` (`src/lib/reviewQueue.ts`) drops any card whose
-    rating is still queued from what comes back, keyed on the word and the
-    schedule.
+  list while it did. The server, not yet holding the last ratings, could send
+  the same cards back, so the session served one it had just rated, and in
+  flip mode the rating keys could rate it again. Now:
+  - `useDueWords` leaves out any card whose rating is still queued, reading
+    the queue before and after its fetch (`withoutQueued` in
+    `src/lib/reviewQueue.ts`, keyed on the word and the schedule). It does so
+    before the ordering, so a queued new card takes no place under the
+    new-card cap, and on every refetch, "Try again" included.
+  - `Review.tsx`'s `closeList` marks the walked list spent at once, so it is
+    never shown again and the keys have nothing to rate. A ref guards it
+    against running twice. "Checking for more cards…" shows for at most
+    `LIST_WAIT_MS` (4 s, after the panel's own 600 ms delay), then the end of
+    the session; what the fetch brings is served when it lands. Offline,
+    React Query holds the fetch until the connection is back, and after
+    those 4 s the page shows the end of the session meanwhile.
   - The unused `goToNext` went with it; it had the same unguarded refetch.
   - My Words and My Phrases save each rating before they move on, so they
     never had the race.
-- **Found on the way: the backoff was defeated.** `flush` depended on the
-  mutation hooks, which return a new object every render, so every render
+  - A first version waited for the queue to save (`settle`) before refetching.
+    The review found it could hang (a refetch paused offline, a request that
+    never answers) and, on a failed refetch, patched the cache back over the
+    error screen; leaving queued cards out of the list needs no wait at all.
+- **Found on the way: the backoff was not guaranteed.** `flush` depended on
+  the mutation hooks, which return a new object every render, so every render
   re-ran the drain-on-mount effect. Its cleanup cancelled the pending backoff
-  timer and its body retried at once. Under the test clock that was hundreds
-  of attempts in two seconds; with `settle`'s reworked drain it happened in
-  the browser too. The drain now reads them through a ref, `flush` keeps one
-  identity per user, and "waits out the backoff between attempts" holds the
-  attempts to the schedule (it times out with the old dependencies).
+  timer and its body called `flush` again, so how soon a failing write was
+  retried depended on when the hook re-rendered, not on the backoff (under the
+  test clock, hundreds of attempts in two seconds). The drain now reads them
+  through a ref, `flush` keeps one identity per user, and "waits out the
+  backoff between attempts" holds the attempts to the schedule (it times out
+  with the old dependencies).
 
-**Tests.** `withoutQueued` in `src/lib/reviewQueue.test.ts`; `settle`,
-`queued` and the backoff in `src/hooks/useReviewQueue.test.ts`; and the e2e
-"waits for the last answer to be saved before asking what is due next", in
-which the write fails until the page is seen saving, then lands, and the
-deck's last read comes after it. It fails against the old page.
+**Tests.** `withoutQueued` in `src/lib/reviewQueue.test.ts`; the backoff in
+`src/hooks/useReviewQueue.test.ts`; the queued-card exclusion in
+`src/hooks/useReview.test.ts`, including a rating given while the fetch is
+out; and two e2e in `review.spec.ts`. "never serves the card just rated while
+its rating waits to be saved" fails the write and slows the deck, and expects
+"Checking for more cards…", no card, the summary, and the rating saved once
+the connection is back. "the keys do nothing once the last card is rated"
+presses reveal-and-rate twice and expects one write. Both fail against the
+old page.
 
-**The owner's question: a Good that is due at once.** `calculateNextReview`
-sets a recalled card's interval to `Math.round(newStability * intervalFactor)`
-before the "sub-day intervals keep minute precision" step, so a stability
-under half a day rounds to 0, and the card is due the moment it is rated. It
-happens to a Good minutes after a lapse (stability 0.25 in the e2e "asked
-afresh"), and the card is served again at the end of the list. Two ways to
+**The owner's question: a pass that is due at once.** `calculateNextReview`
+sets a recalled card's interval (Hard on a graduated card, Good or Easy) to
+`Math.round(newStability * intervalFactor)` before the "sub-day intervals keep
+minute precision" step, so a stability under half a day rounds to 0, and the
+card is due the moment it is rated. It happens to a Good minutes after a lapse
+(stability 0.25 in the e2e "asked afresh"), and the card is served again at
+the end of the list. Two ways to
 fix it, and it is the scheduler, so it waits for a decision:
 
 1. Keep the sub-day value when the rounding would give 0 (only those cards

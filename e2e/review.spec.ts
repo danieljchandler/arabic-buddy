@@ -316,7 +316,7 @@ test.describe("the quiz style", () => {
     await expect.poll(() => backend.db.rows("word_reviews")[0]?.last_result).toBe("good");
   });
 
-  test("waits for the last answer to be saved before asking what is due next", async ({ page }) => {
+  test("never serves the card just rated while its rating waits to be saved", async ({ page }) => {
     await signIn(page);
     const backend = await stubSupabase(page, { tables: { ...aDeck(), ...quizProfile() } });
 
@@ -324,29 +324,60 @@ test.describe("the quiz style", () => {
     await expect(page.getByText("Fill in the missing word")).toBeVisible();
 
     // The connection drops as the last answer is saved, so the rating waits in
-    // the queue. Asking the server what is due before it lands would get this
-    // card back as new, and serve it again: the end of the list waits instead.
+    // the queue while the page asks what is due next, and the server, holding
+    // no rating yet, still calls the card due. The deck is slow to answer.
     backend.db.failWrites("word_reviews", 503, {
       code: "503",
       message: "Failed to fetch",
       details: null,
       hint: null,
     });
+    backend.db.delay("vocabulary_words", 2000);
     await page.getByRole("button", { name: "السوق", exact: true }).click();
     await page.getByRole("button", { name: /continue/i }).click();
 
-    await expect(page.getByText(/saving your answers/i)).toBeVisible();
+    // While it asks, the walked list is not on screen; and the answer leaves
+    // out the card whose rating is still queued, so the session ends there.
+    await expect(page.getByText(/checking for more cards/i)).toBeVisible();
     await expect(page.getByText("Fill in the missing word")).toHaveCount(0);
-
-    // The connection comes back; the rating lands, and only then is the deck
-    // asked what is due.
-    backend.db.clearFailure("word_reviews");
     await expect(page.getByRole("list", { name: /quiz session summary/i })).toBeVisible();
     await expect(page.getByText("Fill in the missing word")).toHaveCount(0);
-    expect(backend.db.rows("word_reviews")[0]).toMatchObject({ word_id: wordId(0), last_result: "good" });
-    const landed = backend.db.lastWriteTo("word_reviews");
-    expect(landed).toBeDefined();
-    expect(backend.db.readsOf("word_reviews").at(-1)?.at).toBeGreaterThanOrEqual(landed?.at ?? Infinity);
+    expect(backend.db.rows("word_reviews")).toHaveLength(0);
+
+    // The connection comes back, and the queue saves the rating.
+    backend.db.clearFailure("word_reviews");
+    await expect
+      .poll(() => backend.db.rows("word_reviews")[0]?.last_result, { timeout: 15_000 })
+      .toBe("good");
+    await expect(page.getByText("Fill in the missing word")).toHaveCount(0);
+  });
+
+  test("the keys do nothing once the last card is rated: the walked list is not served again", async ({ page }) => {
+    await signIn(page);
+    // Flip cards, and a card with a review row, so a second rating would be
+    // an update that lands rather than a duplicate insert that fails.
+    const backend = await stubSupabase(page, {
+      tables: {
+        ...aDeck(),
+        word_reviews: [aWordReview({ id: reviewId(0), word_id: wordId(0) })],
+      },
+    });
+
+    await page.goto("/review");
+    await expect(page.getByText("السوق").first()).toBeVisible();
+    // The deck is slow to answer what is due next.
+    backend.db.delay("vocabulary_words", 2000);
+    await page.keyboard.press(" ");
+    await page.keyboard.press("3");
+
+    // Out of habit, again: reveal and rate.
+    await page.keyboard.press(" ");
+    await page.keyboard.press("3");
+    await page.waitForTimeout(2500);
+
+    expect(backend.db.writesTo("word_reviews")).toHaveLength(1);
+    // What comes next is a new card: remembering the word unlocked saying it.
+    await expect(page.getByText("Say it in Arabic")).toBeVisible();
   });
 
   test("a wrong pick in the gap asks the tutor why, about this sentence", async ({ page }) => {

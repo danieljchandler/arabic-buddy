@@ -19,6 +19,7 @@ import { useRemainingNewCardBudget } from './useNewCardBudget';
 import { useCurriculumDeckScope } from './useCurriculumDeckScope';
 import { selectRequestedCurriculumWords } from '@/lib/curriculumDeck';
 import { withBossFirst } from '@/lib/bossCard';
+import { all as queuedRatings, withoutQueued } from '@/lib/reviewQueue';
 
 export interface WordReview {
   id: string;
@@ -183,6 +184,11 @@ export const useDueWords = (mixAll = false, options: DueWordsOptions = {}) => {
     queryFn: async (): Promise<DueCurriculumCard[]> => {
       if (!user) return [];
 
+      // Ratings the queue has not yet saved (useReviewQueue), read before the
+      // fetch and again after it: a card rated and not yet saved is not due,
+      // whatever the server still says, and a rating can land or be given
+      // while the fetch is out.
+      const queuedBefore = queuedRatings(user.id);
       const now = new Date().toISOString();
 
       const words = await fetchAllRows((from, to) => {
@@ -324,11 +330,18 @@ export const useDueWords = (mixAll = false, options: DueWordsOptions = {}) => {
         }
       }
 
+      // A card whose rating is still queued is left out before the ordering,
+      // so a queued new card does not take a place under the new-card cap.
+      const unrated = withoutQueued(cards, [...queuedBefore, ...queuedRatings(user.id)], (card) => ({
+        wordId: card.id,
+        direction: scheduleDirectionFor(card.card_type),
+      }));
+
       // Due-date priority, new-card cap and direction interleaving, shared with
       // the personal deck. The new-card budget is server-persisted via
       // daily_new_card_counts, so it's a real daily limit rather than a
       // per-page-load one.
-      const ordered = buildReviewOrder(cards, {
+      const ordered = buildReviewOrder(unrated, {
         newCardCap: remainingNewBudget,
         blockNewCards: (srsStats?.reviewedCount ?? 0) < BEGINNER_REVIEW_THRESHOLD,
       });

@@ -222,23 +222,30 @@ stored in localStorage by `src/lib/reviewQueue.ts`), so the page moves on
 before the server has answered. A network error is retried on a backoff (1 s,
 2 s, 5 s, 15 s, 60 s); a write the server rejects is dropped with a toast, so
 it cannot wedge the ratings behind it. My Words and My Phrases save each rating
-before moving on and have no queue. Two things the queue must keep:
+before moving on and have no queue. Three things this must keep:
 
-- **The end of the list waits for it.** When the last card is rated the page
-  asks the server what is due next, and it used to ask at once. The server
-  still had the last cards due, so the session served one it had just rated.
-  It now waits for the queue (`settle`, at most `LIST_SETTLE_MS`, 4 s) and
-  shows "Saving your answers…" while it does. If the wait runs out, any card
-  whose rating is still queued is dropped from what comes back
-  (`withoutQueued`): it is not due, whatever a fetch made before the rating
-  landed says.
+- **A card whose rating is still queued is not due.** Until the queue saves it,
+  the server holds the card's old schedule and calls it due, so `useDueWords`
+  reads the queue before and after its fetch and leaves such a card out
+  (`withoutQueued`), on the schedule the rating is for. Every refetch gets this,
+  "Try again" on a failed one included, however slow or absent the connection.
+- **The walked list is spent at the end.** When the last card is rated the page
+  asks what is due next. It used to show the walked list's first card while the
+  refetch was out, and the server, not yet holding the last ratings, could send
+  the same cards back, so the session served a card it had just rated (and the
+  rating keys, still live, could rate it again). Now the list is marked spent at
+  once and never shown again (`closeList` in `Review.tsx`), the keys have
+  nothing to rate, and "Checking for more cards…" shows for at most 4 s
+  (`LIST_WAIT_MS`) before the end of the session does. What the fetch brings is
+  served when it lands; offline, React Query holds it until the connection is
+  back.
 - **`flush` keeps one identity per user.** The mutation hooks it calls return a
-  new object every render. While they were its dependencies, every render
-  re-ran the drain-on-mount effect, whose cleanup cancelled the pending backoff
-  and whose body retried at once. Under the test clock that was hundreds of
-  attempts in two seconds against a server that was down, and the reworked
-  drain made it happen in the browser too. The drain now reads them through a
-  ref, and a test holds the attempts to the backoff.
+  new object every render. While they were its dependencies, every render re-ran
+  the drain-on-mount effect, whose cleanup cancelled the pending backoff and
+  whose body called `flush` again, so how soon a failing write was retried
+  depended on when the hook re-rendered, not on the backoff (under the test
+  clock, hundreds of attempts in two seconds). The drain now reads them through
+  a ref, and a test holds the attempts to the backoff.
 
 ### Reviewing as a quiz instead of flashcards
 

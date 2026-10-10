@@ -20,7 +20,7 @@ means — so a session can pick up the next phase cold.*
 | 4b | Deploy `word-asset` (this version) | **owner action** (after 2b; one deploy covers 3b's) |
 | 5 | Animations for action words | built (PR #426); the clips themselves are 5b |
 | 5b | Apply the bucket migration, deploy `word-asset`, run `scripts/curriculum-animations.ts` | **owner action** (after 2b) |
-| 6 | Words in stories | built (PR #PRNUM) |
+| 6 | Words in stories | built (PR #428) |
 | 6b | Deploy `word-asset` (this version), then run `scripts/curriculum-stories.ts` | **owner action** (after 2b) |
 | 7 | The rest of the game | any time after 1 |
 | 8 | Tuning from real reviews | once the quiz has weeks of history |
@@ -577,7 +577,7 @@ jumping) replaces the picture as the "say it" prompt.
 
 ---
 
-## Phase 6 — words in stories (built, PR #PRNUM; the run is 6b)
+## Phase 6 — words in stories (built, PR #428; the run is 6b)
 
 What shipped, so the later phases know what they stand on (writeups: README
 "Reviewing as a quiz instead of flashcards", "The asset store" and "The

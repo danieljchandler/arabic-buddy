@@ -590,6 +590,33 @@ that sits under a leech (`LeechHelperPanel`) is not shown under the boss: it
 prints the memory hook, which the boss keeps behind a tap until the answer is
 in. It is there for every other leech as before.
 
+**Ladder climbs on the leaderboard** (quiz Phase 7). The weekly board shows,
+beside each learner's XP this week, their **climbs** this week: how many times
+one of their words moved up a step of the ladder ("3 climbs"), the same count
+the session summary's "Climbed" tile keeps for one session. The board does
+not rank by it; XP still does.
+
+The count is the database's, never the browser's. `leaderboard_climbs` (an RPC,
+migration `20261010120000_leaderboard_climbs`) reads `review_log`, which only
+the schedule tables' triggers write, so a climb on the board is a real review's
+memory moving and nobody can post themselves a number. A review climbs when
+the step its memory lands on is above the step it was asked at, by the ladder
+written out in SQL (`quiz_ladder_step`, held to `LADDER_THRESHOLDS` by
+`src/test/leaderboardClimbs.test.ts`; the same rule in TypeScript is
+`src/lib/ladderClimbs.ts`, which the in-memory backend answers with). The log
+keeps no repetitions before a review, so they are read as one fewer than after
+(the scheduler adds one on every review but a lapse, and a lapse is never a
+climb); a first review was asked as a new card. The week is the UTC week, as
+XP's is. The function answers only for learners who chose to be on the board,
+a page (100) at a time, and only with a count.
+
+Two things follow from counting it there. It counts **what the log logs**: the
+curriculum deck's words, in either review style — the step is a function of a
+card's memory, not of how it was asked — and not My Words or My Phrases, which
+the log does not cover. And until the migration is applied to the live project
+(an owner action, quiz Phase 7b) the RPC is missing: `readClimbs` answers null
+and the board shows XP alone, exactly as before, rather than a row of zeros.
+
 Proposal and the phases still to come (the rest of the game, tuning from real
 reviews): `docs/quiz-modes-plan-2026-10.md`; the execution roadmap is
 `docs/quiz-phases-2026-10.md`.

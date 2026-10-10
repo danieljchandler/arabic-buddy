@@ -22,7 +22,8 @@ means — so a session can pick up the next phase cold.*
 | 5b | Apply the bucket migration, deploy `word-asset`, run `scripts/curriculum-animations.ts` | **owner action** (after 2b) |
 | 6 | Words in stories | built (PR #428) |
 | 6b | Deploy `word-asset` (this version), then run `scripts/curriculum-stories.ts` | **owner action** (after 2b) |
-| 7 | The rest of the game | in progress: "Why not this one?" (PR #430), the lightning round (PR #431) and the boss card (PR #BOSS) built |
+| 7 | The rest of the game | built: "Why not this one?" (PR #430), the lightning round (PR #431), the boss card (PR #BOSS), ladder climbs (PR #CLIMBS); XP parity is the owner's question |
+| 7b | Apply the `leaderboard_climbs` migration to the live project | **owner action** |
 | 8 | Tuning from real reviews | once the quiz has weeks of history |
 | 9 | Housekeeping | any time |
 
@@ -879,7 +880,7 @@ One PR per item, in this order, each independent of the asset store:
 | 7.1 "Why not this one?" on every choice step | built (PR #430) |
 | 7.2 The lightning round | built (PR #431, on #430) |
 | 7.3 The boss card | built (PR #BOSS, on #431) |
-| 7.4 Ladder climbs on the leaderboard | next |
+| 7.4 Ladder climbs on the leaderboard | built (PR #CLIMBS, on #BOSS); the migration is 7b |
 | XP parity for the flip cards | **a question for the owner**, not built |
 
 ### 7.1 "Why not this one?" on every choice step (built, PR #430)
@@ -1045,6 +1046,63 @@ the boss card):
 6. *No rescue panel under the boss.* `LeechHelperPanel` prints the hook, so
    under the boss it would hand over what the banner keeps behind a tap; the
    e2e found this. Every other leech keeps its panel.
+
+### 7.4 Ladder climbs on the leaderboard (built, PR #CLIMBS; the migration is 7b)
+
+What shipped (writeup: README "Reviewing as a quiz instead of flashcards",
+ladder climbs on the leaderboard):
+
+- **Migration `20261010120000_leaderboard_climbs.sql`**:
+  `quiz_ladder_step(stability, repetitions, direction)` (the ladder in SQL)
+  and `leaderboard_climbs(_user_ids uuid[])`, a security-definer RPC that
+  counts this UTC week's climbs in `review_log` (deck `word`, lapses never)
+  for opted-in learners only, 100 a call. Replayed against Postgres 16 with
+  the rest (`migrationReplay.test.ts`), and checked there: the SQL step
+  agrees with `rungForMemory` on 110 memory states, and the function counts
+  a seeded week correctly (a first graduation, a step up, a production step
+  up; not a step held, a lapse, last week, a set phrase, or a learner off the
+  board).
+- **`src/lib/ladderClimbs.ts`**: `isLadderClimb` and `climbWeekStart`, the
+  rule in TypeScript; the in-memory backend's `leaderboard_climbs` uses it.
+- **`useLeaderboard`**: `readClimbs` (null on any failure),
+  `LeaderboardEntry.climbs_this_week` (the weekly board; null on the all-time
+  one and whenever the RPC is missing); the row shows "n climbs" under the XP.
+- Guards: `ladderClimbs.test.ts`, `leaderboardClimbs.test.ts` (the SQL's
+  thresholds held to `LADDER_THRESHOLDS`, and the rules the count rests on),
+  `useLeaderboard.test.ts`, `leaderboard.spec.ts` ("ladder climbs"); the RPC
+  passes `schemaContract`'s "every rpc() is defined by a migration".
+
+**Decided in this item:**
+
+1. *Counted by the database from `review_log`, not posted by the client.* A
+   leaderboard number a learner can send themselves is worth nothing; the
+   log is trigger-written. The cost is coverage: My Words and My Phrases are
+   not in the log, so their climbs are not counted. Logging them is its own
+   migration.
+2. *Every curriculum review counts, flashcard or quiz*: the step is read off
+   memory, so a word climbs the same whichever way it was asked.
+3. *Beside XP, not instead*: the board still ranks by XP.
+4. *No zeros before the migration*: a missing RPC hides the climbs.
+5. *The step before is inferred*: the log keeps repetitions after a review
+   only. One fewer is exact for every review but a lapse and a learning
+   card's Hard (which stays at 0, and is read so); lapses are left out.
+
+### 7b — owner action
+
+Apply `20261010120000_leaderboard_climbs.sql` to the live project (ask Lovable
+to run it, or `supabase db push`). It adds two functions and touches no table.
+Until then the weekly board shows XP alone. Nothing is waiting on a types
+regeneration (no column is added), and `typesDrift` has no entry for it.
+
+**Done when** (7b): the weekly board in production shows climbs beside XP.
+
+### XP parity for the flip cards — the owner's question
+
+Not built. A graded quiz answer on My Words or My Phrases pays the flat review
+XP and bumps the weekly review count; those decks' flip cards still pay
+nothing, while the curriculum deck's flip cards pay. Paying the flip cards
+would change existing behaviour (and the board's XP), so it waits on the
+owner.
 
 ### The plan, as it was written
 

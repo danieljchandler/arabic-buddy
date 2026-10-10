@@ -8,6 +8,7 @@ import {
   currentLightningId,
   expireLightning,
   lightningFormat,
+  lightningOver,
   lightningRemainingMs,
   lightningResult,
   lightningWordFor,
@@ -108,6 +109,18 @@ describe("today's words", () => {
 describe("a round", () => {
   const start = (ids = ["a", "b", "c"]) => startLightning(ids, "seed", T0);
 
+  it("never deals the last round's order again", () => {
+    const ids = ["a", "b", "c"];
+    for (let seed = 0; seed < 20; seed++) {
+      const first = startLightning(ids, `${seed}`, T0).order;
+      const again = startLightning(ids, `${seed}`, T0, first).order;
+      expect(again).not.toEqual(first);
+      expect([...again].sort()).toEqual(ids);
+    }
+    // One word has one order.
+    expect(startLightning(["a"], "0", T0, ["a"]).order).toEqual(["a"]);
+  });
+
   it("deals every word once, in an order of its own that a re-deal keeps", () => {
     const state = start(["a", "b", "c", "b"]);
     expect([...state.order].sort()).toEqual(["a", "b", "c"]);
@@ -132,16 +145,24 @@ describe("a round", () => {
     expect(state).toMatchObject({ answered: 2, right: 1 });
   });
 
-  it("ends when the last word is answered, and the time it took is the result", () => {
+  it("ends when the last word is answered, shows its answer, and the time it took is the result", () => {
     let state = start();
     state = nextLightning(answerLightning(state, true, T0 + 3000), T0 + 3500);
     state = nextLightning(answerLightning(state, false, T0 + 7000), T0 + 8200);
+    const last = state.order[2];
     state = answerLightning(state, true, T0 + 12_300);
 
-    expect(currentLightningId(state)).toBeNull();
-    expect(lightningResult(state)).toEqual({ right: 2, answered: 3, total: 3, seconds: 13, cleared: true });
-    // The clock stops with it.
+    // The clock stops on the answer, and the answer stays on screen for its beat.
     expect(lightningRemainingMs(state, T0 + 50_000)).toBe(LIGHTNING_MS - 12_300);
+    expect(currentLightningId(state)).toBe(last);
+    expect(lightningOver(state)).toBe(false);
+    expect(lightningResult(state)).toBeNull();
+
+    // A reveal that runs past the minute changes nothing: the round was over.
+    state = nextLightning(state, T0 + 70_000);
+    expect(currentLightningId(state)).toBeNull();
+    expect(lightningOver(state)).toBe(true);
+    expect(lightningResult(state)).toEqual({ right: 2, answered: 3, total: 3, seconds: 13, cleared: true });
   });
 
   it("ends on the minute, with the word on screen unanswered", () => {

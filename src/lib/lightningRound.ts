@@ -136,9 +136,19 @@ export interface LightningState {
   endedAt: number | null;
 }
 
-/** A round over `ids`, dealt in an order of its own (`seed`), started at `now`. */
-export function startLightning(ids: readonly string[], seed: string, now: number): LightningState {
-  const order = seededShuffle([...new Set(ids)], `${seed}:lightning`);
+/**
+ * A round over `ids`, dealt in an order of its own (`seed`), started at `now`.
+ * Given the last round's order, never the same one again: "Play again" is a
+ * new deal, not the same run from memory.
+ */
+export function startLightning(
+  ids: readonly string[],
+  seed: string,
+  now: number,
+  previous: readonly string[] = [],
+): LightningState {
+  let order = seededShuffle([...new Set(ids)], `${seed}:lightning`);
+  if (order.length > 1 && order.every((id, i) => previous[i] === id)) order = [...order.slice(1), order[0]];
   return {
     order,
     index: 0,
@@ -164,33 +174,41 @@ export function expireLightning(state: LightningState, now: number): LightningSt
 
 /**
  * The word on screen was answered at `now`. The last word's answer ends the
- * round then and there; the reveal that follows is not on the clock. An
- * answer after the end, or a second answer to one word, changes nothing.
+ * round then and there, so the clock stops on it; its reveal still plays, off
+ * the clock, so a learner who missed it sees the right answer. An answer after
+ * the end, or a second answer to one word, changes nothing.
  */
 export function answerLightning(state: LightningState, correct: boolean, now: number): LightningState {
   const expired = expireLightning(state, now);
   if (expired.endedAt !== null || expired.revealing) return expired;
-  const answered = expired.answered + 1;
   const last = expired.index >= expired.order.length - 1;
   return {
     ...expired,
-    answered,
+    answered: expired.answered + 1,
     right: expired.right + (correct ? 1 : 0),
-    revealing: !last,
+    revealing: true,
     endedAt: last ? now : null,
   };
 }
 
-/** The reveal is over: on to the next word. */
+/** The reveal is over: on to the next word, or to the result after the last. */
 export function nextLightning(state: LightningState, now: number): LightningState {
+  if (!state.revealing) return expireLightning(state, now);
+  if (state.endedAt !== null) return { ...state, revealing: false };
   const expired = expireLightning(state, now);
-  if (expired.endedAt !== null || !expired.revealing) return expired;
+  if (expired.endedAt !== null) return expired;
   return { ...expired, index: expired.index + 1, revealing: false };
 }
 
-/** The word on screen, or null once the round is over. */
+/** The word on screen: the one being asked, or the last one while its answer shows; null once the result is up. */
 export function currentLightningId(state: LightningState): string | null {
-  return state.endedAt === null ? (state.order[state.index] ?? null) : null;
+  if (state.endedAt !== null && !state.revealing) return null;
+  return state.order[state.index] ?? null;
+}
+
+/** Whether the result is up: the round is over and nothing is still showing its answer. */
+export function lightningOver(state: LightningState): boolean {
+  return state.endedAt !== null && !state.revealing;
 }
 
 export interface LightningResult {
@@ -204,9 +222,9 @@ export interface LightningResult {
   cleared: boolean;
 }
 
-/** The score and the time, once the round is over; null while it runs. */
+/** The score and the time, once the round is over; null while it runs or its last answer shows. */
 export function lightningResult(state: LightningState): LightningResult | null {
-  if (state.endedAt === null) return null;
+  if (!lightningOver(state) || state.endedAt === null) return null;
   const elapsed = Math.min(LIGHTNING_MS, state.endedAt - state.startedAt);
   return {
     right: state.right,

@@ -532,16 +532,21 @@ cards — the every-other-card cloze it used to show now lives in the quiz.
 the summary, a session with at least three right answers at the ladder's
 first four steps is offered sixty seconds over those words
 (`LightningRound`, its rules pure in `src/lib/lightningRound.ts`). Each word
-is asked once, in an order of its own, and moves on by itself after a beat
-(half a second after a right answer, 1.2 s after a wrong one, so the right
-one can be read); the round ends when the clock runs out, mid-question or
-not, or when the last word is answered, and the result is the score and the
-time ("Every word in 23 s", or "Time!"). The questions are the session's own
+is asked once, in an order of its own ("Play again" never deals the same order
+twice, nor the same options in the same places), and moves on by itself after
+a beat (half a second after a right answer, 1.2 s after a wrong one, so the
+right one can be read); the round ends when the clock runs out, mid-question or
+not, or when the last word is answered (the clock stops on that answer, and its
+beat still plays), and the result is the score and the time ("Every word in
+23 s", or "Time!"). Focus moves to each new question and then to the result,
+so the round can be played from the keyboard. The questions are the session's own
 cards, asked **bare** (`bare` on `ReviewClozeCard` and `QuizChoiceCard`):
 
 - a gap (steps 1 and 2) is asked as the gap, without the first look's hint;
 - the picture, and the meaning shown, as the word shown → pick its meaning
-  (the picture question's direction, with the meanings as words);
+  (the picture question's direction, with the meanings as words), never
+  offered another gloss of the word itself (`otherMeanings`, which the
+  frame's meaning questions use too);
 - the word heard alone as the word heard alone, but only when it has a
   stored recording — otherwise as the word shown.
 
@@ -553,8 +558,8 @@ calls no function at all. That is why a word the session heard in a
 synthesised voice is shown rather than heard (and why a page's `blob:` url,
 revoked once its card changes, is dropped from the word: `storedRecording`).
 The words are the session's, kept on the page as they are answered right
-(`lightningWordFor`, once per word), and a deck switch starts afresh with the
-summary.
+(`lightningWordFor` makes the word, `addLightningWord` keeps it once), and a
+deck switch starts afresh with the summary.
 
 **The boss card** (quiz Phase 7). A quiz session opens on the learner's worst
 word: of the cards due, the recognition leech with the most lapses goes first

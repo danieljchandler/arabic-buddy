@@ -542,7 +542,8 @@ test.describe("the lightning round", () => {
     await expect(page.getByRole("heading", { name: /every word in \d+ s/i })).toBeVisible();
     await expect(page.getByLabel(/lightning round score/i)).toHaveText("3 / 3");
 
-    // Nothing the round did was a rating, or paid anything.
+    // Nothing the round did was a rating, or paid anything, not even a moment later.
+    await page.waitForTimeout(1000);
     expect(JSON.stringify(backend.db.rows("word_reviews"))).toBe(ratings);
     expect(backend.rpcCallsTo("award_xp")).toHaveLength(3);
     expect(backend.callsTo("tts-speak")).toHaveLength(voices);

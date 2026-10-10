@@ -867,6 +867,8 @@ const Review = () => {
       .filter((w) => w.lesson_id !== currentWord.lesson_id)
       .flatMap((w) => asDialogue(w.dialogue)),
     dialect: currentWord.dialect_module ?? activeDialect,
+    // What makes it an action word, which may be shown as an animation.
+    category: currentWord.category ?? null,
     direction: scheduleDirectionFor(currentWord.card_type),
     memory: { stability, repetitions },
   };
@@ -970,6 +972,11 @@ const Review = () => {
               // it is charged to this learner's dialogue allowance, once per
               // word for every learner after them.
               storedDialogues
+              // An action word (a verb by its authored category) is shown its
+              // clip on "say it" and the picture question, if the store has
+              // one. Read only: clips are made by
+              // scripts/curriculum-animations.ts, never on a learner's miss.
+              animations
               renderFlashcard={() => (
                 <>
                   {flashcard}

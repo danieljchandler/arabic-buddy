@@ -77,6 +77,11 @@ export interface VocabularyWord {
   example_arabic?: string | null;
   example_english?: string | null;
   example_transliteration?: string | null;
+  /**
+   * The authored part of speech or theme ("Verb — routine", "Noun"). The quiz
+   * reads it to know an action word, which may be shown as an animation.
+   */
+  category?: string | null;
 }
 
 interface WordWithReview extends VocabularyWord {
@@ -191,6 +196,7 @@ export const useDueWords = (mixAll = false, options: DueWordsOptions = {}) => {
             example_transliteration,
             dialect_module,
             frequency_rank,
+            category,
             lessons (
               title,
               title_arabic,

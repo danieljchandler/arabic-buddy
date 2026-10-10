@@ -234,11 +234,11 @@ ladder in `src/lib/quizLadder.ts`:
 |---|---|---|
 | 1 First look | new, or under a day (just lapsed) | the authored or saved sentence with the word blanked, four Arabic options, the meaning shown as a hint |
 | 2 Fill the gap | under 4 days | the same gap, no hint |
-| 3 Pick the picture | under 8 days | the word, seen and heard → four pictures |
+| 3 Pick the picture | under 8 days | the word, seen and heard → four pictures (an action word's clip among them, where it has one) |
 | 4 Hear it | under 16 days | the word's audio alone → pick the meaning |
 | 5 Pick the word | under 30 days | the picture (or the meaning) → four Arabic words, each with its recording |
 | 6 Answer the line | 30 days and up | a line of dialogue (the lesson's, else the word's stored exchange), said aloud → pick the reply that uses the word |
-| 7 Say it | production card, under 14 days | the picture alone (or the meaning) → say the word; scored |
+| 7 Say it | production card, under 14 days | the picture alone — an action word's clip, where it has one — or the meaning → say the word; scored |
 | 8 Say the line | production card, 14 to 30 days | the English line → say the Arabic sentence; scored |
 | 9 Say the reply | production card, 30 days and up | a line of dialogue, said aloud, and the reply's meaning → say the reply; scored, the word required |
 
@@ -351,11 +351,59 @@ the closest run of recognised words to the word, with an attached و, ب or
 reply. A word of three letters or fewer must be heard exactly: زين and وين
 are one letter apart, well inside the allowance a longer word gets.
 
+**An animation for an action word** (quiz Phase 5). For a verb, a still is
+the weakest picture there is: a person holding a cup is "cup" as much as
+"drink". So the curriculum deck (`animations`) shows an action word's clip —
+four seconds of the action in the Ink style, looping, from the shared store
+(`kind: "animation"`, "The asset store" below) — where its picture would be:
+
+- *Which words.* A curriculum word whose authored category's head is "verb"
+  ("Verb", "Verb — routine", "Verb — past" and six more spellings; not
+  "Adverb", "Verb phrase" or "Verb frame"), or whose action is on
+  `ACTION_NOUNS` ("traffic / crowd", "trip"), and whose gloss names an action
+  at all (`qualifiesForAnimation` in `_shared/wordAnimation.ts`): "I want",
+  "was / were" and "I think (that)" are verbs with nothing to watch, and get
+  none. **Decided: a learner's saved words do not qualify.** `user_vocabulary`
+  carries no part of speech (no category, and its `tags` are the learner's
+  own), so the gloss would be the only evidence, and an English gloss is
+  exactly what cannot tell "to fly" from "a fly" once a learner or a model has
+  written it "fly", or "run (a business)" from "run" once it is "to run". A
+  saved word keeps its picture.
+- *"Say it"* (step 7, and the steps that fall back onto it) shows the clip in
+  the picture's frame and in its place — never both — with the meaning behind
+  a tap, as for a picture.
+- *The picture question* (step 3) deals one visual per word: its clip where
+  the pool has one (`useQuizPool` reads the curriculum's clips in one query
+  of their own, beside the stored replies'), else its picture. It never deals
+  another word with the same sense, or whose action shows the same motion
+  (`actionsOverlap`: the same action, an alternative in common — "watch" beside
+  "watch / see" — or a third-person "s"), which would be a second right
+  answer; a past tense beside its present ("ate", "eat") is not caught. A clip that would be the only option moving is shown as its
+  poster, so motion is never the tell (`MIN_MOVING_OPTIONS`, 2).
+- *Motion that respects the learner.* A clip plays muted, looped and inline,
+  with no controls (`QuizAnimation`). Under `prefers-reduced-motion` — read
+  live — it is its poster, the still it starts and ends on; so is a clip that
+  cannot load or that the browser will not autoplay.
+- *Read, never made.* A clip costs a poster and four seconds of Veo, several
+  pictures' worth, and takes longer to render than any card waits, so the quiz
+  only looks one up (`useCardAsset`, free, `ANIMATION_LOOKUP_WAIT_MS` at
+  most); they are made by `scripts/curriculum-animations.ts`. A card with no
+  clip filed — every card, until that has run — is asked with its picture, or
+  its meaning, exactly as before, and a clip filed while a question is on
+  screen is for the next time it is dealt.
+
 Grading is `src/lib/quizGrading.ts`: a right choice is Good (never Easy when
 the options were on screen — the lesson quiz's and debrief's rule), a right
 choice reached with help is Hard, wrong is Again; a spoken take is banded by
 its score, and a take that was a different word — or, for a reply, one without
-the word in it — is Again whatever it scored.
+the word in it — is Again whatever it scored. **Decided (2026-10-10): a reply
+with the word clearly in it is never Again.** The score is taken against the
+one stored reply, so a learner who answers the line rightly in other words
+loses on completeness and can land under the Hard band; that would be a lapse
+on a production card a month or more old, for a right answer. When the word's
+span of what was heard reaches `REPLY_WORD_CLEAR` (0.8; a word of three
+letters or fewer only when heard exactly), a low-scoring reply is Hard
+instead.
 Every rating then goes down the page's existing path — the offline queue,
 relearn, leeches, production unlock, the `review_log` trigger — so nothing
 downstream knows the style. `QuizCardFrame` is the one place the ladder, the
@@ -369,7 +417,7 @@ Phrases decks also pays the flat review XP that the curriculum deck pays and
 those decks' flip cards never did. Under Flashcards, My Words serves plain flip
 cards — the every-other-card cloze it used to show now lives in the quiz.
 
-Proposal and the phases still to come (story questions, animations):
+Proposal and the phases still to come (story questions, the rest of the game):
 `docs/quiz-modes-plan-2026-10.md`; the execution roadmap is
 `docs/quiz-phases-2026-10.md`.
 
@@ -398,7 +446,8 @@ read, harakat and all, since the harakat are what the voice says — a word
 re-vowelled to fix its pronunciation is a new recording. The dialect is folded
 onto Gulf, Egyptian or Yemeni, and Fusha is refused: the store holds nothing a
 dialect learner should not be shown. A language-neutral kind (an animation of
-jumping, later) is keyed on the English concept alone. `style_version` is part
+jumping, quiz Phase 5) is keyed on the English action alone, with no Arabic and
+no dialect (`animationConcept`, below). `style_version` is part
 of the unique key (`ink-1` for pictures), so a brand refresh regenerates
 rather than mixes two looks in one deck.
 
@@ -412,8 +461,8 @@ dialect — never the gloss as typed, since whatever the folding drops (an
 emoji, a symbol) is in no key and must not be in a picture every learner of
 the key is shown. The first learner to miss decides what every later learner
 sees, so they must not be able to decide anything beyond the word. `ensure`
-makes pictures and, since quiz Phase 4, exchanges; the later phases add their
-kinds.
+makes pictures, exchanges (quiz Phase 4) and animations (Phase 5, on the
+trusted path only); the later phases add their kinds.
 
 **The trusted path: an authored scene.** One thing beyond the word may reach
 a shared prompt, and not from a learner: for a picture, `scene`, a track
@@ -537,6 +586,106 @@ so it has no bucket (`ASSET_BUCKETS.dialogue` is null) and is filed with
   authored exchange replaces a learner-written one, the row is updated in
   place, so `meta.replaces` keeps the text it held.
 
+**Animations (`kind: "animation"`, quiz Phase 5).** A four-second looping
+clip of an action word's action, shown by the quiz where the word's picture
+would be ("Reviewing as a quiz" above). One per action, shared by every
+dialect: Gulf's آكل, Egyptian's باكل and Yemeni's آكل are all "I eat", and
+one clip of eating serves the three.
+
+- *The key is the action* (`animationConcept` in `_shared/wordAssets.ts`,
+  which `assetKey` uses for the kind). The subject and a leading "to" go ("I
+  eat", "eat" and "to eat" are one); a qualifier stays — `normaliseGloss`
+  turns "run (a business)" into "run a business", so it never borrows a clip
+  of someone running; a list of alternatives is kept whole, each folded on its
+  own ("I come back / I return" is "come back / return"), so a gloss shares a
+  clip only with the same list. A gloss that is a note rather than a meaning
+  keys nothing at all: one that opens with a bracket, asks a question ("do you
+  want? (to a man)"), trails off ("then … would have"), uses a note's words
+  ("used to…", "lit."), runs past eight words, or is led by a verb with
+  nothing to watch ("I want", "was / were", "I'm full"). Which *words* get a
+  clip is a second rule on top (`qualifiesForAnimation`, the quiz section).
+- *How a clip is made.* A poster first, drawn by the image model in the Ink
+  picture style at 16:9 with nothing that places it in one country
+  (`inkAnimationPosterPrompt`, `NEUTRAL_FIGURE_LINE`; a picture's dialect
+  setting belongs to a picture of one dialect's word). Then the clip, animated
+  from that poster as its first **and** last frame (`inkAnimationPrompt`,
+  `INK_ANIMATION_STYLE`: one action, once, back to the pose it began in, a
+  camera that never moves, flat inks that stay flat, no text), so it loops
+  without a jump and keeps the look — a video model left to a text prompt
+  drifts toward depth and light. Both prompts are built from the key's action
+  alone. The model is **Veo 3.1 Lite** (`VIDEO_MODEL_IDS.VEO_LITE`, chosen by
+  the owner on 2026-10-09 over Veo 3.1 Fast, Kling v3.0 std, and Sora 2,
+  whose API was being retired), through `aiGateway.generateVideo`: Google's
+  `predictLongRunning` on the existing `GEMINI_API_KEY`, then the same model
+  on OpenRouter's `/videos` without audio. Once a start has been sent, only
+  a plain refusal or a job that ended unbilled (an error, a safety block)
+  hands on to the other route; a timeout, a broken download, an answer that
+  cannot be read or anything thrown stops, since that render may be billed and
+  a second one would be. Google's key goes to Google's host only, and a
+  download redirect is followed without it; a download is a clip only if its
+  bytes are an MP4. One deadline covers the poster and the clip together
+  (340 s, inside the worker's 400 s), and no route is started with less than
+  two minutes of it left, so nothing is rendered that cannot be filed. 720p,
+  16:9, four seconds, MP4.
+- *What it costs, and who pays.* About **$0.27** a clip on Google's API (a
+  $0.067 poster and 4 s × $0.05), or $0.19 on OpenRouter's — several
+  pictures' worth — and a render takes from eleven seconds to minutes.
+  **Decided: only the trusted path makes a clip; a learner only reads them.**
+  That is the service role (`scripts/curriculum-animations.ts`) and the
+  content team, through the same `isServiceRoleCall` / `requireRole` gate as
+  an authored scene. The service role is charged to nobody. **Decided
+  (2026-10-10): the content team's clips are capped**, on a counter of their
+  own, `word-asset-animation`, ten a day per person (about $2.70 at most; an
+  ID-login reviewer included, an admin, as for every cap, not limited),
+  counted only on a miss and before the poster is drawn. A learner's `ensure`
+  for a clip is refused (`403
+  animation_not_for_learners`) before anything is spent; a learner's `get`,
+  or an `ensure` that hits, is served free. A learner's miss deciding, at that
+  price, a clip every dialect's learners are shown, for a question the card
+  could not have waited for anyway, was the wrong trade.
+- *A file, and its poster.* Both go in a bucket of their own,
+  `word-animations` (migration `20261009140000_word_animations_bucket`):
+  public, written only by the service role, and limited to MP4s and stills of
+  at most 8 MB, a few times what a four-second clip comes to. Each is uploaded
+  under a fresh name in the key's folder — the poster through `uploadNewFile`,
+  the clip through `fileNewAsset` — and the row is filed with the clip's url
+  and `payload: { poster, seconds, aspect }`. A clip with no poster is not
+  served (`asStoredAnimation`): a learner who asked for reduced motion would
+  have nothing to look at. The style version stays `ink-1`, reserved for the
+  kind in Phase 2; nothing was ever filed under it before.
+- *A render that outlasts its caller* is finished under
+  `EdgeRuntime.waitUntil`: the function answers within 100 s
+  (`WORD_ASSET_ANIMATION_ANSWER_MS`) with the clip, or with `202 { pending:
+  true }`, and files the clip when it lands. The script then looks it up with
+  free `get`s rather than asking again, which would pay for a second render.
+- *Not without the table or the bucket.* A clip has no learner row to land
+  on, so while the table is missing `ensure` answers `503 store_not_ready`,
+  and while the bucket is missing `503 bucket_not_ready`, both before the
+  poster is drawn.
+
+**Filling the curriculum's clips: `scripts/curriculum-animations.ts`.** For
+every `vocabulary_words` row that qualifies, it makes sure the store holds its
+action's clip, once per action, on the trusted path; nothing is written onto
+the rows. `--dialect`, `--stage`, `--limit` (clips, not words; an action
+already in the store is free and not counted), and `--dry-run`, which reads
+only and prints the bill. Today's tracks come to **62 clips, about $16.55**:
+Stage 1 has one, "give me / pass me" (its other verbs are "I want"), Stage 2
+has 33 and Stage 3 has 28. The deciding is in
+`scripts/curriculum-animations-core.ts`, covered by
+`src/test/curriculumAnimations.test.ts`.
+
+```sh
+SUPABASE_SERVICE_ROLE_KEY=... deno run --allow-env --allow-read --allow-net \
+  scripts/curriculum-animations.ts --dry-run
+SUPABASE_SERVICE_ROLE_KEY=... deno run --allow-env --allow-read --allow-net \
+  scripts/curriculum-animations.ts --stage 2 --limit 3
+```
+
+Order matters: apply the `word_assets` migration and the bucket's, and deploy
+this `word-asset`, first. Without the table or the bucket a real run stops
+before it asks for anything and says which is missing (the dry run still
+counts and prices every action).
+
 **Pictures that can be told apart.** The quiz deals a word's picture beside
 three other words', so the prompt template says so
 (`PICTURE_DISTINCT_LINE`): draw what is particular to this meaning, one
@@ -589,7 +738,9 @@ its lyrics pass the leak detector exactly as the Brain runs it (with the
 approved rulebook's forbidden tokens) and are what was actually sung (a clip
 from the safety-filter fallback sings only the word, so it is not filed under
 lyrics it did not sing); a shared jingle is sung in the dialect and from the
-sense its key was folded to.
+sense its key was folded to. A clip is the picture style set moving
+(`INK_ANIMATION_STYLE`, beside `INK_PICTURE_STYLE`): animated from an Ink
+poster, its inks stay flat, its camera stays still, and no text appears.
 
 **What looks the store up first:**
 
@@ -597,6 +748,8 @@ sense its key was folded to.
 |---|---|---|
 | The quiz's picture step, for a learner's own word (`QuizCardFrame` → `useEnsureWordAsset`) | the store's picture goes on the learner's row, uncharged; found by the free `useWordAsset` read first, so most hits never reach the function | `ensure` draws and files it, on the learner's daily picture allowance; once per word per session, and silent on any failure |
 | The quiz's reply steps (6 and 9), on the curriculum deck and My Words, for a word its lesson has no line for (`QuizCardFrame` `storedDialogues`) | the stored exchange is asked, uncharged; found by the free `useWordAsset` read first | `ensure` writes and files it, on the learner's daily dialogue allowance, if it passes the leak detector and the native reviewer; otherwise nothing is served and the card asks its fallback |
+| The quiz's "say it" and picture question, on the curriculum deck, for an action word (`QuizCardFrame` `animations`) | the action's clip is shown, uncharged; found by the free `useWordAsset` read, and by `useQuizPool`'s one batched read for the wrong options | nothing is made: the card is asked with its picture, or its meaning |
+| `scripts/curriculum-animations.ts` (the trusted path) | nothing to do, and not counted against `--limit` | `ensure` draws the poster, animates it and files both; charged to nobody (a content team member's own ask is counted on `word-asset-animation`, ten a day) |
 | `scripts/curriculum-pictures.ts` (the trusted path) | the url is copied onto the curriculum row, unless what is filed is a gloss-only picture and the row has an authored scene, which is then drawn in its place | `ensure` draws from the authored scene and files it as `authored`; charged to nobody |
 | The picture dialog (`GenerateImageDialog`) | a word's first picture comes from `word-asset ensure`; the url goes on the learner's row as a generated one did | `ensure` draws and files it. A regeneration, a described picture or a locked style is the learner's own and goes to `generate-flashcard-image`, as does a first picture the store turned away before charging (404 not deployed, 400 a word it cannot file); a failure after the charge is reported, never retried on the illustrator |
 | `persist-word-audio` | a curriculum row gets the recording another row with the same exact text and dialect already has | synthesises, puts it on the row and files it for the next row, as one fresh object |
@@ -631,7 +784,8 @@ kept in the store, which means a learner who later saves the same word will
 not share that picture. The curriculum deck's lookup reads as none and the
 card is asked its fallback. No exchange is made at all (`store_not_ready`,
 uncharged), so step 6 picks the word and step 9 says the line, exactly as
-before Phase 4.
+before Phase 4. No clip is made either (`store_not_ready`) and none is read,
+so "say it" and the picture question show pictures as before Phase 5.
 
 **Until this `word-asset` is deployed** it depends on what is there. With no
 `word-asset` at all the quiz's ask is turned away uncharged (404) and it
@@ -640,7 +794,10 @@ it always was, drawn without the line about telling pictures apart. Either
 way the script stops on its first word: neither accepts the service-role key.
 Neither makes an exchange either: the Phase 2 and Phase 3 functions answer
 `kind_not_generated` (400), uncharged, and the quiz stops asking for
-exchanges for a while and asks the fallback.
+exchanges for a while and asks the fallback. A `word-asset` from before Phase
+5 answers an animation `kind_not_generated` too, and
+`scripts/curriculum-animations.ts` stops on its first action; the quiz never
+asks for a clip to be made, so it notices nothing.
 
 `useWordAsset` is the browser's read of the store and stays read-only: making
 an asset is a generation with a cost, so that is a separate hook,

@@ -19,7 +19,8 @@
 //
 // Live voice (realtime-session-token) and ASR/TTS models are NOT governed by
 // this registry — they have their own provider-specific configs. Image models
-// are, as of the move off Lovable: see IMAGE_MODEL_IDS below.
+// are, as of the move off Lovable: see IMAGE_MODEL_IDS below; and video models
+// since quiz Phase 5: VIDEO_MODEL_IDS.
 // =============================================================================
 
 // ---- Canonical model IDs ----------------------------------------------------
@@ -330,6 +331,51 @@ export const IMAGE_MODEL_IDS = {
   OPENAI: 'openai/gpt-image-2',
 } as const;
 
+/**
+ * What one picture costs on each image model, in US dollars, at the size the
+ * store draws (1024 square). For the dry runs that print a bill before
+ * anything is spent; nothing is charged from this. Checked against Google's
+ * Gemini API pricing page on 2026-10-09 (1K output, standard tier).
+ */
+export const IMAGE_PRICE_USD: Readonly<Record<string, number>> = {
+  [IMAGE_MODEL_IDS.GEMINI]: 0.067,
+};
+
+// ---- Video models -----------------------------------------------------------
+// Same rule again: named here, never in a feature function. One model, chosen
+// by the owner on 2026-10-09 for quiz Phase 5 (a short looping clip of an
+// action word, `kind: "animation"` in the asset store), and walked the way the
+// image ladder is: `aiGateway.generateVideo` asks the model's own vendor first
+// and then the *same* model through OpenRouter's `/videos`. A provider swap,
+// never a model swap.
+//
+// Veo 3.1 Lite over the alternatives that were priced the same day:
+//   - Veo 3.1 Fast, the same routes at twice the price ($0.10/s), for motion
+//     a four-second loop of one action does not need;
+//   - Kling v3.0 std ($0.084/s), which draws true squares but is on
+//     OpenRouter alone, so a clip would have no second route;
+//   - Sora 2, whose API OpenAI scheduled for removal on 2026-09-24.
+// Lite takes a first and a last frame, which is what makes a clip loop: the
+// store draws an Ink poster on the image model and hands it to Veo as both,
+// so the clip starts and ends on the same still and inherits its look.
+// It is a Preview model on Google's side (`veo-3.1-lite-generate-preview`, see
+// GOOGLE_MODEL_ALIASES in aiGateway.ts), so its id there can move: when it
+// does, the alias changes and this id does not.
+export const VIDEO_MODEL_IDS = {
+  VEO_LITE: 'google/veo-3.1-lite',
+} as const;
+
+/**
+ * What one second of clip costs on each route, in US dollars, at 720p. For
+ * the dry runs, like IMAGE_PRICE_USD. Google's own API always renders audio
+ * and prices it in ($0.05/s); OpenRouter sells the same model without audio
+ * ($0.03/s), which is all the quiz plays. Checked 2026-10-09 against Google's
+ * Gemini API pricing page and OpenRouter's `/api/v1/videos/models`.
+ */
+export const VIDEO_PRICE_USD_PER_SECOND: Readonly<Record<string, { vendor: number; openrouter: number }>> = {
+  [VIDEO_MODEL_IDS.VEO_LITE]: { vendor: 0.05, openrouter: 0.03 },
+};
+
 // ---- Reasoning ---------------------------------------------------------------
 //
 // Whether a model thinks before it answers is a provider default, and the
@@ -368,6 +414,10 @@ const REASONING_FLOOR: Record<string, 'none' | 'minimal' | 'low'> = {
   // against a live key — the Fanar treatment, for the same reason: a guess
   // costs a round trip on every call.
   [MODEL_IDS.HUMAIN_M3]: 'none',
+  // Not a chat model, and `generateVideo` never sends a reasoning field. It
+  // is named here anyway because the vendor fallback below would otherwise
+  // read its `google/` prefix as a Gemini that must reason ("low").
+  [VIDEO_MODEL_IDS.VEO_LITE]: 'none',
 };
 
 /**

@@ -317,11 +317,20 @@ describe("asking for the reply", () => {
       referenceText: REPLY.answer.arabic,
       locale: "ar-YE",
     });
-    expect(onResult.mock.calls[0][0]).toMatchObject({ kind: "speech", score: 88, recognized: heard, hintUsed: false });
+    // Marked a reply, so the grader holds it to the word and never calls a
+    // clearly-said word a lapse.
+    expect(onResult.mock.calls[0][0]).toMatchObject({ kind: "speech", score: 88, recognized: heard, hintUsed: false, reply: true });
     expect(onResult.mock.calls[0][0].similarity).toBe(1);
     // After the take, the reply is shown with its sound and transliteration.
     expect(screen.getByText(REPLY.answer.arabic)).toBeInTheDocument();
     expect(screen.getByText(REPLY.answer.transliteration)).toBeInTheDocument();
+  });
+
+  it("marks a take on the word or the line as no reply", async () => {
+    const { onResult } = render({}, (b) => b.stubFunction("azure-pronunciation", aResult()));
+    await recordTake();
+    await waitFor(() => expect(onResult).toHaveBeenCalledTimes(1));
+    expect(onResult.mock.calls[0][0].reply).toBeUndefined();
   });
 
   it("reports a reply said without the word as far from it, however close the line came", async () => {
@@ -353,5 +362,33 @@ describe("asking for the reply", () => {
 
     expect(screen.getByText(/رحت ـــ مع أخوي/)).toBeInTheDocument();
     expect(screen.getByText(/in the gap/)).toHaveTextContent("market");
+  });
+});
+
+describe("an action word's clip", () => {
+  const clip = { clip: "https://cdn.test/eat.mp4", poster: "https://cdn.test/eat.png" };
+
+  it("is shown where the picture would be, in its place, and the meaning waits behind a tap", () => {
+    render({ imageUrl: "https://img.test/eat.png", animation: clip, english: "I eat" });
+
+    const video = screen.getByTestId("quiz-animation") as HTMLVideoElement;
+    expect(video.getAttribute("src")).toBe(clip.clip);
+    expect(video.getAttribute("poster")).toBe(clip.poster);
+    expect(video.muted).toBe(true);
+    expect(document.querySelector('img[src="https://img.test/eat.png"]')).toBeNull();
+    expect(screen.queryByText("I eat")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /show meaning/i })).toBeInTheDocument();
+  });
+
+  it("asks from the clip alone even with no picture", () => {
+    render({ imageUrl: null, animation: clip, english: "I eat" });
+    expect(screen.getByTestId("quiz-animation")).toBeInTheDocument();
+    expect(screen.queryByText("I eat")).not.toBeInTheDocument();
+  });
+
+  it("is never shown on the line, which is asked from words", () => {
+    render({ format: "speak-sentence", animation: clip });
+    expect(screen.queryByTestId("quiz-animation")).toBeNull();
+    expect(screen.queryByTestId("quiz-animation-still")).toBeNull();
   });
 });

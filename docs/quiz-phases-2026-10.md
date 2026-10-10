@@ -18,7 +18,8 @@ means — so a session can pick up the next phase cold.*
 | 3b | Deploy `word-asset`, then run `scripts/curriculum-pictures.ts` | **owner action** (after 2b for anything to be kept) |
 | 4 | Generated dialogues, and saying the reply | built (PR #425) |
 | 4b | Deploy `word-asset` (this version) | **owner action** (after 2b; one deploy covers 3b's) |
-| 5 | Animations for action words | after 2 and 3 |
+| 5 | Animations for action words | built (PR #426); the clips themselves are 5b |
+| 5b | Apply the bucket migration, deploy `word-asset`, run `scripts/curriculum-animations.ts` | **owner action** (after 2b) |
 | 6 | Words in stories | after 2 |
 | 7 | The rest of the game | any time after 1 |
 | 8 | Tuning from real reviews | once the quiz has weeks of history |
@@ -207,12 +208,13 @@ What shipped, so the later phases know what they stand on (writeups: README
 
 An independent review before merge found the phrase mismatch, the short-word
 leniency, the uncheckable rewrite, the unchargeable-word loop and the URL
-bound; all five are fixed above. One design question it raised is left to
-the owner: step 9 is scored against the exact stored reply, so a learner who
-says a correct paraphrase loses on completeness and can be rated Again, a
-lapse on a production card at 30+ days. Showing the reply with the word
-gapped, or not counting such a take as a lapse when the word was clearly
-said, are the two ways out.
+bound; all five are fixed above. One design question it raised went to the
+owner: step 9 is scored against the exact stored reply, so a learner who
+says a correct paraphrase loses on completeness and could be rated Again, a
+lapse on a production card at 30+ days. **Decided 2026-10-10 (shipped with
+Phase 5, PR #426): such a take is not a lapse.** A reply whose word span
+reaches `REPLY_WORD_CLEAR` (0.8) is Hard however low it scored
+(`quizGrading.ts`, the `reply` flag on a speech outcome).
 
 Two things a later phase should know. The card waits up to 12 seconds for a
 drawing, and only when three other words in the pool have pictures — so on a
@@ -359,12 +361,13 @@ What shipped, so the later phases know what they stand on (writeups: README
 
 An independent review before merge found the phrase mismatch, the short-word
 leniency, the uncheckable rewrite, the unchargeable-word loop and the URL
-bound; all five are fixed above. One design question it raised is left to
-the owner: step 9 is scored against the exact stored reply, so a learner who
-says a correct paraphrase loses on completeness and can be rated Again, a
-lapse on a production card at 30+ days. Showing the reply with the word
-gapped, or not counting such a take as a lapse when the word was clearly
-said, are the two ways out.
+bound; all five are fixed above. One design question it raised went to the
+owner: step 9 is scored against the exact stored reply, so a learner who
+says a correct paraphrase loses on completeness and could be rated Again, a
+lapse on a production card at 30+ days. **Decided 2026-10-10 (shipped with
+Phase 5, PR #426): such a take is not a lapse.** A reply whose word span
+reaches `REPLY_WORD_CLEAR` (0.8) is Hard however low it scored
+(`quizGrading.ts`, the `reply` flag on a speech outcome).
 
 Two things a later phase should know. Step 6 needs three other words with
 stored replies before it can ask from a stored exchange, so on a learner's
@@ -422,7 +425,133 @@ exchange, and a mature word is asked to say the reply.
 
 ---
 
-## Phase 5 — animations for action words
+## Phase 5 — animations for action words (built, PR #426; the run is 5b)
+
+What shipped, so the later phases know what they stand on (writeups: README
+"Reviewing as a quiz instead of flashcards" and "The asset store"):
+
+- **A video model.** `VIDEO_MODEL_IDS.VEO_LITE` (`google/veo-3.1-lite`) in
+  `modelRegistry.ts`, with a reasoning floor of `none` and per-second prices
+  (`VIDEO_PRICE_USD_PER_SECOND`, beside `IMAGE_PRICE_USD`) for the dry runs.
+  `aiGateway.generateVideo`: Google's `predictLongRunning` (the Preview name
+  via `GOOGLE_MODEL_ALIASES`) on `GEMINI_API_KEY`, then the same model on
+  OpenRouter's `/videos`, silent; never a second render of a job a provider
+  accepted, and Google's key only to Google's host. `generateImage` takes
+  `aspectRatio`. `modelRegistry.test.ts` scans for hardcoded image and video
+  ids as well as chat ones.
+- **`kind: "animation"` in the store**, keyed on the action alone
+  (`animationConcept`, used by `assetKey`): one clip per action across
+  dialects, a qualifier kept ("run (a business)" is never "run"),
+  alternatives kept whole, and nothing keyed on a note or a verb with nothing
+  to watch. `INK_ANIMATION_STYLE` and `NEUTRAL_FIGURE_LINE` beside
+  `INK_PICTURE_STYLE`; `STYLE_VERSIONS.animation` stays `ink-1`.
+  `_shared/wordAnimation.ts`: `qualifiesForAnimation`, `isVerbCategory`,
+  `ACTION_NOUNS`, the poster and clip prompts, `asStoredAnimation`.
+- **A bucket**, `word-animations` (migration
+  `20261009140000_word_animations_bucket`): public, service-role writes only,
+  MP4 and stills, 8 MB. `uploadNewFile` names a poster as `fileNewAsset`
+  names an asset.
+- **`word-asset ensure` makes clips on the trusted path only**: a 16:9 Ink
+  poster, then Veo with it as first and last frame, both filed under fresh
+  names; the service role charged nobody, the content team on
+  `word-asset-animation` (ten a day); a learner's ask refused before any spend (`403
+  animation_not_for_learners`); `store_not_ready` / `bucket_not_ready` before
+  the poster; a render past 100 s finished under `waitUntil` (`202 pending`).
+- **`scripts/curriculum-animations.ts`** (`--dialect`, `--stage`, `--limit`
+  in clips, `--dry-run` with the bill), its core in
+  `curriculum-animations-core.ts`, covered by
+  `src/test/curriculumAnimations.test.ts`. Today: 62 clips, about $16.55.
+- **The quiz.** `QuizItem.category` (the curriculum deck selects it) and
+  `QuizCardFrame` `animations` (the curriculum deck sets it). A third asset
+  settled through `useCardAsset` (`ANIMATION_LOOKUP_WAIT_MS`, a read only).
+  `QuizSpeakCard` shows the clip in the picture's place at "say it";
+  `QuizOptionsCard` deals it at "pick the picture", one visual per word,
+  never another word with the same sense or an overlapping action
+  (`actionsOverlap`; tense twins such as "ate" and "eat" are not caught), and
+  a lone clip held
+  still (`MIN_MOVING_OPTIONS`). `QuizAnimation`: muted, looped, inline, no
+  controls; the poster under reduced motion, when held still, or when the
+  clip will not load. `useQuizPool` reads the curriculum's clips in one query.
+- Guards: `modelRegistry.test.ts`, `ai_gateway_test.ts` (the video ladder),
+  `wordAssets.test.ts` (animation keys, `uploadNewFile`),
+  `wordAnimation.test.ts` (the rule against the real tracks),
+  `word_asset_test.ts` (ten animation cases), `curriculumAnimations.test.ts`,
+  `QuizAnimation.test.tsx`, `QuizSpeakCard.test.tsx`,
+  `QuizOptionsCard.test.tsx`, `QuizCardFrame.test.tsx`,
+  `useQuizPool.test.ts`, and `review.spec.ts` ("an animation for an action
+  word").
+
+**Decided in this phase** (each argued in the README):
+
+1. *The model is Veo 3.1 Lite* (the owner's choice, 2026-10-09): $0.05/s on
+   Google with audio always rendered, $0.03/s silent on OpenRouter; a clip is
+   a $0.067 poster plus four seconds, about $0.27. Veo 3.1 Fast doubles that
+   for motion a loop of one action does not need; Kling v3.0 std draws true
+   squares but has no second route; Sora 2's API was being retired.
+2. *A clip is the poster set moving*: drawn first in the Ink picture style,
+   then the clip's first and last frame. It loops, keeps the look, and the
+   poster is the reduced-motion still.
+3. *Only the trusted path makes clips; learners read them.* No learner
+   counter, because no learner is charged. The service role (the script) is
+   charged nobody; the content team is capped (below).
+4. *A learner's saved words do not qualify*: `user_vocabulary` has no part of
+   speech, and an English gloss cannot tell "to fly" from "a fly".
+5. *Its own bucket*, so it can refuse anything that is not a clip or a still;
+   that is a migration, so applying it is part of 5b.
+6. *Motion is never the tell*: a clip on the picture question moves only
+   when another option does.
+
+An independent review before merge found two ways a clip could be paid for
+twice — a download that broke after Google had rendered it, and a start
+whose answer could not be read, both of which fell back to OpenRouter — and
+a budget that started after the poster and could outrun the worker's wall
+clock. All three are fixed above (stop after any start, one 340 s deadline,
+no route with under 120 s left). It also found "turned out (to be) / went
+out" keying a clip, a word with no category qualifying through the
+action-noun list, Google's key able to follow a download redirect, an exact
+content-type match deciding whether a paid clip was kept, and near-twin
+actions ("watch / see", "watch") dealt side by side; all fixed. One design
+point it raised went to the owner: a `content_reviewer` (which an ID login
+can be) could make clips uncapped, about four pictures' worth each, through
+the same gate as an authored scene. **Decided 2026-10-10: capped.** The
+content team's clips are counted on `word-asset-animation`, ten a day per
+person (`ANIMATION_STAFF_CAP`); the service role is not counted, and an
+admin, as for every cap, is not limited.
+
+**On "done when".** The plan says the Stage 1 verbs. The tracks' Stage 1
+verbs are almost all "I want" ("أبي", "اشتي", "تبي"), which has nothing to
+watch and is not keyed, so Stage 1 has one clip ("give me / pass me"). The
+clips start to matter at Stage 2's daily routine (33 actions). Read "done"
+as Stages 1–2.
+
+### Phase 5b — owner action
+
+1. Apply `20261009130000_word_assets.sql` (Phase 2b) if it is not on the live
+   project yet, and `20261009140000_word_animations_bucket.sql`. Without
+   either the script makes nothing and says which is missing.
+2. Deploy `word-asset` (this phase changed it again; one deploy covers 3b and
+   4b). An older one answers `kind_not_generated` and the script stops on its
+   first action.
+3. Run the script, dry first; it prints the clips and the bill. Then a few,
+   and look at them before the rest:
+
+   ```sh
+   SUPABASE_SERVICE_ROLE_KEY=... deno run --allow-env --allow-read --allow-net \
+     scripts/curriculum-animations.ts --dry-run
+   SUPABASE_SERVICE_ROLE_KEY=... deno run --allow-env --allow-read --allow-net \
+     scripts/curriculum-animations.ts --stage 2 --limit 3
+   ```
+
+   A clip that came out wrong is fixed by deleting its `word_assets` row and
+   running again. Two things only a real run can confirm, since nothing here
+   reached a provider: that Google takes `durationSeconds` as a number, and
+   that a first frame plus a last frame is accepted by Lite. Either
+   refusal falls back to OpenRouter, which documents both.
+
+**Done when** (5b): the Stage 1–2 action words have clips, and "say it"
+shows them.
+
+### The plan, as it was written
 
 **Goal.** For a verb or an action noun, an animation of the concept (someone
 jumping) replaces the picture as the "say it" prompt.

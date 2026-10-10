@@ -4,7 +4,9 @@ import { Button } from "@/components/ui/button";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
+import { QuizAnimation } from "@/components/review/QuizAnimation";
 import { cn } from "@/lib/utils";
+import type { StoredAnimation } from "../../../supabase/functions/_shared/wordAnimation";
 
 /** One option on a picture, word or reply question. */
 export interface QuizOption {
@@ -13,6 +15,10 @@ export interface QuizOption {
   english?: string | null;
   transliteration?: string | null;
   imageUrl?: string | null;
+  /** An action word's clip, shown in place of its picture on the picture question. */
+  animation?: StoredAnimation | null;
+  /** Show the clip as its poster: the frame holds a lone clip still, so motion is no tell. */
+  still?: boolean;
   audioUrl?: string | null;
   speaker?: string | null;
 }
@@ -221,7 +227,9 @@ export const QuizOptionsCard = ({ id, format, prompt, options, answerKey, dialec
                   answered && !isAnswer && !isPicked && "opacity-50 border-border",
                 )}
               >
-                {option.imageUrl ? (
+                {option.animation ? (
+                  <QuizAnimation animation={option.animation} still={option.still} className="w-full h-full object-cover" />
+                ) : option.imageUrl ? (
                   <img src={option.imageUrl} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full bg-muted flex items-center justify-center">

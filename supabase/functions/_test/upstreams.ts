@@ -146,6 +146,61 @@ export const imageLadder = (
 });
 
 /**
+ * The first bytes of an MP4 (an `ftyp` box naming the `isom` brand): enough
+ * for a caller that checks it got a file rather than an error page.
+ */
+export const FIXTURE_MP4 = new Uint8Array([
+  0, 0, 0, 24, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d, 0, 0, 2, 0, 0x69, 0x73, 0x6f, 0x6d, 0x6d, 0x70, 0x34, 0x31,
+]);
+
+const mp4 = (): Response => new Response(FIXTURE_MP4, { status: 200, headers: { "content-type": "video/mp4" } });
+
+/**
+ * Veo on Google's own API, as `aiGateway.generateVideo` walks it: a
+ * `:predictLongRunning` start that answers an operation name, a poll of that
+ * operation that is already done, and the download of the clip it names. Each
+ * step is its own route so a test can break exactly one of them.
+ */
+export const VEO_START_ROUTE = ":predictLongRunning";
+export const VEO_OPERATION_ROUTE = "/operations/op-fixture";
+export const VEO_FILE_ROUTE = "files/veo-fixture-clip";
+export const VEO_OPERATION = "models/veo-3.1-lite-generate-preview/operations/op-fixture";
+
+export const veoDone = (
+  uri = "https://generativelanguage.googleapis.com/v1beta/files/veo-fixture-clip:download?alt=media",
+): Response =>
+  json({
+    name: VEO_OPERATION,
+    done: true,
+    response: { generateVideoResponse: { generatedSamples: [{ video: { uri } }] } },
+  });
+
+export const veoLadder = (
+  over: Partial<Record<"start" | "operation" | "file", UpstreamHandler>> = {},
+): Record<string, UpstreamHandler> => ({
+  [VEO_START_ROUTE]: over.start ?? (() => json({ name: VEO_OPERATION })),
+  [VEO_OPERATION_ROUTE]: over.operation ?? (() => veoDone()),
+  [VEO_FILE_ROUTE]: over.file ?? mp4,
+});
+
+/**
+ * The same model on OpenRouter's `/videos`: a start that answers a job id, a
+ * poll that has completed, and the content download. The three routes are
+ * prefixes of one another, which the harness settles by the longest match.
+ */
+export const OPENROUTER_VIDEOS_ROUTE = "openrouter.ai/api/v1/videos";
+export const OPENROUTER_VIDEO_JOB = "or-fixture";
+
+export const openRouterVideoLadder = (
+  over: Partial<Record<"start" | "poll" | "content", UpstreamHandler>> = {},
+): Record<string, UpstreamHandler> => ({
+  [OPENROUTER_VIDEOS_ROUTE]: over.start ?? (() => json({ id: OPENROUTER_VIDEO_JOB, status: "pending" }, 202)),
+  [`${OPENROUTER_VIDEOS_ROUTE}/${OPENROUTER_VIDEO_JOB}`]: over.poll ??
+    (() => json({ id: OPENROUTER_VIDEO_JOB, status: "completed" })),
+  [`${OPENROUTER_VIDEOS_ROUTE}/${OPENROUTER_VIDEO_JOB}/content`]: over.content ?? mp4,
+});
+
+/**
  * Gemini's native `:generateContent`, which serves two different jobs on one
  * host: grounded text (culture-guide) and image generation. The model id is in
  * the path, so the fixture answers in whichever vocabulary the caller asked in

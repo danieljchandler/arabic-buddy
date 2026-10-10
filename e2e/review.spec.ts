@@ -832,6 +832,29 @@ test.describe("the reply steps, from a word's exchange", () => {
     expect(backend.db.rows("word_reviews")[0]?.production_lapses).toBe(1);
   });
 
+  test("a reply in other words, with the word clearly in it, is Hard and never a lapse", async ({ page }) => {
+    // Right, but not the stored line: the score is low on completeness.
+    await signIn(page);
+    const backend = await stubSupabase(page, { tables: matureDeck() });
+    backend.stubFunction("azure-pronunciation", {
+      overall: 41,
+      accuracy: 70,
+      fluency: 60,
+      completeness: 35,
+      words: [],
+      recognizedText: "رحت السوق",
+      locale: "ar-SA",
+    });
+
+    await page.goto("/review");
+    await expect(page.getByText("Say the reply in Arabic")).toBeVisible();
+    await sayTheReply(page, backend);
+    await page.getByRole("button", { name: /continue/i }).click();
+
+    await expect.poll(() => backend.db.rows("word_reviews")[0]?.last_result).toBe("hard");
+    expect(backend.db.rows("word_reviews")[0]?.production_lapses ?? 0).toBe(0);
+  });
+
   test("says the line instead while the store's table is not on the live project", async ({ page }) => {
     // No exchange can be read or kept: the step falls back to step 8, and
     // nothing is made.
@@ -847,6 +870,139 @@ test.describe("the reply steps, from a word's exchange", () => {
 
     await expect(page.getByText("Say the line in Arabic")).toBeVisible();
     await expect(page.getByText("I went to the market yesterday")).toBeVisible();
+  });
+});
+
+test.describe("an animation for an action word", () => {
+  const PIXEL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
+  const FOLDER = "https://e2e.supabase.co/storage/v1/object/public/word-animations/word-assets/animation/ink-1/any/eat";
+  const CLIP = `${FOLDER}/clip.mp4`;
+  // The store files only web urls; a `data:` poster is not an animation's.
+  const POSTER = `${FOLDER}/poster.png`;
+  const LESSON = lessonId(0);
+  const OTHERS = lessonId(1);
+  const yesterday = () => new Date(Date.now() - 86_400_000).toISOString();
+  const nextMonth = () => new Date(Date.now() + 86_400_000 * 30).toISOString();
+
+  /**
+   * A curriculum verb whose production card is due at step 7 ("say it"),
+   * recognition settled past the picture step so the quiz no longer holds it,
+   * and the clip scripts/curriculum-animations.ts filed for its action.
+   */
+  const verbDeck = (clips: Array<Record<string, unknown>>) => ({
+    lessons: [
+      aLesson({ id: LESSON, title: "Started lesson", display_order: 1 }),
+      aLesson({ id: OTHERS, title: "Unopened lesson", display_order: 2 }),
+    ],
+    vocabulary_words: [
+      aVocabularyWord({
+        id: wordId(0),
+        lesson_id: LESSON,
+        word_arabic: "آكل",
+        word_english: "I eat",
+        category: "Verb — routine",
+        image_url: `${PIXEL}#picture`,
+      }),
+      ...["house", "school", "restaurant", "car"].map((english, i) =>
+        aVocabularyWord({ id: wordId(i + 1), lesson_id: OTHERS, word_arabic: ["بيت", "مدرسة", "مطعم", "سيارة"][i], word_english: english }),
+      ),
+    ],
+    word_reviews: [
+      aWordReview({
+        id: reviewId(0),
+        word_id: wordId(0),
+        ease_factor: 10,
+        repetitions: 3,
+        next_review_at: nextMonth(),
+        production_ease_factor: 3,
+        production_repetitions: 2,
+        production_next_review_at: yesterday(),
+      }),
+    ],
+    lesson_progress: [aLessonProgress({ user_id: TEST_USER_ID, lesson_id: LESSON, words_total: 1, words_seen: 1 })],
+    word_assets: clips,
+    profiles: [aProfile({ review_style: "quiz" })],
+  });
+
+  const clipOfEating = {
+    id: "asset-eat",
+    concept_key: "eat",
+    kind: "animation",
+    dialect: null,
+    style_version: "ink-1",
+    url: CLIP,
+    payload: { poster: POSTER, seconds: 4, aspect: "16:9" },
+    meta: {},
+    source: "generated",
+    approved_at: null,
+    created_at: new Date().toISOString(),
+  };
+
+  test("\"say it\" shows the verb's clip where its picture would be, and the take is scored", async ({ page }) => {
+    await signIn(page);
+    const backend = await stubSupabase(page, { tables: verbDeck([clipOfEating]) });
+    backend.stubFunction("azure-pronunciation", {
+      overall: 84,
+      accuracy: 86,
+      fluency: 80,
+      completeness: 100,
+      words: [],
+      recognizedText: "آكل",
+      locale: "ar-SA",
+    });
+    // The clip and its poster are held loading, so the player stays on screen;
+    // the hermetic Chromium has no H.264 to play it with anyway.
+    await page.route("**/word-animations/**", () => {});
+
+    await page.goto("/review");
+
+    await expect(page.getByText("Say it in Arabic")).toBeVisible();
+    const clip = page.getByTestId("quiz-animation");
+    await expect(clip).toHaveAttribute("src", CLIP);
+    await expect(clip).toHaveAttribute("poster", POSTER);
+    await expect(clip).toHaveAttribute("loop", "");
+    expect(await clip.evaluate((v: HTMLVideoElement) => v.muted && v.playsInline && !v.controls)).toBe(true);
+    // In the picture's place, and the meaning is behind a tap.
+    await expect(page.locator(`img[src="${PIXEL}#picture"]`)).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /show meaning/i })).toBeVisible();
+    await expect(page.getByText("I eat", { exact: true })).toHaveCount(0);
+
+    await page.getByRole("button", { name: /^say it$/i }).click();
+    await expect(page.getByText("Listening…")).toBeVisible();
+    await page.waitForTimeout(250);
+    await page.getByRole("button", { name: /^stop$/i }).click();
+    await expect.poll(() => backend.callsTo("azure-pronunciation").length, { timeout: 15_000 }).toBeGreaterThan(0);
+    await expect(page.getByText("84")).toBeVisible();
+    await page.getByRole("button", { name: /continue/i }).click();
+
+    await expect.poll(() => backend.db.rows("word_reviews")[0]?.production_repetitions).toBe(3);
+    // Read only: a learner never has a clip made.
+    expect(backend.callsTo("word-asset")).toEqual([]);
+    expect(backend.db.writesTo("vocabulary_words")).toEqual([]);
+  });
+
+  test("a learner who asked for reduced motion is shown the poster, never the moving clip", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await signIn(page);
+    await stubSupabase(page, { tables: verbDeck([clipOfEating]) });
+    await page.route("**/word-animations/**", () => {});
+
+    await page.goto("/review");
+
+    await expect(page.getByText("Say it in Arabic")).toBeVisible();
+    await expect(page.getByTestId("quiz-animation-still")).toHaveAttribute("src", POSTER);
+    await expect(page.getByTestId("quiz-animation")).toHaveCount(0);
+  });
+
+  test("a verb with no clip filed is asked from its picture, as before", async ({ page }) => {
+    await signIn(page);
+    await stubSupabase(page, { tables: verbDeck([]) });
+
+    await page.goto("/review");
+
+    await expect(page.getByText("Say it in Arabic")).toBeVisible();
+    await expect(page.locator(`img[src="${PIXEL}#picture"]`)).toBeVisible();
+    await expect(page.getByTestId("quiz-animation")).toHaveCount(0);
   });
 });
 

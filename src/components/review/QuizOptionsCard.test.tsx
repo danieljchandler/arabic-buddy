@@ -89,6 +89,44 @@ describe("pick the picture", () => {
   });
 });
 
+describe("pick the picture, with clips", () => {
+  const clip = { clip: "https://cdn.test/eat.mp4", poster: "https://cdn.test/eat.png" };
+
+  it("plays an option's clip in its tile", () => {
+    render({
+      format: "picture-choice",
+      prompt: { arabic: "آكل" },
+      options: [
+        { key: "answer", animation: clip, english: "I eat" },
+        { key: "wrong-0", animation: { clip: "https://cdn.test/drink.mp4", poster: "https://cdn.test/drink.png" }, english: "I drink" },
+        { key: "wrong-1", imageUrl: "https://img.test/house.png", english: "house" },
+        { key: "wrong-2", imageUrl: "https://img.test/car.png", english: "car" },
+      ],
+      answerKey: "answer",
+    });
+
+    expect(screen.getByRole("radio", { name: "I eat" }).querySelector("video")?.getAttribute("src")).toBe(clip.clip);
+    expect(screen.getAllByTestId("quiz-animation")).toHaveLength(2);
+  });
+
+  it("shows a clip held still as its poster", () => {
+    render({
+      format: "picture-choice",
+      prompt: { arabic: "آكل" },
+      options: [
+        { key: "answer", animation: clip, still: true, english: "I eat" },
+        { key: "wrong-0", imageUrl: "https://img.test/house.png", english: "house" },
+        { key: "wrong-1", imageUrl: "https://img.test/school.png", english: "school" },
+        { key: "wrong-2", imageUrl: "https://img.test/car.png", english: "car" },
+      ],
+      answerKey: "answer",
+    });
+
+    expect(screen.queryAllByTestId("quiz-animation")).toHaveLength(0);
+    expect(screen.getByRole("radio", { name: "I eat" }).querySelector("img")?.getAttribute("src")).toBe(clip.poster);
+  });
+});
+
 describe("pick the word", () => {
   const options: QuizOption[] = [
     { key: "answer", arabic: "السوق", english: "the market", transliteration: "is-suug", audioUrl: "https://audio.test/souq.mp3" },

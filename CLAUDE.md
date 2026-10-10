@@ -206,8 +206,16 @@ harness.
   allowance never stops dialogues), and never raises a toast. In
   `QuizCardFrame` a question is fixed once it is on screen (its picture, its
   exchange and the pool it was dealt from, all settled through
-  `useCardAsset`), so an asset that lands later never changes it. README "The
-  asset store".
+  `useCardAsset`), so an asset that lands later never changes it. An
+  animation (`kind: "animation"`, quiz Phase 5) is keyed on the English
+  action alone (`animationConcept`: a qualifier kept, a note or a verb with
+  nothing to watch never keyed), made only on that trusted path (a learner's
+  `ensure` is a `403` before any spend; the content team's are capped on
+  `word-asset-animation`, ten a day; the service role is not counted), as an Ink
+  poster that Veo animates as its first and last frame, into the
+  `word-animations` bucket; only a curriculum word qualifies
+  (`qualifiesForAnimation`: its category's head is "verb", or an action
+  noun), and the quiz only reads clips. README "The asset store".
 - **Flashcard scheduling is FSRS-6, not FSRS-4.5 or SM-2, and the weights are
   meant to be fitted.** `src/lib/spacedRepetition.ts` implements the FSRS-6
   formulas line for line from fsrs-rs (21 weights). Two things it must keep:
@@ -241,7 +249,9 @@ harness.
 - **Model IDs are centralized; providers are chosen, not hardcoded.** Never
   hardcode a model ID in feature code — everything goes through
   `supabase/functions/_shared/modelRegistry.ts` (named lineups: `TRANSLATION`,
-  `CONTENT`, `UTILITY`, `REASONING`, plus `IMAGE_MODEL_IDS`). `src/test/modelRegistry.test.ts`
+  `CONTENT`, `UTILITY`, `REASONING`, plus `IMAGE_MODEL_IDS` and
+  `VIDEO_MODEL_IDS`, the last called through `aiGateway.generateVideo`, which
+  never starts a second render of a job a provider accepted). `src/test/modelRegistry.test.ts`
   enforces this in both directions: a new hardcoded id fails, and so does an
   entry left on the allow-list after it was fixed. Which *provider*
   serves a model is `_shared/aiGateway.ts`'s decision, off the vendor prefix:

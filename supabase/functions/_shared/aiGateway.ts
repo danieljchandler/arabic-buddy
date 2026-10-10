@@ -27,10 +27,12 @@
 // and the retry is logged.
 //
 // Image generation is the one place the three providers disagree on shape, so
-// it gets its own helper (`generateImage`) rather than a shared body.
+// it gets its own helper (`generateImage`) rather than a shared body. Video is
+// the same and more so — a job to start, poll and download rather than one
+// call — so it has its own too (`generateVideo`).
 // =============================================================================
 
-import { IMAGE_MODEL_IDS, MODEL_IDS, reasoningFloor, type ReasoningEffort } from './modelRegistry.ts';
+import { IMAGE_MODEL_IDS, MODEL_IDS, reasoningFloor, VIDEO_MODEL_IDS, type ReasoningEffort } from './modelRegistry.ts';
 
 export type Provider = 'google' | 'openai' | 'openrouter' | 'fanar' | 'runpod' | 'humain';
 
@@ -41,6 +43,10 @@ export const GOOGLE_CHAT_URL = 'https://generativelanguage.googleapis.com/v1beta
 export const OPENAI_CHAT_URL = 'https://api.openai.com/v1/chat/completions';
 export const GOOGLE_NATIVE_URL = 'https://generativelanguage.googleapis.com/v1beta/models';
 export const OPENAI_IMAGE_URL = 'https://api.openai.com/v1/images/generations';
+/** Google's API root; a long-running operation is polled at `${GOOGLE_API_BASE}/${name}`. */
+export const GOOGLE_API_BASE = 'https://generativelanguage.googleapis.com/v1beta';
+/** OpenRouter's asynchronous video jobs: POST to start, GET `/{id}` to poll, GET `/{id}/content` for the file. */
+export const OPENROUTER_VIDEOS_URL = 'https://openrouter.ai/api/v1/videos';
 /** QCRI's Arabic-native model. OpenAI-shaped, but on nobody else's catalogue. */
 export const FANAR_CHAT_URL = 'https://api.fanar.qa/v1/chat/completions';
 
@@ -165,12 +171,17 @@ const HUMAIN_MODEL = /^humain\//;
 
 /**
  * Model ids whose Google-native name is not just the id minus its `google/`
- * prefix. Empty today — the prefix strip is right for every model the registry
- * names — but the exceptions are real often enough (dated snapshots, `-latest`
- * aliases) that the hook is worth keeping in one place rather than rediscovering
- * it inside a feature function.
+ * prefix. The exceptions are real often enough (dated snapshots, `-latest`
+ * aliases, preview suffixes) that the hook is kept in one place rather than
+ * rediscovered inside a feature function.
+ *
+ * Veo is the first: OpenRouter lists it as `google/veo-3.1-lite`, which is the
+ * registry's form, and Google serves it as a Preview under a longer name. When
+ * Google promotes it, this line changes and the registry id does not.
  */
-const GOOGLE_MODEL_ALIASES: Record<string, string> = {};
+const GOOGLE_MODEL_ALIASES: Record<string, string> = {
+  [VIDEO_MODEL_IDS.VEO_LITE]: 'veo-3.1-lite-generate-preview',
+};
 
 export class GatewayConfigError extends Error {
   constructor(message: string) {
@@ -812,6 +823,11 @@ export interface GenerateImageOptions {
   model?: string;
   /** Square size hint, used only by the OpenAI fallback. */
   size?: string;
+  /**
+   * The picture's shape. Square unless asked: an animation's poster is drawn
+   * 16:9, the shape of the clip it becomes the first frame of.
+   */
+  aspectRatio?: '1:1' | '16:9';
   signal?: AbortSignal;
   timeoutMs?: number;
   label?: string;
@@ -842,6 +858,7 @@ async function googleImage(
   prompt: string,
   model: string,
   signal: AbortSignal | undefined,
+  aspectRatio?: string,
 ): Promise<GeneratedImage | null> {
   const key = googleApiKey();
   if (!key) return null;
@@ -851,7 +868,10 @@ async function googleImage(
     headers: { 'x-goog-api-key': key, 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: { responseModalities: ['IMAGE', 'TEXT'] },
+      generationConfig: {
+        responseModalities: ['IMAGE', 'TEXT'],
+        ...(aspectRatio ? { imageConfig: { aspectRatio } } : {}),
+      },
     }),
     signal,
   });
@@ -903,6 +923,7 @@ async function openRouterImage(
   prompt: string,
   model: string,
   signal: AbortSignal | undefined,
+  aspectRatio?: string,
 ): Promise<GeneratedImage | null> {
   const route = tryChatRoute(model, 'openrouter');
   if (!route) return null;
@@ -913,6 +934,7 @@ async function openRouterImage(
       model: route.model,
       messages: [{ role: 'user', content: prompt }],
       modalities: ['image', 'text'],
+      ...(aspectRatio ? { image_config: { aspect_ratio: aspectRatio } } : {}),
     }),
     signal,
   });
@@ -942,10 +964,11 @@ export async function generateImage(
   const signal = options.signal ?? AbortSignal.timeout(options.timeoutMs ?? 90_000);
   const label = options.label ?? 'image';
 
+  const wide = options.aspectRatio === '16:9';
   const attempts: Array<() => Promise<GeneratedImage | null>> = [
-    () => googleImage(prompt, model, signal),
-    () => openaiImage(prompt, options.size ?? '1024x1024', signal),
-    () => openRouterImage(prompt, model, signal),
+    () => googleImage(prompt, model, signal, options.aspectRatio),
+    () => openaiImage(prompt, wide ? '1536x1024' : (options.size ?? '1024x1024'), signal),
+    () => openRouterImage(prompt, model, signal, options.aspectRatio),
   ];
 
   for (const attempt of attempts) {
@@ -970,4 +993,363 @@ export async function generateImageDataUrl(
   let binary = '';
   for (const byte of image.bytes) binary += String.fromCharCode(byte);
   return `data:${image.contentType};base64,${btoa(binary)}`;
+}
+
+// ---- Video generation -------------------------------------------------------
+//
+// A clip is a job, not a call: the provider accepts the prompt, renders for
+// somewhere between eleven seconds and several minutes, and is polled until
+// the file can be downloaded. Two routes, walked like the image ladder: the
+// model's own vendor first (Google's `predictLongRunning` for a `google/` id,
+// under GEMINI_API_KEY), then the same model through OpenRouter's `/videos`.
+//
+// One rule the image ladder does not need: a job a provider has *accepted* is
+// never retried elsewhere. A render that is still going when the budget runs
+// out may well be billed, and starting the same clip on a second provider
+// would pay for it twice; so only a route that declined before accepting
+// anything (no key, a refused start) or ended without a file (an error, a
+// safety block, which Google does not charge for) hands on to the next one.
+
+export interface GeneratedVideo {
+  bytes: Uint8Array;
+  contentType: string;
+  provider: Provider;
+  model: string;
+}
+
+/** A still the clip starts or ends on. Google takes the bytes; OpenRouter fetches a URL. */
+export interface VideoFrame {
+  bytes: Uint8Array;
+  contentType: string;
+  /** Where the same image is publicly readable; OpenRouter's frames are URLs. */
+  url?: string | null;
+}
+
+export interface GenerateVideoOptions {
+  /** Registry id of the video model. Defaults to `VIDEO_MODEL_IDS.VEO_LITE`. */
+  model?: string;
+  /** Seconds of clip. Veo takes 4, 6 or 8. */
+  durationSeconds?: number;
+  aspectRatio?: '16:9' | '9:16';
+  resolution?: '720p' | '1080p';
+  /** The clip's first frame. */
+  firstFrame?: VideoFrame | null;
+  /** Its last frame; the same still as the first makes a loop. Needs `firstFrame`. */
+  lastFrame?: VideoFrame | null;
+  signal?: AbortSignal;
+  /** The whole job, start to file, across both routes. */
+  timeoutMs?: number;
+  /** How long to wait between polls of a job that is still rendering. */
+  pollMs?: number;
+  /** The least budget a route is started with (`VIDEO_MIN_ROUTE_MS`). */
+  minRouteMs?: number;
+  label?: string;
+}
+
+/** Default spacing of polls: a render takes tens of seconds, so a check every five is plenty. */
+export const VIDEO_POLL_MS = 5_000;
+
+/**
+ * The longest one clip is allowed, start to file, when the caller sets no
+ * budget. A caller inside an edge function, whose worker has a 400 s wall
+ * clock, passes what is left of its own deadline instead (`word-asset` does).
+ */
+export const VIDEO_TIMEOUT_MS = 300_000;
+
+/** A route's answer: a file, a decline the next route may try after, or a stop. */
+type VideoAttempt =
+  | { video: GeneratedVideo }
+  /** Nothing was started, or the job ended without a file: the next route may try. */
+  | { declined: string }
+  /** A job was accepted and may be billed; nothing else is started for this clip. */
+  | { stopped: string };
+
+function encodeBase64(bytes: Uint8Array): string {
+  let binary = '';
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+function sleep(ms: number, signal: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal.aborted) return reject(signal.reason);
+    const timer = setTimeout(() => {
+      signal.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(signal.reason);
+    };
+    signal.addEventListener('abort', onAbort, { once: true });
+  });
+}
+
+/** The host a download URL must be on before our key is sent to it. */
+function isHost(url: string, host: string): boolean {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' && parsed.host === host;
+  } catch {
+    return false;
+  }
+}
+
+const GOOGLE_HOST = 'generativelanguage.googleapis.com';
+const OPENROUTER_HOST = 'openrouter.ai';
+
+/**
+ * Whether bytes are an MP4: an ISO media file opens with a box whose type, at
+ * bytes 4–7, is `ftyp`. What a provider's download says its content type is
+ * is not checked against this anywhere else, so this is what decides.
+ */
+export function isMp4(bytes: Uint8Array): boolean {
+  return bytes.length >= 12 && bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70;
+}
+
+/**
+ * Download a finished clip. The key goes in the first request only, and only
+ * to `host`; a redirect is followed by hand and without it, since `fetch`
+ * keeps a custom header such as `x-goog-api-key` across a cross-origin
+ * redirect (it drops only `Authorization`). Never throws.
+ */
+async function downloadClip(
+  url: string,
+  host: string,
+  auth: Record<string, string>,
+  signal: AbortSignal,
+): Promise<{ bytes: Uint8Array } | { error: string }> {
+  if (!isHost(url, host)) return { error: `a download URL off ${host}` };
+  try {
+    let response = await fetch(url, { headers: auth, redirect: 'manual', signal });
+    if (response.status >= 300 && response.status < 400) {
+      const location = response.headers.get('location');
+      await response.body?.cancel().catch(() => {});
+      if (!location) return { error: `a ${response.status} with nowhere to go` };
+      const next = new URL(location, url);
+      if (next.protocol !== 'https:') return { error: 'a redirect off https' };
+      // A signed URL: it needs no key, so none is sent.
+      response = await fetch(next.toString(), { redirect: 'follow', signal });
+    }
+    if (!response.ok) return { error: `the download answered ${response.status}` };
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (!isMp4(bytes)) return { error: `the download is not an MP4 (${bytes.length} bytes)` };
+    return { bytes };
+  } catch (err) {
+    return { error: `the download failed (${err instanceof Error ? err.message : String(err)})` };
+  }
+}
+
+async function googleVideo(
+  prompt: string,
+  model: string,
+  options: GenerateVideoOptions,
+  signal: AbortSignal,
+  pollMs: number,
+): Promise<VideoAttempt> {
+  const key = googleApiKey();
+  if (!key) return { declined: 'no Google key' };
+  const id = upstreamModelId(model, 'google');
+  const headers = { 'x-goog-api-key': key, 'Content-Type': 'application/json' };
+  const frame = (f: VideoFrame) => ({ inlineData: { mimeType: f.contentType, data: encodeBase64(f.bytes) } });
+
+  // Sent: from here a failure that is not a plain refusal may have started a
+  // render, so it stops the ladder (`generateVideo` treats a throw the same).
+  const start = await fetch(`${GOOGLE_NATIVE_URL}/${id}:predictLongRunning`, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      instances: [
+        {
+          prompt,
+          ...(options.firstFrame ? { image: frame(options.firstFrame) } : {}),
+          ...(options.firstFrame && options.lastFrame ? { lastFrame: frame(options.lastFrame) } : {}),
+        },
+      ],
+      parameters: {
+        aspectRatio: options.aspectRatio ?? '16:9',
+        resolution: options.resolution ?? '720p',
+        durationSeconds: options.durationSeconds ?? 4,
+        numberOfVideos: 1,
+        // Veo generates only adults from a starting frame, and says so.
+        ...(options.firstFrame ? { personGeneration: 'allow_adult' } : {}),
+      },
+    }),
+    signal,
+  });
+  if (!start.ok) {
+    // Refused outright: nothing was started.
+    return { declined: `google video ${id} ${start.status}: ${(await start.text().catch(() => '')).slice(0, 200)}` };
+  }
+
+  // Accepted. Every way of going wrong from here is a stop, never a decline:
+  // a render may be running, and a second provider would bill it again.
+  try {
+    const operation = await start.json() as { name?: unknown };
+    const name = typeof operation?.name === 'string' ? operation.name : '';
+    if (!/^[\w./-]+$/.test(name) || name.includes('..')) return { stopped: `google video ${id}: no operation name` };
+
+    let done: Record<string, unknown>;
+    for (;;) {
+      const poll = await fetch(`${GOOGLE_API_BASE}/${name}`, { headers: { 'x-goog-api-key': key }, signal });
+      if (poll.ok) {
+        const body = await poll.json() as Record<string, unknown>;
+        if (body.done === true) {
+          done = body;
+          break;
+        }
+      } else if (poll.status !== 429 && poll.status < 500) {
+        return { stopped: `google video ${name}: poll answered ${poll.status}` };
+      }
+      await sleep(pollMs, signal);
+    }
+
+    if (done.error) {
+      // A job that ended in an error made nothing, and Google does not bill a
+      // blocked render, so the next route may try.
+      return { declined: `google video ${name} failed: ${JSON.stringify(done.error).slice(0, 200)}` };
+    }
+    const response = (done.response ?? {}) as Record<string, unknown>;
+    const generated = (response.generateVideoResponse ?? {}) as Record<string, unknown>;
+    const samples = Array.isArray(generated.generatedSamples) ? generated.generatedSamples : [];
+    const uri = (samples[0] as { video?: { uri?: unknown } } | undefined)?.video?.uri;
+    if (typeof uri !== 'string' || !uri) {
+      // Filtered by the safety system (raiMediaFilteredReasons), which is not billed.
+      const reasons = JSON.stringify(generated.raiMediaFilteredReasons ?? 'no sample').slice(0, 200);
+      return { declined: `google video ${name} returned no clip: ${reasons}` };
+    }
+    const file = await downloadClip(uri, GOOGLE_HOST, { 'x-goog-api-key': key }, signal);
+    if ('error' in file) return { stopped: `google video ${name}: ${file.error}` };
+    return { video: { bytes: file.bytes, contentType: 'video/mp4', provider: 'google', model: id } };
+  } catch (err) {
+    // The budget ran out with the render still going, or an answer could not
+    // be read. It may be billed; the log names it.
+    return { stopped: `google video ${id}: ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+async function openRouterVideo(
+  prompt: string,
+  model: string,
+  options: GenerateVideoOptions,
+  signal: AbortSignal,
+  pollMs: number,
+): Promise<VideoAttempt> {
+  const key = openRouterApiKey();
+  if (!key) return { declined: 'no OpenRouter key' };
+  const auth = { Authorization: `Bearer ${key}` };
+  // OpenRouter's frames are fetched by URL; a frame with none is sent inline.
+  const frameUrl = (f: VideoFrame) => f.url || `data:${f.contentType};base64,${encodeBase64(f.bytes)}`;
+  const frames = [
+    ...(options.firstFrame ? [{ frame: options.firstFrame, frame_type: 'first_frame' }] : []),
+    ...(options.firstFrame && options.lastFrame ? [{ frame: options.lastFrame, frame_type: 'last_frame' }] : []),
+  ].map(({ frame, frame_type }) => ({ type: 'image_url', image_url: { url: frameUrl(frame) }, frame_type }));
+
+  const start = await fetch(OPENROUTER_VIDEOS_URL, {
+    method: 'POST',
+    headers: { ...auth, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model,
+      prompt,
+      duration: options.durationSeconds ?? 4,
+      resolution: options.resolution ?? '720p',
+      aspect_ratio: options.aspectRatio ?? '16:9',
+      // The quiz plays every clip muted, and the silent render is the cheaper SKU.
+      generate_audio: false,
+      ...(frames.length ? { frame_images: frames } : {}),
+    }),
+    signal,
+  });
+  if (!start.ok) {
+    return { declined: `openrouter video ${model} ${start.status}: ${(await start.text().catch(() => '')).slice(0, 200)}` };
+  }
+
+  try {
+    const job = await start.json() as { id?: unknown };
+    const jobId = typeof job?.id === 'string' && /^[\w-]+$/.test(job.id) ? job.id : '';
+    if (!jobId) return { stopped: `openrouter video ${model}: no job id` };
+
+    for (;;) {
+      const poll = await fetch(`${OPENROUTER_VIDEOS_URL}/${jobId}`, { headers: auth, signal });
+      if (poll.ok) {
+        const body = await poll.json() as { status?: unknown; error?: unknown };
+        if (body.status === 'completed') break;
+        if (body.status === 'failed' || body.status === 'cancelled' || body.status === 'expired') {
+          return { declined: `openrouter video ${jobId} ${String(body.status)}: ${JSON.stringify(body.error ?? '').slice(0, 200)}` };
+        }
+      } else if (poll.status !== 429 && poll.status < 500) {
+        return { stopped: `openrouter video ${jobId}: poll answered ${poll.status}` };
+      }
+      await sleep(pollMs, signal);
+    }
+
+    const file = await downloadClip(`${OPENROUTER_VIDEOS_URL}/${jobId}/content?index=0`, OPENROUTER_HOST, auth, signal);
+    if ('error' in file) return { stopped: `openrouter video ${jobId}: ${file.error}` };
+    return { video: { bytes: file.bytes, contentType: 'video/mp4', provider: 'openrouter', model } };
+  } catch (err) {
+    return { stopped: `openrouter video ${model}: ${err instanceof Error ? err.message : String(err)}` };
+  }
+}
+
+/**
+ * The least time a route is started with. A four-second Lite clip usually
+ * renders in well under a minute, but a busy hour can take minutes, and a
+ * render started without the time to finish is billed and lost.
+ */
+export const VIDEO_MIN_ROUTE_MS = 120_000;
+
+/**
+ * Generate one clip: the model's own vendor, then the same model through
+ * OpenRouter. Returns null when no route made one — callers decide whether
+ * that is fatal. Never throws for a provider's sake; an aborted caller signal
+ * is the one thing that propagates.
+ *
+ * A route hands on to the next only when it started nothing (no key, a
+ * refused start) or its job ended without a file and unbilled (an error, a
+ * safety block). Anything else after a start was sent — a timeout, a broken
+ * download, an answer that could not be read, a throw — stops the ladder.
+ * No route is started with less than `minRouteMs` of the budget left.
+ */
+export async function generateVideo(
+  prompt: string,
+  options: GenerateVideoOptions = {},
+): Promise<GeneratedVideo | null> {
+  const model = options.model ?? VIDEO_MODEL_IDS.VEO_LITE;
+  const label = options.label ?? 'video';
+  const pollMs = options.pollMs ?? VIDEO_POLL_MS;
+  const timeoutMs = options.timeoutMs ?? VIDEO_TIMEOUT_MS;
+  const minRouteMs = options.minRouteMs ?? VIDEO_MIN_ROUTE_MS;
+  const deadline = Date.now() + timeoutMs;
+  const budget = AbortSignal.timeout(timeoutMs);
+  const signal = options.signal ? AbortSignal.any([options.signal, budget]) : budget;
+
+  const attempts: Array<() => Promise<VideoAttempt>> = [
+    ...(vendorForModel(model) === 'google' ? [() => googleVideo(prompt, model, options, signal, pollMs)] : []),
+    () => openRouterVideo(prompt, model, options, signal, pollMs),
+  ];
+
+  for (const attempt of attempts) {
+    if (deadline - Date.now() < minRouteMs) {
+      console.warn(`[aiGateway] ${label}: ${Math.round((deadline - Date.now()) / 1000)} s left, too little to start a render`);
+      return null;
+    }
+    let result: VideoAttempt;
+    try {
+      result = await attempt();
+    } catch (err) {
+      if (options.signal?.aborted) throw err;
+      // A start that never got an answer may still have reached the provider.
+      result = { stopped: err instanceof Error ? err.message : String(err) };
+    }
+    if ('video' in result) return result.video;
+    if ('stopped' in result) {
+      console.warn(`[aiGateway] ${label}: ${result.stopped}`);
+      return null;
+    }
+    console.warn(`[aiGateway] ${label}: ${result.declined}`);
+  }
+  return null;
 }

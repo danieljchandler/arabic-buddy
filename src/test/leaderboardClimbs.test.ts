@@ -55,10 +55,20 @@ describe("quiz_ladder_step", () => {
 });
 
 describe("leaderboard_climbs", () => {
-  it("counts the word deck's reviews this week, never a lapse", () => {
+  it("counts the word deck's reviews this week, never one stamped in the future, and only a Hard, Good or Easy", () => {
     expect(climbsFunction).toMatch(/r\.deck = 'word'/);
     expect(climbsFunction).toMatch(/r\.reviewed_at >= _week_start/);
-    expect(climbsFunction).toMatch(/r\.rating IS DISTINCT FROM 'again'/);
+    expect(climbsFunction).toMatch(/r\.reviewed_at < LEAST\(_week_start \+ interval '7 days', now\(\) \+ interval '1 minute'\)/);
+    expect(climbsFunction).toMatch(/r\.rating IN \('hard', 'good', 'easy'\)/);
+  });
+
+  it("counts a card at most once a day in each direction", () => {
+    expect(climbsFunction).toMatch(/COUNT\(DISTINCT \(r\.card_id, r\.direction, \(r\.reviewed_at AT TIME ZONE 'utc'\)::date\)\)/);
+  });
+
+  it("keeps the step function inlinable: plain SQL, no SET clause", () => {
+    expect(stepFunction).toMatch(/LANGUAGE sql/);
+    expect(stepFunction).not.toMatch(/\bSET\b/);
   });
 
   it("answers only for learners who chose to be on the board, and a page of them at a time", () => {

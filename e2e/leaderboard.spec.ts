@@ -436,8 +436,9 @@ test.describe("ladder climbs", () => {
       aProfile({ id: "p-third", user_id: THIRD, show_on_leaderboard: true }),
     ]);
     db.seed("review_log", [
-      aReviewLog({ id: 1, user_id: RIVAL, stability_before: 3, stability_after: 5, repetitions_after: 2, reviewed_at: now() }),
-      aReviewLog({ id: 2, user_id: RIVAL, stability_before: 5, stability_after: 9, repetitions_after: 3, reviewed_at: now() }),
+      // Two words, so two climbs: one card counts once a day.
+      aReviewLog({ id: 1, user_id: RIVAL, card_id: "00000000-0000-4000-8000-0000000000d1", stability_before: 3, stability_after: 5, repetitions_after: 2, reviewed_at: now() }),
+      aReviewLog({ id: 2, user_id: RIVAL, card_id: "00000000-0000-4000-8000-0000000000d2", stability_before: 5, stability_after: 9, repetitions_after: 3, reviewed_at: now() }),
       aReviewLog({ id: 3, user_id: THIRD, stability_before: 3, stability_after: 5, repetitions_after: 2, reviewed_at: now() }),
     ]);
   };

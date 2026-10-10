@@ -14,6 +14,7 @@ import { useFsrsCalibration } from "@/hooks/useFsrsCalibration";
 import { useFsrsWeights } from "@/hooks/useFsrsWeights";
 import type { Rating } from "@/lib/spacedRepetition";
 import type { ScheduleDirection } from "@/lib/reviewOrder";
+import type { QuizAsked } from "@/lib/quizRatingFields";
 import {
   all,
   bumpAttempts,
@@ -42,6 +43,8 @@ interface EnqueueArgs {
   currentReview: QueuedReviewSnapshot | null;
   /** Which schedule to update. Defaults to recognition. */
   direction?: ScheduleDirection;
+  /** What the quiz asked it as; absent for a flip card. */
+  asked?: QuizAsked | null;
 }
 
 export function useReviewQueue() {
@@ -118,7 +121,8 @@ export function useReviewQueue() {
             // that survived the deploy flushing correctly instead of writing
             // them into the wrong column set.
             item.direction ?? "recognition",
-            { desiredRetention, stabilityMultiplier, weights }
+            { desiredRetention, stabilityMultiplier, weights },
+            item.asked ?? null,
           );
           remove(user.id, item.id);
           setPendingCount(count(user.id));
@@ -171,6 +175,7 @@ export function useReviewQueue() {
         rating: args.rating,
         currentReview: args.currentReview,
         direction: args.direction ?? "recognition",
+        asked: args.asked ?? null,
       });
       setPendingCount(count(user.id));
       void flush();

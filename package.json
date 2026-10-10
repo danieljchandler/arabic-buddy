@@ -14,6 +14,7 @@
     "curriculum:check": "vite-node scripts/check-curriculum-tracks.ts",
     "curriculum:seed": "vite-node scripts/build-curriculum-seed.ts",
     "curriculum:video-needs": "vite-node scripts/build-video-needs.ts",
+    "quiz:ladder-report": "vite-node scripts/quiz-ladder-report.ts",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",

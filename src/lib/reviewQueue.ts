@@ -1,5 +1,6 @@
 import type { Rating } from "@/lib/spacedRepetition";
 import type { ScheduleDirection } from "@/lib/reviewOrder";
+import type { QuizAsked } from "@/lib/quizRatingFields";
 
 export interface QueuedReviewSnapshot {
   id: string;
@@ -38,6 +39,11 @@ export interface QueuedRating {
    */
   direction?: ScheduleDirection;
   currentReview: QueuedReviewSnapshot | null;
+  /**
+   * What the quiz asked it as (quiz Phase 8), written with the rating for the
+   * review log. Absent for a flip card, and on entries queued before it existed.
+   */
+  asked?: QuizAsked | null;
   queuedAt: number;
   attempts: number;
 }

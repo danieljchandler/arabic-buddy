@@ -26,6 +26,7 @@ import { LoadingPanel } from "@/components/loading/LoadingPanel";
 import { useDialect } from "@/contexts/DialectContext";
 import { Rating, calculateNextReview, elapsedDaysSince } from "@/lib/spacedRepetition";
 import { scheduleDirectionFor } from "@/lib/reviewOrder";
+import type { QuizAsked } from "@/lib/quizRatingFields";
 import { ReviewAudioCard } from "@/components/review/ReviewAudioCard";
 import { LeechHelperPanel } from "@/components/review/LeechHelperPanel";
 import { useLeechPrefs } from "@/hooks/useLeechPrefs";
@@ -375,7 +376,7 @@ const Review = () => {
     });
   };
 
-  const handleRate = (rating: Rating) => {
+  const handleRate = (rating: Rating, asked?: QuizAsked) => {
     const word = relearnPick?.card ?? dueWords?.[currentIndex];
     // Gate on the card, not the list: a relearn card outlives the fetched
     // list, and dropping its rating would lose the retrieval it is owed.
@@ -392,6 +393,8 @@ const Review = () => {
       rating,
       currentReview: word.review,
       direction,
+      // What the quiz asked it as, for the review log (quiz Phase 8).
+      asked,
     });
 
     // A failed card re-enters the session a few cards later, carrying the
@@ -473,7 +476,7 @@ const Review = () => {
     // A flourish, never a schedule: the combo pays XP and nothing else.
     const bonus = comboBonus(next.combo);
     if (bonus) addXP.mutate({ amount: bonus, reason: "quiz_combo" });
-    handleRate(graded.rating);
+    handleRate(graded.rating, { format: graded.format, step: graded.askedStep });
     // Beating the boss is the moment, celebrated once the rating is on its
     // way, as the session moves on.
     if (bossBeaten(graded)) celebrate({ kind: "boss", detail: graded.item.arabic });
@@ -946,7 +949,7 @@ const Review = () => {
   const ratingButtons = (
     <div className="mt-10">
       <RatingButtons
-        onRate={handleRate}
+        onRate={(rating) => handleRate(rating)}
         stability={stability}
         difficulty={difficulty}
         intervalDays={intervalDays}

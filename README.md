@@ -285,6 +285,22 @@ ladder in `src/lib/quizLadder.ts`:
 | 9 Say the reply | production card, 30 to 60 days | a line of dialogue, said aloud, and the reply's meaning → say the reply; scored, the word required |
 | 10 In a story | production card, 60 days and up | two sentences of a story, shown and read aloud with the word muted, and the word's meaning → say the word; scored |
 
+The thresholds are a first guess, to be set from real ratings (quiz Phase 8).
+Each curriculum rating records what it was asked as: the format and the step
+(`QuizGraded.askedStep`, 1 for a boss) go on the rating's own write as
+`word_reviews.last_quiz_format` and `last_quiz_step`, nulls for a flip card,
+and the `review_log` trigger copies them beside the rating
+(`20261010130000_quiz_rating_asked`). Until the live project carries those
+columns the write is refused for them, so it is sent again without them and
+the device leaves them off for a day (`src/lib/quizRatingFields.ts`): a
+rating never fails for want of them. `npm run quiz:ladder-report` reads the
+log (read-only, service role) and reports accuracy per step and per format,
+and for each threshold whether the step it opens is answered right 85% of
+the time from the threshold up (it holds), only from higher (raise it to
+there), or not at all; bosses and fallback questions are counted but never
+move a threshold (`src/lib/quizLadderReport.ts`). It cannot say a threshold
+should come down: the ladder never asks a step's question below it.
+
 The climb within recognition goes from form to meaning (the gap, the picture,
 the audio) to meaning to form (pick the word) to use (answer the line);
 production goes from the word to the line to the line said back in a

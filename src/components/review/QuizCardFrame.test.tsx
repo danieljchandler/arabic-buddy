@@ -245,7 +245,14 @@ describe("turning an answer into a rating", () => {
     fireEvent.click(screen.getByRole("button", { name: /continue/i }));
 
     expect(onGraded).toHaveBeenCalledTimes(1);
-    expect(onGraded).toHaveBeenCalledWith({ rating: "good", correct: true, format: "cloze-hint", step: 1, item: expect.objectContaining({ id: "card-1" }) });
+    expect(onGraded).toHaveBeenCalledWith({
+      rating: "good",
+      correct: true,
+      format: "cloze-hint",
+      step: 1,
+      askedStep: 1,
+      item: expect.objectContaining({ id: "card-1" }),
+    });
   });
 
   it("rates a wrong gap Again", () => {
@@ -272,7 +279,9 @@ describe("turning an answer into a rating", () => {
     fireEvent.click(screen.getAllByRole("radio").find((r) => r.textContent?.trim() === "the house")!);
     fireEvent.click(screen.getByRole("button", { name: /continue/i }));
 
-    expect(settled.onGraded).toHaveBeenCalledWith(expect.objectContaining({ rating: "hard", correct: true, format: "listen" }));
+    expect(settled.onGraded).toHaveBeenCalledWith(
+      expect.objectContaining({ rating: "hard", correct: true, format: "listen", askedStep: 4 }),
+    );
     expect(onGraded).not.toHaveBeenCalled();
   });
 
@@ -502,7 +511,10 @@ describe("the boss card", () => {
         rating: "good",
         correct: true,
         format: "cloze-hint",
+        // Its own step, for the climbs; the step it was asked at, for the
+        // review log: a first look's.
         step: 4,
+        askedStep: 1,
         item: expect.objectContaining({ boss: expect.objectContaining({ lapses: 7 }) }),
       }),
     );
@@ -871,7 +883,7 @@ describe("a picture for a word that has none", () => {
       fireEvent.click(await screen.findByRole("radio", { name: "the market" }));
       fireEvent.click(screen.getByRole("button", { name: /continue/i }));
 
-      expect(onGraded).toHaveBeenCalledWith({ rating: "good", correct: true, format: "picture-choice", step: 3, item: expect.objectContaining({ id: "card-1" }) });
+      expect(onGraded).toHaveBeenCalledWith({ rating: "good", correct: true, format: "picture-choice", step: 3, askedStep: 3, item: expect.objectContaining({ id: "card-1" }) });
     });
 
     it("takes the store's picture when there is one, for nothing, and keeps it on the row", async () => {
@@ -1187,7 +1199,7 @@ describe("an exchange for a word its lesson has no line for", () => {
 
     fireEvent.click(screen.getByRole("radio", { name: /رحت السوق مع أخوي/ }));
     fireEvent.click(screen.getByRole("button", { name: /continue/i }));
-    expect(onGraded).toHaveBeenCalledWith({ rating: "good", correct: true, format: "reply-choice", step: 6, item: expect.objectContaining({ id: "card-1" }) });
+    expect(onGraded).toHaveBeenCalledWith({ rating: "good", correct: true, format: "reply-choice", step: 6, askedStep: 6, item: expect.objectContaining({ id: "card-1" }) });
   });
 
   it("has an exchange written for a word with none, waits for it, and asks with it", async () => {
@@ -1836,7 +1848,7 @@ describe("a word in a story", () => {
     fireEvent.click(screen.getByRole("radio", { name: "السوق" }));
     fireEvent.click(screen.getByRole("button", { name: /continue/i }));
     // A choice is never better than Good, on the production schedule it was served on.
-    expect(onGraded).toHaveBeenCalledWith({ rating: "good", correct: true, format: "story-choice", step: 10, item: expect.objectContaining({ id: "card-1" }) });
+    expect(onGraded).toHaveBeenCalledWith({ rating: "good", correct: true, format: "story-choice", step: 10, askedStep: 10, item: expect.objectContaining({ id: "card-1" }) });
   });
 
   it("serves the flip card on a device that cannot record with too few other words, and asks the store nothing", async () => {

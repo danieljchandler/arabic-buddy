@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHookWithProviders, TEST_USER_ID } from "@/test/support/react/harness";
 import { aUserXp, aVocabularyWord, aWordReview, reviewId, wordId } from "@/test/support/factories";
 import { all, enqueue as enqueueDirect } from "@/lib/reviewQueue";
+import { resetQuizColumnsForTests } from "@/lib/quizRatingFields";
 import { useAuth } from "./useAuth";
 import { useReviewQueue } from "./useReviewQueue";
 import type { SupabaseBackend } from "@/test/support/server/handler";
@@ -43,6 +44,7 @@ let cleanup: (() => void) | undefined;
 
 beforeEach(() => {
   localStorage.clear();
+  resetQuizColumnsForTests();
   vi.useFakeTimers({ shouldAdvanceTime: true });
 });
 
@@ -227,6 +229,90 @@ describe("the new-card budget", () => {
 
     await waitFor(() => expect(result.current.pendingCount).toBe(0));
     expect(invalidate).not.toHaveBeenCalledWith({ queryKey: ["daily-new-card-count"] });
+  });
+});
+
+describe("what the quiz asked it as", () => {
+  // Written with the rating, for the review log's trigger to copy (quiz
+  // Phase 8). The columns are an owner action, so the rating must save
+  // without them where the live project does not have them yet.
+  const MISSING_COLUMN = {
+    code: "PGRST204",
+    message: "Could not find the 'last_quiz_format' column of 'word_reviews' in the schema cache",
+    details: null,
+    hint: null,
+  };
+
+  it("goes on the rating's own write", async () => {
+    const { result, backend } = await renderQueue();
+
+    act(() => {
+      result.current.enqueue({
+        wordId: wordId(0),
+        rating: "good",
+        currentReview: snapshot(),
+        asked: { format: "picture-choice", step: 3 },
+      });
+    });
+
+    await waitFor(() => expect(backend.db.writesTo("word_reviews")).toHaveLength(1));
+    expect(backend.db.lastWriteTo("word_reviews")?.payload[0]).toMatchObject({
+      last_result: "good",
+      last_quiz_format: "picture-choice",
+      last_quiz_step: 3,
+    });
+  });
+
+  it("is nulls for a flip card, so the row does not keep the last question's", async () => {
+    const { result, backend } = await renderQueue();
+
+    act(() => {
+      result.current.enqueue({ wordId: wordId(0), rating: "hard", currentReview: snapshot() });
+    });
+
+    await waitFor(() => expect(backend.db.writesTo("word_reviews")).toHaveLength(1));
+    expect(backend.db.lastWriteTo("word_reviews")?.payload[0]).toMatchObject({
+      last_quiz_format: null,
+      last_quiz_step: null,
+    });
+  });
+
+  it("is left off when the project has no such columns, and the rating saves all the same", async () => {
+    const { result, backend } = await renderQueue();
+    backend.db.failNextWrite("word_reviews", 400, MISSING_COLUMN);
+
+    act(() => {
+      result.current.enqueue({
+        wordId: wordId(0),
+        rating: "good",
+        currentReview: snapshot(),
+        asked: { format: "cloze", step: 2 },
+      });
+    });
+
+    await waitFor(() => expect(result.current.pendingCount).toBe(0));
+    const saved = backend.db.lastWriteTo("word_reviews")?.payload[0] ?? {};
+    expect(saved).toMatchObject({ last_result: "good" });
+    expect(saved).not.toHaveProperty("last_quiz_format");
+    expect(saved).not.toHaveProperty("last_quiz_step");
+    // Not a permanent error: nothing was dropped or toasted.
+    expect(Number(backend.db.rows("word_reviews")[0]?.repetitions)).toBe(3);
+  });
+
+  it("stays off for the next rating, rather than being refused again", async () => {
+    const { result, backend } = await renderQueue();
+    backend.db.failNextWrite("word_reviews", 400, MISSING_COLUMN);
+
+    act(() => {
+      result.current.enqueue({ wordId: wordId(0), rating: "good", currentReview: snapshot(), asked: { format: "cloze", step: 2 } });
+    });
+    await waitFor(() => expect(result.current.pendingCount).toBe(0));
+    act(() => {
+      result.current.enqueue({ wordId: wordId(0), rating: "good", currentReview: snapshot(), asked: { format: "cloze", step: 2 } });
+    });
+    await waitFor(() => expect(backend.db.writesTo("word_reviews")).toHaveLength(2));
+
+    expect(backend.db.lastWriteTo("word_reviews")?.payload[0]).not.toHaveProperty("last_quiz_format");
   });
 });
 

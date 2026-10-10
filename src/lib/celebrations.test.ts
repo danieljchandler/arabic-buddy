@@ -335,9 +335,9 @@ describe("what the screen says", () => {
   it("names the boss beaten", () => {
     expect(celebrationCopy({ kind: "boss", detail: "السوق" })).toEqual({
       title: "Boss beaten!",
-      subtitle: "السوق, the word you kept missing, is yours.",
+      subtitle: "السوق, the one you kept missing, is yours.",
     });
-    expect(celebrationCopy({ kind: "boss" }).subtitle).toBe("The word you kept missing is yours.");
+    expect(celebrationCopy({ kind: "boss" }).subtitle).toBe("The one you kept missing is yours.");
     expect(celebrationSummary({ kind: "boss", detail: "السوق" })).toBe("Boss beaten!");
   });
 

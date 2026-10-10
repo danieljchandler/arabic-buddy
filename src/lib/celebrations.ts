@@ -341,7 +341,7 @@ export function celebrationCopy(event: CelebrationEvent): { title: string; subti
     case "boss":
       return {
         title: "Boss beaten!",
-        subtitle: detail ? `${detail}, the word you kept missing, is yours.` : "The word you kept missing is yours.",
+        subtitle: detail ? `${detail}, the one you kept missing, is yours.` : "The one you kept missing is yours.",
       };
     case "preview":
       return { title: "Preview", subtitle: "How a celebration looks." };

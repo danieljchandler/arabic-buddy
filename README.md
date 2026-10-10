@@ -577,7 +577,12 @@ anyway, since a card missed this often is one to learn again, not only to
 grade. With too few other words for four options it is the flip card, as any
 card would be, and no boss. Beating it is a celebration, the small tier
 (`celebrate({ kind: "boss" })`, "Boss beaten!"), played by the page once the
-rating is saved (`bossBeaten`), so a save that fails is never celebrated.
+rating is on its way (`bossBeaten`): saved, on My Words and My Phrases, so a
+save that fails is never celebrated; queued, on the curriculum deck, whose
+offline queue saves it when it can. A boss stays the boss for its whole
+presentation, even if the learner clears its leech flag from the rescue panel
+after answering: the question, the answer given and the celebration are the
+ones it was asked with.
 
 The boss is chosen from what is due and only reordered, so nothing is reviewed
 early, and only on the recognition side: a first look grades the recognition

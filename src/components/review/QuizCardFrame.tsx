@@ -384,7 +384,15 @@ export const QuizCardFrame = ({
 
   // The boss is asked as a first look, whatever its memory; its own step is
   // what the page is told, so the session's climbs are counted from it.
-  const boss = item.boss && item.direction === "recognition" ? item.boss : null;
+  //
+  // Latched for the card's presentation, as its picture is: clearing the
+  // leech flag from the rescue panel after the answer patches the deck, and a
+  // boss that stopped being one under the learner would turn the answered card
+  // into another question (with its own wait, and its own answer to give).
+  const liveBoss = item.boss && item.direction === "recognition" ? item.boss : null;
+  const [bossLatch, setBossLatch] = useState({ id: item.id, boss: liveBoss });
+  if (bossLatch.id !== item.id) setBossLatch({ id: item.id, boss: liveBoss });
+  const boss = bossLatch.id === item.id ? bossLatch.boss : liveBoss;
   const memory = boss ? BOSS_MEMORY : item.memory;
   const rung = rungForMemory(memory, item.direction);
   const ownStep = boss ? rungForMemory(item.memory, item.direction).step : rung.step;
@@ -697,8 +705,11 @@ export const QuizCardFrame = ({
 
   const settle = (rating: Rating) => setAnswered({ rating, correct: isCorrectRating(rating) });
 
-  const onChoice = (correct: boolean, hintUsed = false) =>
+  // A choice is answered once. (A take may be retaken: the last one grades.)
+  const onChoice = (correct: boolean, hintUsed = false) => {
+    if (answered) return;
     settle(gradeQuizAnswer({ kind: "choice", correct, hintUsed: hintUsed || hookHelped }));
+  };
 
   const onSpeech = (result: QuizSpeechResult) =>
     settle(
@@ -713,7 +724,9 @@ export const QuizCardFrame = ({
 
   const advance = () => {
     if (!answered) return;
-    onGraded({ ...answered, format, step: ownStep, item });
+    // The card as it was asked: a boss is still the boss when the page has
+    // since cleared its leech flag, so the page celebrates what was beaten.
+    onGraded({ ...answered, format, step: ownStep, item: { ...item, boss } });
   };
 
   // Enter or Space moves on once a card is answered, matching the flip card's
@@ -750,18 +763,22 @@ export const QuizCardFrame = ({
           ? "Drawing a picture for this word"
           : "Preparing the question";
     return (
-      <div
-        role="status"
-        aria-label={why}
-        className="rounded-2xl bg-card border border-border p-8 flex flex-col items-center justify-center gap-3 min-h-[16rem]"
-      >
-        <span className={lookingUp ? "animate-in fade-in duration-300 delay-300 fill-mode-backwards" : undefined}>
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </span>
-        {(writingPassage || writingLine || drawingPicture) && (
-          <p className="text-sm text-muted-foreground text-center">{why}…</p>
-        )}
-      </div>
+      <>
+        <div
+          role="status"
+          aria-label={why}
+          className="rounded-2xl bg-card border border-border p-8 flex flex-col items-center justify-center gap-3 min-h-[16rem]"
+        >
+          <span className={lookingUp ? "animate-in fade-in duration-300 delay-300 fill-mode-backwards" : undefined}>
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </span>
+          {(writingPassage || writingLine || drawingPicture) && (
+            <p className="text-sm text-muted-foreground text-center">{why}…</p>
+          )}
+        </div>
+        {/* The rescue panel waits with the card, as it always did; under the boss, for the answer. */}
+        {!boss && leechPanel}
+      </>
     );
   }
 

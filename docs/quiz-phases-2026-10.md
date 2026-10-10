@@ -724,18 +724,47 @@ back on every run; it pages now, as the search does. A written passage kept a
 did not. It also asked why the four-option gap does not name the meaning:
 decision 10 is about the spoken gap, and the four-option one follows the
 cloze card's later steps (said so above). It found the same second-use gap in
-Phase 4's exchange, which is not fixed here: an opening line is checked with
-`lineUsesWord` alone, so "رحنا للسوق؟" can open an exchange whose reply is
-the word السوق.
+Phase 4's exchange, which was not fixed here: an opening line was checked with
+`lineUsesWord` alone, so "رحنا للسوق؟" could open an exchange whose reply is
+the word السوق (fixed in the follow-ups, below).
+
+**Fixed after the merge** (the Phase 6 follow-ups), three things the reviews
+left:
+
+- *A story's title gave the answer away on the four-option gap* (Codex review
+  finding 1 on #428). `story-choice` withholds the meaning, but `storyGap`
+  checked the title for the Arabic word only, so a passage for السوق from "At
+  the Market" named the answer above its choices. A title that names the
+  meaning is dropped now too: the card's English folded as the key folds a
+  sense, and each meaning a gloss lists, read by `englishNamesSense`. Guards:
+  `quizStory.test.ts`, `QuizStoryCard.test.tsx`.
+- *A written passage was not held to fourteen words* (Codex finding 2). The
+  prompt and the critic asked for at most fourteen a sentence, but the gate
+  and the filing check enforced only `MAX_STORY_SENTENCE_LENGTH` (200
+  characters), so a longer passage could be filed for every learner of the
+  word. The writer reads what it is given by `asWrittenStoryLine` now
+  (`MAX_WRITTEN_SENTENCE_WORDS`, 14) in both the critic's gate and the check
+  before filing; a passage taken from a story keeps the 200-character rule
+  alone. Guards: `word_asset_test.ts`, `wordStoryLine.test.ts`.
+- *A Phase 4 exchange could give the word away* (the second review's finding
+  above). `asStoredDialogue` now refuses an opening line that says the word
+  in any form (`wordUseCount(first, word) === 0`), and the critic and the
+  prompt are told so. The browser had the same gap, fixed with the same rule:
+  `findReplyLine` takes no reply whose line before says the word, and
+  `buildReplyQuestion` and `countWrongReplies` offer and count no "wrong"
+  reply that says it with a prefix or an ending. Guards:
+  `wordDialogue.test.ts`, `quizDialogue.test.ts`, `word_asset_test.ts`. No
+  exchange had been filed (2b was still open: `word_assets` is not in the
+  generated types), so none needed re-checking.
 
 ### Phase 6b — owner action
 
 1. Apply `20261009130000_word_assets.sql` (Phase 2b) if it is not on the live
    project yet. Until then no passage is taken, written or read, and the top
    step asks the reply.
-2. Deploy `word-asset` (this phase changed it again; one deploy covers 3b, 4b
-   and 5b's). An older one answers a passage `kind_not_generated`, uncharged,
-   and the quiz asks the reply.
+2. Deploy `word-asset` (this phase changed it again, and so did its
+   follow-ups; one deploy covers 3b, 4b and 5b's). An older one answers a
+   passage `kind_not_generated`, uncharged, and the quiz asks the reply.
 3. Run the script, dry first; it prints what each word would take, what the
    shelf lends, and why each story left out was. It costs nothing (no model,
    no function), so the real run is safe once the dry run reads right:
@@ -774,10 +803,18 @@ the word السوق.
   keeps fillers in Arabic is not known from here; the result shows what was
   heard, and "Try again" is there. A filler list would need care: ايه is
   "yes" in Egyptian and could be the word.
-- *Phase 4's exchange can give the word away in its opening line* when the
-  word is said there with a prefix (the second review's finding above). The
-  fix is `wordUseCount(first, word) === 0` in `asStoredDialogue`; exchanges
-  already filed would need re-checking. Not done here: Phase 4 is merged.
+- ~~*Phase 4's exchange can give the word away in its opening line* when the
+  word is said there with a prefix (the second review's finding above).~~
+  **Fixed in the follow-ups:** `asStoredDialogue` checks the opener with
+  `wordUseCount(first, word) === 0`, and the quiz's reply steps hold the line
+  said and every wrong reply to the same rule. No exchange had been filed
+  (2b still open), so there was nothing to re-check.
+- *An exchange is not held to its prompt's ten words either*, found while
+  fixing the passage's fourteen: `dialoguePrompt` asks for at most ten words a
+  line, and `asStoredDialogue` enforces only `MAX_DIALOGUE_LINE_LENGTH` (160
+  characters). The same writer-only word count would close it, in the gate
+  and before filing; not done in the follow-ups, which fixed only what the
+  reviews named.
 
 **Done when** (6b): a mature curriculum word is asked in a story in
 production, from a published story's sentences where the shelf has one.

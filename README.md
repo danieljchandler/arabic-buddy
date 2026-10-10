@@ -248,9 +248,13 @@ the audio) to meaning to form (pick the word) to use (answer the line);
 production goes from the word to the line to the line said back in a
 conversation, and at the top to the word heard in someone else's sentences,
 at speed, and said into its place. The reply steps are built from a dialogue (`src/lib/quizDialogue.ts`):
-the reply is the first line that uses the word, the prompt is the line before
-it, and on step 6 the wrong replies are the dialogue's other lines, topped up
-from the other lessons in the deck and from the other words' stored replies.
+the reply is the first line that uses the word whose line before does not say
+it, the prompt is that line before, and on step 6 the wrong replies are the
+dialogue's other lines, topped up from the other lessons in the deck and from
+the other words' stored replies. Neither the prompt nor a wrong reply may say
+the word in any form `wordUseCount` counts, a prefix or an ending attached
+included: "رحنا للسوق؟" before a reply with السوق hands over the answer, and a
+"wrong" reply with للسوق in it is not wrong.
 The lesson's authored dialogue (`lessons.dialogue`) comes first; a word it
 never uses is asked from its exchange in the shared store (below). A
 translation of what was said, or the meaning behind a picture, is a tap away
@@ -414,7 +418,11 @@ missing word (`QuizStoryCard`):
   said in twice is no passage — not even with a prefix (و, ب, ال, or the
   article contracted, as in للسوق and عالسوق) or a pronoun or plural ending
   (قهوتي, بيتين) on the second, which would say the answer the gap mutes. A
-  story title that says the word is not shown either.
+  story title that says the word is not shown either, nor one that names its
+  meaning, which the four-option gap withholds: "At the Market" above a gap
+  for السوق. The title is read against the card's English folded as the key
+  folds a sense, and each meaning a gloss lists, by the rule the story search
+  reads a sentence's English by (`englishNamesSense`).
 - *The reading* is the cloze card's (`useMaskedSentenceAudio`, which both
   cards now share): the word is replaced by a pause in the text the voice is
   given, so no voice can say it, and both readings — muted before the take and
@@ -582,21 +590,24 @@ need a line that uses the word, and most words are in no lesson's dialogue,
 so the store keeps one two-line exchange per word, sense and dialect
 (`_shared/wordDialogue.ts`): `payload` is `{ lines: [said, reply] }`, each
 line `{ speaker, arabic, english, transliteration }`, the reply using the word
-as a whole word and the line said not using it (`asStoredDialogue`, the one
-rule the store, the pool and the frame all read an exchange by). It is text,
-so it has no bucket (`ASSET_BUCKETS.dialogue` is null) and is filed with
+as a whole word and the line said not saying it in any form, a prefix or an
+ending attached included (`wordUseCount`: "رحنا للسوق؟" before a reply with
+السوق would hand over the answer), by `asStoredDialogue`, the one rule the
+store, the pool and the frame all read an exchange by. It is text, so it
+has no bucket (`ASSET_BUCKETS.dialogue` is null) and is filed with
 `putAsset`, never `fileNewAsset`; the style is `text-1`.
 
 - *What reaches the prompt.* `ensure` writes it through `askBrain` — the
   CONTENT lineup, `draft_critic`, the native-speaker validator on
   (`enforceDialect`), and a quality gate that sends the critic back when the
-  reply does not use the word — from the key's folded word, folded sense and
-  dialect alone (`dialoguePrompt`, `keyWord`). **Decided:** a learner's miss
-  carries nothing else, as for pictures. The roadmap first said to give the
-  model the word's example sentence, but a saved word's sentence is the
-  learner's own text (a transcript line, a note), and the exchange is filed
-  for every later learner of the key; the quiz never sends it and the
-  function would not hear it. The trusted path — the service role or the
+  reply does not use the word or the line said says it — from the key's
+  folded word, folded sense and dialect alone (`dialoguePrompt`, `keyWord`).
+  **Decided:** a learner's miss carries nothing else, as for pictures. The
+  roadmap first said to give the model the word's example sentence, but a
+  saved word's sentence is the learner's own text (a transcript line, a
+  note), and the exchange is filed for every later learner of the key; the
+  quiz never sends it and the function would not hear it. The trusted path —
+  the service role or the
   content team, through the same `isServiceRoleCall` / `requireRole` gate as
   a scene — may add `example`, a curriculum word's authored example sentence
   (`authoredExample`: one line, at most 240 characters, using the word and
@@ -825,10 +836,13 @@ places, in this order.
   learner typed, not the sentence a saved word came from), the CONTENT lineup
   drafted and critiqued with the native validator on the draft and on what
   ships, a quality gate that sends the critic back when the word is missing or
-  said twice, and filed only when every sentence passes the leak detector with
-  the rulebook's tokens and the validator passed the shipped text; anything
-  that fails either is neither filed nor served, and one the validator could
-  not judge is the paying learner's, unfiled. The trusted path may add
+  said twice or a sentence runs past fourteen words, and filed only when every
+  sentence is at most fourteen words (`asWrittenStoryLine`,
+  `MAX_WRITTEN_SENTENCE_WORDS`, the writer's rule alone: a story's own
+  sentence is held to `MAX_STORY_SENTENCE_LENGTH` only), passes the leak
+  detector with the rulebook's tokens, and the validator passed the shipped
+  text; anything that fails any of them is neither filed nor served, and one
+  the validator could not judge is the paying learner's, unfiled. The trusted path may add
   `example`, a curriculum word's authored sentence, exactly as for an exchange;
   a published story's passage is still taken before that.
 - *Who pays.* **Decided: a learner's miss is charged on the exchange's

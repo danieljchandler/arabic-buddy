@@ -42,6 +42,8 @@ export interface Institution {
   verified: boolean;
 }
 
+type UntypedRpc = (fn: string, args: Record<string, unknown>) => PromiseLike<{ data: unknown; error: unknown }>;
+
 /**
  * Each learner's ladder climbs this week, by user id, from the
  * `leaderboard_climbs` RPC (migration 20261010120000_leaderboard_climbs). The
@@ -52,7 +54,8 @@ export interface Institution {
 export async function readClimbs(userIds: string[]): Promise<Map<string, number> | null> {
   if (userIds.length === 0) return new Map();
   try {
-    const { data, error } = await (supabase.rpc as any)("leaderboard_climbs", { _user_ids: userIds });
+    // Not in the generated types until the migration is on the live project.
+    const { data, error } = await (supabase.rpc as unknown as UntypedRpc)("leaderboard_climbs", { _user_ids: userIds });
     if (error || !Array.isArray(data)) return null;
     const climbs = new Map<string, number>();
     for (const row of data as Array<{ user_id?: unknown; climbs_this_week?: unknown }>) {

@@ -351,6 +351,17 @@ harness.
   "Playing a TikTok clip in step with its audio" is the writeup.
 - Test code is held to a *stricter* lint standard than the app (no `any`, no
   `.only`) — see the override in `eslint.config.js`.
+- **AI spend is not launch-ready; revisit `docs/ai-spend-2026-10.md` §8
+  before opening paid signups.** As of 2026-10-10 a Standard plan ($4.55 net)
+  covers about three active days of typical use and All-In about eight,
+  because the `word_assets` store is not applied on the live project (every
+  quiz picture is drawn per learner per session at $0.067), the voice
+  allowances cost more than the plans net, and subscribers bypass the cap on
+  65 of 75 gated endpoints. §8 holds the four decisions (store, voice
+  allowance, which tutor each tier gets, price points), the lean
+  configuration and a proposed `TierLimits` table; `scripts/ai-spend-model.py`
+  is the arithmetic. Do not add a model-calling feature without a row in
+  that table and a line in §2's per-action costs.
 
 ## Architecture
 

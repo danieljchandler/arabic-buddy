@@ -34,6 +34,10 @@ labelled as one. The model that produced the tables is reproducible from the
   once costs about **$170** (or **$87** on Google's batch tier). Today the app
   spends that much on pictures for roughly **three** typical subscribers in a
   month.
+- **Revisit before launch.** §8 is the launch gate: four decisions (the
+  store, the voice allowance, which tutor each tier gets, the price points),
+  the lean configuration and a proposed cap table. Nothing in it is applied
+  yet.
 
 ## 1. What costs money
 
@@ -501,3 +505,104 @@ group by 1, 2 order by units desc;
 personas guess at. Run the first query before changing a lineup: the
 assumptions above are the part of this document most likely to be wrong,
 and they are the cheapest part to check.
+
+## 8. Before launch — revisit this
+
+**Launch gate (owner's decision, 2026-10-10): do not open paid signups
+until the four decisions below are made and the numbers in §3 have been
+re-run against real `llm_usage_logs` rows.** With the setup as it stands a
+Standard plan covers about three active days of typical use and an All-In
+plan about eight; nothing here is profitable for a daily user, and most of
+the gap is a handful of fixable things rather than the product itself.
+
+### The four decisions
+
+1. **Apply `word_assets` and fill the library** (§5 items 1–3). Not a
+   decision so much as a prerequisite: without it every picture is drawn per
+   learner per session and no cap table can make the quiz affordable.
+2. **Voice allowance and price.** 120 min on Standard costs $6.17 against
+   $4.55 net. Proposed: Free 10 min, Standard 30 min, All-In 120 min per
+   month (`VOICE_MONTHLY_SECONDS`), plus top-ups if wanted. Change the
+   pricing-page bullets in `useSubscription.ts` in the same commit — the
+   Stripe-id test does not check them, but they must describe what the
+   backend enforces.
+3. **Which tutor each tier gets.** Proposed: Standard chats on Flash
+   ($0.006 a turn), All-In on Sonnet ($0.014). `DEFAULT_CHAT` becomes a
+   per-tier choice in `assistant-chat`. This is the one upgrade reason that
+   costs nothing to build and is honest about the difference.
+4. **The price points.** After every cut below, a daily Standard user still
+   costs about $7.70 a month. Either Standard moves to $8–9, or it stays at
+   $5 with the Standard caps below and the knowledge that the daily user is
+   carried by the twice-a-week one. All-In at $15 works at typical use once
+   the extras are capped; $19 carries the heavy user too. Decide from the
+   second query in §7, which says how many subscribers are the daily kind.
+
+### The lean configuration
+
+Keep: the Discover library (content, amortised), the curriculum and quiz on
+the shared store, pronunciation and shadow scoring, how-do-i-say, the tutor
+chat, the daily story. Cut or share: phrase jingles and celebration songs
+(personal, never shareable), story video and custom stories (make them a
+library per dialect and level), listening episodes per learner (same),
+souq news per request (one daily digest per dialect), meme analysis
+(All-In only), learner-uploaded transcription (All-In only, on Soniox),
+`hf-chat`, `culture-guide`, `dialect-compare`, `daily-challenge` and
+`phrase-of-the-day` as separate per-learner generators. On the content
+side, cut the speech fan-out from five engines to two (Soniox + Munsit) and
+pregenerate daily stories for subscribers only.
+
+Unit costs after the strategy changes (same assumptions as §7):
+
+| Action | Today | Lean | Change |
+|---|---:|---:|---|
+| Tutor chat turn, Sonnet | $0.018 | $0.014 | memory update once per conversation; tool plan on Flash-Lite; native review off |
+| Tutor chat turn, Flash | — | $0.006 | the Standard tutor |
+| How do I say | $0.041 | $0.012 | council → draft_critic |
+| Save a word | $0.011 | $0.004 | ensemble → solo Flash; repair on Flash |
+| Grammar drill, listening quiz, souq quiz | $0.033 | $0.010 | ensemble → solo Flash |
+| Reading passage, daily story | $0.038 / $0.039 | $0.020 / $0.021 | one validator leg (Gemini Pro) instead of two |
+| Recap / debrief step | $0.016 | $0.0065 | Flash, no native review |
+| Simulator turn | $0.016 | $0.005 | Gemini Pro → Flash; error extraction once per conversation |
+| Quiz picture, flashcard image, dialogue, word jingle | $0.067 / $0.067 / $0.011 / $0.051 | ~$0.002 / $0.002 / $0.0003 / $0.001 | shared through the store, ~40 learners per asset |
+| Learner transcribe, per 3-min video | $0.35–0.65 | $0.17 | Soniox for ASR; All-In only |
+
+### Proposed caps
+
+Per day unless marked. Every row is one `TierLimits` argument at the
+endpoint's `enforceDailyCap` call; "pooled" means one counter key shared by
+the practice generators.
+
+| Feature | Free | Standard | All-In |
+|---|---:|---:|---:|
+| Tutor chat turns | 5 (Flash) | 20 (Flash) | 40 (Sonnet) |
+| How do I say | 3 | 10 | 30 |
+| Save a word (enrichment) | 10 | 25 | 60 |
+| Quiz pictures / dialogues (shared) | 20 / 30 | 60 / 100 | 200 / 300 |
+| Flashcard images (through the store) | 0 | 10 | 30 |
+| TTS words / lines | 100 / 10 | 250 / 30 | 600 / 100 |
+| Pronunciation / shadow attempts | 30 / 20 | 60 / 40 | 200 / 120 |
+| Practice generators, pooled (drills, passages, quizzes) | 1 | 3 | 8 |
+| Daily story | 1, on demand | 1 | 1 |
+| Recap / debrief steps | 0 | 4 | 12 |
+| Simulator turns | 0 | 15 | 40 |
+| Translate phrase or text | 10 | 25 | 60 |
+| Word jingles (shared) | 0 | 3 | 10 |
+| Writing coach / monologue / worksheet | 2 / 1 / 0 | 6 / 3 / 2 | 20 / 8 / 5 |
+| Meme analysis / custom story / transcribe a video / listen episode | 0 | 0 | 5 / 3 / 3 / 1 |
+| `analyze-gulf-arabic`, `classify-tutor-segments`, `extract-visual-context` | 0 | 0 | 3 |
+| Live voice, per month | 10 min | 30 min | 120 min |
+
+### What that produces
+
+| | Typical active day | Voice per month | Break-even active days |
+|---|---:|---:|---:|
+| Standard, Flash tutor, $4.55 net | $0.29 | $1.54 | about 10 |
+| All-In, Sonnet tutor, $14.26 net | $0.35 | $6.17 | about 23 |
+| All-In on a heavy day (30 Sonnet turns, 40 TTS lines) | $0.95 | $6.17 | about 8 |
+
+Today those break-evens are three days and eight days. The caps also bound
+abuse: a Standard account that hits every cap every day costs about $46 a
+month instead of unbounded; an All-In one about $189, almost all of it story
+video, transcription and Sonnet chat, which is why those sit on All-In
+only. The arithmetic is the `LEAN` and `CAPS` blocks at the end of
+`scripts/ai-spend-model.py`; edit a unit cost or a cap and re-run it.

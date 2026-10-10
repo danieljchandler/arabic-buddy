@@ -314,3 +314,77 @@ for name, (days, counts) in PERSONAS.items():
             n = VOICE_AFTER[name]
         total += unit * n * days
     print(f"| {name} | {fmt(persona_totals[name])} | {fmt(total)} | ${NET[name]:.2f} | ${NET[name] - total:,.2f} |")
+
+# ------------------------------------------------- the lean configuration (§8)
+# Unit costs after the strategy changes the launch gate proposes, the cap
+# table, and what they produce. Edit LEAN or CAPS and re-run.
+PRICES["lite"] = (0.25, 1.50, 0.025)   # Gemini Flash-Lite, for calls whose output is English or a label
+SHARE = 40                              # learners one shared asset serves over its life (assumption)
+
+LEAN = OrderedDict()
+LEAN["chat Sonnet"] = llm("sonnet5", chat_in, 600, cached=STABLE_PREFIX) + llm("lite", 600, 150) + llm("lite", 2000, 300) / 8
+LEAN["chat Flash"] = llm("flash", chat_in, 600) + llm("lite", 600, 150) + llm("lite", 2000, 300) / 8
+LEAN["recap step"] = llm("flash", STABLE_PREFIX + 4500, 600)
+LEAN["simulator"] = llm("flash", STABLE_PREFIX + 2500, 500) + llm("lite", 2000, 400) / 5
+LEAN["how-do-i-say"] = llm("flash", STABLE_PREFIX + 1200, 1000) + 0.3 * llm("sonnet5", STABLE_PREFIX + 2800, 1000, cached=STABLE_PREFIX) + 0.3 * llm("flash", 4000, 1000)
+LEAN["save word"] = llm("flash", STABLE_PREFIX + 800, 400) + 0.3 * llm("flash", 2700, 400)
+LEAN["practice generator"] = llm("flash", STABLE_PREFIX + 1500, 2000) + 0.5 * llm("pro", 900, 250) + 0.3 * llm("flash", 4500, 2000)
+LEAN["daily story"] = llm("flash", STABLE_PREFIX + 2000, 2500) + llm("pro", 900, 250) + 0.3 * llm("flash", 6000, 2500)
+LEAN["quiz picture"] = IMAGE_USD / SHARE
+LEAN["flashcard image"] = IMAGE_USD / SHARE
+LEAN["dialogue"] = A["word dialogue (word-asset)"][0] / SHARE
+LEAN["word jingle"] = (llm("flash", 1500, 400) + 1.2 * LYRIA_USD) / SHARE
+LEAN["TTS word"] = A["TTS, one word (Munsit)"][0]
+LEAN["TTS line"] = A["TTS, one line (Munsit)"][0]
+LEAN["pronunciation"] = A["pronunciation attempt (Azure)"][0]
+LEAN["shadow"] = A["set-phrase / shadow / chunk score (Munsit ASR)"][0]
+LEAN["translate"] = A["translate-phrase"][0]
+LEAN["meme"] = A["analyze-meme"][0]
+LEAN["custom story"] = A["generate-story (custom)"][0]
+LEAN["monologue"] = A["monologue score (60 s)"][0]
+LEAN["writing"] = A["writing-coach turn"][0]
+LEAN["worksheet"] = A["generate-worksheet"][0]
+LEAN["transcribe video"] = 0.01 + 0.16          # Soniox ASR + the analysis block, per 3-minute video
+LEAN["listen episode"] = A["listen script (episode)"][0] + A["listen audio (episode)"][0]
+LEAN["story video scene"] = A["story video scene"][0]
+LEAN["voice minute"] = A["live voice, 1 minute (gpt-live-1)"][0]
+
+# per day (free, standard, allin); voice per month
+CAPS = {
+    "chat Flash": (5, 20, 0), "chat Sonnet": (0, 0, 40), "recap step": (0, 4, 12), "daily story": (1, 1, 1),
+    "how-do-i-say": (3, 10, 30), "save word": (10, 25, 60), "quiz picture": (20, 60, 200), "dialogue": (30, 100, 300),
+    "TTS word": (100, 250, 600), "TTS line": (10, 30, 100), "pronunciation": (30, 60, 200), "shadow": (20, 40, 120),
+    "practice generator": (1, 3, 8), "translate": (10, 25, 60), "flashcard image": (0, 10, 30), "word jingle": (0, 3, 10),
+    "simulator": (0, 15, 40), "meme": (0, 0, 5), "custom story": (0, 0, 3), "monologue": (1, 3, 8), "writing": (2, 6, 20),
+    "worksheet": (0, 2, 5), "transcribe video": (0, 0, 3), "listen episode": (0, 0, 1), "story video scene": (0, 0, 6),
+}
+VOICE_CAP_MIN = (10, 30, 120)
+NET_REVENUE = (0.0, 4.55, 14.26)
+
+print("\n## Lean unit costs\n")
+print("| Action | Lean cost |")
+print("|---|---:|")
+for k, v in LEAN.items():
+    print(f"| {k} | {fmt(v)} |")
+
+print("\n## Monthly ceiling per tier if every cap is hit every day\n")
+print("| Tier | Per day | Per month incl. voice | Net revenue |")
+print("|---|---:|---:|---:|")
+for i, tier in enumerate(["Free", "Standard", "All-In"]):
+    day = sum(LEAN[k] * CAPS[k][i] for k in CAPS)
+    month = day * 30 + VOICE_CAP_MIN[i] * LEAN["voice minute"]
+    print(f"| {tier} | {fmt(day)} | {fmt(month)} | ${NET_REVENUE[i]:.2f} |")
+
+LEAN_TYPICAL = {"chat Flash": 8, "recap step": 3, "daily story": 1, "save word": 6, "quiz picture": 6, "dialogue": 4, "TTS word": 40,
+                "TTS line": 10, "pronunciation": 10, "shadow": 6, "how-do-i-say": 2, "practice generator": 1.5, "translate": 4,
+                "flashcard image": 1, "word jingle": 0.3}
+LEAN_HEAVY_DAY = {**LEAN_TYPICAL, "chat Flash": 0, "chat Sonnet": 30, "TTS line": 40, "recap step": 8, "save word": 15, "how-do-i-say": 6, "practice generator": 5}
+print("\n## Break-even active days under the lean configuration\n")
+print("| Plan | Typical active day | Voice per month | Break-even active days |")
+print("|---|---:|---:|---:|")
+for plan, net, counts, vmin in [("Standard, Flash tutor", 4.55, LEAN_TYPICAL, 30),
+                                 ("All-In, Sonnet tutor", 14.26, {**LEAN_TYPICAL, "chat Flash": 0, "chat Sonnet": 8}, 120),
+                                 ("All-In, heavy day", 14.26, LEAN_HEAVY_DAY, 120)]:
+    day = sum(LEAN[k] * n for k, n in counts.items())
+    voice = vmin * LEAN["voice minute"]
+    print(f"| {plan} | {fmt(day)} | {fmt(voice)} | {max(0.0, (net - voice) / day):.1f} |")

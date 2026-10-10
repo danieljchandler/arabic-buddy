@@ -44,10 +44,9 @@ const morning = { arabic: "كان الصبح بارد وايد.", english: "The 
 const ordered = { arabic: "طلب الريال قهوة حارة.", english: "The man ordered hot coffee." };
 const MUTED = "كان الصبح بارد وايد. طلب الريال ... حارة.";
 const WHOLE = `${morning.arabic} ${ordered.arabic}`;
-const STORY = storyGap(
-  asStoredStoryLine({ sentences: [morning, ordered], story: { id: "s", title: "The cold morning", titleArabic: "" } }, WORD),
-  WORD,
-)!;
+const fromStory = (title: string) =>
+  storyGap(asStoredStoryLine({ sentences: [morning, ordered], story: { id: "s", title, titleArabic: "" } }, WORD), WORD, "coffee")!;
+const STORY = fromStory("The cold morning");
 
 interface FakeRecorder {
   state: string;
@@ -265,7 +264,7 @@ describe("saying the word", () => {
 
   it("holds a word of three letters or fewer to itself", async () => {
     const fine = { arabic: "الجو زين اليوم.", english: "The weather is nice today." };
-    const story = storyGap(asStoredStoryLine({ sentences: [morning, fine] }, "زين"), "زين")!;
+    const story = storyGap(asStoredStoryLine({ sentences: [morning, fine] }, "زين"), "زين", "nice")!;
     const { onResult } = render({ arabic: "زين", english: "nice", story }, (b) =>
       b.stubFunction("azure-pronunciation", aResult({ recognizedText: "وين" })),
     );
@@ -299,6 +298,20 @@ describe("on a device that cannot record: the four-option gap", () => {
     expect(onChoice).toHaveBeenCalledWith({ correct: true, hintUsed: false });
     expect(screen.getByTestId("story-gap")).toHaveTextContent(WORD);
     expect(screen.queryByRole("button", { name: /why not this one/i })).not.toBeInTheDocument();
+  });
+
+  it("names no story whose title names the meaning it withholds", () => {
+    // "The Coffee Seller" above a gap for قهوة, with the meaning held back,
+    // would name the answer above its choices.
+    render({ format: "story-choice", story: fromStory("The Coffee Seller") });
+    expect(screen.queryByText(/from the story/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/coffee/i)).not.toBeInTheDocument();
+    expect(screen.getAllByRole("radio")).toHaveLength(4);
+  });
+
+  it("names a story whose title is about something else", () => {
+    render({ format: "story-choice" });
+    expect(screen.getByText(/From the story “The cold morning”/)).toBeInTheDocument();
   });
 
   it("reads the passage muted, and whole once picked", () => {

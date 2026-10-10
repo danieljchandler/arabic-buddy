@@ -1,7 +1,8 @@
 import type { WordSpan } from "@/lib/arabicWord";
 import { findPhraseSpan } from "@/lib/quizDialogue";
+import { normaliseGloss } from "../../supabase/functions/_shared/wordAssets";
 import { wordUseCount } from "../../supabase/functions/_shared/wordDialogue";
-import type { StoredStoryLine } from "../../supabase/functions/_shared/wordStoryLine";
+import { englishNamesSense, type StoredStoryLine } from "../../supabase/functions/_shared/wordStoryLine";
 
 /**
  * The quiz's top step, "in a story" (quiz Phase 6): a word's two-sentence
@@ -29,12 +30,30 @@ export interface StoryGap {
   span: WordSpan;
   /** The passage's English. */
   english: string;
-  /** The published story it was taken from, if it was, unless its title says the word. */
+  /** The published story it was taken from, if it was, unless its title says the word or names its meaning. */
   title: string | null;
 }
 
-/** The passage with the word's gap cut, or null when there is no gap to cut. */
-export function storyGap(line: StoredStoryLine | null | undefined, word: string): StoryGap | null {
+/**
+ * Whether a story's title names the word's meaning: the card's English folded
+ * as the key folds a sense (`normaliseGloss`), read by the rule the story
+ * search reads a sentence's English by (`englishNamesSense`). That rule wants
+ * every word of a sense, and a title names one meaning, so each alternative
+ * of a gloss ("market / souq") and the gloss without its bracketed note
+ * ("eye (body part)") is asked about too.
+ */
+function titleNamesMeaning(title: string, english: string): boolean {
+  const plain = english.replace(/\([^)]*\)|\[[^\]]*\]/g, " ");
+  const senses = [english, plain, ...plain.split(/[/,;]/)].map(normaliseGloss).filter(Boolean);
+  return senses.some((sense) => englishNamesSense(title, sense));
+}
+
+/**
+ * The passage with the word's gap cut, or null when there is no gap to cut.
+ * `english` is the card's meaning, which the four-option gap withholds, so a
+ * title that names it is not shown.
+ */
+export function storyGap(line: StoredStoryLine | null | undefined, word: string, english: string): StoryGap | null {
   if (!line) return null;
   const sentence = line.sentences[line.gap].arabic;
   const cut = findPhraseSpan(sentence, word);
@@ -43,9 +62,10 @@ export function storyGap(line: StoredStoryLine | null | undefined, word: string)
   const text = `${first.arabic} ${second.arabic}`;
   // The gap's offset in the joined text: after the first sentence and its space when it is the second.
   const offset = line.gap === 0 ? 0 : first.arabic.length + 1;
-  // A title that says the word would give the gap away.
+  // A title that says the word, or names what it means, would give the gap
+  // away: "At the Market" above a gap for السوق.
   const named = line.story ? line.story.title || line.story.titleArabic || null : null;
-  const title = named && wordUseCount(named, word) === 0 ? named : null;
+  const title = named && wordUseCount(named, word) === 0 && !titleNamesMeaning(named, english) ? named : null;
   return {
     sentences: line.sentences,
     gap: line.gap,

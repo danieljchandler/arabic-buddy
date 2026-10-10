@@ -591,7 +591,10 @@ export const QuizCardFrame = ({
     lookupWaitMs: STORY_LINE_LOOKUP_WAIT_MS,
     makingWaitMs: STORY_LINE_WRITING_WAIT_MS,
   });
-  const story = useMemo(() => storyGap(storyLine.value, item.arabic), [storyLine.value, item.arabic]);
+  const story = useMemo(
+    () => storyGap(storyLine.value, item.arabic, item.english),
+    [storyLine.value, item.arabic, item.english],
+  );
 
   const isSettled = picture.settled && exchange.settled && animation.settled && storyLine.settled;
   const pictureUrl = ownPicture ?? picture.value;

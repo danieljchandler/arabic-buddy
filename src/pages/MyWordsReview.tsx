@@ -1336,6 +1336,9 @@ const MyWordsReview = () => {
               // one written for it: the word alone reaches the prompt, never
               // the sentence it was saved from.
               storedDialogues
+              // And the top step its passage: from a published story where
+              // one uses the word, else written from the word alone.
+              storyLines
               renderFlashcard={() => (
                 <>
                   {flashcard}

@@ -5,6 +5,7 @@ import { QuizChoiceCard } from "@/components/review/QuizChoiceCard";
 import { QuizOptionsCard, type QuizOption } from "@/components/review/QuizOptionsCard";
 import { QuizRungBadge } from "@/components/review/QuizRungBadge";
 import { QuizSpeakCard, type QuizSpeechResult } from "@/components/review/QuizSpeakCard";
+import { QuizStoryCard } from "@/components/review/QuizStoryCard";
 import { ReviewClozeCard } from "@/components/review/ReviewClozeCard";
 import { useEnsureWordAsset } from "@/hooks/useEnsureWordAsset";
 import type { QuizPoolEntry } from "@/hooks/useQuizPool";
@@ -21,6 +22,7 @@ import {
 } from "@/lib/quizDialogue";
 import { seededShuffle } from "@/lib/quizDistractors";
 import { gradeQuizAnswer, isCorrectRating } from "@/lib/quizGrading";
+import { storyGap } from "@/lib/quizStory";
 import {
   CHOICE_COUNT,
   pickQuizFormat,
@@ -43,6 +45,7 @@ import {
 } from "../../../supabase/functions/_shared/wordAnimation";
 import { normalizeDialect } from "../../../supabase/functions/_shared/ttsVoiceRoutingCore";
 import { asStoredDialogue, type StoredDialogue } from "../../../supabase/functions/_shared/wordDialogue";
+import { asStoredStoryLine, type StoredStoryLine } from "../../../supabase/functions/_shared/wordStoryLine";
 
 /** One due card, in the shape every deck can produce. */
 export interface QuizItem {
@@ -126,6 +129,15 @@ interface QuizCardFrameProps {
    * action (`qualifiesForAnimation`).
    */
   animations?: boolean;
+  /**
+   * The top step ("in a story", quiz Phase 6): look the word's two-sentence
+   * passage up in the shared store (`kind: "story_line"`), and on a miss have
+   * one found in a published story or written (the store's `ensure`; a
+   * written one is on the learner's daily dialogue allowance). Like an
+   * exchange it lives in the store alone, so the curriculum deck may ask as
+   * well as a learner's own words.
+   */
+  storyLines?: boolean;
 }
 
 /**
@@ -158,6 +170,18 @@ export const DIALOGUE_WRITING_WAIT_MS = 12_000;
  * past this the card is asked with its picture, as before clips existed.
  */
 export const ANIMATION_LOOKUP_WAIT_MS = 1500;
+
+/** How long a card waits to hear whether the store holds its story passage: a read of one row. */
+export const STORY_LINE_LOOKUP_WAIT_MS = 1500;
+
+/**
+ * How long "in a story" waits for a passage being found or written for it.
+ * One found in a published story is a few reads; one written is drafted,
+ * critiqued and checked by a native-speaker validator, as an exchange is.
+ * Past this the card is asked the step below (say the reply), and the
+ * passage is filed for the next time the word is asked.
+ */
+export const STORY_LINE_WRITING_WAIT_MS = 12_000;
 
 /**
  * The fewest clips the picture question plays at once. One moving option
@@ -318,6 +342,7 @@ export const QuizCardFrame = ({
   onPictureMade,
   storedDialogues = false,
   animations = false,
+  storyLines = false,
 }: QuizCardFrameProps) => {
   // A card the device could not record for is served as the flashcard; the
   // ladder is consulted again for the next one.
@@ -357,7 +382,8 @@ export const QuizCardFrame = ({
   // Failing that, the shared store's, on the steps that use a picture: the
   // three that ask for one, and the ones that can fall back onto one of those
   // (a word with no dialogue is picked from four, or said on its own when it
-  // has no sentence either; one with no sentence is said on its own).
+  // has no sentence either; one with no sentence is said on its own; a word
+  // with no passage is asked the reply, and so on down).
   const usesStore = sharedPictures || !!onPictureMade;
   const usesPicture =
     rung.format === "picture-choice" ||
@@ -365,7 +391,7 @@ export const QuizCardFrame = ({
     rung.format === "speak" ||
     (rung.format === "reply-choice" && !lessonQuestion) ||
     (rung.format === "speak-sentence" && !hasSentence) ||
-    (rung.format === "speak-reply" && !lessonReplyLine && !hasSentence);
+    ((rung.format === "speak-reply" || rung.format === "story-gap") && !lessonReplyLine && !hasSentence);
   const pictureInput = useMemo(
     () => ({ kind: "image", word: item.arabic, gloss: item.english, dialect: item.dialect ?? null }),
     [item.arabic, item.english, item.dialect],
@@ -488,9 +514,13 @@ export const QuizCardFrame = ({
   // question could be asked at all (a deck with four options for the choice,
   // a device that records for the spoken reply), and waited for only where it
   // could be asked now — the choice needs three wrong replies from the other
-  // words; saying the reply needs none.
+  // words; saying the reply needs none. "In a story" falls back onto saying
+  // the reply, so it looks the exchange up too, but never has one written: a
+  // card that may be asked its passage is not charged for its fallback as well.
   const wantsDialogue =
-    storedDialogues && (rung.format === "reply-choice" || rung.format === "speak-reply") && !lessonReplyLine;
+    storedDialogues &&
+    (rung.format === "reply-choice" || rung.format === "speak-reply" || rung.format === "story-gap") &&
+    !lessonReplyLine;
   const dialogueInput = useMemo(
     () => ({ kind: "dialogue", word: item.arabic, gloss: item.english, dialect: item.dialect ?? null }),
     [item.arabic, item.english, item.dialect],
@@ -501,7 +531,7 @@ export const QuizCardFrame = ({
     input: wantsDialogue ? dialogueInput : null,
     ready,
     // Not for a learner who chose to rate this card themselves.
-    make: choosing ? canChoose : canSpeak && unavailableFor !== item.id,
+    make: choosing ? canChoose : rung.format === "speak-reply" && canSpeak && unavailableFor !== item.id,
     waitForMaking: choosing ? countWrongReplies(extraLines, item.arabic) >= CHOICE_COUNT - 1 : true,
     read: (asset) => asStoredDialogue(asset.payload, item.arabic),
     lookupWaitMs: DIALOGUE_LOOKUP_WAIT_MS,
@@ -520,7 +550,7 @@ export const QuizCardFrame = ({
     rung.format === "picture-choice" ||
     rung.format === "speak" ||
     (rung.format === "speak-sentence" && !hasSentence) ||
-    (rung.format === "speak-reply" && !lessonReplyLine && !hasSentence);
+    ((rung.format === "speak-reply" || rung.format === "story-gap") && !lessonReplyLine && !hasSentence);
   const wantsAnimation =
     animations && usesClip && qualifiesForAnimation({ category: item.category, gloss: item.english });
   const animationInput = useMemo(() => ({ kind: "animation", gloss: item.english }), [item.english]);
@@ -535,7 +565,35 @@ export const QuizCardFrame = ({
     makingWaitMs: 0,
   });
 
-  const isSettled = picture.settled && exchange.settled && animation.settled;
+  // ── The card's story passage ──────────────────────────────────────────────
+  //
+  // For the top step: two sentences of a story with the word in one of them,
+  // from the store, or found in a published story or written for it on a
+  // miss. Asked for only where its question can be asked at all — said on a
+  // device that records, else its gap picked from four, which needs three
+  // other words — and that question needs nothing more once the passage is
+  // here, so the card waits for it whenever it asked. Settled once, like
+  // everything else: a passage filed while the card is on screen is for the
+  // next time the word is asked.
+  const wantsStoryLine = storyLines && rung.format === "story-gap";
+  const storyInput = useMemo(
+    () => ({ kind: "story_line", word: item.arabic, gloss: item.english, dialect: item.dialect ?? null }),
+    [item.arabic, item.english, item.dialect],
+  );
+  const storyAskable = canSpeak || canChoose;
+  const storyLine = useCardAsset<StoredStoryLine>({
+    id: item.id,
+    input: wantsStoryLine ? storyInput : null,
+    ready,
+    make: storyAskable,
+    waitForMaking: storyAskable,
+    read: (asset) => asStoredStoryLine(asset.payload, item.arabic),
+    lookupWaitMs: STORY_LINE_LOOKUP_WAIT_MS,
+    makingWaitMs: STORY_LINE_WRITING_WAIT_MS,
+  });
+  const story = useMemo(() => storyGap(storyLine.value, item.arabic), [storyLine.value, item.arabic]);
+
+  const isSettled = picture.settled && exchange.settled && animation.settled && storyLine.settled;
   const pictureUrl = ownPicture ?? picture.value;
   const ownClip = animation.value;
 
@@ -580,6 +638,7 @@ export const QuizCardFrame = ({
           imageDistractors: imageEntries.length,
           hasReply: !!replyQuestion,
           hasReplyLine: !!replyLine,
+          hasStoryLine: !!story,
           canSpeak,
         });
 
@@ -625,14 +684,18 @@ export const QuizCardFrame = ({
     // Say why only when the wait is long enough to wonder about. The store's
     // answer usually comes within a blink, so its spinner fades in late: a
     // card that is merely being looked up shows an empty frame, not a flash.
-    const writingLine = ready && !exchange.settled && exchange.waitingFor === "making";
-    const drawingPicture = ready && !writingLine && !picture.settled && picture.waitingFor === "making";
-    const lookingUp = ready && !drawingPicture && !writingLine;
-    const why = writingLine
-      ? "Writing a line for this word"
-      : drawingPicture
-        ? "Drawing a picture for this word"
-        : "Preparing the question";
+    const writingPassage = ready && !storyLine.settled && storyLine.waitingFor === "making";
+    const writingLine = ready && !writingPassage && !exchange.settled && exchange.waitingFor === "making";
+    const drawingPicture =
+      ready && !writingPassage && !writingLine && !picture.settled && picture.waitingFor === "making";
+    const lookingUp = ready && !drawingPicture && !writingLine && !writingPassage;
+    const why = writingPassage
+      ? "Finding a story for this word"
+      : writingLine
+        ? "Writing a line for this word"
+        : drawingPicture
+          ? "Drawing a picture for this word"
+          : "Preparing the question";
     return (
       <div
         role="status"
@@ -642,7 +705,9 @@ export const QuizCardFrame = ({
         <span className={lookingUp ? "animate-in fade-in duration-300 delay-300 fill-mode-backwards" : undefined}>
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </span>
-        {(writingLine || drawingPicture) && <p className="text-sm text-muted-foreground text-center">{why}…</p>}
+        {(writingPassage || writingLine || drawingPicture) && (
+          <p className="text-sm text-muted-foreground text-center">{why}…</p>
+        )}
       </div>
     );
   }
@@ -672,6 +737,7 @@ export const QuizCardFrame = ({
           sentenceAudioUrl={item.sentence!.audioUrl ?? null}
           distractors={arabicPool}
           hintEnglish={format === "cloze-hint" ? item.english : null}
+          dialect={item.dialect}
           onAnswered={(correct) => onChoice(correct)}
         />
       );
@@ -785,6 +851,24 @@ export const QuizCardFrame = ({
           sentence={context}
           reply={format === "speak-reply" ? replyLine : null}
           onResult={onSpeech}
+          onUnavailable={() => setUnavailableFor(item.id)}
+        />
+      );
+      break;
+    case "story-gap":
+    case "story-choice":
+      card = (
+        <QuizStoryCard
+          format={format}
+          id={item.id}
+          arabic={item.arabic}
+          english={item.english}
+          transliteration={item.transliteration}
+          dialect={item.dialect}
+          story={story!}
+          distractors={arabicPool}
+          onResult={onSpeech}
+          onChoice={({ correct, hintUsed }) => onChoice(correct, hintUsed)}
           onUnavailable={() => setUnavailableFor(item.id)}
         />
       );

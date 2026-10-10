@@ -25,8 +25,10 @@
  *                            scored
  *   step 9  Say the reply    a line of dialogue is said → say the reply that
  *                            uses the word; scored, the word required
+ *   step 10 In a story       two sentences of a story, read aloud with the
+ *                            word muted → say the word; scored
  *
- * Steps 1–6 grade the recognition schedule, 7–9 the production schedule; the
+ * Steps 1–6 grade the recognition schedule, 7–10 the production schedule; the
  * deck already decides which direction a card is served in (it unlocks
  * production once recognition is confident), so the ladder only chooses the
  * question within that direction. Within recognition the climb goes from
@@ -34,14 +36,15 @@
  * word) to use (answer the line); production goes from the word to the line
  * to the line said back in a conversation. Nothing is typed: an Arabic
  * keyboard is the one thing most learners do not have, and saying the word
- * is the skill.
+ * is the skill. The top step puts the word back where a learner will meet it:
+ * in the middle of someone else's sentences, heard at speed.
  *
  * Every step has a fallback so the ladder never blocks a review: a word with
  * no sentence is asked for its meaning instead of a gap, a word with no
  * picture skips the picture steps, a word with no dialogue is asked to pick
  * the word instead of the reply and to say the line instead of the reply,
- * and a card with no material for any question is served as the ordinary
- * flashcard.
+ * a word with no passage is asked the reply instead, and a card with no
+ * material for any question is served as the ordinary flashcard.
  */
 
 export type QuizDirection = "recognition" | "production";
@@ -67,6 +70,13 @@ export type QuizFormat =
   | "speak-sentence"
   /** A line of dialogue is said → say the reply that uses the word; scored. */
   | "speak-reply"
+  /** Two sentences of a story, read with the word muted → say the word; scored. */
+  | "story-gap"
+  /**
+   * The same passage and gap, four Arabic options: "in a story" on a device
+   * that cannot record. Graded as a choice, so never better than Good.
+   */
+  | "story-choice"
   /** Nothing above fits this card: the ordinary flip-and-rate card. */
   | "flashcard";
 
@@ -93,6 +103,11 @@ export interface QuizMaterial {
    * reply, which needs no wrong replies.
    */
   hasReplyLine?: boolean;
+  /**
+   * A two-sentence passage uses the word, with its gap cut (a stored story
+   * line, `kind: "story_line"`).
+   */
+  hasStoryLine?: boolean;
   /** Whether the device can record speech. */
   canSpeak: boolean;
 }
@@ -106,7 +121,7 @@ export interface QuizRung {
 }
 
 /** How many steps the ladder shows. */
-export const QUIZ_STEP_COUNT = 9;
+export const QUIZ_STEP_COUNT = 10;
 
 /** Options on a choice question, the answer included. */
 export const CHOICE_COUNT = 4;
@@ -134,6 +149,13 @@ export const LADDER_THRESHOLDS = {
   sentenceDays: 14,
   /** Production stability from which the reply is asked for, in conversation. */
   replyDays: 30,
+  /**
+   * Production stability from which the word is asked for in a story. Double
+   * the reply's, as each production step is about double the last (14, 30):
+   * a word rated Good at the reply step comes back past it, so the reply is
+   * asked about once before the story takes over.
+   */
+  storyDays: 60,
 } as const;
 
 const RUNGS: Record<number, Omit<QuizRung, "step">> = {
@@ -146,6 +168,7 @@ const RUNGS: Record<number, Omit<QuizRung, "step">> = {
   7: { label: "Say it", format: "speak" },
   8: { label: "Say the line", format: "speak-sentence" },
   9: { label: "Say the reply", format: "speak-reply" },
+  10: { label: "In a story", format: "story-gap" },
 };
 
 function rung(step: number): QuizRung {
@@ -156,6 +179,7 @@ function rung(step: number): QuizRung {
 export function rungForMemory(memory: QuizMemory, direction: QuizDirection): QuizRung {
   const stability = Number.isFinite(memory.stability) ? Math.max(0, memory.stability) : 0;
   if (direction === "production") {
+    if (stability >= LADDER_THRESHOLDS.storyDays) return rung(10);
     if (stability >= LADDER_THRESHOLDS.replyDays) return rung(9);
     return rung(stability >= LADDER_THRESHOLDS.sentenceDays ? 8 : 7);
   }
@@ -171,8 +195,11 @@ export function rungForMemory(memory: QuizMemory, direction: QuizDirection): Qui
  * The question to ask, after the card's material is taken into account.
  *
  * The fallbacks keep the direction: a recognition step never falls back to
- * speaking and a production step never to a choice, because the rating lands
- * on the schedule the deck served the card for. Within recognition a missing
+ * speaking, because the rating lands on the schedule the deck served the card
+ * for, and a production step falls back to a choice only at the top, where a
+ * device that cannot record is asked the story's gap with four options rather
+ * than handed the flip card (a choice is never better than Good; the flip
+ * card's buttons go up to Easy). Within recognition a missing
  * piece of material falls to the nearest question the card can carry, so a
  * word without a picture is heard instead and a word without a dialogue is
  * picked from four instead of answered — or, on the production side, its line
@@ -214,6 +241,16 @@ export function pickQuizFormat(
       if (!material.canSpeak) return "flashcard";
       if (material.hasReplyLine) return "speak-reply";
       return material.hasSentence ? "speak-sentence" : "speak";
+    case "story-gap":
+      // A passage: said if the device records, else its gap picked from four.
+      if (material.hasStoryLine) {
+        if (material.canSpeak) return "story-gap";
+        return canChoose ? "story-choice" : "flashcard";
+      }
+      // None: the step below, and what it falls back to.
+      if (!material.canSpeak) return "flashcard";
+      if (material.hasReplyLine) return "speak-reply";
+      return material.hasSentence ? "speak-sentence" : "speak";
     default:
       return "flashcard";
   }
@@ -244,5 +281,5 @@ export function isGradedFormat(format: QuizFormat): boolean {
 
 /** Whether a format asks the learner to speak. */
 export function isSpokenFormat(format: QuizFormat): boolean {
-  return format === "speak" || format === "speak-sentence" || format === "speak-reply";
+  return format === "speak" || format === "speak-sentence" || format === "speak-reply" || format === "story-gap";
 }

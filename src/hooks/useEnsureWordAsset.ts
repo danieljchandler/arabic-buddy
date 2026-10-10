@@ -51,10 +51,17 @@ interface Asked {
 }
 
 /**
+ * The daily counter a kind is charged on, where kinds share one. A story
+ * passage is charged on the exchange's (`word-asset`'s `CAPS`: they cost the
+ * same), so an answer that says one is spent says the other is too.
+ */
+const SHARED_COUNTER: Readonly<Record<string, string>> = { story_line: "dialogue" };
+
+/**
  * What one kind of asset has come to this session. Kept per kind because each
- * is charged on its own counter and fails for its own reasons: a learner whose
- * pictures are spent for the day still gets their dialogues, and an outage of
- * the image model does not stop the text one.
+ * fails for its own reasons, and per counter for the allowance: a learner
+ * whose pictures are spent for the day still gets their dialogues, and an
+ * outage of the image model does not stop the text one.
  */
 interface KindState {
   /** When an answer last said the allowance is spent. */
@@ -211,9 +218,10 @@ async function invokeEnsure(input: AssetKeyInput): Promise<Answer> {
  *   that says the kind cannot be made at all, asking for that kind is paused:
  *   a failed attempt has already been charged, and a provider that is down
  *   fails every word alike;
- * - every one of those is per kind. Each kind is charged on its own counter
- *   and made by its own model, so a spent picture allowance or an image
- *   outage does not stop dialogues, and the reverse;
+ * - every one of those is per kind. Each kind is made by its own model and,
+ *   but for a story passage, charged on its own counter, so a spent picture
+ *   allowance or an image outage does not stop dialogues, and the reverse. A
+ *   passage shares the exchange's counter, so a spent allowance stops both;
  * - it never raises a toast or throws. The picture dialog, where the learner
  *   did press a button, has its own path and its own messages.
  *
@@ -230,6 +238,8 @@ export function useEnsureWordAsset(): (input: AssetKeyInput) => Promise<EnsureOu
 
       const session = sessionFor(queryClient);
       const kind = kindState(session, key.kind);
+      // The allowance is the counter's, which two kinds may share.
+      const counter = kindState(session, SHARED_COUNTER[key.kind] ?? key.kind);
       const id = wordAssetQueryKey(key).join("\u0000");
       const earlier = session.asked.get(id);
       if (earlier) {
@@ -238,7 +248,7 @@ export function useEnsureWordAsset(): (input: AssetKeyInput) => Promise<EnsureOu
         if (stands) return earlier.promise;
         session.asked.delete(id);
       }
-      if (within(kind.limitedAt, LIMITED_FOR_MS)) return Promise.resolve({ status: "limited" });
+      if (within(counter.limitedAt, LIMITED_FOR_MS)) return Promise.resolve({ status: "limited" });
       if (within(kind.pausedAt, FORGET_FAILURE_MS)) {
         return Promise.resolve({ status: "failed", message: `Not asking for ${key.kind} assets for now.` });
       }
@@ -252,7 +262,7 @@ export function useEnsureWordAsset(): (input: AssetKeyInput) => Promise<EnsureOu
             kind.failures = 0;
             void queryClient.invalidateQueries({ queryKey: wordAssetQueryKey(key) });
           } else if (outcome.status === "limited") {
-            kind.limitedAt = Date.now();
+            counter.limitedAt = Date.now();
           } else if (outcome.status === "failed") {
             if (++kind.failures >= PAUSE_AFTER_FAILURES) kind.pausedAt = Date.now();
           } else if (systemic) {

@@ -185,6 +185,14 @@ describe("the options", () => {
 });
 
 describe("the audio", () => {
+  it("reads the sentence, muted and whole, in the dialect it is given", () => {
+    tts.urls[MASKED] = "blob:masked";
+    render({ dialect: "Egyptian" });
+    expect(askedFor(MASKED).at(-1)).toMatchObject({ dialect: "Egyptian", skip: false });
+    choose(WORD);
+    expect(askedFor(SENTENCE).at(-1)).toMatchObject({ dialect: "Egyptian", skip: false });
+  });
+
   it("plays the sentence with the word muted before the answer", () => {
     tts.urls[MASKED] = "blob:masked";
     render();

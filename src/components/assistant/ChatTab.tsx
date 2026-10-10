@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Bookmark, Flag, Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useAiAssistant } from "@/contexts/AiAssistantContext";
+import { useAiAssistant, type AssistantSeed } from "@/contexts/AiAssistantContext";
 import { useSaveConversation } from "@/hooks/useSavedConversations";
 import { useDialect } from "@/contexts/DialectContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -213,7 +213,9 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
           body: {
             dialect: activeDialect,
             messages: nextMessages,
-            seed: seed ?? undefined,
+            // The sentence, never the question a seed may carry: that is the
+            // learner's message itself.
+            seed: seed ? { arabic: seed.arabic, english: seed.english } : undefined,
             pageContext: buildPagePayload(pathname, pageContext),
           },
           onContentComplete: (full) => {
@@ -341,6 +343,17 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
       persistConversation,
     ],
   );
+
+  // A seed that names its question ("Why not this one?" on a wrong pick in
+  // the quiz) was asked by the tap that opened the panel, so it is sent, once,
+  // as the learner's first message. Only into a conversation with nothing in
+  // it yet: the same sentence reopened resumes what is there instead.
+  const askedForRef = useRef<AssistantSeed | null>(null);
+  useEffect(() => {
+    if (!seed?.ask || askedForRef.current === seed || messages.length > 0 || loading || !user) return;
+    askedForRef.current = seed;
+    void send(seed.ask);
+  }, [seed, messages.length, loading, user, send]);
 
   if (!user && !authLoading) {
     return (

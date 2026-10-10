@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Eye, Languages, Loader2, Mic, MicOff, Quote, RotateCcw, Volume2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { AskAISentence } from "@/components/shared/AskAISentence";
-import { useAzurePronunciation, scoreBand, type WordResult } from "@/hooks/useAzurePronunciation";
+import { useAzurePronunciation } from "@/hooks/useAzurePronunciation";
 import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { useAudioPlayer } from "@/hooks/useAudioPlayer";
 import { useTakeRecorder } from "@/hooks/useTakeRecorder";
 import { QuizAnimation } from "@/components/review/QuizAnimation";
+import { QuizTakeResult } from "@/components/review/QuizTakeResult";
 import { findWordSpan } from "@/lib/arabicWord";
 import { findPhraseSpan, type ReplyLine } from "@/lib/quizDialogue";
-import { wordSpanSimilarity, type SpeechOutcome } from "@/lib/quizGrading";
+import { assessmentLocale, wordSpanSimilarity, type SpeechOutcome } from "@/lib/quizGrading";
 import { cn } from "@/lib/utils";
 import { arabicSimilarity } from "../../../supabase/functions/_shared/arabicMatch";
 import type { StoredAnimation } from "../../../supabase/functions/_shared/wordAnimation";
@@ -49,13 +49,6 @@ interface QuizSpeakCardProps {
 
 const WORD_TAKE_MS = 5000;
 const LINE_TAKE_MS = 12000;
-
-/** Azure assesses against a locale; the word's own dialect picks it. */
-function localeFor(dialect: string | null | undefined): string {
-  if (dialect === "Egyptian") return "ar-EG";
-  if (dialect === "Yemeni") return "ar-YE";
-  return "ar-SA";
-}
 
 /**
  * The speaking steps of the ladder: the meaning is shown, the learner says
@@ -98,7 +91,7 @@ export const QuizSpeakCard = ({
     : format === "speak-sentence" && sentence?.arabic
       ? sentence.arabic
       : arabic;
-  const locale = localeFor(dialect);
+  const locale = assessmentLocale(dialect);
   const { assess, result, isLoading, error, reset } = useAzurePronunciation();
   const [contextOpen, setContextOpen] = useState(false);
   const [noSpeech, setNoSpeech] = useState(false);
@@ -202,8 +195,6 @@ export const QuizSpeakCard = ({
     if (!ok && !recorder.supported) onUnavailable();
   };
 
-  const band = result ? scoreBand(Math.round(result.overall)) : null;
-  const recognized = result?.recognizedText?.trim() || null;
 
   return (
     <div className="rounded-2xl bg-card border border-border p-8 text-center">
@@ -369,66 +360,23 @@ export const QuizSpeakCard = ({
         </div>
       )}
 
-      {result && band && (
-        <div className="w-full max-w-xs mx-auto rounded-xl bg-muted/40 border border-border p-4 animate-in fade-in duration-300">
-          <div className="mb-1">
-            <span className={cn("text-3xl font-bold", band.color)}>{Math.round(result.overall)}</span>
-            <span className="text-sm text-muted-foreground ml-1">/ 100</span>
-          </div>
-          <p className={cn("text-sm font-medium mb-3", band.color)}>{band.label}</p>
-
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">We heard</p>
-          <p className="text-lg mb-3" style={{ fontFamily: "var(--font-naskh)" }} dir="rtl">
-            {recognized ?? "…nothing we could make out"}
-          </p>
-
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">The target</p>
-          <div className="flex items-center justify-center gap-2">
-            <p className="text-2xl font-bold text-foreground" style={{ fontFamily: "var(--font-naskh)" }} dir="rtl">
-              {target}
-            </p>
-            <button
-              type="button"
-              onClick={() => ttsUrl && play(ttsUrl)}
-              disabled={!ttsUrl}
-              aria-label="Play the target"
-              className="p-2 rounded-full bg-primary/10 text-primary hover:bg-primary/20 disabled:opacity-40"
-            >
-              {ttsLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Volume2 className="h-4 w-4" />}
-            </button>
-          </div>
-          {format === "speak" && transliteration && (
-            <p className="text-sm text-muted-foreground italic">{transliteration}</p>
-          )}
-          {replying && reply!.answer.transliteration && (
-            <p className="text-sm text-muted-foreground italic">{reply!.answer.transliteration}</p>
-          )}
-
-          {result.words.length > 1 && (
-            <div className="flex flex-wrap justify-center gap-2 mt-3" dir="rtl">
-              {result.words.map((w: WordResult, i: number) => (
-                <span
-                  key={i}
-                  className={cn("px-2 py-0.5 rounded-md text-sm font-medium bg-muted", scoreBand(w.accuracy).color)}
-                >
-                  {w.word}
-                </span>
-              ))}
-            </div>
-          )}
-
-          <div className="mt-3 flex justify-center gap-2 flex-wrap">
-            <Button variant="ghost" size="sm" onClick={() => { reset(); void startTake(); }} className="gap-1.5">
-              <RotateCcw className="h-3.5 w-3.5" />
-              Try again
-            </Button>
-            <AskAISentence
-              arabic={target}
-              english={replying ? (reply!.answer.english ?? english) : (sentence?.english ?? english)}
-              variant="chip"
-            />
-          </div>
-        </div>
+      {result && (
+        <QuizTakeResult
+          result={result}
+          target={target}
+          transliteration={
+            format === "speak" ? transliteration : replying ? reply!.answer.transliteration : null
+          }
+          targetAudio={{ url: ttsUrl, loading: ttsLoading, play }}
+          onRetry={() => {
+            reset();
+            void startTake();
+          }}
+          ask={{
+            arabic: target,
+            english: replying ? (reply!.answer.english ?? english) : (sentence?.english ?? english),
+          }}
+        />
       )}
 
       {/* Context, with the word cut out: a memory hook, never the answer. */}

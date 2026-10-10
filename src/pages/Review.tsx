@@ -977,6 +977,10 @@ const Review = () => {
               // one. Read only: clips are made by
               // scripts/curriculum-animations.ts, never on a learner's miss.
               animations
+              // A mature word is asked in a story: its passage from the store,
+              // found in a published story on a miss (free), or written for
+              // it on this learner's dialogue allowance.
+              storyLines
               renderFlashcard={() => (
                 <>
                   {flashcard}

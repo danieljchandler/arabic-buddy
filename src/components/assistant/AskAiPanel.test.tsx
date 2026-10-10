@@ -18,7 +18,7 @@ import { AskAiPanel } from "./AskAiPanel";
  * itself (chunk boundaries, auth header) is covered by sseChat.test.ts.
  */
 
-function Opener({ seed }: { seed?: { arabic: string; english?: string } }) {
+function Opener({ seed }: { seed?: { arabic: string; english?: string; ask?: string } }) {
   const { openChat } = useAiAssistant();
   return (
     <button type="button" onClick={() => openChat(seed)}>
@@ -49,7 +49,7 @@ function render({
   route = "/reading",
   pageContext,
 }: {
-  seed?: { arabic: string; english?: string };
+  seed?: { arabic: string; english?: string; ask?: string };
   route?: string;
   pageContext?: PageAiContext;
 } = {}) {
@@ -176,6 +176,36 @@ describe("AskAiPanel", () => {
     });
     const body = backend.lastCallTo("assistant-chat")!.body as Record<string, unknown>;
     expect(body.seed).toEqual({ arabic: "شلونك اليوم", english: "How are you today?" });
+  });
+
+  it("asks a seed's own question once, as the first message, and sends the sentence as the seed", async () => {
+    const question = "In this passage I put «شاي» in the gap, but the word is «قهوة». Why doesn't «شاي» fit here?";
+    const { backend } = render({ seed: { arabic: "طلب الريال قهوة حارة.", english: "He ordered hot coffee.", ask: question } });
+
+    await open();
+
+    await waitFor(() => expect(backend.callsTo("assistant-chat")).toHaveLength(1));
+    const body = backend.lastCallTo("assistant-chat")!.body as Record<string, unknown>;
+    expect(body.messages).toEqual([{ role: "user", content: question }]);
+    // The question is the learner's message, not part of the sentence.
+    expect(body.seed).toEqual({ arabic: "طلب الريال قهوة حارة.", english: "He ordered hot coffee." });
+    expect(await screen.findByText("it is idiomatic.", { exact: false })).toBeInTheDocument();
+
+    // Reopened on the same sentence, the conversation carries on: not asked again.
+    await open();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(backend.callsTo("assistant-chat")).toHaveLength(1);
+  });
+
+  it("asks nothing by itself for a seed with no question", async () => {
+    const { backend } = render({ seed: { arabic: "شلونك اليوم", english: "How are you today?" } });
+    await open();
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(backend.callsTo("assistant-chat")).toHaveLength(0);
   });
 
   it("offers suggested prompts before the first message", async () => {

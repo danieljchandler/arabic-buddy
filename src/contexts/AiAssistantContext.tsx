@@ -42,6 +42,12 @@ import type { PageAiContext } from "@/lib/pageAiContext";
 export interface AssistantSeed {
   arabic: string;
   english?: string;
+  /**
+   * A question already asked by the tap that opened the panel ("Why not this
+   * one?"): sent once as the learner's first message about `arabic`. Never
+   * part of the seed the server is sent.
+   */
+  ask?: string;
 }
 
 export interface AssistantMsg {

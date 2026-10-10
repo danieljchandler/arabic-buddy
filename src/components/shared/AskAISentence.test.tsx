@@ -19,6 +19,7 @@ function Probe() {
   return (
     <div data-testid="probe">
       {isOpen ? "open" : "closed"}|{activeTab}|{seed ? `${seed.arabic}~${seed.english ?? ""}` : "no-seed"}
+      {seed?.ask ? `|ask:${seed.ask}` : ""}
     </div>
   );
 }
@@ -30,11 +31,19 @@ afterEach(() => {
   cleanup = undefined;
 });
 
-function render(props: { arabic?: string; english?: string; variant?: "icon" | "chip" } = {}) {
+function render(
+  props: { arabic?: string; english?: string; variant?: "icon" | "chip"; label?: string; ask?: string } = {},
+) {
   const english = "english" in props ? props.english : "What's up with you today?";
   const harness = renderWithProviders(
     <>
-      <AskAISentence arabic={props.arabic ?? "شفيك اليوم؟"} english={english} variant={props.variant} />
+      <AskAISentence
+        arabic={props.arabic ?? "شفيك اليوم؟"}
+        english={english}
+        variant={props.variant}
+        label={props.label}
+        ask={props.ask}
+      />
       <Probe />
     </>,
   );
@@ -75,5 +84,23 @@ describe("opening the assistant", () => {
     fireEvent.click(screen.getByRole("button", { name: "Ask AI about this sentence" }));
 
     expect(screen.getByTestId("probe")).toHaveTextContent("open|chat|شفيك اليوم؟~");
+  });
+});
+
+describe("a chip that asks its own question", () => {
+  it("is labelled with the question, and seeds the chat with the sentence and the question", () => {
+    render({ variant: "chip", label: "Why not this one?", ask: "Why doesn't «بيت» fit here?" });
+
+    fireEvent.click(screen.getByRole("button", { name: /Why not this one\?/ }));
+
+    expect(screen.getByTestId("probe")).toHaveTextContent(
+      "open|chat|شفيك اليوم؟~What's up with you today?|ask:Why doesn't «بيت» fit here?",
+    );
+  });
+
+  it("carries no question when it is not given one", () => {
+    render({ variant: "chip" });
+    fireEvent.click(screen.getByRole("button", { name: /Ask AI/ }));
+    expect(screen.getByTestId("probe")).not.toHaveTextContent("ask:");
   });
 });

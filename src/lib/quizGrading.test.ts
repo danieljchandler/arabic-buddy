@@ -3,6 +3,7 @@ import {
   REPLY_WORD_CLEAR,
   SPEECH_MATCH_FLOOR,
   SPEECH_THRESHOLDS,
+  assessmentLocale,
   gradeQuizAnswer,
   isCorrectRating,
   wordSpanSimilarity,
@@ -96,6 +97,56 @@ describe("a spoken reply (step 9)", () => {
     // زين heard as وين: the span is held below the floor, so no lift.
     expect(reply(30, wordSpanSimilarity("وين", "زين"))).toBe("again");
     expect(reply(30, wordSpanSimilarity("الأكل زين", "زين"))).toBe("hard");
+  });
+});
+
+describe("the word said in a story (step 10)", () => {
+  // A single-word take: the word, against the word. The take is read through
+  // `wordSpanSimilarity`, so the word heard with و, ب or ال attached (or with a
+  // word of the sentence beside it) is the word; the bands are the ordinary
+  // ones; and the step-9 rule does not apply, because what lowers a reply's
+  // score there — a right answer in other words than the stored line — cannot
+  // happen when the reference is the word itself.
+  const take = (score: number, heard: string, word = "قهوة") => ({
+    kind: "speech" as const,
+    score,
+    similarity: wordSpanSimilarity(heard, word),
+  });
+
+  it("bands the take on the ordinary bands", () => {
+    expect(gradeQuizAnswer(take(SPEECH_THRESHOLDS.easy, "قهوة"))).toBe("easy");
+    expect(gradeQuizAnswer(take(SPEECH_THRESHOLDS.good, "والقهوة"))).toBe("good");
+    expect(gradeQuizAnswer(take(SPEECH_THRESHOLDS.hard, "طلب قهوة"))).toBe("hard");
+  });
+
+  it("is Again for a different word, however well it scored", () => {
+    expect(gradeQuizAnswer(take(95, "شاي"))).toBe("again");
+    // A word of three letters or fewer, one letter off, is another word.
+    expect(gradeQuizAnswer(take(95, "وين", "زين"))).toBe("again");
+  });
+
+  it("is Again for the word said too poorly, clear or not: no reply's leniency", () => {
+    const low = take(SPEECH_THRESHOLDS.hard - 5, "قهوة");
+    expect(low.similarity).toBeGreaterThanOrEqual(REPLY_WORD_CLEAR);
+    expect(gradeQuizAnswer(low)).toBe("again");
+  });
+
+  it("caps a take at Hard when the passage's translation was opened first", () => {
+    expect(gradeQuizAnswer({ ...take(95, "قهوة"), hintUsed: true })).toBe("hard");
+  });
+
+  it("is graded as a choice when picked from four, never better than Good", () => {
+    expect(gradeQuizAnswer({ kind: "choice", correct: true })).toBe("good");
+    expect(gradeQuizAnswer({ kind: "choice", correct: false })).toBe("again");
+  });
+});
+
+describe("the locale a take is heard in", () => {
+  it("follows the word's dialect, and Gulf otherwise", () => {
+    expect(assessmentLocale("Egyptian")).toBe("ar-EG");
+    expect(assessmentLocale("Yemeni")).toBe("ar-YE");
+    expect(assessmentLocale("Gulf")).toBe("ar-SA");
+    expect(assessmentLocale(null)).toBe("ar-SA");
   });
 });
 

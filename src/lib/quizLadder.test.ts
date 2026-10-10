@@ -27,6 +27,7 @@ const everything: QuizMaterial = {
   imageDistractors: 10,
   hasReply: true,
   hasReplyLine: true,
+  hasStoryLine: true,
   canSpeak: true,
 };
 
@@ -57,21 +58,28 @@ describe("the step a memory state lands on", () => {
     expect(at(400)).toBe(6);
   });
 
-  it("asks a production card to say the word, then the line, then the reply", () => {
+  it("asks a production card to say the word, then the line, then the reply, then the word in a story", () => {
     expect(rungForMemory({ stability: 0, repetitions: 0 }, "production").step).toBe(7);
     expect(rungForMemory({ stability: T.sentenceDays - 1, repetitions: 3 }, "production").step).toBe(7);
     expect(rungForMemory({ stability: T.sentenceDays, repetitions: 3 }, "production").step).toBe(8);
     expect(rungForMemory({ stability: T.replyDays - 0.01, repetitions: 5 }, "production").step).toBe(8);
     expect(rungForMemory({ stability: T.replyDays, repetitions: 5 }, "production").step).toBe(9);
-    expect(rungForMemory({ stability: 400, repetitions: 9 }, "production")).toEqual({
+    expect(rungForMemory({ stability: T.storyDays - 0.01, repetitions: 6 }, "production")).toEqual({
       step: 9,
       label: "Say the reply",
       format: "speak-reply",
     });
+    expect(rungForMemory({ stability: T.storyDays, repetitions: 7 }, "production").step).toBe(10);
+    expect(rungForMemory({ stability: 400, repetitions: 9 }, "production")).toEqual({
+      step: 10,
+      label: "In a story",
+      format: "story-gap",
+    });
   });
 
-  it("puts the reply above the line on the production schedule", () => {
+  it("puts the reply above the line, and the story above the reply, on the production schedule", () => {
     expect(T.replyDays).toBeGreaterThan(T.sentenceDays);
+    expect(T.storyDays).toBeGreaterThan(T.replyDays);
   });
 
   it("treats a missing or negative stability as new", () => {
@@ -86,8 +94,8 @@ describe("the step a memory state lands on", () => {
       expect(r.label.length).toBeGreaterThan(0);
       seen.add(r.step);
     }
-    for (const stability of [2, 20, 60]) seen.add(rungForMemory({ stability, repetitions: 1 }, "production").step);
-    expect([...seen].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    for (const stability of [2, 20, 40, 90]) seen.add(rungForMemory({ stability, repetitions: 1 }, "production").step);
+    expect([...seen].sort((a, b) => a - b)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
     expect(Math.max(...seen)).toBe(QUIZ_STEP_COUNT);
   });
 });
@@ -140,6 +148,31 @@ describe("the question asked, given the material", () => {
     expect(pickQuizFormat({ stability: 20, repetitions: 4 }, "production", everything)).toBe("speak-sentence");
   });
 
+  it("asks a mature production card to say the word in a story, from its passage", () => {
+    const at10 = { stability: T.storyDays, repetitions: 7 };
+    expect(pickQuizFormat(at10, "production", everything)).toBe("story-gap");
+    // Saying the word needs no wrong options: the passage is enough.
+    expect(pickQuizFormat(at10, "production", { ...everything, distractors: 0 })).toBe("story-gap");
+  });
+
+  it("asks the reply instead when the word has no passage, and what the reply falls back to", () => {
+    const at10 = { stability: T.storyDays, repetitions: 7 };
+    const noStory = { ...everything, hasStoryLine: false };
+    expect(pickQuizFormat(at10, "production", noStory)).toBe("speak-reply");
+    expect(pickQuizFormat(at10, "production", { ...noStory, hasReplyLine: false })).toBe("speak-sentence");
+    expect(pickQuizFormat(at10, "production", { ...noStory, hasReplyLine: false, hasSentence: false })).toBe("speak");
+  });
+
+  it("asks the story's gap with four options on a device that cannot record, and the flip card with too few", () => {
+    const at10 = { stability: T.storyDays, repetitions: 7 };
+    const mute = { ...everything, canSpeak: false };
+    expect(pickQuizFormat(at10, "production", mute)).toBe("story-choice");
+    expect(pickQuizFormat(at10, "production", { ...mute, distractors: CHOICE_COUNT - 1 })).toBe("story-choice");
+    expect(pickQuizFormat(at10, "production", { ...mute, distractors: CHOICE_COUNT - 2 })).toBe("flashcard");
+    // No passage and no microphone: the reply cannot be said either.
+    expect(pickQuizFormat(at10, "production", { ...mute, hasStoryLine: false })).toBe("flashcard");
+  });
+
   it("asks a well-settled production card to say the reply", () => {
     expect(pickQuizFormat({ stability: T.replyDays, repetitions: 6 }, "production", everything)).toBe("speak-reply");
     // Saying the reply needs no wrong replies: a line to answer is enough.
@@ -160,9 +193,10 @@ describe("the question asked, given the material", () => {
     ).toBe("speak");
   });
 
-  it("serves the flashcard when the device cannot record", () => {
+  it("serves the flashcard when the device cannot record, below the story", () => {
     // Never a choice question: the rating lands on the production schedule,
-    // which a recognition task must not write to.
+    // which a recognition task must not write to. The story's gap is the one
+    // exception (above), and it is never better than Good.
     const mute = { ...everything, canSpeak: false };
     expect(pickQuizFormat({ stability: 2, repetitions: 1 }, "production", mute)).toBe("flashcard");
     expect(pickQuizFormat({ stability: 20, repetitions: 4 }, "production", mute)).toBe("flashcard");
@@ -190,6 +224,8 @@ describe("what a format implies", () => {
     expect(isGradedFormat("cloze")).toBe(true);
     expect(isGradedFormat("picture-choice")).toBe(true);
     expect(isGradedFormat("speak")).toBe(true);
+    expect(isGradedFormat("story-gap")).toBe(true);
+    expect(isGradedFormat("story-choice")).toBe(true);
     expect(isGradedFormat("flashcard")).toBe(false);
   });
 
@@ -197,6 +233,8 @@ describe("what a format implies", () => {
     expect(isSpokenFormat("speak")).toBe(true);
     expect(isSpokenFormat("speak-sentence")).toBe(true);
     expect(isSpokenFormat("speak-reply")).toBe(true);
+    expect(isSpokenFormat("story-gap")).toBe(true);
+    expect(isSpokenFormat("story-choice")).toBe(false);
     expect(isSpokenFormat("listen")).toBe(false);
     expect(isSpokenFormat("reply-choice")).toBe(false);
   });

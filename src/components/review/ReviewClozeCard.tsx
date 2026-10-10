@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Check, X, Volume2, Play, Loader2, Quote } from "lucide-react";
-import { useAzureTTS } from "@/hooks/useAzureTTS";
-import { useDialect } from "@/contexts/DialectContext";
+import { useMaskedSentenceAudio } from "@/hooks/useMaskedSentenceAudio";
 import { cn } from "@/lib/utils";
 import { findWordSpan, normalizeArabicWord } from "@/lib/arabicWord";
 import { buildChoices } from "@/lib/quizDistractors";
@@ -20,6 +19,12 @@ interface Props {
    * ladder's first look offers it; later steps do not.
    */
   hintEnglish?: string | null;
+  /**
+   * The dialect the sentence is in, whose voice reads it — muted and whole.
+   * Unset, the learner's active dialect; the quiz passes the card's own, since
+   * a mixed deck's sentence is not always in the dialect the learner has on.
+   */
+  dialect?: string | null;
   onAnswered?: (correct: boolean) => void;
 }
 
@@ -31,7 +36,7 @@ interface Props {
 const buildCloze = (sentence: string, word: string) => {
   const span = findWordSpan(sentence, word);
   if (!span) return null;
-  return { before: sentence.slice(0, span.start), after: sentence.slice(span.end) };
+  return { span, before: sentence.slice(0, span.start), after: sentence.slice(span.end) };
 };
 
 export const ReviewClozeCard = ({
@@ -42,22 +47,25 @@ export const ReviewClozeCard = ({
   sentenceAudioUrl,
   distractors,
   hintEnglish,
+  dialect,
   onAnswered,
 }: Props) => {
-  const { activeDialect } = useDialect();
   const [selected, setSelected] = useState<string | null>(null);
   const [showTranslation, setShowTranslation] = useState(false);
 
   const cloze = useMemo(() => buildCloze(sentenceText, wordArabic), [sentenceText, wordArabic]);
 
-  // Sentence with the target word masked out so the audio doesn't reveal the
-  // answer. Recorded sentence audio always contains the word, so we ignore it
-  // for cloze cards and synthesise a masked version instead. After the learner
-  // answers, we fall back to the full audio so they can hear it in context.
-  const maskedSentence = useMemo(() => {
-    if (!cloze) return sentenceText;
-    return `${cloze.before} ... ${cloze.after}`.replace(/\s+/g, " ").trim();
-  }, [cloze, sentenceText]);
+  // The sentence read with the word muted, so the audio doesn't give the
+  // answer away: a recording always contains the word, so it is not played
+  // until the learner has answered, and then the whole sentence is heard in
+  // context (`useMaskedSentenceAudio`, which the story passage shares).
+  const { url: audioUrl, isLoading: ttsLoading } = useMaskedSentenceAudio({
+    text: sentenceText,
+    span: cloze?.span ?? null,
+    dialect,
+    revealed: selected != null,
+    recordingUrl: sentenceAudioUrl,
+  });
 
   // Seeded on the card, not rolled per render: an unseeded shuffle re-dealt
   // the options on every re-render — the offline queue's "Saving" badge, an
@@ -77,22 +85,6 @@ export const ReviewClozeCard = ({
     setSelected(null);
     setShowTranslation(false);
   }, [wordArabic, sentenceText]);
-
-  // Masked-sentence TTS (used before the learner answers).
-  const { ttsUrl: maskedUrl, isLoading: maskedLoading } = useAzureTTS({
-    text: maskedSentence,
-    skip: !cloze,
-    dialect: activeDialect,
-  });
-  // Full-sentence TTS fallback (used after answering, when no recording exists).
-  const { ttsUrl: fullTtsUrl, isLoading: fullTtsLoading } = useAzureTTS({
-    text: sentenceText,
-    skip: Boolean(sentenceAudioUrl) || selected == null,
-    dialect: activeDialect,
-  });
-  const fullAudioUrl = sentenceAudioUrl || fullTtsUrl;
-  const audioUrl = selected == null ? maskedUrl : fullAudioUrl;
-  const ttsLoading = selected == null ? maskedLoading : fullTtsLoading;
 
   const playAudio = (url: string) => {
     const a = new Audio(url);

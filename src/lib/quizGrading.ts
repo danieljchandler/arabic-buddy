@@ -146,6 +146,16 @@ export function wordSpanSimilarity(recognized: string | null | undefined, word: 
   return short && best < 1 ? Math.min(best, SPEECH_MATCH_FLOOR / 2) : best;
 }
 
+/**
+ * The locale a spoken take is assessed against: the word's own dialect picks
+ * it, so an Egyptian word is heard as Egyptian.
+ */
+export function assessmentLocale(dialect: string | null | undefined): string {
+  if (dialect === "Egyptian") return "ar-EG";
+  if (dialect === "Yemeni") return "ar-YE";
+  return "ar-SA";
+}
+
 /** Whether a rating counts as a correct answer for the session's tally. */
 export function isCorrectRating(rating: Rating): boolean {
   return rating !== "again";

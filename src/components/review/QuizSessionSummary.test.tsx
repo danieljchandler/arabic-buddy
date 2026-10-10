@@ -46,9 +46,17 @@ describe("the step badge", () => {
     const harness = renderWithProviders(<QuizRungBadge step={2} label="Fill the gap" combo={1} />);
     cleanup = harness.cleanup;
 
-    expect(screen.getByRole("img", { name: "Step 2 of 9: Fill the gap" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Step 2 of 10: Fill the gap" })).toBeInTheDocument();
     expect(screen.getByText("Fill the gap")).toBeInTheDocument();
     expect(screen.queryByLabelText(/in a row/)).not.toBeInTheDocument();
+  });
+
+  it("has a dot for every step, the top one included", () => {
+    const harness = renderWithProviders(<QuizRungBadge step={10} label="In a story" />);
+    cleanup = harness.cleanup;
+
+    const badge = screen.getByRole("img", { name: "Step 10 of 10: In a story" });
+    expect(badge.children).toHaveLength(10);
   });
 
   it("shows a run of two or more", () => {

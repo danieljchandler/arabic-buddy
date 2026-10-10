@@ -1326,9 +1326,10 @@ quiz has weeks of ratings, set them from the data.
   whole range is clearly under it. Anything else with enough answers is
   *unclear*: thin at the threshold, or under the target without being
   clearly so. Only answers on the ladder move a threshold.
-- **What it cannot say.** Whether a threshold could come down: the ladder
-  never asks a step's question below its threshold, so the log has no
-  answers there. A threshold that holds from its first band may be higher
+- **What it cannot say.** Whether a threshold could come down: on the
+  ladder, a step's own question is never asked below its threshold, so the
+  log has no answers there that count (a boss or a fallback can be asked
+  there, and neither does). A threshold that holds from its first band may be higher
   than it needs to be; finding out would take an experiment that asks below
   it, which is a decision for later.
 - **Scope.** The curriculum deck only: My Words and My Phrases are not in
@@ -1383,8 +1384,14 @@ that the numbers now come from the data. Moving one touches three things:
   (`holdsProduction`) and when a saved phrase is asked to be said
   (`phraseDirection`); raising it holds both back. Decide that with it.
 
-Rows logged under the old thresholds then read as off the ladder, so the
-next report is run `--since` the day the new ones went live.
+A threshold that *never settles* says the step's question is too hard for
+the range the ladder gives it, and raising the threshold cannot mend that
+(past the next one, the step is never asked). Leave it, and look at the
+question: its material, its distractors, its format.
+
+A row logged under the old thresholds whose step the retune moves then reads
+as off the ladder, and the rest are read against numbers they were not asked
+under, so the next report is run `--since` the day the new ones went live.
 
 **Done when** (Phase 8). The thresholds have been set from at least a month
 of ratings and the README table says so.

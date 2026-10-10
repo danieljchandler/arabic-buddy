@@ -157,6 +157,17 @@ describe("where a threshold should be", () => {
     expect(picture(report)).toMatchObject({ answers: 50, learners: 7 });
   });
 
+  it("takes a learner's answers evenly across them, not their first", () => {
+    // A card climbs, so a learner's first answers are the lower ones: fifty
+    // just over 8 days, then fifty over 11.3.
+    const climbing = [
+      ...Array.from({ length: 50 }, () => onLadder(9, true, "recognition", "keen")),
+      ...Array.from({ length: 50 }, () => onLadder(12, true, "recognition", "keen")),
+    ];
+    const bands = picture(reportQuizLadder(climbing, { maxPerLearner: 10 })).bands;
+    expect(bands.map((band) => band.answers)).toEqual([5, 5]);
+  });
+
   it("is not raised on a thin band at the threshold", () => {
     // Five answers just above 8 days, all right, then plenty above: whether
     // 8 holds is not yet known, so neither holding nor raising is said.

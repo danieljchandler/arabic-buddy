@@ -21,20 +21,23 @@ import { LADDER_THRESHOLDS, QUIZ_STEP_COUNT, rungForMemory, type QuizDirection, 
  * - a fallback: asked at that step in another format, for want of material
  *   (no picture, no recording, no device that records).
  * - off the ladder: asked at another step. A boss is (a first look whatever
- *   its stability); so is every row logged under thresholds since changed.
+ *   its stability); so is a row logged under thresholds since changed, where
+ *   the change moved its step.
  *
  * A threshold is judged on evidence, not on a share alone. It needs enough
  * answers from enough learners (one keen learner's hundred answers are one
- * learner, so each counts at most `maxPerLearner` toward a threshold), enough
+ * learner, so each counts at most `maxPerLearner` toward a threshold, an even
+ * sample across their answers rather than their first, lower ones), enough
  * answers at the stability it would be set to, and the bands it is moved past
  * clearly below the target (the Wilson interval's top under it). Where the
  * answers are there but do not decide, it says so ("unclear") rather than
  * moving a threshold on noise.
  *
- * What it cannot say: whether a threshold could come down. The ladder never
- * asks a step's question below its threshold, so the log has no answers
- * there; a threshold the step clears from its first band is reported as
- * holding, and lowering it would take an experiment that asks below it.
+ * What it cannot say: whether a threshold could come down. On the ladder, a
+ * step's own question is never asked below its threshold (a boss or a
+ * fallback can be, and neither counts), so the log has no answers there; a
+ * threshold the step clears from its first band is reported as holding, and
+ * lowering it would take an experiment that asks below it.
  */
 
 /** One logged curriculum review, as the report reads it. */
@@ -68,7 +71,8 @@ export interface Band extends Tally {
  * - hold: answered right at the target from the threshold up.
  * - raise: missed below `proposed`, clearly, and answered right from it up.
  * - too-few: not enough answers, or not enough learners, to say anything.
- * - never-settles: missed, clearly, across the step's whole range.
+ * - never-settles: missed, clearly, in the answers across the step's range
+ *   (which may sit in one band of it: the text says "in the answers").
  * - unclear: enough answers, but they do not decide (thin at the threshold,
  *   or below the target without being clearly so).
  */
@@ -204,14 +208,24 @@ function pool(bands: readonly Tally[]): { answers: number; right: number } {
   });
 }
 
-/** At most `cap` answers from each learner, the first in the log's order. */
+/**
+ * At most `cap` answers from each learner: an even sample across all of
+ * theirs, not the first, which would lean on the lower stabilities a card
+ * passes through first.
+ */
 function capPerLearner<T extends { row: LoggedQuizAnswer }>(answers: readonly T[], cap: number): T[] {
-  const seen = new Map<string, number>();
-  return answers.filter((answer) => {
-    const n = seen.get(answer.row.user_id) ?? 0;
-    seen.set(answer.row.user_id, n + 1);
-    return n < cap;
-  });
+  const byLearner = new Map<string, T[]>();
+  for (const answer of answers) {
+    const theirs = byLearner.get(answer.row.user_id) ?? [];
+    theirs.push(answer);
+    byLearner.set(answer.row.user_id, theirs);
+  }
+  const kept = new Set<T>();
+  for (const theirs of byLearner.values()) {
+    if (theirs.length <= cap) theirs.forEach((answer) => kept.add(answer));
+    else for (let i = 0; i < cap; i++) kept.add(theirs[Math.floor((i * theirs.length) / cap)]);
+  }
+  return answers.filter((answer) => kept.has(answer));
 }
 
 /** Half-octave bands from a threshold up to the next one in its direction (or open). */
@@ -386,11 +400,11 @@ export function formatQuizLadderReport(report: QuizLadderReport): string {
       t.verdict === "too-few"
         ? `too few answers (${t.answers}, from ${t.learners} learners)`
         : t.verdict === "never-settles"
-          ? `never reaches the target above ${t.current} days`
+          ? `never reaches the target in the answers above ${t.current} days`
           : t.verdict === "unclear"
             ? `the answers do not decide yet (${t.answers}, from ${t.learners} learners)`
             : t.verdict === "hold"
-              ? `holds at ${t.current} days (lowering it needs answers below it, which the ladder never asks)`
+              ? `holds at ${t.current} days (lowering it needs answers below it, which the ladder does not ask)`
               : `raise from ${t.current} to ${t.proposed} days`;
     lines.push(`  ${t.name.padEnd(14)} (${t.direction}, opens step ${t.step}): ${what}`);
     for (const band of t.bands) {

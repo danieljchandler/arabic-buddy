@@ -306,8 +306,9 @@ not at all; it needs 30 answers from 5 learners, counts one learner at most
 50 times, and says "unclear" rather than move a threshold on bands too thin
 to decide (Wilson intervals). Bosses and fallback questions are counted but
 never move a threshold (`src/lib/quizLadderReport.ts`). It cannot say a
-threshold should come down: the ladder never asks a step's question below
-it. Moving one is more than the constant: the leaderboard's climbs count the
+threshold should come down: on the ladder, a step's own question is never
+asked below its threshold (a boss or a fallback can be, and neither counts).
+Moving one is more than the constant: the leaderboard's climbs count the
 ladder in SQL (`quiz_ladder_step`), and `pictureDays` also decides when a
 word's production card is served (`holdsProduction`) and when a saved phrase
 is asked to be said (`phraseDirection`).

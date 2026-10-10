@@ -39,6 +39,8 @@ import { useAddXP, useIncrementReviews, REVIEW_XP } from "@/hooks/useGamificatio
 import { QuizCardFrame, type QuizGraded, type QuizItem } from "@/components/review/QuizCardFrame";
 import { ReviewStyleSwitch } from "@/components/review/ReviewStyleSwitch";
 import { QuizSessionSummary } from "@/components/review/QuizSessionSummary";
+import { LightningRound } from "@/components/review/LightningRound";
+import { addLightningWord, lightningWordFor, type LightningWord } from "@/lib/lightningRound";
 import { EMPTY_QUIZ_SESSION, comboBonus, recordQuizAnswer, type QuizSessionStats } from "@/lib/quizSession";
 import { LADDER_THRESHOLDS, rungForMemory } from "@/lib/quizLadder";
 import { useNewCardCap, NEW_CAP_OPTIONS, formatCap } from "@/hooks/useNewCardCap";
@@ -168,6 +170,8 @@ const MyWordsReview = () => {
   const addXP = useAddXP();
   const incrementReviews = useIncrementReviews();
   const [quizStats, setQuizStats] = useState<QuizSessionStats>(EMPTY_QUIZ_SESSION);
+  // Today's right answers at the first four steps, for the lightning round.
+  const [lightningWords, setLightningWords] = useState<LightningWord<QuizItem>[]>([]);
   // Cards rated Again/Hard, owed a re-test later this session (lib/relearn).
   const [relearn, setRelearn] = useState<RelearnEntry<DueCard>[]>([]);
   // The fetched list has been walked to the end; only relearn cards remain.
@@ -773,6 +777,8 @@ const MyWordsReview = () => {
       stepAfter,
     });
     setQuizStats(next);
+    const lightning = lightningWordFor(graded, graded.item);
+    if (lightning) setLightningWords((prev) => addLightningWord(prev, lightning));
     const saved = await handleRate(graded.rating);
     if (!saved) return;
     addXP.mutate({ amount: REVIEW_XP, reason: "review" });
@@ -886,6 +892,7 @@ const MyWordsReview = () => {
           fallbackRoute="/my-words"
         >
           {quiz && <QuizSessionSummary stats={quizStats} />}
+          {quiz && <LightningRound words={lightningWords} pool={wordPool ?? []} />}
         </SessionHandoff>
       </AppShell>
     );

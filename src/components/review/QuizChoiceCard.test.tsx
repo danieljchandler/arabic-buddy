@@ -13,13 +13,16 @@ import { QuizChoiceCard } from "./QuizChoiceCard";
  * itself — opening it before answering is help, and the answer says so.
  */
 
-const tts = vi.hoisted(() => ({ urls: {} as Record<string, string> }));
+const tts = vi.hoisted(() => ({ urls: {} as Record<string, string>, asked: [] as Array<{ text: string; skip?: boolean }> }));
 vi.mock("@/hooks/useAzureTTS", () => ({
-  useAzureTTS: (options: { text: string; skip?: boolean }) => ({
-    ttsUrl: options.skip ? null : (tts.urls[options.text] ?? null),
-    isLoading: false,
-    regenerate: vi.fn(),
-  }),
+  useAzureTTS: (options: { text: string; skip?: boolean }) => {
+    tts.asked.push(options);
+    return {
+      ttsUrl: options.skip ? null : (tts.urls[options.text] ?? null),
+      isLoading: false,
+      regenerate: vi.fn(),
+    };
+  },
 }));
 
 const audio = vi.hoisted(() => ({ isPlaying: false, play: vi.fn(), stop: vi.fn() }));
@@ -33,6 +36,7 @@ let cleanup: (() => void) | undefined;
 
 beforeEach(() => {
   tts.urls = {};
+  tts.asked = [];
   audio.play.mockReset();
 });
 
@@ -257,5 +261,25 @@ describe("why not this one?", () => {
 
     expect(screen.queryByRole("button", { name: /why not this one/i })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /ask ai/i })).toBeInTheDocument();
+  });
+});
+
+describe("bare, against a clock (the lightning round)", () => {
+  it("synthesises no voice and offers no sentence or tutor", () => {
+    tts.urls[WORD] = "blob:souq";
+    render({ bare: true, context: { arabic: "رحت السوق أمس", english: "I went to the market" } });
+
+    expect(tts.asked.every((a) => a.skip)).toBe(true);
+    expect(screen.getByRole("button", { name: "Play the word" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: /show the sentence/i })).not.toBeInTheDocument();
+    pick(options().map((o) => o.textContent!.trim()).find((l) => l !== MEANING)!);
+    expect(screen.queryByRole("button", { name: /ask ai|why not this one/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(`${WORD} means "${MEANING}"`);
+  });
+
+  it("plays a stored recording by itself when the word is only heard", () => {
+    render({ bare: true, format: "listen", audioUrl: "https://audio.test/souq.mp3" });
+    expect(audio.play).toHaveBeenCalledWith("https://audio.test/souq.mp3");
+    expect(tts.asked.every((a) => a.skip)).toBe(true);
   });
 });

@@ -26,6 +26,12 @@ interface Props {
    * a mixed deck's sentence is not always in the dialect the learner has on.
    */
   dialect?: string | null;
+  /**
+   * The question alone, asked against a clock (the lightning round): nothing
+   * is synthesised or played, and nothing beyond the answer is offered — no
+   * translation, no tutor. The round costs nothing and moves on by itself.
+   */
+  bare?: boolean;
   onAnswered?: (correct: boolean) => void;
 }
 
@@ -49,6 +55,7 @@ export const ReviewClozeCard = ({
   distractors,
   hintEnglish,
   dialect,
+  bare = false,
   onAnswered,
 }: Props) => {
   const [selected, setSelected] = useState<string | null>(null);
@@ -65,7 +72,10 @@ export const ReviewClozeCard = ({
     span: cloze?.span ?? null,
     dialect,
     revealed: selected != null,
-    recordingUrl: sentenceAudioUrl,
+    // Bare, nothing plays at all: not even a recording, which costs nothing
+    // but would talk over the next question.
+    recordingUrl: bare ? null : sentenceAudioUrl,
+    skip: bare,
   });
 
   // Seeded on the card, not rolled per render: an unseeded shuffle re-dealt
@@ -144,25 +154,27 @@ export const ReviewClozeCard = ({
       </div>
 
       {/* Circular audio button */}
-      <div className="flex flex-col items-center justify-center gap-1.5 mb-7">
-        <button
-          type="button"
-          onClick={() => audioUrl && playAudio(audioUrl)}
-          disabled={!audioUrl || ttsLoading}
-          aria-label={selected == null ? "Play sentence with word muted" : "Play full sentence"}
-          className={cn(
-            "h-14 w-14 rounded-full flex items-center justify-center",
-            "bg-primary text-primary-foreground shadow-elegant",
-            "transition-all hover:scale-105 active:scale-[0.98]",
-            "disabled:opacity-50 disabled:cursor-not-allowed"
-          )}
-        >
-          {ttsLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Play className="h-6 w-6 ml-0.5" />}
-        </button>
-        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
-          {selected == null ? "Word muted" : "Full sentence"}
-        </span>
-      </div>
+      {!bare && (
+        <div className="flex flex-col items-center justify-center gap-1.5 mb-7">
+          <button
+            type="button"
+            onClick={() => audioUrl && playAudio(audioUrl)}
+            disabled={!audioUrl || ttsLoading}
+            aria-label={selected == null ? "Play sentence with word muted" : "Play full sentence"}
+            className={cn(
+              "h-14 w-14 rounded-full flex items-center justify-center",
+              "bg-primary text-primary-foreground shadow-elegant",
+              "transition-all hover:scale-105 active:scale-[0.98]",
+              "disabled:opacity-50 disabled:cursor-not-allowed"
+            )}
+          >
+            {ttsLoading ? <Loader2 className="h-6 w-6 animate-spin" /> : <Play className="h-6 w-6 ml-0.5" />}
+          </button>
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+            {selected == null ? "Word muted" : "Full sentence"}
+          </span>
+        </div>
+      )}
 
       {/* Choices */}
       <div className="grid grid-cols-2 gap-2.5 mb-2">
@@ -202,7 +214,7 @@ export const ReviewClozeCard = ({
             <span className="font-semibold">{wordArabic}</span>
             <span className="text-muted-foreground"> — {wordEnglish}</span>
           </p>
-          {sentenceEnglish && (
+          {sentenceEnglish && !bare && (
             <div className="mt-3">
               {!showTranslation ? (
                 <Button
@@ -219,30 +231,32 @@ export const ReviewClozeCard = ({
               )}
             </div>
           )}
-          <div className="mt-3 flex justify-center">
-            {selected !== wordArabic ? (
-              // The pair and the sentence, to the tutor: why this gap takes
-              // one word and not the other.
-              <AskAISentence
-                arabic={sentenceText}
-                english={sentenceEnglish ?? wordEnglish}
-                variant="chip"
-                label="Why not this one?"
-                ask={whyNotQuestion({
-                  format: hintEnglish ? "cloze-hint" : "cloze",
-                  picked: selected,
-                  answer: wordArabic,
-                  meaning: wordEnglish,
-                })}
-              />
-            ) : (
-              <AskAISentence
-                arabic={sentenceText}
-                english={sentenceEnglish ?? wordEnglish}
-                variant="chip"
-              />
-            )}
-          </div>
+          {!bare && (
+            <div className="mt-3 flex justify-center">
+              {selected !== wordArabic ? (
+                // The pair and the sentence, to the tutor: why this gap takes
+                // one word and not the other.
+                <AskAISentence
+                  arabic={sentenceText}
+                  english={sentenceEnglish ?? wordEnglish}
+                  variant="chip"
+                  label="Why not this one?"
+                  ask={whyNotQuestion({
+                    format: hintEnglish ? "cloze-hint" : "cloze",
+                    picked: selected,
+                    answer: wordArabic,
+                    meaning: wordEnglish,
+                  })}
+                />
+              ) : (
+                <AskAISentence
+                  arabic={sentenceText}
+                  english={sentenceEnglish ?? wordEnglish}
+                  variant="chip"
+                />
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

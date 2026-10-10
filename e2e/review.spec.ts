@@ -480,6 +480,91 @@ test.describe("the quiz style", () => {
  * only, since a learner cannot write the curriculum. A learner's own word has
  * its picture made the first time the quiz wants one, and keeps it.
  */
+test.describe("the lightning round", () => {
+  const LESSON = lessonId(0);
+  const OTHERS = lessonId(1);
+
+  /** Three new words in a started lesson, each with its sentence, and four more in the pool. */
+  const roundDeck = () => ({
+    lessons: [
+      aLesson({ id: LESSON, title: "Started lesson", display_order: 1 }),
+      aLesson({ id: OTHERS, title: "Unopened lesson", display_order: 2 }),
+    ],
+    vocabulary_words: [
+      aVocabularyWord({ id: wordId(0), lesson_id: LESSON, word_arabic: "السوق", word_english: "the market", example_arabic: "رحت السوق أمس", example_english: "I went to the market yesterday" }),
+      aVocabularyWord({ id: wordId(1), lesson_id: LESSON, word_arabic: "قهوة", word_english: "coffee", example_arabic: "شربت قهوة الصبح", example_english: "I drank coffee in the morning" }),
+      aVocabularyWord({ id: wordId(2), lesson_id: LESSON, word_arabic: "البحر", word_english: "the sea", example_arabic: "البحر حلو اليوم", example_english: "The sea is lovely today" }),
+      aVocabularyWord({ id: wordId(3), lesson_id: OTHERS, word_arabic: "بيت", word_english: "house" }),
+      aVocabularyWord({ id: wordId(4), lesson_id: OTHERS, word_arabic: "مدرسة", word_english: "school" }),
+      aVocabularyWord({ id: wordId(5), lesson_id: OTHERS, word_arabic: "مطعم", word_english: "restaurant" }),
+      aVocabularyWord({ id: wordId(6), lesson_id: OTHERS, word_arabic: "سيارة", word_english: "car" }),
+    ],
+    word_reviews: [],
+    lesson_progress: [aLessonProgress({ user_id: TEST_USER_ID, lesson_id: LESSON, words_total: 3, words_seen: 3 })],
+    profiles: [aProfile({ review_style: "quiz" })],
+  });
+  test("after a session, sixty seconds over the words got right: a score and a time, and nothing written", async ({ page }) => {
+    await signIn(page);
+    const backend = await stubSupabase(page, { tables: roundDeck() });
+    await page.goto("/review");
+
+    // The session: three first looks, each answered right.
+    for (let i = 0; i < 3; i++) {
+      await expect(page.getByText("Fill in the missing word")).toBeVisible();
+      // The first look names the meaning, which says which of the three it is.
+      const hint = (await page.getByText(/the missing word means/i).textContent()) ?? "";
+      const word = hint.includes("market") ? "السوق" : hint.includes("coffee") ? "قهوة" : "البحر";
+      await page.getByRole("button", { name: word, exact: true }).click();
+      await page.getByRole("button", { name: /continue/i }).click();
+    }
+
+    await expect(page.getByRole("heading", { name: /lightning round/i })).toBeVisible();
+    await expect(page.getByText(/60 seconds over the 3 words you got right/i)).toBeVisible();
+    // Everything the session writes has landed: three ratings, three flat XP.
+    await expect.poll(() => backend.db.rows("word_reviews").length).toBe(3);
+    await expect.poll(() => backend.rpcCallsTo("award_xp").length).toBe(3);
+    const ratings = JSON.stringify(backend.db.rows("word_reviews"));
+    // The session's cards read their sentences aloud; the round reads none.
+    const voices = backend.callsTo("tts-speak").length;
+
+    await page.getByRole("button", { name: /^start$/i }).click();
+    const round = page.getByTestId("lightning-round");
+    for (let i = 0; i < 3; i++) {
+      await expect(round.getByText(`${i + 1} / 3`)).toBeVisible();
+      // Each word's gap again, without the hint: the right word is the one in
+      // this sentence, and the round moves on by itself.
+      const sentence = (await round.locator("[dir='rtl']").first().textContent()) ?? "";
+      const word = sentence.includes("رحت") ? "السوق" : sentence.includes("شربت") ? "قهوة" : "البحر";
+      await expect(round.getByText(/the missing word means/i)).toHaveCount(0);
+      await round.getByRole("button", { name: word, exact: true }).click();
+    }
+
+    await expect(page.getByRole("heading", { name: /every word in \d+ s/i })).toBeVisible();
+    await expect(page.getByLabel(/lightning round score/i)).toHaveText("3 / 3");
+
+    // Nothing the round did was a rating, or paid anything.
+    expect(JSON.stringify(backend.db.rows("word_reviews"))).toBe(ratings);
+    expect(backend.rpcCallsTo("award_xp")).toHaveLength(3);
+    expect(backend.callsTo("tts-speak")).toHaveLength(voices);
+  });
+
+  test("is not offered after a session with fewer than three right answers", async ({ page }) => {
+    await signIn(page);
+    const deck = roundDeck();
+    const backend = await stubSupabase(page, {
+      tables: { ...deck, vocabulary_words: deck.vocabulary_words.filter((w) => w.id !== wordId(1) && w.id !== wordId(2)) },
+    });
+    await page.goto("/review");
+
+    await page.getByRole("button", { name: "السوق", exact: true }).click();
+    await page.getByRole("button", { name: /continue/i }).click();
+
+    await expect(page.getByRole("list", { name: /quiz session summary/i })).toBeVisible();
+    await expect.poll(() => backend.db.rows("word_reviews").length).toBe(1);
+    await expect(page.getByRole("heading", { name: /lightning round/i })).toHaveCount(0);
+  });
+});
+
 test.describe("a picture for a word that has none", () => {
   const PIXEL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=";
   const LESSON = lessonId(0);

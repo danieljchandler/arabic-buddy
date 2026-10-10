@@ -39,6 +39,8 @@ import { useAddXP } from "@/hooks/useGamification";
 import { QuizCardFrame, type QuizGraded, type QuizItem } from "@/components/review/QuizCardFrame";
 import { ReviewStyleSwitch } from "@/components/review/ReviewStyleSwitch";
 import { QuizSessionSummary } from "@/components/review/QuizSessionSummary";
+import { LightningRound } from "@/components/review/LightningRound";
+import { addLightningWord, lightningWordFor, type LightningWord } from "@/lib/lightningRound";
 import { EMPTY_QUIZ_SESSION, comboBonus, recordQuizAnswer, type QuizSessionStats } from "@/lib/quizSession";
 import { LADDER_THRESHOLDS, rungForMemory } from "@/lib/quizLadder";
 import { asDialogue } from "@/lib/quizDialogue";
@@ -82,6 +84,8 @@ const Review = () => {
   const { data: wordPool, isLoading: poolLoading } = useCurriculumWordPool(activeDialect, mixAll, quiz);
   const addXP = useAddXP();
   const [quizStats, setQuizStats] = useState<QuizSessionStats>(EMPTY_QUIZ_SESSION);
+  // Today's right answers at the first four steps, for the lightning round.
+  const [lightningWords, setLightningWords] = useState<LightningWord<QuizItem>[]>([]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [sessionCount, setSessionCount] = useState(0);
@@ -412,6 +416,8 @@ const Review = () => {
       stepAfter,
     });
     setQuizStats(next);
+    const lightning = lightningWordFor(graded, graded.item);
+    if (lightning) setLightningWords((prev) => addLightningWord(prev, lightning));
     // A flourish, never a schedule: the combo pays XP and nothing else.
     const bonus = comboBonus(next.combo);
     if (bonus) addXP.mutate({ amount: bonus, reason: "quiz_combo" });
@@ -423,6 +429,7 @@ const Review = () => {
     setCurrentIndex(0);
     setSessionCount(0);
     setQuizStats(EMPTY_QUIZ_SESSION);
+    setLightningWords([]);
     setShowAnswer(false);
     // Switching decks starts a new session; relearn cards belong to the old one.
     setRelearn([]);
@@ -542,6 +549,7 @@ const Review = () => {
           fallbackRoute={brandNew ? "/curriculum" : "/"}
         >
           {quiz && <QuizSessionSummary stats={quizStats} />}
+          {quiz && <LightningRound words={lightningWords} pool={wordPool ?? []} />}
           {stats && (
             <div className="grid grid-cols-2 gap-4 mb-8">
               <div className="bg-card rounded-xl p-4 border border-border">

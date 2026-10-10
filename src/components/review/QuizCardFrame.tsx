@@ -79,6 +79,8 @@ export interface QuizGraded {
   format: QuizFormat;
   /** The step the card was asked on. */
   step: number;
+  /** The card that was asked, as the frame was handed it (the lightning round asks it again). */
+  item: QuizItem;
 }
 
 interface QuizCardFrameProps {
@@ -678,7 +680,7 @@ export const QuizCardFrame = ({
 
   const advance = () => {
     if (!answered) return;
-    onGraded({ ...answered, format, step: rung.step });
+    onGraded({ ...answered, format, step: rung.step, item });
   };
 
   // Enter or Space moves on once a card is answered, matching the flip card's

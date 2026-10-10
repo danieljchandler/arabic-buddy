@@ -362,6 +362,23 @@ describe("why not this one?", () => {
   });
 });
 
+describe("bare, against a clock (the lightning round)", () => {
+  it("synthesises nothing, plays nothing, and offers nothing beyond the answer", () => {
+    tts.urls[MASKED] = "blob:masked";
+    tts.urls[SENTENCE] = "blob:whole";
+    render({ bare: true, sentenceEnglish: "I went to the market yesterday", sentenceAudioUrl: "https://audio.test/s.mp3" });
+
+    expect(screen.queryByRole("button", { name: /play .* sentence|play sentence/i })).not.toBeInTheDocument();
+    choose("بيت");
+
+    expect(tts.asked.every((a) => a.skip)).toBe(true);
+    expect(play).not.toHaveBeenCalled();
+    expect(screen.queryByRole("button", { name: /show translation|why not this one|ask ai/i })).not.toBeInTheDocument();
+    // The answer itself is still shown.
+    expect(screen.getByText("— the market")).toBeInTheDocument();
+  });
+});
+
 describe("the sentence translation", () => {
   it("stays behind a tap", () => {
     render({ sentenceEnglish: "I went to the market yesterday" });

@@ -32,6 +32,8 @@ import { useAddXP, useIncrementReviews, REVIEW_XP } from "@/hooks/useGamificatio
 import { QuizCardFrame, type QuizGraded, type QuizItem } from "@/components/review/QuizCardFrame";
 import { ReviewStyleSwitch } from "@/components/review/ReviewStyleSwitch";
 import { QuizSessionSummary } from "@/components/review/QuizSessionSummary";
+import { LightningRound } from "@/components/review/LightningRound";
+import { addLightningWord, lightningWordFor, type LightningWord } from "@/lib/lightningRound";
 import { EMPTY_QUIZ_SESSION, comboBonus, recordQuizAnswer, type QuizSessionStats } from "@/lib/quizSession";
 import { LADDER_THRESHOLDS, rungForMemory, type QuizDirection } from "@/lib/quizLadder";
 import { Loader2, Trophy, LogIn, Eye, Volume2, Trash2, MessageCircleQuestion, Music, Play, RefreshCw, Undo2, MessageSquarePlus } from "lucide-react";
@@ -71,6 +73,8 @@ const MyPhrasesReview = () => {
   const addXP = useAddXP();
   const incrementReviews = useIncrementReviews();
   const [quizStats, setQuizStats] = useState<QuizSessionStats>(EMPTY_QUIZ_SESSION);
+  // Today's right answers at the first four steps, for the lightning round.
+  const [lightningWords, setLightningWords] = useState<LightningWord<QuizItem>[]>([]);
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
@@ -302,6 +306,8 @@ const MyPhrasesReview = () => {
       stepAfter,
     });
     setQuizStats(next);
+    const lightning = lightningWordFor(graded, graded.item);
+    if (lightning) setLightningWords((prev) => addLightningWord(prev, lightning));
     try {
       await handleRate(graded.rating);
     } catch (err) {
@@ -404,6 +410,7 @@ const MyPhrasesReview = () => {
           fallbackRoute="/my-words"
         >
           {quiz && <QuizSessionSummary stats={quizStats} />}
+          {quiz && <LightningRound words={lightningWords} pool={phrasePool ?? []} />}
         </SessionHandoff>
       </AppShell>
     );

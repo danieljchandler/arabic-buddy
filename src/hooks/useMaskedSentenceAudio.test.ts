@@ -88,4 +88,15 @@ describe("useMaskedSentenceAudio", () => {
     renderHook(() => useMaskedSentenceAudio({ text: PASSAGE, span: SPAN, dialect: null, revealed: false }));
     expect(tts.asked[0].dialect).toBeUndefined();
   });
+
+  it("reads nothing at all when told to skip, before the answer or after", () => {
+    tts.urls[PASSAGE] = "blob:whole";
+    tts.urls["كان الصبح بارد وايد. طلب الريال ... حارة."] = "blob:muted";
+    const before = renderHook(() => useMaskedSentenceAudio({ text: PASSAGE, span: SPAN, revealed: false, skip: true }));
+    const after = renderHook(() => useMaskedSentenceAudio({ text: PASSAGE, span: SPAN, revealed: true, skip: true }));
+
+    expect(before.result.current.url).toBeNull();
+    expect(after.result.current.url).toBeNull();
+    expect(tts.asked.every((a) => a.skip)).toBe(true);
+  });
 });

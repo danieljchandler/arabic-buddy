@@ -35,6 +35,12 @@ interface QuizChoiceCardProps {
   wordForMeaning?: (english: string) => string | null;
   /** The sentence the word was learnt in, offered as a hint. */
   context?: { arabic: string; english?: string | null } | null;
+  /**
+   * The question alone, asked against a clock (the lightning round): nothing
+   * is synthesised — only a recording plays — and nothing beyond the answer
+   * is offered, no sentence hint, no tutor.
+   */
+  bare?: boolean;
   onAnswer: (answer: QuizChoiceAnswer) => void;
 }
 
@@ -62,13 +68,14 @@ export const QuizChoiceCard = ({
   pool,
   wordForMeaning,
   context,
+  bare = false,
   onAnswer,
 }: QuizChoiceCardProps) => {
   const [selected, setSelected] = useState<string | null>(null);
   const [hintOpen, setHintOpen] = useState(false);
   const hintUsedRef = useRef(false);
 
-  const { ttsUrl, isLoading } = useAzureTTS({ text: arabic, skip: Boolean(audioUrl), dialect });
+  const { ttsUrl, isLoading } = useAzureTTS({ text: arabic, skip: bare || Boolean(audioUrl), dialect });
   const { isPlaying, play } = useAudioPlayer();
   const playableUrl = audioUrl || ttsUrl;
 
@@ -212,7 +219,7 @@ export const QuizChoiceCard = ({
         </div>
       )}
 
-      {context?.arabic && (
+      {context?.arabic && !bare && (
         <div className="mt-4">
           {hintOpen ? (
             <div className="rounded-lg bg-muted/40 border border-border p-3 animate-in fade-in duration-200">
@@ -235,7 +242,7 @@ export const QuizChoiceCard = ({
         </div>
       )}
 
-      {answered && (
+      {answered && !bare && (
         <div className="mt-3 flex justify-center">
           {correct ? (
             <AskAISentence arabic={arabic} english={english} variant="chip" />

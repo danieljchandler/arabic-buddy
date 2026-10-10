@@ -30,6 +30,8 @@ interface MaskedSentenceAudioOptions {
    * synthesising it. Never before: a recording says the word.
    */
   recordingUrl?: string | null;
+  /** Read nothing: no synthesis at all (the lightning round, which costs nothing). */
+  skip?: boolean;
 }
 
 /**
@@ -49,6 +51,7 @@ export function useMaskedSentenceAudio({
   dialect,
   revealed,
   recordingUrl,
+  skip = false,
 }: MaskedSentenceAudioOptions): { url: string | null; isLoading: boolean; masked: string } {
   const start = span?.start;
   const end = span?.end;
@@ -57,8 +60,8 @@ export function useMaskedSentenceAudio({
     [text, start, end],
   );
   const voice = dialect ?? undefined;
-  const muted = useAzureTTS({ text: masked, skip: !span, dialect: voice });
-  const whole = useAzureTTS({ text, skip: Boolean(recordingUrl) || !revealed, dialect: voice });
+  const muted = useAzureTTS({ text: masked, skip: skip || !span, dialect: voice });
+  const whole = useAzureTTS({ text, skip: skip || Boolean(recordingUrl) || !revealed, dialect: voice });
   if (!revealed) return { url: muted.ttsUrl, isLoading: muted.isLoading, masked };
   return { url: recordingUrl || whole.ttsUrl, isLoading: recordingUrl ? false : whole.isLoading, masked };
 }

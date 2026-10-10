@@ -316,6 +316,67 @@ test.describe("reviewing in the quiz style", () => {
     await expect.poll(() => backend.rpcCallsTo("award_xp").length).toBeGreaterThan(0);
   });
 
+  test("offers the lightning round after the session, and the round writes nothing", async ({ page, db, backend }) => {
+    const past = new Date(Date.now() - 86_400_000).toISOString();
+    const WORDS: Array<[string, string, string]> = [
+      ["السوق", "the market", "رحت السوق أمس"],
+      ["قهوة", "coffee", "شربت قهوة الصبح"],
+      ["البحر", "the sea", "البحر حلو اليوم"],
+    ];
+    db.seed("user_vocabulary", [
+      ...WORDS.map(([arabic, english, sentence], index) =>
+        aUserVocabulary({
+          id: vocabId(index),
+          word_arabic: arabic,
+          word_english: english,
+          sentence_text: sentence,
+          // Seen once and barely held: a first look.
+          repetitions: 1,
+          ease_factor: 0.5,
+          next_review_at: past,
+        }),
+      ),
+      ...many(aUserVocabulary, 4, (index) => ({
+        id: vocabId(index + 3),
+        word_arabic: ["بيت", "مدرسة", "مطعم", "سيارة"][index],
+        word_english: ["house", "school", "restaurant", "car"][index],
+        next_review_at: new Date(Date.now() + 86_400_000 * 30).toISOString(),
+      })),
+    ]);
+    // Which word a card is about: the hint names its meaning; a gap leaves its
+    // sentence's last word, which is never the word itself.
+    const wordFor = (text: string) =>
+      WORDS.find(([, english, sentence]) => text.includes(english) || text.includes(sentence.split(" ").at(-1)!))![0];
+
+    await page.goto("/review/my-words");
+    for (let i = 0; i < 3; i++) {
+      const hint = (await page.getByText(/the missing word means/i).textContent()) ?? "";
+      await page.getByRole("button", { name: wordFor(hint), exact: true }).click();
+      await page.getByRole("button", { name: /continue/i }).click();
+    }
+
+    await expect(page.getByText(/60 seconds over the 3 words you got right/i)).toBeVisible();
+    await expect.poll(() => backend.rpcCallsTo("award_xp").length).toBeGreaterThanOrEqual(3);
+    // Let the session's own writes land before taking the snapshot.
+    await page.waitForTimeout(1000);
+    const rows = JSON.stringify(db.rows("user_vocabulary"));
+    const xp = backend.rpcCallsTo("award_xp").length;
+
+    await page.getByRole("button", { name: /^start$/i }).click();
+    const round = page.getByTestId("lightning-round");
+    for (let i = 0; i < 3; i++) {
+      await expect(round.getByText(`${i + 1} / 3`)).toBeVisible();
+      const sentence = (await round.locator("[dir='rtl']").first().textContent()) ?? "";
+      await round.getByRole("button", { name: wordFor(sentence), exact: true }).click();
+    }
+    await expect(page.getByLabel(/lightning round score/i)).toHaveText("3 / 3");
+
+    // Nothing the round did is a rating or paid anything, not even a moment later.
+    await page.waitForTimeout(1000);
+    expect(JSON.stringify(db.rows("user_vocabulary"))).toBe(rows);
+    expect(backend.rpcCallsTo("award_xp")).toHaveLength(xp);
+  });
+
   test("serves the flip card when the deck is too thin for a question", async ({ page, db }) => {
     const past = new Date(Date.now() - 86_400_000).toISOString();
     db.seed("user_vocabulary", [

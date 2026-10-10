@@ -9,6 +9,8 @@
  * of one word (or "House" and "house") cannot both be offered.
  */
 
+import { normalizeArabicWord } from "@/lib/arabicWord";
+
 /** A small fast PRNG, seeded from a string. */
 function mulberry32(seed: number) {
   let a = seed >>> 0;
@@ -80,4 +82,28 @@ export function buildChoices(
 ): string[] {
   const distractors = pickDistractors(pool, answer, seed, count - 1, normalize);
   return seededShuffle([answer, ...distractors], `${seed}:choices`);
+}
+
+/**
+ * The wrong meanings a word can be offered among: the other words' glosses,
+ * once each. Never the word's own gloss, and never another gloss of the word
+ * itself (a mixed deck's other dialect, a second save of it, in any
+ * spelling): picking that would be a right answer scored wrong.
+ */
+export function otherMeanings(
+  pool: ReadonlyArray<{ arabic: string; english: string }>,
+  word: { arabic: string; english: string },
+): string[] {
+  const own = identity(word.english);
+  const ownWord = normalizeArabicWord(word.arabic);
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const other of pool) {
+    const key = identity(other.english);
+    if (!key || key === own || seen.has(key)) continue;
+    if (ownWord && normalizeArabicWord(other.arabic) === ownWord) continue;
+    seen.add(key);
+    out.push(other.english);
+  }
+  return out;
 }

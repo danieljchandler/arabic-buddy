@@ -25,7 +25,7 @@ means — so a session can pick up the next phase cold.*
 | 7 | The rest of the game | built: "Why not this one?" (PR #430), the lightning round (PR #431), the boss card (PR #432), ladder climbs (PR #433); XP parity is the owner's question |
 | 7b | Apply the `leaderboard_climbs` migration to the live project | **owner action** |
 | 8 | Tuning from real reviews | once the quiz has weeks of history |
-| 9 | Housekeeping | built (PR #PRA); a zero-day interval in the scheduler is the owner's question |
+| 9 | Housekeeping | built (PR #434); a zero-day interval in the scheduler is the owner's question |
 
 Conventions that hold in every phase, from `CLAUDE.md`:
 
@@ -1211,7 +1211,7 @@ ratings and the README table says so.
 
 ---
 
-## Phase 9 — housekeeping (built, PR #PRA)
+## Phase 9 — housekeeping (built, PR #434)
 
 | item | status |
 |---|---|

@@ -1640,22 +1640,59 @@ Deno.test("word-asset refuses a learner's ask to make a clip before anything is 
   assertEquals(table.rows.length, 0);
 });
 
-Deno.test("word-asset makes a clip for the content team, uncharged", async () => {
+/** The content team's upstreams for a clip: the role, the bucket and Veo answering. */
+function staffClipUpstreams(table: UpstreamHandler, roles: string[], extra: Record<string, UpstreamHandler> = {}) {
+  return upstreams({ id: LEARNER_A }, table, {
+    "/rest/v1/user_roles": rolesHeld(...roles),
+    "/storage/v1/bucket/word-animations": () => json({ id: "word-animations" }),
+    [ANIMATIONS_BUCKET]: () => json({ Key: "word-animations/x" }),
+    ...veoLadder(),
+    ...extra,
+  });
+}
+
+Deno.test("word-asset makes a clip for the content team, counted on a clip counter of its own", async () => {
   const table = assetTable();
-  const { status, calls } = await call(
-    { action: "ensure", ...JUMP },
-    upstreams({ id: LEARNER_A }, table.handler, {
-      "/rest/v1/user_roles": rolesHeld("content_reviewer"),
-      "/storage/v1/bucket/word-animations": () => json({ id: "word-animations" }),
-      [ANIMATIONS_BUCKET]: () => json({ Key: "word-animations/x" }),
-      ...veoLadder(),
-    }),
-  );
+  const { status, calls } = await call({ action: "ensure", ...JUMP }, staffClipUpstreams(table.handler, ["content_reviewer"]));
 
   assertEquals(status, 200);
   assertEquals(videoCalls(calls).length, 1);
-  assertEquals(charged(calls), false);
+  // Never the picture or dialogue allowance: clips have a counter of their own.
+  assertEquals(chargedOn(calls), ["word-asset-animation"]);
   assertEquals(table.rows.length, 1);
+});
+
+Deno.test("word-asset stops a reviewer's clips at the day's cap, before anything is drawn", async () => {
+  const table = assetTable();
+  const { status, calls } = await call(
+    { action: "ensure", ...JUMP },
+    staffClipUpstreams(table.handler, ["content_reviewer"], {
+      // The eleventh of the day.
+      "/rest/v1/rpc/increment_usage_counter": () => json(11),
+    }),
+  );
+
+  assertEquals(status, 429);
+  assertEquals(imageCalls(calls), [], "no poster");
+  assertEquals(videoCalls(calls), [], "no render");
+  assertEquals(table.rows.length, 0);
+});
+
+Deno.test("word-asset counts no clip on a hit, and none for the service role or an admin", async () => {
+  // A hit is free for the content team as for anyone.
+  const hit = await call({ action: "ensure", ...JUMP }, staffClipUpstreams(assetTable([storedJump()]).handler, ["content_reviewer"]));
+  assertEquals(hit.status, 200);
+  assertEquals(chargedOn(hit.calls), []);
+
+  // The owner's script runs as the service role: not counted.
+  const script = await call({ action: "ensure", ...JUMP }, clipUpstreams(assetTable().handler), { jwt: SERVICE_ROLE });
+  assertEquals(script.status, 200);
+  assertEquals(chargedOn(script.calls), []);
+
+  // An admin is not limited by any cap here, this one included.
+  const admin = await call({ action: "ensure", ...JUMP }, staffClipUpstreams(assetTable().handler, ["admin"]));
+  assertEquals(admin.status, 200);
+  assertEquals(chargedOn(admin.calls), []);
 });
 
 Deno.test("word-asset builds a clip's prompts from the action alone, never from what the caller sent", async () => {

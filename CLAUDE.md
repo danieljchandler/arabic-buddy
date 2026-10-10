@@ -210,7 +210,8 @@ harness.
   animation (`kind: "animation"`, quiz Phase 5) is keyed on the English
   action alone (`animationConcept`: a qualifier kept, a note or a verb with
   nothing to watch never keyed), made only on that trusted path (a learner's
-  `ensure` is a `403` before any spend, so it has no counter), as an Ink
+  `ensure` is a `403` before any spend; the content team's are capped on
+  `word-asset-animation`, ten a day; the service role is not counted), as an Ink
   poster that Veo animates as its first and last frame, into the
   `word-animations` bucket; only a curriculum word qualifies
   (`qualifiesForAnimation`: its category's head is "verb", or an action

@@ -317,11 +317,20 @@ describe("asking for the reply", () => {
       referenceText: REPLY.answer.arabic,
       locale: "ar-YE",
     });
-    expect(onResult.mock.calls[0][0]).toMatchObject({ kind: "speech", score: 88, recognized: heard, hintUsed: false });
+    // Marked a reply, so the grader holds it to the word and never calls a
+    // clearly-said word a lapse.
+    expect(onResult.mock.calls[0][0]).toMatchObject({ kind: "speech", score: 88, recognized: heard, hintUsed: false, reply: true });
     expect(onResult.mock.calls[0][0].similarity).toBe(1);
     // After the take, the reply is shown with its sound and transliteration.
     expect(screen.getByText(REPLY.answer.arabic)).toBeInTheDocument();
     expect(screen.getByText(REPLY.answer.transliteration)).toBeInTheDocument();
+  });
+
+  it("marks a take on the word or the line as no reply", async () => {
+    const { onResult } = render({}, (b) => b.stubFunction("azure-pronunciation", aResult()));
+    await recordTake();
+    await waitFor(() => expect(onResult).toHaveBeenCalledTimes(1));
+    expect(onResult.mock.calls[0][0].reply).toBeUndefined();
   });
 
   it("reports a reply said without the word as far from it, however close the line came", async () => {

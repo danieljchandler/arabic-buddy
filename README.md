@@ -396,7 +396,14 @@ Grading is `src/lib/quizGrading.ts`: a right choice is Good (never Easy when
 the options were on screen — the lesson quiz's and debrief's rule), a right
 choice reached with help is Hard, wrong is Again; a spoken take is banded by
 its score, and a take that was a different word — or, for a reply, one without
-the word in it — is Again whatever it scored.
+the word in it — is Again whatever it scored. **Decided (2026-10-10): a reply
+with the word clearly in it is never Again.** The score is taken against the
+one stored reply, so a learner who answers the line rightly in other words
+loses on completeness and can land under the Hard band; that would be a lapse
+on a production card a month or more old, for a right answer. When the word's
+span of what was heard reaches `REPLY_WORD_CLEAR` (0.8; a word of three
+letters or fewer only when heard exactly), a low-scoring reply is Hard
+instead.
 Every rating then goes down the page's existing path — the offline queue,
 relearn, leeches, production unlock, the `review_log` trigger — so nothing
 downstream knows the style. `QuizCardFrame` is the one place the ladder, the
@@ -626,8 +633,12 @@ one clip of eating serves the three.
   **Decided: only the trusted path makes a clip; a learner only reads them.**
   That is the service role (`scripts/curriculum-animations.ts`) and the
   content team, through the same `isServiceRoleCall` / `requireRole` gate as
-  an authored scene, and it is charged to nobody, so there is no learner
-  counter. A learner's `ensure` for a clip is refused (`403
+  an authored scene. The service role is charged to nobody. **Decided
+  (2026-10-10): the content team's clips are capped**, on a counter of their
+  own, `word-asset-animation`, ten a day per person (about $2.70 at most; an
+  ID-login reviewer included, an admin, as for every cap, not limited),
+  counted only on a miss and before the poster is drawn. A learner's `ensure`
+  for a clip is refused (`403
   animation_not_for_learners`) before anything is spent; a learner's `get`,
   or an `ensure` that hits, is served free. A learner's miss deciding, at that
   price, a clip every dialect's learners are shown, for a question the card
@@ -738,7 +749,7 @@ poster, its inks stay flat, its camera stays still, and no text appears.
 | The quiz's picture step, for a learner's own word (`QuizCardFrame` → `useEnsureWordAsset`) | the store's picture goes on the learner's row, uncharged; found by the free `useWordAsset` read first, so most hits never reach the function | `ensure` draws and files it, on the learner's daily picture allowance; once per word per session, and silent on any failure |
 | The quiz's reply steps (6 and 9), on the curriculum deck and My Words, for a word its lesson has no line for (`QuizCardFrame` `storedDialogues`) | the stored exchange is asked, uncharged; found by the free `useWordAsset` read first | `ensure` writes and files it, on the learner's daily dialogue allowance, if it passes the leak detector and the native reviewer; otherwise nothing is served and the card asks its fallback |
 | The quiz's "say it" and picture question, on the curriculum deck, for an action word (`QuizCardFrame` `animations`) | the action's clip is shown, uncharged; found by the free `useWordAsset` read, and by `useQuizPool`'s one batched read for the wrong options | nothing is made: the card is asked with its picture, or its meaning |
-| `scripts/curriculum-animations.ts` (the trusted path) | nothing to do, and not counted against `--limit` | `ensure` draws the poster, animates it and files both; charged to nobody |
+| `scripts/curriculum-animations.ts` (the trusted path) | nothing to do, and not counted against `--limit` | `ensure` draws the poster, animates it and files both; charged to nobody (a content team member's own ask is counted on `word-asset-animation`, ten a day) |
 | `scripts/curriculum-pictures.ts` (the trusted path) | the url is copied onto the curriculum row, unless what is filed is a gloss-only picture and the row has an authored scene, which is then drawn in its place | `ensure` draws from the authored scene and files it as `authored`; charged to nobody |
 | The picture dialog (`GenerateImageDialog`) | a word's first picture comes from `word-asset ensure`; the url goes on the learner's row as a generated one did | `ensure` draws and files it. A regeneration, a described picture or a locked style is the learner's own and goes to `generate-flashcard-image`, as does a first picture the store turned away before charging (404 not deployed, 400 a word it cannot file); a failure after the charge is reported, never retried on the illustrator |
 | `persist-word-audio` | a curriculum row gets the recording another row with the same exact text and dialect already has | synthesises, puts it on the row and files it for the next row, as one fresh object |

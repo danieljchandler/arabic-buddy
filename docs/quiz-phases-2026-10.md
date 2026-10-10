@@ -208,12 +208,13 @@ What shipped, so the later phases know what they stand on (writeups: README
 
 An independent review before merge found the phrase mismatch, the short-word
 leniency, the uncheckable rewrite, the unchargeable-word loop and the URL
-bound; all five are fixed above. One design question it raised is left to
-the owner: step 9 is scored against the exact stored reply, so a learner who
-says a correct paraphrase loses on completeness and can be rated Again, a
-lapse on a production card at 30+ days. Showing the reply with the word
-gapped, or not counting such a take as a lapse when the word was clearly
-said, are the two ways out.
+bound; all five are fixed above. One design question it raised went to the
+owner: step 9 is scored against the exact stored reply, so a learner who
+says a correct paraphrase loses on completeness and could be rated Again, a
+lapse on a production card at 30+ days. **Decided 2026-10-10 (shipped with
+Phase 5, PR #426): such a take is not a lapse.** A reply whose word span
+reaches `REPLY_WORD_CLEAR` (0.8) is Hard however low it scored
+(`quizGrading.ts`, the `reply` flag on a speech outcome).
 
 Two things a later phase should know. The card waits up to 12 seconds for a
 drawing, and only when three other words in the pool have pictures — so on a
@@ -360,12 +361,13 @@ What shipped, so the later phases know what they stand on (writeups: README
 
 An independent review before merge found the phrase mismatch, the short-word
 leniency, the uncheckable rewrite, the unchargeable-word loop and the URL
-bound; all five are fixed above. One design question it raised is left to
-the owner: step 9 is scored against the exact stored reply, so a learner who
-says a correct paraphrase loses on completeness and can be rated Again, a
-lapse on a production card at 30+ days. Showing the reply with the word
-gapped, or not counting such a take as a lapse when the word was clearly
-said, are the two ways out.
+bound; all five are fixed above. One design question it raised went to the
+owner: step 9 is scored against the exact stored reply, so a learner who
+says a correct paraphrase loses on completeness and could be rated Again, a
+lapse on a production card at 30+ days. **Decided 2026-10-10 (shipped with
+Phase 5, PR #426): such a take is not a lapse.** A reply whose word span
+reaches `REPLY_WORD_CLEAR` (0.8) is Hard however low it scored
+(`quizGrading.ts`, the `reply` flag on a speech outcome).
 
 Two things a later phase should know. Step 6 needs three other words with
 stored replies before it can ask from a stored exchange, so on a learner's
@@ -451,7 +453,8 @@ What shipped, so the later phases know what they stand on (writeups: README
   names an asset.
 - **`word-asset ensure` makes clips on the trusted path only**: a 16:9 Ink
   poster, then Veo with it as first and last frame, both filed under fresh
-  names; charged to nobody; a learner's ask refused before any spend (`403
+  names; the service role charged nobody, the content team on
+  `word-asset-animation` (ten a day); a learner's ask refused before any spend (`403
   animation_not_for_learners`); `store_not_ready` / `bucket_not_ready` before
   the poster; a render past 100 s finished under `waitUntil` (`202 pending`).
 - **`scripts/curriculum-animations.ts`** (`--dialect`, `--stage`, `--limit`
@@ -489,7 +492,8 @@ What shipped, so the later phases know what they stand on (writeups: README
    then the clip's first and last frame. It loops, keeps the look, and the
    poster is the reduced-motion still.
 3. *Only the trusted path makes clips; learners read them.* No learner
-   counter, because no learner is charged.
+   counter, because no learner is charged. The service role (the script) is
+   charged nobody; the content team is capped (below).
 4. *A learner's saved words do not qualify*: `user_vocabulary` has no part of
    speech, and an English gloss cannot tell "to fly" from "a fly".
 5. *Its own bucket*, so it can refuse anything that is not a clip or a still;
@@ -507,9 +511,12 @@ out" keying a clip, a word with no category qualifying through the
 action-noun list, Google's key able to follow a download redirect, an exact
 content-type match deciding whether a paid clip was kept, and near-twin
 actions ("watch / see", "watch") dealt side by side; all fixed. One design
-point it raised is the owner's: a `content_reviewer` (which an ID login can
-be) may make clips uncapped, about four pictures' worth each, through the
-same gate as an authored scene — the gate the owner asked to reuse.
+point it raised went to the owner: a `content_reviewer` (which an ID login
+can be) could make clips uncapped, about four pictures' worth each, through
+the same gate as an authored scene. **Decided 2026-10-10: capped.** The
+content team's clips are counted on `word-asset-animation`, ten a day per
+person (`ANIMATION_STAFF_CAP`); the service role is not counted, and an
+admin, as for every cap, is not limited.
 
 **On "done when".** The plan says the Stage 1 verbs. The tracks' Stage 1
 verbs are almost all "I want" ("أبي", "اشتي", "تبي"), which has nothing to

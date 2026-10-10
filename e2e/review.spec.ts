@@ -832,6 +832,29 @@ test.describe("the reply steps, from a word's exchange", () => {
     expect(backend.db.rows("word_reviews")[0]?.production_lapses).toBe(1);
   });
 
+  test("a reply in other words, with the word clearly in it, is Hard and never a lapse", async ({ page }) => {
+    // Right, but not the stored line: the score is low on completeness.
+    await signIn(page);
+    const backend = await stubSupabase(page, { tables: matureDeck() });
+    backend.stubFunction("azure-pronunciation", {
+      overall: 41,
+      accuracy: 70,
+      fluency: 60,
+      completeness: 35,
+      words: [],
+      recognizedText: "رحت السوق",
+      locale: "ar-SA",
+    });
+
+    await page.goto("/review");
+    await expect(page.getByText("Say the reply in Arabic")).toBeVisible();
+    await sayTheReply(page, backend);
+    await page.getByRole("button", { name: /continue/i }).click();
+
+    await expect.poll(() => backend.db.rows("word_reviews")[0]?.last_result).toBe("hard");
+    expect(backend.db.rows("word_reviews")[0]?.production_lapses ?? 0).toBe(0);
+  });
+
   test("says the line instead while the store's table is not on the live project", async ({ page }) => {
     // No exchange can be read or kept: the step falls back to step 8, and
     // nothing is made.

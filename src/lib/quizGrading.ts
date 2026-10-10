@@ -24,6 +24,13 @@ import { arabicSimilarity } from "../../supabase/functions/_shared/arabicMatch";
  * said. On "say the reply" the take is a whole line and the word is what the
  * step is about, so the comparison is made on the word's span of what was
  * heard (`wordSpanSimilarity`): a reply said without the word is Again.
+ *
+ * And a reply with the word clearly in it is never Again, however it scored.
+ * The score is taken against the one stored reply, so a learner who answers
+ * the line correctly in other words loses on completeness and can land below
+ * the Hard band; rated Again, that would be a lapse on a production card a
+ * month or more old, for an answer that was right. Decided by the owner on
+ * 2026-10-10: such a take is Hard, not a lapse (`REPLY_WORD_CLEAR`).
  */
 
 export interface ChoiceOutcome {
@@ -44,6 +51,11 @@ export interface SpeechOutcome {
   similarity: number | null;
   /** The learner asked for the meaning before saying a word shown as a picture. */
   hintUsed?: boolean;
+  /**
+   * The take is a whole reply (step 9), and `similarity` is the word's span
+   * of what was heard (`wordSpanSimilarity`), not the take's.
+   */
+  reply?: boolean;
 }
 
 export type QuizOutcome = ChoiceOutcome | SpeechOutcome;
@@ -63,6 +75,15 @@ export const SPEECH_THRESHOLDS = {
  */
 export const SPEECH_MATCH_FLOOR = 0.5;
 
+/**
+ * How close the word's span of a reply must come for the word to count as
+ * clearly said. Stricter than `SPEECH_MATCH_FLOOR`, which only rules out a
+ * different word: this one lifts a low-scoring reply out of Again, so it asks
+ * for the word itself. A word of `SHORT_WORD_LETTERS` or fewer reaches it only
+ * when heard exactly.
+ */
+export const REPLY_WORD_CLEAR = 0.8;
+
 export function gradeQuizAnswer(outcome: QuizOutcome): Rating {
   if (outcome.kind === "choice") {
     if (!outcome.correct) return "again";
@@ -71,7 +92,12 @@ export function gradeQuizAnswer(outcome: QuizOutcome): Rating {
 
   if (outcome.similarity != null && outcome.similarity < SPEECH_MATCH_FLOOR) return "again";
   const score = Number.isFinite(outcome.score) ? outcome.score : 0;
-  if (score < SPEECH_THRESHOLDS.hard) return "again";
+  if (score < SPEECH_THRESHOLDS.hard) {
+    // A reply in the learner's own words with the word clearly in it scores
+    // low against the stored line, and is still a right answer: not a lapse.
+    const wordClearlySaid = outcome.reply === true && outcome.similarity != null && outcome.similarity >= REPLY_WORD_CLEAR;
+    return wordClearlySaid ? "hard" : "again";
+  }
   // A word said well after asking what the picture meant was recalled from
   // the meaning, not the picture: the sounds earn their band, capped at Hard.
   if (outcome.hintUsed) return "hard";

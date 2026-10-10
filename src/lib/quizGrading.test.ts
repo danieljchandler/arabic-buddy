@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  REPLY_WORD_CLEAR,
   SPEECH_MATCH_FLOOR,
   SPEECH_THRESHOLDS,
   gradeQuizAnswer,
@@ -61,6 +62,40 @@ describe("a spoken answer", () => {
 
   it("treats a missing score as a miss", () => {
     expect(gradeQuizAnswer({ kind: "speech", score: Number.NaN, similarity: 1 })).toBe("again");
+  });
+});
+
+describe("a spoken reply (step 9)", () => {
+  const reply = (score: number, similarity: number | null) =>
+    gradeQuizAnswer({ kind: "speech", score, similarity, reply: true });
+
+  it("is never a lapse when the word was clearly said, however low the take scored", () => {
+    // A right answer in other words loses on completeness against the stored
+    // line; it is Hard, not Again.
+    expect(reply(30, 1)).toBe("hard");
+    expect(reply(SPEECH_THRESHOLDS.hard - 1, REPLY_WORD_CLEAR)).toBe("hard");
+  });
+
+  it("is still Again without the word, or with only something like it", () => {
+    expect(reply(30, SPEECH_MATCH_FLOOR - 0.01)).toBe("again");
+    // Close enough not to be a different word, not clear enough to lift a low score.
+    expect(reply(30, REPLY_WORD_CLEAR - 0.01)).toBe("again");
+    expect(reply(30, null)).toBe("again");
+  });
+
+  it("bands a reply that scored well exactly as any take", () => {
+    expect(reply(90, 1)).toBe("easy");
+    expect(reply(75, 1)).toBe("good");
+  });
+
+  it("lifts nothing that is not a reply", () => {
+    expect(gradeQuizAnswer({ kind: "speech", score: 30, similarity: 1 })).toBe("again");
+  });
+
+  it("counts a short word as clear only when it was heard exactly", () => {
+    // زين heard as وين: the span is held below the floor, so no lift.
+    expect(reply(30, wordSpanSimilarity("وين", "زين"))).toBe("again");
+    expect(reply(30, wordSpanSimilarity("الأكل زين", "زين"))).toBe("hard");
   });
 });
 

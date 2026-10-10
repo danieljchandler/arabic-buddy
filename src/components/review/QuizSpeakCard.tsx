@@ -125,7 +125,15 @@ export const QuizSpeakCard = ({
         : replying
           ? wordSpanSimilarity(recognized, arabic)
           : arabicSimilarity(recognized, target);
-      onResult({ kind: "speech", score: scored.overall, similarity, recognized, hintUsed: hintUsedRef.current });
+      onResult({
+        kind: "speech",
+        score: scored.overall,
+        similarity,
+        recognized,
+        hintUsed: hintUsedRef.current,
+        // Graded on the word's span, and never a lapse when the word is clear.
+        ...(replying ? { reply: true } : {}),
+      });
     },
   });
 

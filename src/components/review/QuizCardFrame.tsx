@@ -595,6 +595,7 @@ export const QuizCardFrame = ({
         score: result.score,
         similarity: result.similarity,
         hintUsed: result.hintUsed,
+        reply: result.reply,
       }),
     );
 

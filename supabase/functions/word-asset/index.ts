@@ -30,7 +30,8 @@
  *   (`word_not_in_dialect`), since no exchange using it could be filed;
  * - animations (`kind: "animation"`, quiz Phase 5): a four-second looping clip
  *   of an action word, keyed on the English action alone and shared by every
- *   dialect. Made on the trusted path only (below) and never for a learner: a
+ *   dialect. Made on the trusted path only (below), the content team's on a
+ *   daily counter of their own (`ANIMATION_STAFF_CAP`), and never for a learner: a
  *   clip costs a poster and four seconds of Veo, several times a picture, takes
  *   longer to render than any card waits, and is shown to every dialect's
  *   learners of the action, so a learner's miss is not what decides it. A
@@ -61,7 +62,9 @@
  * - nothing is charged. There is no learner to charge under the service
  *   role, and an authored asset is the catalogue's, not a staff member's
  *   own allowance. Authored context from anyone else is ignored, not
- *   refused, and that caller is charged as the learner they are;
+ *   refused, and that caller is charged as the learner they are. The one
+ *   exception is a clip asked for by the content team, counted on
+ *   `ANIMATION_STAFF_CAP` because it costs several pictures;
  * - what it files is `source: "authored"`, with the context in `meta`;
  * - it replaces what a learner's miss filed first under the same key
  *   (curriculum and learners share keys: a curriculum word's sense is its
@@ -161,9 +164,16 @@ const CAPS = {
 } as const;
 
 /**
- * The kinds `ensure` makes. An animation is made on the trusted path alone,
- * so it has no counter: nobody it would be charged to may ask for one.
+ * A clip from the content team, per day, per person: about $0.27 each, so
+ * ten is at most $2.70 a day for any reviewer, an ID login included. Decided
+ * by the owner on 2026-10-10 ("cap it"). The service role — the owner's own
+ * run of `scripts/curriculum-animations.ts` — is not counted, and an admin,
+ * as for every cap here, is not limited (`enforceDailyCap`). Learners are
+ * refused a clip outright, so this is the only counter clips have.
  */
+const ANIMATION_STAFF_CAP = { key: "word-asset-animation", perDay: 10 } as const;
+
+/** The kinds `ensure` makes. An animation is made on the trusted path alone. */
 const ENSURABLE = ["image", "dialogue", "animation"] as const;
 
 type EnsurableKind = (typeof ENSURABLE)[number];
@@ -403,6 +413,14 @@ serve(async (req) => {
         400,
       );
     }
+  }
+
+  // A content team member's clip is counted, on a counter of its own and only
+  // now, on the miss, with nothing spent yet; the service role's is not.
+  if (key.kind === "animation" && !viaServiceRole) {
+    const { key: capKey, perDay } = ANIMATION_STAFF_CAP;
+    const limited = await enforceDailyCap(req, capKey, perDay, corsHeaders, { standard: perDay, allin: perDay });
+    if (limited.limited) return limited.response;
   }
 
   // Charged only now, on the miss, and only to a learner, on the kind's own

@@ -25,7 +25,7 @@ means — so a session can pick up the next phase cold.*
 | 7 | The rest of the game | built: "Why not this one?" (PR #430), the lightning round (PR #431), the boss card (PR #432), ladder climbs (PR #433); XP parity is the owner's question |
 | 7b | Apply the `leaderboard_climbs` migration to the live project | **owner action** |
 | 8 | Tuning from real reviews | once the quiz has weeks of history |
-| 9 | Housekeeping | built (PR #PRA); a zero-day interval in the scheduler is the owner's question |
+| 9 | Housekeeping | built (PR #434); a zero-day interval in the scheduler is the owner's question |
 
 Conventions that hold in every phase, from `CLAUDE.md`:
 
@@ -1265,7 +1265,7 @@ ratings and the README table says so.
 
 ---
 
-## Phase 9 — housekeeping (built, PR #PRA)
+## Phase 9 — housekeeping (built, PR #434)
 
 | item | status |
 |---|---|
@@ -1313,7 +1313,16 @@ ratings and the README table says so.
     the connection is back.
   - Leaving the page drops the due-words cache, so coming back within its
     five minutes does not serve the list from before this visit's ratings
-    (offline, it would join that list's paused fetch).
+    (offline, it would join that list's paused fetch). Coming back offline
+    says "You're offline" until the deck can load: a first fetch paused
+    offline is not `isLoading` to React Query, and the page used to read it
+    as an empty deck, saying nothing was due or forwarding to another deck.
+  - Left as they are, from the review: while ratings are queued the due
+    counts (the dock badge, the next deck's "N cards") still count by the
+    server's schedule, so they can offer a few cards the list then leaves
+    out; and a new card whose first rating has waited in the queue a day is
+    served again, and a second first rating fails as a duplicate when the
+    queue drains ("One rating couldn't be saved").
   - The unused `goToNext` went with it; it had the same unguarded refetch.
   - My Words and My Phrases save each rating before they move on, so they
     never had the race.
@@ -1335,10 +1344,11 @@ ratings and the README table says so.
 `src/lib/reviewQueue.test.ts`; the backoff and the budget refresh in
 `src/hooks/useReviewQueue.test.ts`; in `src/hooks/useReview.test.ts`, the
 queued-card exclusion (a rating given while the fetch is out, and one that
-lands while it is out), the day's limit on it, and the cap; and four e2e in
+lands while it is out), the day's limit on it, and the cap; and five e2e in
 `review.spec.ts`, the two below plus "a slow answer at the end of the list is
-not the end of the session until it lands" and "a card rated before leaving
-the page is not served on the way back". "never serves the card just rated while
+not the end of the session until it lands", "a card rated before leaving the
+page is not served on the way back" and "coming back offline says so, rather
+than that nothing is due". "never serves the card just rated while
 its rating waits to be saved" fails the write and slows the deck, and expects
 "Checking for more cards…", no card, the summary, and the rating saved once
 the connection is back. "the keys do nothing once the last card is rated"

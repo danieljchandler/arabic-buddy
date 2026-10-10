@@ -22,7 +22,7 @@ means — so a session can pick up the next phase cold.*
 | 5b | Apply the bucket migration, deploy `word-asset`, run `scripts/curriculum-animations.ts` | **owner action** (after 2b) |
 | 6 | Words in stories | built (PR #428) |
 | 6b | Deploy `word-asset` (this version), then run `scripts/curriculum-stories.ts` | **owner action** (after 2b) |
-| 7 | The rest of the game | built: "Why not this one?" (PR #430), the lightning round (PR #431), the boss card (PR #432), ladder climbs (PR #CLIMBS); XP parity is the owner's question |
+| 7 | The rest of the game | built: "Why not this one?" (PR #430), the lightning round (PR #431), the boss card (PR #432), ladder climbs (PR #433); XP parity is the owner's question |
 | 7b | Apply the `leaderboard_climbs` migration to the live project | **owner action** |
 | 8 | Tuning from real reviews | once the quiz has weeks of history |
 | 9 | Housekeeping | any time |
@@ -880,7 +880,7 @@ One PR per item, in this order, each independent of the asset store:
 | 7.1 "Why not this one?" on every choice step | built (PR #430) |
 | 7.2 The lightning round | built (PR #431, on #430) |
 | 7.3 The boss card | built (PR #432, on #431) |
-| 7.4 Ladder climbs on the leaderboard | built (PR #CLIMBS, on #432); the migration is 7b |
+| 7.4 Ladder climbs on the leaderboard | built (PR #433, on #432); the migration is 7b |
 | XP parity for the flip cards | **a question for the owner**, not built |
 
 ### 7.1 "Why not this one?" on every choice step (built, PR #430)
@@ -1070,7 +1070,7 @@ there is Good; the hook stays hidden so that Good is earned, but the question
 is easier than its step. Untested at unit level: `useDueWords({ bossFirst })`
 and the pages' `isBossTurn` wiring (the e2e covers `/review`).
 
-### 7.4 Ladder climbs on the leaderboard (built, PR #CLIMBS; the migration is 7b)
+### 7.4 Ladder climbs on the leaderboard (built, PR #433; the migration is 7b)
 
 What shipped (writeup: README "Reviewing as a quiz instead of flashcards",
 ladder climbs on the leaderboard):

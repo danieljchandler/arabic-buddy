@@ -55,8 +55,8 @@ describe("the curriculum pool", () => {
 
     await waitFor(() => expect(r.result.current.data).toBeDefined());
     expect(r.result.current.data).toEqual([
-      { arabic: "بيت", english: "house", imageUrl: "https://img.test/house.png", audioUrl: "https://audio.test/house.mp3" },
-      { arabic: "مدرسة", english: "school", imageUrl: null, audioUrl: null },
+      { arabic: "بيت", english: "house", imageUrl: "https://img.test/house.png", audioUrl: "https://audio.test/house.mp3", dialect: "Gulf" },
+      { arabic: "مدرسة", english: "school", imageUrl: null, audioUrl: null, dialect: "Gulf" },
     ]);
   });
 
@@ -66,6 +66,9 @@ describe("the curriculum pool", () => {
 
     await waitFor(() => expect(r.result.current.data).toBeDefined());
     expect(r.result.current.data!.map((e) => e.english)).toContain("egyptian word");
+    // Each word keeps its dialect, so "Why not this one?" names a wrong
+    // meaning's word only from the card's own.
+    expect(r.result.current.data!.find((e) => e.english === "egyptian word")?.dialect).toBe("Egyptian");
   });
 
   it("reads nothing while the quiz is off", async () => {
@@ -108,7 +111,37 @@ describe("the saved pools", () => {
     cleanup = r.cleanup;
 
     await waitFor(() => expect(r.result.current.data).toBeDefined());
-    expect(r.result.current.data).toEqual([{ arabic: "ملكي", english: "mine", imageUrl: null, audioUrl: null }]);
+    expect(r.result.current.data).toEqual([{ arabic: "ملكي", english: "mine", imageUrl: null, audioUrl: null, dialect: "Gulf" }]);
+  });
+
+  it("keeps each saved word's own dialect, in a session that mixes them", async () => {
+    const r = renderHookWithProviders(() => useSavedWordPool("Gulf", true), {
+      persona: "free",
+      seed: (b) =>
+        b.db.seed("user_vocabulary", [
+          aUserVocabulary({ id: vocabId(0), word_arabic: "ملكي", word_english: "mine", dialect: "Gulf" }),
+          aUserVocabulary({ id: vocabId(1), word_arabic: "مصري", word_english: "mine, egyptian", dialect: "Egyptian" }),
+        ]),
+    });
+    cleanup = r.cleanup;
+
+    await waitFor(() => expect(r.result.current.data).toHaveLength(2));
+    expect(r.result.current.data!.find((e) => e.arabic === "مصري")?.dialect).toBe("Egyptian");
+  });
+
+  it("keeps each saved phrase's own dialect, in a session that mixes them", async () => {
+    const r = renderHookWithProviders(() => useSavedPhrasePool("Gulf", true), {
+      persona: "free",
+      seed: (b) =>
+        b.db.seed("user_phrases", [
+          aUserPhrase({ id: phraseId(0), user_id: TEST_USER_ID, phrase_arabic: "عبارتي", phrase_english: "my phrase" }),
+          aUserPhrase({ id: phraseId(1), user_id: TEST_USER_ID, phrase_arabic: "دلوقتي", phrase_english: "now", dialect: "Egyptian" }),
+        ]),
+    });
+    cleanup = r.cleanup;
+
+    await waitFor(() => expect(r.result.current.data).toHaveLength(2));
+    expect(r.result.current.data!.find((e) => e.arabic === "دلوقتي")?.dialect).toBe("Egyptian");
   });
 
   it("draws the learner's phrases the same way", async () => {
@@ -123,7 +156,7 @@ describe("the saved pools", () => {
     cleanup = r.cleanup;
 
     await waitFor(() => expect(r.result.current.data).toBeDefined());
-    expect(r.result.current.data).toEqual([{ arabic: "عبارتي", english: "my phrase", imageUrl: null, audioUrl: null }]);
+    expect(r.result.current.data).toEqual([{ arabic: "عبارتي", english: "my phrase", imageUrl: null, audioUrl: null, dialect: "Gulf" }]);
   });
 
   it("waits for a signed-in learner", async () => {
@@ -273,7 +306,7 @@ describe("stored replies, for the reply question's wrong options", () => {
         await vi.advanceTimersByTimeAsync(STORED_REPLIES_WAIT_MS + 100);
       });
       await waitFor(() => expect(r.result.current.data).toBeDefined());
-      expect(r.result.current.data).toEqual([{ arabic: "بيت", english: "house", imageUrl: null, audioUrl: null }]);
+      expect(r.result.current.data).toEqual([{ arabic: "بيت", english: "house", imageUrl: null, audioUrl: null, dialect: "Gulf" }]);
     } finally {
       vi.useRealTimers();
     }

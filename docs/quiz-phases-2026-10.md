@@ -941,7 +941,9 @@ by another dialect's word for it ("bread" as the Egyptian «عيش» under a Gul
 card, where عيش is rice). The word named is one the learner's deck holds for
 that meaning, so the naming is not false, only perhaps not the mix-up they
 made; carrying the dialect on `QuizPoolEntry` and naming only the card's own
-dialect's word would close it.
+dialect's word would close it. *Closed in the Phase 7 follow-ups (PR #435):
+every pool entry carries its dialect, and `wordForMeaning` names only the
+card's own.*
 
 ### 7.2 The lightning round (built, PR #431)
 
@@ -1002,7 +1004,9 @@ And five low ones, fixed: the last answer's reveal was skipped, a replay could
 deal the same order and the gap the same options, the "nothing written" checks
 were one-shot (they now wait a second), My Words had no test of its wiring (an
 e2e now plays a round there), and the clock and score lacked roles. Not
-tested on its own: My Phrases' wiring, which is the same three lines.
+tested on its own: My Phrases' wiring, which is the same three lines. *Now
+tested in the Phase 7 follow-ups (PR #435): `e2e/my-phrases.spec.ts`, the deck's
+first e2e, plays a round there.*
 
 ### 7.3 The boss card (built, PR #432)
 
@@ -1069,7 +1073,10 @@ a raw amber. A question it raised for the owner: a leech whose own step is
 well past 1 is still asked a first look, as the plan says, and a right answer
 there is Good; the hook stays hidden so that Good is earned, but the question
 is easier than its step. Untested at unit level: `useDueWords({ bossFirst })`
-and the pages' `isBossTurn` wiring (the e2e covers `/review`).
+and the pages' `isBossTurn` wiring (the e2e covers `/review`). *Closed in the
+Phase 7 follow-ups (PR #435): `useReview.test.ts` covers the due list's boss,
+the three pages ask one pure `bossFor`, and My Words and My Phrases each have a
+boss e2e.*
 
 A last review of the four Phase 7 PRs together, before merging, found one
 more, high, in the fix above: with the rescue panel shown after the answer,
@@ -1150,6 +1157,65 @@ older than this phase, for the owner: nothing in the repo resets
 `user_xp.xp_this_week` (`award_xp` only adds to it), so unless a scheduled job
 on the live project does, "XP this week" is not this week's, while climbs
 are.
+
+### Phase 7 follow-ups (PR #435)
+
+What the four Phase 7 PRs left open, closed:
+
+- **The boss, asked one way.** Each page built `QuizItem.boss` itself:
+  `isBossTurn`, then the lapses and the hook again, and My Phrases without
+  the relearn check (it has no relearn pass). `bossFor` in
+  `src/lib/bossCard.ts` is now the one function, with its own tests;
+  `QuizItem.boss` is its `BossInfo`.
+- **The due list's boss** at unit level (`src/hooks/useReview.test.ts`,
+  alongside Phase 9's queued-card tests): the leech with the most lapses on
+  both schedules goes first, the rest in their order. It fails if the order
+  reads one schedule's lapses only.
+- **My Phrases' first e2e** (`e2e/my-phrases.spec.ts`): a due phrase asked
+  for its meaning, rated and paid; the boss opening the session and beaten;
+  the lightning round offered, played and writing nothing. My Words gains a
+  boss e2e, with lapses on both schedules.
+- **The dialect on the pool.** `QuizPoolEntry.dialect` is set by all three
+  pools (the phrase pool now reads `dialect` too), and `wordForMeaning` names
+  only a word of the card's own dialect, comparing without case. An entry or a
+  card with no dialect is still named, as before.
+- **The banner's hook.** The frame latched the whole boss for the card's
+  presentation, so a hook made in the rescue panel after the answer showed in
+  the panel but not the banner. It now latches only that the card is the boss
+  and reads the hook live while the page still marks it.
+- **Doc nits.** `QuizItem.boss` and `bossCard.ts` still said the picture was
+  in view; it is behind the hook's tap since the review of 7.3.
+
+A second agent, which had not seen the work, reviewed it and found nothing
+high. Fixed from its review:
+
+- *Medium:* the banner went back to the hook it was mounted with when the
+  leech flag was cleared after a new hook was made (with the old hook's
+  picture, which the panel had cleared). The frame now latches the last hook
+  the page marked.
+- *Medium:* rating a phrase invalidated My Phrases' due list, so the page's
+  next card shifted under it once the refetch landed and a phrase was
+  skipped until the end of the list. The rating now refreshes only the
+  count, as My Words' does; the page refetches at the end of the list, and
+  the e2e asserts the order. A second look found that this broke Undo,
+  which refetched and then pointed its index into the server's list, without
+  the phrases rated earlier: it now patches the session's list to the row it
+  restored and lands on the phrase by id, refetching only when the phrase has
+  left the list; an e2e undoes on My Phrases and checks it stays. Both decks
+  also drop their due list on leaving the page, as `/review` does, so coming
+  back never serves the list from before the visit's ratings.
+- *Left as it is:* My Words' Undo refetches its list, as it always has, so
+  the index it goes back to can point at another card once the refetch
+  lands. The same fix was tried and taken back after review: a saved word's
+  two directions are two cards with one id, and an Undo of a relearn rating
+  must not rewind the list, so it needs the card's direction and the relearn
+  pass in its undo record. That is its own change.
+- *Low:* the pages' fallback pools (used when the pool read fails) carried no
+  dialect; they do now. `wordForMeaning` compares dialects with
+  `normalizeDialect`, as the reply question does. Two boss e2e asserted the
+  banner gone while the celebration's dialog hid the page from the
+  accessibility tree (the original on `/review` too); they now close it
+  first. The saved pools gained mixed-dialect cases.
 
 ### 7b — owner action
 

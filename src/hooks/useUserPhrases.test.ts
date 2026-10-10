@@ -1,9 +1,10 @@
-import { waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { act, waitFor } from "@testing-library/react";
+import { QueryClient } from "@tanstack/react-query";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderHookWithProviders } from "@/test/support/react/harness";
 import { aUserPhrase, phraseId, TEST_USER_ID } from "@/test/support/factories";
 import type { SupabaseBackend } from "@/test/support/server/handler";
-import { useDueUserPhrases } from "./useUserPhrases";
+import { useDueUserPhrases, useUpdateUserPhraseReview } from "./useUserPhrases";
 
 /**
  * The saved-phrase deck's due list, and the quiz's boss in it (quiz Phase 7):
@@ -16,6 +17,7 @@ let cleanup: (() => void) | undefined;
 afterEach(() => {
   cleanup?.();
   cleanup = undefined;
+  vi.restoreAllMocks();
 });
 
 const yesterday = new Date(Date.now() - 86_400_000).toISOString();
@@ -52,5 +54,29 @@ describe("the due phrases", () => {
     expect(order).toHaveLength(4);
     expect(order[1]).toBe("most overdue");
     expect(order.slice(2).sort()).toEqual(["a leech", "a settled leech"]);
+  });
+});
+
+describe("rating a phrase", () => {
+  it("leaves the due list alone, so the session's next card does not shift under it", async () => {
+    const invalidate = vi.spyOn(QueryClient.prototype, "invalidateQueries");
+    const r = renderHookWithProviders(() => useUpdateUserPhraseReview(), { persona: "free", seed });
+    cleanup = r.cleanup;
+
+    await act(async () => {
+      await r.result.current.mutateAsync({
+        phraseId: phraseId(0),
+        stability: 3,
+        difficulty: 5,
+        intervalDays: 3,
+        repetitions: 2,
+        nextReviewAt: new Date(Date.now() + 3 * 86_400_000),
+        rating: "good",
+      });
+    });
+
+    // The badge's count is refreshed; the list the page is walking is not.
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ["user-phrases-due-count"] });
+    expect(invalidate).not.toHaveBeenCalledWith({ queryKey: ["user-phrases-due"] });
   });
 });

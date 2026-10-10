@@ -377,6 +377,66 @@ test.describe("reviewing in the quiz style", () => {
     expect(backend.rpcCallsTo("award_xp")).toHaveLength(xp);
   });
 
+  test("opens on the worst leech as a first look, and beating it is celebrated", async ({ page, db }) => {
+    const HOOK = "A souq stall selling socks";
+    const day = 86_400_000;
+    db.seed("user_vocabulary", [
+      // More overdue, but no leech.
+      aUserVocabulary({
+        id: vocabId(0),
+        word_arabic: "قهوة",
+        word_english: "coffee",
+        sentence_text: "شربت قهوة الصبح",
+        ease_factor: 10,
+        repetitions: 4,
+        next_review_at: new Date(Date.now() - 3 * day).toISOString(),
+      }),
+      // The boss: settled enough to be heard alone (step 4), missed on both
+      // schedules, and asked as a first look all the same.
+      aUserVocabulary({
+        id: vocabId(1),
+        word_arabic: "السوق",
+        word_english: "the market",
+        sentence_text: "رحت السوق أمس",
+        ease_factor: 10,
+        repetitions: 4,
+        is_leech: true,
+        lapses: 4,
+        production_lapses: 3,
+        mnemonic: HOOK,
+        next_review_at: new Date(Date.now() - day).toISOString(),
+      }),
+      ...many(aUserVocabulary, 4, (index) => ({
+        id: vocabId(index + 2),
+        word_arabic: ["بيت", "مدرسة", "مطعم", "سيارة"][index],
+        word_english: ["house", "school", "restaurant", "car"][index],
+        next_review_at: new Date(Date.now() + 30 * day).toISOString(),
+      })),
+    ]);
+
+    await page.goto("/review/my-words");
+
+    const boss = page.getByRole("region", { name: "Boss card" });
+    await expect(boss).toContainText("missed 7 times");
+    await expect(page.getByText(/the missing word means/i)).toContainText("the market");
+    await expect(page.getByText(HOOK)).toHaveCount(0);
+
+    await page.getByRole("button", { name: "السوق", exact: true }).click();
+    await expect(boss.getByText(HOOK)).toBeVisible();
+    await page.getByRole("button", { name: /continue/i }).click();
+
+    // Closed at once: a small celebration closes itself after a moment, and
+    // it hides the page from the accessibility tree while it is open.
+    const beaten = page.getByRole("dialog", { name: "Boss beaten!" });
+    await expect(beaten).toBeVisible();
+    await beaten.getByRole("button", { name: "Continue" }).click();
+    // Graded as a first look, Good, on the leech's own row.
+    await expect.poll(() => db.rows("user_vocabulary").find((r) => r.id === vocabId(1))?.repetitions).toBe(5);
+    // The next word is an ordinary card.
+    await expect(page.getByRole("img", { name: /step \d+ of 10/i })).toBeVisible();
+    await expect(page.getByRole("region", { name: "Boss card" })).toHaveCount(0);
+  });
+
   test("serves the flip card when the deck is too thin for a question", async ({ page, db }) => {
     const past = new Date(Date.now() - 86_400_000).toISOString();
     db.seed("user_vocabulary", [

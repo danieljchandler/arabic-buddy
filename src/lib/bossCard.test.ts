@@ -1,5 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { BOSS_MEMORY, bossBeaten, canBeBoss, isBossTurn, pickBoss, withBossFirst, type BossCandidate } from "./bossCard";
+import {
+  BOSS_MEMORY,
+  bossBeaten,
+  bossFor,
+  canBeBoss,
+  isBossTurn,
+  pickBoss,
+  withBossFirst,
+  type BossCandidate,
+  type BossTurnCard,
+} from "./bossCard";
 import { rungForMemory } from "./quizLadder";
 
 /**
@@ -100,5 +110,50 @@ describe("beating the boss", () => {
     expect(bossBeaten({ correct: false, item: { boss } })).toBe(false);
     expect(bossBeaten({ correct: true, item: { boss: null } })).toBe(false);
     expect(bossBeaten({ correct: true, item: {} })).toBe(false);
+  });
+});
+
+describe("the boss a page puts on the card on screen", () => {
+  // Every quiz deck asks this one function, so a deck cannot drift from the
+  // others in what makes its first card the boss.
+  const leech: BossTurnCard = {
+    isLeech: true,
+    lapses: 5,
+    direction: "recognition",
+    mnemonic: "A sock on every stall",
+    pictureUrl: "https://img.test/hook.png",
+  };
+  const turn = (over: Partial<Parameters<typeof bossFor>[0]> = {}) =>
+    bossFor({ answered: 0, position: 0, relearn: false, tracking: true, card: leech, ...over });
+
+  it("is the first card's, before any answer, with its lapses, hook and picture", () => {
+    expect(turn()).toEqual({ lapses: 5, mnemonic: "A sock on every stall", pictureUrl: "https://img.test/hook.png" });
+  });
+
+  it("carries no hook or picture it was not given", () => {
+    expect(turn({ card: { isLeech: true, lapses: 2, direction: "recognition" } })).toEqual({
+      lapses: 2,
+      mnemonic: null,
+      pictureUrl: null,
+    });
+  });
+
+  it("is nobody once a card has been answered, or further down the deck", () => {
+    expect(turn({ answered: 1 })).toBeNull();
+    expect(turn({ position: 1 })).toBeNull();
+  });
+
+  it("is never a relearn card come back, though the list index still reads 0", () => {
+    expect(turn({ relearn: true })).toBeNull();
+  });
+
+  it("is nobody while the learner does not track leeches", () => {
+    expect(turn({ tracking: false })).toBeNull();
+  });
+
+  it("is never a card served for production, or one that is not a leech", () => {
+    expect(turn({ card: { ...leech, direction: "production" } })).toBeNull();
+    expect(turn({ card: { ...leech, isLeech: false } })).toBeNull();
+    expect(turn({ card: { ...leech, lapses: 0 } })).toBeNull();
   });
 });

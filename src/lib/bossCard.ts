@@ -4,8 +4,8 @@ import type { QuizDirection, QuizMemory } from "@/lib/quizLadder";
  * The boss card (quiz Phase 7): the session opens on the learner's worst
  * word. Of the cards due, the leech with the most lapses comes first, and is
  * asked as a first look — the gap with its meaning beside it, the ladder's
- * gentlest question — with its picture in view and its mnemonic a tap away.
- * Beating it is a celebration (`celebrate({ kind: "boss" })`).
+ * gentlest question — with its memory hook and picture a tap away (opening
+ * them first is help). Beating it is a celebration (`celebrate({ kind: "boss" })`).
  *
  * The boss is chosen from what is due, never added to it, so nothing is
  * reviewed early; and only on the recognition side, because a first look
@@ -76,3 +76,57 @@ export function bossBeaten(graded: { correct: boolean; item: { boss?: unknown } 
 
 /** The memory a boss is asked from: a first look, whatever its stability. */
 export const BOSS_MEMORY: QuizMemory = { stability: 0, repetitions: 0 };
+
+/** What the quiz is told about the boss on screen (`QuizItem.boss`). */
+export interface BossInfo {
+  /** How often the word has been missed, on either schedule. */
+  lapses: number;
+  /** The learner's memory hook for it, if they have one. */
+  mnemonic?: string | null;
+  /** The hook's picture, else the word's own. */
+  pictureUrl?: string | null;
+}
+
+/** The card on screen, as a page knows it. */
+export interface BossTurnCard {
+  /** The card is flagged a leech. */
+  isLeech: boolean;
+  /** Lapses on every schedule the word has: "the most lapses". */
+  lapses: number;
+  /** The direction it is served in. */
+  direction: QuizDirection;
+  mnemonic?: string | null;
+  pictureUrl?: string | null;
+}
+
+/**
+ * The boss to put on the card on screen, or null. Every quiz deck asks this
+ * the same way: the session's first card, before any answer (`isBossTurn`),
+ * when the learner tracks leeches and it is a recognition leech with lapses.
+ * A relearn card come back is never the boss: it is not the deck's first card,
+ * whatever the list index says while it is on screen.
+ */
+export function bossFor(input: {
+  /** Cards answered this session. */
+  answered: number;
+  /** Where the list's card is in the list. */
+  position: number;
+  /** The card on screen is a relearn card, not the list's. */
+  relearn: boolean;
+  /** The learner tracks leeches. */
+  tracking: boolean;
+  card: BossTurnCard;
+}): BossInfo | null {
+  if (input.relearn) return null;
+  const candidate: BossCandidate = {
+    isLeech: input.tracking && input.card.isLeech,
+    lapses: input.card.lapses,
+    direction: input.card.direction,
+  };
+  if (!isBossTurn({ answered: input.answered, position: input.position, candidate })) return null;
+  return {
+    lapses: input.card.lapses,
+    mnemonic: input.card.mnemonic ?? null,
+    pictureUrl: input.card.pictureUrl ?? null,
+  };
+}

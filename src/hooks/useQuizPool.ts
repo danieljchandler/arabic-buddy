@@ -39,6 +39,13 @@ export interface QuizPoolEntry {
    * picture, never beside it.
    */
   animation?: StoredAnimation | null;
+  /**
+   * The dialect it is a word of. A mixed session's pool spans dialects, and
+   * "Why not this one?" names the word a wrong meaning belongs to only from
+   * the card's own dialect: another dialect's word for it is not what the
+   * learner took this one for.
+   */
+  dialect?: string | null;
 }
 
 /** A pool row before the stored replies are read: the entry, its dialect, and how likely it is to have one. */
@@ -159,7 +166,13 @@ export const STORED_REPLIES_WAIT_MS = 2500;
 const POOL_SIZE = 300;
 
 function usable(
-  rows: Array<{ arabic: string | null; english: string | null; imageUrl?: string | null; audioUrl?: string | null }>,
+  rows: Array<{
+    arabic: string | null;
+    english: string | null;
+    imageUrl?: string | null;
+    audioUrl?: string | null;
+    dialect?: string | null;
+  }>,
 ): QuizPoolEntry[] {
   return rows
     .map((row) => ({
@@ -167,6 +180,7 @@ function usable(
       english: (row.english ?? "").trim(),
       imageUrl: row.imageUrl ?? null,
       audioUrl: row.audioUrl ?? null,
+      dialect: row.dialect ?? null,
     }))
     .filter((row) => row.arabic !== "" && row.english !== "");
 }
@@ -284,14 +298,20 @@ export function useSavedPhrasePool(dialect: string, mixAll: boolean, enabled = t
     queryFn: async (): Promise<QuizPoolEntry[]> => {
       let query = supabase
         .from("user_phrases")
-        .select("phrase_arabic, phrase_english")
+        .select("phrase_arabic, phrase_english, dialect")
         .eq("user_id", user!.id)
         .order("created_at", { ascending: false })
         .limit(POOL_SIZE);
       if (!mixAll) query = query.eq("dialect", dialect);
       const { data, error } = await query;
       if (error) return [];
-      return usable((data ?? []).map((row) => ({ arabic: row.phrase_arabic, english: row.phrase_english })));
+      return usable(
+        (data ?? []).map((row) => ({
+          arabic: row.phrase_arabic,
+          english: row.phrase_english,
+          dialect: row.dialect ?? dialect,
+        })),
+      );
     },
   });
 }

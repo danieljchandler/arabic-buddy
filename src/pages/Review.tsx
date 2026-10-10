@@ -43,7 +43,7 @@ import { LightningRound } from "@/components/review/LightningRound";
 import { addLightningWord, lightningWordFor, type LightningWord } from "@/lib/lightningRound";
 import { EMPTY_QUIZ_SESSION, comboBonus, recordQuizAnswer, type QuizSessionStats } from "@/lib/quizSession";
 import { LADDER_THRESHOLDS, rungForMemory } from "@/lib/quizLadder";
-import { bossBeaten, isBossTurn } from "@/lib/bossCard";
+import { bossBeaten, bossFor } from "@/lib/bossCard";
 import { celebrate } from "@/lib/celebrations";
 import { asDialogue } from "@/lib/quizDialogue";
 import { AskAISentence } from "@/components/shared/AskAISentence";
@@ -985,24 +985,20 @@ const Review = () => {
     direction: scheduleDirectionFor(currentWord.card_type),
     memory: { stability, repetitions },
     // The session's first card, when it is the boss: asked as a first look
-    // with its picture and its memory hook.
-    boss:
-      !relearnPick &&
-      isBossTurn({
-        answered: sessionCount,
-        position: safeIndex,
-        candidate: {
-          isLeech: leechTrackingEnabled && !!review?.is_leech,
-          lapses: (review?.lapses ?? 0) + (review?.production_lapses ?? 0),
-          direction: scheduleDirectionFor(currentWord.card_type),
-        },
-      })
-        ? {
-            lapses: (review?.lapses ?? 0) + (review?.production_lapses ?? 0),
-            mnemonic: review?.mnemonic ?? null,
-            pictureUrl: review?.mnemonic_image_url ?? null,
-          }
-        : null,
+    // with its memory hook and picture a tap away.
+    boss: bossFor({
+      answered: sessionCount,
+      position: safeIndex,
+      relearn: !!relearnPick,
+      tracking: leechTrackingEnabled,
+      card: {
+        isLeech: !!review?.is_leech,
+        lapses: (review?.lapses ?? 0) + (review?.production_lapses ?? 0),
+        direction: scheduleDirectionFor(currentWord.card_type),
+        mnemonic: review?.mnemonic,
+        pictureUrl: review?.mnemonic_image_url,
+      },
+    }),
   };
   // Rescue for a leech: below the card. In the quiz the frame places it, and
   // under the boss holds it back until the answer (it prints the hook).
@@ -1028,6 +1024,7 @@ const Review = () => {
           english: w.word_english,
           imageUrl: w.image_url,
           audioUrl: w.audio_url,
+          dialect: w.dialect_module ?? activeDialect,
         }));
 
   return (

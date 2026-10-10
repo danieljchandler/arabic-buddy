@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -62,6 +62,16 @@ const DIALECT_FLAGS: Record<string, string> = {
   Yemeni: "🇾🇪",
 };
 
+/**
+ * How long the end of the list shows "Checking for more cards…" while it asks
+ * what is due next, before it shows the end of the session instead. The
+ * request is not abandoned: what it brings is served when it lands.
+ */
+const LIST_WAIT_MS = 4000;
+
+/** No cards: the list just walked, spent. */
+const NO_CARDS: DueCurriculumCard[] = [];
+
 const Review = () => {
   const navigate = useNavigate();
   const { isAuthenticated, loading: authLoading, user } = useAuth();
@@ -76,13 +86,23 @@ const Review = () => {
   // production card waits until the word has climbed to the picture step.
   const { style: reviewStyle } = useReviewStyle();
   const quiz = reviewStyle === "quiz";
-  const { data: dueWords, isLoading: wordsLoading, isError: wordsError, refetch } = useDueWords(
+  const {
+    data: fetchedDueWords,
+    isLoading: wordsLoading,
+    isPaused: wordsPaused,
+    isError: wordsError,
+    refetch,
+  } = useDueWords(
     mixAll,
     // The quiz opens on the boss: the recognition leech with the most lapses
     // goes first (src/lib/bossCard.ts), while the learner tracks leeches.
     quiz ? { holdProductionBelow: LADDER_THRESHOLDS.pictureDays, bossFirst: leechTrackingEnabled } : {},
   );
   const { data: stats } = useReviewStats(mixAll);
+  // The list just walked is spent: every card of it has been rated, so it is
+  // never shown again while the page asks what is due next (closeList).
+  const [listSpent, setListSpent] = useState(false);
+  const dueWords = listSpent ? NO_CARDS : fetchedDueWords;
   const { enqueue, pendingCount, isFlushing, isOnline } = useReviewQueue();
   const session = useReviewSession(mixAll);
   const { data: wordPool, isLoading: poolLoading } = useCurriculumWordPool(activeDialect, mixAll, quiz);
@@ -114,6 +134,18 @@ const Review = () => {
   const [relearn, setRelearn] = useState<RelearnEntry<DueCurriculumCard>[]>([]);
   // The main list has been walked to the end; only relearn cards remain.
   const [mainDone, setMainDone] = useState(false);
+  // The page is asking what is due after the list it walked (closeList), and
+  // has not waited LIST_WAIT_MS yet.
+  const [closingList, setClosingList] = useState(false);
+  const closingRef = useRef(false);
+  // Which close a fetch's answer belongs to: a deck switched meanwhile makes it
+  // the old deck's, and it must not touch the new one.
+  const closeGeneration = useRef(0);
+
+  // Leaving the page drops the deck it built. A cached list served on the way
+  // back in is the one from before this visit's ratings, with the cards just
+  // rated still in it (offline, its paused fetch would be joined, not redone).
+  useEffect(() => () => queryClient.removeQueries({ queryKey: ["due-words"] }), [queryClient]);
   const desiredRetention = useDesiredRetention();
   const stabilityMultiplier = useFsrsCalibration();
   const { weights } = useFsrsWeights();
@@ -313,16 +345,34 @@ const Review = () => {
     }
   }, [dueWords, currentIndex, activeDialect, relearnPick]);
 
-  const goToNext = async () => {
-    if (!dueWords) return;
-    setShowAnswer(false);
-    setShowLyrics(false);
-    if (currentIndex < dueWords.length - 1) {
-      setCurrentIndex((prev) => prev + 1);
-    } else {
-      await refetch();
-      setCurrentIndex(0);
-    }
+  /**
+   * The end of the list: ask what is due now. It used to show the walked
+   * list's first card while the refetch was out, and the server, not yet
+   * holding the last ratings the queue was still sending, could send the same
+   * cards back: the session served a card it had just rated. Now the walked
+   * list is spent at once and never shown again; the due list leaves out any
+   * card whose rating is still queued (useDueWords), whatever the server says;
+   * and the page shows "Checking for more cards…" for at most LIST_WAIT_MS,
+   * then the end of the session, serving what the fetch brings when it lands.
+   * Offline, React Query holds the fetch until the connection is back.
+   */
+  const closeList = () => {
+    if (closingRef.current) return;
+    closingRef.current = true;
+    const generation = ++closeGeneration.current;
+    setListSpent(true);
+    setClosingList(true);
+    setCurrentIndex(0);
+    const waited = window.setTimeout(() => {
+      if (generation === closeGeneration.current) setClosingList(false);
+    }, LIST_WAIT_MS);
+    void refetch().finally(() => {
+      window.clearTimeout(waited);
+      if (generation !== closeGeneration.current) return;
+      closingRef.current = false;
+      setListSpent(false);
+      setClosingList(false);
+    });
   };
 
   const handleRate = (rating: Rating) => {
@@ -374,8 +424,7 @@ const Review = () => {
       // relearn card resolves after the main list is done, the session is over.
       if (mainDone && nextQueue.length === 0) {
         setMainDone(false);
-        void refetch();
-        setCurrentIndex(0);
+        closeList();
       }
       return;
     }
@@ -388,9 +437,8 @@ const Review = () => {
       // open and present them instead of refetching into "all caught up".
       setMainDone(true);
     } else {
-      // End of list: refetch (queue keeps flushing in background)
-      void refetch();
-      setCurrentIndex(0);
+      // End of list: what is due next.
+      closeList();
     }
   };
 
@@ -441,12 +489,62 @@ const Review = () => {
     // Switching decks starts a new session; relearn cards belong to the old one.
     setRelearn([]);
     setMainDone(false);
+    // A close still out belongs to the old deck.
+    closeGeneration.current++;
+    closingRef.current = false;
+    setListSpent(false);
+    setClosingList(false);
   };
 
   if (authLoading || wordsLoading) {
     return (
       <AppShell compact>
         <LoadingPanel variant="page" statusOverride="Loading your reviews…" />
+      </AppShell>
+    );
+  }
+
+  // Offline before the deck has loaded at all: its first fetch waits for the
+  // connection, which React Query does not count as loading. That is not an
+  // empty deck, so neither "all caught up" nor a forward to another one.
+  if (fetchedDueWords === undefined && wordsPaused) {
+    return (
+      <AppShell compact>
+        <div className="max-w-md mx-auto text-center pt-24" role="status">
+          <h1 className="text-xl font-bold text-foreground mb-3">You&apos;re offline</h1>
+          <p className="text-muted-foreground mb-8">Your reviews load as soon as the connection is back.</p>
+          <Button variant="outline" onClick={() => navigate("/")}>
+            Go Home
+          </Button>
+        </div>
+      </AppShell>
+    );
+  }
+
+  // Between the last card and what comes next (closeList): briefly, a loader;
+  // past LIST_WAIT_MS, with the fetch still out (a slow or dropped
+  // connection), what is happening and a way out. Not the end of the session
+  // yet, so no celebration and no lightning round until the answer lands.
+  if (listSpent) {
+    if (closingList) {
+      return (
+        <AppShell compact>
+          <LoadingPanel variant="page" statusOverride="Checking for more cards…" />
+        </AppShell>
+      );
+    }
+    return (
+      <AppShell compact>
+        <div className="max-w-md mx-auto text-center pt-24" role="status">
+          <h1 className="text-xl font-bold text-foreground mb-3">Still checking for more cards</h1>
+          <p className="text-muted-foreground mb-8">
+            {isOnline ? "The connection is slow." : "You're offline."} Your answers are kept on this device and
+            saved as soon as it allows.
+          </p>
+          <Button variant="outline" onClick={() => navigate("/")}>
+            Go Home
+          </Button>
+        </div>
       </AppShell>
     );
   }

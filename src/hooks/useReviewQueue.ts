@@ -17,6 +17,7 @@ import type { ScheduleDirection } from "@/lib/reviewOrder";
 import {
   all,
   bumpAttempts,
+  claimsNewCard,
   count,
   enqueue as enqueueItem,
   peek,
@@ -62,6 +63,31 @@ export function useReviewQueue() {
   const flushingRef = useRef(false);
   const timerRef = useRef<number | null>(null);
 
+  // What the drain uses, read through a ref so `flush` keeps one identity per
+  // user. The mutation hooks return a new object every render; with them in
+  // flush's deps, every render re-ran the drain-on-mount effect below, whose
+  // cleanup cancelled the pending backoff timer and whose body called flush
+  // again, so how soon a failing write was retried depended on when the hook
+  // happened to re-render rather than on the backoff.
+  const latest = useRef({
+    addXP,
+    incrementReviews,
+    checkAchievements,
+    queryClient,
+    desiredRetention,
+    stabilityMultiplier,
+    weights,
+  });
+  latest.current = {
+    addXP,
+    incrementReviews,
+    checkAchievements,
+    queryClient,
+    desiredRetention,
+    stabilityMultiplier,
+    weights,
+  };
+
   const refreshCount = useCallback(() => {
     if (!user) {
       setPendingCount(0);
@@ -80,6 +106,7 @@ export function useReviewQueue() {
         const item: QueuedRating | null = peek(user.id);
         if (!item) break;
 
+        const { desiredRetention, stabilityMultiplier, weights } = latest.current;
         try {
           await submitRatingToServer(
             user.id,
@@ -98,10 +125,15 @@ export function useReviewQueue() {
 
           // Side effects on confirmed server save. Flat XP per card — see
           // REVIEW_XP for why it must never key on the self-grade.
+          const { addXP, incrementReviews, checkAchievements, queryClient } = latest.current;
           addXP.mutate({ amount: REVIEW_XP, reason: "review" });
           incrementReviews.mutate();
           checkAchievements.mutate();
           queryClient.invalidateQueries({ queryKey: ["review-stats"] });
+          // A first rating claimed a new card (submitRatingToServer counts it
+          // on the server); the budget the next deck is built against must
+          // know, or each end-of-list refetch offers the whole cap again.
+          if (claimsNewCard(item)) queryClient.invalidateQueries({ queryKey: ["daily-new-card-count"] });
         } catch (err) {
           if (isNetworkError(err)) {
             bumpAttempts(user.id, item.id);
@@ -129,7 +161,7 @@ export function useReviewQueue() {
       flushingRef.current = false;
       setIsFlushing(false);
     }
-  }, [user, addXP, incrementReviews, checkAchievements, queryClient, desiredRetention, stabilityMultiplier, weights]);
+  }, [user]);
 
   const enqueue = useCallback(
     (args: EnqueueArgs) => {

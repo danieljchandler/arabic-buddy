@@ -25,7 +25,7 @@ means — so a session can pick up the next phase cold.*
 | 7 | The rest of the game | built: "Why not this one?" (PR #430), the lightning round (PR #431), the boss card (PR #432), ladder climbs (PR #433); XP parity is the owner's question |
 | 7b | Apply the `leaderboard_climbs` migration to the live project | **owner action** |
 | 8 | Tuning from real reviews | once the quiz has weeks of history |
-| 9 | Housekeeping | any time |
+| 9 | Housekeeping | built (PR #434); a zero-day interval in the scheduler is the owner's question |
 
 Conventions that hold in every phase, from `CLAUDE.md`:
 
@@ -871,16 +871,16 @@ question about the line.
 
 ---
 
-## Phase 7 — the rest of the game (in progress)
+## Phase 7 — the rest of the game (built; the migration is 7b)
 
 One PR per item, in this order, each independent of the asset store:
 
 | item | status |
 |---|---|
 | 7.1 "Why not this one?" on every choice step | built (PR #430) |
-| 7.2 The lightning round | built (PR #431, on #430) |
-| 7.3 The boss card | built (PR #432, on #431) |
-| 7.4 Ladder climbs on the leaderboard | built (PR #433, on #432); the migration is 7b |
+| 7.2 The lightning round | built (PR #431) |
+| 7.3 The boss card | built (PR #432) |
+| 7.4 Ladder climbs on the leaderboard | built (PR #433); the migration is 7b |
 | XP parity for the flip cards | **a question for the owner**, not built |
 
 ### 7.1 "Why not this one?" on every choice step (built, PR #430)
@@ -1211,7 +1211,112 @@ ratings and the README table says so.
 
 ---
 
-## Phase 9 — housekeeping
+## Phase 9 — housekeeping (built, PR #434)
+
+| item | status |
+|---|---|
+| Delete `ReviewQuizCard` and `ReviewImageQuizCard` | done |
+| Delete the stale per-rating `REVIEW_XP` map in `src/config.ts` | done |
+| Remove `useTranscriptCloze`'s flip-card branch | nothing left to remove |
+| The end-of-queue refetch race | fixed, with a backoff bug found on the way |
+| A pass that schedules a card due at once | **found; the owner's question**, not changed |
+
+**What shipped.**
+
+- `ReviewQuizCard` and `ReviewImageQuizCard` are gone with their four test
+  files (two in `src/components/review/`, two in `src/test/`). Nothing else
+  imported them, and the hooks they named (`useAudioPlayer`, `useAzureTTS`)
+  are still named by other tests, so `hookCoverage` holds.
+- `src/config.ts` no longer carries the per-rating `REVIEW_XP` map (5 / 10 /
+  15 / 20). Nothing imported it; the flat `REVIEW_XP = 15` in
+  `useGamification` is the live one, and the reason it is flat is written
+  there.
+- `useTranscriptCloze` has no flip-card branch left: My Words only runs the
+  lookup when the quiz is on (`enabled: quiz && …`).
+- **The end-of-queue refetch.** On the curriculum deck the last rating went
+  into the queue, and the page refetched at once and showed card 0 of the old
+  list while it did. The server, not yet holding the last ratings, could send
+  the same cards back, so the session served one it had just rated, and in
+  flip mode the rating keys could rate it again. Now:
+  - `useDueWords` leaves out any card whose rating is still queued, reading
+    the queue before and after its fetch (`withoutQueued` in
+    `src/lib/reviewQueue.ts`, keyed on the word and the schedule), on every
+    refetch, "Try again" included. A rating hides its card for a day at most
+    (`QUEUED_HIDES_CARD_MS`), so a queue that cannot drain does not hide its
+    cards for good.
+  - The new-card cap: a queued first rating is taken off the budget before the
+    ordering (`claimsNewCard`), and a saved one now refreshes the budget
+    (`daily-new-card-count`). Before, the curriculum path never refreshed it,
+    so every end-of-list refetch could offer the whole day's cap again.
+  - `Review.tsx`'s `closeList` marks the walked list spent at once, so it is
+    never shown again and the keys have nothing to rate. A ref guards it
+    against running twice, and a generation counter keeps a fetch for a deck
+    switched away from (Mix All) out of the new one. "Checking for more
+    cards…" shows for up to `LIST_WAIT_MS` (4 s, after the panel's own 600 ms
+    delay); past that, with the fetch still out, a quiet "Still checking for
+    more cards" with a way home, and no celebration, summary or lightning
+    round until the answer lands. Offline, React Query holds the fetch until
+    the connection is back.
+  - Leaving the page drops the due-words cache, so coming back within its
+    five minutes does not serve the list from before this visit's ratings
+    (offline, it would join that list's paused fetch). Coming back offline
+    says "You're offline" until the deck can load: a first fetch paused
+    offline is not `isLoading` to React Query, and the page used to read it
+    as an empty deck, saying nothing was due or forwarding to another deck.
+  - Left as they are, from the review: while ratings are queued the due
+    counts (the dock badge, the next deck's "N cards") still count by the
+    server's schedule, so they can offer a few cards the list then leaves
+    out; and a new card whose first rating has waited in the queue a day is
+    served again, and a second first rating fails as a duplicate when the
+    queue drains ("One rating couldn't be saved").
+  - The unused `goToNext` went with it; it had the same unguarded refetch.
+  - My Words and My Phrases save each rating before they move on, so they
+    never had the race.
+  - A first version waited for the queue to save (`settle`) before refetching.
+    The review found it could hang (a refetch paused offline, a request that
+    never answers) and, on a failed refetch, patched the cache back over the
+    error screen; leaving queued cards out of the list needs no wait at all.
+- **Found on the way: the backoff was not guaranteed.** `flush` depended on
+  the mutation hooks, which return a new object every render, so every render
+  re-ran the drain-on-mount effect. Its cleanup cancelled the pending backoff
+  timer and its body called `flush` again, so how soon a failing write was
+  retried depended on when the hook re-rendered, not on the backoff (under the
+  test clock, hundreds of attempts in two seconds). The drain now reads them
+  through a ref, `flush` keeps one identity per user, and "waits out the
+  backoff between attempts" holds the attempts to the schedule (it times out
+  with the old dependencies).
+
+**Tests.** `withoutQueued`, `ratingsHidingCards` and `claimsNewCard` in
+`src/lib/reviewQueue.test.ts`; the backoff and the budget refresh in
+`src/hooks/useReviewQueue.test.ts`; in `src/hooks/useReview.test.ts`, the
+queued-card exclusion (a rating given while the fetch is out, and one that
+lands while it is out), the day's limit on it, and the cap; and five e2e in
+`review.spec.ts`, the two below plus "a slow answer at the end of the list is
+not the end of the session until it lands", "a card rated before leaving the
+page is not served on the way back" and "coming back offline says so, rather
+than that nothing is due". "never serves the card just rated while
+its rating waits to be saved" fails the write and slows the deck, and expects
+"Checking for more cards…", no card, the summary, and the rating saved once
+the connection is back. "the keys do nothing once the last card is rated"
+presses reveal-and-rate twice and expects one write. Both fail against the
+old page.
+
+**The owner's question: a pass that is due at once.** `calculateNextReview`
+sets a recalled card's interval (Hard on a graduated card, Good or Easy) to
+`Math.round(newStability * intervalFactor)` before the "sub-day intervals keep
+minute precision" step, so a stability under half a day rounds to 0, and the
+card is due the moment it is rated. It happens to a Good minutes after a lapse
+(stability 0.25 in the e2e "asked afresh"), and the card is served again at
+the end of the list. Two ways to
+fix it, and it is the scheduler, so it waits for a decision:
+
+1. Keep the sub-day value when the rounding would give 0 (only those cards
+   change).
+2. Drop the rounding there and let the step below round day+ intervals, as its
+   comment says. That also moves stabilities between 0.5 and 1 day from a
+   1-day interval to 12–24 hours.
+
+### The list, as it was written
 
 - `ReviewQuizCard` and `ReviewImageQuizCard` are superseded by
   `QuizOptionsCard` and still imported by nothing but their tests; delete

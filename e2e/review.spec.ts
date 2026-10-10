@@ -307,11 +307,183 @@ test.describe("the quiz style", () => {
     await page.getByRole("button", { name: "السوق", exact: true }).click();
     await page.getByRole("button", { name: /continue/i }).click();
 
-    // The relearned card's rating lands on the same row. (What the page shows
-    // next is the existing race between the end-of-queue refetch and the
-    // queue's flush, which the flip cards share; the first test above covers
-    // the summary.)
+    // The relearned card's rating lands on the same row. What the page shows
+    // next is the scheduler's call, not a race with the queue: a Good this soon
+    // after a lapse leaves stability under half a day, which the interval
+    // rounds to zero, so the card is due again at once. That rounding is an
+    // open question in docs/quiz-phases-2026-10.md (Phase 9); the race has its
+    // own test below.
     await expect.poll(() => backend.db.rows("word_reviews")[0]?.last_result).toBe("good");
+  });
+
+  test("never serves the card just rated while its rating waits to be saved", async ({ page }) => {
+    await signIn(page);
+    const backend = await stubSupabase(page, { tables: { ...aDeck(), ...quizProfile() } });
+
+    await page.goto("/review");
+    await expect(page.getByText("Fill in the missing word")).toBeVisible();
+
+    // The connection drops as the last answer is saved, so the rating waits in
+    // the queue while the page asks what is due next, and the server, holding
+    // no rating yet, still calls the card due. The deck is slow to answer.
+    backend.db.failWrites("word_reviews", 503, {
+      code: "503",
+      message: "Failed to fetch",
+      details: null,
+      hint: null,
+    });
+    backend.db.delay("vocabulary_words", 2000);
+    await page.getByRole("button", { name: "السوق", exact: true }).click();
+    await page.getByRole("button", { name: /continue/i }).click();
+
+    // While it asks, the walked list is not on screen; and the answer leaves
+    // out the card whose rating is still queued, so the session ends there.
+    await expect(page.getByText(/checking for more cards/i)).toBeVisible();
+    await expect(page.getByText("Fill in the missing word")).toHaveCount(0);
+    await expect(page.getByRole("list", { name: /quiz session summary/i })).toBeVisible();
+    await expect(page.getByText("Fill in the missing word")).toHaveCount(0);
+    expect(backend.db.rows("word_reviews")).toHaveLength(0);
+
+    // The connection comes back, and the queue saves the rating.
+    backend.db.clearFailure("word_reviews");
+    await expect
+      .poll(() => backend.db.rows("word_reviews")[0]?.last_result, { timeout: 15_000 })
+      .toBe("good");
+    await expect(page.getByText("Fill in the missing word")).toHaveCount(0);
+  });
+
+  test("the keys do nothing once the last card is rated: the walked list is not served again", async ({ page }) => {
+    await signIn(page);
+    // Flip cards, and a card with a review row, so a second rating would be
+    // an update that lands rather than a duplicate insert that fails.
+    const backend = await stubSupabase(page, {
+      tables: {
+        ...aDeck(),
+        word_reviews: [aWordReview({ id: reviewId(0), word_id: wordId(0) })],
+      },
+    });
+
+    await page.goto("/review");
+    await expect(page.getByText("السوق").first()).toBeVisible();
+    // The deck is slow to answer what is due next.
+    backend.db.delay("vocabulary_words", 2000);
+    await page.keyboard.press(" ");
+    await page.keyboard.press("3");
+
+    // Out of habit, again: reveal and rate.
+    await page.keyboard.press(" ");
+    await page.keyboard.press("3");
+    await page.waitForTimeout(2500);
+
+    expect(backend.db.writesTo("word_reviews")).toHaveLength(1);
+    // What comes next is a new card: remembering the word unlocked saying it.
+    await expect(page.getByText("Say it in Arabic")).toBeVisible();
+  });
+
+  test("a slow answer at the end of the list is not the end of the session until it lands", async ({ page }) => {
+    await signIn(page);
+    const backend = await stubSupabase(page, { tables: { ...aDeck(), ...quizProfile() } });
+
+    await page.goto("/review");
+    await expect(page.getByText("Fill in the missing word")).toBeVisible();
+    // The deck takes longer to answer than the page waits.
+    backend.db.delay("vocabulary_words", 7000);
+    await page.getByRole("button", { name: "السوق", exact: true }).click();
+    await page.getByRole("button", { name: /continue/i }).click();
+
+    await expect(page.getByText(/checking for more cards/i)).toBeVisible();
+    // Past the wait: what is happening and a way out, with no celebration and
+    // no summary, since more cards may yet be due.
+    await expect(page.getByText(/still checking for more cards/i)).toBeVisible({ timeout: 6000 });
+    await expect(page.getByRole("button", { name: /go home/i })).toBeVisible();
+    await expect(page.getByRole("list", { name: /quiz session summary/i })).toHaveCount(0);
+
+    // The answer lands: nothing more is due, and the session ends.
+    await expect(page.getByRole("list", { name: /quiz session summary/i })).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("a card rated before leaving the page is not served on the way back", async ({ page }) => {
+    await signIn(page);
+    const firstLook = (index: number, daysOverdue: number) =>
+      aWordReview({
+        id: reviewId(index),
+        word_id: wordId(index),
+        ease_factor: 0,
+        repetitions: 0,
+        interval_days: 0,
+        last_reviewed_at: null,
+        next_review_at: new Date(Date.now() - daysOverdue * 86_400_000).toISOString(),
+      });
+    const deck = aDeck();
+    const backend = await stubSupabase(page, {
+      tables: {
+        ...deck,
+        vocabulary_words: [
+          ...deck.vocabulary_words,
+          aVocabularyWord({
+            id: wordId(5),
+            lesson_id: LESSON,
+            word_arabic: "قهوة",
+            word_english: "coffee",
+            example_arabic: "شربت قهوة الصبح",
+            example_english: "I drank coffee in the morning",
+          }),
+        ],
+        // The market first (the more overdue), then the coffee.
+        word_reviews: [firstLook(0, 3), firstLook(5, 1)],
+        ...quizProfile(),
+      },
+    });
+
+    await page.goto("/review");
+    await expect(page.getByText(/the missing word means/i)).toContainText("the market");
+    await page.getByRole("button", { name: "السوق", exact: true }).click();
+    await page.getByRole("button", { name: /continue/i }).click();
+    await expect(page.getByText(/the missing word means/i)).toContainText("coffee");
+
+    // Away and back, inside the app, with the deck slow to answer: the deck
+    // built on the way in is not served again from the start, with the market
+    // in it, while the new one is fetched.
+    await page.getByRole("button", { name: /go home/i }).click();
+    await expect(page).not.toHaveURL(/\/review$/);
+    backend.db.delay("vocabulary_words", 2500);
+    await page.goBack();
+    await page.waitForTimeout(1000);
+    await expect(page.getByText(/the missing word means/i)).toHaveCount(0);
+    await expect(page.getByText(/the missing word means/i)).toContainText("coffee", { timeout: 10_000 });
+  });
+
+  test("coming back offline says so, rather than that nothing is due", async ({ page }) => {
+    // The app is taken offline as React Query and the queue see it (the
+    // browser's events and navigator.onLine), not the browser's network: cut
+    // that, and the dev server's client reloads the page once its socket drops.
+    const setAppOnline = (online: boolean) =>
+      page.evaluate((value) => {
+        Object.defineProperty(navigator, "onLine", { configurable: true, get: () => value });
+        window.dispatchEvent(new Event(value ? "online" : "offline"));
+      }, online);
+
+    await signIn(page);
+    await stubSupabase(page, { tables: { ...aDeck(), ...quizProfile() } });
+
+    await page.goto("/review");
+    await expect(page.getByText("Fill in the missing word")).toBeVisible();
+    await page.getByRole("button", { name: /go home/i }).click();
+    await expect(page).not.toHaveURL(/\/review$/);
+
+    // The deck was dropped on the way out; offline, its first fetch waits.
+    await setAppOnline(false);
+    await page.evaluate(() => {
+      window.history.pushState({}, "", "/review");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    await expect(page.getByText(/you're offline/i)).toBeVisible();
+    await expect(page.getByText(/you've reviewed all your due/i)).toHaveCount(0);
+    await expect(page).toHaveURL(/\/review$/);
+
+    // Back online, the deck loads.
+    await setAppOnline(true);
+    await expect(page.getByText("Fill in the missing word")).toBeVisible({ timeout: 10_000 });
   });
 
   test("a wrong pick in the gap asks the tutor why, about this sentence", async ({ page }) => {

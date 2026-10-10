@@ -119,3 +119,51 @@ export function clearForUser(userId: string) {
 export function count(userId: string): number {
   return safeRead(userId).length;
 }
+
+/**
+ * How long a queued rating keeps its card out of the due list. A queue that
+ * cannot drain (a head item failing forever with an error that reads as a
+ * dropped connection) would otherwise hide its cards for good; past a day the
+ * card is served again, and a second rating queues behind the first.
+ */
+export const QUEUED_HIDES_CARD_MS = 24 * 60 * 60 * 1000;
+
+/** The queued ratings that still keep their cards out of the due list. */
+export function ratingsHidingCards<T extends Pick<QueuedRating, "queuedAt">>(items: readonly T[], nowMs: number): T[] {
+  return items.filter((item) => nowMs - item.queuedAt < QUEUED_HIDES_CARD_MS);
+}
+
+/**
+ * A queued rating that will claim a place under the daily new-card cap once
+ * it lands: a first rating (no review row yet), on the recognition side.
+ */
+export function claimsNewCard(item: Pick<QueuedRating, "currentReview" | "direction">): boolean {
+  return item.currentReview == null && (item.direction ?? "recognition") === "recognition";
+}
+
+/**
+ * The cards with no rating still queued for the schedule they are served on.
+ *
+ * A card whose rating has not reached the server is not due, whatever the
+ * server says: it still holds the schedule from before the rating. The
+ * curriculum deck's due list (`useDueWords`) drops these, reading the queue
+ * before and after its fetch, so a refetch never serves a card just rated,
+ * however slow or absent the connection.
+ *
+ * Keyed on the word and the schedule, since recognition and production are
+ * separate schedules for the same word. An entry with no direction predates
+ * directions and is a recognition rating, as the flush reads it.
+ */
+export function withoutQueued<T>(
+  cards: readonly T[],
+  queued: readonly Pick<QueuedRating, "wordId" | "direction">[],
+  keyOf: (card: T) => { wordId: string; direction: ScheduleDirection },
+): T[] {
+  if (queued.length === 0) return [...cards];
+  const key = (wordId: string, direction: ScheduleDirection) => `${wordId}|${direction}`;
+  const pending = new Set(queued.map((item) => key(item.wordId, item.direction ?? "recognition")));
+  return cards.filter((card) => {
+    const { wordId, direction } = keyOf(card);
+    return !pending.has(key(wordId, direction));
+  });
+}

@@ -215,6 +215,48 @@ are stored as authoring metadata and have no learner-facing surface. Every
 section renders nothing when empty, so lessons imported before this was wired up
 are unaffected.
 
+### Saving a rating, and the end of the list
+
+A curriculum card's rating goes through an offline queue (`useReviewQueue`,
+stored in localStorage by `src/lib/reviewQueue.ts`), so the page moves on
+before the server has answered. A network error is retried on a backoff (1 s,
+2 s, 5 s, 15 s, 60 s); a write the server rejects is dropped with a toast, so
+it cannot wedge the ratings behind it. My Words and My Phrases save each rating
+before moving on and have no queue. Three things this must keep:
+
+- **A card whose rating is still queued is not due.** Until the queue saves it,
+  the server holds the card's old schedule and calls it due, so `useDueWords`
+  reads the queue before and after its fetch and leaves such a card out
+  (`withoutQueued`), on the schedule the rating is for. Every refetch gets this,
+  "Try again" on a failed one included, however slow or absent the connection.
+  For a day at most (`QUEUED_HIDES_CARD_MS`): a queue that cannot drain does not
+  hide its cards for good. A queued first rating is counted against today's
+  new-card cap before the server counts it (`claimsNewCard`), and a saved one
+  refreshes the budget, so an end-of-list refetch does not offer the whole cap
+  again.
+- **The walked list is spent at the end.** When the last card is rated the page
+  asks what is due next. It used to show the walked list's first card while the
+  refetch was out, and the server, not yet holding the last ratings, could send
+  the same cards back, so the session served a card it had just rated (and the
+  rating keys, still live, could rate it again). Now the list is marked spent at
+  once and never shown again (`closeList` in `Review.tsx`), and the keys have
+  nothing to rate. "Checking for more cards…" shows for up to 4 s
+  (`LIST_WAIT_MS`); past that, with the fetch still out, a quiet "Still checking"
+  with a way home, and no celebration or summary until the answer lands (the
+  end of the session, or more cards). Offline, React Query holds the fetch until
+  the connection is back. Leaving the page drops the deck it built, so coming
+  back never serves the list from before this visit's ratings; coming back
+  offline says "You're offline" until the deck can load, rather than that
+  nothing is due (a first fetch paused offline is not, to React Query,
+  loading).
+- **`flush` keeps one identity per user.** The mutation hooks it calls return a
+  new object every render. While they were its dependencies, every render re-ran
+  the drain-on-mount effect, whose cleanup cancelled the pending backoff and
+  whose body called `flush` again, so how soon a failing write was retried
+  depended on when the hook re-rendered, not on the backoff (under the test
+  clock, hundreds of attempts in two seconds). The drain now reads them through
+  a ref, and a test holds the attempts to the backoff.
+
 ### Reviewing as a quiz instead of flashcards
 
 Settings → Review Preferences → **How you review** (and the same switch in

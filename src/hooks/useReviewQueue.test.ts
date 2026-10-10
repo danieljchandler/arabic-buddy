@@ -1,4 +1,5 @@
 import { act, waitFor } from "@testing-library/react";
+import { QueryClient } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderHookWithProviders, TEST_USER_ID } from "@/test/support/react/harness";
 import { aUserXp, aVocabularyWord, aWordReview, reviewId, wordId } from "@/test/support/factories";
@@ -199,6 +200,36 @@ describe("submitting a rating", () => {
   });
 });
 
+describe("the new-card budget", () => {
+  it("is refreshed once a first rating is saved, so the next deck is built against it", async () => {
+    const invalidate = vi.spyOn(QueryClient.prototype, "invalidateQueries");
+    const { result, backend } = await renderQueue((b) => {
+      b.db.seed("vocabulary_words", [aVocabularyWord({ id: wordId(0) })]);
+      b.db.seed("word_reviews", []);
+      b.db.seed("user_xp", [aUserXp()]);
+    });
+
+    act(() => {
+      result.current.enqueue({ wordId: wordId(0), rating: "good", currentReview: null });
+    });
+
+    await waitFor(() => expect(backend.db.rows("word_reviews")).toHaveLength(1));
+    await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ["daily-new-card-count"] }));
+  });
+
+  it("is left alone by a rating of a card already reviewed", async () => {
+    const invalidate = vi.spyOn(QueryClient.prototype, "invalidateQueries");
+    const { result } = await renderQueue();
+
+    act(() => {
+      result.current.enqueue({ wordId: wordId(0), rating: "good", currentReview: snapshot() });
+    });
+
+    await waitFor(() => expect(result.current.pendingCount).toBe(0));
+    expect(invalidate).not.toHaveBeenCalledWith({ queryKey: ["daily-new-card-count"] });
+  });
+});
+
 describe("when the connection drops", () => {
   it("holds the rating rather than losing it", async () => {
     const { result, backend } = await renderQueue();
@@ -243,6 +274,26 @@ describe("when the connection drops", () => {
     await waitFor(() => expect(backend.db.writesTo("word_reviews")).toHaveLength(1));
     expect(all(TEST_USER_ID)).toHaveLength(0);
     expect(result.current.pendingCount).toBe(0);
+  });
+
+  it("waits out the backoff between attempts rather than retrying at once", async () => {
+    const { result, backend } = await renderQueue();
+    backend.db.failWrites("word_reviews", 503, NETWORK_ERROR);
+
+    act(() => {
+      result.current.enqueue({ wordId: wordId(0), rating: "good", currentReview: snapshot() });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2000);
+    });
+
+    // The first attempt, then one after the 1s backoff; the next is due at 3s.
+    // Every render used to re-run the drain-on-mount effect (the mutation
+    // hooks return a new object each render, and flush depended on them),
+    // and its cleanup cancelled the backoff: hundreds of attempts in these
+    // two seconds against a server that was down.
+    expect(all(TEST_USER_ID)[0]?.attempts).toBeGreaterThanOrEqual(1);
+    expect(all(TEST_USER_ID)[0]?.attempts).toBeLessThanOrEqual(3);
   });
 
   it("awards no XP for a rating the server has not taken", async () => {

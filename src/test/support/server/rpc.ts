@@ -6,6 +6,7 @@ import {
   type ManagedRole,
 } from "../../../lib/rbac";
 import { isEmailIdentifier, normalizeIdentifier } from "../../../lib/roleGrants";
+import { climbWeekStart, isLadderClimb, type LoggedReview } from "../../../lib/ladderClimbs";
 import type { MemoryDb } from "../postgrest/store";
 import type { Row } from "../postgrest/types";
 
@@ -244,6 +245,31 @@ export const defaultRpcs: Record<string, RpcHandler> = {
     record.current_level = Math.floor(Number(record.total_xp) / 500) + 1;
 
     return record.total_xp;
+  },
+
+  // Ladder climbs this week for the learners asked about who are on the board
+  // (quiz Phase 7.4, migration 20261010120000_leaderboard_climbs): the SQL's
+  // rule, in the TypeScript it is held to (src/lib/ladderClimbs.ts).
+  leaderboard_climbs: ({ db, args }) => {
+    const ids = (arg(args, "user_ids") as string[] | null) ?? [];
+    if (ids.length > 100) throw new Error("At most 100 learners a call");
+    const since = climbWeekStart(new Date()).getTime();
+    const onBoard = db
+      .raw("profiles")
+      .filter((profile) => ids.includes(profile.user_id as string) && profile.show_on_leaderboard === true)
+      .map((profile) => profile.user_id as string);
+    return [...new Set(onBoard)].map((userId) => ({
+      user_id: userId,
+      climbs_this_week: db
+        .raw("review_log")
+        .filter(
+          (row) =>
+            row.user_id === userId &&
+            row.deck === "word" &&
+            Date.parse(String(row.reviewed_at)) >= since &&
+            isLadderClimb(row as unknown as LoggedReview),
+        ).length,
+    }));
   },
 
   grant_achievement: ({ db, userId, args }) => {

@@ -38,6 +38,7 @@ import { EmptyState } from "@/components/shared/EmptyState";
 import { QueryErrorState } from "@/components/shared/QueryErrorState";
 import { toast } from "sonner";
 import {
+  ArrowUpRight,
   Trophy,
   Medal,
   Crown,
@@ -136,6 +137,14 @@ const LeaderboardRow = ({
       <div className="text-right shrink-0">
         <p className="font-bold text-primary">{entry.xp_this_week.toLocaleString()}</p>
         <p className="text-xs text-muted-foreground">XP this week</p>
+        {/* Ladder climbs beside the XP (quiz Phase 7.4): words that moved up a
+            step this week. Absent until the database can count them. */}
+        {entry.climbs_this_week != null && (
+          <p className="text-xs text-muted-foreground inline-flex items-center gap-0.5" title="Words that moved up a step of the quiz ladder this week">
+            <ArrowUpRight className="h-3 w-3 text-primary" aria-hidden />
+            {entry.climbs_this_week.toLocaleString()} {entry.climbs_this_week === 1 ? "climb" : "climbs"}
+          </p>
+        )}
       </div>
     </div>
   );

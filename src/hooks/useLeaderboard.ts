@@ -9,6 +9,13 @@ export interface LeaderboardEntry {
   total_xp: number;
   level: number;
   xp_this_week: number;
+  /**
+   * Ladder climbs this week (quiz Phase 7.4): how many times one of their
+   * words moved up a step of the quiz ladder, counted by the database from
+   * the review log. Null when it cannot be read — the weekly board only, and
+   * not until the migration that counts them is on the live project.
+   */
+  climbs_this_week: number | null;
   rank: number;
   institution_name: string | null;
   institution_verified: boolean;
@@ -35,10 +42,34 @@ export interface Institution {
   verified: boolean;
 }
 
+/**
+ * Each learner's ladder climbs this week, by user id, from the
+ * `leaderboard_climbs` RPC (migration 20261010120000_leaderboard_climbs). The
+ * database counts them from `review_log`, which only triggers write, so a
+ * climb on the board is a real review. Null on any failure — above all the
+ * RPC not yet on the live project — and the board shows XP alone, as before.
+ */
+export async function readClimbs(userIds: string[]): Promise<Map<string, number> | null> {
+  if (userIds.length === 0) return new Map();
+  try {
+    const { data, error } = await (supabase.rpc as any)("leaderboard_climbs", { _user_ids: userIds });
+    if (error || !Array.isArray(data)) return null;
+    const climbs = new Map<string, number>();
+    for (const row of data as Array<{ user_id?: unknown; climbs_this_week?: unknown }>) {
+      const count = Number(row.climbs_this_week);
+      if (typeof row.user_id === "string" && Number.isFinite(count)) climbs.set(row.user_id, count);
+    }
+    return climbs;
+  } catch {
+    return null;
+  }
+}
+
 function buildEntries(
   xpData: any[],
   profiles: any[],
-  institutions: any[]
+  institutions: any[],
+  climbs: Map<string, number> | null = null,
 ): LeaderboardEntry[] {
   return xpData.map((xp, index) => {
     const profile = profiles.find((p: any) => p.user_id === xp.user_id);
@@ -52,6 +83,7 @@ function buildEntries(
       total_xp: xp.total_xp,
       level: xp.level,
       xp_this_week: xp.xp_this_week,
+      climbs_this_week: climbs ? (climbs.get(xp.user_id) ?? 0) : null,
       rank: index + 1,
       institution_name: inst?.name || profile?.custom_institution || null,
       institution_verified: inst?.verified || false,
@@ -87,7 +119,10 @@ export function useWeeklyLeaderboard(limit = 20) {
         .from("institutions" as any)
         .select("id, name, verified");
 
-      return buildEntries(xpData || [], (profiles as any[]) || [], institutions || []);
+      // Climbs beside the week's XP, for the learners on this page of it.
+      const climbs = await readClimbs((xpData || []).map((row) => row.user_id));
+
+      return buildEntries(xpData || [], (profiles as any[]) || [], institutions || [], climbs);
     },
     staleTime: 30 * 1000,
   });

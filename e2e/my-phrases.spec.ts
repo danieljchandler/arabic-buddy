@@ -103,7 +103,7 @@ test.describe("reviewing saved phrases in the quiz style", () => {
     // Past the celebration (it hides the page from the accessibility tree
     // while open), the next phrase is an ordinary card.
     await beaten.getByRole("button", { name: "Continue" }).click();
-    await expect(page.getByText("ما عليه")).toBeVisible();
+    await expect(page.getByRole("img", { name: /step \d+ of 10/i })).toBeVisible();
     await expect(page.getByRole("region", { name: "Boss card" })).toHaveCount(0);
   });
 

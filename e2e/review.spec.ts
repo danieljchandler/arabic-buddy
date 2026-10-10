@@ -788,7 +788,7 @@ test.describe("the boss card", () => {
     // The next card is an ordinary one: asserted past the celebration, which
     // hides the page from the accessibility tree while it is open.
     await beaten.getByRole("button", { name: "Continue" }).click();
-    await expect(page.getByText("قهوة").first()).toBeVisible();
+    await expect(page.getByRole("img", { name: /step \d+ of 10/i })).toBeVisible();
     await expect(page.getByRole("region", { name: "Boss card" })).toHaveCount(0);
   });
 

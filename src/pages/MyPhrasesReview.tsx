@@ -668,7 +668,9 @@ const MyPhrasesReview = () => {
           )}
 
 
-          {leechTrackingEnabled && current.is_leech && (
+          {/* Not under the boss: the panel prints the memory hook, which the
+              boss banner keeps behind a tap until the answer is in. */}
+          {leechTrackingEnabled && current.is_leech && !(quiz && quizItem.boss) && (
             <LeechHelperPanel
               kind="phrase"
               rowId={current.id}

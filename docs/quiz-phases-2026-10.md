@@ -1042,6 +1042,9 @@ the boss card):
    switched leech tracking off has no leeches to fight.
 5. *The small celebration*, on Continue: the session has the rest of its
    cards to go.
+6. *No rescue panel under the boss.* `LeechHelperPanel` prints the hook, so
+   under the boss it would hand over what the banner keeps behind a tap; the
+   e2e found this. Every other leech keeps its panel.
 
 ### The plan, as it was written
 

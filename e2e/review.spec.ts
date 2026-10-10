@@ -612,7 +612,7 @@ test.describe("the boss card", () => {
     await expect(page.getByText(HOOK)).toBeVisible();
     await page.getByRole("button", { name: /continue/i }).click();
 
-    await expect(page.getByText("Boss beaten!")).toBeVisible();
+    await expect(page.getByRole("dialog", { name: "Boss beaten!" })).toBeVisible();
     // Graded as a first look: Good, on the leech's own row.
     await expect.poll(() => backend.db.rows("word_reviews").find((r) => r.id === reviewId(0))?.last_result).toBe("good");
     // The next card is an ordinary one.

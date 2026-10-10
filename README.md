@@ -586,7 +586,9 @@ the card's own step, not the first look's, so beating the boss is never
 counted as a climb from step 1. It opens a session once (`isBossTurn`: the
 first card, before anything is answered); a deck rebuilt later in the session
 may put a leech first again, and that one is an ordinary card. The rescue panel
-under a leech is unchanged.
+that sits under a leech (`LeechHelperPanel`) is not shown under the boss: it
+prints the memory hook, which the boss keeps behind a tap until the answer is
+in. It is there for every other leech as before.
 
 Proposal and the phases still to come (the rest of the game, tuning from real
 reviews): `docs/quiz-modes-plan-2026-10.md`; the execution roadmap is

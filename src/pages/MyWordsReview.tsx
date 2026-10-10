@@ -1396,7 +1396,9 @@ const MyWordsReview = () => {
             />
           )}
 
-          {leechTrackingEnabled && currentWord.is_leech && (
+          {/* Not under the boss: the panel prints the memory hook, which the
+              boss banner keeps behind a tap until the answer is in. */}
+          {leechTrackingEnabled && currentWord.is_leech && !(quiz && quizItem.boss) && (
             <LeechHelperPanel
               kind="word"
               rowId={currentWord.id}

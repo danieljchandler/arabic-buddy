@@ -1021,7 +1021,9 @@ const Review = () => {
           {/* Rescue for a card the learner keeps failing. The personal decks
               have had this since leech tracking landed; the curriculum deck —
               the one the app hands every learner — had nothing. */}
-          {leechTrackingEnabled && review?.is_leech && review?.id && (
+          {/* Not under the boss: the panel prints the memory hook, which the
+              boss banner keeps behind a tap until the answer is in. */}
+          {leechTrackingEnabled && review?.is_leech && review?.id && !(quiz && quizItem.boss) && (
             <LeechHelperPanel
               kind="curriculum"
               rowId={review.id}

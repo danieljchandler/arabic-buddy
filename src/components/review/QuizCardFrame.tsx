@@ -425,33 +425,42 @@ export const QuizCardFrame = ({
 
   const arabicPool = useMemo(() => entries.map((e) => e.arabic), [entries]);
 
+  // Wrong meanings: the other words' glosses, once each. Never this word's
+  // own gloss, and never another gloss of this word (a mixed deck's other
+  // dialect, a second save of it): picking that would be a right answer
+  // graded Again.
   const englishPool = useMemo(() => {
     const own = item.english.trim().toLowerCase();
+    const ownWord = normalizeArabicWord(item.arabic);
     const seen = new Set<string>();
     const out: string[] = [];
     for (const other of dealtPool) {
       const key = other.english.trim().toLowerCase();
       if (!key || key === own || seen.has(key)) continue;
+      if (ownWord && normalizeArabicWord(other.arabic) === ownWord) continue;
       seen.add(key);
       out.push(other.english);
     }
     return out;
-  }, [dealtPool, item.english]);
+  }, [dealtPool, item.english, item.arabic]);
 
   // Which word each wrong meaning belongs to, for "Why not this one?" on the
-  // meaning questions: what the learner took the word for. A meaning two of
-  // the other words share names neither.
+  // meaning questions: what the learner took the word for. Only the other
+  // words, and a meaning two of them share names neither.
   const wordForMeaning = useMemo(() => {
+    const ownWord = normalizeArabicWord(item.arabic);
     const words = new Map<string, string | null>();
     for (const other of dealtPool) {
       const key = other.english.trim().toLowerCase();
       if (!key || !ARABIC_RE.test(other.arabic)) continue;
+      const word = normalizeArabicWord(other.arabic);
+      if (word === ownWord) continue;
       const seen = words.get(key);
       if (seen === undefined) words.set(key, other.arabic);
-      else if (seen !== null && normalizeArabicWord(seen) !== normalizeArabicWord(other.arabic)) words.set(key, null);
+      else if (seen !== null && normalizeArabicWord(seen) !== word) words.set(key, null);
     }
     return (english: string) => words.get(english.trim().toLowerCase()) ?? null;
-  }, [dealtPool]);
+  }, [dealtPool, item.arabic]);
 
   // Pictures of other words, once each, and never one that means what this
   // word means (another dialect's word for it, in a mixed deck) or shows its

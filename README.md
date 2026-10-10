@@ -475,7 +475,8 @@ the moment a learner most wants to know what they mixed up, so every question
 with options — the gap, the meaning seen or heard, the picture, the word, the
 reply, and the story's four-option gap — offers **"Why not this one?"** once
 the pick is wrong, in place of its "Ask AI" chip (the picture question had
-none, and still has none after a right pick). One tap opens the tutor and asks, by
+none, and still has none after a right pick; nor after a wrong picture filed
+with no meaning to name it by). One tap opens the tutor and asks, by
 itself, about the pair and what it was picked for (`whyNotQuestion` in
 `src/lib/quizWhyNot.ts`, one question per choice format; a test fails if the
 ladder gains a choice format with none):
@@ -494,8 +495,13 @@ frame hands it to the card: a picture option carries its word, unrendered, and
 a meaning is looked up among the other words (`wordForMeaning`), naming none
 when two different words share it — a wrong guess there would explain the
 wrong mix-up. The question is the one-shot `pendingAsk` described above, never
-part of the seed. The pick is graded exactly as before, and opening the
-tutor after it changes nothing.
+part of the seed, so unlike the "Ask AI" chip it replaces, a tap is a tutor
+turn (`docs/ai-spend-2026-10.md` §2), on the chat's own cap. The pick is
+graded exactly as before, and opening the tutor after it changes nothing.
+
+The meaning questions never deal another gloss of the word itself as a wrong
+meaning (a mixed deck's other dialect, the same word saved twice): picking it
+was a right answer graded Again. Found while building this, and fixed with it.
 
 Grading is `src/lib/quizGrading.ts`: a right choice is Good (never Easy when
 the options were on screen — the lesson quiz's and debrief's rule), a right

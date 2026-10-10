@@ -158,6 +158,13 @@ Three things in that table are worth reading twice.
   Flash memory rewrite every fourth turn (`TURNS_BETWEEN_REWRITES`), and the
   HUMAIN native review whenever the reply contains Arabic, which for a tutor
   of Arabic is most turns.
+- **"Why not this one?" sends a chat turn on one tap** (quiz Phase 7.1).
+  After a wrong pick on any quiz choice step, the chip opens the tutor and
+  asks its question by itself, where the "Ask AI" chip it replaces only
+  opened the panel. It is an assistant-chat turn like any other (the row
+  above, the same cap: 40 a day free, uncapped for subscribers, §4), sent
+  only on a tap and only after a wrong pick; the eight turns of §3's typical
+  day do not count these separately.
 - **A minute of voice costs a cent more than the per-minute list price**
   because the `live` engine bills its backend model separately. At the
   allowances on the pricing page, Standard's 120 minutes come to $6.17 and

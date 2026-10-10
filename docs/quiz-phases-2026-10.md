@@ -905,6 +905,11 @@ What shipped (writeup: README "Reviewing as a quiz instead of flashcards",
   a wrong picture option carries its word (unrendered), and `wordForMeaning`
   names the word a wrong meaning belongs to, or none when two different words
   share it.
+- Found on the way, and fixed: the meaning questions dealt another gloss of
+  the word itself as a wrong meaning (a mixed deck holding السوق as "the
+  market" and as "the souq"), so a right pick was graded Again, and "Why not
+  this one?" would have named the word as the other one. `englishPool` and
+  `wordForMeaning` leave the word out in any spelling now.
 - Guards: `quizWhyNot.test.ts`, `ReviewClozeCard.test.tsx`,
   `QuizChoiceCard.test.tsx`, `QuizOptionsCard.test.tsx`,
   `QuizCardFrame.test.tsx` ("why not this one?"), `QuizStoryCard.test.tsx`,
@@ -922,8 +927,20 @@ What shipped (writeup: README "Reviewing as a quiz instead of flashcards",
    the picked option itself (the plan's "one tap on the picked option"): an
    option is a radio, and a second action on the same control would be easy
    to set off by tapping again to look.
-4. *Nothing else changes*: no new route, no migration, no model call beyond
-   the tutor's own, and the pick is graded as before.
+4. *A tap is a tutor turn.* The "Ask AI" chip it replaces only opened the
+   panel; this one asks, so each tap is an assistant-chat turn on the chat's
+   own cap (a line in `docs/ai-spend-2026-10.md` §2 says so). Nothing is sent
+   without a tap. No new route, no migration, and the pick is graded as
+   before.
+
+An independent review before the PR found the own-gloss bug above, and
+three things in the docs (fixed). One thing it raised is left as it is: in a
+mixed session the pool carries no dialect, so a wrong meaning can be named
+by another dialect's word for it ("bread" as the Egyptian «عيش» under a Gulf
+card, where عيش is rice). The word named is one the learner's deck holds for
+that meaning, so the naming is not false, only perhaps not the mix-up they
+made; carrying the dialect on `QuizPoolEntry` and naming only the card's own
+dialect's word would close it.
 
 ### The plan, as it was written
 

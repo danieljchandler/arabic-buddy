@@ -203,8 +203,9 @@ harness.
   only an unapproved `generated` asset gives way (`isReplaceable`). In the browser,
   `useWordAsset` stays a free read; a generation is `useEnsureWordAsset`,
   which the quiz calls unprompted, so it asks once per word, pauses a kind
-  after a cap answer or two failures in a row (per kind: a spent picture
-  allowance never stops dialogues), and never raises a toast. In
+  after two failures in a row and a counter after a cap answer (a spent
+  picture allowance never stops dialogues; a story passage shares the
+  dialogue's counter), and never raises a toast. In
   `QuizCardFrame` a question is fixed once it is on screen (its picture, its
   exchange and the pool it was dealt from, all settled through
   `useCardAsset`), so an asset that lands later never changes it. An
@@ -222,10 +223,13 @@ harness.
   `arabic`, `body_fusha` or `body_dialect`, which backfills skipped lines with
   fusha), `status = 'published'`, a public-domain or CC0 licence, the story's
   dialect exactly (`storyDialect`: `normalizeDialect` reads Levantine and MSA
-  as Gulf), and its current rendering (`inCurrentRendering`). Only then is one
-  written, through the same `writeText` as an exchange, charged on the
-  exchange's counter. `reading_passages` is not a source: its `dialect` is
-  never written. README "The asset store".
+  as Gulf), the word's sense (`englishNamesSense`: the folding cannot tell
+  homographs apart), and its current rendering (`inCurrentRendering`). Only
+  then is one written, through the same `writeText` as an exchange. A
+  learner's miss is charged on the exchange's counter before the search,
+  found or written, since a miss is a shelf search and a public row.
+  `reading_passages` is not a source: its `dialect` is never written. README
+  "The asset store".
 - **Flashcard scheduling is FSRS-6, not FSRS-4.5 or SM-2, and the weights are
   meant to be fitted.** `src/lib/spacedRepetition.ts` implements the FSRS-6
   formulas line for line from fsrs-rs (21 weights). Two things it must keep:

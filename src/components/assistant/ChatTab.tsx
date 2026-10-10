@@ -3,7 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { Bookmark, Flag, Loader2, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { useAiAssistant, type AssistantSeed } from "@/contexts/AiAssistantContext";
+import { useAiAssistant } from "@/contexts/AiAssistantContext";
 import { useSaveConversation } from "@/hooks/useSavedConversations";
 import { useDialect } from "@/contexts/DialectContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -47,8 +47,16 @@ interface ChatTabProps {
 }
 
 export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
-  const { seed, messages, setMessages, pageContext, conversationId, setConversationId } =
-    useAiAssistant();
+  const {
+    seed,
+    messages,
+    setMessages,
+    pageContext,
+    conversationId,
+    setConversationId,
+    pendingAsk,
+    clearPendingAsk,
+  } = useAiAssistant();
   const { activeDialect } = useDialect();
   const { user, loading: authLoading } = useAuth();
   const { pathname } = useLocation();
@@ -213,9 +221,7 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
           body: {
             dialect: activeDialect,
             messages: nextMessages,
-            // The sentence, never the question a seed may carry: that is the
-            // learner's message itself.
-            seed: seed ? { arabic: seed.arabic, english: seed.english } : undefined,
+            seed: seed ?? undefined,
             pageContext: buildPagePayload(pathname, pageContext),
           },
           onContentComplete: (full) => {
@@ -344,16 +350,19 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
     ],
   );
 
-  // A seed that names its question ("Why not this one?" on a wrong pick in
-  // the quiz) was asked by the tap that opened the panel, so it is sent, once,
-  // as the learner's first message. Only into a conversation with nothing in
-  // it yet: the same sentence reopened resumes what is there instead.
-  const askedForRef = useRef<AssistantSeed | null>(null);
+  // A question the tap that opened the panel already asked ("Why not this
+  // one?" on a wrong pick in the quiz) is sent as the learner's message, once:
+  // into a fresh conversation about a new sentence, or as the next message of
+  // the one already about this sentence. It waits for a reply still streaming
+  // and for a signed-in learner; the id is what keeps a re-render from
+  // sending it twice before the context has cleared it.
+  const sentAskRef = useRef<number | null>(null);
   useEffect(() => {
-    if (!seed?.ask || askedForRef.current === seed || messages.length > 0 || loading || !user) return;
-    askedForRef.current = seed;
-    void send(seed.ask);
-  }, [seed, messages.length, loading, user, send]);
+    if (!pendingAsk || sentAskRef.current === pendingAsk.id || loading || !user) return;
+    sentAskRef.current = pendingAsk.id;
+    clearPendingAsk(pendingAsk.id);
+    void send(pendingAsk.text);
+  }, [pendingAsk, loading, user, send, clearPendingAsk]);
 
   if (!user && !authLoading) {
     return (

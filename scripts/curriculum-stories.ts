@@ -28,6 +28,11 @@
  *   --dry-run  list what the library would lend each word, and what was left
  *              out of it and why. Reads only.
  *
+ * It also takes back what a story stopped lending: a filed story passage
+ * whose story was unpublished, re-licensed, moved to another dialect,
+ * re-converted or deleted has its row deleted (listed only, in a dry run),
+ * and the word is searched again.
+ *
  * Order matters: apply the `word_assets` migration (Phase 2b) first. Without
  * it a real run files nothing and says so; the dry run still lists what it
  * would take. It is safe to run again: a word already in the store is left
@@ -44,6 +49,7 @@ import { detectMsaLeaks } from "../supabase/functions/_shared/msaLeakDetector.ts
 import type { StoryClient } from "../supabase/functions/_shared/wordStoryLine.ts";
 import type { WordAssetClient } from "../supabase/functions/_shared/wordAssets.ts";
 import {
+  type AssetRowDeleter,
   formatStorySummary,
   parseArgs,
   projectFromEnv,
@@ -79,7 +85,7 @@ Deno.env.set("SUPABASE_URL", project.supabaseUrl);
 
 const client = createClient(project.supabaseUrl, project.serviceRoleKey, {
   auth: { persistSession: false, autoRefreshToken: false },
-}) as unknown as StoryClient & WordAssetClient;
+}) as unknown as StoryClient & WordAssetClient & AssetRowDeleter;
 
 const filters = [
   options.dialect ?? "every dialect",

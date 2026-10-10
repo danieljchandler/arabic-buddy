@@ -33,7 +33,7 @@ export const AskAISentence = ({
   className,
 }: AskAISentenceProps) => {
   const { openChat } = useAiAssistant();
-  const open = () => openChat({ arabic, english, ...(ask ? { ask } : {}) });
+  const open = () => openChat({ arabic, english }, ask ? { ask } : undefined);
 
   if (variant === "chip") {
     return (

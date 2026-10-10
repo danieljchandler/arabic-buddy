@@ -156,6 +156,29 @@ export function assessmentLocale(dialect: string | null | undefined): string {
   return "ar-SA";
 }
 
+/**
+ * How close a take that should be the word alone (the gap in a story, step
+ * 10) came to it. A take of exactly as many words as the item is read as
+ * `wordSpanSimilarity` reads one window: an attached و, ب or ال taken off,
+ * and a word of three letters or fewer heard exactly. A take of more words
+ * than that — a guess beside the answer ("شاي قهوة حليب"), or the sentence
+ * read back — is not the word, and is scored as a different word: the
+ * best-window reading a reply gets would give the answer to whoever names
+ * enough candidates, since a pronunciation score charges extra words almost
+ * nothing. A letter the recogniser split off on its own (a detached و) is not
+ * a word. Null when nothing was heard.
+ */
+export function singleWordSimilarity(recognized: string | null | undefined, word: string): number | null {
+  const heard = (recognized ?? "")
+    .split(/\s+/)
+    .map((token) => normalizeArabicWord(token))
+    .filter((token) => token.length > 1);
+  if (heard.length === 0) return null;
+  const size = Math.max(1, word.trim().split(/\s+/).length);
+  if (heard.length > size) return Math.min(arabicSimilarity(heard.join(" "), word), SPEECH_MATCH_FLOOR / 2);
+  return wordSpanSimilarity(heard.join(" "), word);
+}
+
 /** Whether a rating counts as a correct answer for the session's tally. */
 export function isCorrectRating(rating: Rating): boolean {
   return rating !== "again";

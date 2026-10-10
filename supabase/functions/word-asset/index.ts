@@ -48,12 +48,14 @@
  *   them using the word, for the quiz's top step. Taken from a published story
  *   in the reading library that already uses the word, where one does
  *   (`findStoryPassage`: the dialect text only, a public-domain or CC0
- *   licence, the story's current rendering), which calls no model and is
- *   charged to nobody; otherwise written exactly as an exchange is
+ *   licence, the word's sense, the story's current rendering), which calls no
+ *   model; otherwise written exactly as an exchange is
  *   (`storyLinePrompt`, the same `writeText`, the same leak and validator
- *   gates) and charged on the exchange's counter, since it costs the same.
- *   Never while the table is missing (`store_not_ready`), and never for a
- *   word on the dialect's leak lists (`word_not_in_dialect`).
+ *   gates). A learner's miss is charged on the exchange's counter either way,
+ *   before the search: a written one costs what an exchange does, and a found
+ *   one is a search of the shelf and a row in a public table, which the
+ *   allowance bounds. Never while the table is missing (`store_not_ready`),
+ *   and never for a word on the dialect's leak lists (`word_not_in_dialect`).
  *
  * Nothing else a learner sends reaches a prompt: the first learner to miss
  * decides what every later learner is shown, so they must not be able to
@@ -399,40 +401,6 @@ serve(async (req) => {
       403,
     );
   }
-  // A story passage is looked for in the reading library before anything is
-  // written: a published story that already uses the word costs no model call
-  // and is charged to nobody (`findStoryPassage`, reads of public data).
-  if (key.kind === "story_line") {
-    // It has nowhere to live but the store: one made while the table is not
-    // there would be made, and charged, again at every encounter.
-    if (missingTable) {
-      return reply(
-        { error: "store_not_ready", fallback: true, message: "Story passages cannot be kept yet, so none is made." },
-        503,
-      );
-    }
-    const dialect = key.dialect ?? "Gulf";
-    await primeDialectPrompt(dialect);
-    const leaksIn = (line: string) => detectMsaLeaks(line, dialect, getDialectForbiddenTokens(dialect)).leaks;
-    // The passage must use the word as it is, so a word on the dialect's leak
-    // lists could never be filed: turned away before the search and the charge.
-    if (leaksIn(keyWord(key)).length > 0) {
-      return reply(
-        { error: "word_not_in_dialect", message: "This word is not one the dialect's passages can use." },
-        400,
-      );
-    }
-    const fromStory = await findStoryPassage(admin as unknown as StoryClient, key, { leaksIn });
-    if (fromStory) {
-      try {
-        return reply(await fileStoryPassage(store, key, fromStory, replace));
-      } catch (err) {
-        console.error("word-asset story passage error:", err);
-        return reply({ error: err instanceof Error ? err.message : "Unknown error" }, 500);
-      }
-    }
-  }
-
   if (!hasAnyProvider()) {
     return reply(
       {
@@ -451,15 +419,11 @@ serve(async (req) => {
   // An animation neither: it is made for every learner of the action or for
   // nobody, and at several times a picture's price it is never made to be
   // thrown away.
-  if ((key.kind === "dialogue" || key.kind === "animation") && missingTable) {
-    return reply(
-      {
-        error: "store_not_ready",
-        fallback: true,
-        message: `${key.kind === "dialogue" ? "Dialogues" : "Animations"} cannot be kept yet, so none is made.`,
-      },
-      503,
-    );
+  // A story passage neither: it is found or written for every learner of the
+  // word, and lives in the store alone.
+  if ((key.kind === "dialogue" || key.kind === "animation" || key.kind === "story_line") && missingTable) {
+    const what = key.kind === "dialogue" ? "Dialogues" : key.kind === "animation" ? "Animations" : "Story passages";
+    return reply({ error: "store_not_ready", fallback: true, message: `${what} cannot be kept yet, so none is made.` }, 503);
   }
   // Nor while the bucket it would go in is missing (its migration not yet
   // applied): every upload would fail after the poster and the clip were paid.
@@ -477,14 +441,13 @@ serve(async (req) => {
   // dialect's leak lists (the rulebook's included) can never pass the check
   // its exchange is filed on: every attempt would be charged and thrown away.
   // Turned away here, before the charge.
-  if (key.kind === "dialogue") {
+  // The same holds for a passage, from a story or written.
+  if (key.kind === "dialogue" || key.kind === "story_line") {
     const dialect = key.dialect ?? "Gulf";
     await primeDialectPrompt(dialect);
     if (detectMsaLeaks(keyWord(key), dialect, getDialectForbiddenTokens(dialect)).leaks.length > 0) {
-      return reply(
-        { error: "word_not_in_dialect", message: "This word is not one the dialect's exchanges can use." },
-        400,
-      );
+      const what = key.kind === "dialogue" ? "exchanges" : "passages";
+      return reply({ error: "word_not_in_dialect", message: `This word is not one the dialect's ${what} can use.` }, 400);
     }
   }
 
@@ -507,7 +470,10 @@ serve(async (req) => {
   }
 
   // Charged only now, on the miss, and only to a learner, on the kind's own
-  // counter.
+  // counter. A story passage is charged here too, before the library is
+  // searched, whether it is then found or written: a miss is a search of the
+  // whole shelf and a row in a public table, and the allowance is what bounds
+  // how many of each one account can cause in a day.
   if (!trusted && key.kind !== "animation") {
     const cap = CAPS[key.kind];
     const limited = await enforceDailyCap(req, cap.key, cap.free, corsHeaders, cap.tiers);
@@ -541,7 +507,7 @@ serve(async (req) => {
 
   try {
     if (key.kind === "dialogue") return reply(await makeDialogue(store, key, { example: authored, replace }));
-    if (key.kind === "story_line") return reply(await makeStoryLine(store, key, { example: authored, replace }));
+    if (key.kind === "story_line") return reply(await makeStoryLine(admin as unknown as StoryClient, store, key, { example: authored, replace }));
     return reply(await makePicture(admin, store, key, { scene: authored, replace }));
   } catch (err) {
     console.error("word-asset error:", err);
@@ -678,11 +644,24 @@ async function makeDialogue(
   });
 }
 
+/**
+ * A word's story passage: from a published story that already uses the word
+ * in this sense where the reading library has one (`findStoryPassage`, which
+ * reads public data and calls no model), else written for it exactly as an
+ * exchange is. The caller has already been charged, if they are charged.
+ */
 async function makeStoryLine(
+  library: StoryClient,
   store: WordAssetClient,
   key: AssetKey,
   authored: { example: string; replace: WordAsset | null },
 ): Promise<Record<string, unknown>> {
+  const dialect = key.dialect ?? "Gulf";
+  await primeDialectPrompt(dialect);
+  const leaksIn = (line: string) => detectMsaLeaks(line, dialect, getDialectForbiddenTokens(dialect)).leaks;
+  const fromStory = await findStoryPassage(library, key, { leaksIn });
+  if (fromStory) return fileStoryPassage(store, key, fromStory, authored.replace);
+
   const word = keyWord(key);
   return writeText(store, key, authored, {
     purpose: "word_story_line",
@@ -817,7 +796,7 @@ async function writeText<T>(
 
 /**
  * File a passage taken from a published story (`findStoryPassage`): no model
- * call, nothing charged, `source: "reviewed"` since a person published it.
+ * call, `source: "reviewed"` since a person published it.
  * On the trusted path it takes the place of a written passage filed earlier
  * (`replace`); a learner's miss that lost a race to another's is served the
  * winner, so every learner hears the same passage.

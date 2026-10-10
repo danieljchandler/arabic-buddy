@@ -9,6 +9,7 @@ import { assetKey, type AssetKey } from "../../supabase/functions/_shared/wordAs
 import { detectMsaLeaks } from "../../supabase/functions/_shared/msaLeakDetector";
 import {
   asStoredStoryLine,
+  englishNamesSense,
   findStoryPassage,
   inCurrentRendering,
   MAX_STORY_SENTENCE_LENGTH,
@@ -21,6 +22,7 @@ import {
   storyLineSentencesForScan,
   storyPassageAsset,
   storyPassages,
+  storyPassageStillLent,
   storySourceProblem,
   type StoryClient,
   type StoryLineRow,
@@ -137,6 +139,30 @@ describe("storyLinePrompt", () => {
   });
 });
 
+describe("englishNamesSense", () => {
+  it("finds every word of the sense, as itself or inflected", () => {
+    expect(englishNamesSense("The man ordered hot coffee.", "coffee")).toBe(true);
+    expect(englishNamesSense("We went to the market early.", "market")).toBe(true);
+    expect(englishNamesSense("He eats bread every morning.", "eat")).toBe(true);
+    expect(englishNamesSense("She was making tea.", "make")).toBe(true);
+    expect(englishNamesSense("They were running late.", "run")).toBe(true);
+    expect(englishNamesSense("Two cities.", "city")).toBe(true);
+    expect(englishNamesSense("We drink coffee every day.", "every day")).toBe(true);
+    expect(englishNamesSense("He runs a business in town.", "run a business")).toBe(true);
+  });
+
+  it("is strict: another sense, or a sense it cannot find, names nothing", () => {
+    expect(englishNamesSense("A spring of cold water.", "eye body part")).toBe(false);
+    expect(englishNamesSense("He ran home.", "run a business")).toBe(false);
+    // An irregular past is not found, and the passage is written instead.
+    expect(englishNamesSense("We went to the market.", "go")).toBe(false);
+    // "go" is not "good".
+    expect(englishNamesSense("A good day.", "go")).toBe(false);
+    // A sense of nothing but small words says nothing to look for.
+    expect(englishNamesSense("You are here.", "you m")).toBe(false);
+  });
+});
+
 describe("the source rule", () => {
   it("lends from published stories only", () => {
     const story = { status: "published", license: "public_domain", dialect: "Gulf" };
@@ -199,7 +225,7 @@ describe("cutting a passage from a story", () => {
   });
 
   it("takes the word's sentence and the one before it, from the dialect text", () => {
-    const [passage] = storyPassages("قهوة", "Gulf", [story()], [
+    const [passage] = storyPassages("قهوة", "coffee", "Gulf", [story()], [
       line(0, morning.arabic, morning.english),
       line(1, ordered.arabic, ordered.english),
       line(2, sat.arabic, sat.english),
@@ -213,7 +239,7 @@ describe("cutting a passage from a story", () => {
   });
 
   it("takes the one after when the word opens the story", () => {
-    const [passage] = storyPassages("قهوة", "Gulf", [story()], [
+    const [passage] = storyPassages("قهوة", "coffee", "Gulf", [story()], [
       line(0, ordered.arabic, ordered.english),
       line(1, sat.arabic, sat.english),
     ]);
@@ -221,7 +247,7 @@ describe("cutting a passage from a story", () => {
   });
 
   it("cuts a long line at its sentences where its English has as many, and never inside the word's", () => {
-    const [passage] = storyPassages("قهوة", "Gulf", [story()], [
+    const [passage] = storyPassages("قهوة", "coffee", "Gulf", [story()], [
       line(0, `${morning.arabic} ${ordered.arabic} ${sat.arabic}`, `${morning.english} ${ordered.english} ${sat.english}`),
     ]);
     expect(passage.sentences).toEqual([morning, ordered]);
@@ -229,7 +255,7 @@ describe("cutting a passage from a story", () => {
   });
 
   it("keeps a line whole when its English does not split the same way, and takes it only if it is short enough", () => {
-    const [whole] = storyPassages("قهوة", "Gulf", [story()], [
+    const [whole] = storyPassages("قهوة", "coffee", "Gulf", [story()], [
       line(0, morning.arabic, morning.english),
       line(1, `${ordered.arabic} ${sat.arabic}`, "The man ordered hot coffee and sat with his friends."),
     ]);
@@ -238,25 +264,25 @@ describe("cutting a passage from a story", () => {
       english: "The man ordered hot coffee and sat with his friends.",
     });
     const long = `${"كلام ".repeat(50)}${ordered.arabic}`;
-    expect(storyPassages("قهوة", "Gulf", [story()], [line(0, morning.arabic, morning.english), line(1, long, "x")])).toEqual([]);
+    expect(storyPassages("قهوة", "coffee", "Gulf", [story()], [line(0, morning.arabic, morning.english), line(1, long, "x")])).toEqual([]);
   });
 
   it("pairs only sentences that follow on: not across a line with no rendering", () => {
     expect(
-      storyPassages("قهوة", "Gulf", [story()], [line(0, morning.arabic, morning.english), line(2, ordered.arabic, ordered.english)]),
+      storyPassages("قهوة", "coffee", "Gulf", [story()], [line(0, morning.arabic, morning.english), line(2, ordered.arabic, ordered.english)]),
     ).toEqual([]);
   });
 
   it("never reads the fusha: a line with no rendering, or one that is its fusha word for word, lends nothing", () => {
     const fusha = "طلب الرجل قهوة ساخنة.";
     expect(
-      storyPassages("قهوة", "Gulf", [story()], [
+      storyPassages("قهوة", "coffee", "Gulf", [story()], [
         line(0, morning.arabic, morning.english),
         line(1, null, ordered.english, { arabic: fusha }),
       ]),
     ).toEqual([]);
     expect(
-      storyPassages("قهوة", "Gulf", [story()], [
+      storyPassages("قهوة", "coffee", "Gulf", [story()], [
         line(0, morning.arabic, morning.english),
         line(1, fusha, ordered.english, { arabic: fusha }),
       ]),
@@ -266,7 +292,7 @@ describe("cutting a passage from a story", () => {
   it("lends nothing from a story the source rule turns away", () => {
     const lines = [line(0, morning.arabic, morning.english), line(1, ordered.arabic, ordered.english)];
     for (const over of [{ status: "draft" }, { license: "CC-BY" }, { dialect: "Levantine" }, { dialect: "MSA" }]) {
-      expect(storyPassages("قهوة", "Gulf", [story(over)], lines), JSON.stringify(over)).toEqual([]);
+      expect(storyPassages("قهوة", "coffee", "Gulf", [story(over)], lines), JSON.stringify(over)).toEqual([]);
     }
   });
 
@@ -274,19 +300,26 @@ describe("cutting a passage from a story", () => {
     const leaksIn = (text: string) => detectMsaLeaks(text, "Gulf").leaks;
     const quoted = { arabic: "قال «لماذا» وطلب قهوة.", english: "He said 'why' and ordered coffee." };
     expect(
-      storyPassages("قهوة", "Gulf", [story()], [line(0, morning.arabic, morning.english), line(1, quoted.arabic, quoted.english)], leaksIn),
+      storyPassages("قهوة", "coffee", "Gulf", [story()], [line(0, morning.arabic, morning.english), line(1, quoted.arabic, quoted.english)], leaksIn),
     ).toEqual([]);
   });
 
   it("offers the shortest passage first, whichever story it is in", () => {
     const short = { arabic: "شرب قهوة.", english: "He drank coffee." };
-    const passages = storyPassages("قهوة", "Gulf", [story(), story({ id: "s2" })], [
+    const passages = storyPassages("قهوة", "coffee", "Gulf", [story(), story({ id: "s2" })], [
       line(0, morning.arabic, morning.english),
       line(1, ordered.arabic, ordered.english),
       line(0, "برد.", "Cold.", { story_id: "s2" }),
       line(1, short.arabic, short.english, { story_id: "s2" }),
     ]);
     expect(passages.map((p) => p.story.id)).toEqual(["s2", "s1"]);
+  });
+
+  it("takes the word only in the key's sense: the gap sentence's English must name it", () => {
+    const lines = [line(0, morning.arabic, morning.english), line(1, ordered.arabic, ordered.english)];
+    expect(storyPassages("قهوة", "coffee", "Gulf", [story()], lines)).toHaveLength(1);
+    // The folding cannot tell a homograph apart; the English can.
+    expect(storyPassages("قهوة", "eye body part", "Gulf", [story()], lines)).toEqual([]);
   });
 
   it("checks a passage against its story's current rendering", () => {
@@ -298,7 +331,7 @@ describe("cutting a passage from a story", () => {
   });
 
   it("is filed as a person's, with how it was found", () => {
-    const [passage] = storyPassages("قهوة", "Gulf", [story()], [
+    const [passage] = storyPassages("قهوة", "coffee", "Gulf", [story()], [
       line(0, morning.arabic, morning.english),
       line(1, ordered.arabic, ordered.english),
     ]);
@@ -437,6 +470,37 @@ describe("findStoryPassage against the project's own tables", () => {
     filler[1050] = { arabic: "طلب الرجل قهوة ساخنة.", dialect: ordered.arabic, english: ordered.english };
     seed([{ story: {}, lines: filler }]);
     expect((await findStoryPassage(client, coffee()))?.sentences).toEqual([morning, ordered]);
+  });
+
+  describe("whether a filed passage is still lent", () => {
+    const filedFrom = (over: Record<string, unknown> = {}) => ({
+      payload: { sentences: [morning, ordered], story: { id: storyId(0), title: "A story", titleArabic: "" } },
+      meta: { from: "story", story_id: storyId(0), line_indexes: [0, 1], license: "public_domain" },
+      ...over,
+    });
+
+    it("is while its story still lends it", async () => {
+      seed([{ story: {}, lines: theMorning() }]);
+      expect(await storyPassageStillLent(client, coffee(), filedFrom())).toBe(true);
+    });
+
+    it("is not once its story is unpublished, re-licensed, moved to another dialect, re-converted or gone", async () => {
+      for (const story of [{ status: "draft" }, { license: "CC-BY" }, { dialect: "Egyptian" }] as Array<Partial<Story>>) {
+        seed([{ story, lines: theMorning() }]);
+        expect(await storyPassageStillLent(client, coffee(), filedFrom()), JSON.stringify(story)).toBe(false);
+      }
+      seed([{ story: {}, lines: theMorning([{}, { dialect: "طلب الريال قهوة بارده." }]) }]);
+      expect(await storyPassageStillLent(client, coffee(), filedFrom())).toBe(false);
+      seed([]);
+      expect(await storyPassageStillLent(client, coffee(), filedFrom())).toBe(false);
+    });
+
+    it("has nothing to say about a passage written for the word, or when a read fails", async () => {
+      seed([{ story: {}, lines: theMorning() }]);
+      expect(await storyPassageStillLent(client, coffee(), filedFrom({ meta: {} }))).toBeNull();
+      backend.db.failAlways("authentic_stories", 500, { code: "XX000", message: "down" });
+      expect(await storyPassageStillLent(client, coffee(), filedFrom())).toBeNull();
+    });
   });
 
   it("is no passage, rather than an error, when a read fails", async () => {

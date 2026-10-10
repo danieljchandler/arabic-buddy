@@ -22,6 +22,12 @@
  * sentences were read by the person who published it and a written passage
  * was read by nobody. Never a passage someone authored, reviewed or approved.
  *
+ * What it takes back: a passage it (or a learner's miss) filed from a story
+ * that no longer lends it — unpublished, re-licensed, moved to another
+ * dialect, re-converted, or gone (`storyPassageStillLent`). Its row is
+ * deleted, and the word is searched again. Until a run, such a passage stays
+ * filed and served.
+ *
  * Everything takes the client and `fetch` as parameters, so the Vitest suite
  * drives it against the in-memory project (`src/test/curriculumStories.test.ts`).
  * Nothing in the repo's tests or CI reaches a real project.
@@ -40,6 +46,7 @@ import {
 import {
   findStoryPassage,
   PUBLISHED_STORY_STATUS,
+  storyPassageStillLent,
   storyDialect,
   storyLicenseShareable,
   storyPassageAsset,
@@ -72,9 +79,16 @@ export const MAX_CONSECUTIVE_FAILURES = 3;
 export const STORE_MISSING =
   "word_assets is not on this project (apply 20261009130000_word_assets, Phase 2b): nothing can be filed.";
 
+/** The one write beyond the store's own: taking a row back. */
+export interface AssetRowDeleter {
+  from(table: string): {
+    delete(): { eq(column: string, value: string): PromiseLike<{ error: { message: string } | null }> };
+  };
+}
+
 export interface StoryRunContext extends RunContext {
-  /** A service-role client: the story search and the store both take it. */
-  client: StoryClient & WordAssetClient;
+  /** A service-role client: the story search, the store and the take-back all take it. */
+  client: StoryClient & WordAssetClient & AssetRowDeleter;
   /**
    * The leak scan for a dialect, with the rulebook's tokens loaded where the
    * caller can load them. Without it, a story's sentences are filed on the
@@ -206,6 +220,8 @@ export interface StorySummary {
   unkeyed: number;
   /** Keys whose passage is already filed and not a learner-written one. */
   have: number;
+  /** Story passages whose story no longer lends them: taken back (a real run), or to be (a dry run). */
+  revoked: number;
   /** Keys a story passage was filed for (a real run), or would be (a dry run). */
   taken: number;
   /** Of `taken`, how many take the place of a learner-written passage. */
@@ -245,6 +261,7 @@ export async function runStories(ctx: StoryRunContext, options: StoryOptions): P
     keys: plans.length,
     unkeyed,
     have: 0,
+    revoked: 0,
     taken: 0,
     replacing: 0,
     none: 0,
@@ -278,13 +295,37 @@ export async function runStories(ctx: StoryRunContext, options: StoryOptions): P
       }
       log(`${STORE_MISSING} Listing what a run would take anyway.`);
     }
-    const replacing: WordAsset | null = filed && isReplaceable(filed) ? filed : null;
-    if (filed && !replacing) {
+    const scan = await leaksIn(plan.key.dialect!);
+    let current: WordAsset | null = filed;
+    if (current && current.source === "reviewed" && current.meta.from === "story") {
+      // Lent by a story: kept only while the story still lends it.
+      const lent = await storyPassageStillLent(ctx.client, plan.key, current, { leaksIn: scan });
+      if (lent === false) {
+        summary.revoked++;
+        const story = typeof current.meta.story_title === "string" ? current.meta.story_title : String(current.meta.story_id);
+        if (options.dryRun) {
+          log(`would take back: ${plan.row.word_arabic} (${plan.key.dialect}), “${story}” no longer lends it`);
+        } else {
+          const deleter: AssetRowDeleter = ctx.client;
+          const { error } = await deleter.from("word_assets").delete().eq("id", current.id);
+          if (error) {
+            summary.revoked--;
+            summary.failed++;
+            log(`could not take back ${plan.row.word_arabic} (${plan.key.dialect}): ${error.message}`);
+            continue;
+          }
+          log(`took back: ${plan.row.word_arabic} (${plan.key.dialect}), “${story}” no longer lends it`);
+        }
+        current = null;
+      }
+    }
+    const replacing: WordAsset | null = current && isReplaceable(current) ? current : null;
+    if (current && !replacing) {
       summary.have++;
       continue;
     }
 
-    const passage = await findStoryPassage(ctx.client, plan.key, { leaksIn: await leaksIn(plan.key.dialect!) });
+    const passage = await findStoryPassage(ctx.client, plan.key, { leaksIn: scan });
     if (!passage) {
       summary.none++;
       continue;
@@ -332,6 +373,9 @@ export function formatStorySummary(summary: StorySummary): string[] {
   const lines = [
     `${summary.words} curriculum words, ${summary.keys} distinct (${summary.unkeyed} the store cannot key).`,
     `  already in the store: ${summary.have}`,
+    ...(summary.revoked
+      ? [`  ${summary.dryRun ? "would take back" : "taken back"}, their story no longer lending them: ${summary.revoked}`]
+      : []),
     `  ${verb} from a published story: ${summary.taken}` +
       (summary.replacing ? ` (${summary.replacing} in place of a passage a learner's miss wrote)` : ""),
     `  no published story uses the word: ${summary.none}`,

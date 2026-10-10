@@ -15,11 +15,11 @@ import { AskAISentence } from "./AskAISentence";
  */
 
 function Probe() {
-  const { isOpen, seed, activeTab } = useAiAssistant();
+  const { isOpen, seed, activeTab, pendingAsk } = useAiAssistant();
   return (
     <div data-testid="probe">
       {isOpen ? "open" : "closed"}|{activeTab}|{seed ? `${seed.arabic}~${seed.english ?? ""}` : "no-seed"}
-      {seed?.ask ? `|ask:${seed.ask}` : ""}
+      {pendingAsk ? `|ask:${pendingAsk.text}` : ""}
     </div>
   );
 }
@@ -88,7 +88,7 @@ describe("opening the assistant", () => {
 });
 
 describe("a chip that asks its own question", () => {
-  it("is labelled with the question, and seeds the chat with the sentence and the question", () => {
+  it("is labelled with the question, and opens the chat on the sentence with the question to ask", () => {
     render({ variant: "chip", label: "Why not this one?", ask: "Why doesn't «بيت» fit here?" });
 
     fireEvent.click(screen.getByRole("button", { name: /Why not this one\?/ }));

@@ -56,6 +56,10 @@ describe("storyGap", () => {
     expect(storyGap(line([morning, ordered], { id: "s", title: "", titleArabic: "الصبح البارد" }), "قهوة")?.title).toBe("الصبح البارد");
   });
 
+  it("does not name a story whose title says the word", () => {
+    expect(storyGap(line([morning, ordered], { id: "s", title: "", titleArabic: "بياع القهوة" }), "قهوة")?.title).toBeNull();
+  });
+
   it("is no gap without a passage", () => {
     expect(storyGap(null, "قهوة")).toBeNull();
     expect(storyGap(undefined, "قهوة")).toBeNull();

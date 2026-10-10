@@ -18,11 +18,19 @@ import { AskAiPanel } from "./AskAiPanel";
  * itself (chunk boundaries, auth header) is covered by sseChat.test.ts.
  */
 
-function Opener({ seed }: { seed?: { arabic: string; english?: string; ask?: string } }) {
+function Opener({
+  seed,
+  ask,
+  label = "open-assistant",
+}: {
+  seed?: { arabic: string; english?: string };
+  ask?: string;
+  label?: string;
+}) {
   const { openChat } = useAiAssistant();
   return (
-    <button type="button" onClick={() => openChat(seed)}>
-      open-assistant
+    <button type="button" onClick={() => openChat(seed, ask ? { ask } : undefined)}>
+      {label}
     </button>
   );
 }
@@ -46,10 +54,15 @@ afterEach(async () => {
 
 function render({
   seed,
+  ask,
+  askAgain,
   route = "/reading",
   pageContext,
 }: {
-  seed?: { arabic: string; english?: string; ask?: string };
+  seed?: { arabic: string; english?: string };
+  ask?: string;
+  /** A second opener on the same sentence, with another question. */
+  askAgain?: string;
   route?: string;
   pageContext?: PageAiContext;
 } = {}) {
@@ -57,7 +70,8 @@ function render({
   const harness = renderWithProviders(
     <AiAssistantProvider>
       {pageContext && <PagePublisher ctx={pageContext} />}
-      <Opener seed={seed} />
+      <Opener seed={seed} ask={ask} />
+      {askAgain && <Opener seed={seed} ask={askAgain} label="ask-again" />}
       <AskAiPanel />
     </AiAssistantProvider>,
     {
@@ -178,9 +192,9 @@ describe("AskAiPanel", () => {
     expect(body.seed).toEqual({ arabic: "شلونك اليوم", english: "How are you today?" });
   });
 
-  it("asks a seed's own question once, as the first message, and sends the sentence as the seed", async () => {
+  it("asks a question the opening tap named, once, and sends the sentence alone as the seed", async () => {
     const question = "In this passage I put «شاي» in the gap, but the word is «قهوة». Why doesn't «شاي» fit here?";
-    const { backend } = render({ seed: { arabic: "طلب الريال قهوة حارة.", english: "He ordered hot coffee.", ask: question } });
+    const { backend } = render({ seed: { arabic: "طلب الريال قهوة حارة.", english: "He ordered hot coffee." }, ask: question });
 
     await open();
 
@@ -191,15 +205,36 @@ describe("AskAiPanel", () => {
     expect(body.seed).toEqual({ arabic: "طلب الريال قهوة حارة.", english: "He ordered hot coffee." });
     expect(await screen.findByText("it is idiomatic.", { exact: false })).toBeInTheDocument();
 
-    // Reopened on the same sentence, the conversation carries on: not asked again.
-    await open();
+    // The panel re-rendering, or the same sentence reopened with no question,
+    // asks nothing more.
     await act(async () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
     expect(backend.callsTo("assistant-chat")).toHaveLength(1);
   });
 
-  it("asks nothing by itself for a seed with no question", async () => {
+  it("asks a second question about the same sentence as the next message of its conversation", async () => {
+    const first = "Why doesn't «شاي» fit here?";
+    const second = "Why doesn't «حليب» fit here?";
+    const { backend } = render({
+      seed: { arabic: "طلب الريال قهوة حارة.", english: "He ordered hot coffee." },
+      ask: first,
+      askAgain: second,
+    });
+
+    await open();
+    await waitFor(() => expect(backend.callsTo("assistant-chat")).toHaveLength(1));
+    expect(await screen.findByText("it is idiomatic.", { exact: false })).toBeInTheDocument();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "ask-again" }));
+    });
+    await waitFor(() => expect(backend.callsTo("assistant-chat")).toHaveLength(2));
+    const body = backend.lastCallTo("assistant-chat")!.body as { messages: Array<{ role: string; content: string }> };
+    expect(body.messages.map((m) => m.content)).toEqual([first, "Because it is idiomatic.", second]);
+  });
+
+  it("asks nothing by itself when the opening tap named no question", async () => {
     const { backend } = render({ seed: { arabic: "شلونك اليوم", english: "How are you today?" } });
     await open();
     await act(async () => {

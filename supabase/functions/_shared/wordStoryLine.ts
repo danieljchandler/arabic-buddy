@@ -27,10 +27,19 @@
  *      is shown, and a quiz card two sentences long, filed in a public table
  *      with no licence column, carries no credit; CC-BY-SA also puts every
  *      adaptation under the same licence, and a dialect rendering cut to two
- *      sentences is one. Anything else, or a licence nobody set, is left out;
+ *      sentences is one. Anything else is left out. The label is trusted as
+ *      written: the column defaults to `public_domain`, which is what the
+ *      suggest-and-import flow writes for the public-domain texts it imports,
+ *      so a story an editor imported by hand without choosing its licence
+ *      lends as public domain;
  *    - *the story's own dialect, exactly.* The story form also offers
  *      Levantine and MSA, which `normalizeDialect` would fold onto Gulf; here
  *      a label that is not Gulf, Egyptian or Yemeni is no dialect at all;
+ *    - *the word's sense.* The search matches the Arabic, and the folding
+ *      that keys a word removes the harakat that tell a homograph apart, so a
+ *      story's عين "spring" would otherwise be filed under عين "eye". The gap
+ *      sentence's English must name the key's sense (`englishNamesSense`);
+ *      when it does not, nothing is taken, and the passage is written instead;
  *    - *the story's current rendering.* `translate-story-dialect` leaves a
  *      line its model skipped with the dialect it already had, so a story
  *      moved from Gulf to Egyptian can keep a Gulf line under an Egyptian
@@ -332,6 +341,45 @@ export function splitSentences(text: string): string[] {
     .filter(Boolean);
 }
 
+/** Words in a sense that say nothing of which sense it is. */
+const SENSE_STOPWORDS: ReadonlySet<string> = new Set([
+  "a", "an", "the", "to", "of", "in", "on", "at", "for", "with", "and", "or", "as", "by", "from",
+  "is", "are", "am", "be", "was", "were", "do", "does", "i", "you", "he", "she", "it", "we", "they",
+  "me", "my", "your", "his", "her", "its", "our", "their", "him", "them", "us", "this", "that",
+  "someone", "something", "sb", "sth", "one", "lit", "m", "f",
+]);
+
+/** How an English word may end when it is still the word: plurals, tenses, a possessive. */
+function inflects(token: string, word: string): boolean {
+  if (token === word) return true;
+  const forms = [`${word}s`, `${word}es`, `${word}ed`, `${word}d`, `${word}ing`, `${word}'s`, `${word}er`, `${word}ers`];
+  if (word.endsWith("e")) forms.push(`${word.slice(0, -1)}ing`);
+  if (word.endsWith("y")) forms.push(`${word.slice(0, -1)}ies`, `${word.slice(0, -1)}ied`);
+  const last = word.at(-1) ?? "";
+  if (/[bdgklmnprt]/.test(last)) forms.push(`${word}${last}ing`, `${word}${last}ed`, `${word}${last}er`);
+  return forms.includes(token);
+}
+
+/**
+ * Whether an English sentence names a sense: every word of the folded sense
+ * that says which sense it is (not "the", "to", "you" or a note's "m") is in
+ * the sentence, as itself or inflected (eat, eats, eating). Strict on
+ * purpose, since this is what stands between a homograph and another
+ * meaning's passage: a sense it cannot find — an irregular past ("went" for
+ * "go"), a note in brackets — takes no story passage, and the passage is
+ * written for the sense instead, which is the safe way for it to be wrong.
+ * A sense with nothing left to look for names nothing.
+ */
+export function englishNamesSense(english: string, sense: string): boolean {
+  const wanted = sense
+    .toLowerCase()
+    .split(/[^a-z']+/)
+    .filter((word) => word.length > 1 && !SENSE_STOPWORDS.has(word));
+  if (wanted.length === 0) return false;
+  const tokens = english.toLowerCase().split(/[^a-z']+/).filter(Boolean);
+  return wanted.every((word) => tokens.some((token) => inflects(token, word)));
+}
+
 /** A passage taken from a story, before it is filed. */
 export interface StoryPassage {
   sentences: [StoredStorySentence, StoredStorySentence];
@@ -394,13 +442,15 @@ function follows(a: Unit, b: Unit): boolean {
  * with the one after it when the word opens the story or the one before does
  * not make a passage — the word's sentence is never cut, and neither is its
  * neighbour. A pair is a passage only if `asStoredStoryLine` says so (two
- * sentences, the word said once) and neither sentence leaks (`leaksIn`).
+ * sentences, the word said once), the word's sentence's English names the
+ * key's sense (`englishNamesSense`), and neither sentence leaks (`leaksIn`).
  * Shortest first, since the learner hears all of it; ties keep the stories'
  * order. The check against each story's current rendering needs its body,
  * which this does not read: `inCurrentRendering`.
  */
 export function storyPassages(
   word: string,
+  sense: string,
   dialect: AssetDialect,
   stories: readonly StoryRow[],
   lines: readonly StoryLineRow[],
@@ -438,7 +488,7 @@ export function storyPassages(
       };
     };
     units.forEach((unit, i) => {
-      if (!lineUsesWord(unit.arabic, word)) return;
+      if (!lineUsesWord(unit.arabic, word) || !englishNamesSense(unit.english, sense)) return;
       const passage = passageOf(units[i - 1], unit) ?? passageOf(unit, units[i + 1]);
       if (!passage) return;
       const length = passage.sentences[0].arabic.length + passage.sentences[1].arabic.length;
@@ -522,17 +572,18 @@ const rows = <T>(settled: Settled): T[] => {
  * The shortest passage a published story holds for the key's word, or null.
  * The word is the key's folded word (`keyWord`), never one a caller typed.
  *
- * Three reads at most, all of public data: the published stories (filtered by
- * the source rule in code, so a label the database would compare differently
- * is still refused), the rendered lines of the ones that may lend, a page at
- * a time, and the bodies of the stories a passage was found in, for
+ * Reads of public data only: the published stories (filtered by the source
+ * rule in code, so a label the database would compare differently is still
+ * refused), the rendered lines of the ones that may lend, fifty stories and a
+ * page at a time, and the bodies of the stories a passage was found in, for
  * `inCurrentRendering`. Bounded by `MAX_STORIES_PER_SEARCH` and
- * `MAX_STORY_LINES_PER_SEARCH`. Never throws: a failed read is no passage,
- * and the caller writes one instead.
+ * `MAX_STORY_LINES_PER_SEARCH`, and on a learner's miss by their daily
+ * allowance, which `word-asset` takes before it searches. Never throws: a
+ * failed read is no passage, and the caller writes one instead.
  */
 export async function findStoryPassage(
   client: StoryClient,
-  key: Pick<AssetKey, "conceptKey" | "dialect">,
+  key: Pick<AssetKey, "conceptKey" | "dialect" | "sense">,
   opts: { leaksIn?: (text: string) => string[] } = {},
 ): Promise<StoryPassage | null> {
   const dialect = key.dialect;
@@ -568,7 +619,7 @@ export async function findStoryPassage(
       }
     }
 
-    const passages = storyPassages(word, dialect, stories, lines, opts.leaksIn);
+    const passages = storyPassages(word, key.sense, dialect, stories, lines, opts.leaksIn);
     if (passages.length === 0) return null;
     const ids = [...new Set(passages.map((passage) => passage.story.id))].slice(0, STORY_IDS_PER_READ);
     const bodies = new Map(
@@ -582,3 +633,57 @@ export async function findStoryPassage(
     return null;
   }
 }
+
+/**
+ * Whether a passage filed from a story is still one the story lends: the story
+ * still there and still passing the source rule (published, a shareable
+ * licence, the key's dialect), and the same two sentences still cut from its
+ * current rendering for the key's word and sense. A story unpublished,
+ * re-licensed, moved to another dialect or re-converted stops lending what it
+ * lent, and `scripts/curriculum-stories.ts` takes those back. Not a passage
+ * from a story at all (one written for the word): null, nothing to check. A
+ * failed read is not a verdict either: null.
+ */
+export async function storyPassageStillLent(
+  client: StoryClient,
+  key: Pick<AssetKey, "conceptKey" | "dialect" | "sense">,
+  asset: { payload: unknown; meta: Record<string, unknown> },
+  opts: { leaksIn?: (text: string) => string[] } = {},
+): Promise<boolean | null> {
+  const storyId = typeof asset.meta.story_id === "string" ? asset.meta.story_id : null;
+  const dialect = key.dialect;
+  const word = keyWord(key);
+  if (asset.meta.from !== "story" || !storyId || !dialect || !word) return null;
+  const filed = asStoredStoryLine(asset.payload, word);
+  if (!filed) return false;
+  try {
+    const [story] = rows<StoryRow & { body_dialect: string | null }>(
+      await client
+        .from("authentic_stories")
+        .select("id, title, title_arabic, dialect, license, status, body_dialect")
+        .eq("id", storyId)
+        .limit(1),
+    );
+    if (!story || storySourceProblem(story, dialect) !== null) return false;
+    const lines = rows<StoryLineRow>(
+      await client
+        .from("authentic_story_lines")
+        .select("story_id, line_index, arabic, dialect, english")
+        .eq("story_id", storyId)
+        .not("dialect", "is", null)
+        .order("line_index", { ascending: true })
+        .range(0, STORY_LINES_PER_PAGE - 1),
+    );
+    const same = (passage: StoryPassage) =>
+      passage.sentences.every(
+        (sentence, i) => sentence.arabic === filed.sentences[i].arabic && sentence.english === filed.sentences[i].english,
+      );
+    return storyPassages(word, key.sense, dialect, [story], lines, opts.leaksIn).some(
+      (passage) => same(passage) && inCurrentRendering(passage, story.body_dialect),
+    );
+  } catch (err) {
+    console.warn(`[wordStoryLine] could not check a story passage: ${err instanceof Error ? err.message : String(err)}`);
+    return null;
+  }
+}
+

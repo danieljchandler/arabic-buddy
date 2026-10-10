@@ -10,7 +10,7 @@ import { useAzureTTS } from "@/hooks/useAzureTTS";
 import { useMaskedSentenceAudio } from "@/hooks/useMaskedSentenceAudio";
 import { useTakeRecorder } from "@/hooks/useTakeRecorder";
 import { normalizeArabicWord } from "@/lib/arabicWord";
-import { assessmentLocale, wordSpanSimilarity } from "@/lib/quizGrading";
+import { assessmentLocale, singleWordSimilarity } from "@/lib/quizGrading";
 import { buildChoices } from "@/lib/quizDistractors";
 import { whyNotQuestion, type StoryGap } from "@/lib/quizStory";
 import { cn } from "@/lib/utils";
@@ -60,9 +60,9 @@ const ARABIC_RE = /[؀-ۿݐ-ݿࢠ-ࣿﭐ-﷿ﹰ-﻾]/;
  * muted (`useMaskedSentenceAudio`, the cloze card's reading: the word is not
  * in what the voice is given). The learner says the missing word; the take is
  * scored against the word itself, in the passage's dialect, and graded by the
- * ordinary bands (`wordSpanSimilarity` reads what was heard, so the word said
- * with و, ب or ال attached is the word, and a word of three letters or fewer
- * must be heard exactly). The word's meaning is named beside the gap — a gap
+ * ordinary bands (`singleWordSimilarity` reads what was heard: the word said
+ * with و, ب or ال attached is the word, a word of three letters or fewer must
+ * be heard exactly, and the word said among others is not the word). The word's meaning is named beside the gap — a gap
  * in running speech fits more than one word, and a right word that is not
  * this one would be scored as a different word — and the passage's
  * translation is a tap away, which counts as help.
@@ -100,9 +100,9 @@ export const QuizStoryCard = ({
       onResult({
         kind: "speech",
         score: scored.overall,
-        // The word's span of what was heard, so a learner who says a word of
-        // the sentence with it is still heard saying it.
-        similarity: recognized ? wordSpanSimilarity(recognized, arabic) : null,
+        // The word alone: with و, ب or ال attached it is the word, and with
+        // other words beside it it is not.
+        similarity: singleWordSimilarity(recognized, arabic),
         recognized,
         hintUsed: hintUsedRef.current,
       });
@@ -121,10 +121,12 @@ export const QuizStoryCard = ({
   }, [id, reset]);
 
   // The passage plays itself once, muted, as soon as it exists: the gap is a
-  // listening question first.
+  // listening question first. Never once the learner has started a take: a
+  // reading that lands late would play into the microphone.
   const playedFor = useRef<string | null>(null);
+  const takeStartedFor = useRef<string | null>(null);
   useEffect(() => {
-    if (answered || !passage.url || playedFor.current === id) return;
+    if (answered || !passage.url || playedFor.current === id || takeStartedFor.current === id) return;
     playedFor.current = id;
     play(passage.url);
   }, [answered, passage.url, id, play]);
@@ -147,6 +149,7 @@ export const QuizStoryCard = ({
 
   const startTake = async () => {
     // The passage stops, so the microphone hears the learner and not the voice.
+    takeStartedFor.current = id;
     stop();
     const ok = await recorder.start();
     if (!ok && !recorder.supported) onUnavailable();

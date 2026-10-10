@@ -74,22 +74,34 @@ export function lineUsesWord(line: string, word: string): boolean {
   return false;
 }
 
-/** The prefixes a speaker attaches to a word, in the order they stack: and/so, with/to/like, the. */
-const PROCLITICS = [/^[وف]/, /^[بلك]/, /^ال/];
+/**
+ * The prefixes a speaker attaches to a word, in the order they stack: and/so;
+ * the article contracted with "to" (للسوق, the alef of ال dropped) or with
+ * colloquial "on" (عالسوق); with/to/like; the article.
+ */
+const PROCLITICS: ReadonlyArray<{ prefix: RegExp; leaves: number }> = [
+  { prefix: /^[وف]/, leaves: 2 },
+  // A contraction is only taken off a word it leaves three letters of, so
+  // عالمي ("global") is never heard as مي.
+  { prefix: /^(?:لل|عال)/, leaves: 3 },
+  { prefix: /^[بلك]/, leaves: 2 },
+  { prefix: /^ال/, leaves: 2 },
+];
 
 /**
  * A folded token, and the same token with each attached prefix taken off in
- * turn (والقهوه → القهوه → قهوه), never down to a single letter. The one rule
- * for "an attached و, ب or ال does not make it another word": the quiz's
- * grader reads what was heard through it (`wordSpanSimilarity`), and a
- * passage counts the word's uses through it (`wordUseCount`).
+ * turn (والقهوه → القهوه → قهوه; للسوق → سوق), never down to fewer letters than
+ * a word. The one rule for "an attached و, ب or ال does not make it another
+ * word": the quiz's grader reads what was heard through it
+ * (`wordSpanSimilarity`), and a passage counts the word's uses through it
+ * (`wordUseCount`).
  */
 export function withoutProclitics(token: string): string[] {
   const variants = [token];
   let rest = token;
-  for (const prefix of PROCLITICS) {
+  for (const { prefix, leaves } of PROCLITICS) {
     const stripped = rest.replace(prefix, "");
-    if (stripped !== rest && stripped.length >= 2) {
+    if (stripped !== rest && stripped.length >= leaves) {
       rest = stripped;
       variants.push(rest);
     }
@@ -98,10 +110,29 @@ export function withoutProclitics(token: string): string[] {
 }
 
 /**
+ * What a speaker attaches to the end of a word: a possessive or object
+ * pronoun (قهوتي, سوقه, بيتنا) or a plural or dual ending (بيوت is another
+ * word; بيتين is this one). Folded, as tokens are.
+ */
+const ENCLITICS = ["ي", "ك", "ه", "ها", "نا", "كم", "هم", "كن", "هن", "ني", "ين", "ون", "ات"];
+
+/** Whether a token is `word` with an ending attached: قهوتي and قهوات for قهوه. */
+function hasEnclitic(token: string, word: string): boolean {
+  // A word this short is a prefix of too many others (كل of كلب, كلام).
+  if (word.length < 3 || token.length <= word.length) return false;
+  // The feminine ه (folded ة) is written ت once something follows it.
+  const stems = word.endsWith("ه") ? [word, `${word.slice(0, -1)}ت`, word.slice(0, -1)] : [word];
+  return stems.some((stem) => token.startsWith(stem) && ENCLITICS.includes(token.slice(stem.length)));
+}
+
+/**
  * How many times `text` says the word: as `lineUsesWord` counts a use, and
- * also where an attached و, ب or ال hides it from that rule (بالسوق is the
- * word سوق said again). For a passage with a gap, where any second use, bare
- * or not, is the answer given away.
+ * also where something attached hides it from that rule — a prefix (و, ف, ب,
+ * ل, ك, ال, and ال contracted, as in للسوق and عالسوق) or, for a single word of
+ * three letters or more, a pronoun or plural ending (قهوتي, بيتين). For a
+ * passage with a gap, where any second use, bare or not, is the answer given
+ * away. A word conjugated or derived into another form (روح, هروح) is another
+ * word, and is not counted.
  */
 export function wordUseCount(text: string, word: string): number {
   const target = foldedTokens(word);
@@ -109,7 +140,10 @@ export function wordUseCount(text: string, word: string): number {
   const tokens = foldedTokens(text);
   let count = 0;
   for (let start = 0; start + target.length <= tokens.length; start++) {
-    if (!withoutProclitics(tokens[start]).includes(target[0])) continue;
+    const variants = withoutProclitics(tokens[start]);
+    const first =
+      variants.includes(target[0]) || (target.length === 1 && variants.some((v) => hasEnclitic(v, target[0])));
+    if (!first) continue;
     if (target.every((part, i) => i === 0 || tokens[start + i] === part)) count++;
   }
   return count;

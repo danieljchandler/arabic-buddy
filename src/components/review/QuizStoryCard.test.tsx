@@ -23,11 +23,16 @@ vi.mock("@/lib/audioToWav", () => ({
   blobToWav: vi.fn(async (blob: Blob) => blob),
 }));
 
-const tts = vi.hoisted(() => ({ asked: [] as Array<{ text: string; skip?: boolean; dialect?: string }> }));
+const tts = vi.hoisted(() => ({
+  asked: [] as Array<{ text: string; skip?: boolean; dialect?: string }>,
+  /** Texts whose reading has not landed yet. */
+  pending: new Set<string>(),
+}));
 vi.mock("@/hooks/useAzureTTS", () => ({
   useAzureTTS: (options: { text: string; skip?: boolean; dialect?: string }) => {
     tts.asked.push(options);
-    return { ttsUrl: options.skip ? null : `blob:${options.text}`, isLoading: false, regenerate: vi.fn() };
+    const ready = !options.skip && !tts.pending.has(options.text);
+    return { ttsUrl: ready ? `blob:${options.text}` : null, isLoading: false, regenerate: vi.fn() };
   },
 }));
 
@@ -76,6 +81,7 @@ let cleanup: (() => void) | undefined;
 beforeEach(() => {
   recorders = [];
   tts.asked = [];
+  tts.pending = new Set();
   audio.play.mockReset();
   audio.stop.mockReset();
   (globalThis as Record<string, unknown>).MediaRecorder = FakeMediaRecorder;
@@ -110,8 +116,8 @@ const aResult = (over: Record<string, unknown> = {}) => ({
 
 /** What the assistant was opened on, for the "Why not this one?" chip. */
 function Probe() {
-  const { isOpen, seed } = useAiAssistant();
-  return <div data-testid="probe">{isOpen ? `open|${seed?.arabic}|${seed?.ask ?? ""}` : "closed"}</div>;
+  const { isOpen, seed, pendingAsk } = useAiAssistant();
+  return <div data-testid="probe">{isOpen ? `open|${seed?.arabic}|${pendingAsk?.text ?? ""}` : "closed"}</div>;
 }
 
 type Props = Partial<Parameters<typeof QuizStoryCard>[0]>;
@@ -220,6 +226,27 @@ describe("saying the word", () => {
     render();
     await recordTake();
     expect(audio.stop).toHaveBeenCalled();
+  });
+
+  it("never plays a reading that lands after the take has started", async () => {
+    tts.pending.add(MUTED);
+    render();
+    expect(audio.play).not.toHaveBeenCalled();
+
+    // The reading arrives as the learner taps "Say it".
+    tts.pending.delete(MUTED);
+    fireEvent.click(screen.getByRole("button", { name: /say it/i }));
+    await waitFor(() => expect(recorders).toHaveLength(1));
+    expect(audio.play).not.toHaveBeenCalledWith(`blob:${MUTED}`);
+  });
+
+  it("reports the word said among other words as far from it", async () => {
+    const { onResult } = render({}, (b) =>
+      b.stubFunction("azure-pronunciation", aResult({ overall: 89, recognizedText: "شاي قهوة حليب" })),
+    );
+    await recordTake();
+    await waitFor(() => expect(onResult).toHaveBeenCalledTimes(1));
+    expect(onResult.mock.calls[0][0].similarity).toBeLessThan(0.5);
   });
 
   it("hears the word with و, ب or ال attached as the word, and another word as another", async () => {

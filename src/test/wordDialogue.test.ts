@@ -61,11 +61,39 @@ describe("withoutProclitics and wordUseCount", () => {
     expect(withoutProclitics("وي")).toEqual(["وي"]);
   });
 
+  it("takes the article off where it is contracted with ل or ع", () => {
+    // ل + ال drops the alef (للسوق), and colloquial "on the" is عال (عالسوق).
+    expect(withoutProclitics("للسوق")).toContain("سوق");
+    expect(withoutProclitics("وللسوق")).toContain("سوق");
+    expect(withoutProclitics("عالسوق")).toContain("سوق");
+    // Never down to a two-letter word: عالمي ("global") is not مي.
+    expect(withoutProclitics("عالمي")).not.toContain("مي");
+  });
+
   it("counts the word wherever it is said, bare or with و, ب or ال attached", () => {
     expect(wordUseCount("طلب قهوة حارة", "قهوة")).toBe(1);
     expect(wordUseCount("طلب قهوة وشرب القهوة", "قهوة")).toBe(2);
     expect(wordUseCount("رحنا بالسوق", "سوق")).toBe(1);
     expect(wordUseCount("طلب شاي", "قهوة")).toBe(0);
+  });
+
+  it("counts the word under a contracted article, or with a pronoun or plural ending on it", () => {
+    expect(wordUseCount("رحت للسوق الصبح", "سوق")).toBe(1);
+    expect(wordUseCount("نزلنا عالسوق", "سوق")).toBe(1);
+    expect(wordUseCount("هذي قهوتي", "قهوة")).toBe(1);
+    expect(wordUseCount("صبوا قهوات", "قهوة")).toBe(1);
+    expect(wordUseCount("شفت بيتين", "بيت")).toBe(1);
+    expect(wordUseCount("سوقه زحمة", "سوق")).toBe(1);
+  });
+
+  it("does not count another word that only begins like a short one", () => {
+    // كل is a prefix of كلب and كلام: no ending is looked for on a word this short.
+    expect(wordUseCount("شفت كلب", "كل")).toBe(0);
+    expect(wordUseCount("كلامه حلو", "كل")).toBe(0);
+    // Nor a word conjugated into another form (يروح for روح), unlike a
+    // prefix attached to the word itself (بروح is ب + روح, and counts).
+    expect(wordUseCount("يروح بكرة", "روح")).toBe(0);
+    expect(wordUseCount("بروح بكرة", "روح")).toBe(1);
   });
 
   it("counts a phrase as one use, with the prefix on its first word only", () => {

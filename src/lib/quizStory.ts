@@ -1,5 +1,6 @@
 import type { WordSpan } from "@/lib/arabicWord";
 import { findPhraseSpan } from "@/lib/quizDialogue";
+import { wordUseCount } from "../../supabase/functions/_shared/wordDialogue";
 import type { StoredStoryLine } from "../../supabase/functions/_shared/wordStoryLine";
 
 /**
@@ -28,7 +29,7 @@ export interface StoryGap {
   span: WordSpan;
   /** The passage's English. */
   english: string;
-  /** The published story it was taken from, if it was. */
+  /** The published story it was taken from, if it was, unless its title says the word. */
   title: string | null;
 }
 
@@ -42,6 +43,9 @@ export function storyGap(line: StoredStoryLine | null | undefined, word: string)
   const text = `${first.arabic} ${second.arabic}`;
   // The gap's offset in the joined text: after the first sentence and its space when it is the second.
   const offset = line.gap === 0 ? 0 : first.arabic.length + 1;
+  // A title that says the word would give the gap away.
+  const named = line.story ? line.story.title || line.story.titleArabic || null : null;
+  const title = named && wordUseCount(named, word) === 0 ? named : null;
   return {
     sentences: line.sentences,
     gap: line.gap,
@@ -50,7 +54,7 @@ export function storyGap(line: StoredStoryLine | null | undefined, word: string)
     text,
     span: { start: offset + cut.start, end: offset + cut.end },
     english: `${first.english} ${second.english}`,
-    title: line.story ? line.story.title || line.story.titleArabic || null : null,
+    title,
   };
 }
 

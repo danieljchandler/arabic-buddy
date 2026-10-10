@@ -25,6 +25,7 @@ import {
   runStories,
   STORE_MISSING,
   storyRunFailed,
+  type AssetRowDeleter,
   type StoryOptions,
   type StoryRunContext,
 } from "../../scripts/curriculum-stories-core.ts";
@@ -55,7 +56,7 @@ const ctx = (over: Partial<StoryRunContext> = {}): StoryRunContext => ({
   fetch: (url, init) => globalThis.fetch(url, init),
   client: createClient(SUPABASE_URL, SERVICE_KEY, {
     auth: { storageKey: `sb-curriculum-stories-${++clientCount}` },
-  }) as unknown as StoryClient & WordAssetClient,
+  }) as unknown as StoryClient & WordAssetClient & AssetRowDeleter,
   log: (line) => lines.push(line),
   leaksFor: async (dialect) => (text) => detectMsaLeaks(text, dialect).leaks,
   ...over,
@@ -236,6 +237,66 @@ describe("a real run", () => {
         writtenPassage().payload,
       );
     }
+  });
+
+  describe("taking back what a story no longer lends", () => {
+    /** What a run filed from story 0 for the Gulf coffee. */
+    const lent = (over: Record<string, unknown> = {}) => ({
+      ...writtenPassage(),
+      source: "reviewed",
+      payload: { sentences: [morning, ordered], story: { id: storyId(0), title: "Story 0", titleArabic: "" } },
+      meta: { from: "story", story_id: storyId(0), story_title: "Story 0", line_indexes: [0, 1], license: "public_domain" },
+      ...over,
+    });
+
+    it("keeps a passage its story still lends", async () => {
+      seed({ wordAssets: [lent()] });
+      const summary = await runStories(ctx(), options({ dialect: "Gulf", stage: 1 }));
+      expect(summary).toMatchObject({ have: 1, revoked: 0 });
+      expect(passages().find((row) => row.concept_key === "قهوه|coffee")?.id).toBe("asset-coffee-story");
+    });
+
+    it("takes back a passage whose story was re-licensed, and looks again", async () => {
+      seed({
+        stories: [story(0, { license: "CC-BY" }, [morning, ordered]), story(1, {}, [{ arabic: "شرب قهوة.", english: "He drank coffee." }, bread])],
+        wordAssets: [lent()],
+      });
+      const summary = await runStories(ctx(), options({ dialect: "Gulf", stage: 1 }));
+      expect(summary.revoked).toBe(1);
+      const coffee = passages().find((row) => row.concept_key === "قهوه|coffee")!;
+      // Gone from story 0, filed afresh from story 1.
+      expect(coffee.id).not.toBe("asset-coffee-story");
+      expect((coffee.meta as { story_id: string }).story_id).toBe(storyId(1));
+      expect(lines.some((line) => line.startsWith("took back: قهوة (Gulf), “Story 0”"))).toBe(true);
+    });
+
+    it("takes back a passage whose story was unpublished or deleted, and leaves the word for its next learner", async () => {
+      for (const stories of [[story(0, { status: "draft" }, [morning, ordered])], []]) {
+        restore();
+        const installed = installSupabaseFetch();
+        backend = installed.backend;
+        restore = installed.restore;
+        seed({ stories, wordAssets: [lent()] });
+        const summary = await runStories(ctx(), options({ dialect: "Gulf", stage: 1 }));
+        expect(summary.revoked).toBe(1);
+        expect(passages().find((row) => row.concept_key === "قهوه|coffee")).toBeUndefined();
+      }
+    });
+
+    it("only lists what it would take back in a dry run", async () => {
+      seed({ stories: [story(0, { status: "draft" }, [morning, ordered])], wordAssets: [lent()] });
+      const summary = await runStories(ctx(), options({ dryRun: true }));
+      expect(summary.revoked).toBe(1);
+      expect(backend.db.writes).toEqual([]);
+      expect(formatStorySummary(summary).join("\n")).toContain("would take back, their story no longer lending them: 1");
+    });
+
+    it("never takes back a passage written for the word", async () => {
+      seed({ stories: [], wordAssets: [writtenPassage({ source: "authored" })] });
+      const summary = await runStories(ctx(), options({ dialect: "Gulf", stage: 1 }));
+      expect(summary.revoked).toBe(0);
+      expect(passages()).toHaveLength(1);
+    });
   });
 
   it("files at most --limit passages, and leaves the rest for a later run", async () => {

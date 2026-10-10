@@ -1,5 +1,4 @@
 import { Loader2, RotateCcw, Volume2 } from "lucide-react";
-import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { scoreBand, type WordResult } from "@/hooks/useAzurePronunciation";
@@ -16,8 +15,6 @@ interface QuizTakeResultProps {
   onRetry: () => void;
   /** What "Ask AI" opens the tutor on. */
   ask: { arabic: string; english?: string };
-  /** Anything the step shows beside the target (a story's passage, filled in). */
-  children?: ReactNode;
 }
 
 /**
@@ -33,7 +30,6 @@ export const QuizTakeResult = ({
   targetAudio,
   onRetry,
   ask,
-  children,
 }: QuizTakeResultProps) => {
   const band = scoreBand(Math.round(result.overall));
   const recognized = result.recognizedText?.trim() || null;
@@ -76,8 +72,6 @@ export const QuizTakeResult = ({
           ))}
         </div>
       )}
-
-      {children}
 
       <div className="mt-3 flex justify-center gap-2 flex-wrap">
         <Button variant="ghost" size="sm" onClick={onRetry} className="gap-1.5">

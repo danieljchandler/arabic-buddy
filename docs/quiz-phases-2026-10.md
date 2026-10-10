@@ -989,7 +989,19 @@ the lightning round):
 5. *No XP*: "score and time only". A combo, a best score kept on the
    device, or XP for a round would each be a separate decision.
 6. *Moves on by itself*: half a second after a right answer, 1.2 s after a
-   wrong one. The clock runs on through the beat; the last answer stops it.
+   wrong one. The clock runs on through the beat; the last answer stops it,
+   and its beat still plays before the result.
+
+An independent review before the PR found two medium problems, both fixed: the
+round's meaning questions could offer another gloss of the word itself as a
+wrong answer (the frame's guard, from 7.1, was not shared; it is now
+`otherMeanings` in `quizDistractors.ts`, used by both), and keyboard focus fell
+to the page on every question (it now follows the question, then the result).
+And five low ones, fixed: the last answer's reveal was skipped, a replay could
+deal the same order and the gap the same options, the "nothing written" checks
+were one-shot (they now wait a second), My Words had no test of its wiring (an
+e2e now plays a round there), and the clock and score lacked roles. Not
+tested on its own: My Phrases' wiring, which is the same three lines.
 
 ### The plan, as it was written
 

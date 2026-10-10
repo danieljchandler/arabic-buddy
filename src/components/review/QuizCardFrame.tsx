@@ -20,7 +20,7 @@ import {
   findReplyLine,
   type DialogueLine,
 } from "@/lib/quizDialogue";
-import { seededShuffle } from "@/lib/quizDistractors";
+import { otherMeanings, seededShuffle } from "@/lib/quizDistractors";
 import { gradeQuizAnswer, isCorrectRating } from "@/lib/quizGrading";
 import { storyGap } from "@/lib/quizStory";
 import {
@@ -427,24 +427,12 @@ export const QuizCardFrame = ({
 
   const arabicPool = useMemo(() => entries.map((e) => e.arabic), [entries]);
 
-  // Wrong meanings: the other words' glosses, once each. Never this word's
-  // own gloss, and never another gloss of this word (a mixed deck's other
-  // dialect, a second save of it): picking that would be a right answer
-  // graded Again.
-  const englishPool = useMemo(() => {
-    const own = item.english.trim().toLowerCase();
-    const ownWord = normalizeArabicWord(item.arabic);
-    const seen = new Set<string>();
-    const out: string[] = [];
-    for (const other of dealtPool) {
-      const key = other.english.trim().toLowerCase();
-      if (!key || key === own || seen.has(key)) continue;
-      if (ownWord && normalizeArabicWord(other.arabic) === ownWord) continue;
-      seen.add(key);
-      out.push(other.english);
-    }
-    return out;
-  }, [dealtPool, item.english, item.arabic]);
+  // Wrong meanings: the other words' glosses, once each, never another gloss
+  // of this word (`otherMeanings`).
+  const englishPool = useMemo(
+    () => otherMeanings(dealtPool, { arabic: item.arabic, english: item.english }),
+    [dealtPool, item.arabic, item.english],
+  );
 
   // Which word each wrong meaning belongs to, for "Why not this one?" on the
   // meaning questions: what the learner took the word for. Only the other

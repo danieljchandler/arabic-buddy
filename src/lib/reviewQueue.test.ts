@@ -6,6 +6,9 @@ import {
   count,
   enqueue,
   peek,
+  QUEUED_HIDES_CARD_MS,
+  claimsNewCard,
+  ratingsHidingCards,
   remove,
   withoutQueued,
   type QueuedReviewSnapshot,
@@ -262,5 +265,27 @@ describe("withoutQueued", () => {
     enqueue(USER, anEntry({ wordId: "word-1", direction: "production" }));
     const deck = [card("word-1", "production"), card("word-2", "production")];
     expect(withoutQueued(deck, all(USER), keyOf).map((c) => c.wordId)).toEqual(["word-2"]);
+  });
+});
+
+describe("ratingsHidingCards", () => {
+  it("keeps a rating queued under a day, and lets one older go", () => {
+    const now = Date.now();
+    const fresh = { queuedAt: now - 60_000 };
+    const old = { queuedAt: now - QUEUED_HIDES_CARD_MS - 1 };
+    expect(ratingsHidingCards([fresh, old], now)).toEqual([fresh]);
+  });
+});
+
+describe("claimsNewCard", () => {
+  it("is a first rating on the recognition side: it will count against today's new cards", () => {
+    expect(claimsNewCard({ currentReview: null, direction: "recognition" })).toBe(true);
+    // Queued before directions existed: recognition, as the flush reads it.
+    expect(claimsNewCard({ currentReview: null })).toBe(true);
+  });
+
+  it("is not a rating of a card already reviewed, nor a production rating", () => {
+    expect(claimsNewCard({ currentReview: snapshot(), direction: "recognition" })).toBe(false);
+    expect(claimsNewCard({ currentReview: null, direction: "production" })).toBe(false);
   });
 });

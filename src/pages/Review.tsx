@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -128,9 +128,18 @@ const Review = () => {
   const [relearn, setRelearn] = useState<RelearnEntry<DueCurriculumCard>[]>([]);
   // The main list has been walked to the end; only relearn cards remain.
   const [mainDone, setMainDone] = useState(false);
-  // The page is asking what is due after the list it walked (closeList).
+  // The page is asking what is due after the list it walked (closeList), and
+  // has not waited LIST_WAIT_MS yet.
   const [closingList, setClosingList] = useState(false);
   const closingRef = useRef(false);
+  // Which close a fetch's answer belongs to: a deck switched meanwhile makes it
+  // the old deck's, and it must not touch the new one.
+  const closeGeneration = useRef(0);
+
+  // Leaving the page drops the deck it built. A cached list served on the way
+  // back in is the one from before this visit's ratings, with the cards just
+  // rated still in it (offline, its paused fetch would be joined, not redone).
+  useEffect(() => () => queryClient.removeQueries({ queryKey: ["due-words"] }), [queryClient]);
   const desiredRetention = useDesiredRetention();
   const stabilityMultiplier = useFsrsCalibration();
   const { weights } = useFsrsWeights();
@@ -344,12 +353,16 @@ const Review = () => {
   const closeList = () => {
     if (closingRef.current) return;
     closingRef.current = true;
+    const generation = ++closeGeneration.current;
     setListSpent(true);
     setClosingList(true);
     setCurrentIndex(0);
-    const waited = window.setTimeout(() => setClosingList(false), LIST_WAIT_MS);
+    const waited = window.setTimeout(() => {
+      if (generation === closeGeneration.current) setClosingList(false);
+    }, LIST_WAIT_MS);
     void refetch().finally(() => {
       window.clearTimeout(waited);
+      if (generation !== closeGeneration.current) return;
       closingRef.current = false;
       setListSpent(false);
       setClosingList(false);
@@ -470,7 +483,11 @@ const Review = () => {
     // Switching decks starts a new session; relearn cards belong to the old one.
     setRelearn([]);
     setMainDone(false);
+    // A close still out belongs to the old deck.
+    closeGeneration.current++;
+    closingRef.current = false;
     setListSpent(false);
+    setClosingList(false);
   };
 
   if (authLoading || wordsLoading) {
@@ -481,11 +498,30 @@ const Review = () => {
     );
   }
 
-  // Between the last card and what comes next, briefly (closeList).
-  if (closingList) {
+  // Between the last card and what comes next (closeList): briefly, a loader;
+  // past LIST_WAIT_MS, with the fetch still out (a slow or dropped
+  // connection), what is happening and a way out. Not the end of the session
+  // yet, so no celebration and no lightning round until the answer lands.
+  if (listSpent) {
+    if (closingList) {
+      return (
+        <AppShell compact>
+          <LoadingPanel variant="page" statusOverride="Checking for more cards…" />
+        </AppShell>
+      );
+    }
     return (
       <AppShell compact>
-        <LoadingPanel variant="page" statusOverride="Checking for more cards…" />
+        <div className="max-w-md mx-auto text-center pt-24" role="status">
+          <h1 className="text-xl font-bold text-foreground mb-3">Still checking for more cards</h1>
+          <p className="text-muted-foreground mb-8">
+            {isOnline ? "The connection is slow." : "You're offline."} Your answers are kept on this device and
+            saved as soon as it allows.
+          </p>
+          <Button variant="outline" onClick={() => navigate("/")}>
+            Go Home
+          </Button>
+        </div>
       </AppShell>
     );
   }

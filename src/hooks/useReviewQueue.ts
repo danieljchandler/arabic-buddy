@@ -17,6 +17,7 @@ import type { ScheduleDirection } from "@/lib/reviewOrder";
 import {
   all,
   bumpAttempts,
+  claimsNewCard,
   count,
   enqueue as enqueueItem,
   peek,
@@ -129,6 +130,10 @@ export function useReviewQueue() {
           incrementReviews.mutate();
           checkAchievements.mutate();
           queryClient.invalidateQueries({ queryKey: ["review-stats"] });
+          // A first rating claimed a new card (submitRatingToServer counts it
+          // on the server); the budget the next deck is built against must
+          // know, or each end-of-list refetch offers the whole cap again.
+          if (claimsNewCard(item)) queryClient.invalidateQueries({ queryKey: ["daily-new-card-count"] });
         } catch (err) {
           if (isNetworkError(err)) {
             bumpAttempts(user.id, item.id);

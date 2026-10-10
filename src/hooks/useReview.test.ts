@@ -1,8 +1,17 @@
 import { waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { renderHookWithProviders, TEST_USER_ID } from "@/test/support/react/harness";
-import { aVocabularyWord, aWordReview, daysAgo, reviewId, wordId } from "@/test/support/factories";
-import { enqueue as enqueueRating } from "@/lib/reviewQueue";
+import {
+  aLesson,
+  aLessonProgress,
+  aVocabularyWord,
+  aWordReview,
+  daysAgo,
+  lessonId,
+  reviewId,
+  wordId,
+} from "@/test/support/factories";
+import { all as queuedRatings, enqueue as enqueueRating, remove as removeRating } from "@/lib/reviewQueue";
 import type { SupabaseBackend } from "@/test/support/server/handler";
 import { useDueWords } from "./useReview";
 
@@ -70,6 +79,33 @@ describe("cards whose rating has not reached the server", () => {
     expect(cardsOf(result.current.data).sort()).toEqual(["house:recognition", "market:production"]);
   });
 
+  it("are left out when the rating lands while the fetch is out, and the server answered before it did", async () => {
+    // Queued at the start, saved while the fetch waits on the reviews: the
+    // read after the fetch no longer sees it, and the server's row is the
+    // one from before the rating.
+    const item = queue(wordId(1), "recognition");
+    const { result, backend } = render((b) => {
+      b.db.delay("word_reviews", 300);
+    });
+    await waitFor(() => expect(backend.db.readsOf("vocabulary_words").length).toBeGreaterThan(0));
+    removeRating(TEST_USER_ID, item.id);
+    await waitFor(() => expect(result.current.data).toBeDefined());
+
+    expect(cardsOf(result.current.data)).not.toContain("house:recognition");
+  });
+
+  it("are served again once their rating has waited a day: a queue that cannot drain does not hide them for good", async () => {
+    queue(wordId(1), "recognition");
+    const key = `hakiya:review-queue:${TEST_USER_ID}`;
+    const stale = queuedRatings(TEST_USER_ID).map((entry) => ({ ...entry, queuedAt: Date.now() - 25 * 3_600_000 }));
+    localStorage.setItem(key, JSON.stringify(stale));
+
+    const { result } = render();
+    await waitFor(() => expect(result.current.data).toBeDefined());
+
+    expect(cardsOf(result.current.data)).toContain("house:recognition");
+  });
+
   it("are left out when the rating was given while the fetch was out", async () => {
     const { result, backend } = render((b) => {
       // Hold the reviews read open, so the rating is queued mid-fetch.
@@ -80,6 +116,38 @@ describe("cards whose rating has not reached the server", () => {
     await waitFor(() => expect(result.current.data).toBeDefined());
 
     expect(cardsOf(result.current.data)).not.toContain("house:recognition");
+  });
+});
+
+describe("the new-card cap", () => {
+  const LESSON = lessonId(0);
+
+  // Six words never reviewed, in a lesson the learner has opened: new cards.
+  function seedNew(backend: SupabaseBackend) {
+    backend.db.seed("lessons", [aLesson({ id: LESSON })]);
+    backend.db.seed(
+      "vocabulary_words",
+      Array.from({ length: 6 }, (_, i) =>
+        aVocabularyWord({ id: wordId(i), lesson_id: LESSON, word_arabic: `كلمة${i}`, word_english: `new ${i}` }),
+      ),
+    );
+    backend.db.seed("word_reviews", []);
+    backend.db.seed("lesson_progress", [aLessonProgress({ user_id: TEST_USER_ID, lesson_id: LESSON })]);
+  }
+
+  it("counts a first rating still queued against today's new cards", async () => {
+    localStorage.setItem("mywords.newCap", "5");
+    // Rated once already, not yet saved, so not yet on the server's count.
+    enqueueRating(TEST_USER_ID, { wordId: wordId(0), rating: "good", direction: "recognition", currentReview: null });
+
+    const r = renderHookWithProviders(() => useDueWords(false), { persona: "free", seed: seedNew });
+    cleanup = r.cleanup;
+    await waitFor(() => expect(r.result.current.data).toBeDefined());
+
+    const served = r.result.current.data!.map((card) => card.word_english);
+    // Five a day: the queued one, and four more. It is not served again.
+    expect(served).not.toContain("new 0");
+    expect(served).toHaveLength(4);
   });
 });
 

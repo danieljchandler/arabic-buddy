@@ -1275,16 +1275,26 @@ ratings and the README table says so.
   flip mode the rating keys could rate it again. Now:
   - `useDueWords` leaves out any card whose rating is still queued, reading
     the queue before and after its fetch (`withoutQueued` in
-    `src/lib/reviewQueue.ts`, keyed on the word and the schedule). It does so
-    before the ordering, so a queued new card takes no place under the
-    new-card cap, and on every refetch, "Try again" included.
+    `src/lib/reviewQueue.ts`, keyed on the word and the schedule), on every
+    refetch, "Try again" included. A rating hides its card for a day at most
+    (`QUEUED_HIDES_CARD_MS`), so a queue that cannot drain does not hide its
+    cards for good.
+  - The new-card cap: a queued first rating is taken off the budget before the
+    ordering (`claimsNewCard`), and a saved one now refreshes the budget
+    (`daily-new-card-count`). Before, the curriculum path never refreshed it,
+    so every end-of-list refetch could offer the whole day's cap again.
   - `Review.tsx`'s `closeList` marks the walked list spent at once, so it is
     never shown again and the keys have nothing to rate. A ref guards it
-    against running twice. "Checking for more cards…" shows for at most
-    `LIST_WAIT_MS` (4 s, after the panel's own 600 ms delay), then the end of
-    the session; what the fetch brings is served when it lands. Offline,
-    React Query holds the fetch until the connection is back, and after
-    those 4 s the page shows the end of the session meanwhile.
+    against running twice, and a generation counter keeps a fetch for a deck
+    switched away from (Mix All) out of the new one. "Checking for more
+    cards…" shows for up to `LIST_WAIT_MS` (4 s, after the panel's own 600 ms
+    delay); past that, with the fetch still out, a quiet "Still checking for
+    more cards" with a way home, and no celebration, summary or lightning
+    round until the answer lands. Offline, React Query holds the fetch until
+    the connection is back.
+  - Leaving the page drops the due-words cache, so coming back within its
+    five minutes does not serve the list from before this visit's ratings
+    (offline, it would join that list's paused fetch).
   - The unused `goToNext` went with it; it had the same unguarded refetch.
   - My Words and My Phrases save each rating before they move on, so they
     never had the race.
@@ -1302,10 +1312,14 @@ ratings and the README table says so.
   backoff between attempts" holds the attempts to the schedule (it times out
   with the old dependencies).
 
-**Tests.** `withoutQueued` in `src/lib/reviewQueue.test.ts`; the backoff in
-`src/hooks/useReviewQueue.test.ts`; the queued-card exclusion in
-`src/hooks/useReview.test.ts`, including a rating given while the fetch is
-out; and two e2e in `review.spec.ts`. "never serves the card just rated while
+**Tests.** `withoutQueued`, `ratingsHidingCards` and `claimsNewCard` in
+`src/lib/reviewQueue.test.ts`; the backoff and the budget refresh in
+`src/hooks/useReviewQueue.test.ts`; in `src/hooks/useReview.test.ts`, the
+queued-card exclusion (a rating given while the fetch is out, and one that
+lands while it is out), the day's limit on it, and the cap; and four e2e in
+`review.spec.ts`, the two below plus "a slow answer at the end of the list is
+not the end of the session until it lands" and "a card rated before leaving
+the page is not served on the way back". "never serves the card just rated while
 its rating waits to be saved" fails the write and slows the deck, and expects
 "Checking for more cards…", no card, the summary, and the rating saved once
 the connection is back. "the keys do nothing once the last card is rated"

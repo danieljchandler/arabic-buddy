@@ -19,7 +19,7 @@ import { useRemainingNewCardBudget } from './useNewCardBudget';
 import { useCurriculumDeckScope } from './useCurriculumDeckScope';
 import { selectRequestedCurriculumWords } from '@/lib/curriculumDeck';
 import { withBossFirst } from '@/lib/bossCard';
-import { all as queuedRatings, withoutQueued } from '@/lib/reviewQueue';
+import { all as queuedRatings, claimsNewCard, ratingsHidingCards, withoutQueued } from '@/lib/reviewQueue';
 
 export interface WordReview {
   id: string;
@@ -330,19 +330,23 @@ export const useDueWords = (mixAll = false, options: DueWordsOptions = {}) => {
         }
       }
 
-      // A card whose rating is still queued is left out before the ordering,
-      // so a queued new card does not take a place under the new-card cap.
-      const unrated = withoutQueued(cards, [...queuedBefore, ...queuedRatings(user.id)], (card) => ({
+      // A card whose rating is still queued is left out (for a day at most:
+      // ratingsHidingCards). A queued first rating is not yet on the server's
+      // count of new cards today, so it is taken off the budget here, or the
+      // place it will claim would go to another new card.
+      const queued = ratingsHidingCards([...queuedBefore, ...queuedRatings(user.id)], Date.now());
+      const unrated = withoutQueued(cards, queued, (card) => ({
         wordId: card.id,
         direction: scheduleDirectionFor(card.card_type),
       }));
+      const queuedNewCards = new Set(queued.filter(claimsNewCard).map((item) => item.wordId)).size;
 
       // Due-date priority, new-card cap and direction interleaving, shared with
       // the personal deck. The new-card budget is server-persisted via
       // daily_new_card_counts, so it's a real daily limit rather than a
       // per-page-load one.
       const ordered = buildReviewOrder(unrated, {
-        newCardCap: remainingNewBudget,
+        newCardCap: Math.max(0, remainingNewBudget - queuedNewCards),
         blockNewCards: (srsStats?.reviewedCount ?? 0) < BEGINNER_REVIEW_THRESHOLD,
       });
       return bossFirst

@@ -380,6 +380,79 @@ test.describe("the quiz style", () => {
     await expect(page.getByText("Say it in Arabic")).toBeVisible();
   });
 
+  test("a slow answer at the end of the list is not the end of the session until it lands", async ({ page }) => {
+    await signIn(page);
+    const backend = await stubSupabase(page, { tables: { ...aDeck(), ...quizProfile() } });
+
+    await page.goto("/review");
+    await expect(page.getByText("Fill in the missing word")).toBeVisible();
+    // The deck takes longer to answer than the page waits.
+    backend.db.delay("vocabulary_words", 7000);
+    await page.getByRole("button", { name: "السوق", exact: true }).click();
+    await page.getByRole("button", { name: /continue/i }).click();
+
+    await expect(page.getByText(/checking for more cards/i)).toBeVisible();
+    // Past the wait: what is happening and a way out, with no celebration and
+    // no summary, since more cards may yet be due.
+    await expect(page.getByText(/still checking for more cards/i)).toBeVisible({ timeout: 6000 });
+    await expect(page.getByRole("button", { name: /go home/i })).toBeVisible();
+    await expect(page.getByRole("list", { name: /quiz session summary/i })).toHaveCount(0);
+
+    // The answer lands: nothing more is due, and the session ends.
+    await expect(page.getByRole("list", { name: /quiz session summary/i })).toBeVisible({ timeout: 10_000 });
+  });
+
+  test("a card rated before leaving the page is not served on the way back", async ({ page }) => {
+    await signIn(page);
+    const firstLook = (index: number, daysOverdue: number) =>
+      aWordReview({
+        id: reviewId(index),
+        word_id: wordId(index),
+        ease_factor: 0,
+        repetitions: 0,
+        interval_days: 0,
+        last_reviewed_at: null,
+        next_review_at: new Date(Date.now() - daysOverdue * 86_400_000).toISOString(),
+      });
+    const deck = aDeck();
+    const backend = await stubSupabase(page, {
+      tables: {
+        ...deck,
+        vocabulary_words: [
+          ...deck.vocabulary_words,
+          aVocabularyWord({
+            id: wordId(5),
+            lesson_id: LESSON,
+            word_arabic: "قهوة",
+            word_english: "coffee",
+            example_arabic: "شربت قهوة الصبح",
+            example_english: "I drank coffee in the morning",
+          }),
+        ],
+        // The market first (the more overdue), then the coffee.
+        word_reviews: [firstLook(0, 3), firstLook(5, 1)],
+        ...quizProfile(),
+      },
+    });
+
+    await page.goto("/review");
+    await expect(page.getByText(/the missing word means/i)).toContainText("the market");
+    await page.getByRole("button", { name: "السوق", exact: true }).click();
+    await page.getByRole("button", { name: /continue/i }).click();
+    await expect(page.getByText(/the missing word means/i)).toContainText("coffee");
+
+    // Away and back, inside the app, with the deck slow to answer: the deck
+    // built on the way in is not served again from the start, with the market
+    // in it, while the new one is fetched.
+    await page.getByRole("button", { name: /go home/i }).click();
+    await expect(page).not.toHaveURL(/\/review$/);
+    backend.db.delay("vocabulary_words", 2500);
+    await page.goBack();
+    await page.waitForTimeout(1000);
+    await expect(page.getByText(/the missing word means/i)).toHaveCount(0);
+    await expect(page.getByText(/the missing word means/i)).toContainText("coffee", { timeout: 10_000 });
+  });
+
   test("a wrong pick in the gap asks the tutor why, about this sentence", async ({ page }) => {
     await signIn(page);
     const backend = await stubSupabase(page, { tables: { ...aDeck(), ...quizProfile() } });

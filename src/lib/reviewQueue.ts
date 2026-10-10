@@ -121,6 +121,27 @@ export function count(userId: string): number {
 }
 
 /**
+ * How long a queued rating keeps its card out of the due list. A queue that
+ * cannot drain (a head item failing forever with an error that reads as a
+ * dropped connection) would otherwise hide its cards for good; past a day the
+ * card is served again, and a second rating queues behind the first.
+ */
+export const QUEUED_HIDES_CARD_MS = 24 * 60 * 60 * 1000;
+
+/** The queued ratings that still keep their cards out of the due list. */
+export function ratingsHidingCards<T extends Pick<QueuedRating, "queuedAt">>(items: readonly T[], nowMs: number): T[] {
+  return items.filter((item) => nowMs - item.queuedAt < QUEUED_HIDES_CARD_MS);
+}
+
+/**
+ * A queued rating that will claim a place under the daily new-card cap once
+ * it lands: a first rating (no review row yet), on the recognition side.
+ */
+export function claimsNewCard(item: Pick<QueuedRating, "currentReview" | "direction">): boolean {
+  return item.currentReview == null && (item.direction ?? "recognition") === "recognition";
+}
+
+/**
  * The cards with no rating still queued for the schedule they are served on.
  *
  * A card whose rating has not reached the server is not due, whatever the

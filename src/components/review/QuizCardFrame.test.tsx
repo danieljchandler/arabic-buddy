@@ -52,8 +52,10 @@ const POOL = [
   { arabic: "سيارة", english: "car" },
 ];
 
+// The line said before the word's line does not say the word: one that did
+// ("وين السوق؟") would hand the learner the answer, and is never asked.
 const DIALOGUE = [
-  { speaker: "Customer", arabic: "وين السوق؟", english: "Where is the market?" },
+  { speaker: "Customer", arabic: "وين نشتري خضار؟", english: "Where do we buy vegetables?" },
   { speaker: "Vendor", arabic: "السوق هناك", english: "The market is there" },
   { speaker: "Customer", arabic: "مشكور", english: "Thanks" },
   { speaker: "Vendor", arabic: "العفو", english: "You're welcome" },
@@ -174,7 +176,7 @@ describe("which question is asked", () => {
 
     expect(screen.getByText("What would you say?")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: /step 6 of 10/i })).toBeInTheDocument();
-    expect(screen.getByText("وين السوق؟")).toBeInTheDocument();
+    expect(screen.getByText("وين نشتري خضار؟")).toBeInTheDocument();
     expect(screen.getByRole("radio", { name: "السوق هناك" })).toBeInTheDocument();
   });
 
@@ -182,6 +184,22 @@ describe("which question is asked", () => {
     render(anItem({ memory: { stability: 40, repetitions: 5 } }));
 
     expect(screen.getByText("Which word?")).toBeInTheDocument();
+  });
+
+  it("asks no reply after a line that already says the word, bare or with something attached", () => {
+    for (const opener of ["وين السوق؟", "رحنا للسوق؟"]) {
+      const { unmount } = render(
+        anItem({
+          dialogue: [{ speaker: "Customer", arabic: opener, english: "x" }, ...DIALOGUE.slice(1)],
+          memory: { stability: 40, repetitions: 5 },
+        }),
+      );
+      expect(screen.queryByText("What would you say?"), opener).not.toBeInTheDocument();
+      expect(screen.getByText("Which word?")).toBeInTheDocument();
+      unmount();
+      cleanup?.();
+      cleanup = undefined;
+    }
   });
 
   it("asks a production card to be said", () => {
@@ -954,7 +972,7 @@ describe("an exchange for a word its lesson has no line for", () => {
     );
 
     expect(screen.getByText("What would you say?")).toBeInTheDocument();
-    expect(screen.getByText("وين السوق؟")).toBeInTheDocument();
+    expect(screen.getByText("وين نشتري خضار؟")).toBeInTheDocument();
     await new Promise((resolve) => setTimeout(resolve, 20));
     expect(backend.db.readsOf("word_assets")).toEqual([]);
     expect(backend.callsTo("word-asset")).toEqual([]);
@@ -992,7 +1010,7 @@ describe("an exchange for a word its lesson has no line for", () => {
   it("asks the reply from the lesson's dialogue too", async () => {
     render(atSayReplyStep({ dialogue: DIALOGUE }), { storedDialogues: true }, signedIn());
     expect(await screen.findByText("Say the reply in Arabic")).toBeInTheDocument();
-    expect(screen.getByText("وين السوق؟")).toBeInTheDocument();
+    expect(screen.getByText("وين نشتري خضار؟")).toBeInTheDocument();
   });
 
   it("says the line instead when no reply can be had", async () => {
@@ -1476,7 +1494,7 @@ describe("a word in a story", () => {
       }),
     );
     expect(await screen.findByText("Say the reply in Arabic")).toBeInTheDocument();
-    expect(screen.getByText("وين السوق؟")).toBeInTheDocument();
+    expect(screen.getByText("وين نشتري خضار؟")).toBeInTheDocument();
     expect(backend.db.writes).toEqual([]);
   });
 

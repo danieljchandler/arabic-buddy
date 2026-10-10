@@ -2241,8 +2241,9 @@ Deno.test("word-asset ensure files no written passage with a sentence past fourt
   assertEquals(status, 200);
   assertEquals(body.error, "STORY_LINE_GENERATION_FAILED");
   assertEquals(table.rows, []);
-  // The critic was sent back over it, and what it shipped was read by the same rule.
-  assert(chatCalls(calls).some((c) => (c.body ?? "").includes("at most fourteen words")), "the critic was not told");
+  // The gate sent the critic back over it (nothing else here would: the
+  // validator passes it), and what shipped was read by the same rule.
+  assert(chatCalls(calls).some((c) => (c.body ?? "").includes("You are reviewing a draft")), "the gate did not run the critic");
 });
 
 Deno.test("word-asset ensure still takes a story's sentence past fourteen words: the limit is the writer's", async () => {

@@ -418,9 +418,10 @@ missing word (`QuizStoryCard`):
   said in twice is no passage — not even with a prefix (و, ب, ال, or the
   article contracted, as in للسوق and عالسوق) or a pronoun or plural ending
   (قهوتي, بيتين) on the second, which would say the answer the gap mutes. A
-  story title that says the word is not shown either, nor one that names its
-  meaning, which the four-option gap withholds: "At the Market" above a gap
-  for السوق. The title is read against the card's English folded as the key
+  story title that says the word is not shown either, nor, on either gap, one
+  that names its meaning, which the four-option gap withholds: "At the
+  Market" above a gap for السوق. The title is read against the card's English
+  folded as the key
   folds a sense, and each meaning a gloss lists, by the rule the story search
   reads a sentence's English by (`englishNamesSense`).
 - *The reading* is the cloze card's (`useMaskedSentenceAudio`, which both

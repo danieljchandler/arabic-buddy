@@ -753,9 +753,19 @@ left:
   `findReplyLine` takes no reply whose line before says the word, and
   `buildReplyQuestion` and `countWrongReplies` offer and count no "wrong"
   reply that says it with a prefix or an ending. Guards:
-  `wordDialogue.test.ts`, `quizDialogue.test.ts`, `word_asset_test.ts`. No
-  exchange had been filed (2b was still open: `word_assets` is not in the
-  generated types), so none needed re-checking.
+  `wordDialogue.test.ts`, `quizDialogue.test.ts`, `QuizCardFrame.test.tsx`,
+  `word_asset_test.ts`. No exchange had been filed (2b was still open:
+  `word_assets` is not in the generated types), so none needed re-checking.
+  A lesson's own dialogue had never been checked at all, bare repetition
+  included, so this reaches the authored tracks too: of the 837 curriculum
+  words, 322 were asked a reply from their lesson's dialogue and 304 are now
+  (3 more move to a later line). The 18 are give-aways ("وش هذا؟" before "هذا
+  تمر…", "وبعدها؟" before "بعدها رحت…", "الباب القديم؟" before a reply with
+  قديم) bar one: هنا after "السوق هناك", which `wordUseCount`'s ending rule
+  reads as هنا with ك. Each falls back to the word's exchange once 2b is
+  applied, else the step below. The Phase 4 fixtures that opened on "وين
+  السوق؟" before "السوق هناك" (`QuizCardFrame.test.tsx`, `review.spec.ts`)
+  were that give-away and now open on another line.
 
 ### Phase 6b — owner action
 
@@ -809,6 +819,24 @@ left:
   `wordUseCount(first, word) === 0`, and the quiz's reply steps hold the line
   said and every wrong reply to the same rule. No exchange had been filed
   (2b still open), so there was nothing to re-check.
+- *`wordUseCount` can read another word as this one*, now that it guards the
+  reply steps as well as passages. Its prefix and ending rules take كانت for
+  إنت (ك off), واحد for أحد (و off), لبس for بس (ل off), هذاك for هذا and هناك
+  for هنا (ك on), خمسين and عشرين for خمس and عشر (ين on); and, arguably the
+  same word, يوم for اليوم and الأكل for آكل. It never gives an answer away,
+  but it costs: a lesson's reply question lost (هنا, above), a wrong reply not
+  offered, a passage refused; and in `word-asset` a written exchange or
+  passage the rule refuses is a failed write, charged to the learner as any
+  failed write is, until `useEnsureWordAsset` pauses the kind after two in a
+  row. A short list of such pairs, or narrower ك and ين rules for short
+  words, would close it; left as is, since the same rule grades a take
+  (`withoutProclitics`) and a change belongs with its own tests.
+- *A title is read by `englishNamesSense`, which is strict*, so an irregular
+  form of the meaning still shows: "Men of the Desert" for "man", "What We
+  Ate" for "eat", "Souk Al-Mubarakiya" for "souq" spelled "souk". Dropping a
+  title costs only the title, so a looser rule (a table of irregular forms,
+  a shared stem) would be cheap; left as the request asked, the story search's
+  own rule.
 - *An exchange is not held to its prompt's ten words either*, found while
   fixing the passage's fourteen: `dialoguePrompt` asks for at most ten words a
   line, and `asStoredDialogue` enforces only `MAX_DIALOGUE_LINE_LENGTH` (160

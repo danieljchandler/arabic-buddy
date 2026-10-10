@@ -363,7 +363,8 @@ test.describe("the quiz style", () => {
             title: "Started lesson",
             display_order: 1,
             dialogue: [
-              { speaker: "Customer", arabic: "وين السوق؟", english: "Where is the market?" },
+              // Not "وين السوق؟": a line that says the word is never the one asked.
+              { speaker: "Customer", arabic: "وين نشتري خضار؟", english: "Where do we buy vegetables?" },
               { speaker: "Vendor", arabic: "السوق هناك", english: "The market is there" },
               { speaker: "Customer", arabic: "مشكور", english: "Thanks" },
               { speaker: "Vendor", arabic: "العفو", english: "You're welcome" },
@@ -384,7 +385,7 @@ test.describe("the quiz style", () => {
 
     await expect(page.getByText("What would you say?")).toBeVisible();
     await expect(page.getByText("Answer the line")).toBeVisible();
-    await expect(page.getByText("وين السوق؟")).toBeVisible();
+    await expect(page.getByText("وين نشتري خضار؟")).toBeVisible();
     const replies = page.getByRole("radiogroup", { name: /choose the reply/i });
     await expect(replies.getByRole("radio")).toHaveCount(4);
 

@@ -216,8 +216,8 @@ export function dialogueProblem(value: unknown, word: string): string | null {
   return (
     `The output must be exactly two lines, each with Arabic and an English translation. ` +
     `The second line must contain the word ${word} exactly as written, as a whole word with ` +
-    `nothing attached to it; the first line must not contain it in any form (not with و, ب or ال ` +
-    `attached either).`
+    `nothing attached to it; the first line must not contain it in any form: not with a prefix ` +
+    `(و, ب, ال, لل, عال) or an ending (a pronoun, a plural) attached either.`
   );
 }
 

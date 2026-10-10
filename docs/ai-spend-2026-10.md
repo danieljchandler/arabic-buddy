@@ -9,7 +9,7 @@ labelled as one. The model that produced the tables is reproducible from the
 
 - **The plans do not cover the usage they advertise.** A Standard subscriber
   nets **$4.55** a month after Stripe; a learner who uses the app on twenty
-  days costs about **$28** today and about **$15** after the fixes below. The
+  days costs about **$27** today and about **$15** after the fixes below. The
   two hours of live voice Standard promises cost **$6.17** on their own if
   used; All-In's five hours cost **$15.41**, the whole plan price. A plan
   covers roughly **six active days** of typical use, not a month.
@@ -94,7 +94,7 @@ subscriber bypasses the cap (`enforceDailyCap` without a `TierLimits` table).
 
 | Action | Est. cost | Free/day | Standard/day | All-In/day | What it is |
 |---|---:|---:|---:|---:|---|
-| assistant-chat turn | $0.018 | 40 | ∞ | ∞ | Sonnet 5 reply + embedding + tool plan + native review + memory update |
+| assistant-chat turn | $0.016 | 40 | ∞ | ∞ | Sonnet 5 reply + embedding + tool plan + native review when the reply has Arabic + a memory rewrite every fourth turn |
 | daily-recap / video-debrief step | $0.016 | paid only | ∞ | ∞ | 3–4 steps per session |
 | free-chat (conversation simulator) turn | $0.016 | 30 | ∞ | ∞ | Gemini 3.1 Pro stream + learner-error extraction after the turn |
 | ask-translation turn | $0.004 | 40 | ∞ | ∞ | Flash |
@@ -153,10 +153,11 @@ subscriber bypasses the cap (`enforceDailyCap` without a `TierLimits` table).
 
 Three things in that table are worth reading twice.
 
-- **A chat turn is up to five calls, not one.** The Sonnet reply is ~65% of
-  the cost; the embedding, the Flash tool plan and the Flash memory update
-  fire on every turn, and the HUMAIN native review whenever the reply
-  contains Arabic, which for a tutor of Arabic is most turns.
+- **A chat turn is up to five calls, not one.** The Sonnet reply is ~80% of
+  the cost; the embedding and the Flash tool plan fire on every turn, the
+  Flash memory rewrite every fourth turn (`TURNS_BETWEEN_REWRITES`), and the
+  HUMAIN native review whenever the reply contains Arabic, which for a tutor
+  of Arabic is most turns.
 - **A minute of voice costs a cent more than the per-minute list price**
   because the `live` engine bills its backend model separately. At the
   allowances on the pricing page, Standard's 120 minutes come to $6.17 and
@@ -172,25 +173,26 @@ a few words, and uses their whole voice allowance.
 
 | Persona | AI cost / month today | Top three lines |
 |---|---:|---|
-| Light — free, 12 active days | **$5.80** | quiz pictures $2.41; live voice $1.54; chat $0.66 |
-| Typical — Standard, 20 active days | **$28.33** | quiz pictures $8.04; live voice $6.17; chat $2.94 |
-| Heavy — All-In at the caps, 28 active days | **$164.47** | quiz pictures $46.90; flashcard images $18.76; chat $15.44 |
+| Light — free, 12 active days | **$5.73** | quiz pictures $2.41; live voice $1.54; chat $0.59 |
+| Typical — Standard, 20 active days | **$27.10** | quiz pictures $8.04; live voice $6.17; chat $2.63 |
+| Heavy — All-In, assumed heavy use, 28 active days | **$156.43** | quiz pictures $46.90; flashcard images $18.76; live voice $15.39 |
 
 Against revenue:
 
 | Plan | Price | Net of Stripe | Persona | AI cost today | Margin today | AI cost after fixes (§5) | Margin after |
 |---|---:|---:|---|---:|---:|---:|---:|
-| Free | $0 | $0 | Light | $5.80 | −$5.80 | $3.33 | −$3.33 |
-| Standard monthly | $5.00 | $4.55 | Typical | $28.33 | −$23.78 | $15.56 | −$11.01 |
-| Standard annual | $4.17/mo | $4.02 | Typical | $28.33 | −$24.31 | $15.56 | −$11.54 |
-| All-In monthly | $15.00 | $14.26 | Heavy | $164.47 | −$150.21 | $91.44 | −$77.18 |
-| All-In annual | $12.50/mo | $12.11 | Heavy | $164.47 | −$152.36 | $91.44 | −$79.33 |
+| Free | $0 | $0 | Light | $5.73 | −$5.73 | $3.33 | −$3.33 |
+| Standard monthly | $5.00 | $4.55 | Typical | $27.10 | −$22.55 | $14.67 | −$10.12 |
+| Standard annual | $4.17/mo | $4.02 | Typical | $27.10 | −$23.08 | $14.67 | −$10.65 |
+| All-In monthly | $15.00 | $14.26 | Heavy | $156.43 | −$142.17 | $85.21 | −$70.95 |
+| All-In annual | $12.50/mo | $12.11 | Heavy | $156.43 | −$144.32 | $85.21 | −$73.10 |
 
 Read the "Typical" row as a rate rather than a verdict: after the fixes a
-typical active day costs about **$0.78**, so $4.55 buys about **six active
+typical active day costs about **$0.73**, so $4.55 buys about **six active
 days**. A subscriber who opens the app twice a week is profitable; one who
-opens it daily is not, at any plan. The Heavy row is what one person can do
-with the caps as they stand — it is the exposure, not the expectation.
+opens it daily is not, at any plan. The Heavy row is an assumed heavy
+persona, not a ceiling: the real exposure for a subscriber is unbounded on
+the endpoints §4 lists as uncapped.
 
 The full typical-day breakdown, so the levers are obvious:
 
@@ -198,12 +200,11 @@ The full typical-day breakdown, so the levers are obvious:
 |---|---:|---:|
 | quiz picture (word-asset image) | 6 | $8.04 |
 | live voice (minutes) | 6 | $6.17 |
-| assistant-chat turn | 8 | $2.94 |
+| assistant-chat turn | 8 | $2.63 |
 | how-do-i-say | 2 | $1.64 |
 | flashcard / mnemonic image | 1 | $1.34 |
 | word-enrichment (save a word) | 6 | $1.32 |
 | daily-recap / video-debrief step | 3 | $0.98 |
-| word dialogue (word-asset) | 4 | $0.91 |
 | TTS, one line | 10 | $0.84 |
 | daily story | 1 | $0.79 |
 | grammar-drill | 1 | $0.65 |
@@ -215,6 +216,7 @@ The full typical-day breakdown, so the levers are obvious:
 | pronunciation attempt | 10 | $0.29 |
 | reading-passage | 0.3 | $0.23 |
 | mistake-drill | 0.5 | $0.15 |
+| word dialogue (word-asset) | 4 | $0.00 — refused while the table is missing; ~$0.02 once shared |
 
 Two per-learner costs sit outside the personas because nobody clicks for
 them. `pregenerate-daily` builds a daily story for every recently active
@@ -241,7 +243,7 @@ subscriber on a feature with no `TierLimits`.
 | how-do-i-say | $0.82 | uncapped | uncapped |
 | word / phrase jingle | $0.76 | $2.03 | $6.08 |
 | analyze-meme | $0.76 | uncapped | uncapped |
-| assistant-chat | $0.74 | uncapped | uncapped |
+| assistant-chat | $0.66 | uncapped | uncapped |
 | word-enrichment | $0.66 | uncapped | uncapped |
 | grammar-drill | $0.65 | uncapped | uncapped |
 | reading-passage | $0.58 | uncapped | uncapped |
@@ -268,14 +270,14 @@ signed-in learner with no cap at all (§6a).
 
 ## 5. What to change, in order
 
-Each lever with its effect on the typical subscriber ($28.33 today).
+Each lever with its effect on the typical subscriber ($27.10 today).
 
 1. **Apply the `word_assets` migration to the live project** (ask Lovable to
    run it, or `supabase db push`). Pictures then draw once per word per
    dialect and serve every learner; `useEnsureWordAsset` already stops asking
    for a word that is filed, and dialogues start being made at all. Effect:
    quiz pictures fall from $8.04 to well under $0.50 a month once the library
-   is warm; dialogues go from refused to $0.011 each. **This is the whole
+   is warm; dialogues go from refused to about $0.0003 per learner once shared. **This is the whole
    difference between the "today" and "after" columns for pictures, and it
    needs no new code.**
 2. **Fill the library once, on the batch tier.** `scripts/curriculum-pictures.ts
@@ -303,13 +305,13 @@ Each lever with its effect on the typical subscriber ($28.33 today).
    engine to cut cost — `gpt-realtime-2` lands at about the same per-minute
    figure once its audio tokens are counted.
 5. **Trim the chat turn's side-calls.** Four calls ride every turn. The
-   memory update (`updateLearnerMemory`, Flash, 400 tokens) can run once per
-   closed conversation instead of per turn — the README already describes
+   memory rewrite (`updateLearnerMemory`, Flash, 400 tokens, every fourth
+   turn today) can run once per closed conversation instead — the README already describes
    the conversation as route-scoped with a clear end. The tool plan can skip
    the dialect prefix (`skipDemonstrations`: it emits no Arabic prose) and
    run on Flash-Lite, as the registry's own note recommends for calls whose
-   answer is a label. Effect: a turn drops from $0.018 to about $0.015;
-   −$0.50/month typical, more for heavy chatters.
+   answer is a label. Effect: a turn drops from $0.016 to about $0.014;
+   −$0.35/month typical, more for heavy chatters.
 6. **Put a tier table on the uncapped expensive endpoints.** Chat (40 free →
    e.g. 150 Standard / 400 All-In), `how-do-i-say` (20 → 60 / 150),
    `generate-listen-audio` and `listen-line-audio` (TTS is the largest
@@ -522,7 +524,7 @@ and they are the cheapest part to check.
 until the four decisions below are made and the numbers in §3 have been
 re-run against real `llm_usage_logs` rows.** With the setup as it stands a
 Standard plan covers about three active days of typical use and an All-In
-plan about ten; nothing here is profitable for a daily user, and most of
+plan about ten (two and a half days of the heavy persona's use); nothing here is profitable for a daily user, and most of
 the gap is a handful of fixable things rather than the product itself.
 
 ### The four decisions
@@ -565,7 +567,7 @@ Unit costs after the strategy changes (same assumptions as §7):
 
 | Action | Today | Lean | Change |
 |---|---:|---:|---|
-| Tutor chat turn, Sonnet | $0.018 | $0.014 | memory update once per conversation; tool plan on Flash-Lite; native review off |
+| Tutor chat turn, Sonnet | $0.016 | $0.014 | memory rewrite once per conversation instead of every fourth turn; tool plan on Flash-Lite; native review off |
 | Tutor chat turn, Flash | — | $0.006 | the Standard tutor |
 | How do I say | $0.041 | $0.012 | council → draft_critic |
 | Save a word | $0.011 | $0.004 | ensemble → solo Flash; repair on Flash |
@@ -610,7 +612,8 @@ the practice generators.
 | All-In, Sonnet tutor, $14.26 net | $0.35 | $6.17 | about 23 |
 | All-In on a heavy day (30 Sonnet turns, 40 TTS lines) | $0.95 | $6.17 | about 8 |
 
-Today those break-evens are about three days and ten days. The caps also bound
+Today those break-evens are about three days (Standard) and ten (All-In) at
+typical intensity, and two and a half on the heavy persona's day. The caps also bound
 abuse: a Standard account that hits every cap every day costs about $46 a
 month instead of unbounded; an All-In one about $189, almost all of it story
 video, transcription and Sonnet chat, which is why those sit on All-In

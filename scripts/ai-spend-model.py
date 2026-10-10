@@ -79,9 +79,9 @@ A["assistant-chat turn"] = (
     llm("sonnet5", chat_in, 600, cached=STABLE_PREFIX)      # the reply
     + llm("embed", 60, 0)                                     # retrieval query embedding
     + llm("flash", 1200, 150)                                 # tool plan (askBrain solo, 300 max)
-    + native_review()                                         # Arabic-native read of the reply
-    + llm("flash", 2000, 300),                                # learner-memory update (400 max)
-    40, None, None, "Sonnet 5 reply + embedding + tool plan + native review + memory update")
+    + native_review()                                         # Arabic-native read of the reply, when it contains Arabic
+    + llm("flash", 2000, 300) / 4,                            # learner-memory rewrite, once every four assistant turns (TURNS_BETWEEN_REWRITES)
+    40, None, None, "Sonnet 5 reply + embedding + tool plan + native review + memory rewrite every 4th turn")
 A["daily-recap / video-debrief step"] = (
     llm("sonnet5", STABLE_PREFIX + 4500, 600, cached=STABLE_PREFIX) + native_review(),
     0, None, None, "paid-only; 3-4 steps per session")
@@ -167,7 +167,11 @@ A["quiz picture (word-asset image)"] = (IMAGE_USD, 20, 60, 200, "one Gemini imag
 A["flashcard / mnemonic image"] = (IMAGE_USD, 20, 60, 200, "one Gemini image, per learner, never shared")
 A["word dialogue (word-asset)"] = (
     llm("flash", STABLE_PREFIX + 800, 400) + validator() + 0.3 * llm("sonnet5", STABLE_PREFIX + 2500, 400, cached=STABLE_PREFIX),
-    30, 100, 300, "draft + native validator + critic ~30%; refused while the table is missing")
+    30, 100, 300, "draft + native validator + critic ~30%; refused (nothing charged) while the table is missing")
+# While `word_assets` is missing a dialogue is refused before any model call, so the
+# "today" personas pay nothing for one; once the table exists it is a shared asset.
+STORE_LIVE_TODAY = False
+TODAY_UNIT = {"word dialogue (word-asset)": 0.0 if not STORE_LIVE_TODAY else A["word dialogue (word-asset)"][0]}
 A["word / phrase jingle"] = (llm("flash", 1500, 400) + 1.2 * LYRIA_USD, 15, 40, 120, "Flash lyrics + Lyria clip (20% retried)")
 A["celebration song"] = (llm("flash", 1500, 400) + 1.2 * LYRIA_USD, 3, 10, 30, "same shape as a jingle")
 A["word animation (content team only)"] = (IMAGE_USD + 4 * VEO_LITE_USD_PER_S, 0, 0, 10, "poster + 4 s Veo 3.1 Lite; learners refused")
@@ -243,7 +247,7 @@ for name, (days, counts) in PERSONAS.items():
     lines = []
     total = 0.0
     for action, n in counts.items():
-        c = A[action][0] * n * days
+        c = TODAY_UNIT.get(action, A[action][0]) * n * days
         total += c
         lines.append((c, action))
     lines.sort(reverse=True)
@@ -287,8 +291,8 @@ print("\n## Typical persona, full breakdown\n")
 days, counts = PERSONAS["Typical (Standard, 20 active days)"]
 print("| Action | per day | per month |")
 print("|---|---:|---:|")
-for action, n in sorted(counts.items(), key=lambda kv: -A[kv[0]][0] * kv[1]):
-    print(f"| {action} | {n} | {fmt(A[action][0] * n * days)} |")
+for action, n in sorted(counts.items(), key=lambda kv: -TODAY_UNIT.get(kv[0], A[kv[0]][0]) * kv[1]):
+    print(f"| {action} | {n} | {fmt(TODAY_UNIT.get(action, A[action][0]) * n * days)} |")
 
 # Levers: shared asset store live (pictures amortised across learners: a word is drawn once ever),
 # flashcard images routed through the store, chat side-calls trimmed (memory update once per session,
@@ -300,6 +304,7 @@ AFTER = {
     "quiz picture (word-asset image)": SHARED_PICTURE,
     "flashcard / mnemonic image": SHARED_PICTURE,
     "assistant-chat turn": chat_trimmed,
+    "word dialogue (word-asset)": A["word dialogue (word-asset)"][0] / 40,   # shared once the table exists
 }
 VOICE_AFTER = {"Light (free, 12 active days)": 2.5, "Typical (Standard, 20 active days)": 3, "Heavy (All-In, 28 active days)": 6.4}
 print("\n## Persona monthly cost after the fixes\n")

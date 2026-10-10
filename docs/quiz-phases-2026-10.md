@@ -24,7 +24,7 @@ means — so a session can pick up the next phase cold.*
 | 6b | Deploy `word-asset` (this version), then run `scripts/curriculum-stories.ts` | **owner action** (after 2b) |
 | 7 | The rest of the game | built: "Why not this one?" (PR #430), the lightning round (PR #431), the boss card (PR #432), ladder climbs (PR #433); XP parity is the owner's question |
 | 7b | Apply the `leaderboard_climbs` migration to the live project | **owner action** |
-| 8 | Tuning from real reviews | groundwork built (PR #PRC): each rating records what it was asked as, and the report is written; the tuning itself is 8c |
+| 8 | Tuning from real reviews | groundwork built (PR #436): each rating records what it was asked as, and the report is written; the tuning itself is 8c |
 | 8b | Apply the `quiz_rating_asked` migration to the live project | **owner action** |
 | 8c | Run `npm run quiz:ladder-report` after a month of ratings, and set the thresholds | **owner action** (after 8b) |
 | 9 | Housekeeping | built (PR #434); a zero-day interval in the scheduler is the owner's question |
@@ -1261,7 +1261,7 @@ e2e for the round.
 
 ---
 
-## Phase 8 — tuning from real reviews (groundwork built, PR #PRC; the tuning is 8c)
+## Phase 8 — tuning from real reviews (groundwork built, PR #436; the tuning is 8c)
 
 **Goal.** The thresholds in `LADDER_THRESHOLDS` are a first guess. Once the
 quiz has weeks of ratings, set them from the data.

@@ -71,8 +71,10 @@ two claims that are easy to break invisibly:
   not on `ASSISTANT_OFF_ROUTES` (with a second, independent copy of the
   exemptions and their reasons, so reading the answer off the list that
   produces it cannot pass for a test); the `e2e/routes.spec.ts` sweep does the
-  half a unit test cannot, hit-testing the disc with `elementFromPoint` on
-  every route it loads.
+  half a unit test cannot, hit-testing the disc with `elementsFromPoint` on
+  every route it loads. It looks past a sonner toast, which shares the disc's
+  corner and dismisses itself; a page that toasts on mount landed it before
+  or after the check at random.
 - **Every learner route can say what it is showing.** Either the page calls
   `usePageAiContext`, or its route resolves through `ROUTE_HINTS` to a
   `PAGE_HINTS` entry. Pages built around one piece of content (a video, a

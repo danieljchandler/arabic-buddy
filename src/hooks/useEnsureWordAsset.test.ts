@@ -299,6 +299,50 @@ describe("each kind on its own", () => {
     expect(calls(talk.backend, "dialogue")).toHaveLength(1);
   });
 
+  it("stops story passages and exchanges together when their shared allowance is spent, and nothing else", async () => {
+    // A passage is charged on the exchange's counter, so the answer that one
+    // is spent is about the other too; a picture is on a counter of its own.
+    const STORY: AssetKeyInput = { kind: "story_line", word: "قهوة", gloss: "coffee", dialect: "Gulf" };
+    const PASSAGE = {
+      sentences: [
+        { arabic: "كان الصبح بارد.", english: "The morning was cold." },
+        { arabic: "طلب قهوة.", english: "He ordered coffee." },
+      ],
+    };
+    const MADE_STORY = { asset: { id: "asset-story", payload: PASSAGE }, url: null, cached: false, stored: true };
+
+    const spentByTalk = render((b) =>
+      b.stubFunction("word-asset", byKind({ image: MADE_PICTURE, dialogue: capLimited(), story_line: MADE_STORY })),
+    );
+    expect(await spentByTalk.result.current.ensure(TALK)).toEqual({ status: "limited" });
+    expect(await spentByTalk.result.current.ensure(STORY)).toEqual({ status: "limited" });
+    expect(calls(spentByTalk.backend, "story_line")).toHaveLength(0);
+    expect(await spentByTalk.result.current.ensure(COFFEE)).toMatchObject({ status: "made" });
+    cleanup?.();
+
+    const spentByStory = render((b) =>
+      b.stubFunction("word-asset", byKind({ image: MADE_PICTURE, dialogue: MADE_TALK, story_line: capLimited() })),
+    );
+    expect(await spentByStory.result.current.ensure(STORY)).toEqual({ status: "limited" });
+    expect(await spentByStory.result.current.ensure(TALK)).toEqual({ status: "limited" });
+    expect(calls(spentByStory.backend, "dialogue")).toHaveLength(0);
+    cleanup?.();
+
+    // A passage's own failures pause passages only.
+    const failing = render((b) =>
+      b.stubFunction("word-asset", byKind({ image: MADE_PICTURE, dialogue: MADE_TALK, story_line: FAILED })),
+    );
+    await failing.result.current.ensure(STORY);
+    await failing.result.current.ensure({ ...STORY, word: "شاي", gloss: "tea" });
+    expect(await failing.result.current.ensure({ ...STORY, word: "خبز", gloss: "bread" })).toMatchObject({ status: "failed" });
+    expect(calls(failing.backend, "story_line")).toHaveLength(PAUSE_AFTER_FAILURES);
+    expect(await failing.result.current.ensure(TALK)).toMatchObject({ status: "made" });
+    // And a made passage hands back its sentences, which have no url.
+    cleanup?.();
+    const made = render((b) => b.stubFunction("word-asset", MADE_STORY));
+    expect(await made.result.current.ensure(STORY)).toEqual({ status: "made", url: null, payload: PASSAGE, cached: false, stored: true });
+  });
+
   it("pauses a kind after its own failures in a row, and goes on asking for the other", async () => {
     const { result, backend } = render((b) => b.stubFunction("word-asset", byKind({ image: FAILED, dialogue: MADE_TALK })));
 

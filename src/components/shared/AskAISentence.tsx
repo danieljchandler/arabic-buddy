@@ -8,6 +8,13 @@ interface AskAISentenceProps {
   english?: string;
   /** Visual variant for the trigger button */
   variant?: "icon" | "chip";
+  /** The chip's label, when it names its question; "Ask AI" otherwise. */
+  label?: string;
+  /**
+   * A question this button asks by itself ("Why not this one?"), sent as the
+   * first message about the sentence when the panel opens.
+   */
+  ask?: string;
   className?: string;
 }
 
@@ -21,10 +28,12 @@ export const AskAISentence = ({
   arabic,
   english,
   variant = "icon",
+  label,
+  ask,
   className,
 }: AskAISentenceProps) => {
   const { openChat } = useAiAssistant();
-  const open = () => openChat({ arabic, english });
+  const open = () => openChat({ arabic, english }, ask ? { ask } : undefined);
 
   if (variant === "chip") {
     return (
@@ -39,7 +48,7 @@ export const AskAISentence = ({
         )}
       >
         <Sparkles className="h-3 w-3" />
-        Ask AI
+        {label ?? "Ask AI"}
       </Button>
     );
   }

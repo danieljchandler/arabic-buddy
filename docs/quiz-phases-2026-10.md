@@ -10,7 +10,7 @@ means — so a session can pick up the next phase cold.*
 | phase | what | status |
 |---|---|---|
 | 0 | Proposal and decisions | done |
-| 1 | The quiz style and the eight-step ladder (nine since Phase 4) | done (PR #422) |
+| 1 | The quiz style and the eight-step ladder (ten since Phase 6) | done (PR #422) |
 | 1b | Apply the `review_style` migration to the live project | **owner action** |
 | 2 | The shared asset store | done (PR #423) |
 | 2b | Apply the `word_assets` migration to the live project | **owner action** |
@@ -20,7 +20,8 @@ means — so a session can pick up the next phase cold.*
 | 4b | Deploy `word-asset` (this version) | **owner action** (after 2b; one deploy covers 3b's) |
 | 5 | Animations for action words | built (PR #426); the clips themselves are 5b |
 | 5b | Apply the bucket migration, deploy `word-asset`, run `scripts/curriculum-animations.ts` | **owner action** (after 2b) |
-| 6 | Words in stories | after 2 |
+| 6 | Words in stories | built (PR #428) |
+| 6b | Deploy `word-asset` (this version), then run `scripts/curriculum-stories.ts` | **owner action** (after 2b) |
 | 7 | The rest of the game | any time after 1 |
 | 8 | Tuning from real reviews | once the quiz has weeks of history |
 | 9 | Housekeeping | any time |
@@ -576,7 +577,212 @@ jumping) replaces the picture as the "say it" prompt.
 
 ---
 
-## Phase 6 — words in stories
+## Phase 6 — words in stories (built, PR #428; the run is 6b)
+
+What shipped, so the later phases know what they stand on (writeups: README
+"Reviewing as a quiz instead of flashcards", "The asset store" and "The
+reading library"):
+
+- **`kind: "story_line"` in the store** (`_shared/wordStoryLine.ts`):
+  `payload` is `{ sentences: [first, second], story? }`, each sentence
+  `{ arabic, english }`, exactly one using the word (`lineUsesWord`) and the
+  word said nowhere else in the two, with a prefix (و, ب, ال, and ال
+  contracted: للسوق, عالسوق) or a pronoun or plural ending (قهوتي, بيتين)
+  included (`wordUseCount`, beside `lineUsesWord` in `wordDialogue.ts`, which
+  now also holds `withoutProclitics`, the grader's rule, so both sides use one
+  copy).
+  `asStoredStoryLine` is the one reader. Style `text-1`, no bucket, filed with
+  `putAsset`.
+- **`word-asset ensure`** charges a learner's miss on `word-asset-dialogue`,
+  then looks in the reading library (`findStoryPassage`, the source rule
+  below; no model; filed as `reviewed`), and otherwise writes one through the
+  same writer as an exchange (`writeText`, which `makeDialogue` now shares:
+  `draft_critic`, `enforceDialect` and `validateDialect`, a quality gate, the
+  leak scan with the rulebook's tokens, quotes stripped). `store_not_ready`,
+  `ai_unconfigured` and `word_not_in_dialect` before anything is read or
+  charged. The trusted path is charged nothing and may send `example`, as for
+  an exchange; a story's passage is still taken first, and on the trusted
+  path it takes the place of a written one.
+- **The ladder**: step 10 "In a story" (`story-gap`) at production stability
+  `LADDER_THRESHOLDS.storyDays` (60, double the reply's) and up; no passage →
+  step 9 and what it falls back to; no microphone → `story-choice`, the same
+  gap with four options; too few options → the flip card. `QUIZ_STEP_COUNT` is
+  10, and the badge has ten dots.
+- **`QuizStoryCard`**: the passage with the gap cut by `findPhraseSpan`
+  (`src/lib/quizStory.ts`), the meaning named beside the spoken gap, the translation a tap
+  away (help), the passage read with the word muted and whole after.
+  `story-gap` scores the word against the word in the passage's locale, read
+  through `singleWordSimilarity` (prefixes off, short words exact, and a take
+  of more words than the item is not the word); `story-choice` offers "Why not
+  this one?" on a wrong pick. The muted reading never starts once a take has.
+  `QuizTakeResult` is the speak card's result panel, now shared.
+- **`useMaskedSentenceAudio`**: the cloze card's muted reading, extracted so
+  the two cards share one, with the dialect explicit; the cloze card now
+  reads in the card's dialect rather than the learner's active one.
+- **`QuizCardFrame` `storyLines`** (the curriculum deck and My Words): a
+  fourth asset through `useCardAsset` (`STORY_LINE_LOOKUP_WAIT_MS`,
+  `STORY_LINE_WRITING_WAIT_MS` = 12 s, "Finding a story for this word…"),
+  asked for and waited for only where its question can be asked now; the
+  fallback's exchange is read, never written.
+- **`useEnsureWordAsset`** latches the daily allowance per counter, so a spent
+  dialogue allowance pauses passages too, and the reverse.
+- **"Why not this one?"**: `AskAISentence` takes `label` and `ask`;
+  `openChat(seed, { ask })` holds the question as a one-shot `pendingAsk`,
+  which `ChatTab` sends once as the learner's message (a fresh conversation
+  for a new passage, the next message for the same one). It is never part of
+  the seed, so neither the server nor History sees it there.
+- **`scripts/curriculum-stories.ts`** (`--dialect`, `--stage`, `--limit` in
+  passages filed, `--dry-run`), its core in `curriculum-stories-core.ts`,
+  covered by `src/test/curriculumStories.test.ts`. It calls no function and no
+  model and costs nothing; it needs the table, not a deploy. It also takes
+  back a story passage its story no longer lends (`storyPassageStillLent`).
+- Guards: `word_asset_test.ts` (17 story cases, and the "kind not generated"
+  case moved to `jingle`), `wordStoryLine.test.ts` (the source rule and the
+  search against the emulator, with the factories' real row shapes),
+  `wordDialogue.test.ts`, `quizLadder.test.ts`, `quizGrading.test.ts`,
+  `quizStory.test.ts`, `QuizStoryCard.test.tsx`, `QuizCardFrame.test.tsx`,
+  `ReviewClozeCard.test.tsx`, `useMaskedSentenceAudio.test.ts`,
+  `useEnsureWordAsset.test.ts`, `AskAISentence.test.tsx`,
+  `AskAiPanel.test.tsx`, `QuizSessionSummary.test.tsx`,
+  `curriculumStories.test.ts`, and `review.spec.ts` ("a word in a story").
+
+**Decided in this phase** (each argued in the README):
+
+1. *The source is `authentic_stories` / `authentic_story_lines`; there is no
+   `reading_library`.* `reading_passages` is left out: the curriculum
+   builder's approval never writes its `dialect`, so every row is "Gulf"
+   whatever it is in, and its text has no per-sentence English.
+2. *Only the dialect text*, `authentic_story_lines.dialect`: never `arabic`,
+   `arabic_vocalized` or `body_fusha` (the MSA source), never `body_dialect`
+   (it fills skipped lines with their fusha), and never a rendering that is
+   its own fusha word for word.
+3. *Published only*: `status = 'published'`, the one status the reader's RLS
+   serves to anyone.
+4. *Public domain and CC0 only.* CC-BY needs a credit wherever its text is
+   shown and a quiz card filed in a public table carries none; CC-BY-SA also
+   binds the adaptation, which a dialect rendering cut to two sentences is.
+5. *The story's dialect exactly* (`storyDialect`): Levantine and MSA, which
+   the story form offers and `normalizeDialect` reads as Gulf, lend nothing.
+   And *the word's sense*: the gap sentence's English must name the key's
+   sense (`englishNamesSense`), since the folding cannot tell homographs
+   apart.
+6. *The story's current rendering* (`inCurrentRendering`):
+   `translate-story-dialect` keeps a skipped line's old rendering, so a story
+   moved to another dialect can hold a line in the first one.
+7. *Two sentences, never cutting the word's*: the word's sentence and the one
+   before it, else the one after; a line is cut into sentences only where its
+   English splits the same way; the shortest passage wins.
+8. *A learner's miss charges the exchange's counter, before the search,
+   found or written*: a written passage is the same cost class as an
+   exchange, and a found one is a shelf search and a public row the
+   allowance must bound (see below).
+9. *The step-9 rule does not apply.* `REPLY_WORD_CLEAR` exists because a
+   reply can be right in other words than the stored one; a take whose
+   reference is the word itself has no such gap. Ordinary bands,
+   `SPEECH_MATCH_FLOOR`, a different word is Again; `wordSpanSimilarity` reads
+   the take, so the attached-prefix and short-word lessons hold.
+10. *The meaning is named beside the spoken gap*: running speech fits more
+    than one word, and a right other word would be scored as a different one.
+    Not beside the four-option gap, which follows the cloze card's later steps:
+    with four set options the meaning would turn the passage into a
+    translation match.
+11. *A device that cannot record gets the four-option gap*, the one choice on
+    the production schedule, never better than Good; "rate it myself" still
+    gives the flip card, as on every speaking step.
+
+Two things found on the way and fixed in this phase: the cloze card's muted
+reading used the learner's active dialect rather than the card's (a mixed
+deck's Egyptian sentence read in a Gulf voice), and a Phase 4 frame test
+whose loop left each pass's card mounted, so its later passes could find the
+previous card's question.
+
+An independent review before merge found four bugs, all fixed above. The
+story search matched the Arabic only, so a homograph took another sense's
+passage, filed as `reviewed` and so never replaced. A learner's miss searched
+the whole shelf and filed a row before any cap, so an account could vary the
+gloss to file rows and drive searches for free, even over its allowance (it
+is charged first now). `لل` hid the word from the second-use rule. And the
+take was read by its best stretch, so a learner naming three candidates was
+heard saying the word. It also found a second "Why not this one?" on the same
+passage was never asked (now the one-shot `pendingAsk`), a late reading that
+could autoplay into a take, a title that could say the word, and docs that
+claimed an unset licence was refused when the column defaults to
+`public_domain`. Questions it raised for the owner are in 6b.
+
+A second review, cold, before the merge, found five more, all fixed. The
+second-use rule compared what a passage said with the word as stored, so a
+word stored with its article (السوق, and the curriculum's الحساب, اليوم,
+الصبح…) was not counted in للسوق, سوقنا or a bare سوق, and the muted reading
+could say the answer in the other sentence; it now counts the word without
+its article too, and through curly quotation marks. A sentence a conversion
+left as its fusha, inside a line cut into sentences, could be the gap's (the
+copy check compared whole lines); each sentence is checked now, and keeps its
+place so its neighbours are never paired across it. The take-back check read
+a story's first thousand lines only, so a passage cut past them was taken
+back on every run; it pages now, as the search does. A written passage kept a
+`story` the model might name. And a test that said it reopened the panel
+did not. It also asked why the four-option gap does not name the meaning:
+decision 10 is about the spoken gap, and the four-option one follows the
+cloze card's later steps (said so above). It found the same second-use gap in
+Phase 4's exchange, which is not fixed here: an opening line is checked with
+`lineUsesWord` alone, so "رحنا للسوق؟" can open an exchange whose reply is
+the word السوق.
+
+### Phase 6b — owner action
+
+1. Apply `20261009130000_word_assets.sql` (Phase 2b) if it is not on the live
+   project yet. Until then no passage is taken, written or read, and the top
+   step asks the reply.
+2. Deploy `word-asset` (this phase changed it again; one deploy covers 3b, 4b
+   and 5b's). An older one answers a passage `kind_not_generated`, uncharged,
+   and the quiz asks the reply.
+3. Run the script, dry first; it prints what each word would take, what the
+   shelf lends, and why each story left out was. It costs nothing (no model,
+   no function), so the real run is safe once the dry run reads right:
+
+   ```sh
+   SUPABASE_SERVICE_ROLE_KEY=... deno run --allow-env --allow-read --allow-net \
+     scripts/curriculum-stories.ts --dry-run
+   SUPABASE_SERVICE_ROLE_KEY=... deno run --allow-env --allow-read --allow-net \
+     scripts/curriculum-stories.ts
+   ```
+
+   A passage that reads wrong is fixed by deleting its `word_assets` row; the
+   next run takes the next-shortest, or the next learner's miss writes one.
+   How many curriculum words the shelf covers is not knowable from here: the
+   stories are in the live project, not the repo.
+
+**Questions for the owner**, raised by the review and left as they are:
+
+- *The licence label is trusted.* `license` defaults to `public_domain`, and
+  the suggest-and-import flow writes it for the public-domain texts it
+  imports. A story an editor imports by hand under CC-BY and leaves on the
+  default lends as public domain. Either keep it (the editor's choice is the
+  record), or have the form require a licence.
+- *A word that skips step 9 never gets an exchange written*: one Good review
+  can lift production stability from under 30 to over 60, and step 10 only
+  reads the reply's exchange. When its passage cannot be had (a leak, a
+  validator rejection), it is asked "say the line" until an exchange exists.
+  Writing the exchange behind the fallback would charge a card twice.
+- *A retry is graded*, on every speaking step: after a take the answer is on
+  screen, and "Try again" grades the last take. Pre-existing; stronger here,
+  since the word appears in the gap.
+- *A story line's English translates the fusha*, not the rendering, so a
+  sentence's English can be a little off its dialect text.
+- *A hesitation in the take* ("اه قهوة") is a take of more words than the
+  item, so it is a different word, Again. Whether Azure's recognised text
+  keeps fillers in Arabic is not known from here; the result shows what was
+  heard, and "Try again" is there. A filler list would need care: ايه is
+  "yes" in Egyptian and could be the word.
+- *Phase 4's exchange can give the word away in its opening line* when the
+  word is said there with a prefix (the second review's finding above). The
+  fix is `wordUseCount(first, word) === 0` in `asStoredDialogue`; exchanges
+  already filed would need re-checking. Not done here: Phase 4 is merged.
+
+**Done when** (6b): a mature curriculum word is asked in a story in
+production, from a published story's sentences where the shelf has one.
+
+### The plan, as it was written
 
 **Goal.** A mature word turns up in a short passage: a gap to say, or a
 question about the line.
@@ -611,7 +817,9 @@ independent of the asset store.
 - **Boss card**: the leech with the most lapses opens the session at step 1
   with its mnemonic and picture; clearing it is a `celebrate` tier.
 - **Why not this one?**: on a wrong choice, one tap on the picked option
-  asks the tutor why it does not fit (`AskAISentence` with the pair).
+  asks the tutor why it does not fit (`AskAISentence` with the pair). Phase 6
+  built it for the story's four-option gap (`label`, `ask`, `whyNotQuestion`
+  in `src/lib/quizStory.ts`); what is left is the other choice steps.
 - **Ladder climbs on the leaderboard**: a weekly count of promotions beside
   XP (`useLeaderboard`, the `leaderboard_profiles` view).
 - **XP parity for the flip cards** on My Words and My Phrases: an open

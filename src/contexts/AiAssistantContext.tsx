@@ -44,6 +44,17 @@ export interface AssistantSeed {
   english?: string;
 }
 
+/**
+ * A question the tap that opened the panel has already asked ("Why not this
+ * one?"), waiting for the chat to send it as the learner's message. Each has
+ * its own id, so a question is sent once however often the chat re-renders,
+ * and a second question about the same sentence is a second message.
+ */
+export interface PendingAsk {
+  id: number;
+  text: string;
+}
+
 export interface AssistantMsg {
   role: "user" | "assistant";
   content: string;
@@ -63,7 +74,12 @@ interface AiAssistantValue {
   conversationId: string | null;
   setConversationId: (id: string | null) => void;
   pageContext: PageAiContext | null;
-  openChat: (seed?: AssistantSeed) => void;
+  /** Open the chat, about `seed` if given, asking `options.ask` as the learner's message if given. */
+  openChat: (seed?: AssistantSeed, options?: { ask?: string }) => void;
+  /** A question waiting to be sent (`openChat`'s `ask`); null when none. */
+  pendingAsk: PendingAsk | null;
+  /** The chat has sent this one. */
+  clearPendingAsk: (id: number) => void;
   openVoice: () => void;
   close: () => void;
   newChat: () => void;
@@ -92,12 +108,14 @@ interface Registration {
 const PageRegistryContext = createContext<PageRegistryValue | null>(null);
 
 let nextRegistrationId = 1;
+let nextAskId = 1;
 
 export function AiAssistantProvider({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<AssistantTab>("chat");
   const [seed, setSeed] = useState<AssistantSeed | null>(null);
+  const [pendingAsk, setPendingAsk] = useState<PendingAsk | null>(null);
   const [messages, setMessages] = useState<AssistantMsg[]>([]);
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [pageContext, setPageContext] = useState<PageAiContext | null>(null);
@@ -150,7 +168,9 @@ export function AiAssistantProvider({ children }: { children: ReactNode }) {
     publishCurrentRoute();
   }, [pathname, publishCurrentRoute]);
 
-  const openChat = useCallback((newSeed?: AssistantSeed) => {
+  const openChat = useCallback((newSeed?: AssistantSeed, options?: { ask?: string }) => {
+    const ask = options?.ask?.trim();
+    setPendingAsk(ask ? { id: nextAskId++, text: ask } : null);
     if (newSeed) {
       setSeed((prev) => {
         // A different sentence starts a fresh conversation about it; the same
@@ -176,8 +196,14 @@ export function AiAssistantProvider({ children }: { children: ReactNode }) {
   const newChat = useCallback(() => {
     setMessages([]);
     setSeed(null);
+    setPendingAsk(null);
     setConversationId(null);
   }, []);
+
+  const clearPendingAsk = useCallback(
+    (id: number) => setPendingAsk((pending) => (pending?.id === id ? null : pending)),
+    [],
+  );
 
   const clearSeed = useCallback(() => setSeed(null), []);
 
@@ -196,12 +222,14 @@ export function AiAssistantProvider({ children }: { children: ReactNode }) {
     previousPathRef.current = pathname;
     if (isOpen) return;
     setSeed(null);
+    setPendingAsk(null);
     setMessages([]);
     setConversationId(null);
   }, [pathname, isOpen]);
 
   const loadConversation = useCallback(
     (args: { id: string; seed: AssistantSeed | null; messages: AssistantMsg[] }) => {
+      setPendingAsk(null);
       setSeed(args.seed);
       setMessages(args.messages);
       setConversationId(args.id);
@@ -224,12 +252,16 @@ export function AiAssistantProvider({ children }: { children: ReactNode }) {
       setConversationId,
       pageContext,
       openChat,
+      pendingAsk,
+      clearPendingAsk,
       openVoice,
       close,
       newChat,
       loadConversation,
     }),
     [
+      pendingAsk,
+      clearPendingAsk,
       isOpen,
       activeTab,
       seed,

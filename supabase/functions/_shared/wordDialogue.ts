@@ -74,6 +74,102 @@ export function lineUsesWord(line: string, word: string): boolean {
   return false;
 }
 
+/**
+ * The prefixes a speaker attaches to a word, in the order they stack: and/so;
+ * the article contracted with "to" (للسوق, the alef of ال dropped) or with
+ * colloquial "on" (عالسوق); with/to/like; the article.
+ */
+const PROCLITICS: ReadonlyArray<{ prefix: RegExp; leaves: number }> = [
+  { prefix: /^[وف]/, leaves: 2 },
+  // A contraction is only taken off a word it leaves three letters of, so
+  // عالمي ("global") is never heard as مي.
+  { prefix: /^(?:لل|عال)/, leaves: 3 },
+  { prefix: /^[بلك]/, leaves: 2 },
+  { prefix: /^ال/, leaves: 2 },
+];
+
+/**
+ * A folded token, and the same token with each attached prefix taken off in
+ * turn (والقهوه → القهوه → قهوه; للسوق → سوق), never down to fewer letters than
+ * a word. The one rule for "an attached و, ب or ال does not make it another
+ * word": the quiz's grader reads what was heard through it
+ * (`wordSpanSimilarity`), and a passage counts the word's uses through it
+ * (`wordUseCount`).
+ */
+export function withoutProclitics(token: string): string[] {
+  const variants = [token];
+  let rest = token;
+  for (const { prefix, leaves } of PROCLITICS) {
+    const stripped = rest.replace(prefix, "");
+    if (stripped !== rest && stripped.length >= leaves) {
+      rest = stripped;
+      variants.push(rest);
+    }
+  }
+  return variants;
+}
+
+/**
+ * What a speaker attaches to the end of a word: a possessive or object
+ * pronoun (قهوتي, سوقه, بيتنا) or a plural or dual ending (بيوت is another
+ * word; بيتين is this one). Folded, as tokens are.
+ */
+const ENCLITICS = ["ي", "ك", "ه", "ها", "نا", "كم", "هم", "كن", "هن", "ني", "ين", "ون", "ات"];
+
+/** Whether a token is `word` with an ending attached: قهوتي and قهوات for قهوه. */
+function hasEnclitic(token: string, word: string): boolean {
+  // A word this short is a prefix of too many others (كل of كلب, كلام).
+  if (word.length < 3 || token.length <= word.length) return false;
+  // The feminine ه (folded ة) is written ت once something follows it.
+  const stems = word.endsWith("ه") ? [word, `${word.slice(0, -1)}ت`, word.slice(0, -1)] : [word];
+  return stems.some((stem) => token.startsWith(stem) && ENCLITICS.includes(token.slice(stem.length)));
+}
+
+/**
+ * Curly and low quotation marks, which the store's folding keeps (its
+ * punctuation set is the browser's, and the keys depend on it) but a story's
+ * quoted speech is written in: “قهوة” is the word said again.
+ */
+const QUOTE_MARKS_RE = /[“”‘’„‟‹›]/g;
+
+/**
+ * The forms of a word's first token a passage may say it in: as stored, and,
+ * for a word stored with its article, without it (السوق → سوق), so that للسوق,
+ * عالسوق, سوقنا and a bare سوق are all the word. Only where at least three
+ * letters are left, so الله is never heard in every له.
+ */
+function wordForms(first: string): string[] {
+  const bare = first.replace(/^ال/, "");
+  return bare !== first && bare.length >= 3 ? [first, bare] : [first];
+}
+
+/**
+ * How many times `text` says the word: as `lineUsesWord` counts a use, and
+ * also where something attached hides it from that rule — a prefix (و, ف, ب,
+ * ل, ك, ال, and ال contracted, as in للسوق and عالسوق), quotation marks, or,
+ * for a single word of three letters or more, a pronoun or plural ending
+ * (قهوتي, بيتين); and a word stored with its article said without it, or with
+ * another prefix in its place. For a passage with a gap, where any second
+ * use, bare or not, is the answer given away. A word conjugated or derived
+ * into another form (روح, هروح) is another word, and is not counted.
+ */
+export function wordUseCount(text: string, word: string): number {
+  const target = foldedTokens(word.replace(QUOTE_MARKS_RE, ""));
+  if (target.length === 0) return 0;
+  const forms = wordForms(target[0]);
+  const tokens = foldedTokens(text.replace(QUOTE_MARKS_RE, " "));
+  let count = 0;
+  for (let start = 0; start + target.length <= tokens.length; start++) {
+    const variants = withoutProclitics(tokens[start]);
+    const first =
+      variants.some((v) => forms.includes(v)) ||
+      (target.length === 1 && variants.some((v) => forms.some((form) => hasEnclitic(v, form))));
+    if (!first) continue;
+    if (target.every((part, i) => i === 0 || tokens[start + i] === part)) count++;
+  }
+  return count;
+}
+
 const str = (value: unknown): string => (typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "");
 
 function asLine(value: unknown): StoredDialogueLine | null {
@@ -170,20 +266,22 @@ export function authoredExample(text: string | null | undefined, word: string): 
   return foldedTokens(example).length > foldedTokens(word).length ? example : "";
 }
 
-const DIALECT_NAME: Readonly<Record<AssetDialect, string>> = {
+/** How a shared prompt names each dialect. A story passage's prompt uses them too. */
+export const DIALECT_NAME: Readonly<Record<AssetDialect, string>> = {
   Gulf: "Gulf (Khaliji) Arabic",
   Egyptian: "Egyptian Arabic",
   Yemeni: "Yemeni Arabic",
 };
 
-const DIALECT_PLACES: Readonly<Record<AssetDialect, string>> = {
+/** Where a shared prompt sets each dialect's text: everyday life, today. */
+export const DIALECT_PLACES: Readonly<Record<AssetDialect, string>> = {
   Gulf: "everyday life in the Gulf today: home, the majlis, a café, the souq, work, the car",
   Egyptian: "everyday life in Egypt today: home, a Cairo street, a café, the market, work, a microbus",
   Yemeni: "everyday life in Yemen today: home, the souq, a qat chew, work, a family visit",
 };
 
 /** Quote-free and one line, since the sense and example sit inside quotes in the prompt. */
-function promptSafe(text: string, max: number): string {
+export function promptSafe(text: string, max: number): string {
   return text.replace(/["“”«»]/g, "'").replace(/\s+/g, " ").trim().slice(0, max);
 }
 

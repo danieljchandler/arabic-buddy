@@ -1,6 +1,7 @@
 import { normalizeArabicWord } from "@/lib/arabicWord";
 import type { Rating } from "@/lib/spacedRepetition";
 import { arabicSimilarity } from "../../supabase/functions/_shared/arabicMatch";
+import { withoutProclitics } from "../../supabase/functions/_shared/wordDialogue";
 
 /**
  * How a quiz answer becomes an FSRS rating.
@@ -113,23 +114,6 @@ export function gradeQuizAnswer(outcome: QuizOutcome): Rating {
  */
 export const SHORT_WORD_LETTERS = 3;
 
-/** The prefixes a speaker attaches to a word, in the order they stack: and/so, with/to/like, the. */
-const PROCLITICS = [/^[وف]/, /^[بلك]/, /^ال/];
-
-/** A heard word, and the same word with each attached prefix taken off in turn. */
-function withoutProclitics(token: string): string[] {
-  const variants = [token];
-  let rest = token;
-  for (const prefix of PROCLITICS) {
-    const stripped = rest.replace(prefix, "");
-    if (stripped !== rest && stripped.length >= 2) {
-      rest = stripped;
-      variants.push(rest);
-    }
-  }
-  return variants;
-}
-
 /**
  * How close the closest stretch of what was heard came to the word: the best
  * `arabicSimilarity` over every run of recognised words as long as the word
@@ -160,6 +144,39 @@ export function wordSpanSimilarity(recognized: string | null | undefined, word: 
   }
   const short = size === 1 && normalizeArabicWord(word).length <= SHORT_WORD_LETTERS;
   return short && best < 1 ? Math.min(best, SPEECH_MATCH_FLOOR / 2) : best;
+}
+
+/**
+ * The locale a spoken take is assessed against: the word's own dialect picks
+ * it, so an Egyptian word is heard as Egyptian.
+ */
+export function assessmentLocale(dialect: string | null | undefined): string {
+  if (dialect === "Egyptian") return "ar-EG";
+  if (dialect === "Yemeni") return "ar-YE";
+  return "ar-SA";
+}
+
+/**
+ * How close a take that should be the word alone (the gap in a story, step
+ * 10) came to it. A take of exactly as many words as the item is read as
+ * `wordSpanSimilarity` reads one window: an attached و, ب or ال taken off,
+ * and a word of three letters or fewer heard exactly. A take of more words
+ * than that — a guess beside the answer ("شاي قهوة حليب"), or the sentence
+ * read back — is not the word, and is scored as a different word: the
+ * best-window reading a reply gets would give the answer to whoever names
+ * enough candidates, since a pronunciation score charges extra words almost
+ * nothing. A letter the recogniser split off on its own (a detached و) is not
+ * a word. Null when nothing was heard.
+ */
+export function singleWordSimilarity(recognized: string | null | undefined, word: string): number | null {
+  const heard = (recognized ?? "")
+    .split(/\s+/)
+    .map((token) => normalizeArabicWord(token))
+    .filter((token) => token.length > 1);
+  if (heard.length === 0) return null;
+  const size = Math.max(1, word.trim().split(/\s+/).length);
+  if (heard.length > size) return Math.min(arabicSimilarity(heard.join(" "), word), SPEECH_MATCH_FLOOR / 2);
+  return wordSpanSimilarity(heard.join(" "), word);
 }
 
 /** Whether a rating counts as a correct answer for the session's tally. */

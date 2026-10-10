@@ -9,7 +9,7 @@
  *   model, and only a miss is charged — to the caller who missed, on the daily
  *   counter of the kind it made (`CAPS`).
  *
- * `ensure` makes three kinds:
+ * `ensure` makes four kinds:
  *
  * - pictures (`kind: "image"`), in the Ink style and from nothing but the
  *   word's sense and dialect (`inkPicturePrompt`), on the flashcard
@@ -43,7 +43,19 @@
  *   (`store_not_ready`, `bucket_not_ready`). A render can outlast the caller's
  *   patience, so a clip still rendering after `animationAnswerMs` is finished
  *   in the background (`EdgeRuntime.waitUntil`) and the caller is answered
- *   `202 { pending: true }`, to look it up with `get` later.
+ *   `202 { pending: true }`, to look it up with `get` later;
+ * - story passages (`kind: "story_line"`, quiz Phase 6): two sentences, one of
+ *   them using the word, for the quiz's top step. Taken from a published story
+ *   in the reading library that already uses the word, where one does
+ *   (`findStoryPassage`: the dialect text only, a public-domain or CC0
+ *   licence, the word's sense, the story's current rendering), which calls no
+ *   model; otherwise written exactly as an exchange is
+ *   (`storyLinePrompt`, the same `writeText`, the same leak and validator
+ *   gates). A learner's miss is charged on the exchange's counter either way,
+ *   before the search: a written one costs what an exchange does, and a found
+ *   one is a search of the shelf and a row in a public table, which the
+ *   allowance bounds. Never while the table is missing (`store_not_ready`),
+ *   and never for a word on the dialect's leak lists (`word_not_in_dialect`).
  *
  * Nothing else a learner sends reaches a prompt: the first learner to miss
  * decides what every later learner is shown, so they must not be able to
@@ -137,6 +149,19 @@ import {
   keyWord,
 } from "../_shared/wordDialogue.ts";
 import {
+  asStoredStoryLine,
+  findStoryPassage,
+  STORY_LINE_TOOL,
+  storyLineArabic,
+  storyLinePayload,
+  storyLinePrompt,
+  storyLineProblem,
+  storyLineSentencesForScan,
+  storyPassageAsset,
+  type StoryClient,
+  type StoryPassage,
+} from "../_shared/wordStoryLine.ts";
+import {
   ANIMATION_ASPECT,
   ANIMATION_RESOLUTION,
   ANIMATION_SECONDS,
@@ -145,6 +170,13 @@ import {
   MAX_ANIMATION_BYTES,
   type AnimationPayload,
 } from "../_shared/wordAnimation.ts";
+
+/**
+ * Text written through the Brain for a word, per day: an exchange or a story
+ * passage. Named for the kind that first used it; renaming it would reset
+ * every learner's count.
+ */
+const TEXT_CAP = { key: "word-asset-dialogue", free: 30, tiers: { standard: 100, allin: 300 } } as const;
 
 /**
  * The kinds `ensure` can make, and who pays for each, per day. Counted only
@@ -157,10 +189,20 @@ import {
  *   day still gets their dialogues, and the reverse. It is reached once per
  *   word, at the quiz's reply steps, which a word only climbs to after a month
  *   of reviews; a free learner's thirty a day is more than any session asks.
+ * - A story passage written for a word (quiz Phase 6) is the same cost as an
+ *   exchange — the same lineup, strategy and validator, a few hundred tokens
+ *   — so it is charged on the same counter. Pictures and exchanges are kept
+ *   apart because they cost differently; these two cost alike, and a counter
+ *   of their own would have given every learner a second thirty text calls a
+ *   day for a step a word reaches after two months. A passage taken from a
+ *   published story calls no model, but a learner's miss is charged before
+ *   the search all the same: it reads the whole shelf and can file a public
+ *   row, and the gloss that picks the key is the caller's to vary.
  */
 const CAPS = {
   image: { key: "generate-flashcard-image", free: 20, tiers: { standard: 60, allin: 200 } },
-  dialogue: { key: "word-asset-dialogue", free: 30, tiers: { standard: 100, allin: 300 } },
+  dialogue: TEXT_CAP,
+  story_line: TEXT_CAP,
 } as const;
 
 /**
@@ -174,7 +216,7 @@ const CAPS = {
 const ANIMATION_STAFF_CAP = { key: "word-asset-animation", perDay: 10 } as const;
 
 /** The kinds `ensure` makes. An animation is made on the trusted path alone. */
-const ENSURABLE = ["image", "dialogue", "animation"] as const;
+const ENSURABLE = ["image", "dialogue", "animation", "story_line"] as const;
 
 type EnsurableKind = (typeof ENSURABLE)[number];
 
@@ -208,9 +250,10 @@ function animationAnswerMs(): number {
 }
 
 /**
- * The Brain's wall-clock budget for one exchange. The quiz waits for it only
- * as long as `DIALOGUE_WRITING_WAIT_MS` and asks its fallback past that, so
- * this bounds the spend, not the learner's wait.
+ * The Brain's wall-clock budget for one exchange or passage. The quiz waits
+ * for it only as long as `DIALOGUE_WRITING_WAIT_MS` (`STORY_LINE_WRITING_WAIT_MS`
+ * for a passage) and asks its fallback past that, so this bounds the spend,
+ * not the learner's wait.
  */
 const DIALOGUE_BUDGET_MS = 40_000;
 
@@ -265,7 +308,7 @@ serve(async (req) => {
   const kind = text(body.kind);
   const sentContext = kind === "image"
     ? authoredScene(text(body.scene))
-    : kind === "dialogue"
+    : kind === "dialogue" || kind === "story_line"
     ? authoredExample(text(body.example), text(body.word))
     : "";
   // An animation is the catalogue's to make, never a learner's: asking for
@@ -378,15 +421,11 @@ serve(async (req) => {
   // An animation neither: it is made for every learner of the action or for
   // nobody, and at several times a picture's price it is never made to be
   // thrown away.
-  if ((key.kind === "dialogue" || key.kind === "animation") && missingTable) {
-    return reply(
-      {
-        error: "store_not_ready",
-        fallback: true,
-        message: `${key.kind === "dialogue" ? "Dialogues" : "Animations"} cannot be kept yet, so none is made.`,
-      },
-      503,
-    );
+  // A story passage neither: it is found or written for every learner of the
+  // word, and lives in the store alone.
+  if ((key.kind === "dialogue" || key.kind === "animation" || key.kind === "story_line") && missingTable) {
+    const what = key.kind === "dialogue" ? "Dialogues" : key.kind === "animation" ? "Animations" : "Story passages";
+    return reply({ error: "store_not_ready", fallback: true, message: `${what} cannot be kept yet, so none is made.` }, 503);
   }
   // Nor while the bucket it would go in is missing (its migration not yet
   // applied): every upload would fail after the poster and the clip were paid.
@@ -404,14 +443,13 @@ serve(async (req) => {
   // dialect's leak lists (the rulebook's included) can never pass the check
   // its exchange is filed on: every attempt would be charged and thrown away.
   // Turned away here, before the charge.
-  if (key.kind === "dialogue") {
+  // The same holds for a passage, from a story or written.
+  if (key.kind === "dialogue" || key.kind === "story_line") {
     const dialect = key.dialect ?? "Gulf";
     await primeDialectPrompt(dialect);
     if (detectMsaLeaks(keyWord(key), dialect, getDialectForbiddenTokens(dialect)).leaks.length > 0) {
-      return reply(
-        { error: "word_not_in_dialect", message: "This word is not one the dialect's exchanges can use." },
-        400,
-      );
+      const what = key.kind === "dialogue" ? "exchanges" : "passages";
+      return reply({ error: "word_not_in_dialect", message: `This word is not one the dialect's ${what} can use.` }, 400);
     }
   }
 
@@ -434,7 +472,10 @@ serve(async (req) => {
   }
 
   // Charged only now, on the miss, and only to a learner, on the kind's own
-  // counter.
+  // counter. A story passage is charged here too, before the library is
+  // searched, whether it is then found or written: a miss is a search of the
+  // whole shelf and a row in a public table, and the allowance is what bounds
+  // how many of each one account can cause in a day.
   if (!trusted && key.kind !== "animation") {
     const cap = CAPS[key.kind];
     const limited = await enforceDailyCap(req, cap.key, cap.free, corsHeaders, cap.tiers);
@@ -468,6 +509,7 @@ serve(async (req) => {
 
   try {
     if (key.kind === "dialogue") return reply(await makeDialogue(store, key, { example: authored, replace }));
+    if (key.kind === "story_line") return reply(await makeStoryLine(admin as unknown as StoryClient, store, key, { example: authored, replace }));
     return reply(await makePicture(admin, store, key, { scene: authored, replace }));
   } catch (err) {
     console.error("word-asset error:", err);
@@ -556,6 +598,29 @@ async function makePicture(
   return { asset: null, url: filed.url, cached: false, stored: false, ...made };
 }
 
+/**
+ * What one text kind is written as: an exchange or a story passage. Both go
+ * through `writeText`, so a passage is written, judged and filed exactly as an
+ * exchange is; this is all that differs.
+ */
+interface TextKind<T> {
+  purpose: string;
+  prompt: string;
+  tool: typeof DIALOGUE_TOOL | typeof STORY_LINE_TOOL;
+  maxTokens: number;
+  /** Why a draft is no question, for the critic; null when it is one. */
+  gate: (parsed: unknown) => string | null;
+  arabicTextPath: (parsed: unknown) => string;
+  /** The usable asset in what the Brain shipped, or null. */
+  read: (output: unknown) => T | null;
+  /** Each line or sentence as the leak detector must see it. */
+  scan: (value: T) => string[];
+  payload: (value: T) => unknown;
+  /** "line" or "passage", for the messages the caller is answered with. */
+  noun: string;
+  failedCode: string;
+}
+
 async function makeDialogue(
   store: WordAssetClient,
   key: AssetKey,
@@ -564,41 +629,111 @@ async function makeDialogue(
   // From the key, never from what the caller typed: the folded word and
   // sense, the dialect, and the trusted path's example alone.
   const word = keyWord(key);
+  return writeText(store, key, authored, {
+    purpose: "word_dialogue",
+    prompt: dialoguePrompt({ word, sense: key.sense, dialect: key.dialect ?? "Gulf", example: authored.example || null }),
+    tool: DIALOGUE_TOOL,
+    maxTokens: 700,
+    // A reply that does not use the word, or an opener that does, is no
+    // question: the critic is sent back to fix exactly that.
+    gate: (parsed) => dialogueProblem(parsed, word),
+    arabicTextPath: dialogueArabic,
+    read: (output) => asStoredDialogue(output, word),
+    scan: dialogueLinesForScan,
+    payload: (dialogue) => dialogue,
+    noun: "line",
+    failedCode: "DIALOGUE_GENERATION_FAILED",
+  });
+}
+
+/**
+ * A word's story passage: from a published story that already uses the word
+ * in this sense where the reading library has one (`findStoryPassage`, which
+ * reads public data and calls no model), else written for it exactly as an
+ * exchange is. The caller has already been charged, if they are charged.
+ */
+async function makeStoryLine(
+  library: StoryClient,
+  store: WordAssetClient,
+  key: AssetKey,
+  authored: { example: string; replace: WordAsset | null },
+): Promise<Record<string, unknown>> {
   const dialect = key.dialect ?? "Gulf";
-  const prompt = dialoguePrompt({ word, sense: key.sense, dialect, example: authored.example || null });
-  const failed = (message: string, error = "DIALOGUE_GENERATION_FAILED") => ({ error, fallback: true, message });
+  await primeDialectPrompt(dialect);
+  const leaksIn = (line: string) => detectMsaLeaks(line, dialect, getDialectForbiddenTokens(dialect)).leaks;
+  const fromStory = await findStoryPassage(library, key, { leaksIn });
+  if (fromStory) return fileStoryPassage(store, key, fromStory, authored.replace);
+
+  const word = keyWord(key);
+  return writeText(store, key, authored, {
+    purpose: "word_story_line",
+    prompt: storyLinePrompt({ word, sense: key.sense, dialect: key.dialect ?? "Gulf", example: authored.example || null }),
+    tool: STORY_LINE_TOOL,
+    maxTokens: 700,
+    // Two sentences, the word in one and said nowhere else: anything else is
+    // no gap, and the critic is sent back to fix exactly that.
+    gate: (parsed) => storyLineProblem(parsed, word),
+    arabicTextPath: storyLineArabic,
+    // Written, not taken: a story the model names is not one it came from.
+    read: (output) => {
+      const line = asStoredStoryLine(output, word);
+      return line && { ...line, story: null };
+    },
+    scan: storyLineSentencesForScan,
+    payload: storyLinePayload,
+    noun: "passage",
+    failedCode: "STORY_LINE_GENERATION_FAILED",
+  });
+}
+
+/**
+ * Write a word's text through the Brain and file it, by the rules every text
+ * kind keeps: the CONTENT lineup drafted and critiqued, the native-speaker
+ * validator on the draft and on whatever is shipped, and filed only when every
+ * line passes the leak detector with the rulebook's tokens and the validator
+ * passed the shipped text. Anything that fails either is neither filed nor
+ * served; one the validator could not judge at all is the paying learner's,
+ * unfiled.
+ */
+async function writeText<T>(
+  store: WordAssetClient,
+  key: AssetKey,
+  authored: { example: string; replace: WordAsset | null },
+  spec: TextKind<T>,
+): Promise<Record<string, unknown>> {
+  const dialect = key.dialect ?? "Gulf";
+  const failed = (message: string, error = spec.failedCode) => ({ error, fallback: true, message });
+  const The = spec.noun === "line" ? "The line" : "The passage";
 
   let brain;
   try {
     brain = await askBrain<unknown>({
-      purpose: "word_dialogue",
+      purpose: spec.purpose,
       dialect,
       // No models[] override: the CONTENT lineup, drafted and critiqued.
       strategy: "draft_critic",
-      userPrompt: prompt,
-      tool: DIALOGUE_TOOL,
-      maxTokens: 700,
+      userPrompt: spec.prompt,
+      tool: spec.tool,
+      maxTokens: spec.maxTokens,
       temperature: 0.7,
       budgetMs: DIALOGUE_BUDGET_MS,
       // The native-speaker validator reads the draft and orders a rewrite if
       // it is fusha in grammar or register, which the token detector is blind
-      // to. A learner will say this line as a model of the dialect.
+      // to. A learner will say or hear this as a model of the dialect.
       enforceDialect: true,
       // And reads whatever is shipped when it did not already: the critic's
       // rewrite, or a draft whose budget left no room for the check above.
       validateDialect: true,
-      // A reply that does not use the word, or an opener that does, is no
-      // question: the critic is sent back to fix exactly that.
-      qualityGate: (parsed) => dialogueProblem(parsed, word),
-      arabicTextPath: dialogueArabic,
+      qualityGate: (parsed) => spec.gate(parsed),
+      arabicTextPath: spec.arabicTextPath,
     });
   } catch (err) {
-    console.warn("word-asset: the exchange could not be written:", err instanceof Error ? err.message : err);
-    return failed(`Could not write a line for "${key.sense}" right now.`);
+    console.warn(`word-asset: the ${spec.noun} could not be written:`, err instanceof Error ? err.message : err);
+    return failed(`Could not write a ${spec.noun} for "${key.sense}" right now.`);
   }
 
-  const dialogue = asStoredDialogue(brain.output, word);
-  if (!dialogue) return failed(`Could not write a line that uses the word for "${key.sense}".`);
+  const value = spec.read(brain.output);
+  if (!value) return failed(`Could not write a ${spec.noun} that uses the word for "${key.sense}".`);
 
   // What the native reviewer made of the text that was shipped. A failed
   // one (a draft whose rewrite could not run, or a rewrite it failed too) is
@@ -606,37 +741,38 @@ async function makeDialogue(
   const verdict = brain.validator?.ok === true ? brain.validator.verdict : null;
   if (verdict === "rewrite") {
     console.warn(`word-asset: not filed, the native reviewer asked for a rewrite (${brain.validator?.score}/5)`);
-    return failed("The line did not read as the dialect.", "dialect_rejected");
+    return failed(`${The} did not read as the dialect.`, "dialect_rejected");
   }
 
   // Filed only when every line passes the leak detector exactly as the Brain
   // runs it, with the approved rulebook's forbidden tokens, as a shared
   // jingle's lyrics must. Nothing else is served either: the learner is about
-  // to choose this reply, or say it.
+  // to choose this, say it, or hear it as the dialect.
   await primeDialectPrompt(dialect);
-  const leaks = dialogueLinesForScan(dialogue).flatMap((line) =>
+  const leaks = spec.scan(value).flatMap((line) =>
     detectMsaLeaks(line, dialect, getDialectForbiddenTokens(dialect)).leaks
   );
   if (leaks.length > 0) {
-    console.warn(`word-asset: not filed, MSA in the exchange: ${leaks.join(", ")}`);
-    return failed("The line was not in the dialect.", "msa_leak");
+    console.warn(`word-asset: not filed, MSA in the ${spec.noun}: ${leaks.join(", ")}`);
+    return failed(`${The} was not in the dialect.`, "msa_leak");
   }
 
+  const payload = spec.payload(value);
   // Filed only once the reviewer has passed it. When the reviewer could not
   // judge it at all (every validator leg down or out of time), it passed the
   // leak detector and the learner paid for it, so it is theirs for this
   // encounter — but it is not kept for anyone else.
   if (verdict !== "pass") {
-    console.warn("word-asset: not filed, the native reviewer could not judge the exchange");
-    return { asset: null, url: null, payload: dialogue, cached: false, stored: false, ...(authored.example ? { authored: true } : {}) };
+    console.warn(`word-asset: not filed, the native reviewer could not judge the ${spec.noun}`);
+    return { asset: null, url: null, payload, cached: false, stored: false, ...(authored.example ? { authored: true } : {}) };
   }
 
   // How it was made, for whoever reviews the store later. Never who asked:
   // the table is public-read.
   const asset: NewWordAsset = {
-    payload: dialogue,
+    payload,
     meta: {
-      prompt,
+      prompt: spec.prompt,
       models: brain.models,
       strategy: brain.strategy,
       style: key.styleVersion,
@@ -657,11 +793,34 @@ async function makeDialogue(
   const made = authored.example ? { authored: true } : {};
   if (outcome.status === "stored") return { ...served(outcome.asset, false), ...made };
   if (outcome.status === "replaced") return { ...served(outcome.asset, false, true), ...made };
-  // Someone filed first: theirs, so every learner is asked the same exchange.
+  // Someone filed first: theirs, so every learner is asked the same text.
   if (outcome.status === "taken" && outcome.asset) return served(outcome.asset, true);
   // Not filed (a failure after the table was found): the caller paid for it,
   // so it is theirs for this encounter.
-  return { asset: null, url: null, payload: dialogue, cached: false, stored: false, ...made };
+  return { asset: null, url: null, payload, cached: false, stored: false, ...made };
+}
+
+/**
+ * File a passage taken from a published story (`findStoryPassage`): no model
+ * call, `source: "reviewed"` since a person published it.
+ * On the trusted path it takes the place of a written passage filed earlier
+ * (`replace`); a learner's miss that lost a race to another's is served the
+ * winner, so every learner hears the same passage.
+ */
+async function fileStoryPassage(
+  store: WordAssetClient,
+  key: AssetKey,
+  passage: StoryPassage,
+  replace: WordAsset | null,
+): Promise<Record<string, unknown>> {
+  const asset = storyPassageAsset(passage, key.styleVersion);
+  const outcome: PutOutcome = replace ? await replaceAsset(store, key, replace, asset) : await putAsset(store, key, asset);
+  if (outcome.status === "stored") return served(outcome.asset, false);
+  if (outcome.status === "replaced") return served(outcome.asset, false, true);
+  if (outcome.status === "taken" && outcome.asset) return served(outcome.asset, true);
+  // Not filed (a failure after the table was found). It cost nothing, so the
+  // caller is still asked from it.
+  return { asset: null, url: null, payload: asset.payload, cached: false, stored: false };
 }
 
 /**

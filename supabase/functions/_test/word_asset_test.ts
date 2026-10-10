@@ -388,10 +388,11 @@ Deno.test("word-asset ensure serves the winner when another learner filed first"
   assertEquals(body.cached, true);
 });
 
-Deno.test("word-asset ensure does not make kinds it has no generator for yet", async () => {
+Deno.test("word-asset ensure does not make kinds it has no generator for", async () => {
+  // A jingle is sung by `generate-word-jingle`, which files it itself.
   const table = assetTable();
   const { status, body, calls } = await call(
-    { action: "ensure", kind: "story_line", word: "قهوة", gloss: "coffee", dialect: "Gulf" },
+    { action: "ensure", kind: "jingle", word: "قهوة", gloss: "coffee", dialect: "Gulf" },
     upstreams({ id: LEARNER_A }, table.handler),
   );
 
@@ -1812,4 +1813,546 @@ Deno.test("word-asset files no clip when the render fails, and says so gracefull
   assertEquals(body.error, "ANIMATION_GENERATION_FAILED");
   assertEquals(body.fallback, true);
   assertEquals(table.rows.length, 0);
+});
+
+// ── Words in stories (quiz Phase 6) ─────────────────────────────────────────
+//
+// `kind: "story_line"`: two sentences, one of which uses the word, for the
+// quiz's top step. Taken from a published story that already uses the word,
+// where one does — no model call — and otherwise written exactly as an
+// exchange is: from the key alone, drafted and critiqued with the native
+// validator on, filed only when every sentence passes the leak detector and
+// the validator. A learner's miss is charged on the exchange's counter before
+// the shelf is searched, found or written, so one account cannot drive
+// searches or file rows past its allowance. What matters on the story side is
+// what a story may lend: its dialect text and never its fusha, a published
+// story, a licence that asks for no credit, the story's own dialect, the
+// word's sense, and its current rendering.
+
+const COFFEE_STORY = { ...COFFEE, kind: "story_line" };
+const COFFEE_STORY_KEY = assetKey(COFFEE_STORY) as AssetKey;
+
+const morning = { arabic: "كان الصبح بارد وايد.", english: "The morning was very cold." };
+const ordered = { arabic: "طلب الريال قهوة حارة.", english: "The man ordered hot coffee." };
+const aPassage = (first: Record<string, unknown> = morning, second: Record<string, unknown> = ordered) => ({
+  sentences: [first, second],
+});
+
+const STORY_ID = "11111111-1111-4111-8111-111111111111";
+
+/** A published, public-domain Gulf story whose second line uses قهوة, and its rendered lines. */
+const aStory = (over: Record<string, unknown> = {}) => ({
+  id: STORY_ID,
+  title: "The cold morning",
+  title_arabic: "الصبح البارد",
+  dialect: "Gulf",
+  license: "public_domain",
+  status: "published",
+  body_dialect: [morning.arabic, ordered.arabic, "بعدين قعد مع ربعه."].join("\n"),
+  ...over,
+});
+const storyLines = (over: Array<Record<string, unknown>> = []) =>
+  [
+    { arabic: "كان الصباح باردا جدا.", dialect: morning.arabic, english: morning.english },
+    { arabic: "طلب الرجل قهوة ساخنة.", dialect: ordered.arabic, english: ordered.english },
+    { arabic: "ثم جلس مع أصدقائه.", dialect: "بعدين قعد مع ربعه.", english: "Then he sat with his friends." },
+  ].map((line, i) => ({ story_id: STORY_ID, line_index: i, ...line, ...(over[i] ?? {}) }));
+
+/**
+ * The reading library as PostgREST serves it: `eq.`, `in.(…)`, `not.is.null`
+ * and a page (`offset`, `limit`) applied, so a search that forgot a filter
+ * gets the row it should not have.
+ */
+function library(stories: Array<Record<string, unknown>>, lines: Array<Record<string, unknown>>) {
+  const filtered = (rows: Array<Record<string, unknown>>) => (request: Request) => {
+    const params = new URL(request.url).searchParams;
+    let out = rows.filter((row) =>
+      [...params.entries()].every(([column, filter]) => {
+        if (["select", "order", "limit", "offset"].includes(column)) return true;
+        if (filter === "not.is.null") return row[column] != null;
+        if (filter.startsWith("eq.")) return String(row[column]) === filter.slice(3);
+        const inList = filter.match(/^in\.\((.*)\)$/);
+        if (inList) return inList[1].split(",").map((v) => v.replace(/"/g, "")).includes(String(row[column]));
+        return false;
+      })
+    );
+    const offset = Number(params.get("offset") ?? 0);
+    const limit = params.get("limit");
+    out = out.slice(offset, limit ? offset + Number(limit) : undefined);
+    return json(out);
+  };
+  return {
+    "/rest/v1/authentic_stories": filtered(stories),
+    "/rest/v1/authentic_story_lines": filtered(lines),
+  };
+}
+
+const storyReads = (calls: Calls) => calls.filter((c) => c.url.includes("/rest/v1/authentic_stor"));
+
+const storedPassage = (over: Record<string, unknown> = {}): StoredRow => ({
+  id: "asset-coffee-story",
+  concept_key: COFFEE_STORY_KEY.conceptKey,
+  kind: "story_line",
+  dialect: "Gulf",
+  style_version: "text-1",
+  url: null,
+  payload: aPassage({ arabic: "رحنا السوق الصبح.", english: "We went to the market in the morning." }, { arabic: "شربنا قهوة هناك.", english: "We drank coffee there." }),
+  meta: {},
+  source: "generated",
+  approved_at: null,
+  created_at: "2026-10-01T00:00:00Z",
+  ...over,
+});
+
+Deno.test("word-asset ensure takes a word's passage from a published story: its dialect text, no model, the miss charged", async () => {
+  const table = assetTable();
+  const first = await call(
+    { action: "ensure", ...COFFEE_STORY },
+    upstreams({ id: LEARNER_A }, table.handler, { ...library([aStory()], storyLines()), ...writing(aPassage()) }),
+  );
+
+  assertEquals(first.status, 200);
+  assertEquals(first.body.stored, true);
+  assertEquals(first.body.cached, false);
+  const payload = (first.body.asset as Record<string, unknown>).payload as Record<string, unknown>;
+  // The two sentences around the word, the one before leading into it, as
+  // the story renders them in the dialect: never the fusha it was imported from.
+  assertEquals(payload.sentences, [morning, ordered]);
+  assertEquals((payload.story as Record<string, unknown>).id, STORY_ID);
+  assert(!JSON.stringify(payload).includes("ساخنة"), "the fusha line reached the passage");
+  assertEquals(chatCalls(first.calls), [], "a story's passage calls no model");
+  // Charged as any miss is, before the shelf was searched.
+  assertEquals(chargedOn(first.calls), ["word-asset-dialogue"]);
+  const order = first.calls.map((c) => c.url);
+  const charge = order.findIndex((url) => url.includes("increment_usage_counter"));
+  const search = order.findIndex((url) => url.includes("/rest/v1/authentic_stor"));
+  assert(charge >= 0 && search > charge, "the shelf was searched before the miss was charged");
+  assertEquals(uploads(first.calls), []);
+  // Filed under the word, as text, as a person's.
+  assertEquals(table.rows.length, 1);
+  assertEquals(table.rows[0].kind, "story_line");
+  assertEquals(table.rows[0].style_version, "text-1");
+  assertEquals(table.rows[0].concept_key, "قهوه|coffee");
+  assertEquals(table.rows[0].url, null);
+  assertEquals(table.rows[0].source, "reviewed");
+  const meta = table.rows[0].meta as Record<string, unknown>;
+  assertEquals(meta.from, "story");
+  assertEquals(meta.story_id, STORY_ID);
+  assertEquals(meta.line_indexes, [0, 1]);
+  assertEquals(meta.license, "public_domain");
+
+  // The next learner of the word is served it, and nothing is searched again.
+  const second = await call(
+    { action: "ensure", ...COFFEE_STORY },
+    upstreams({ id: LEARNER_B }, table.handler, library([aStory()], storyLines())),
+  );
+  assertEquals(second.body.cached, true);
+  assertEquals(storyReads(second.calls), []);
+  assertEquals(chargedOn(second.calls), []);
+});
+
+Deno.test("word-asset ensure takes nothing from a story it may not lend from, and writes one instead", async () => {
+  // Unpublished, a licence that asks for a credit (or none set), and a
+  // story in another dialect, MSA or a dialect the store does not key on,
+  // which the app-wide folding would have read as Gulf.
+  for (const over of [
+    { status: "draft" },
+    { status: "content_approved" },
+    { license: "CC-BY" },
+    { license: "CC-BY-SA" },
+    { license: "" },
+    { dialect: "MSA" },
+    { dialect: "Levantine" },
+    { dialect: "Egyptian" },
+  ]) {
+    const table = assetTable();
+    const { status, body, calls } = await call(
+      { action: "ensure", ...COFFEE_STORY },
+      upstreams({ id: LEARNER_A }, table.handler, { ...library([aStory(over)], storyLines()), ...writing(aPassage()) }),
+    );
+    const what = JSON.stringify(over);
+    assertEquals(status, 200, what);
+    assertEquals(body.stored, true, what);
+    assert(chatCalls(calls).length > 0, `${what}: taken from a story it may not lend from`);
+    assertEquals(table.rows[0]?.source, "generated", what);
+    assertEquals(chargedOn(calls), ["word-asset-dialogue"], what);
+  }
+});
+
+Deno.test("word-asset ensure accepts a public-domain or CC0 licence however it is written", async () => {
+  for (const license of ["public_domain", "Public Domain", "CC0", "cc-0"]) {
+    const table = assetTable();
+    const { calls } = await call(
+      { action: "ensure", ...COFFEE_STORY },
+      upstreams({ id: LEARNER_A }, table.handler, { ...library([aStory({ license })], storyLines()), ...writing(aPassage()) }),
+    );
+    assertEquals(chatCalls(calls), [], license);
+    assertEquals(table.rows[0]?.source, "reviewed", license);
+  }
+});
+
+Deno.test("word-asset ensure never takes a line's fusha, a copy of it, or a line an earlier rendering left", async () => {
+  for (const [what, stories, lines] of [
+    // The word only in the fusha: the line has no rendering.
+    ["no rendering", [aStory()], storyLines([{}, { dialect: null }])],
+    // A "rendering" that is the fusha word for word was never converted.
+    ["a copy of the fusha", [aStory({ body_dialect: [morning.arabic, "طلب الرجل قهوة ساخنة.", "x"].join("\n") })],
+      storyLines([{}, { dialect: "طلب الرجل قهوة ساخنة." }])],
+    // Moved to another dialect, this line skipped: its text is not in the
+    // body the latest conversion wrote.
+    ["a stale line", [aStory({ body_dialect: [morning.arabic, "طلب الرجل قهوة ساخنة.", "x"].join("\n") })], storyLines()],
+    ["no body at all", [aStory({ body_dialect: null })], storyLines()],
+  ] as const) {
+    const table = assetTable();
+    const { calls } = await call(
+      { action: "ensure", ...COFFEE_STORY },
+      upstreams({ id: LEARNER_A }, table.handler, {
+        ...library(stories as unknown as Array<Record<string, unknown>>, lines as unknown as Array<Record<string, unknown>>),
+        ...writing(aPassage()),
+      }),
+    );
+    assert(chatCalls(calls).length > 0, `${what}: taken from the story`);
+    assertEquals(table.rows[0]?.source, "generated", what);
+  }
+});
+
+Deno.test("word-asset ensure says so, uncharged and unsearched, when no AI provider is configured", async () => {
+  const table = assetTable();
+  const { status, body, calls } = await call(
+    { action: "ensure", ...COFFEE_STORY },
+    upstreams({ id: LEARNER_A }, table.handler, library([aStory()], storyLines())),
+    { env: NO_AI_PROVIDER },
+  );
+  assertEquals(status, 503);
+  assertEquals(body.error, "ai_unconfigured");
+  assertEquals(storyReads(calls), []);
+  assertEquals(chargedOn(calls), []);
+  assertEquals(table.rows, []);
+});
+
+Deno.test("word-asset ensure takes no story passage for another sense of the word, and writes one instead", async () => {
+  // قهوة in the story is coffee; this key's sense is not, and the folding
+  // that keys the word cannot tell them apart: the gap sentence's English
+  // must name the sense.
+  const table = assetTable();
+  const { status, calls } = await call(
+    { action: "ensure", ...COFFEE_STORY, gloss: "eye (body part)" },
+    upstreams({ id: LEARNER_A }, table.handler, {
+      ...library([aStory()], storyLines()),
+      ...writing(aPassage(morning, { arabic: "حط قهوة على عينه.", english: "He put coffee on his eye body part." })),
+    }),
+  );
+  assertEquals(status, 200);
+  assert(chatCalls(calls).length > 0, "the coffee story's passage was filed under another sense");
+  assertEquals(table.rows[0]?.source, "generated");
+  assertEquals(table.rows[0]?.concept_key, "قهوه|eye body part");
+});
+
+Deno.test("word-asset ensure charges every learner miss a story answers, so glosses cannot file rows for free", async () => {
+  // Two glosses that both name the sentence's sense are two keys, two
+  // misses, two charges: the allowance is what bounds the rows one account
+  // can file.
+  for (const gloss of ["coffee", "hot coffee"]) {
+    const table = assetTable();
+    const { status, calls } = await call(
+      { action: "ensure", ...COFFEE_STORY, gloss },
+      upstreams({ id: LEARNER_A }, table.handler, library([aStory()], storyLines())),
+    );
+    assertEquals(status, 200, gloss);
+    assertEquals(table.rows[0]?.source, "reviewed", gloss);
+    assertEquals(chargedOn(calls), ["word-asset-dialogue"], gloss);
+  }
+});
+
+Deno.test("word-asset ensure writes a passage when no story uses the word, and charges the exchange's counter", async () => {
+  const table = assetTable();
+  const { status, body, calls } = await call(
+    { action: "ensure", ...COFFEE_STORY },
+    upstreams({ id: LEARNER_A }, table.handler, writing(aPassage())),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(body.stored, true);
+  assertEquals(((body.asset as Record<string, unknown>).payload as Record<string, unknown>).sentences, [morning, ordered]);
+  assert(chatCalls(calls).length > 0);
+  assertStringIncludes(chatCalls(calls)[0]?.body ?? "", "emit_story_line");
+  assertEquals(table.rows[0].kind, "story_line");
+  assertEquals(table.rows[0].source, "generated");
+  assertEquals(table.rows[0].url, null);
+  assertEquals(uploads(calls), []);
+  assertEquals(chargedOn(calls), ["word-asset-dialogue"]);
+});
+
+Deno.test("word-asset ensure files a written passage as written: a story the model names is not kept", async () => {
+  // Only a passage taken from a published story says "From the story …".
+  const table = assetTable();
+  const { status, body } = await call(
+    { action: "ensure", ...COFFEE_STORY },
+    upstreams(
+      { id: LEARNER_A },
+      table.handler,
+      writing({ ...aPassage(), story: { id: STORY_ID, title: "A story it made up", titleArabic: "" } }),
+    ),
+  );
+
+  assertEquals(status, 200);
+  assertEquals(table.rows[0].source, "generated");
+  assertEquals(table.rows[0].payload, aPassage());
+  assertEquals((body.asset as Record<string, unknown>).payload, aPassage());
+});
+
+Deno.test("word-asset ensure writes a passage from the key alone: nothing a learner typed reaches the prompt", async () => {
+  const table = assetTable();
+  const { status, calls } = await call(
+    {
+      action: "ensure",
+      ...COFFEE_STORY,
+      word: "قَهْوَة",
+      gloss: "Coffee ☕ (ZZTOP)",
+      sentence: "يا جماعة ZZSENTENCE قهوة",
+      example: "ابي قهوة ZZEXAMPLE الحين",
+      scene: "ZZSCENE a cartoon dog",
+    },
+    upstreams({ id: LEARNER_A }, table.handler, writing(aPassage())),
+  );
+
+  assertEquals(status, 200);
+  const prompts = chatCalls(calls).map((c) => c.body ?? "").join("\n");
+  for (const typed of ["ZZSENTENCE", "ZZEXAMPLE", "ZZSCENE", "☕", "قَهْوَة"]) {
+    assert(!prompts.includes(typed), `${typed} reached the prompt`);
+  }
+  const draft = chatCalls(calls)[0]?.body ?? "";
+  assertStringIncludes(draft, "قهوه");
+  assertStringIncludes(draft, "coffee zztop");
+  assertStringIncludes(draft, "Gulf");
+  assertEquals(table.rows[0]?.source, "generated");
+  assert(!JSON.stringify(table.rows[0]).includes("ZZEXAMPLE"));
+  assertEquals(chargedOn(calls), ["word-asset-dialogue"]);
+});
+
+Deno.test("word-asset ensure stops passages with the exchange's allowance, and not with the picture's", async () => {
+  const spent = (key: string): UpstreamHandler => async (request) => {
+    const asked = (JSON.parse(await request.text()) as { _key?: string })._key;
+    return json(asked === key ? 999 : 1);
+  };
+  const noText = await call(
+    { action: "ensure", ...COFFEE_STORY },
+    upstreams({ id: LEARNER_A }, assetTable().handler, {
+      ...writing(aPassage()),
+      "/rest/v1/rpc/increment_usage_counter": spent("word-asset-dialogue"),
+    }),
+  );
+  assertEquals(noText.status, 429);
+  assertEquals(noText.body.key, "word-asset-dialogue");
+  assertEquals(chatCalls(noText.calls), [], "a learner over their allowance costs no model call");
+
+  const noPictures = await call(
+    { action: "ensure", ...COFFEE_STORY },
+    upstreams({ id: LEARNER_A }, assetTable().handler, {
+      ...writing(aPassage()),
+      "/rest/v1/rpc/increment_usage_counter": spent("generate-flashcard-image"),
+    }),
+  );
+  assertEquals(noPictures.status, 200);
+  assertEquals(noPictures.body.stored, true);
+
+  // And with the day's text spent, the shelf is not searched either.
+  const fromStory = await call(
+    { action: "ensure", ...COFFEE_STORY },
+    upstreams({ id: LEARNER_A }, assetTable().handler, {
+      ...library([aStory()], storyLines()),
+      "/rest/v1/rpc/increment_usage_counter": spent("word-asset-dialogue"),
+    }),
+  );
+  assertEquals(fromStory.status, 429);
+  assertEquals(storyReads(fromStory.calls), []);
+});
+
+Deno.test("word-asset ensure neither files nor serves a passage with MSA in it, quoted or not", async () => {
+  for (const second of [
+    { arabic: "لماذا طلب الريال قهوة؟", english: "Why did the man order coffee?" },
+    { arabic: "قال «لماذا» وطلب قهوة.", english: "He said 'why' and ordered coffee." },
+  ]) {
+    const table = assetTable();
+    const { status, body } = await call(
+      { action: "ensure", ...COFFEE_STORY },
+      upstreams({ id: LEARNER_A }, table.handler, writing(aPassage(morning, second))),
+    );
+    assertEquals(status, 200, second.arabic);
+    assertEquals(body.error, "msa_leak", second.arabic);
+    assertEquals(body.fallback, true);
+    assertEquals(body.payload, undefined);
+    assertEquals(table.rows, [], second.arabic);
+  }
+});
+
+Deno.test("word-asset ensure takes no story passage with MSA in it either", async () => {
+  const leaking = "لماذا طلب الريال قهوة؟";
+  const table = assetTable();
+  const { calls } = await call(
+    { action: "ensure", ...COFFEE_STORY },
+    upstreams({ id: LEARNER_A }, table.handler, {
+      ...library(
+        [aStory({ body_dialect: [morning.arabic, leaking, "x"].join("\n") })],
+        storyLines([{}, { dialect: leaking }]),
+      ),
+      ...writing(aPassage()),
+    }),
+  );
+  assert(chatCalls(calls).length > 0);
+  assertEquals(table.rows[0]?.source, "generated");
+});
+
+Deno.test("word-asset ensure files no passage without the word, or with the word given away twice", async () => {
+  for (const passage of [
+    aPassage(morning, { arabic: "طلب الريال شاي حار.", english: "The man ordered hot tea." }),
+    aPassage({ arabic: "كانت القهوة باردة.", english: "The coffee was cold." }, ordered),
+    aPassage({ arabic: "حب قهوة الصبح.", english: "He loved morning coffee." }, ordered),
+    { sentences: [morning, ordered, { arabic: "بعدين قعد.", english: "Then he sat." }] },
+    { sentences: [ordered] },
+  ]) {
+    const table = assetTable();
+    const { status, body } = await call(
+      { action: "ensure", ...COFFEE_STORY },
+      upstreams({ id: LEARNER_A }, table.handler, writing(passage)),
+    );
+    assertEquals(status, 200, JSON.stringify(passage));
+    assertEquals(body.error, "STORY_LINE_GENERATION_FAILED", JSON.stringify(passage));
+    assertEquals(table.rows, [], JSON.stringify(passage));
+  }
+});
+
+Deno.test("word-asset ensure files no passage the native reviewer failed, and keeps none it could not judge", async () => {
+  const failing: UpstreamHandler = async (request) => {
+    const body = await request.text();
+    if (body.includes("You are reviewing a draft")) return json({ error: "down" }, 500);
+    if (body.includes("emit_story_line")) return chatCompletion("", aPassage());
+    return chatCompletion("", { score: 2, verdict: "rewrite", leaks: [], notes: "reads as fusha" });
+  };
+  const unjudged: UpstreamHandler = async (request) => {
+    const body = await request.text();
+    if (body.includes("Candidate text in")) return json({ error: "down" }, 500);
+    return chatCompletion("", aPassage());
+  };
+  const routes = (route: UpstreamHandler) => ({
+    "generativelanguage.googleapis.com/v1beta/openai": route,
+    "openrouter.ai": route,
+    "node.humain.test": route,
+    "api.fanar.qa": route,
+  });
+
+  const rejected = assetTable();
+  const no = await call({ action: "ensure", ...COFFEE_STORY }, upstreams({ id: LEARNER_A }, rejected.handler, routes(failing)));
+  assertEquals(no.body.error, "dialect_rejected");
+  assertEquals(no.body.payload, undefined);
+  assertEquals(rejected.rows, []);
+
+  const unread = assetTable();
+  const maybe = await call({ action: "ensure", ...COFFEE_STORY }, upstreams({ id: LEARNER_A }, unread.handler, routes(unjudged)));
+  assertEquals(maybe.status, 200);
+  assertEquals(maybe.body.stored, false);
+  assertEquals(maybe.body.payload, aPassage());
+  assertEquals(unread.rows, []);
+});
+
+Deno.test("word-asset ensure makes no passage, searches nothing and charges nothing while the table does not exist", async () => {
+  const missing: UpstreamHandler = () =>
+    json({ code: "PGRST205", message: "Could not find the table 'public.word_assets' in the schema cache" }, 404);
+  const { status, body, calls } = await call(
+    { action: "ensure", ...COFFEE_STORY },
+    upstreams({ id: LEARNER_A }, missing, { ...library([aStory()], storyLines()), ...writing(aPassage()) }),
+  );
+
+  assertEquals(status, 503);
+  assertEquals(body.error, "store_not_ready");
+  assertEquals(chatCalls(calls), []);
+  assertEquals(storyReads(calls), []);
+  assertEquals(chargedOn(calls), []);
+});
+
+Deno.test("word-asset ensure turns away, uncharged and unsearched, a word no passage could be filed for", async () => {
+  const { status, body, calls } = await call(
+    { action: "ensure", kind: "story_line", word: "لماذا", gloss: "why", dialect: "Gulf" },
+    upstreams({ id: LEARNER_A }, assetTable().handler, writing(aPassage())),
+  );
+  assertEquals(status, 400);
+  assertEquals(body.error, "word_not_in_dialect");
+  assertEquals(chatCalls(calls), []);
+  assertEquals(storyReads(calls), []);
+  assertEquals(chargedOn(calls), []);
+});
+
+Deno.test("word-asset ensure takes a curriculum word's example for a passage on the trusted path only", async () => {
+  const EXAMPLE = "القهوة جاهزة؟ ايه، قهوة عربية";
+  for (const [who, routes, opts] of [
+    ["the service role", serviceUpstreams(assetTable().handler, writing(aPassage())), { jwt: SERVICE_ROLE }],
+    [
+      "the content team",
+      upstreams({ id: LEARNER_A }, assetTable().handler, {
+        ...writing(aPassage()),
+        "/rest/v1/user_roles": rolesHeld("content_reviewer"),
+      }),
+      {},
+    ],
+  ] as const) {
+    const table = assetTable();
+    const merged = { ...routes, "/rest/v1/word_assets": table.handler };
+    const { status, body, calls } = await call({ action: "ensure", ...COFFEE_STORY, example: EXAMPLE }, merged, opts);
+    assertEquals(status, 200, who);
+    assertEquals(body.authored, true, who);
+    assertStringIncludes(chatCalls(calls)[0]?.body ?? "", EXAMPLE);
+    assertEquals(chargedOn(calls), [], `${who} was charged`);
+    assertEquals(table.rows[0]?.source, "authored", who);
+  }
+
+  // A learner's example is not heard, and they are charged as a learner.
+  const table = assetTable();
+  const learner = await call(
+    { action: "ensure", ...COFFEE_STORY, example: EXAMPLE },
+    upstreams({ id: LEARNER_A }, table.handler, writing(aPassage())),
+  );
+  assert(!(chatCalls(learner.calls)[0]?.body ?? "").includes(EXAMPLE));
+  assertEquals(chargedOn(learner.calls), ["word-asset-dialogue"]);
+  assertEquals(table.rows[0]?.source, "generated");
+});
+
+Deno.test("word-asset ensure lets a story's passage take a written one's place on the trusted path, and never for a learner", async () => {
+  const EXAMPLE = "القهوة جاهزة؟ ايه، قهوة عربية";
+  const table = assetTable([storedPassage()]);
+  const trusted = await call(
+    { action: "ensure", ...COFFEE_STORY, example: EXAMPLE },
+    serviceUpstreams(table.handler, { ...library([aStory()], storyLines()), ...writing(aPassage()) }),
+    { jwt: SERVICE_ROLE },
+  );
+  assertEquals(trusted.status, 200);
+  assertEquals(trusted.body.replaced, true);
+  // The story's own sentences, not a passage written from the example, and
+  // nobody charged on the trusted path.
+  assertEquals(chatCalls(trusted.calls), []);
+  assertEquals(chargedOn(trusted.calls), []);
+  assertEquals(table.rows.length, 1);
+  assertEquals(table.rows[0].source, "reviewed");
+  assertEquals((table.rows[0].payload as Record<string, unknown>).sentences, [morning, ordered]);
+
+  const learnerTable = assetTable([storedPassage()]);
+  const learner = await call(
+    { action: "ensure", ...COFFEE_STORY },
+    upstreams({ id: LEARNER_A }, learnerTable.handler, { ...library([aStory()], storyLines()), ...writing(aPassage()) }),
+  );
+  assertEquals(learner.body.cached, true);
+  assertEquals(learnerTable.rows[0].source, "generated");
+  assertEquals(storyReads(learner.calls), []);
+});
+
+Deno.test("word-asset get returns a stored passage, and never searches or writes one", async () => {
+  const table = assetTable([storedPassage()]);
+  const hit = await call({ action: "get", ...COFFEE_STORY }, upstreams({ id: LEARNER_A }, table.handler, library([aStory()], storyLines())));
+  assertEquals(hit.status, 200);
+  assertEquals((hit.body.asset as Record<string, unknown>).kind, "story_line");
+
+  const miss = await call({ action: "get", ...COFFEE_STORY }, upstreams({ id: LEARNER_A }, assetTable().handler, library([aStory()], storyLines())));
+  assertEquals(miss.body.asset, null);
+  assertEquals(storyReads(miss.calls), []);
+  assertEquals(chatCalls(miss.calls), []);
+  assertEquals(chargedOn(miss.calls), []);
 });

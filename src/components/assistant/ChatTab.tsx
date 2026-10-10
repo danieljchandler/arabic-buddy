@@ -47,8 +47,16 @@ interface ChatTabProps {
 }
 
 export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
-  const { seed, messages, setMessages, pageContext, conversationId, setConversationId } =
-    useAiAssistant();
+  const {
+    seed,
+    messages,
+    setMessages,
+    pageContext,
+    conversationId,
+    setConversationId,
+    pendingAsk,
+    clearPendingAsk,
+  } = useAiAssistant();
   const { activeDialect } = useDialect();
   const { user, loading: authLoading } = useAuth();
   const { pathname } = useLocation();
@@ -341,6 +349,20 @@ export function ChatTab({ onComposerFocus }: ChatTabProps = {}) {
       persistConversation,
     ],
   );
+
+  // A question the tap that opened the panel already asked ("Why not this
+  // one?" on a wrong pick in the quiz) is sent as the learner's message, once:
+  // into a fresh conversation about a new sentence, or as the next message of
+  // the one already about this sentence. It waits for a reply still streaming
+  // and for a signed-in learner; the id is what keeps a re-render from
+  // sending it twice before the context has cleared it.
+  const sentAskRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!pendingAsk || sentAskRef.current === pendingAsk.id || loading || !user) return;
+    sentAskRef.current = pendingAsk.id;
+    clearPendingAsk(pendingAsk.id);
+    void send(pendingAsk.text);
+  }, [pendingAsk, loading, user, send, clearPendingAsk]);
 
   if (!user && !authLoading) {
     return (

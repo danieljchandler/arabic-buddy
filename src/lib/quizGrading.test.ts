@@ -3,7 +3,9 @@ import {
   REPLY_WORD_CLEAR,
   SPEECH_MATCH_FLOOR,
   SPEECH_THRESHOLDS,
+  assessmentLocale,
   gradeQuizAnswer,
+  singleWordSimilarity,
   isCorrectRating,
   wordSpanSimilarity,
 } from "./quizGrading";
@@ -96,6 +98,89 @@ describe("a spoken reply (step 9)", () => {
     // زين heard as وين: the span is held below the floor, so no lift.
     expect(reply(30, wordSpanSimilarity("وين", "زين"))).toBe("again");
     expect(reply(30, wordSpanSimilarity("الأكل زين", "زين"))).toBe("hard");
+  });
+});
+
+describe("the word said in a story (step 10)", () => {
+  // A single-word take: the word, against the word. The take is read through
+  // `singleWordSimilarity`, so the word heard with و, ب or ال attached is the
+  // word, and the word among others is not; the bands are the ordinary ones;
+  // and the step-9 rule does not apply, because what lowers a reply's score
+  // there — a right answer in other words than the stored line — cannot
+  // happen when the reference is the word itself.
+  const take = (score: number, heard: string, word = "قهوة") => ({
+    kind: "speech" as const,
+    score,
+    similarity: singleWordSimilarity(heard, word),
+  });
+
+  it("bands the take on the ordinary bands", () => {
+    expect(gradeQuizAnswer(take(SPEECH_THRESHOLDS.easy, "قهوة"))).toBe("easy");
+    expect(gradeQuizAnswer(take(SPEECH_THRESHOLDS.good, "والقهوة"))).toBe("good");
+    expect(gradeQuizAnswer(take(SPEECH_THRESHOLDS.hard, "للقهوة"))).toBe("hard");
+  });
+
+  it("is Again for a different word, however well it scored", () => {
+    expect(gradeQuizAnswer(take(95, "شاي"))).toBe("again");
+    // A word of three letters or fewer, one letter off, is another word.
+    expect(gradeQuizAnswer(take(95, "وين", "زين"))).toBe("again");
+  });
+
+  it("is Again for the word among guesses, or the sentence read back, however well it scored", () => {
+    // Azure charges extra words a few points at most, so a best-window reading
+    // would hand the step to whoever names enough candidates.
+    expect(gradeQuizAnswer(take(89, "شاي قهوة حليب"))).toBe("again");
+    expect(gradeQuizAnswer(take(92, "مطعم سوق", "سوق"))).toBe("again");
+    expect(gradeQuizAnswer(take(90, "طلب الريال قهوة حارة"))).toBe("again");
+  });
+
+  it("is Again for the word said too poorly, clear or not: no reply's leniency", () => {
+    const low = take(SPEECH_THRESHOLDS.hard - 5, "قهوة");
+    expect(low.similarity).toBeGreaterThanOrEqual(REPLY_WORD_CLEAR);
+    expect(gradeQuizAnswer(low)).toBe("again");
+  });
+
+  it("caps a take at Hard when the passage's translation was opened first", () => {
+    expect(gradeQuizAnswer({ ...take(95, "قهوة"), hintUsed: true })).toBe("hard");
+  });
+
+  it("is graded as a choice when picked from four, never better than Good", () => {
+    expect(gradeQuizAnswer({ kind: "choice", correct: true })).toBe("good");
+    expect(gradeQuizAnswer({ kind: "choice", correct: false })).toBe("again");
+  });
+});
+
+describe("singleWordSimilarity", () => {
+  it("reads a take of the word alone as the word, a prefix taken off", () => {
+    expect(singleWordSimilarity("قهوة", "قهوة")).toBe(1);
+    expect(singleWordSimilarity("بالسوق", "سوق")).toBe(1);
+    expect(singleWordSimilarity("للسوق", "سوق")).toBe(1);
+  });
+
+  it("ignores a letter the recogniser split off on its own", () => {
+    expect(singleWordSimilarity("و قهوة", "قهوة")).toBe(1);
+  });
+
+  it("holds a take of more words than the item below the floor", () => {
+    expect(singleWordSimilarity("شاي قهوة", "قهوة")!).toBeLessThan(SPEECH_MATCH_FLOOR);
+  });
+
+  it("reads a phrase said whole as the phrase", () => {
+    expect(singleWordSimilarity("كل يوم", "كل يوم")).toBe(1);
+  });
+
+  it("is no comparison when nothing was heard", () => {
+    expect(singleWordSimilarity("", "قهوة")).toBeNull();
+    expect(singleWordSimilarity(null, "قهوة")).toBeNull();
+  });
+});
+
+describe("the locale a take is heard in", () => {
+  it("follows the word's dialect, and Gulf otherwise", () => {
+    expect(assessmentLocale("Egyptian")).toBe("ar-EG");
+    expect(assessmentLocale("Yemeni")).toBe("ar-YE");
+    expect(assessmentLocale("Gulf")).toBe("ar-SA");
+    expect(assessmentLocale(null)).toBe("ar-SA");
   });
 });
 

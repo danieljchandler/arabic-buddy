@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BOSS_MEMORY, canBeBoss, isBossTurn, pickBoss, withBossFirst, type BossCandidate } from "./bossCard";
+import { BOSS_MEMORY, bossBeaten, canBeBoss, isBossTurn, pickBoss, withBossFirst, type BossCandidate } from "./bossCard";
 import { rungForMemory } from "./quizLadder";
 
 /**
@@ -90,5 +90,15 @@ describe("when a card is asked as the boss", () => {
 
   it("is asked from a first look's memory, whatever its own", () => {
     expect(rungForMemory(BOSS_MEMORY, "recognition").step).toBe(1);
+  });
+});
+
+describe("beating the boss", () => {
+  it("is a right answer to a card asked as the boss, and nothing else", () => {
+    const boss = { lapses: 7 };
+    expect(bossBeaten({ correct: true, item: { boss } })).toBe(true);
+    expect(bossBeaten({ correct: false, item: { boss } })).toBe(false);
+    expect(bossBeaten({ correct: true, item: { boss: null } })).toBe(false);
+    expect(bossBeaten({ correct: true, item: {} })).toBe(false);
   });
 });

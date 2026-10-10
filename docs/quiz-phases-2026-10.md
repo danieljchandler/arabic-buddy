@@ -1017,8 +1017,10 @@ the boss card):
   is on and leeches are tracked; each page marks `QuizItem.boss` (lapses,
   mnemonic, the hook's picture) on its first card.
 - **`QuizCardFrame`**: a boss is asked from `BOSS_MEMORY`, under
-  `QuizBossBanner`; opening the hook before answering is help; `QuizGraded.step`
-  is the card's own step; a win celebrates on Continue.
+  `QuizBossBanner` (the hook and its picture behind one tap, which is help);
+  `QuizGraded.step` is the card's own step; the leech rescue panel is placed
+  by the frame (`leechPanel`), held back under the boss until the answer.
+- **The pages** celebrate a win once the rating is saved (`bossBeaten`).
 - **`celebrations.ts`**: a `boss` kind, the small tier, "Boss beaten!".
 - **`phraseDirection`** moved from `MyPhrasesReview` to `quizLadder.ts`, so
   the phrase deck's due list and its page read a phrase's direction one way.
@@ -1042,9 +1044,30 @@ the boss card):
    switched leech tracking off has no leeches to fight.
 5. *The small celebration*, on Continue: the session has the rest of its
    cards to go.
-6. *No rescue panel under the boss.* `LeechHelperPanel` prints the hook, so
-   under the boss it would hand over what the banner keeps behind a tap; the
-   e2e found this. Every other leech keeps its panel.
+6. *The rescue panel waits for the boss's answer.* `LeechHelperPanel` prints
+   the hook, so before the answer it would hand over what the banner keeps
+   behind a tap (the e2e found this); after it, its tools (a new hook, its
+   picture, clearing the leech flag) are there as for any leech.
+7. *"The most lapses" is the word's, on either schedule*, as `is_leech` is
+   flagged on either; the boss is still asked on the recognition side.
+
+An independent review before the PR found a high one, fixed: the banner
+showed the picture from the start, and where a boss falls back to "what does
+it mean?" (any phrase, any word whose sentence lacks it) the picture was the
+answer, graded Good. The picture now sits behind the hook's tap. And a medium
+one, fixed: hiding the rescue panel under the boss hid its tools for good (no
+way to make a hook for a boss that has none, or to clear the flag of one beaten
+every time), and hid it on the flip-card fallback too; the frame now holds it
+back only until the answer. Low ones fixed: "Boss beaten!" played before the
+rating was saved (a failed save on My Words was still celebrated), the
+ranking read recognition lapses alone while `is_leech` reads both, the
+banner's copy said "toughest word" of a phrase, its tap had no
+`aria-expanded` and what it revealed was not announced, and its colours were
+a raw amber. A question it raised for the owner: a leech whose own step is
+well past 1 is still asked a first look, as the plan says, and a right answer
+there is Good; the hook stays hidden so that Good is earned, but the question
+is easier than its step. Untested at unit level: `useDueWords({ bossFirst })`
+and the pages' `isBossTurn` wiring (the e2e covers `/review`).
 
 ### The plan, as it was written
 

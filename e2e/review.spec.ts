@@ -609,7 +609,10 @@ test.describe("the boss card", () => {
     await expect(page.getByText(HOOK)).toHaveCount(0);
 
     await page.getByRole("button", { name: "السوق", exact: true }).click();
-    await expect(page.getByText(HOOK)).toBeVisible();
+    // The hook is the lesson once the answer is in: in the banner, and in the
+    // rescue panel, which waited for the answer.
+    await expect(page.getByRole("region", { name: "Boss card" }).getByText(HOOK)).toBeVisible();
+    await expect(page.getByText(HOOK)).toHaveCount(2);
     await page.getByRole("button", { name: /continue/i }).click();
 
     await expect(page.getByRole("dialog", { name: "Boss beaten!" })).toBeVisible();

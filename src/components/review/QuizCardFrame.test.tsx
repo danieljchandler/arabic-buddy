@@ -4,7 +4,6 @@ import { renderWithProviders, type HarnessOptions } from "@/test/support/react/h
 import type { QuizPoolEntry } from "@/hooks/useQuizPool";
 import type { SupabaseBackend } from "@/test/support/server/handler";
 import { useAiAssistant } from "@/contexts/AiAssistantContext";
-import { subscribeCelebrations, type CelebrationEvent } from "@/lib/celebrations";
 import {
   ANIMATION_LOOKUP_WAIT_MS,
   DIALOGUE_WRITING_WAIT_MS,
@@ -415,14 +414,6 @@ describe("why not this one?", () => {
  * the learner moves on.
  */
 describe("the boss card", () => {
-  let celebrations: CelebrationEvent[] = [];
-  let unsubscribe: (() => void) | undefined;
-  beforeEach(() => {
-    celebrations = [];
-    unsubscribe = subscribeCelebrations((event) => celebrations.push(event));
-  });
-  afterEach(() => unsubscribe?.());
-
   const HOOK = "Picture a souq stall selling socks";
   // Settled enough to be heard alone (step 4) if it were not the boss.
   const aBoss = (over: Partial<QuizItem> = {}) =>
@@ -433,58 +424,95 @@ describe("the boss card", () => {
       ...over,
     });
   const continueOn = () => fireEvent.click(screen.getByRole("button", { name: /continue/i }));
+  const pick = (right: boolean) =>
+    fireEvent.click(arabicChoices().find((b) => (b.textContent?.trim() === "السوق") === right)!);
+  const RESCUE = <div>the rescue panel</div>;
 
-  it("opens on a first look, whatever its memory, with its picture and its hook behind a tap", () => {
+  it("opens on a first look, whatever its memory, with its hook and picture behind one tap", () => {
     const { container } = render(aBoss());
 
     expect(screen.getByRole("region", { name: "Boss card" })).toHaveTextContent("missed 7 times");
     expect(screen.getByText("Fill in the missing word")).toBeInTheDocument();
     expect(screen.getByText(/the missing word means/i)).toHaveTextContent("the market");
     expect(screen.getByRole("img", { name: /step 1 of 10/i })).toBeInTheDocument();
+    // Neither the hook nor its picture is in view before the answer.
+    expect(screen.queryByText(HOOK)).not.toBeInTheDocument();
+    expect(container.querySelector('img[src="https://img.test/hook.png"]')).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: /show your memory hook/i }));
+    expect(screen.getByText(HOOK)).toBeInTheDocument();
     // The hook's picture, not the word's.
     expect(container.querySelector('img[src="https://img.test/hook.png"]')).not.toBeNull();
-    expect(screen.queryByText(HOOK)).not.toBeInTheDocument();
   });
 
-  it("is Good when beaten, reports its own step, and celebrates as the learner moves on", () => {
-    const { onGraded } = render(aBoss());
-    fireEvent.click(arabicChoices().find((b) => b.textContent?.trim() === "السوق")!);
+  it("never shows the picture beside the meaning question, where it would be the answer", () => {
+    const { container } = render(aBoss({ sentence: null, boss: { lapses: 3, mnemonic: null, pictureUrl: null } }));
 
-    // The hook is the lesson once the answer is in.
+    expect(screen.getByText("What does it mean?")).toBeInTheDocument();
+    expect(container.querySelector('img[src="https://img.test/market.png"]')).toBeNull();
+    expect(screen.getByRole("button", { name: /show its picture/i })).toBeInTheDocument();
+  });
+
+  it("is Good when beaten and reports its own step, with the boss on the card for the page to celebrate", () => {
+    const { onGraded, container } = render(aBoss());
+    pick(true);
+
+    // The hook and its picture are the lesson once the answer is in.
     expect(screen.getByText(HOOK)).toBeInTheDocument();
-    expect(celebrations).toEqual([]);
+    expect(container.querySelector('img[src="https://img.test/hook.png"]')).not.toBeNull();
     continueOn();
 
-    expect(onGraded).toHaveBeenCalledWith(expect.objectContaining({ rating: "good", correct: true, format: "cloze-hint", step: 4 }));
-    expect(celebrations).toEqual([{ kind: "boss", detail: "السوق" }]);
+    expect(onGraded).toHaveBeenCalledWith(
+      expect.objectContaining({
+        rating: "good",
+        correct: true,
+        format: "cloze-hint",
+        step: 4,
+        item: expect.objectContaining({ boss: expect.objectContaining({ lapses: 7 }) }),
+      }),
+    );
   });
 
   it("counts the hook, opened before the answer, as help: Hard", () => {
     const { onGraded } = render(aBoss());
     fireEvent.click(screen.getByRole("button", { name: /show your memory hook/i }));
-    expect(screen.getByText(HOOK)).toBeInTheDocument();
-    fireEvent.click(arabicChoices().find((b) => b.textContent?.trim() === "السوق")!);
+    pick(true);
     continueOn();
 
     expect(onGraded).toHaveBeenCalledWith(expect.objectContaining({ rating: "hard", correct: true }));
-    // Beaten with help is still beaten.
-    expect(celebrations).toHaveLength(1);
   });
 
-  it("is Again when it wins, and nothing is celebrated", () => {
+  it("is Again when it wins", () => {
     const { onGraded } = render(aBoss());
-    fireEvent.click(arabicChoices().find((b) => b.textContent?.trim() !== "السوق")!);
+    pick(false);
     continueOn();
 
     expect(onGraded).toHaveBeenCalledWith(expect.objectContaining({ rating: "again", correct: false }));
-    expect(celebrations).toEqual([]);
   });
 
-  it("shows the word's own picture when the hook has none, and no hook button when there is no hook", () => {
-    const { container } = render(aBoss({ boss: { lapses: 1, mnemonic: null, pictureUrl: null } }));
+  it("holds the rescue panel back until the boss is answered, since it prints the hook", () => {
+    render(aBoss(), { leechPanel: RESCUE });
+    expect(screen.queryByText("the rescue panel")).not.toBeInTheDocument();
+    pick(true);
+    expect(screen.getByText("the rescue panel")).toBeInTheDocument();
+  });
+
+  it("shows the rescue panel from the start on any other card, and on the flip card", () => {
+    const { unmount } = render(anItem(), { leechPanel: RESCUE });
+    expect(screen.getByText("the rescue panel")).toBeInTheDocument();
+    unmount();
+    cleanup?.();
+    // Too few other words for a question: the flip card, no boss, the panel.
+    render(aBoss(), { leechPanel: RESCUE, pool: POOL.slice(0, 1) });
+    expect(screen.getByText("the flip card")).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Boss card" })).not.toBeInTheDocument();
+    expect(screen.getByText("the rescue panel")).toBeInTheDocument();
+  });
+
+  it("offers no tap when there is neither hook nor picture", () => {
+    render(aBoss({ imageUrl: null, boss: { lapses: 1, mnemonic: null, pictureUrl: null } }));
     expect(screen.getByRole("region", { name: "Boss card" })).toHaveTextContent("missed once");
-    expect(container.querySelector('img[src="https://img.test/market.png"]')).not.toBeNull();
-    expect(screen.queryByRole("button", { name: /memory hook/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /memory hook|its picture/i })).not.toBeInTheDocument();
   });
 
   it("is never a production card: that one is asked as itself", () => {

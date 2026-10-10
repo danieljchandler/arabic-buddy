@@ -36,7 +36,8 @@ import { LightningRound } from "@/components/review/LightningRound";
 import { addLightningWord, lightningWordFor, type LightningWord } from "@/lib/lightningRound";
 import { EMPTY_QUIZ_SESSION, comboBonus, recordQuizAnswer, type QuizSessionStats } from "@/lib/quizSession";
 import { phraseDirection, rungForMemory } from "@/lib/quizLadder";
-import { isBossTurn } from "@/lib/bossCard";
+import { bossBeaten, isBossTurn } from "@/lib/bossCard";
+import { celebrate } from "@/lib/celebrations";
 import { Loader2, Trophy, LogIn, Eye, Volume2, Trash2, MessageCircleQuestion, Music, Play, RefreshCw, Undo2, MessageSquarePlus } from "lucide-react";
 import { SentencePracticeSheet } from "@/components/practice/SentencePracticeSheet";
 import { LeechHelperPanel } from "@/components/review/LeechHelperPanel";
@@ -313,6 +314,9 @@ const MyPhrasesReview = () => {
       toast.error("Couldn't save your rating — it will come back around. Try again.");
       return;
     }
+    // Beating the boss is the moment, celebrated once the rating is on its
+    // way, as the session moves on.
+    if (bossBeaten(graded)) celebrate({ kind: "boss", detail: graded.item.arabic });
     addXP.mutate({ amount: REVIEW_XP, reason: "review" });
     incrementReviews.mutate();
     // A flourish, never a schedule: the combo pays XP and nothing else.
@@ -611,6 +615,23 @@ const MyPhrasesReview = () => {
       ? { lapses: current.lapses ?? 0, mnemonic: current.mnemonic ?? null, pictureUrl: current.mnemonic_image_url ?? null }
       : null,
   };
+  // Rescue for a leech: below the card. In the quiz the frame places it, and
+  // under the boss holds it back until the answer (it prints the hook).
+  const leechPanel =
+    leechTrackingEnabled && current.is_leech ? (
+      <LeechHelperPanel
+        kind="phrase"
+        rowId={current.id}
+        arabic={current.phrase_arabic}
+        english={current.phrase_english}
+        transliteration={current.transliteration}
+        dialect={activeDialect}
+        mnemonic={current.mnemonic ?? null}
+        mnemonicImageUrl={current.mnemonic_image_url ?? null}
+        deckKeys={[["user-phrases-due"], ["user-phrases"]]}
+      />
+    ) : null;
+
   const quizPool =
     phrasePool && phrasePool.length > 0
       ? phrasePool
@@ -656,6 +677,7 @@ const MyPhrasesReview = () => {
               ready={!poolLoading}
               combo={quizStats.combo}
               onGraded={handleQuizGraded}
+              leechPanel={leechPanel}
               renderFlashcard={() => (
                 <>
                   {flashcard}
@@ -668,21 +690,9 @@ const MyPhrasesReview = () => {
           )}
 
 
-          {/* Not under the boss: the panel prints the memory hook, which the
-              boss banner keeps behind a tap until the answer is in. */}
-          {leechTrackingEnabled && current.is_leech && !(quiz && quizItem.boss) && (
-            <LeechHelperPanel
-              kind="phrase"
-              rowId={current.id}
-              arabic={current.phrase_arabic}
-              english={current.phrase_english}
-              transliteration={current.transliteration}
-              dialect={activeDialect}
-              mnemonic={current.mnemonic ?? null}
-              mnemonicImageUrl={current.mnemonic_image_url ?? null}
-              deckKeys={[["user-phrases-due"], ["user-phrases"]]}
-            />
-          )}
+          {/* In the quiz the frame shows it, under the card: there it waits
+              for the boss's answer, since it prints the memory hook. */}
+          {!quiz && leechPanel}
 
           <div className="flex justify-end mt-2">
             <Button

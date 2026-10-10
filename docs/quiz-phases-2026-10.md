@@ -1365,7 +1365,9 @@ six `typesDrift` entries. Until then ratings save as before and the log
 records no question.
 
 **Done when** (8b): a quiz rating in production leaves a `review_log` row
-with `quiz_format` set.
+with `quiz_format` set. Check from a fresh browser, or after clearing the
+`hakiya:quiz-rating-fields-missing-until` key: a device that was refused the
+columns before they were applied leaves them off for up to a day.
 
 ### Phase 8c — owner action
 

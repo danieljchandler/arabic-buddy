@@ -291,8 +291,10 @@ Each curriculum rating records what it was asked as: the format and the step
 `word_reviews.last_quiz_format` and `last_quiz_step`, stamped with the
 rating's moment (`last_quiz_at`, the same value as the `last_reviewed_at` it
 writes), nulls for a flip card or a lesson's grade. The `review_log` trigger
-copies them beside the rating only when that stamp is the review's own and
-the values are ones the app could ask (`20261010130000_quiz_rating_asked`),
+copies them beside the rating only when that stamp is the review's own, the
+format is lowercase words and the step is 1 to 10
+(`20261010130000_quiz_rating_asked`; the report sets aside any format the
+quiz does not ask),
 so a write that moves `last_reviewed_at` without them is logged with no
 question rather than the previous one; the log also gains
 `repetitions_before`. Until the live project carries those columns the write

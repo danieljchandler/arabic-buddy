@@ -104,7 +104,11 @@ export interface QuizLadderReport {
   rows: number;
   /** Learners the rows came from. */
   learners: number;
-  /** Rows with no question recorded (flip cards, or logged before the columns) or no rating. */
+  /**
+   * Rows read with a step but no format or no rating. Flip cards and rows
+   * logged before the columns have no step, and `fetchQuizAnswers` does not
+   * read them at all.
+   */
   unrecorded: number;
   /** Rows recording a question the app does not ask: not counted anywhere else. */
   unknown: number;
@@ -381,8 +385,8 @@ const percent = (accuracy: number | null) => (accuracy == null ? "  —" : `${Ma
 /** The report as text, for the script to print. */
 export function formatQuizLadderReport(report: QuizLadderReport): string {
   const lines = [
-    `Quiz ladder report: ${report.rows} reviews read; ${report.onLadder} on the ladder, ${report.fallback} fallbacks, ` +
-      `${report.offLadder} off it (a boss, or older thresholds), ${report.unrecorded} with no question recorded, ` +
+    `Quiz ladder report: ${report.rows} reviews read (curriculum reviews with a question recorded; flip cards are not); ${report.onLadder} on the ladder, ${report.fallback} fallbacks, ` +
+      `${report.offLadder} off it (a boss, or older thresholds), ${report.unrecorded} with a step but no format or rating, ` +
       `${report.unknown} recording a question the app does not ask. ${report.learners} learners.`,
     `Target: ${Math.round(report.target * 100)}% right; a threshold needs ${report.minAnswers} answers ` +
       `from ${report.minLearners} learners to say anything.`,

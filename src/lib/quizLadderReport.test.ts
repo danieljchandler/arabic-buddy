@@ -233,7 +233,7 @@ describe("Wilson's interval", () => {
 describe("the text", () => {
   it("says what was read and what each threshold should be", () => {
     const text = formatQuizLadderReport(reportQuizLadder([...many(20, 9, 0.6), ...many(40, 12, 0.95)]));
-    expect(text).toContain("60 reviews read; 60 on the ladder");
+    expect(text).toContain("60 reviews read (curriculum reviews with a question recorded; flip cards are not); 60 on the ladder");
     expect(text).toContain("6 learners");
     expect(text).toContain("pictureDays");
     expect(text).toContain("raise from 8 to 11.3 days");

@@ -3,6 +3,7 @@ import { ArrowRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { QuizChoiceCard } from "@/components/review/QuizChoiceCard";
 import { QuizOptionsCard, type QuizOption } from "@/components/review/QuizOptionsCard";
+import { QuizBossBanner } from "@/components/review/QuizBossBanner";
 import { QuizRungBadge } from "@/components/review/QuizRungBadge";
 import { QuizSpeakCard, type QuizSpeechResult } from "@/components/review/QuizSpeakCard";
 import { QuizStoryCard } from "@/components/review/QuizStoryCard";
@@ -23,6 +24,8 @@ import {
 import { seededShuffle } from "@/lib/quizDistractors";
 import { gradeQuizAnswer, isCorrectRating } from "@/lib/quizGrading";
 import { storyGap } from "@/lib/quizStory";
+import { BOSS_MEMORY } from "@/lib/bossCard";
+import { celebrate } from "@/lib/celebrations";
 import {
   CHOICE_COUNT,
   pickQuizFormat,
@@ -71,13 +74,29 @@ export interface QuizItem {
   /** The schedule the deck served the card on. */
   direction: QuizDirection;
   memory: QuizMemory;
+  /**
+   * The session's boss (quiz Phase 7, `src/lib/bossCard.ts`): the learner's
+   * worst word, opening the session. Asked as a first look whatever its
+   * memory, with its picture in view and its memory hook a tap away; beating
+   * it is a celebration. A recognition card only: the pages set it so.
+   */
+  boss?: {
+    lapses: number;
+    mnemonic?: string | null;
+    /** The hook's picture, else the word's own. */
+    pictureUrl?: string | null;
+  } | null;
 }
 
 export interface QuizGraded {
   rating: Rating;
   correct: boolean;
   format: QuizFormat;
-  /** The step the card was asked on. */
+  /**
+   * The step the card's memory puts it on. A boss is asked a first look
+   * whatever its step; this is still its own, so beating it is not counted
+   * as a climb from step 1.
+   */
   step: number;
   /** The card that was asked, as the frame was handed it (the lightning round asks it again). */
   item: QuizItem;
@@ -355,8 +374,17 @@ export const QuizCardFrame = ({
     setAnswered(null);
   }, [item.id]);
 
-  const rung = rungForMemory(item.memory, item.direction);
+  // The boss is asked as a first look, whatever its memory; its own step is
+  // what the page is told, so the session's climbs are counted from it.
+  const boss = item.boss && item.direction === "recognition" ? item.boss : null;
+  const memory = boss ? BOSS_MEMORY : item.memory;
+  const rung = rungForMemory(memory, item.direction);
+  const ownStep = boss ? rungForMemory(item.memory, item.direction).step : rung.step;
   const canSpeak = recordingSupported();
+  // The boss's memory hook, open; opened before the answer, it is help.
+  const [hook, setHook] = useState<{ id: string; helped: boolean } | null>(null);
+  const hookOpen = hook?.id === item.id;
+  const hookHelped = hookOpen && hook.helped;
 
   // The lesson's dialogue, and the line of it that uses the word, if any.
   const lessonLines = useMemo(() => asDialogue(item.dialogue), [item.dialogue]);
@@ -660,7 +688,7 @@ export const QuizCardFrame = ({
   const format: QuizFormat =
     unavailableFor === item.id
       ? "flashcard"
-      : pickQuizFormat(item.memory, item.direction, {
+      : pickQuizFormat(memory, item.direction, {
           hasSentence,
           hasImage: !!pictureUrl || !!ownClip,
           distractors: Math.min(arabicPool.length, englishPool.length),
@@ -674,7 +702,7 @@ export const QuizCardFrame = ({
   const settle = (rating: Rating) => setAnswered({ rating, correct: isCorrectRating(rating) });
 
   const onChoice = (correct: boolean, hintUsed = false) =>
-    settle(gradeQuizAnswer({ kind: "choice", correct, hintUsed }));
+    settle(gradeQuizAnswer({ kind: "choice", correct, hintUsed: hintUsed || hookHelped }));
 
   const onSpeech = (result: QuizSpeechResult) =>
     settle(
@@ -689,7 +717,10 @@ export const QuizCardFrame = ({
 
   const advance = () => {
     if (!answered) return;
-    onGraded({ ...answered, format, step: rung.step, item });
+    // Beating the boss is the moment; it plays as the session moves on, so
+    // the answer is seen first.
+    if (boss && answered.correct) celebrate({ kind: "boss", detail: item.arabic });
+    onGraded({ ...answered, format, step: ownStep, item });
   };
 
   // Enter or Space moves on once a card is answered, matching the flip card's
@@ -910,6 +941,16 @@ export const QuizCardFrame = ({
   return (
     <div>
       <QuizRungBadge step={rung.step} label={rung.label} combo={combo} className="mb-4" />
+      {boss && (
+        <QuizBossBanner
+          lapses={boss.lapses}
+          mnemonic={boss.mnemonic}
+          pictureUrl={boss.pictureUrl ?? item.imageUrl ?? null}
+          answered={!!answered}
+          hookOpen={hookOpen}
+          onOpenHook={() => setHook({ id: item.id, helped: !answered })}
+        />
+      )}
       {card}
       {answered && (
         <div className="mt-6 flex justify-center animate-in fade-in duration-200">

@@ -4,6 +4,7 @@ import { renderWithProviders, type HarnessOptions } from "@/test/support/react/h
 import type { QuizPoolEntry } from "@/hooks/useQuizPool";
 import type { SupabaseBackend } from "@/test/support/server/handler";
 import { useAiAssistant } from "@/contexts/AiAssistantContext";
+import { subscribeCelebrations, type CelebrationEvent } from "@/lib/celebrations";
 import {
   ANIMATION_LOOKUP_WAIT_MS,
   DIALOGUE_WRITING_WAIT_MS,
@@ -402,6 +403,94 @@ describe("why not this one?", () => {
     expect(screen.getByTestId("asked")).toHaveTextContent(
       'I picked the picture of "house" (that\'s «بيت») for «السوق», but «السوق» means "the market".',
     );
+  });
+});
+
+/**
+ * The boss card (quiz Phase 7). The page marks the session's first card when
+ * it is the recognition leech with the most lapses; the frame asks it as a
+ * first look whatever its memory, shows its picture and keeps its memory hook
+ * a tap away, grades it as any first look (the hook, opened first, is help),
+ * reports its own step rather than the first look's, and celebrates a win as
+ * the learner moves on.
+ */
+describe("the boss card", () => {
+  let celebrations: CelebrationEvent[] = [];
+  let unsubscribe: (() => void) | undefined;
+  beforeEach(() => {
+    celebrations = [];
+    unsubscribe = subscribeCelebrations((event) => celebrations.push(event));
+  });
+  afterEach(() => unsubscribe?.());
+
+  const HOOK = "Picture a souq stall selling socks";
+  // Settled enough to be heard alone (step 4) if it were not the boss.
+  const aBoss = (over: Partial<QuizItem> = {}) =>
+    anItem({
+      memory: { stability: 10, repetitions: 4 },
+      imageUrl: "https://img.test/market.png",
+      boss: { lapses: 7, mnemonic: HOOK, pictureUrl: "https://img.test/hook.png" },
+      ...over,
+    });
+  const continueOn = () => fireEvent.click(screen.getByRole("button", { name: /continue/i }));
+
+  it("opens on a first look, whatever its memory, with its picture and its hook behind a tap", () => {
+    const { container } = render(aBoss());
+
+    expect(screen.getByRole("region", { name: "Boss card" })).toHaveTextContent("missed 7 times");
+    expect(screen.getByText("Fill in the missing word")).toBeInTheDocument();
+    expect(screen.getByText(/the missing word means/i)).toHaveTextContent("the market");
+    expect(screen.getByRole("img", { name: /step 1 of 10/i })).toBeInTheDocument();
+    // The hook's picture, not the word's.
+    expect(container.querySelector('img[src="https://img.test/hook.png"]')).not.toBeNull();
+    expect(screen.queryByText(HOOK)).not.toBeInTheDocument();
+  });
+
+  it("is Good when beaten, reports its own step, and celebrates as the learner moves on", () => {
+    const { onGraded } = render(aBoss());
+    fireEvent.click(arabicChoices().find((b) => b.textContent?.trim() === "السوق")!);
+
+    // The hook is the lesson once the answer is in.
+    expect(screen.getByText(HOOK)).toBeInTheDocument();
+    expect(celebrations).toEqual([]);
+    continueOn();
+
+    expect(onGraded).toHaveBeenCalledWith(expect.objectContaining({ rating: "good", correct: true, format: "cloze-hint", step: 4 }));
+    expect(celebrations).toEqual([{ kind: "boss", detail: "السوق" }]);
+  });
+
+  it("counts the hook, opened before the answer, as help: Hard", () => {
+    const { onGraded } = render(aBoss());
+    fireEvent.click(screen.getByRole("button", { name: /show your memory hook/i }));
+    expect(screen.getByText(HOOK)).toBeInTheDocument();
+    fireEvent.click(arabicChoices().find((b) => b.textContent?.trim() === "السوق")!);
+    continueOn();
+
+    expect(onGraded).toHaveBeenCalledWith(expect.objectContaining({ rating: "hard", correct: true }));
+    // Beaten with help is still beaten.
+    expect(celebrations).toHaveLength(1);
+  });
+
+  it("is Again when it wins, and nothing is celebrated", () => {
+    const { onGraded } = render(aBoss());
+    fireEvent.click(arabicChoices().find((b) => b.textContent?.trim() !== "السوق")!);
+    continueOn();
+
+    expect(onGraded).toHaveBeenCalledWith(expect.objectContaining({ rating: "again", correct: false }));
+    expect(celebrations).toEqual([]);
+  });
+
+  it("shows the word's own picture when the hook has none, and no hook button when there is no hook", () => {
+    const { container } = render(aBoss({ boss: { lapses: 1, mnemonic: null, pictureUrl: null } }));
+    expect(screen.getByRole("region", { name: "Boss card" })).toHaveTextContent("missed once");
+    expect(container.querySelector('img[src="https://img.test/market.png"]')).not.toBeNull();
+    expect(screen.queryByRole("button", { name: /memory hook/i })).not.toBeInTheDocument();
+  });
+
+  it("is never a production card: that one is asked as itself", () => {
+    render(aBoss({ direction: "production", memory: { stability: 5, repetitions: 2 } }));
+    expect(screen.queryByRole("region", { name: "Boss card" })).not.toBeInTheDocument();
+    expect(screen.getByRole("img", { name: /step 7 of 10/i })).toBeInTheDocument();
   });
 });
 

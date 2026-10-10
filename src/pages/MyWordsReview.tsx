@@ -43,6 +43,7 @@ import { LightningRound } from "@/components/review/LightningRound";
 import { addLightningWord, lightningWordFor, type LightningWord } from "@/lib/lightningRound";
 import { EMPTY_QUIZ_SESSION, comboBonus, recordQuizAnswer, type QuizSessionStats } from "@/lib/quizSession";
 import { LADDER_THRESHOLDS, rungForMemory } from "@/lib/quizLadder";
+import { isBossTurn, withBossFirst } from "@/lib/bossCard";
 import { useNewCardCap, NEW_CAP_OPTIONS, formatCap } from "@/hooks/useNewCardCap";
 import { useRemainingNewCardBudget, useClaimNewCard } from "@/hooks/useNewCardBudget";
 import { useReviewSession } from "@/hooks/useReviewSession";
@@ -255,6 +256,8 @@ const MyWordsReview = () => {
       // The quiz holds production cards back (see below), so switching the
       // style rebuilds the deck.
       quiz ? "quiz" : "flip",
+      // And opens on the boss while the learner tracks leeches.
+      quiz && leechTrackingEnabled ? "boss" : "",
     ],
     queryFn: async (): Promise<DueCard[]> => {
       if (!user) return [];
@@ -388,10 +391,19 @@ const MyWordsReview = () => {
         (c) => (c.word_arabic ?? "").trim() !== "" || (c.word_english ?? "").trim() !== "",
       );
 
-      return buildReviewOrder(usable, {
+      const ordered = buildReviewOrder(usable, {
         newCardCap: Math.min(newCap, remainingNewBudget),
         blockNewCards: (srsStats?.reviewedCount ?? 0) < BEGINNER_REVIEW_THRESHOLD,
       });
+      // The quiz opens on the boss: the recognition leech with the most
+      // lapses goes first (src/lib/bossCard.ts). Nothing is added or dropped.
+      return quiz && leechTrackingEnabled
+        ? withBossFirst(ordered, (card) => ({
+            isLeech: card.is_leech,
+            lapses: card.card_type === "production" ? card.production_lapses : card.lapses,
+            direction: scheduleDirectionFor(card.card_type),
+          }))
+        : ordered;
     },
     // Wait for the budget and the stats so the first deck is built against
     // the real daily limit and the real review count, and keep the session
@@ -1250,6 +1262,21 @@ const MyWordsReview = () => {
     dialect: currentWord.dialect,
     direction: scheduleDirectionFor(currentWord.card_type),
     memory: { stability: currentWord.ease_factor, repetitions: currentWord.repetitions },
+    // The session's first card, when it is the boss: asked as a first look
+    // with its picture and its memory hook.
+    boss:
+      !relearnPick &&
+      isBossTurn({
+        answered: sessionCount,
+        position: Math.min(currentIndex, (dueWords?.length ?? 1) - 1),
+        candidate: {
+          isLeech: leechTrackingEnabled && currentWord.is_leech,
+          lapses: currentWord.lapses,
+          direction: scheduleDirectionFor(currentWord.card_type),
+        },
+      })
+        ? { lapses: currentWord.lapses, mnemonic: currentWord.mnemonic, pictureUrl: currentWord.mnemonic_image_url }
+        : null,
   };
   const quizPool =
     wordPool && wordPool.length > 0

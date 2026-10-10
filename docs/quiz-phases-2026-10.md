@@ -22,7 +22,7 @@ means — so a session can pick up the next phase cold.*
 | 5b | Apply the bucket migration, deploy `word-asset`, run `scripts/curriculum-animations.ts` | **owner action** (after 2b) |
 | 6 | Words in stories | built (PR #428) |
 | 6b | Deploy `word-asset` (this version), then run `scripts/curriculum-stories.ts` | **owner action** (after 2b) |
-| 7 | The rest of the game | in progress: "Why not this one?" (PR #430) and the lightning round (PR #LIGHTNING) built |
+| 7 | The rest of the game | in progress: "Why not this one?" (PR #430), the lightning round (PR #LIGHTNING) and the boss card (PR #BOSS) built |
 | 8 | Tuning from real reviews | once the quiz has weeks of history |
 | 9 | Housekeeping | any time |
 
@@ -878,8 +878,8 @@ One PR per item, in this order, each independent of the asset store:
 |---|---|
 | 7.1 "Why not this one?" on every choice step | built (PR #430) |
 | 7.2 The lightning round | built (PR #LIGHTNING, on #430) |
-| 7.3 The boss card | next |
-| 7.4 Ladder climbs on the leaderboard | to build |
+| 7.3 The boss card | built (PR #BOSS, on #LIGHTNING) |
+| 7.4 Ladder climbs on the leaderboard | next |
 | XP parity for the flip cards | **a question for the owner**, not built |
 
 ### 7.1 "Why not this one?" on every choice step (built, PR #430)
@@ -990,6 +990,46 @@ the lightning round):
    device, or XP for a round would each be a separate decision.
 6. *Moves on by itself*: half a second after a right answer, 1.2 s after a
    wrong one. The clock runs on through the beat; the last answer stops it.
+
+### 7.3 The boss card (built, PR #BOSS)
+
+What shipped (writeup: README "Reviewing as a quiz instead of flashcards",
+the boss card):
+
+- **`src/lib/bossCard.ts`**, pure: `canBeBoss` (a recognition leech with
+  lapses), `pickBoss` (the most lapses, the deck's order on a tie),
+  `withBossFirst` (reorders, never adds or drops), `isBossTurn` (the
+  session's first card, before any answer), `BOSS_MEMORY` (a first look).
+- **The decks**: `useDueWords({ bossFirst })`, `useDueUserPhrases(mixAll,
+  { bossFirst })` and My Words' due query put the boss first while the quiz
+  is on and leeches are tracked; each page marks `QuizItem.boss` (lapses,
+  mnemonic, the hook's picture) on its first card.
+- **`QuizCardFrame`**: a boss is asked from `BOSS_MEMORY`, under
+  `QuizBossBanner`; opening the hook before answering is help; `QuizGraded.step`
+  is the card's own step; a win celebrates on Continue.
+- **`celebrations.ts`**: a `boss` kind, the small tier, "Boss beaten!".
+- **`phraseDirection`** moved from `MyPhrasesReview` to `quizLadder.ts`, so
+  the phrase deck's due list and its page read a phrase's direction one way.
+- Guards: `bossCard.test.ts`, `QuizCardFrame.test.tsx` ("the boss card"),
+  `useUserPhrases.test.ts` (new), `quizLadder.test.ts`,
+  `celebrations.test.ts`, and `review.spec.ts` ("the boss card").
+
+**Decided in this item:**
+
+1. *Chosen from what is due, recognition only.* Nothing is reviewed early,
+   and a first look grades the recognition schedule; a production leech is
+   asked as itself.
+2. *Graded as a first look*: Good when right, Hard when the hook was opened
+   first, Again when wrong. The hook is a tap away rather than in view,
+   because in view it would be the answer, and a Good earned off it would
+   stretch the interval of exactly the card that needs an honest one.
+3. *A leech settled past step 1 is still asked step 1*, as the plan says;
+   after its lapses a leech is usually there anyway. Its own step is what
+   the session tally sees.
+4. *Once per session*, and *only while leeches are tracked*: a learner who
+   switched leech tracking off has no leeches to fight.
+5. *The small celebration*, on Continue: the session has the rest of its
+   cards to go.
 
 ### The plan, as it was written
 

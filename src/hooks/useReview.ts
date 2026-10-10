@@ -18,6 +18,7 @@ import { useNewCardCap } from './useNewCardCap';
 import { useRemainingNewCardBudget } from './useNewCardBudget';
 import { useCurriculumDeckScope } from './useCurriculumDeckScope';
 import { selectRequestedCurriculumWords } from '@/lib/curriculumDeck';
+import { withBossFirst } from '@/lib/bossCard';
 
 export interface WordReview {
   id: string;
@@ -146,10 +147,17 @@ export interface DueWordsOptions {
    * production the moment it unlocks.
    */
   holdProductionBelow?: number;
+  /**
+   * Put the session's boss first: of the cards due, the recognition leech
+   * with the most lapses (`withBossFirst`, src/lib/bossCard.ts). The quiz
+   * passes it while the learner tracks leeches; nothing is added or dropped.
+   */
+  bossFirst?: boolean;
 }
 
 export const useDueWords = (mixAll = false, options: DueWordsOptions = {}) => {
   const holdProductionBelow = options.holdProductionBelow ?? null;
+  const bossFirst = options.bossFirst ?? false;
   const { user } = useAuth();
   const { activeDialect } = useDialect();
   const { cap: newCap } = useNewCardCap();
@@ -171,7 +179,7 @@ export const useDueWords = (mixAll = false, options: DueWordsOptions = {}) => {
     // loading swap and a freshly reshuffled deck under the learner's feet,
     // once per new card. The queryFn reads the current budget whenever the
     // deck is genuinely (re)built instead.
-    queryKey: ['due-words', user?.id, mixAll ? 'all' : activeDialect, scope, holdProductionBelow],
+    queryKey: ['due-words', user?.id, mixAll ? 'all' : activeDialect, scope, holdProductionBelow, bossFirst],
     queryFn: async (): Promise<DueCurriculumCard[]> => {
       if (!user) return [];
 
@@ -320,10 +328,17 @@ export const useDueWords = (mixAll = false, options: DueWordsOptions = {}) => {
       // the personal deck. The new-card budget is server-persisted via
       // daily_new_card_counts, so it's a real daily limit rather than a
       // per-page-load one.
-      return buildReviewOrder(cards, {
+      const ordered = buildReviewOrder(cards, {
         newCardCap: remainingNewBudget,
         blockNewCards: (srsStats?.reviewedCount ?? 0) < BEGINNER_REVIEW_THRESHOLD,
       });
+      return bossFirst
+        ? withBossFirst(ordered, (card) => ({
+            isLeech: !!card.review?.is_leech,
+            lapses: card.review?.lapses ?? 0,
+            direction: scheduleDirectionFor(card.card_type),
+          }))
+        : ordered;
     },
     // Wait for the budget and the stats so the first deck is built against
     // the real daily limit and the real review count, not defaults.

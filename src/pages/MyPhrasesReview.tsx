@@ -35,7 +35,8 @@ import { QuizSessionSummary } from "@/components/review/QuizSessionSummary";
 import { LightningRound } from "@/components/review/LightningRound";
 import { addLightningWord, lightningWordFor, type LightningWord } from "@/lib/lightningRound";
 import { EMPTY_QUIZ_SESSION, comboBonus, recordQuizAnswer, type QuizSessionStats } from "@/lib/quizSession";
-import { LADDER_THRESHOLDS, rungForMemory, type QuizDirection } from "@/lib/quizLadder";
+import { phraseDirection, rungForMemory } from "@/lib/quizLadder";
+import { isBossTurn } from "@/lib/bossCard";
 import { Loader2, Trophy, LogIn, Eye, Volume2, Trash2, MessageCircleQuestion, Music, Play, RefreshCw, Undo2, MessageSquarePlus } from "lucide-react";
 import { SentencePracticeSheet } from "@/components/practice/SentencePracticeSheet";
 import { LeechHelperPanel } from "@/components/review/LeechHelperPanel";
@@ -47,11 +48,6 @@ import { TappableArabicText } from "@/components/shared/TappableArabicText";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 
 
-/** The ladder's direction for a phrase, which keeps a single schedule. */
-function quizDirectionFor(stability: number): QuizDirection {
-  return stability >= LADDER_THRESHOLDS.pictureDays ? "production" : "recognition";
-}
-
 const MyPhrasesReview = () => {
   const navigate = useNavigate();
   const { isAuthenticated, loading: authLoading, user } = useAuth();
@@ -60,15 +56,17 @@ const MyPhrasesReview = () => {
   const { weights } = useFsrsWeights();
   const { activeDialect } = useDialect();
   const { enabled: leechTrackingEnabled } = useLeechPrefs();
-  const { data: duePhrases, isLoading, refetch } = useDueUserPhrases();
-  const session = useReviewSession();
-  const updateReview = useUpdateUserPhraseReview();
-  const deletePhrase = useDeleteUserPhrase();
   // How the learner wants to be asked. A saved phrase keeps one schedule, so
   // the ladder's direction is read off its stability: a new phrase is asked
   // for its meaning, a settled one is asked to be said.
   const { style: reviewStyle } = useReviewStyle();
   const quiz = reviewStyle === "quiz";
+  // The quiz opens on the boss: the leech asked for its meaning with the
+  // most lapses goes first (src/lib/bossCard.ts), while leeches are tracked.
+  const { data: duePhrases, isLoading, refetch } = useDueUserPhrases(false, { bossFirst: quiz && leechTrackingEnabled });
+  const session = useReviewSession();
+  const updateReview = useUpdateUserPhraseReview();
+  const deletePhrase = useDeleteUserPhrase();
   const { data: phrasePool, isLoading: poolLoading } = useSavedPhrasePool(activeDialect, false, quiz);
   const addXP = useAddXP();
   const incrementReviews = useIncrementReviews();
@@ -298,7 +296,7 @@ const MyPhrasesReview = () => {
     );
     const stepAfter = rungForMemory(
       { stability: result.stability, repetitions: result.repetitions },
-      quizDirectionFor(result.stability),
+      phraseDirection(result.stability),
     ).step;
     const next = recordQuizAnswer(quizStats, {
       correct: graded.correct,
@@ -597,8 +595,21 @@ const MyPhrasesReview = () => {
     transliteration: current.transliteration,
     audioUrl: effectiveAudio,
     dialect: current.dialect ?? activeDialect,
-    direction: quizDirectionFor(stability),
+    direction: phraseDirection(stability),
     memory: { stability, repetitions: current.repetitions },
+    // The session's first card, when it is the boss: asked as a first look
+    // with its picture and its memory hook.
+    boss: isBossTurn({
+      answered: sessionCount,
+      position: safeIndex,
+      candidate: {
+        isLeech: leechTrackingEnabled && !!current.is_leech,
+        lapses: current.lapses ?? 0,
+        direction: phraseDirection(stability),
+      },
+    })
+      ? { lapses: current.lapses ?? 0, mnemonic: current.mnemonic ?? null, pictureUrl: current.mnemonic_image_url ?? null }
+      : null,
   };
   const quizPool =
     phrasePool && phrasePool.length > 0

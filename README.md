@@ -556,6 +556,33 @@ The words are the session's, kept on the page as they are answered right
 (`lightningWordFor`, once per word), and a deck switch starts afresh with the
 summary.
 
+**The boss card** (quiz Phase 7). A quiz session opens on the learner's worst
+word: of the cards due, the recognition leech with the most lapses goes first
+(`withBossFirst` in `src/lib/bossCard.ts`, applied by the three decks' due
+lists while the quiz is on and the learner tracks leeches — Settings' leech
+switch turns it off with the rest). It is asked as a **first look** whatever
+its stability — the gap with its meaning beside it, or the meaning on its own
+where the word has no sentence (with too few other words for four options it
+is the flip card, as any card would be, and no boss) — under a "Boss card" header that says how
+often it has been missed, shows its memory hook's picture (else the word's
+own), and keeps the hook itself a tap away (`QuizBossBanner`). After the
+answer the hook is shown anyway: a word missed this often is one to learn
+again, not only to grade. Beating it is a celebration, the small tier
+(`celebrate({ kind: "boss" })`, "Boss beaten!"), played as the learner moves
+on so the answer is seen first.
+
+The boss is chosen from what is due and only reordered, so nothing is reviewed
+early, and only on the recognition side: a first look grades the recognition
+schedule, and a production card's rating would land on the other one (on My
+Phrases, a phrase settled enough to be said is not a boss either). Its answer
+is graded exactly as any first look's — right is Good, right after opening the
+hook is Hard (help, like the sentence), wrong is Again — and the frame reports
+the card's own step, not the first look's, so beating the boss is never
+counted as a climb from step 1. It opens a session once (`isBossTurn`: the
+first card, before anything is answered); a deck rebuilt later in the session
+may put a leech first again, and that one is an ordinary card. The rescue panel
+under a leech is unchanged.
+
 Proposal and the phases still to come (the rest of the game, tuning from real
 reviews): `docs/quiz-modes-plan-2026-10.md`; the execution roadmap is
 `docs/quiz-phases-2026-10.md`.

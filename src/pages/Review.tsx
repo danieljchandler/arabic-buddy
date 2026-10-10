@@ -43,6 +43,7 @@ import { LightningRound } from "@/components/review/LightningRound";
 import { addLightningWord, lightningWordFor, type LightningWord } from "@/lib/lightningRound";
 import { EMPTY_QUIZ_SESSION, comboBonus, recordQuizAnswer, type QuizSessionStats } from "@/lib/quizSession";
 import { LADDER_THRESHOLDS, rungForMemory } from "@/lib/quizLadder";
+import { isBossTurn } from "@/lib/bossCard";
 import { asDialogue } from "@/lib/quizDialogue";
 import { AskAISentence } from "@/components/shared/AskAISentence";
 import { usePageAiContext } from "@/contexts/AiAssistantContext";
@@ -76,7 +77,9 @@ const Review = () => {
   const quiz = reviewStyle === "quiz";
   const { data: dueWords, isLoading: wordsLoading, isError: wordsError, refetch } = useDueWords(
     mixAll,
-    quiz ? { holdProductionBelow: LADDER_THRESHOLDS.pictureDays } : {},
+    // The quiz opens on the boss: the recognition leech with the most lapses
+    // goes first (src/lib/bossCard.ts), while the learner tracks leeches.
+    quiz ? { holdProductionBelow: LADDER_THRESHOLDS.pictureDays, bossFirst: leechTrackingEnabled } : {},
   );
   const { data: stats } = useReviewStats(mixAll);
   const { enqueue, pendingCount, isFlushing, isOnline } = useReviewQueue();
@@ -879,6 +882,21 @@ const Review = () => {
     category: currentWord.category ?? null,
     direction: scheduleDirectionFor(currentWord.card_type),
     memory: { stability, repetitions },
+    // The session's first card, when it is the boss: asked as a first look
+    // with its picture and its memory hook.
+    boss:
+      !relearnPick &&
+      isBossTurn({
+        answered: sessionCount,
+        position: safeIndex,
+        candidate: {
+          isLeech: leechTrackingEnabled && !!review?.is_leech,
+          lapses: review?.lapses ?? 0,
+          direction: scheduleDirectionFor(currentWord.card_type),
+        },
+      })
+        ? { lapses: review?.lapses ?? 0, mnemonic: review?.mnemonic ?? null, pictureUrl: review?.mnemonic_image_url ?? null }
+        : null,
   };
   const quizPool =
     wordPool && wordPool.length > 0

@@ -36,7 +36,7 @@ import { LightningRound } from "@/components/review/LightningRound";
 import { addLightningWord, lightningWordFor, type LightningWord } from "@/lib/lightningRound";
 import { EMPTY_QUIZ_SESSION, comboBonus, recordQuizAnswer, type QuizSessionStats } from "@/lib/quizSession";
 import { phraseDirection, rungForMemory } from "@/lib/quizLadder";
-import { bossBeaten, isBossTurn } from "@/lib/bossCard";
+import { bossBeaten, bossFor } from "@/lib/bossCard";
 import { celebrate } from "@/lib/celebrations";
 import { Loader2, Trophy, LogIn, Eye, Volume2, Trash2, MessageCircleQuestion, Music, Play, RefreshCw, Undo2, MessageSquarePlus } from "lucide-react";
 import { SentencePracticeSheet } from "@/components/practice/SentencePracticeSheet";
@@ -602,18 +602,21 @@ const MyPhrasesReview = () => {
     direction: phraseDirection(stability),
     memory: { stability, repetitions: current.repetitions },
     // The session's first card, when it is the boss: asked as a first look
-    // with its picture and its memory hook.
-    boss: isBossTurn({
+    // with its memory hook and picture a tap away. A phrase has one schedule,
+    // and this deck has no relearn pass.
+    boss: bossFor({
       answered: sessionCount,
       position: safeIndex,
-      candidate: {
-        isLeech: leechTrackingEnabled && !!current.is_leech,
+      relearn: false,
+      tracking: leechTrackingEnabled,
+      card: {
+        isLeech: !!current.is_leech,
         lapses: current.lapses ?? 0,
         direction: phraseDirection(stability),
+        mnemonic: current.mnemonic,
+        pictureUrl: current.mnemonic_image_url,
       },
-    })
-      ? { lapses: current.lapses ?? 0, mnemonic: current.mnemonic ?? null, pictureUrl: current.mnemonic_image_url ?? null }
-      : null,
+    }),
   };
   // Rescue for a leech: below the card. In the quiz the frame places it, and
   // under the boss holds it back until the answer (it prints the hook).

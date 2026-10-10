@@ -55,8 +55,8 @@ describe("the curriculum pool", () => {
 
     await waitFor(() => expect(r.result.current.data).toBeDefined());
     expect(r.result.current.data).toEqual([
-      { arabic: "بيت", english: "house", imageUrl: "https://img.test/house.png", audioUrl: "https://audio.test/house.mp3" },
-      { arabic: "مدرسة", english: "school", imageUrl: null, audioUrl: null },
+      { arabic: "بيت", english: "house", imageUrl: "https://img.test/house.png", audioUrl: "https://audio.test/house.mp3", dialect: "Gulf" },
+      { arabic: "مدرسة", english: "school", imageUrl: null, audioUrl: null, dialect: "Gulf" },
     ]);
   });
 
@@ -66,6 +66,9 @@ describe("the curriculum pool", () => {
 
     await waitFor(() => expect(r.result.current.data).toBeDefined());
     expect(r.result.current.data!.map((e) => e.english)).toContain("egyptian word");
+    // Each word keeps its dialect, so "Why not this one?" names a wrong
+    // meaning's word only from the card's own.
+    expect(r.result.current.data!.find((e) => e.english === "egyptian word")?.dialect).toBe("Egyptian");
   });
 
   it("reads nothing while the quiz is off", async () => {
@@ -108,7 +111,7 @@ describe("the saved pools", () => {
     cleanup = r.cleanup;
 
     await waitFor(() => expect(r.result.current.data).toBeDefined());
-    expect(r.result.current.data).toEqual([{ arabic: "ملكي", english: "mine", imageUrl: null, audioUrl: null }]);
+    expect(r.result.current.data).toEqual([{ arabic: "ملكي", english: "mine", imageUrl: null, audioUrl: null, dialect: "Gulf" }]);
   });
 
   it("draws the learner's phrases the same way", async () => {
@@ -123,7 +126,7 @@ describe("the saved pools", () => {
     cleanup = r.cleanup;
 
     await waitFor(() => expect(r.result.current.data).toBeDefined());
-    expect(r.result.current.data).toEqual([{ arabic: "عبارتي", english: "my phrase", imageUrl: null, audioUrl: null }]);
+    expect(r.result.current.data).toEqual([{ arabic: "عبارتي", english: "my phrase", imageUrl: null, audioUrl: null, dialect: "Gulf" }]);
   });
 
   it("waits for a signed-in learner", async () => {
@@ -273,7 +276,7 @@ describe("stored replies, for the reply question's wrong options", () => {
         await vi.advanceTimersByTimeAsync(STORED_REPLIES_WAIT_MS + 100);
       });
       await waitFor(() => expect(r.result.current.data).toBeDefined());
-      expect(r.result.current.data).toEqual([{ arabic: "بيت", english: "house", imageUrl: null, audioUrl: null }]);
+      expect(r.result.current.data).toEqual([{ arabic: "بيت", english: "house", imageUrl: null, audioUrl: null, dialect: "Gulf" }]);
     } finally {
       vi.useRealTimers();
     }

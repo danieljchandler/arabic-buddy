@@ -524,9 +524,10 @@ ladder gains a choice format with none):
 The word behind a wrong meaning or a wrong picture is the half of the pair the
 learner never saw, and it is the confusion to explain (سوق heard as ساق), so the
 frame hands it to the card: a picture option carries its word, unrendered, and
-a meaning is looked up among the other words (`wordForMeaning`), naming none
-when two different words share it — a wrong guess there would explain the
-wrong mix-up. The question is the one-shot `pendingAsk` described above, never
+a meaning is looked up among the other words of the card's own dialect
+(`wordForMeaning`; a Mix All session's pool spans dialects, and each entry
+carries its own), naming none when two different words share it — a wrong
+guess there would explain the wrong mix-up. The question is the one-shot `pendingAsk` described above, never
 part of the seed, so unlike the "Ask AI" chip it replaces, a tap is a tutor
 turn (`docs/ai-spend-2026-10.md` §2), on the chat's own cap. The pick is
 graded exactly as before, and opening the tutor after it changes nothing.
@@ -614,7 +615,8 @@ save that fails is never celebrated; queued, on the curriculum deck, whose
 offline queue saves it when it can. A boss stays the boss for its whole
 presentation, even if the learner clears its leech flag from the rescue panel
 after answering: the question, the answer given and the celebration are the
-ones it was asked with.
+ones it was asked with. Its hook is read live while the page still marks it, so
+a hook made in the rescue panel after the answer shows in the banner too.
 
 The boss is chosen from what is due and only reordered, so nothing is reviewed
 early, and only on the recognition side: a first look grades the recognition
@@ -624,9 +626,10 @@ is graded exactly as any first look's — right is Good, right after opening the
 hook is Hard (help, like the sentence), wrong is Again — and the frame reports
 the card's own step, not the first look's, so beating the boss is never
 counted as a climb from step 1 (nor, past step 4, a word for the lightning
-round). It opens a session once (`isBossTurn`: the first card, before anything
-is answered); a deck rebuilt later in the session may put a leech first again,
-and that one is an ordinary card. The rescue panel under a leech
+round). It opens a session once: the three decks ask one function, `bossFor`
+(the first card, before anything is answered, never a relearn card come back,
+and only while the learner tracks leeches); a deck rebuilt later in the session
+may put a leech first again, and that one is an ordinary card. The rescue panel under a leech
 (`LeechHelperPanel`) is placed by the frame in the quiz: under the boss it
 waits for the answer, since it prints the hook, and then offers what it always
 does (a new hook, its picture, clearing the leech flag); under every other

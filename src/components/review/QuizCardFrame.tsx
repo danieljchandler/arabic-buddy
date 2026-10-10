@@ -24,7 +24,7 @@ import {
 import { otherMeanings, seededShuffle } from "@/lib/quizDistractors";
 import { gradeQuizAnswer, isCorrectRating } from "@/lib/quizGrading";
 import { storyGap } from "@/lib/quizStory";
-import { BOSS_MEMORY } from "@/lib/bossCard";
+import { BOSS_MEMORY, type BossInfo } from "@/lib/bossCard";
 import {
   CHOICE_COUNT,
   pickQuizFormat,
@@ -74,18 +74,13 @@ export interface QuizItem {
   direction: QuizDirection;
   memory: QuizMemory;
   /**
-   * The session's boss (quiz Phase 7, `src/lib/bossCard.ts`): the learner's
-   * worst word, opening the session. Asked as a first look whatever its
-   * memory, with its picture in view and its memory hook a tap away; beating
-   * it is a celebration (the page's, once the rating is saved). A recognition
-   * card only: the pages set it so.
+   * The session's boss (quiz Phase 7, `bossFor` in `src/lib/bossCard.ts`):
+   * the learner's worst word, opening the session. Asked as a first look
+   * whatever its memory, with its memory hook and picture a tap away (opening
+   * them first is help); beating it is a celebration (the page's, as the
+   * rating goes). A recognition card only: `bossFor` sets it so.
    */
-  boss?: {
-    lapses: number;
-    mnemonic?: string | null;
-    /** The hook's picture, else the word's own. */
-    pictureUrl?: string | null;
-  } | null;
+  boss?: BossInfo | null;
 }
 
 export interface QuizGraded {
@@ -389,10 +384,13 @@ export const QuizCardFrame = ({
   // leech flag from the rescue panel after the answer patches the deck, and a
   // boss that stopped being one under the learner would turn the answered card
   // into another question (with its own wait, and its own answer to give).
+  // What is latched is that it is the boss; its hook is read live while the
+  // page still marks it, so a hook made in the rescue panel after the answer
+  // shows in the banner too, not only in the panel beneath it.
   const liveBoss = item.boss && item.direction === "recognition" ? item.boss : null;
   const [bossLatch, setBossLatch] = useState({ id: item.id, boss: liveBoss });
   if (bossLatch.id !== item.id) setBossLatch({ id: item.id, boss: liveBoss });
-  const boss = bossLatch.id === item.id ? bossLatch.boss : liveBoss;
+  const boss = bossLatch.id === item.id ? (bossLatch.boss ? (liveBoss ?? bossLatch.boss) : null) : liveBoss;
   const memory = boss ? BOSS_MEMORY : item.memory;
   const rung = rungForMemory(memory, item.direction);
   const ownStep = boss ? rungForMemory(item.memory, item.direction).step : rung.step;
@@ -480,13 +478,18 @@ export const QuizCardFrame = ({
 
   // Which word each wrong meaning belongs to, for "Why not this one?" on the
   // meaning questions: what the learner took the word for. Only the other
-  // words, and a meaning two of them share names neither.
+  // words of the card's own dialect (a mixed session's pool spans dialects,
+  // and another dialect's word for it is not what the learner took this one
+  // for), and a meaning two of them share names neither.
   const wordForMeaning = useMemo(() => {
     const ownWord = normalizeArabicWord(item.arabic);
+    const ownDialect = item.dialect?.trim().toLowerCase() || null;
     const words = new Map<string, string | null>();
     for (const other of dealtPool) {
       const key = other.english.trim().toLowerCase();
       if (!key || !ARABIC_RE.test(other.arabic)) continue;
+      const dialect = other.dialect?.trim().toLowerCase() || null;
+      if (ownDialect && dialect && dialect !== ownDialect) continue;
       const word = normalizeArabicWord(other.arabic);
       if (word === ownWord) continue;
       const seen = words.get(key);
@@ -494,7 +497,7 @@ export const QuizCardFrame = ({
       else if (seen !== null && normalizeArabicWord(seen) !== word) words.set(key, null);
     }
     return (english: string) => words.get(english.trim().toLowerCase()) ?? null;
-  }, [dealtPool, item.arabic]);
+  }, [dealtPool, item.arabic, item.dialect]);
 
   // Pictures of other words, once each, and never one that means what this
   // word means (another dialect's word for it, in a mixed deck) or shows its

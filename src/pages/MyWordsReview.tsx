@@ -43,7 +43,7 @@ import { LightningRound } from "@/components/review/LightningRound";
 import { addLightningWord, lightningWordFor, type LightningWord } from "@/lib/lightningRound";
 import { EMPTY_QUIZ_SESSION, comboBonus, recordQuizAnswer, type QuizSessionStats } from "@/lib/quizSession";
 import { LADDER_THRESHOLDS, rungForMemory } from "@/lib/quizLadder";
-import { bossBeaten, isBossTurn, withBossFirst } from "@/lib/bossCard";
+import { bossBeaten, bossFor, withBossFirst } from "@/lib/bossCard";
 import { celebrate } from "@/lib/celebrations";
 import { useNewCardCap, NEW_CAP_OPTIONS, formatCap } from "@/hooks/useNewCardCap";
 import { useRemainingNewCardBudget, useClaimNewCard } from "@/hooks/useNewCardBudget";
@@ -1268,24 +1268,20 @@ const MyWordsReview = () => {
     direction: scheduleDirectionFor(currentWord.card_type),
     memory: { stability: currentWord.ease_factor, repetitions: currentWord.repetitions },
     // The session's first card, when it is the boss: asked as a first look
-    // with its picture and its memory hook.
-    boss:
-      !relearnPick &&
-      isBossTurn({
-        answered: sessionCount,
-        position: Math.min(currentIndex, (dueWords?.length ?? 1) - 1),
-        candidate: {
-          isLeech: leechTrackingEnabled && currentWord.is_leech,
-          lapses: currentWord.lapses + currentWord.production_lapses,
-          direction: scheduleDirectionFor(currentWord.card_type),
-        },
-      })
-        ? {
-            lapses: currentWord.lapses + currentWord.production_lapses,
-            mnemonic: currentWord.mnemonic,
-            pictureUrl: currentWord.mnemonic_image_url,
-          }
-        : null,
+    // with its memory hook and picture a tap away.
+    boss: bossFor({
+      answered: sessionCount,
+      position: Math.min(currentIndex, (dueWords?.length ?? 1) - 1),
+      relearn: !!relearnPick,
+      tracking: leechTrackingEnabled,
+      card: {
+        isLeech: currentWord.is_leech,
+        lapses: currentWord.lapses + currentWord.production_lapses,
+        direction: scheduleDirectionFor(currentWord.card_type),
+        mnemonic: currentWord.mnemonic,
+        pictureUrl: currentWord.mnemonic_image_url,
+      },
+    }),
   };
   // Rescue for a leech: below the card. In the quiz the frame places it, and
   // under the boss holds it back until the answer (it prints the hook).

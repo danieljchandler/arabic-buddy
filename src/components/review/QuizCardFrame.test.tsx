@@ -369,6 +369,41 @@ describe("why not this one?", () => {
     expect(screen.getByTestId("asked")).toHaveTextContent(`I picked "house" (that's «بيت») for «السوق»`);
   });
 
+  // Mix All: the pool spans dialects. "now" belongs only to an Egyptian word
+  // here, which is not what the learner took a Gulf word for.
+  const MIXED = [
+    { arabic: "دلوقتي", english: "now", dialect: "Egyptian" },
+    { arabic: "بيت", english: "house", dialect: "Gulf" },
+    { arabic: "سيارة", english: "car", dialect: "Gulf" },
+  ];
+
+  it("names no word of another dialect, in a session that mixes them", () => {
+    renderAsking(anItem({ sentence: null, dialect: "Gulf" }), MIXED);
+    fireEvent.click(screen.getByRole("radio", { name: "now" }));
+    askWhy();
+    expect(screen.getByTestId("asked")).toHaveTextContent('I picked "now" for «السوق»');
+    expect(screen.getByTestId("asked")).not.toHaveTextContent("دلوقتي");
+  });
+
+  it("names a word of the card's own dialect in the same session", () => {
+    renderAsking(anItem({ sentence: null, dialect: "gulf" }), MIXED);
+    fireEvent.click(screen.getByRole("radio", { name: "house" }));
+    askWhy();
+    expect(screen.getByTestId("asked")).toHaveTextContent(`I picked "house" (that's «بيت») for «السوق»`);
+  });
+
+  it("still names the word when either side carries no dialect", () => {
+    const pool = [
+      { arabic: "بيت", english: "house" },
+      { arabic: "مدرسة", english: "school", dialect: "Egyptian" },
+      { arabic: "سيارة", english: "car" },
+    ];
+    renderAsking(anItem({ sentence: null }), pool);
+    fireEvent.click(screen.getByRole("radio", { name: "school" }));
+    askWhy();
+    expect(screen.getByTestId("asked")).toHaveTextContent(`(that's «مدرسة»)`);
+  });
+
   it("never deals another gloss of the word itself as a wrong meaning, nor names the word as the other one", () => {
     // A mixed deck holds the word more than once, under other glosses:
     // picking one would be a right answer graded Again. Five of them beside
@@ -408,8 +443,8 @@ describe("why not this one?", () => {
 /**
  * The boss card (quiz Phase 7). The page marks the session's first card when
  * it is the recognition leech with the most lapses; the frame asks it as a
- * first look whatever its memory, shows its picture and keeps its memory hook
- * a tap away, grades it as any first look (the hook, opened first, is help),
+ * first look whatever its memory, keeps its memory hook and picture a tap
+ * away, grades it as any first look (the hook, opened first, is help),
  * reports its own step rather than the first look's, and celebrates a win as
  * the learner moves on.
  */
@@ -533,6 +568,21 @@ describe("the boss card", () => {
         item: expect.objectContaining({ boss: expect.objectContaining({ lapses: 7 }) }),
       }),
     );
+  });
+
+  it("shows a hook made in the rescue panel after the answer, in the banner too", () => {
+    const { rerenderWith } = render(aBoss(), { leechPanel: RESCUE });
+    pick(true);
+    expect(screen.getByRole("region", { name: "Boss card" })).toHaveTextContent(HOOK);
+
+    // The panel saves a new hook and the page patches the card it still marks.
+    const fresh = "A sock on every stall in the souq";
+    rerenderWith(aBoss({ boss: { lapses: 7, mnemonic: fresh, pictureUrl: "https://img.test/hook.png" } }), {
+      leechPanel: RESCUE,
+    });
+
+    expect(screen.getByRole("region", { name: "Boss card" })).toHaveTextContent(fresh);
+    expect(screen.getByRole("region", { name: "Boss card" })).not.toHaveTextContent(HOOK);
   });
 
   it("keeps the rescue panel beside a card that is still being prepared, but not beside the boss", () => {

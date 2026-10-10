@@ -151,6 +151,62 @@ describe("the word's exchange from the store", () => {
   });
 });
 
+describe("a line that says the word with something attached", () => {
+  // The line said to the learner and every "wrong" reply must not say the
+  // word in any form (`wordUseCount`): with ل contracted onto the article
+  // (للسوق), the article dropped (سوقنا), or a pronoun on it (قهوتي). Before
+  // a reply with السوق, "رحنا للسوق؟" hands over the answer; offered as a
+  // wrong reply, a line with للسوق in it is not wrong.
+  const market: DialogueLine = { arabic: "ايه، السوق زحمة وايد", english: "Yes, the market is very crowded" };
+
+  it("never asks a reply after a line that says the word", () => {
+    expect(findReplyLine([{ arabic: "رحنا للسوق؟" }, market], "السوق")).toBeNull();
+    expect(findReplyLine([{ arabic: "تبي قهوتي؟" }, { arabic: "ايه، عطني قهوة" }], "قهوة")).toBeNull();
+    expect(buildReplyQuestion([{ arabic: "رحنا للسوق؟" }, market], "السوق", "card-1", [
+      { arabic: "ايه، الحين جاي" },
+      { arabic: "لا والله ما ادري" },
+      { arabic: "تمام، نشوفك بكره" },
+    ])).toBeNull();
+  });
+
+  it("takes the next use of the word whose line before does not say it", () => {
+    const lesson: DialogueLine[] = [
+      { arabic: "شو سويتوا امس؟" },
+      { arabic: "رحنا للسوق" },
+      { arabic: "شلون كان؟" },
+      market,
+    ];
+    expect(findReplyLine(lesson, "السوق")).toEqual({ prompt: lesson[2], answer: market });
+  });
+
+  it("falls back from a lesson whose only use follows such a line to the word's stored exchange", () => {
+    const stored = { lines: [{ speaker: "", arabic: "وين رحتوا امس؟", english: "Where did you go yesterday?", transliteration: "" }, { ...market, speaker: "", transliteration: "" }] };
+    const lesson: DialogueLine[] = [{ arabic: "رحنا للسوق؟" }, market];
+    expect(dialogueForWord(lesson, stored, "السوق")?.source).toBe("store");
+    // And a stored exchange that opens on it is no exchange at all.
+    const giveaway = { lines: [{ ...stored.lines[0], arabic: "رحتوا للسوق امس؟" }, stored.lines[1]] };
+    expect(dialogueForWord(null, giveaway, "السوق")).toBeNull();
+  });
+
+  it("offers no wrong reply that says the word, and counts none", () => {
+    const others: DialogueLine[] = [
+      { arabic: "ايه، الحين جاي" },
+      { arabic: "لا والله ما ادري" },
+      { arabic: "تمام، نشوفك بكره" },
+      { arabic: "رحنا للسوق امس" },
+      { arabic: "سوقنا قريب من البيت" },
+    ];
+    const lines: DialogueLine[] = [{ arabic: "وين رحتوا امس؟" }, market];
+    const q = buildReplyQuestion(lines, "السوق", "card-1", others);
+    expect(q?.options).toHaveLength(4);
+    expect(q!.options.map((o) => o.arabic)).not.toContain("رحنا للسوق امس");
+    expect(q!.options.map((o) => o.arabic)).not.toContain("سوقنا قريب من البيت");
+    expect(countWrongReplies(others, "السوق")).toBe(3);
+    // With only two wrong replies that do not say it, there is no question.
+    expect(buildReplyQuestion(lines, "السوق", "card-1", others.slice(1))).toBeNull();
+  });
+});
+
 describe("a word of more than one word", () => {
   // A fifth of the curriculum's items are phrases (كل يوم, يعطيك العافية).
   // The store files an exchange whose reply uses the phrase as a run of

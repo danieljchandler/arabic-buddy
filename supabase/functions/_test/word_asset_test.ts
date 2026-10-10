@@ -1086,10 +1086,13 @@ Deno.test("word-asset ensure looks for MSA inside quotation marks too", async ()
 });
 
 Deno.test("word-asset ensure does not file an exchange whose reply does not use the word", async () => {
-  // Nor one whose opening line already says it: both are no question.
+  // Nor one whose opening line already says it, bare or with something
+  // attached (القهوة, قهوتك): both are no question.
   for (const exchange of [
     anExchange({ ...reply, arabic: "ايه، عطني شاي لو سمحت", english: "Yes, give me tea please" }),
     anExchange(reply, { ...offer, arabic: "تبي قهوة؟", english: "Do you want coffee?" }),
+    anExchange(reply, { ...offer, arabic: "وين القهوة؟", english: "Where is the coffee?" }),
+    anExchange(reply, { ...offer, arabic: "تبي قهوتك الحين؟", english: "Do you want your coffee now?" }),
     { lines: [offer] },
   ]) {
     const table = assetTable();

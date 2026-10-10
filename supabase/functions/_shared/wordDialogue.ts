@@ -191,9 +191,10 @@ function asLine(value: unknown): StoredDialogueLine | null {
  * A stored exchange for `word`, or null when it is not one the quiz can ask:
  * fewer than two lines, a line with no Arabic or no English, a reply that does
  * not use the word, or an opening line that already says it (which would hand
- * the learner the answer before they choose or say it). Takes the payload as
- * the store keeps it (`{ lines }`) or the bare pair; anything past the second
- * line is not kept.
+ * the learner the answer before they choose or say it) in any form
+ * `wordUseCount` counts: "رحنا للسوق؟" says السوق. Takes the payload as the
+ * store keeps it (`{ lines }`) or the bare pair; anything past the second line
+ * is not kept.
  */
 export function asStoredDialogue(value: unknown, word: string): StoredDialogue | null {
   const raw = Array.isArray(value)
@@ -205,7 +206,7 @@ export function asStoredDialogue(value: unknown, word: string): StoredDialogue |
   const first = asLine(raw[0]);
   const reply = asLine(raw[1]);
   if (!first || !reply) return null;
-  if (!lineUsesWord(reply.arabic, word) || lineUsesWord(first.arabic, word)) return null;
+  if (!lineUsesWord(reply.arabic, word) || wordUseCount(first.arabic, word) !== 0) return null;
   return { lines: [first, reply] };
 }
 
@@ -215,7 +216,8 @@ export function dialogueProblem(value: unknown, word: string): string | null {
   return (
     `The output must be exactly two lines, each with Arabic and an English translation. ` +
     `The second line must contain the word ${word} exactly as written, as a whole word with ` +
-    `nothing attached to it; the first line must not contain it.`
+    `nothing attached to it; the first line must not contain it in any form (not with و, ب or ال ` +
+    `attached either).`
   );
 }
 
@@ -305,7 +307,7 @@ export function dialoguePrompt(input: {
   const example = promptSafe(input.example ?? "", MAX_EXAMPLE_LENGTH);
   return [
     `Write a two-line exchange in everyday spoken ${DIALECT_NAME[input.dialect]}, the way two people really talk.`,
-    `Line 1: one person says something natural (a question, an offer, a remark) that does not contain the word ${word}.`,
+    `Line 1: one person says something natural (a question, an offer, a remark) that does not contain the word ${word} in any form, not even with an article or other letters attached.`,
     `Line 2: the other person replies, and the reply uses the word ${word} (meaning "${sense}") in that meaning.`,
     `Write ${word} in the reply exactly as given, as a whole word on its own, with no article, pronoun or other letters attached to it.`,
     "Keep each line short: one sentence of at most ten words, something a learner could say aloud.",

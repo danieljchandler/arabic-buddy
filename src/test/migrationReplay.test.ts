@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { execFileSync } from "node:child_process";
 import { resolve } from "node:path";
+import { rungForMemory } from "@/lib/quizLadder";
 
 /**
  * Can the database be rebuilt from the migrations in this repo?
@@ -106,6 +107,64 @@ describe.skipIf(!DATABASE_URL)("migration replay", () => {
       `These migrations replay cleanly now. Remove them from ` +
         `KNOWN_REPLAY_FAILURES so the list keeps meaning something.`,
     ).toEqual([]);
+  });
+
+  /**
+   * The leaderboard's climbs (quiz Phase 7.4) are counted in SQL with the
+   * quiz ladder written out (`quiz_ladder_step`). The static check in
+   * leaderboardClimbs.test.ts holds its numbers to LADDER_THRESHOLDS; this
+   * runs it, on a grid of memory states either side of every threshold, and
+   * runs the count on a seeded week, inside a transaction that is rolled back.
+   */
+  const sql = (query: string) =>
+    execFileSync("psql", [DATABASE_URL!, "-v", "ON_ERROR_STOP=1", "-At", "-c", query], { encoding: "utf8" }).trim();
+
+  it("steps a memory state on the ladder exactly as rungForMemory does", () => {
+    const stabilities = [-1, 0, 0.5, 0.99, 1, 2, 3.99, 4, 7.99, 8, 12, 13.99, 14, 15.99, 16, 29.99, 30, 59.99, 60, 400];
+    const repetitions = [0, 1, 5];
+    const cases = (["recognition", "production"] as const).flatMap((direction) =>
+      repetitions.flatMap((reps) => stabilities.map((stability) => ({ direction, reps, stability }))),
+    );
+    const rows = sql(
+      `SELECT public.quiz_ladder_step(s, r, d) FROM (VALUES ${cases
+        .map((c) => `(${c.stability}::numeric, ${c.reps}, '${c.direction}')`)
+        .join(", ")}) AS t(s, r, d)`,
+    ).split("\n");
+    expect(rows.map(Number)).toEqual(
+      cases.map((c) => rungForMemory({ stability: c.stability, repetitions: c.reps }, c.direction).step),
+    );
+    // A stability that is missing or not finite reads as none, as it does in TypeScript.
+    expect(sql(`SELECT public.quiz_ladder_step(NULL, 3, 'recognition'), public.quiz_ladder_step('NaN', 3, 'production'), public.quiz_ladder_step('Infinity', 3, 'production')`)).toBe("1|7|7");
+  });
+
+  it("counts a week's climbs for learners on the board, and nothing else", () => {
+    const [a, b, c] = ["a1", "a2", "a3"].map((s) => `00000000-0000-4000-8000-0000000000${s}`);
+    const card = "00000000-0000-4000-8000-0000000000c1";
+    const log = (user: string, over: string) =>
+      `INSERT INTO public.review_log (user_id, deck, card_id, item_id, direction, rating, stability_before, stability_after, repetitions_after, reviewed_at) SELECT '${user}', ${over};`;
+    const out = sql(`
+      BEGIN;
+      INSERT INTO auth.users (id) VALUES ('${a}'), ('${b}'), ('${c}') ON CONFLICT DO NOTHING;
+      INSERT INTO public.profiles (user_id) VALUES ('${a}'), ('${b}'), ('${c}') ON CONFLICT (user_id) DO NOTHING;
+      UPDATE public.profiles SET show_on_leaderboard = (user_id <> '${c}') WHERE user_id IN ('${a}', '${b}', '${c}');
+      ${log(a, `'word', gen_random_uuid(), gen_random_uuid(), 'recognition', 'good', NULL, 3, 1, now()`)}
+      ${log(a, `'word', '${card}', gen_random_uuid(), 'recognition', 'good', 3, 5, 2, now()`)}
+      ${log(a, `'word', '${card}', gen_random_uuid(), 'recognition', 'good', 3, 5, 2, now()`)}
+      ${log(a, `'word', gen_random_uuid(), gen_random_uuid(), 'production', 'good', 12, 20, 3, now()`)}
+      ${log(a, `'word', gen_random_uuid(), gen_random_uuid(), 'recognition', 'good', 5, 7, 3, now()`)}
+      ${log(a, `'word', gen_random_uuid(), gen_random_uuid(), 'recognition', 'again', 20, 2, 4, now()`)}
+      ${log(a, `'word', gen_random_uuid(), gen_random_uuid(), 'recognition', NULL, 3, 1.2, 1, now()`)}
+      ${log(a, `'word', gen_random_uuid(), gen_random_uuid(), 'recognition', 'good', 3, 5, 2, date_trunc('week', now() AT TIME ZONE 'utc') AT TIME ZONE 'utc' - interval '1 second'`)}
+      ${log(a, `'word', gen_random_uuid(), gen_random_uuid(), 'recognition', 'good', 3, 5, 2, now() + interval '1 day'`)}
+      ${log(a, `'set_phrase', gen_random_uuid(), gen_random_uuid(), 'recognition', 'good', 3, 9, 2, now()`)}
+      ${log(c, `'word', gen_random_uuid(), gen_random_uuid(), 'recognition', 'good', 3, 5, 2, now()`)}
+      SELECT user_id || ':' || climbs_this_week FROM public.leaderboard_climbs(ARRAY['${a}', '${b}', '${c}']::uuid[]) ORDER BY user_id;
+      ROLLBACK;
+    `);
+    // a1: a first graduation, a step up (its card climbing twice today counts
+    // once), a production step up. Not a step held, a lapse, an unrated row,
+    // last week, a review stamped tomorrow, or a set phrase. a3 is off the board.
+    expect(out.split("\n").filter((line) => line.includes(":"))).toEqual([`${a}:3`, `${b}:0`]);
   });
 
   it("records the tables a rebuilt database would be missing", () => {

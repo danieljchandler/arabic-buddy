@@ -1076,39 +1076,67 @@ What shipped (writeup: README "Reviewing as a quiz instead of flashcards",
 ladder climbs on the leaderboard):
 
 - **Migration `20261010120000_leaderboard_climbs.sql`**:
-  `quiz_ladder_step(stability, repetitions, direction)` (the ladder in SQL)
-  and `leaderboard_climbs(_user_ids uuid[])`, a security-definer RPC that
-  counts this UTC week's climbs in `review_log` (deck `word`, lapses never)
-  for opted-in learners only, 100 a call. Replayed against Postgres 16 with
-  the rest (`migrationReplay.test.ts`), and checked there: the SQL step
-  agrees with `rungForMemory` on 110 memory states, and the function counts
-  a seeded week correctly (a first graduation, a step up, a production step
-  up; not a step held, a lapse, last week, a set phrase, or a learner off the
-  board).
-- **`src/lib/ladderClimbs.ts`**: `isLadderClimb` and `climbWeekStart`, the
-  rule in TypeScript; the in-memory backend's `leaderboard_climbs` uses it.
+  `quiz_ladder_step(stability, repetitions, direction)` (the ladder in SQL, an
+  inlinable expression) and `leaderboard_climbs(_user_ids uuid[])`, a
+  security-definer RPC that counts this UTC week's climbs in `review_log`
+  (deck `word`; Hard, Good or Easy only; never a review stamped in the future;
+  one per card, direction and day) for opted-in learners only, 100 a call.
+- **`src/lib/ladderClimbs.ts`**: `isLadderClimb`, `climbWeekStart` and
+  `countWeekClimbs`, the rule in TypeScript; the in-memory backend's
+  `leaderboard_climbs` uses it.
 - **`useLeaderboard`**: `readClimbs` (null on any failure),
-  `LeaderboardEntry.climbs_this_week` (the weekly board; null on the all-time
-  one and whenever the RPC is missing); the row shows "n climbs" under the XP.
-- Guards: `ladderClimbs.test.ts`, `leaderboardClimbs.test.ts` (the SQL's
-  thresholds held to `LADDER_THRESHOLDS`, and the rules the count rests on),
-  `useLeaderboard.test.ts`, `leaderboard.spec.ts` ("ladder climbs"); the RPC
-  passes `schemaContract`'s "every rpc() is defined by a migration".
+  `useLeaderboardClimbs` (a query of its own, so the board never waits) and
+  `climbsFor`; the weekly row shows "n climbs" under the XP, and the page's
+  hint says what it counts.
+- **`extractQueries`** (the contract inventory) sees a call through
+  parentheses and casts, so `schemaContract` now catches a renamed
+  `leaderboard_climbs` (and the other RPCs called through a cast).
+- Guards: `ladderClimbs.test.ts`; `leaderboardClimbs.test.ts` (the SQL's
+  thresholds held to `LADDER_THRESHOLDS`, and the rules the count rests on);
+  `migrationReplay.test.ts` (the SQL step against `rungForMemory` on 120
+  memory states, and the count on a seeded week, against Postgres in CI's
+  replay job); `useLeaderboard.test.ts`; `schemaContract.test.ts`;
+  `leaderboard.spec.ts` ("ladder climbs").
 
 **Decided in this item:**
 
 1. *Counted by the database from `review_log`, not posted by the client.* A
-   leaderboard number a learner can send themselves is worth nothing; the
-   log is trigger-written. The cost is coverage: My Words and My Phrases are
-   not in the log, so their climbs are not counted. Logging them is its own
-   migration.
+   climb comes from a schedule write, not a counter; and since a learner can
+   write their own schedule rows (as they can call `award_xp`), the count
+   bounds what that buys (see the migration). The cost is coverage: My Words
+   and My Phrases are not in the log, so their climbs are not counted.
+   Logging them is its own migration.
 2. *Every curriculum review counts, flashcard or quiz*: the step is read off
    memory, so a word climbs the same whichever way it was asked.
 3. *Beside XP, not instead*: the board still ranks by XP.
-4. *No zeros before the migration*: a missing RPC hides the climbs.
+4. *No zeros before the migration*: a missing RPC hides the climbs, and the
+   board never waits on them.
 5. *The step before is inferred*: the log keeps repetitions after a review
    only. One fewer is exact for every review but a lapse and a learning
-   card's Hard (which stays at 0, and is read so); lapses are left out.
+   card's Hard (which stays at 0, and is read so); lapses and unrated rows
+   are left out.
+6. *One climb per card, direction and day.* The session summary counts every
+   promotion, so a card that climbs twice in a day counts twice there and
+   once on the board; it is rare, and it is what keeps a row rewritten in a
+   loop from buying a climb per write.
+
+An independent review before the PR found no critical or high problems; its
+checks in Postgres agreed with the code. Four medium ones, fixed: the step
+function's `SET search_path` kept the planner from inlining it (5 s against
+0.3 s on 300k rows) and the board waited on the count (it now has its own
+query); climbs could be bought with future-stamped or looped schedule writes
+(the bounds above; the docs had claimed nobody could post themselves a
+number, which was too strong); `schemaContract` could not see the RPC call
+through its cast (the inventory now looks through casts); and the SQL's
+behaviour was not tested in CI (it is now, in the replay job). Low ones,
+fixed: unrated rows counted, a non-finite stability stepped differently in SQL
+and TypeScript, the docs called the week XP's (no migration resets
+`xp_this_week`; `weekly_goals` is what follows the UTC week), and the board's
+scope was only in a tooltip (it is in the page's hint now). Left as it is, and
+older than this phase, for the owner: nothing in the repo resets
+`user_xp.xp_this_week` (`award_xp` only adds to it), so unless a scheduled job
+on the live project does, "XP this week" is not this week's, while climbs
+are.
 
 ### 7b — owner action
 

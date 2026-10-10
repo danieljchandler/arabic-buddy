@@ -4,7 +4,9 @@ import { renderHookWithProviders, TEST_USER_ID } from "@/test/support/react/harn
 import { aProfile, aReviewLog, aUserXp } from "@/test/support/factories";
 import { useAuth } from "./useAuth";
 import {
+  climbsFor,
   useAllTimeLeaderboard,
+  useLeaderboardClimbs,
   useMyProfile,
   useMyRank,
   useUpdateProfile,
@@ -190,17 +192,35 @@ describe("ladder climbs on the weekly board", () => {
     ]);
   };
 
-  it("shows each learner's climbs this week beside their XP", async () => {
-    const { result } = render(() => useWeeklyLeaderboard(), seedClimbs);
+  const ON_BOARD = [RIVAL, TEST_USER_ID, THIRD];
 
-    await waitFor(() => expect(result.current.data).toHaveLength(3));
-    const climbs = Object.fromEntries(result.current.data!.map((row) => [row.display_name, row.climbs_this_week]));
+  it("reads each learner's climbs this week, for the board's learners", async () => {
+    const { result } = render(() => useLeaderboardClimbs(ON_BOARD), seedClimbs);
+
+    await waitFor(() => expect(result.current.data).toBeDefined());
+    const climbs = result.current.data!;
     // Third is on the public view but has not chosen the board in their
     // profile: the database answers nothing for them, which reads as none.
-    expect(climbs).toEqual({ Rival: 2, Me: 0, Third: 0 });
+    expect([RIVAL, TEST_USER_ID, THIRD].map((id) => climbsFor(climbs, id))).toEqual([2, 0, 0]);
   });
 
-  it("shows none at all while the database cannot count them", async () => {
+  it("reads none at all while the database cannot count them", async () => {
+    const { result } = render(
+      () => useLeaderboardClimbs(ON_BOARD),
+      (backend) => {
+        seedClimbs(backend);
+        backend.stubRpc("leaderboard_climbs", () => {
+          throw new Error("Could not find the function public.leaderboard_climbs");
+        });
+      },
+    );
+
+    await waitFor(() => expect(result.current.isFetched).toBe(true));
+    expect(result.current.data).toBeNull();
+    expect(climbsFor(result.current.data, RIVAL)).toBeNull();
+  });
+
+  it("is a query of its own: the board comes back whether or not climbs can be read", async () => {
     const { result } = render(
       () => useWeeklyLeaderboard(),
       (backend) => {
@@ -212,16 +232,22 @@ describe("ladder climbs on the weekly board", () => {
     );
 
     await waitFor(() => expect(result.current.data).toHaveLength(3));
-    expect(result.current.data!.map((row) => row.climbs_this_week)).toEqual([null, null, null]);
-    // The board itself is unaffected.
     expect(result.current.data!.map((row) => row.display_name)).toEqual(["Rival", "Third", "Me"]);
   });
 
-  it("is not on the all-time board", async () => {
-    const { result } = render(() => useAllTimeLeaderboard(), seedClimbs);
-
-    await waitFor(() => expect(result.current.data).toHaveLength(3));
-    expect(result.current.data!.every((row) => row.climbs_this_week === null)).toBe(true);
+  it("asks nothing for an empty board", async () => {
+    let asked = 0;
+    const { result } = render(
+      () => useLeaderboardClimbs([]),
+      (backend) => {
+        backend.stubRpc("leaderboard_climbs", () => {
+          asked += 1;
+          return [];
+        });
+      },
+    );
+    expect(result.current.fetchStatus).toBe("idle");
+    expect(asked).toBe(0);
   });
 });
 

@@ -23,15 +23,18 @@ export interface LoggedReview {
   repetitions_after: number | null;
 }
 
+/** The ratings a climb can come from: a lapse only lowers a card, and a row with no rating says too little. */
+const CLIMBING_RATINGS = new Set(["hard", "good", "easy"]);
+
 /**
  * Whether one logged review was a climb. The log keeps no repetitions before
  * the review; the scheduler adds one on every review but a lapse and a
  * learning card's Hard (which stays at 0), so it is `repetitions_after - 1`,
- * never below 0. A lapse is never a climb, since its stability only falls. A
- * first review (no stability before) was asked as a new card.
+ * never below 0. Only a Hard, Good or Easy counts. A first review (no
+ * stability before) was asked as a new card.
  */
 export function isLadderClimb(review: LoggedReview): boolean {
-  if (review.rating === "again") return false;
+  if (!review.rating || !CLIMBING_RATINGS.has(review.rating)) return false;
   const firstReview = review.stability_before == null;
   const before = rungForMemory(
     {
@@ -51,4 +54,32 @@ export function isLadderClimb(review: LoggedReview): boolean {
 export function climbWeekStart(now: Date): Date {
   const daysSinceMonday = (now.getUTCDay() + 6) % 7;
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - daysSinceMonday));
+}
+
+/** A logged review as the count reads it: which card, when, and what it did. */
+export interface LoggedCardReview extends LoggedReview {
+  card_id: string;
+  reviewed_at: string;
+}
+
+/** How far past now a review may be stamped and still count: a clock a little ahead. */
+const CLOCK_SKEW_MS = 60_000;
+const WEEK_MS = 7 * 86_400_000;
+
+/**
+ * One learner's climbs this week, as the database counts them: reviews from
+ * this week's Monday, never one stamped in the future, and at most one climb
+ * per card, direction and day — a schedule row the learner can write is
+ * bounded in what it can buy.
+ */
+export function countWeekClimbs(reviews: readonly LoggedCardReview[], now: Date): number {
+  const start = climbWeekStart(now).getTime();
+  const end = Math.min(start + WEEK_MS, now.getTime() + CLOCK_SKEW_MS);
+  const climbed = new Set<string>();
+  for (const review of reviews) {
+    const at = Date.parse(review.reviewed_at);
+    if (!(at >= start && at < end) || !isLadderClimb(review)) continue;
+    climbed.add(`${review.card_id}|${review.direction}|${new Date(at).toISOString().slice(0, 10)}`);
+  }
+  return climbed.size;
 }

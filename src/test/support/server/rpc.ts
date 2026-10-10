@@ -6,7 +6,7 @@ import {
   type ManagedRole,
 } from "../../../lib/rbac";
 import { isEmailIdentifier, normalizeIdentifier } from "../../../lib/roleGrants";
-import { climbWeekStart, isLadderClimb, type LoggedReview } from "../../../lib/ladderClimbs";
+import { countWeekClimbs, type LoggedCardReview } from "../../../lib/ladderClimbs";
 import type { MemoryDb } from "../postgrest/store";
 import type { Row } from "../postgrest/types";
 
@@ -253,22 +253,19 @@ export const defaultRpcs: Record<string, RpcHandler> = {
   leaderboard_climbs: ({ db, args }) => {
     const ids = (arg(args, "user_ids") as string[] | null) ?? [];
     if (ids.length > 100) throw new Error("At most 100 learners a call");
-    const since = climbWeekStart(new Date()).getTime();
+    const now = new Date();
     const onBoard = db
       .raw("profiles")
       .filter((profile) => ids.includes(profile.user_id as string) && profile.show_on_leaderboard === true)
       .map((profile) => profile.user_id as string);
     return [...new Set(onBoard)].map((userId) => ({
       user_id: userId,
-      climbs_this_week: db
-        .raw("review_log")
-        .filter(
-          (row) =>
-            row.user_id === userId &&
-            row.deck === "word" &&
-            Date.parse(String(row.reviewed_at)) >= since &&
-            isLadderClimb(row as unknown as LoggedReview),
-        ).length,
+      climbs_this_week: countWeekClimbs(
+        db
+          .raw("review_log")
+          .filter((row) => row.user_id === userId && row.deck === "word") as unknown as LoggedCardReview[],
+        now,
+      ),
     }));
   },
 

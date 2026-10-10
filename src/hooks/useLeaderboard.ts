@@ -9,13 +9,6 @@ export interface LeaderboardEntry {
   total_xp: number;
   level: number;
   xp_this_week: number;
-  /**
-   * Ladder climbs this week (quiz Phase 7.4): how many times one of their
-   * words moved up a step of the quiz ladder, counted by the database from
-   * the review log. Null when it cannot be read — the weekly board only, and
-   * not until the migration that counts them is on the live project.
-   */
-  climbs_this_week: number | null;
   rank: number;
   institution_name: string | null;
   institution_verified: boolean;
@@ -71,8 +64,7 @@ export async function readClimbs(userIds: string[]): Promise<Map<string, number>
 function buildEntries(
   xpData: any[],
   profiles: any[],
-  institutions: any[],
-  climbs: Map<string, number> | null = null,
+  institutions: any[]
 ): LeaderboardEntry[] {
   return xpData.map((xp, index) => {
     const profile = profiles.find((p: any) => p.user_id === xp.user_id);
@@ -86,7 +78,6 @@ function buildEntries(
       total_xp: xp.total_xp,
       level: xp.level,
       xp_this_week: xp.xp_this_week,
-      climbs_this_week: climbs ? (climbs.get(xp.user_id) ?? 0) : null,
       rank: index + 1,
       institution_name: inst?.name || profile?.custom_institution || null,
       institution_verified: inst?.verified || false,
@@ -122,13 +113,33 @@ export function useWeeklyLeaderboard(limit = 20) {
         .from("institutions" as any)
         .select("id, name, verified");
 
-      // Climbs beside the week's XP, for the learners on this page of it.
-      const climbs = await readClimbs((xpData || []).map((row) => row.user_id));
-
-      return buildEntries(xpData || [], (profiles as any[]) || [], institutions || [], climbs);
+      return buildEntries(xpData || [], (profiles as any[]) || [], institutions || []);
     },
     staleTime: 30 * 1000,
   });
+}
+
+/**
+ * Ladder climbs this week for the learners on the weekly board (quiz Phase
+ * 7.4), beside their XP: how many times one of their words moved up a step
+ * of the quiz ladder. A query of its own, so the board never waits on it; null
+ * while it loads and whenever it cannot be read, above all before the
+ * migration that counts them is on the live project — the board then shows
+ * XP alone, as before.
+ */
+export function useLeaderboardClimbs(userIds: string[]) {
+  return useQuery({
+    queryKey: ["leaderboard", "climbs", userIds],
+    queryFn: () => readClimbs(userIds),
+    enabled: userIds.length > 0,
+    staleTime: 30 * 1000,
+  });
+}
+
+/** A learner's climbs from what `useLeaderboardClimbs` read: none counted is 0; nothing read is null. */
+export function climbsFor(climbs: Map<string, number> | null | undefined, userId: string): number | null {
+  if (!climbs) return null;
+  return climbs.get(userId) ?? 0;
 }
 
 export function useAllTimeLeaderboard(limit = 20) {

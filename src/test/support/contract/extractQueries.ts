@@ -71,6 +71,21 @@ function walkFiles(dir: string, extensions: string[], out: string[] = []): strin
   return out;
 }
 
+/** An expression with any parentheses, `as` casts and `!` around it taken off. */
+function unwrap(node: ts.Expression): ts.Expression {
+  let current = node;
+  while (
+    ts.isParenthesizedExpression(current) ||
+    ts.isAsExpression(current) ||
+    ts.isTypeAssertionExpression(current) ||
+    ts.isNonNullExpression(current) ||
+    ts.isSatisfiesExpression(current)
+  ) {
+    current = current.expression;
+  }
+  return current;
+}
+
 /** Read a string literal or a template with no substitutions. */
 function literalText(node: ts.Node | undefined): string | undefined {
   if (!node) return undefined;
@@ -224,15 +239,19 @@ export function extractQueries(roots = ["src", "supabase/functions"]): QueryInve
     );
 
     const visit = (node: ts.Node) => {
-      if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression)) {
-        const method = node.expression.name.text;
+      // Seen through parentheses and casts: an RPC not yet in the generated
+      // types is called as `(supabase.rpc as unknown as Rpc)("name", ...)`, and
+      // a call the inventory cannot see is one a rename breaks silently.
+      const callee = ts.isCallExpression(node) ? unwrap(node.expression) : null;
+      if (ts.isCallExpression(node) && callee && ts.isPropertyAccessExpression(callee)) {
+        const method = callee.name.text;
         const name = literalText(node.arguments[0]);
 
         // `supabase.storage.from("bucket")` shares the method name with
         // `supabase.from("table")` but names a storage bucket, which is not a
         // table and has no columns. Without this the check reports every bucket
         // as a missing table.
-        const receiver = node.expression.expression;
+        const receiver = callee.expression;
         const isStorage =
           ts.isPropertyAccessExpression(receiver) && receiver.name.text === "storage";
 

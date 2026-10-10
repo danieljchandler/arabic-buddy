@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { climbWeekStart, isLadderClimb, type LoggedReview } from "./ladderClimbs";
+import { climbWeekStart, countWeekClimbs, isLadderClimb, type LoggedCardReview, type LoggedReview } from "./ladderClimbs";
 
 /**
  * Ladder climbs as the leaderboard counts them (quiz Phase 7.4), from what
@@ -43,6 +43,11 @@ describe("isLadderClimb", () => {
     expect(isLadderClimb(review({ rating: "again", stability_before: 20, stability_after: 2, repetitions_after: 4 }))).toBe(false);
   });
 
+  it("never counts a review with no rating: it says too little", () => {
+    // A lapse logged before ratings were recorded, read as one fewer repetition.
+    expect(isLadderClimb(review({ rating: null, stability_before: 3, stability_after: 1.2, repetitions_after: 1 }))).toBe(false);
+  });
+
   it("climbs the production steps on their own thresholds", () => {
     // Say it (under 14 days) → say the line.
     expect(isLadderClimb(review({ direction: "production", stability_before: 12, stability_after: 20, repetitions_after: 3 }))).toBe(true);
@@ -57,5 +62,43 @@ describe("climbWeekStart", () => {
     // A Monday is its own week's start; a Sunday is the end of the week before's.
     expect(climbWeekStart(new Date("2026-10-05T00:00:01Z")).toISOString()).toBe("2026-10-05T00:00:00.000Z");
     expect(climbWeekStart(new Date("2026-10-04T23:59:59Z")).toISOString()).toBe("2026-09-28T00:00:00.000Z");
+  });
+});
+
+describe("countWeekClimbs", () => {
+  // Saturday 10 October 2026; the week started Monday the 5th.
+  const NOW = new Date("2026-10-10T09:00:00Z");
+  const climb = (over: Partial<LoggedCardReview>): LoggedCardReview => ({
+    ...review({}),
+    card_id: "card-a",
+    reviewed_at: "2026-10-09T10:00:00Z",
+    ...over,
+  });
+
+  it("counts this week's climbs", () => {
+    expect(countWeekClimbs([climb({}), climb({ card_id: "card-b" })], NOW)).toBe(2);
+  });
+
+  it("leaves out last week, and a review stamped in the future", () => {
+    expect(countWeekClimbs([climb({ reviewed_at: "2026-10-04T23:59:59Z" })], NOW)).toBe(0);
+    expect(countWeekClimbs([climb({ reviewed_at: "2099-01-01T00:00:00Z" })], NOW)).toBe(0);
+    // A clock a few seconds ahead is still now.
+    expect(countWeekClimbs([climb({ reviewed_at: "2026-10-10T09:00:30Z" })], NOW)).toBe(1);
+  });
+
+  it("counts a card at most once a day in each direction", () => {
+    const sameDay = [climb({}), climb({ reviewed_at: "2026-10-09T18:00:00Z" })];
+    expect(countWeekClimbs(sameDay, NOW)).toBe(1);
+    expect(countWeekClimbs([...sameDay, climb({ reviewed_at: "2026-10-08T10:00:00Z" })], NOW)).toBe(2);
+    expect(
+      countWeekClimbs(
+        [...sameDay, climb({ direction: "production", stability_before: 12, stability_after: 20, repetitions_after: 3 })],
+        NOW,
+      ),
+    ).toBe(2);
+  });
+
+  it("counts nothing that is not a climb", () => {
+    expect(countWeekClimbs([climb({ rating: "again", stability_before: 20, stability_after: 2, repetitions_after: 4 })], NOW)).toBe(0);
   });
 });
